@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FileDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { FileDown, Lock, LockOpen } from "lucide-react";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput } from "@/lib/financing";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,11 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const [valorEntrada, setValorEntrada] = useState(0);
   const [plusPercentual, setPlusPercentual] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [desconto3Unlocked, setDesconto3Unlocked] = useState(false);
+  const [plusUnlocked, setPlusUnlocked] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
 
   const { settings } = useCompanySettings();
 
@@ -87,6 +93,29 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
     };
     return calculateSimulation(input);
   }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates]);
+
+  const requestUnlock = (field: "desconto3" | "plus") => {
+    if (!settings.manager_password) {
+      if (field === "desconto3") setDesconto3Unlocked(true);
+      else setPlusUnlocked(true);
+      return;
+    }
+    setPendingUnlock(field);
+    setPasswordInput("");
+    setPasswordDialogOpen(true);
+  };
+
+  const handlePasswordConfirm = () => {
+    if (passwordInput === settings.manager_password) {
+      if (pendingUnlock === "desconto3") setDesconto3Unlocked(true);
+      else if (pendingUnlock === "plus") setPlusUnlocked(true);
+      setPasswordDialogOpen(false);
+      toast.success("Acesso liberado!");
+    } else {
+      toast.error("Senha incorreta");
+    }
+    setPasswordInput("");
+  };
 
   const handleSave = async () => {
     if (!client) { toast.error("Selecione um cliente para salvar a simulação"); return; }
@@ -137,8 +166,18 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
                 <Input type="number" value={desconto2} onChange={(e) => setDesconto2(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
               </div>
               <div>
-                <Label>Desconto 3 (%)</Label>
-                <Input type="number" value={desconto3} onChange={(e) => setDesconto3(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                <Label className="flex items-center gap-1">
+                  Desconto 3 (%)
+                  {!desconto3Unlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  {desconto3Unlocked && <LockOpen className="h-3 w-3 text-success" />}
+                </Label>
+                {desconto3Unlocked ? (
+                  <Input type="number" value={desconto3} onChange={(e) => setDesconto3(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                ) : (
+                  <Button variant="outline" size="sm" className="mt-1 w-full gap-1 text-muted-foreground" onClick={() => requestUnlock("desconto3")}>
+                    <Lock className="h-3 w-3" />Desbloquear
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -204,8 +243,18 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
 
             {showPlus && (
               <div>
-                <Label>Plus (%)</Label>
-                <Input type="number" value={plusPercentual} onChange={(e) => setPlusPercentual(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                <Label className="flex items-center gap-1">
+                  Plus (%)
+                  {!plusUnlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  {plusUnlocked && <LockOpen className="h-3 w-3 text-success" />}
+                </Label>
+                {plusUnlocked ? (
+                  <Input type="number" value={plusPercentual} onChange={(e) => setPlusPercentual(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                ) : (
+                  <Button variant="outline" size="sm" className="mt-1 w-full gap-1 text-muted-foreground" onClick={() => requestUnlock("plus")}>
+                    <Lock className="h-3 w-3" />Desbloquear
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
@@ -257,6 +306,30 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" />Senha do Gerente</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label>Informe a senha para desbloquear</Label>
+            <Input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              className="mt-1"
+              placeholder="Senha"
+              onKeyDown={(e) => { if (e.key === "Enter") handlePasswordConfirm(); }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handlePasswordConfirm}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

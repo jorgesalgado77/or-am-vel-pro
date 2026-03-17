@@ -1,0 +1,1 @@
+ALTER TABLE public.company_settings ADD COLUMN manager_password text DEFAULT '';

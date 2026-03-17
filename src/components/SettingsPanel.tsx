@@ -35,6 +35,7 @@ function CompanySettingsTab() {
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [validityDays, setValidityDays] = useState(30);
+  const [managerPassword, setManagerPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -42,6 +43,7 @@ function CompanySettingsTab() {
     setName(settings.company_name);
     setSubtitle(settings.company_subtitle || "");
     setValidityDays(settings.budget_validity_days);
+    setManagerPassword(settings.manager_password || "");
   }, [settings]);
 
   const handleSave = async () => {
@@ -50,6 +52,7 @@ function CompanySettingsTab() {
       company_name: name,
       company_subtitle: subtitle,
       budget_validity_days: validityDays,
+      manager_password: managerPassword,
     }).eq("id", settings.id);
     setSaving(false);
     if (error) toast.error("Erro ao salvar");
@@ -88,6 +91,11 @@ function CompanySettingsTab() {
         <div>
           <Label>Validade do Orçamento (dias)</Label>
           <Input type="number" value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} min={1} className="mt-1 max-w-[200px]" />
+        </div>
+        <div>
+          <Label>Senha do Gerente</Label>
+          <p className="text-xs text-muted-foreground mb-1">Necessária para liberar Desconto 3 e Plus na simulação</p>
+          <Input type="password" value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} placeholder="Definir senha" className="mt-1 max-w-[300px]" />
         </div>
         <Separator />
         <div>
