@@ -45,7 +45,6 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
     if (!client.indicador_id) return null;
     return indicadores.find(i => i.id === client.indicador_id) || null;
   }, [client.indicador_id, indicadores]);
-  const [comparing, setComparing] = useState(false);
 
   const fetchSimulations = async () => {
     setLoading(true);
