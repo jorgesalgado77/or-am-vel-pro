@@ -130,7 +130,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
                 <Select value={watch("vendedor") || ""} onValueChange={(v) => setValue("vendedor", v)}>
                   <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
-                    {activeUsuarios.map((u) => (
+                    {projetistas.map((u) => (
                       <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
                         {u.apelido || u.nome_completo}
                       </SelectItem>
