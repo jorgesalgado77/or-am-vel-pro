@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { FileDown, Lock, LockOpen } from "lucide-react";
-import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput } from "@/lib/financing";
+import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData } from "@/lib/financing";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -27,6 +27,12 @@ const FORMAS_PAGAMENTO: { value: FormaPagamento; label: string }[] = [
   { value: "Entrada e Entrega", label: "Entrada e Entrega" },
 ];
 
+const CARENCIA_OPTIONS: { value: "30" | "60" | "90"; label: string }[] = [
+  { value: "30", label: "30 dias" },
+  { value: "60", label: "60 dias" },
+  { value: "90", label: "90 dias" },
+];
+
 interface SimulatorPanelProps {
   client?: Client | null;
   onBack?: () => void;
@@ -41,6 +47,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const [parcelas, setParcelas] = useState(1);
   const [valorEntrada, setValorEntrada] = useState(0);
   const [plusPercentual, setPlusPercentual] = useState(0);
+  const [carenciaDias, setCarenciaDias] = useState<30 | 60 | 90>(30);
   const [saving, setSaving] = useState(false);
   const [desconto3Unlocked, setDesconto3Unlocked] = useState(false);
   const [plusUnlocked, setPlusUnlocked] = useState(false);
@@ -67,6 +74,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
 
   const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(formaPagamento);
   const showPlus = ["A vista", "Pix"].includes(formaPagamento);
+  const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
 
   const currentBoletoRates = boletoRates.filter((r) => r.provider_name === selectedBoletoProvider);
   const currentCreditoRates = creditoRates.filter((r) => r.provider_name === selectedCreditoProvider);
@@ -78,7 +86,16 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
     : formaPagamento === "Credito" || formaPagamento === "Credito / Boleto" ? maxCreditoInstallments : 12;
 
   const boletoCoeffMap: Record<number, number> = {};
-  currentBoletoRates.forEach((r) => { boletoCoeffMap[r.installments] = Number(r.coefficient); });
+  const boletoRatesFullMap: Record<number, BoletoRateData> = {};
+  currentBoletoRates.forEach((r) => {
+    boletoCoeffMap[r.installments] = Number(r.coefficient);
+    boletoRatesFullMap[r.installments] = {
+      coefficient: Number(r.coefficient),
+      taxa_fixa: Number(r.taxa_fixa),
+      coeficiente_60: Number(r.coeficiente_60),
+      coeficiente_90: Number(r.coeficiente_90),
+    };
+  });
 
   const creditoCoeffMap: Record<number, number> = {};
   currentCreditoRates.forEach((r) => { creditoCoeffMap[r.installments] = Number(r.coefficient); });
@@ -89,16 +106,16 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
       formaPagamento, parcelas, valorEntrada, plusPercentual,
       creditRates: creditoCoeffMap,
       boletoRates: boletoCoeffMap,
+      boletoRatesFull: boletoRatesFullMap,
+      carenciaDias,
     };
     return calculateSimulation(input);
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates]);
+  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates, carenciaDias]);
 
   const requestUnlock = (field: "desconto3" | "plus") => {
-    // If user's cargo has permission, unlock directly
     if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
     if (field === "plus" && hasPermission("plus")) { setPlusUnlocked(true); return; }
 
-    // Desconto 3 requires manager password, Plus requires admin password
     const requiredPassword = field === "desconto3" ? settings.manager_password : settings.admin_password;
     if (!requiredPassword) {
       if (field === "desconto3") setDesconto3Unlocked(true);
@@ -206,7 +223,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
             {formaPagamento === "Boleto" && boletoProviders.length > 0 && (
               <div>
                 <Label>Financeira</Label>
-                <div className="flex gap-2 mt-1">
+                <div className="flex gap-2 mt-1 flex-wrap">
                   {boletoProviders.map((p) => (
                     <Button key={p} size="sm" variant={selectedBoletoProvider === p ? "default" : "outline"} onClick={() => { setSelectedBoletoProvider(p); setParcelas(1); }}>
                       {p}
@@ -219,13 +236,27 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
             {(formaPagamento === "Credito" || formaPagamento === "Credito / Boleto") && creditoProviders.length > 0 && (
               <div>
                 <Label>Operadora de Crédito</Label>
-                <div className="flex gap-2 mt-1">
+                <div className="flex gap-2 mt-1 flex-wrap">
                   {creditoProviders.map((p) => (
                     <Button key={p} size="sm" variant={selectedCreditoProvider === p ? "default" : "outline"} onClick={() => { setSelectedCreditoProvider(p); setParcelas(1); }}>
                       {p}
                     </Button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {showCarencia && (
+              <div>
+                <Label>Carência (dias)</Label>
+                <Select value={String(carenciaDias)} onValueChange={(v) => setCarenciaDias(Number(v) as 30 | 60 | 90)}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CARENCIA_OPTIONS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
@@ -278,6 +309,8 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
             <ResultRow label="Saldo" value={formatCurrency(result.saldo)} />
             {result.taxaCredito > 0 && <ResultRow label="Taxa de Crédito" value={formatPercent(result.taxaCredito * 100)} muted />}
             {result.taxaBoleto > 0 && <ResultRow label="Coeficiente Boleto" value={result.taxaBoleto.toFixed(6)} muted />}
+            {result.taxaFixaBoleto > 0 && <ResultRow label="Taxa Fixa Boleto" value={formatCurrency(result.taxaFixaBoleto)} muted />}
+            {showCarencia && <ResultRow label="Carência" value={`${carenciaDias} dias`} muted />}
             <Separator />
             <div className="bg-primary/5 -mx-6 px-6 py-4 rounded-md">
               <ResultRow label="Valor Final" value={formatCurrency(result.valorFinal)} highlight />
