@@ -17,6 +17,7 @@ import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useDiscountOptions } from "@/hooks/useDiscountOptions";
+import { useUsuarios } from "@/hooks/useUsuarios";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -72,6 +73,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { settings } = useCompanySettings();
   const { hasPermission } = useCurrentUser();
   const { getOptionsForField } = useDiscountOptions();
+  const { usuarios } = useUsuarios();
+  const activeUsuarios = usuarios.filter(u => u.ativo);
 
   const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
   const { rates: creditoRates, providers: creditoProviders } = useFinancingRates("credito");
@@ -563,8 +566,17 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                   </div>
                 </div>
                 <div>
-                  <Label>Vendedor</Label>
-                  <Input value={newClient.vendedor} onChange={(e) => setNewClient(p => ({ ...p, vendedor: e.target.value }))} className="mt-1" />
+                  <Label>Projetista Responsável</Label>
+                  <Select value={newClient.vendedor} onValueChange={(v) => setNewClient(p => ({ ...p, vendedor: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {activeUsuarios.map((u) => (
+                        <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
+                          {u.apelido || u.nome_completo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { maskCpfCnpj, maskPhone, unmask, isCnpj, validateCpfCnpj } from "@/lib/masks";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUsuarios } from "@/hooks/useUsuarios";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -38,6 +40,8 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
   });
+  const { usuarios } = useUsuarios();
+  const activeUsuarios = usuarios.filter(u => u.ativo);
 
   const cpfValue = watch("cpf") || "";
   const [cpfError, setCpfError] = useState("");
@@ -119,8 +123,17 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
                 {cpfError && <p className="text-xs text-destructive mt-1">{cpfError}</p>}
               </div>
               <div>
-                <Label htmlFor="vendedor">Vendedor Responsável</Label>
-                <Input id="vendedor" {...register("vendedor")} className="mt-1" />
+                <Label htmlFor="vendedor">Projetista Responsável</Label>
+                <Select value={watch("vendedor") || ""} onValueChange={(v) => setValue("vendedor", v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {activeUsuarios.map((u) => (
+                      <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
+                        {u.apelido || u.nome_completo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
