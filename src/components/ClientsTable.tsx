@@ -102,7 +102,7 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
 
       return true;
     });
-  }, [clients, search, filterProjetista, dateStart, dateEnd]);
+  }, [clients, search, filterProjetista, filterIndicador, dateStart, dateEnd]);
 
   const isExpired = (createdAt: string) => {
     const expiryDate = addDays(new Date(createdAt), settings.budget_validity_days);
