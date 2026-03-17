@@ -47,6 +47,11 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
   const { settings } = useCompanySettings();
   const { projetistas } = useUsuarios();
   const { indicadores } = useIndicadores();
+  const { currentUser } = useCurrentUser();
+
+  const cargoNome = currentUser?.cargo_nome?.toLowerCase() || "";
+  const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
+  const canDelete = !currentUser || cargoNome === "administrador";
 
   const indicadorMap = useMemo(() => {
     const map: Record<string, { nome: string; comissao: number }> = {};
