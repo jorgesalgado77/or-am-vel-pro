@@ -243,8 +243,18 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
 
             {showPlus && (
               <div>
-                <Label>Plus (%)</Label>
-                <Input type="number" value={plusPercentual} onChange={(e) => setPlusPercentual(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                <Label className="flex items-center gap-1">
+                  Plus (%)
+                  {!plusUnlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  {plusUnlocked && <LockOpen className="h-3 w-3 text-success" />}
+                </Label>
+                {plusUnlocked ? (
+                  <Input type="number" value={plusPercentual} onChange={(e) => setPlusPercentual(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                ) : (
+                  <Button variant="outline" size="sm" className="mt-1 w-full gap-1 text-muted-foreground" onClick={() => requestUnlock("plus")}>
+                    <Lock className="h-3 w-3" />Desbloquear
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
