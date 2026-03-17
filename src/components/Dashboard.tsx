@@ -6,10 +6,11 @@ import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle } from "lucide-
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
-import { addDays, isPast } from "date-fns";
+import { addDays, isPast, format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, LineChart, Line,
 } from "recharts";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -23,6 +24,7 @@ interface LastSimInfo {
 interface DashboardProps {
   clients: Client[];
   lastSims: Record<string, LastSimInfo>;
+  allSimulations?: { created_at: string; valor_final: number }[];
 }
 
 const CHART_COLORS = [
@@ -39,7 +41,7 @@ const CHART_COLORS = [
 const currencyFormatter = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
-export function Dashboard({ clients, lastSims }: DashboardProps) {
+export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardProps) {
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
 
@@ -93,6 +95,25 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
     };
   }, [clients, lastSims, settings.budget_validity_days, indicadores]);
 
+  // Line chart data: aggregate simulations by month
+  const lineData = useMemo(() => {
+    if (allSimulations.length === 0) return [];
+    const byMonth: Record<string, { count: number; total: number }> = {};
+    allSimulations.forEach(s => {
+      const key = format(parseISO(s.created_at), "yyyy-MM");
+      if (!byMonth[key]) byMonth[key] = { count: 0, total: 0 };
+      byMonth[key].count++;
+      byMonth[key].total += s.valor_final;
+    });
+    return Object.entries(byMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, data]) => ({
+        month: format(parseISO(month + "-01"), "MMM/yy", { locale: ptBR }),
+        orcamentos: data.count,
+        valor: data.total,
+      }));
+  }, [allSimulations]);
+
   const barData = stats.byProjetista.map(([name, data]) => ({
     name,
     valor: data.total,
@@ -106,7 +127,6 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
         value: data.count,
       }));
     }
-    // Fallback: pie by status
     return [
       { name: "Com Orçamento", value: stats.clientsWithSim },
       { name: "Sem Orçamento", value: stats.clientsWithoutSim },
@@ -125,9 +145,44 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
         <KpiCard icon={TrendingUp} label="Valor Total" value={formatCurrency(stats.totalValue)} accent />
       </div>
 
-      {/* Charts Row */}
+      {/* Line Chart - Evolução dos Orçamentos */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Evolução dos Orçamentos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {lineData.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma simulação registrada</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={lineData} margin={{ top: 8, right: 20, left: 8, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis yAxisId="valor" orientation="left" tickFormatter={currencyFormatter} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={95} />
+                <YAxis yAxisId="count" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={40} />
+                <Tooltip
+                  formatter={(value: number, name: string) => [
+                    name === "valor" ? currencyFormatter(value) : value,
+                    name === "valor" ? "Valor Total" : "Qtd. Orçamentos",
+                  ]}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: 13,
+                  }}
+                  labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                />
+                <Line yAxisId="valor" type="monotone" dataKey="valor" stroke="hsl(200, 70%, 50%)" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(200, 70%, 50%)" }} name="valor" />
+                <Line yAxisId="count" type="monotone" dataKey="orcamentos" stroke="hsl(160, 60%, 45%)" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3, fill: "hsl(160, 60%, 45%)" }} name="orcamentos" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bar + Pie Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Bar Chart - Valor por Projetista */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Valor por Projetista</CardTitle>
@@ -162,7 +217,6 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Pie Chart - Distribuição */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
@@ -209,7 +263,6 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
 
       {/* Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* By Projetista */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Detalhes por Projetista</CardTitle>
@@ -231,13 +284,9 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
                   {stats.byProjetista.map(([name, data]) => (
                     <TableRow key={name}>
                       <TableCell className="font-medium text-foreground">{name}</TableCell>
+                      <TableCell className="text-center"><Badge variant="secondary">{data.count}</Badge></TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="secondary">{data.count}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {data.expired > 0 ? (
-                          <Badge variant="destructive" className="text-xs">{data.expired}</Badge>
-                        ) : <span className="text-muted-foreground">0</span>}
+                        {data.expired > 0 ? <Badge variant="destructive" className="text-xs">{data.expired}</Badge> : <span className="text-muted-foreground">0</span>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
                     </TableRow>
@@ -248,7 +297,6 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
           </CardContent>
         </Card>
 
-        {/* By Indicador */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Detalhes por Indicador</CardTitle>
@@ -272,9 +320,7 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
                       <TableCell className="font-medium text-foreground">
                         {data.nome} <span className="text-muted-foreground text-xs">({data.comissao}%)</span>
                       </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="secondary">{data.count}</Badge>
-                      </TableCell>
+                      <TableCell className="text-center"><Badge variant="secondary">{data.count}</Badge></TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
                       <TableCell className="text-right tabular-nums font-medium text-primary">{formatCurrency(data.comissaoTotal)}</TableCell>
                     </TableRow>
