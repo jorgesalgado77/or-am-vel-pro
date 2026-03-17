@@ -45,6 +45,7 @@ export type Database = {
           descricao_ambientes: string | null
           email: string | null
           id: string
+          indicador_id: string | null
           nome: string
           quantidade_ambientes: number | null
           telefone1: string | null
@@ -58,6 +59,7 @@ export type Database = {
           descricao_ambientes?: string | null
           email?: string | null
           id?: string
+          indicador_id?: string | null
           nome: string
           quantidade_ambientes?: number | null
           telefone1?: string | null
@@ -71,6 +73,7 @@ export type Database = {
           descricao_ambientes?: string | null
           email?: string | null
           id?: string
+          indicador_id?: string | null
           nome?: string
           quantidade_ambientes?: number | null
           telefone1?: string | null
@@ -78,7 +81,15 @@ export type Database = {
           updated_at?: string
           vendedor?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_indicador_id_fkey"
+            columns: ["indicador_id"]
+            isOneToOne: false
+            referencedRelation: "indicadores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_settings: {
         Row: {
@@ -175,6 +186,33 @@ export type Database = {
           provider_name?: string
           provider_type?: string
           taxa_fixa?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      indicadores: {
+        Row: {
+          ativo: boolean
+          comissao_percentual: number
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          comissao_percentual?: number
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          comissao_percentual?: number
+          created_at?: string
+          id?: string
+          nome?: string
           updated_at?: string
         }
         Relationships: []
