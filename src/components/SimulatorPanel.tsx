@@ -77,6 +77,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { getOptionsForField } = useDiscountOptions();
   const { usuarios } = useUsuarios();
   const activeUsuarios = usuarios.filter(u => u.ativo);
+  const { activeIndicadores } = useIndicadores();
+
+  // Get the selected indicador's commission
+  const selectedIndicador = activeIndicadores.find(i => i.id === selectedIndicadorId);
+  const comissaoPercentual = selectedIndicador ? selectedIndicador.comissao_percentual : 0;
+  const valorTelaComComissao = valorTela * (1 + comissaoPercentual / 100);
 
   const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
   const { rates: creditoRates, providers: creditoProviders } = useFinancingRates("credito");
