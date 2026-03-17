@@ -205,6 +205,7 @@ export type Database = {
       usuarios: {
         Row: {
           apelido: string | null
+          ativo: boolean
           cargo_id: string | null
           created_at: string
           email: string | null
@@ -215,6 +216,7 @@ export type Database = {
         }
         Insert: {
           apelido?: string | null
+          ativo?: boolean
           cargo_id?: string | null
           created_at?: string
           email?: string | null
@@ -225,6 +227,7 @@ export type Database = {
         }
         Update: {
           apelido?: string | null
+          ativo?: boolean
           cargo_id?: string | null
           created_at?: string
           email?: string | null
