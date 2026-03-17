@@ -73,6 +73,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { settings } = useCompanySettings();
   const { hasPermission } = useCurrentUser();
   const { getOptionsForField } = useDiscountOptions();
+  const { usuarios } = useUsuarios();
+  const activeUsuarios = usuarios.filter(u => u.ativo);
 
   const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
   const { rates: creditoRates, providers: creditoProviders } = useFinancingRates("credito");
