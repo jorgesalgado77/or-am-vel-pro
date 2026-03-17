@@ -44,6 +44,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   });
   const { usuarios } = useUsuarios();
   const activeUsuarios = usuarios.filter(u => u.ativo);
+  const { activeIndicadores } = useIndicadores();
 
   const cpfValue = watch("cpf") || "";
   const [cpfError, setCpfError] = useState("");
