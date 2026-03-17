@@ -613,6 +613,20 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label>Indicador do Cliente</Label>
+                  <Select value={newClient.indicador_id || "_none"} onValueChange={(v) => setNewClient(p => ({ ...p, indicador_id: v === "_none" ? "" : v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Nenhum</SelectItem>
+                      {activeIndicadores.map((ind) => (
+                        <SelectItem key={ind.id} value={ind.id}>
+                          {ind.nome} ({ind.comissao_percentual}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Qtd. Ambientes</Label>
