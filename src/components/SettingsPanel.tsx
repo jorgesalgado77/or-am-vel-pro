@@ -15,6 +15,7 @@ import type { FinancingRate } from "@/hooks/useFinancingRates";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { CargosTab } from "@/components/settings/CargosTab";
 import { UsuariosTab } from "@/components/settings/UsuariosTab";
+import { DescontosTab } from "@/components/settings/DescontosTab";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
