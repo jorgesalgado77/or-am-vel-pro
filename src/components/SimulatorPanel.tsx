@@ -234,7 +234,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           vendedor: newClient.vendedor || null,
           quantidade_ambientes: newClient.quantidade_ambientes || 0,
           descricao_ambientes: newClient.descricao_ambientes || null,
-        })
+          indicador_id: newClient.indicador_id || null,
+        } as any)
         .select("id")
         .single();
 
