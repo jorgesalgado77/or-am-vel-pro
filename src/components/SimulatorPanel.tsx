@@ -49,6 +49,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
 
   const { settings } = useCompanySettings();
+  const { hasPermission } = useCurrentUser();
 
   // Load financing rates
   const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
