@@ -61,6 +61,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
         telefone2: client.telefone2 ? maskPhone(client.telefone2) : "",
         email: client.email || "",
         vendedor: client.vendedor || "",
+        indicador_id: (client as any).indicador_id || "",
       });
     } else {
       reset({
