@@ -160,7 +160,7 @@ export default function Index() {
           </div>
 
           {activeView === "dashboard" && (
-            <Dashboard clients={clients} lastSims={lastSims} />
+            <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} />
           )}
 
           {activeView === "clients" && (
