@@ -58,6 +58,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
 
   const { settings } = useCompanySettings();
   const { hasPermission } = useCurrentUser();
+  const { getOptionsForField } = useDiscountOptions();
 
   const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
   const { rates: creditoRates, providers: creditoProviders } = useFinancingRates("credito");
