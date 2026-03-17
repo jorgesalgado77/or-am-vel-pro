@@ -166,8 +166,18 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
                 <Input type="number" value={desconto2} onChange={(e) => setDesconto2(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
               </div>
               <div>
-                <Label>Desconto 3 (%)</Label>
-                <Input type="number" value={desconto3} onChange={(e) => setDesconto3(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                <Label className="flex items-center gap-1">
+                  Desconto 3 (%)
+                  {!desconto3Unlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  {desconto3Unlocked && <LockOpen className="h-3 w-3 text-success" />}
+                </Label>
+                {desconto3Unlocked ? (
+                  <Input type="number" value={desconto3} onChange={(e) => setDesconto3(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                ) : (
+                  <Button variant="outline" size="sm" className="mt-1 w-full gap-1 text-muted-foreground" onClick={() => requestUnlock("desconto3")}>
+                    <Lock className="h-3 w-3" />Desbloquear
+                  </Button>
+                )}
               </div>
             </div>
 
