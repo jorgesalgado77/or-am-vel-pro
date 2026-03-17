@@ -17,6 +17,10 @@ interface SimulationPdfData {
   clientEmail?: string;
   clientPhone?: string;
   vendedor?: string;
+  indicadorNome?: string;
+  indicadorComissao?: number;
+  indicadorTelefone?: string;
+  indicadorEmail?: string;
   companyName?: string;
   companySubtitle?: string;
   companyLogoUrl?: string;
