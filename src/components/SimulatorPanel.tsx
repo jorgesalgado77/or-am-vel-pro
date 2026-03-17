@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useDiscountOptions } from "@/hooks/useDiscountOptions";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
