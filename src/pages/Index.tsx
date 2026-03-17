@@ -6,6 +6,7 @@ import { SimulatorPanel } from "@/components/SimulatorPanel";
 import { SimulationHistory } from "@/components/SimulationHistory";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { UserSelector } from "@/components/UserSelector";
+import { Dashboard } from "@/components/Dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
