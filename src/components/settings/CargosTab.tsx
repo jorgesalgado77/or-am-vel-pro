@@ -83,9 +83,23 @@ export function CargosTab() {
           <Card key={cargo.id}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{cargo.nome}</CardTitle>
+                {editingName[cargo.id] !== undefined ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={editingName[cargo.id]}
+                      onChange={e => setEditingName(prev => ({ ...prev, [cargo.id]: e.target.value }))}
+                      className="h-8 w-48"
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => setEditingName(prev => { const n = { ...prev }; delete n[cargo.id]; return n; })}><X className="h-3 w-3" /></Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">{cargo.nome}</CardTitle>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingName(prev => ({ ...prev, [cargo.id]: cargo.nome }))}><Pencil className="h-3 w-3" /></Button>
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  {editPerms[cargo.id] && (
+                  {(editPerms[cargo.id] || editingName[cargo.id] !== undefined) && (
                     <Button size="sm" onClick={() => handleSave(cargo.id)} className="gap-1"><Save className="h-3 w-3" />Salvar</Button>
                   )}
                   <Button size="sm" variant="destructive" onClick={() => handleDelete(cargo.id, cargo.nome)} className="gap-1"><Trash2 className="h-3 w-3" />Excluir</Button>
