@@ -12,6 +12,7 @@ import { generateSimulationPdf } from "@/lib/generatePdf";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import type { Database } from "@/integrations/supabase/types";
 
