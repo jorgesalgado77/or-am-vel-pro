@@ -41,6 +41,11 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const [valorEntrada, setValorEntrada] = useState(0);
   const [plusPercentual, setPlusPercentual] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [desconto3Unlocked, setDesconto3Unlocked] = useState(false);
+  const [plusUnlocked, setPlusUnlocked] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
 
   const { settings } = useCompanySettings();
 
