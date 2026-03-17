@@ -38,6 +38,61 @@ export type Database = {
         }
         Relationships: []
       }
+      client_contracts: {
+        Row: {
+          client_id: string
+          conteudo_html: string
+          created_at: string
+          id: string
+          pdf_url: string | null
+          simulation_id: string | null
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          conteudo_html?: string
+          created_at?: string
+          id?: string
+          pdf_url?: string | null
+          simulation_id?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          conteudo_html?: string
+          created_at?: string
+          id?: string
+          pdf_url?: string | null
+          simulation_id?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contracts_simulation_id_fkey"
+            columns: ["simulation_id"]
+            isOneToOne: false
+            referencedRelation: "simulations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contracts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           cpf: string | null
@@ -132,6 +187,39 @@ export type Database = {
           logo_url?: string | null
           manager_password?: string | null
           orcamento_numero_inicial?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contract_templates: {
+        Row: {
+          arquivo_original_nome: string | null
+          arquivo_original_url: string | null
+          ativo: boolean
+          conteudo_html: string
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_original_nome?: string | null
+          arquivo_original_url?: string | null
+          ativo?: boolean
+          conteudo_html?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_original_nome?: string | null
+          arquivo_original_url?: string | null
+          ativo?: boolean
+          conteudo_html?: string
+          created_at?: string
+          id?: string
+          nome?: string
           updated_at?: string
         }
         Relationships: []
