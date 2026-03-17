@@ -326,6 +326,26 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
               )}
             </div>
 
+            <div>
+              <Label>Indicador do Cliente</Label>
+              <Select value={selectedIndicadorId || "_none"} onValueChange={(v) => setSelectedIndicadorId(v === "_none" ? "" : v)}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">Nenhum (0%)</SelectItem>
+                  {activeIndicadores.map((ind) => (
+                    <SelectItem key={ind.id} value={ind.id}>
+                      {ind.nome} ({ind.comissao_percentual}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {comissaoPercentual > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Acréscimo de {comissaoPercentual}%: {formatCurrency(valorTela)} → {formatCurrency(valorTelaComComissao)}
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-3 gap-3 items-end">
               <div>
                 <Label className="mb-1 block">Desconto 1 (%)</Label>
