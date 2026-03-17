@@ -310,7 +310,14 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
                   {plusUnlocked && <LockOpen className="h-3 w-3 text-success" />}
                 </Label>
                 {plusUnlocked ? (
-                  <Input type="number" value={plusPercentual} onChange={(e) => setPlusPercentual(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
+                  <Select value={String(plusPercentual)} onValueChange={(v) => setPlusPercentual(Number(v))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {getOptionsForField("plus").map((v) => (
+                        <SelectItem key={v} value={String(v)}>{v}%</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <Button variant="outline" size="sm" className="mt-1 w-full gap-1 text-muted-foreground" onClick={() => requestUnlock("plus")}>
                     <Lock className="h-3 w-3" />Desbloquear
