@@ -59,7 +59,7 @@ export default function Index() {
     setLastSims(map);
   };
 
-  useEffect(() => { fetchClients(); }, []);
+  useEffect(() => { fetchClients(); fetchLastSims(); }, []);
 
   // Redirect to allowed view when user changes
   useEffect(() => {
