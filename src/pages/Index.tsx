@@ -98,12 +98,16 @@ export default function Index() {
     ? "Clientes"
     : activeView === "history"
     ? "Histórico de Simulações"
+    : activeView === "settings"
+    ? "Configurações"
     : "Simulador de Financiamento";
 
   const currentSubtitle = activeView === "clients"
     ? `${clients.length} clientes cadastrados`
     : activeView === "history"
     ? "Compare diferentes cenários de financiamento"
+    : activeView === "settings"
+    ? "Gerencie empresa, financeiras e operadoras"
     : "Calcule descontos e condições de pagamento";
 
   return (
