@@ -7,6 +7,10 @@ export interface CurrentUser {
   nome_completo: string;
   apelido: string | null;
   cargo_id: string | null;
+  foto_url: string | null;
+  cargo_nome: string | null;
+  telefone: string | null;
+  email: string | null;
   permissoes: CargoPermissoes;
 }
 
@@ -33,13 +37,17 @@ export function useCurrentUserLoader() {
     if (!user) return;
 
     let permissoes = DEFAULT_PERMS;
+    let cargo_nome: string | null = null;
     if (user.cargo_id) {
       const { data: cargo } = await supabase
         .from("cargos")
-        .select("permissoes")
+        .select("nome, permissoes")
         .eq("id", user.cargo_id)
         .single();
-      if (cargo) permissoes = cargo.permissoes as unknown as CargoPermissoes;
+      if (cargo) {
+        permissoes = cargo.permissoes as unknown as CargoPermissoes;
+        cargo_nome = cargo.nome;
+      }
     }
 
     const cu: CurrentUser = {
@@ -47,6 +55,10 @@ export function useCurrentUserLoader() {
       nome_completo: user.nome_completo,
       apelido: user.apelido,
       cargo_id: user.cargo_id,
+      foto_url: (user as any).foto_url ?? null,
+      cargo_nome,
+      telefone: (user as any).telefone ?? null,
+      email: (user as any).email ?? null,
       permissoes,
     };
     setCurrentUser(cu);
