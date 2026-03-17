@@ -134,12 +134,14 @@ export default function Index() {
   const handleHistory = (client: Client) => { setHistoryClient(client); setSimulatingClient(null); setActiveView("history"); };
   const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); };
 
-  const currentTitle = activeView === "clients" ? "Clientes"
+  const currentTitle = activeView === "dashboard" ? "Dashboard"
+    : activeView === "clients" ? "Clientes"
     : activeView === "history" ? "Histórico de Simulações"
     : activeView === "settings" ? "Configurações"
     : "Simulador de Financiamento";
 
-  const currentSubtitle = activeView === "clients" ? `${clients.length} clientes cadastrados`
+  const currentSubtitle = activeView === "dashboard" ? "Visão geral do sistema"
+    : activeView === "clients" ? `${clients.length} clientes cadastrados`
     : activeView === "history" ? "Compare diferentes cenários de financiamento"
     : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
     : "Calcule descontos e condições de pagamento";
