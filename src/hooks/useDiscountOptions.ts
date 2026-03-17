@@ -1,0 +1,60 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+export interface DiscountOption {
+  id: string;
+  field_name: string;
+  percentages: number[];
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  desconto1: "Desconto 1",
+  desconto2: "Desconto 2",
+  desconto3: "Desconto 3",
+  plus: "Plus",
+};
+
+export function useDiscountOptions() {
+  const [options, setOptions] = useState<DiscountOption[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchOptions = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("discount_options")
+      .select("*")
+      .order("field_name");
+    setOptions((data as DiscountOption[]) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOptions();
+
+    const channel = supabase
+      .channel("discount_options_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "discount_options" }, () => {
+        fetchOptions();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const getOptionsForField = (fieldName: string): number[] => {
+    const opt = options.find((o) => o.field_name === fieldName);
+    return opt ? opt.percentages.map(Number).sort((a, b) => a - b) : [0];
+  };
+
+  const updateOptions = async (fieldName: string, percentages: number[]) => {
+    const sorted = [...percentages].sort((a, b) => a - b);
+    const { error } = await supabase
+      .from("discount_options")
+      .update({ percentages: sorted } as any)
+      .eq("field_name", fieldName);
+    if (!error) fetchOptions();
+    return error;
+  };
+
+  return { options, loading, getOptionsForField, updateOptions, refresh: fetchOptions, FIELD_LABELS };
+}

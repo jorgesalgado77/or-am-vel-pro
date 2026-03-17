@@ -116,6 +116,30 @@ export type Database = {
         }
         Relationships: []
       }
+      discount_options: {
+        Row: {
+          created_at: string
+          field_name: string
+          id: string
+          percentages: number[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_name: string
+          id?: string
+          percentages?: number[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_name?: string
+          id?: string
+          percentages?: number[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financing_rates: {
         Row: {
           coefficient: number
