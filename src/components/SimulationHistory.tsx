@@ -216,16 +216,56 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
 
 function SimulationCard({
   simulation,
+  clientName,
+  clientCpf,
+  clientEmail,
+  clientPhone,
+  vendedor,
   isSelected,
   onToggle,
   onDelete,
 }: {
   simulation: Simulation;
+  clientName: string;
+  clientCpf?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  vendedor?: string;
   isSelected: boolean;
   onToggle: () => void;
   onDelete: () => void;
 }) {
   const s = simulation;
+
+  const descontoTotalCalc = () => {
+    const after1 = Number(s.valor_tela) * (1 - (Number(s.desconto1) || 0) / 100);
+    const after2 = after1 * (1 - (Number(s.desconto2) || 0) / 100);
+    return after2 * (1 - (Number(s.desconto3) || 0) / 100);
+  };
+
+  const handlePdf = () => {
+    generateSimulationPdf({
+      clientName,
+      clientCpf,
+      clientEmail,
+      clientPhone,
+      vendedor,
+      valorTela: Number(s.valor_tela),
+      desconto1: Number(s.desconto1) || 0,
+      desconto2: Number(s.desconto2) || 0,
+      desconto3: Number(s.desconto3) || 0,
+      valorComDesconto: descontoTotalCalc(),
+      formaPagamento: s.forma_pagamento,
+      parcelas: s.parcelas || 1,
+      valorEntrada: Number(s.valor_entrada) || 0,
+      plusPercentual: Number(s.plus_percentual) || 0,
+      taxaCredito: 0,
+      saldo: descontoTotalCalc() - (Number(s.valor_entrada) || 0),
+      valorFinal: Number(s.valor_final) || 0,
+      valorParcela: Number(s.valor_parcela) || 0,
+      date: s.created_at,
+    });
+  };
   return (
     <div
       className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${
