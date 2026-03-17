@@ -204,24 +204,33 @@ export type Database = {
           ativo: boolean
           comissao_percentual: number
           created_at: string
+          email: string | null
+          foto_url: string | null
           id: string
           nome: string
+          telefone: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
           comissao_percentual?: number
           created_at?: string
+          email?: string | null
+          foto_url?: string | null
           id?: string
           nome: string
+          telefone?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
           comissao_percentual?: number
           created_at?: string
+          email?: string | null
+          foto_url?: string | null
           id?: string
           nome?: string
+          telefone?: string | null
           updated_at?: string
         }
         Relationships: []
