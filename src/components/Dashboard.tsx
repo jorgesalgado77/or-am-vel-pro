@@ -7,6 +7,10 @@ import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { addDays, isPast } from "date-fns";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from "recharts";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -20,6 +24,20 @@ interface DashboardProps {
   clients: Client[];
   lastSims: Record<string, LastSimInfo>;
 }
+
+const CHART_COLORS = [
+  "hsl(200, 70%, 50%)",
+  "hsl(160, 60%, 45%)",
+  "hsl(30, 80%, 55%)",
+  "hsl(340, 65%, 50%)",
+  "hsl(260, 60%, 55%)",
+  "hsl(80, 55%, 45%)",
+  "hsl(10, 70%, 50%)",
+  "hsl(190, 65%, 48%)",
+];
+
+const currencyFormatter = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
 export function Dashboard({ clients, lastSims }: DashboardProps) {
   const { settings } = useCompanySettings();
@@ -38,7 +56,6 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
 
     const totalValue = Object.values(lastSims).reduce((sum, s) => sum + s.valor_final, 0);
 
-    // Stats by projetista
     const byProjetista: Record<string, { count: number; total: number; expired: number }> = {};
     clients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
@@ -53,7 +70,6 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
       }
     });
 
-    // Stats by indicador
     const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number }> = {};
     clients.forEach(c => {
       if (!c.indicador_id) return;
@@ -77,6 +93,27 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
     };
   }, [clients, lastSims, settings.budget_validity_days, indicadores]);
 
+  const barData = stats.byProjetista.map(([name, data]) => ({
+    name,
+    valor: data.total,
+    clientes: data.count,
+  }));
+
+  const pieData = useMemo(() => {
+    if (stats.byIndicador.length > 0) {
+      return stats.byIndicador.map(([, data]) => ({
+        name: data.nome,
+        value: data.count,
+      }));
+    }
+    // Fallback: pie by status
+    return [
+      { name: "Com Orçamento", value: stats.clientsWithSim },
+      { name: "Sem Orçamento", value: stats.clientsWithoutSim },
+      ...(stats.expired > 0 ? [{ name: "Expirados", value: stats.expired }] : []),
+    ].filter(d => d.value > 0);
+  }, [stats]);
+
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
@@ -88,11 +125,94 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
         <KpiCard icon={TrendingUp} label="Valor Total" value={formatCurrency(stats.totalValue)} accent />
       </div>
 
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Bar Chart - Valor por Projetista */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Valor por Projetista</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {barData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={barData} margin={{ top: 8, right: 12, left: 8, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis tickFormatter={currencyFormatter} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={90} />
+                  <Tooltip
+                    formatter={(value: number) => [currencyFormatter(value), "Valor"]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: 13,
+                    }}
+                    labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                  />
+                  <Bar dataKey="valor" radius={[6, 6, 0, 0]} maxBarSize={56}>
+                    {barData.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pie Chart - Distribuição */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              {stats.byIndicador.length > 0 ? "Clientes por Indicador" : "Status dos Clientes"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {pieData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={85}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    labelLine={false}
+                    style={{ fontSize: 11 }}
+                  >
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => [value, "Clientes"]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: 13,
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* By Projetista */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Clientes por Projetista</CardTitle>
+            <CardTitle className="text-base">Detalhes por Projetista</CardTitle>
           </CardHeader>
           <CardContent>
             {stats.byProjetista.length === 0 ? (
@@ -131,7 +251,7 @@ export function Dashboard({ clients, lastSims }: DashboardProps) {
         {/* By Indicador */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Clientes por Indicador</CardTitle>
+            <CardTitle className="text-base">Detalhes por Indicador</CardTitle>
           </CardHeader>
           <CardContent>
             {stats.byIndicador.length === 0 ? (
