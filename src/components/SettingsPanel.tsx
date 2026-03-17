@@ -33,6 +33,7 @@ export function SettingsPanel() {
           <TabsTrigger value="indicadores" className="gap-2"><UserCheck className="h-4 w-4" />Indicadores</TabsTrigger>
           <TabsTrigger value="boleto" className="gap-2"><FileText className="h-4 w-4" />Financeiras (Boleto)</TabsTrigger>
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
+          <TabsTrigger value="contratos" className="gap-2"><FileSignature className="h-4 w-4" />Contratos</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanySettingsTab /></TabsContent>
         <TabsContent value="cargos"><CargosTab /></TabsContent>
@@ -41,6 +42,7 @@ export function SettingsPanel() {
         <TabsContent value="indicadores"><IndicadoresTab /></TabsContent>
         <TabsContent value="boleto"><BoletoRatesTab /></TabsContent>
         <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
+        <TabsContent value="contratos"><ContratosTab /></TabsContent>
       </Tabs>
     </div>
   );
