@@ -75,8 +75,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { settings } = useCompanySettings();
   const { hasPermission } = useCurrentUser();
   const { getOptionsForField } = useDiscountOptions();
-  const { usuarios } = useUsuarios();
-  const activeUsuarios = usuarios.filter(u => u.ativo);
+  const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();
 
   // Get the selected indicador's commission
@@ -223,6 +222,19 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         return;
       }
       setSaving(true);
+
+      // Generate orçamento number
+      const { data: maxData } = await supabase.from("clients").select("numero_orcamento_seq").order("numero_orcamento_seq", { ascending: false }).limit(1).single() as any;
+      let nextSeq: number;
+      if (!maxData?.numero_orcamento_seq) {
+        const { data: settingsData } = await supabase.from("company_settings").select("orcamento_numero_inicial").limit(1).single() as any;
+        nextSeq = settingsData?.orcamento_numero_inicial || 1;
+      } else {
+        nextSeq = (maxData.numero_orcamento_seq as number) + 1;
+      }
+      const padded = String(nextSeq).padStart(9, "0");
+      const numeroOrcamento = `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}`;
+
       const { data: created, error: clientError } = await supabase
         .from("clients")
         .insert({
@@ -235,6 +247,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           quantidade_ambientes: newClient.quantidade_ambientes || 0,
           descricao_ambientes: newClient.descricao_ambientes || null,
           indicador_id: newClient.indicador_id || null,
+          numero_orcamento: numeroOrcamento,
+          numero_orcamento_seq: nextSeq,
         } as any)
         .select("id")
         .single();
@@ -605,7 +619,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                   <Select value={newClient.vendedor} onValueChange={(v) => setNewClient(p => ({ ...p, vendedor: v }))}>
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                     <SelectContent>
-                      {activeUsuarios.map((u) => (
+                      {projetistas.map((u) => (
                         <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
                           {u.apelido || u.nome_completo}
                         </SelectItem>

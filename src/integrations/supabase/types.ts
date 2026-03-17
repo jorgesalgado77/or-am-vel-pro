@@ -47,6 +47,8 @@ export type Database = {
           id: string
           indicador_id: string | null
           nome: string
+          numero_orcamento: string | null
+          numero_orcamento_seq: number | null
           quantidade_ambientes: number | null
           telefone1: string | null
           telefone2: string | null
@@ -61,6 +63,8 @@ export type Database = {
           id?: string
           indicador_id?: string | null
           nome: string
+          numero_orcamento?: string | null
+          numero_orcamento_seq?: number | null
           quantidade_ambientes?: number | null
           telefone1?: string | null
           telefone2?: string | null
@@ -75,6 +79,8 @@ export type Database = {
           id?: string
           indicador_id?: string | null
           nome?: string
+          numero_orcamento?: string | null
+          numero_orcamento_seq?: number | null
           quantidade_ambientes?: number | null
           telefone1?: string | null
           telefone2?: string | null
@@ -101,6 +107,7 @@ export type Database = {
           id: string
           logo_url: string | null
           manager_password: string | null
+          orcamento_numero_inicial: number
           updated_at: string
         }
         Insert: {
@@ -112,6 +119,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           manager_password?: string | null
+          orcamento_numero_inicial?: number
           updated_at?: string
         }
         Update: {
@@ -123,6 +131,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           manager_password?: string | null
+          orcamento_numero_inicial?: number
           updated_at?: string
         }
         Relationships: []
@@ -334,7 +343,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_next_orcamento_number: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never

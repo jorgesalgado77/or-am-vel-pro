@@ -58,6 +58,7 @@ function CompanySettingsTab() {
   const [showAdminPw, setShowAdminPw] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [orcamentoInicial, setOrcamentoInicial] = useState(1);
 
   useEffect(() => {
     setName(settings.company_name);
@@ -67,6 +68,7 @@ function CompanySettingsTab() {
     setConfirmManagerPassword(settings.manager_password || "");
     setAdminPassword(settings.admin_password || "");
     setConfirmAdminPassword(settings.admin_password || "");
+    setOrcamentoInicial(settings.orcamento_numero_inicial || 1);
   }, [settings]);
 
   const handleSave = async () => {
@@ -83,6 +85,7 @@ function CompanySettingsTab() {
       budget_validity_days: validityDays,
       manager_password: managerPassword,
       admin_password: adminPassword,
+      orcamento_numero_inicial: orcamentoInicial,
     } as any).eq("id", settings.id);
     setSaving(false);
     if (error) toast.error("Erro ao salvar");
@@ -112,9 +115,16 @@ function CompanySettingsTab() {
           <div><Label>Nome da Empresa</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
           <div><Label>Subtítulo</Label><Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" /></div>
         </div>
-        <div>
-          <Label>Validade do Orçamento (dias)</Label>
-          <Input type="number" value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} min={1} className="mt-1 max-w-[200px]" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Validade do Orçamento (dias)</Label>
+            <Input type="number" value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} min={1} className="mt-1" />
+          </div>
+          <div>
+            <Label>Número Inicial do Orçamento</Label>
+            <p className="text-xs text-muted-foreground mb-1">Sequência começa a partir deste número (formato: 999.999.999)</p>
+            <Input type="number" value={orcamentoInicial} onChange={(e) => setOrcamentoInicial(Number(e.target.value))} min={1} className="mt-1" />
+          </div>
         </div>
         <Separator />
         <div>

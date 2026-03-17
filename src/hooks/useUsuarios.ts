@@ -8,6 +8,7 @@ export interface Usuario {
   telefone: string | null;
   email: string | null;
   cargo_id: string | null;
+  cargo_nome?: string;
   foto_url: string | null;
   ativo: boolean;
   created_at: string;
@@ -18,12 +19,25 @@ export function useUsuarios() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data } = await supabase.from("usuarios").select("*").order("nome_completo");
-    if (data) setUsuarios(data as Usuario[]);
+    const { data } = await supabase
+      .from("usuarios")
+      .select("*, cargos(nome)")
+      .order("nome_completo");
+    if (data) {
+      setUsuarios(data.map((u: any) => ({
+        ...u,
+        cargo_nome: u.cargos?.nome || null,
+      })) as Usuario[]);
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { usuarios, loading, refresh };
+  // Filter only active users with cargo "PROJETISTA" (case-insensitive)
+  const projetistas = usuarios.filter(
+    u => u.ativo && u.cargo_nome && u.cargo_nome.toLowerCase() === "projetista"
+  );
+
+  return { usuarios, projetistas, loading, refresh };
 }
