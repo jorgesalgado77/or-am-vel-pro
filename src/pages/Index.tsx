@@ -25,6 +25,7 @@ export default function Index() {
 
   const [activeView, setActiveView] = useState("dashboard");
   const [lastSims, setLastSims] = useState<Record<string, { valor_final: number; created_at: string }>>({});
+  const [allSimulations, setAllSimulations] = useState<{ created_at: string; valor_final: number }[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -51,12 +52,15 @@ export default function Index() {
       .order("created_at", { ascending: false });
     if (!data) return;
     const map: Record<string, { valor_final: number; created_at: string }> = {};
+    const allSims: { created_at: string; valor_final: number }[] = [];
     data.forEach((s) => {
+      allSims.push({ created_at: s.created_at, valor_final: Number(s.valor_final) || 0 });
       if (!map[s.client_id]) {
         map[s.client_id] = { valor_final: Number(s.valor_final) || 0, created_at: s.created_at };
       }
     });
     setLastSims(map);
+    setAllSimulations(allSims);
   };
 
   useEffect(() => { fetchClients(); fetchLastSims(); }, []);
@@ -160,7 +164,7 @@ export default function Index() {
           </div>
 
           {activeView === "dashboard" && (
-            <Dashboard clients={clients} lastSims={lastSims} />
+            <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} />
           )}
 
           {activeView === "clients" && (
