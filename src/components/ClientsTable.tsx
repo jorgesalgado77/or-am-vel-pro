@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil, Trash2, Plus, Search, Calculator } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Calculator, History } from "lucide-react";
 import { useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -14,9 +14,10 @@ interface ClientsTableProps {
   onDelete: (id: string) => void;
   onAdd: () => void;
   onSimulate: (client: Client) => void;
+  onHistory: (client: Client) => void;
 }
 
-export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate }: ClientsTableProps) {
+export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory }: ClientsTableProps) {
   const [search, setSearch] = useState("");
 
   const filtered = clients.filter((c) => {
@@ -59,7 +60,7 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
               <TableHead className="font-medium">Email</TableHead>
               <TableHead className="font-medium">Ambientes</TableHead>
               <TableHead className="font-medium">Vendedor</TableHead>
-              <TableHead className="font-medium w-[120px]">Ações</TableHead>
+              <TableHead className="font-medium w-[150px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -88,6 +89,9 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onSimulate(client)} title="Simular">
                         <Calculator className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onHistory(client)} title="Histórico">
+                        <History className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(client)} title="Editar">
                         <Pencil className="h-4 w-4" />
