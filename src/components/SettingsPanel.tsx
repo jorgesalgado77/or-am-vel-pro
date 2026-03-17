@@ -19,12 +19,16 @@ export function SettingsPanel() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" />Empresa</TabsTrigger>
+          <TabsTrigger value="cargos" className="gap-2"><Shield className="h-4 w-4" />Cargos</TabsTrigger>
+          <TabsTrigger value="usuarios" className="gap-2"><Users className="h-4 w-4" />Usuários</TabsTrigger>
           <TabsTrigger value="boleto" className="gap-2"><FileText className="h-4 w-4" />Financeiras (Boleto)</TabsTrigger>
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanySettingsTab /></TabsContent>
+        <TabsContent value="cargos"><CargosTab /></TabsContent>
+        <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
         <TabsContent value="boleto"><RatesTab type="boleto" title="Financeiras de Boleto" maxInstallments={24} /></TabsContent>
         <TabsContent value="credito"><RatesTab type="credito" title="Operadoras de Crédito" maxInstallments={12} /></TabsContent>
       </Tabs>
