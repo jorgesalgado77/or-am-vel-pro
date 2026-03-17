@@ -35,6 +35,7 @@ function CompanySettingsTab() {
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [validityDays, setValidityDays] = useState(30);
+  const [managerPassword, setManagerPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -42,6 +43,7 @@ function CompanySettingsTab() {
     setName(settings.company_name);
     setSubtitle(settings.company_subtitle || "");
     setValidityDays(settings.budget_validity_days);
+    setManagerPassword(settings.manager_password || "");
   }, [settings]);
 
   const handleSave = async () => {
@@ -50,6 +52,7 @@ function CompanySettingsTab() {
       company_name: name,
       company_subtitle: subtitle,
       budget_validity_days: validityDays,
+      manager_password: managerPassword,
     }).eq("id", settings.id);
     setSaving(false);
     if (error) toast.error("Erro ao salvar");
