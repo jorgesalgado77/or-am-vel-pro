@@ -6,23 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save, Upload, Building2, CreditCard, FileText } from "lucide-react";
+import { Plus, Trash2, Save, Upload, Building2, CreditCard, FileText, Users, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import type { FinancingRate } from "@/hooks/useFinancingRates";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
+import { CargosTab } from "@/components/settings/CargosTab";
+import { UsuariosTab } from "@/components/settings/UsuariosTab";
 
 export function SettingsPanel() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" />Empresa</TabsTrigger>
+          <TabsTrigger value="cargos" className="gap-2"><Shield className="h-4 w-4" />Cargos</TabsTrigger>
+          <TabsTrigger value="usuarios" className="gap-2"><Users className="h-4 w-4" />Usuários</TabsTrigger>
           <TabsTrigger value="boleto" className="gap-2"><FileText className="h-4 w-4" />Financeiras (Boleto)</TabsTrigger>
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanySettingsTab /></TabsContent>
+        <TabsContent value="cargos"><CargosTab /></TabsContent>
+        <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
         <TabsContent value="boleto"><RatesTab type="boleto" title="Financeiras de Boleto" maxInstallments={24} /></TabsContent>
         <TabsContent value="credito"><RatesTab type="credito" title="Operadoras de Crédito" maxInstallments={12} /></TabsContent>
       </Tabs>

@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      cargos: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          permissoes: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          permissoes?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          permissoes?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           cpf: string | null
@@ -174,6 +198,47 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usuarios: {
+        Row: {
+          apelido: string | null
+          cargo_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          nome_completo: string
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          apelido?: string | null
+          cargo_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome_completo: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          apelido?: string | null
+          cargo_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome_completo?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuarios_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
             referencedColumns: ["id"]
           },
         ]
