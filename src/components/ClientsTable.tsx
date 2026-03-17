@@ -90,6 +90,9 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
       // Filter by projetista
       if (filterProjetista && c.vendedor !== filterProjetista) return false;
 
+      // Filter by indicador
+      if (filterIndicador && c.indicador_id !== filterIndicador) return false;
+
       // Filter by date range
       if (dateStart || dateEnd) {
         const clientDate = new Date(c.created_at);
