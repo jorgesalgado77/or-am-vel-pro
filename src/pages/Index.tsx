@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ClientsTable } from "@/components/ClientsTable";
 import { ClientDrawer } from "@/components/ClientDrawer";
 import { SimulatorPanel } from "@/components/SimulatorPanel";
+import { SimulationHistory } from "@/components/SimulationHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -16,6 +17,7 @@ export default function Index() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
+  const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [saving, setSaving] = useState(false);
 
   const fetchClients = async () => {
@@ -75,23 +77,42 @@ export default function Index() {
 
   const handleSimulate = (client: Client) => {
     setSimulatingClient(client);
+    setHistoryClient(null);
     setActiveView("simulator");
   };
 
+  const handleHistory = (client: Client) => {
+    setHistoryClient(client);
+    setSimulatingClient(null);
+    setActiveView("history");
+  };
+
+  const handleViewChange = (v: string) => {
+    setActiveView(v);
+    setSimulatingClient(null);
+    setHistoryClient(null);
+  };
+
+  const currentTitle = activeView === "clients"
+    ? "Clientes"
+    : activeView === "history"
+    ? "Histórico de Simulações"
+    : "Simulador de Financiamento";
+
+  const currentSubtitle = activeView === "clients"
+    ? `${clients.length} clientes cadastrados`
+    : activeView === "history"
+    ? "Compare diferentes cenários de financiamento"
+    : "Calcule descontos e condições de pagamento";
+
   return (
     <div className="flex min-h-screen bg-background">
-      <AppSidebar activeView={activeView} onViewChange={(v) => { setActiveView(v); setSimulatingClient(null); }} />
+      <AppSidebar activeView={activeView} onViewChange={handleViewChange} />
 
       <main className="flex-1 ml-60 p-6">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-foreground">
-            {activeView === "clients" ? "Clientes" : "Simulador de Financiamento"}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {activeView === "clients"
-              ? `${clients.length} clientes cadastrados`
-              : "Calcule descontos e condições de pagamento"}
-          </p>
+          <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+          <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
         </div>
 
         {activeView === "clients" && (
@@ -102,6 +123,7 @@ export default function Index() {
             onDelete={handleDelete}
             onAdd={handleAdd}
             onSimulate={handleSimulate}
+            onHistory={handleHistory}
           />
         )}
 
@@ -109,6 +131,13 @@ export default function Index() {
           <SimulatorPanel
             client={simulatingClient}
             onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
+          />
+        )}
+
+        {activeView === "history" && historyClient && (
+          <SimulationHistory
+            client={historyClient}
+            onBack={() => { setActiveView("clients"); setHistoryClient(null); }}
           />
         )}
 
