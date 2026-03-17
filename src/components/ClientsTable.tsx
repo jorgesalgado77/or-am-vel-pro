@@ -195,6 +195,7 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
               <TableHead className="font-medium">Projetista</TableHead>
               <TableHead className="font-medium">Último Orçamento</TableHead>
               <TableHead className="font-medium">Validade</TableHead>
+              <TableHead className="font-medium">Indicador</TableHead>
               <TableHead className="font-medium w-[150px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
