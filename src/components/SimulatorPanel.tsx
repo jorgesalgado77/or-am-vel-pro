@@ -75,8 +75,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { settings } = useCompanySettings();
   const { hasPermission } = useCurrentUser();
   const { getOptionsForField } = useDiscountOptions();
-  const { usuarios } = useUsuarios();
-  const activeUsuarios = usuarios.filter(u => u.ativo);
+  const { projetistas } = useUsuarios();
+  const { activeIndicadores } = useIndicadores();
   const { activeIndicadores } = useIndicadores();
 
   // Get the selected indicador's commission
