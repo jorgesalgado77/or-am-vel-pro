@@ -174,7 +174,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
                 {desconto3Unlocked ? (
                   <Input type="number" value={desconto3} onChange={(e) => setDesconto3(Number(e.target.value))} min={0} max={100} step={0.5} className="mt-1" />
                 ) : (
-                  <Button variant="outline" size="sm" className="mt-1 w-full gap-1 text-muted-foreground" onClick={() => requestUnlock("desconto3")}>
+                  <Button variant="outline" size="sm" className="mt-1 w-full h-10 gap-1 text-muted-foreground" onClick={() => requestUnlock("desconto3")}>
                     <Lock className="h-3 w-3" />Desbloquear
                   </Button>
                 )}

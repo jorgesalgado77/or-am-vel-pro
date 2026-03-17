@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +43,8 @@ function CompanySettingsTab() {
   const [subtitle, setSubtitle] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [managerPassword, setManagerPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -50,9 +53,14 @@ function CompanySettingsTab() {
     setSubtitle(settings.company_subtitle || "");
     setValidityDays(settings.budget_validity_days);
     setManagerPassword(settings.manager_password || "");
+    setConfirmPassword(settings.manager_password || "");
   }, [settings]);
 
   const handleSave = async () => {
+    if (managerPassword && managerPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.from("company_settings").update({
       company_name: name,
@@ -101,7 +109,20 @@ function CompanySettingsTab() {
         <div>
           <Label>Senha do Gerente</Label>
           <p className="text-xs text-muted-foreground mb-1">Necessária para liberar Desconto 3 e Plus na simulação</p>
-          <Input type="password" value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} placeholder="Definir senha" className="mt-1 max-w-[300px]" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1 max-w-[600px]">
+            <div className="relative">
+              <Input type={showPassword ? "text" : "password"} value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} placeholder="Definir senha" className="pr-10" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <div className="relative">
+              <Input type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar senha" className="pr-10" />
+              {managerPassword && confirmPassword && managerPassword !== confirmPassword && (
+                <p className="text-xs text-destructive mt-1">As senhas não coincidem</p>
+              )}
+            </div>
+          </div>
         </div>
         <Separator />
         <div>
