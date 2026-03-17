@@ -109,7 +109,7 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
     return isPast(expiryDate);
   };
 
-  const hasActiveFilters = filterProjetista || dateStart || dateEnd;
+  const hasActiveFilters = filterProjetista || filterIndicador || dateStart || dateEnd;
 
   const clearFilters = () => {
     setFilterProjetista("");
