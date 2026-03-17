@@ -25,6 +25,7 @@ export default function Index() {
 
   const [activeView, setActiveView] = useState("dashboard");
   const [lastSims, setLastSims] = useState<Record<string, { valor_final: number; created_at: string }>>({});
+  const [allSimulations, setAllSimulations] = useState<{ created_at: string; valor_final: number }[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
