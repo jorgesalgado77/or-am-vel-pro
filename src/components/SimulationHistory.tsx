@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Trash2, GitCompareArrows } from "lucide-react";
+import { ArrowLeft, Trash2, GitCompareArrows, FileDown } from "lucide-react";
+import { generateSimulationPdf } from "@/lib/generatePdf";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/financing";
@@ -195,6 +196,11 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
                 <SimulationCard
                   key={sim.id}
                   simulation={sim}
+                  clientName={client.nome}
+                  clientCpf={client.cpf || undefined}
+                  clientEmail={client.email || undefined}
+                  clientPhone={client.telefone1 || undefined}
+                  vendedor={client.vendedor || undefined}
                   isSelected={selected.has(sim.id)}
                   onToggle={() => toggleSelect(sim.id)}
                   onDelete={() => handleDelete(sim.id)}
@@ -210,16 +216,56 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
 
 function SimulationCard({
   simulation,
+  clientName,
+  clientCpf,
+  clientEmail,
+  clientPhone,
+  vendedor,
   isSelected,
   onToggle,
   onDelete,
 }: {
   simulation: Simulation;
+  clientName: string;
+  clientCpf?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  vendedor?: string;
   isSelected: boolean;
   onToggle: () => void;
   onDelete: () => void;
 }) {
   const s = simulation;
+
+  const descontoTotalCalc = () => {
+    const after1 = Number(s.valor_tela) * (1 - (Number(s.desconto1) || 0) / 100);
+    const after2 = after1 * (1 - (Number(s.desconto2) || 0) / 100);
+    return after2 * (1 - (Number(s.desconto3) || 0) / 100);
+  };
+
+  const handlePdf = () => {
+    generateSimulationPdf({
+      clientName,
+      clientCpf,
+      clientEmail,
+      clientPhone,
+      vendedor,
+      valorTela: Number(s.valor_tela),
+      desconto1: Number(s.desconto1) || 0,
+      desconto2: Number(s.desconto2) || 0,
+      desconto3: Number(s.desconto3) || 0,
+      valorComDesconto: descontoTotalCalc(),
+      formaPagamento: s.forma_pagamento,
+      parcelas: s.parcelas || 1,
+      valorEntrada: Number(s.valor_entrada) || 0,
+      plusPercentual: Number(s.plus_percentual) || 0,
+      taxaCredito: 0,
+      saldo: descontoTotalCalc() - (Number(s.valor_entrada) || 0),
+      valorFinal: Number(s.valor_final) || 0,
+      valorParcela: Number(s.valor_parcela) || 0,
+      date: s.created_at,
+    });
+  };
   return (
     <div
       className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${
@@ -247,9 +293,14 @@ function SimulationCard({
           </p>
         </div>
       </div>
-      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary" onClick={handlePdf} title="Gerar PDF">
+          <FileDown className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete} title="Excluir">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
