@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { FileDown, Lock, LockOpen, Upload } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X } from "lucide-react";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData } from "@/lib/financing";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,9 +38,10 @@ const CARENCIA_OPTIONS: { value: "30" | "60" | "90"; label: string }[] = [
 interface SimulatorPanelProps {
   client?: Client | null;
   onBack?: () => void;
+  onClientCreated?: () => void;
 }
 
-export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
+export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPanelProps) {
   const [valorTela, setValorTela] = useState(10000);
   const [desconto1, setDesconto1] = useState(0);
   const [desconto2, setDesconto2] = useState(0);
@@ -55,6 +57,16 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
+
+  // Imported file state
+  const [importedFile, setImportedFile] = useState<File | null>(null);
+
+  // New client form state (when no client is provided)
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [newClient, setNewClient] = useState({
+    nome: "", cpf: "", telefone1: "", telefone2: "", email: "",
+    vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "",
+  });
 
   const { settings } = useCompanySettings();
   const { hasPermission } = useCurrentUser();
@@ -142,11 +154,102 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
     setPasswordInput("");
   };
 
+  const handleFileImport = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".txt,.xml";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setImportedFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const content = ev.target?.result as string;
+        if (!content) return;
+        let total: number | null = null;
+
+        if (file.name.toLowerCase().endsWith(".xml")) {
+          const match = content.match(/<(?:Total|ValorTotal|TOTAL|valor_total)[^>]*>\s*([\d.,]+)\s*</i);
+          if (match) total = parseFloat(match[1].replace(/\./g, "").replace(",", "."));
+        } else {
+          const match = content.match(/Total\s*=\s*([\d.,]+)/i);
+          if (match) total = parseFloat(match[1].replace(",", "."));
+        }
+
+        if (total && !isNaN(total)) {
+          setValorTela(total);
+          toast.success(`Valor de tela importado: ${formatCurrency(total)}`);
+        } else {
+          toast.error("Não foi possível encontrar o valor total no arquivo");
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const uploadFile = async (file: File, clientId: string): Promise<{ url: string; nome: string } | null> => {
+    const ext = file.name.split(".").pop() || "txt";
+    const path = `projetos/${clientId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("company-assets").upload(path, file);
+    if (error) { console.error("Upload error:", error); return null; }
+    const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
+    return { url: urlData.publicUrl, nome: file.name };
+  };
+
   const handleSave = async () => {
-    if (!client) { toast.error("Selecione um cliente para salvar a simulação"); return; }
-    setSaving(true);
+    let clientId = client?.id;
+
+    // If no client, create one first
+    if (!clientId) {
+      if (!showClientForm) {
+        setShowClientForm(true);
+        return;
+      }
+      if (!newClient.nome.trim()) {
+        toast.error("Nome do cliente é obrigatório");
+        return;
+      }
+      setSaving(true);
+      const { data: created, error: clientError } = await supabase
+        .from("clients")
+        .insert({
+          nome: newClient.nome.trim(),
+          cpf: newClient.cpf || null,
+          telefone1: newClient.telefone1 || null,
+          telefone2: newClient.telefone2 || null,
+          email: newClient.email || null,
+          vendedor: newClient.vendedor || null,
+          quantidade_ambientes: newClient.quantidade_ambientes || 0,
+          descricao_ambientes: newClient.descricao_ambientes || null,
+        })
+        .select("id")
+        .single();
+
+      if (clientError || !created) {
+        toast.error("Erro ao cadastrar cliente");
+        setSaving(false);
+        return;
+      }
+      clientId = created.id;
+      onClientCreated?.();
+    } else {
+      setSaving(true);
+    }
+
+    // Upload file if exists
+    let arquivoUrl: string | null = null;
+    let arquivoNome: string | null = null;
+    if (importedFile) {
+      const uploaded = await uploadFile(importedFile, clientId);
+      if (uploaded) {
+        arquivoUrl = uploaded.url;
+        arquivoNome = uploaded.nome;
+      }
+    }
+
     const { error } = await supabase.from("simulations").insert({
-      client_id: client.id,
+      client_id: clientId,
       valor_tela: valorTela,
       desconto1, desconto2, desconto3,
       forma_pagamento: formaPagamento,
@@ -155,10 +258,18 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
       plus_percentual: plusPercentual,
       valor_final: result.valorFinal,
       valor_parcela: result.valorParcela,
-    });
+      arquivo_url: arquivoUrl,
+      arquivo_nome: arquivoNome,
+    } as any);
     setSaving(false);
     if (error) toast.error("Erro ao salvar simulação");
-    else toast.success("Simulação salva com sucesso!");
+    else {
+      toast.success("Simulação salva com sucesso!");
+      if (!client) {
+        setShowClientForm(false);
+        setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "" });
+      }
+    }
   };
 
   const passwordDialogTitle = pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
@@ -187,44 +298,20 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
                   size="icon"
                   className="shrink-0"
                   title="Importar arquivo TXT ou XML"
-                  onClick={() => {
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = ".txt,.xml";
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
-                        const content = ev.target?.result as string;
-                        if (!content) return;
-                        let total: number | null = null;
-
-                        if (file.name.toLowerCase().endsWith(".xml")) {
-                          // Try to find <Total> or <ValorTotal> tag
-                          const match = content.match(/<(?:Total|ValorTotal|TOTAL|valor_total)[^>]*>\s*([\d.,]+)\s*</i);
-                          if (match) total = parseFloat(match[1].replace(/\./g, "").replace(",", "."));
-                        } else {
-                          // TXT: find "Total =" line
-                          const match = content.match(/Total\s*=\s*([\d.,]+)/i);
-                          if (match) total = parseFloat(match[1].replace(",", "."));
-                        }
-
-                        if (total && !isNaN(total)) {
-                          setValorTela(total);
-                          toast.success(`Valor de tela importado: ${formatCurrency(total)}`);
-                        } else {
-                          toast.error("Não foi possível encontrar o valor total no arquivo");
-                        }
-                      };
-                      reader.readAsText(file);
-                    };
-                    input.click();
-                  }}
+                  onClick={handleFileImport}
                 >
                   <Upload className="h-4 w-4" />
                 </Button>
               </div>
+              {importedFile && (
+                <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                  <FileText className="h-3 w-3 shrink-0" />
+                  <span className="truncate flex-1">{importedFile.name}</span>
+                  <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={() => setImportedFile(null)}>
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-3 items-end">
@@ -372,53 +459,115 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <ResultRow label="Valor de Tela" value={formatCurrency(valorTela)} />
-            <ResultRow label="Desconto Total" value={formatCurrency(valorTela - result.valorComDesconto)} muted />
-            <ResultRow label="Valor com Desconto" value={formatCurrency(result.valorComDesconto)} />
-            <Separator />
-            <ResultRow label="Entrada" value={formatCurrency(valorEntrada)} />
-            <ResultRow label="Saldo" value={formatCurrency(result.saldo)} />
-            {result.taxaCredito > 0 && <ResultRow label="Taxa de Crédito" value={formatPercent(result.taxaCredito * 100)} muted />}
-            {result.taxaBoleto > 0 && <ResultRow label="Coeficiente Boleto" value={result.taxaBoleto.toFixed(6)} muted />}
-            {result.taxaFixaBoleto > 0 && <ResultRow label="Taxa Fixa Boleto" value={formatCurrency(result.taxaFixaBoleto)} muted />}
-            {showCarencia && <ResultRow label="Carência" value={`${carenciaDias} dias`} muted />}
-            <Separator />
-            <div className="bg-primary/5 -mx-6 px-6 py-4 rounded-md">
-              <ResultRow label="Valor Final" value={formatCurrency(result.valorFinal)} highlight />
-              {showParcelas && <ResultRow label={`Parcela (${parcelas}x)`} value={formatCurrency(result.valorParcela)} highlight />}
-            </div>
-
-            {client && (
-              <div className="flex gap-3 mt-4">
-                <Button onClick={handleSave} disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground">
-                  {saving ? "Salvando..." : "Salvar Simulação"}
-                </Button>
-                <Button variant="outline" className="gap-2" onClick={() =>
-                  generateSimulationPdf({
-                    clientName: client.nome,
-                    clientCpf: client.cpf || undefined,
-                    clientEmail: client.email || undefined,
-                    clientPhone: client.telefone1 || undefined,
-                    vendedor: client.vendedor || undefined,
-                    companyName: settings.company_name,
-                    companySubtitle: settings.company_subtitle || undefined,
-                    companyLogoUrl: settings.logo_url || undefined,
-                    valorTela, desconto1, desconto2, desconto3,
-                    valorComDesconto: result.valorComDesconto,
-                    formaPagamento, parcelas, valorEntrada, plusPercentual,
-                    taxaCredito: result.taxaCredito,
-                    saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
-                  })
-                }>
-                  <FileDown className="h-4 w-4" />PDF
-                </Button>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <ResultRow label="Valor de Tela" value={formatCurrency(valorTela)} />
+              <ResultRow label="Desconto Total" value={formatCurrency(valorTela - result.valorComDesconto)} muted />
+              <ResultRow label="Valor com Desconto" value={formatCurrency(result.valorComDesconto)} />
+              <Separator />
+              <ResultRow label="Entrada" value={formatCurrency(valorEntrada)} />
+              <ResultRow label="Saldo" value={formatCurrency(result.saldo)} />
+              {result.taxaCredito > 0 && <ResultRow label="Taxa de Crédito" value={formatPercent(result.taxaCredito * 100)} muted />}
+              {result.taxaBoleto > 0 && <ResultRow label="Coeficiente Boleto" value={result.taxaBoleto.toFixed(6)} muted />}
+              {result.taxaFixaBoleto > 0 && <ResultRow label="Taxa Fixa Boleto" value={formatCurrency(result.taxaFixaBoleto)} muted />}
+              {showCarencia && <ResultRow label="Carência" value={`${carenciaDias} dias`} muted />}
+              <Separator />
+              <div className="bg-primary/5 -mx-6 px-6 py-4 rounded-md">
+                <ResultRow label="Valor Final" value={formatCurrency(result.valorFinal)} highlight />
+                {showParcelas && <ResultRow label={`Parcela (${parcelas}x)`} value={formatCurrency(result.valorParcela)} highlight />}
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              <div className="flex gap-3 mt-4">
+                <Button onClick={handleSave} disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground gap-2">
+                  <Save className="h-4 w-4" />
+                  {saving ? "Salvando..." : client ? "Salvar Simulação" : "Salvar Simulação"}
+                </Button>
+                {client && (
+                  <Button variant="outline" className="gap-2" onClick={() =>
+                    generateSimulationPdf({
+                      clientName: client.nome,
+                      clientCpf: client.cpf || undefined,
+                      clientEmail: client.email || undefined,
+                      clientPhone: client.telefone1 || undefined,
+                      vendedor: client.vendedor || undefined,
+                      companyName: settings.company_name,
+                      companySubtitle: settings.company_subtitle || undefined,
+                      companyLogoUrl: settings.logo_url || undefined,
+                      valorTela, desconto1, desconto2, desconto3,
+                      valorComDesconto: result.valorComDesconto,
+                      formaPagamento, parcelas, valorEntrada, plusPercentual,
+                      taxaCredito: result.taxaCredito,
+                      saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
+                    })
+                  }>
+                    <FileDown className="h-4 w-4" />PDF
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Client creation form - shown when saving without a client */}
+          {!client && showClientForm && (
+            <Card className="border-primary/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Cadastrar Cliente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label>Nome *</Label>
+                  <Input value={newClient.nome} onChange={(e) => setNewClient(p => ({ ...p, nome: e.target.value }))} className="mt-1" placeholder="Nome completo" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>CPF</Label>
+                    <Input value={newClient.cpf} onChange={(e) => setNewClient(p => ({ ...p, cpf: e.target.value }))} className="mt-1" placeholder="000.000.000-00" />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input type="email" value={newClient.email} onChange={(e) => setNewClient(p => ({ ...p, email: e.target.value }))} className="mt-1" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Telefone 1</Label>
+                    <Input value={newClient.telefone1} onChange={(e) => setNewClient(p => ({ ...p, telefone1: e.target.value }))} className="mt-1" placeholder="(00) 00000-0000" />
+                  </div>
+                  <div>
+                    <Label>Telefone 2</Label>
+                    <Input value={newClient.telefone2} onChange={(e) => setNewClient(p => ({ ...p, telefone2: e.target.value }))} className="mt-1" placeholder="(00) 00000-0000" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Vendedor</Label>
+                  <Input value={newClient.vendedor} onChange={(e) => setNewClient(p => ({ ...p, vendedor: e.target.value }))} className="mt-1" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Qtd. Ambientes</Label>
+                    <Input type="number" min={0} value={newClient.quantidade_ambientes} onChange={(e) => setNewClient(p => ({ ...p, quantidade_ambientes: Number(e.target.value) }))} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Descrição</Label>
+                    <Input value={newClient.descricao_ambientes} onChange={(e) => setNewClient(p => ({ ...p, descricao_ambientes: e.target.value }))} className="mt-1" placeholder="Ex: Cozinha, Quarto..." />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowClientForm(false)}>Cancelar</Button>
+                  <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-success-foreground gap-1" onClick={handleSave} disabled={saving}>
+                    <Save className="h-3 w-3" />
+                    {saving ? "Salvando..." : "Cadastrar e Salvar"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
