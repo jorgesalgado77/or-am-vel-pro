@@ -604,7 +604,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                   <Select value={newClient.vendedor} onValueChange={(v) => setNewClient(p => ({ ...p, vendedor: v }))}>
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                     <SelectContent>
-                      {activeUsuarios.map((u) => (
+                      {projetistas.map((u) => (
                         <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
                           {u.apelido || u.nome_completo}
                         </SelectItem>
