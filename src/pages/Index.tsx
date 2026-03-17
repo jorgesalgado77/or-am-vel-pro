@@ -1,16 +1,125 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useEffect } from "react";
+import { AppSidebar } from "@/components/AppSidebar";
+import { ClientsTable } from "@/components/ClientsTable";
+import { ClientDrawer } from "@/components/ClientDrawer";
+import { SimulatorPanel } from "@/components/SimulatorPanel";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+type Client = Database["public"]["Tables"]["clients"]["Row"];
+
+export default function Index() {
+  const [activeView, setActiveView] = useState("clients");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const fetchClients = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("clients")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error("Erro ao carregar clientes");
+    } else {
+      setClients(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const handleSaveClient = async (data: Record<string, unknown>) => {
+    setSaving(true);
+    if (editingClient) {
+      const { error } = await supabase.from("clients").update(data).eq("id", editingClient.id);
+      if (error) toast.error("Erro ao atualizar cliente");
+      else toast.success("Cliente atualizado!");
+    } else {
+      const { error } = await supabase.from("clients").insert(data as Database["public"]["Tables"]["clients"]["Insert"]);
+      if (error) toast.error("Erro ao criar cliente");
+      else toast.success("Cliente criado!");
+    }
+    setSaving(false);
+    setDrawerOpen(false);
+    setEditingClient(null);
+    fetchClients();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+    if (error) toast.error("Erro ao excluir cliente");
+    else {
+      toast.success("Cliente excluído");
+      fetchClients();
+    }
+  };
+
+  const handleEdit = (client: Client) => {
+    setEditingClient(client);
+    setDrawerOpen(true);
+  };
+
+  const handleAdd = () => {
+    setEditingClient(null);
+    setDrawerOpen(true);
+  };
+
+  const handleSimulate = (client: Client) => {
+    setSimulatingClient(client);
+    setActiveView("simulator");
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="flex min-h-screen bg-background">
+      <AppSidebar activeView={activeView} onViewChange={(v) => { setActiveView(v); setSimulatingClient(null); }} />
+
+      <main className="flex-1 ml-60 p-6">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-foreground">
+            {activeView === "clients" ? "Clientes" : "Simulador de Financiamento"}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {activeView === "clients"
+              ? `${clients.length} clientes cadastrados`
+              : "Calcule descontos e condições de pagamento"}
+          </p>
+        </div>
+
+        {activeView === "clients" && (
+          <ClientsTable
+            clients={clients}
+            loading={loading}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onAdd={handleAdd}
+            onSimulate={handleSimulate}
+          />
+        )}
+
+        {activeView === "simulator" && (
+          <SimulatorPanel
+            client={simulatingClient}
+            onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
+          />
+        )}
+
+        <ClientDrawer
+          open={drawerOpen}
+          onClose={() => { setDrawerOpen(false); setEditingClient(null); }}
+          onSave={handleSaveClient}
+          client={editingClient}
+          saving={saving}
+        />
+      </main>
     </div>
   );
-};
-
-const Index = PlaceholderIndex;
-
-export default Index;
+}
