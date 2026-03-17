@@ -181,6 +181,8 @@ export type Database = {
       }
       simulations: {
         Row: {
+          arquivo_nome: string | null
+          arquivo_url: string | null
           client_id: string
           created_at: string
           desconto1: number | null
@@ -197,6 +199,8 @@ export type Database = {
           valor_tela: number
         }
         Insert: {
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
           client_id: string
           created_at?: string
           desconto1?: number | null
@@ -213,6 +217,8 @@ export type Database = {
           valor_tela?: number
         }
         Update: {
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
           client_id?: string
           created_at?: string
           desconto1?: number | null

@@ -120,7 +120,11 @@ export default function Index() {
           )}
 
           {activeView === "simulator" && (
-            <SimulatorPanel client={simulatingClient} onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined} />
+            <SimulatorPanel
+              client={simulatingClient}
+              onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
+              onClientCreated={fetchClients}
+            />
           )}
 
           {activeView === "history" && historyClient && (
