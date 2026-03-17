@@ -92,6 +92,11 @@ function CompanySettingsTab() {
           <Label>Validade do Orçamento (dias)</Label>
           <Input type="number" value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} min={1} className="mt-1 max-w-[200px]" />
         </div>
+        <div>
+          <Label>Senha do Gerente</Label>
+          <p className="text-xs text-muted-foreground mb-1">Necessária para liberar Desconto 3 e Plus na simulação</p>
+          <Input type="password" value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} placeholder="Definir senha" className="mt-1 max-w-[300px]" />
+        </div>
         <Separator />
         <div>
           <Label>Logo da Empresa</Label>
