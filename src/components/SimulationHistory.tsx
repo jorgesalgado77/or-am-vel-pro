@@ -237,6 +237,13 @@ function SimulationCard({
   clientEmail,
   clientPhone,
   vendedor,
+  indicadorNome,
+  indicadorComissao,
+  indicadorTelefone,
+  indicadorEmail,
+  companyName,
+  companySubtitle,
+  companyLogoUrl,
   isSelected,
   onToggle,
   onDelete,
@@ -247,6 +254,13 @@ function SimulationCard({
   clientEmail?: string;
   clientPhone?: string;
   vendedor?: string;
+  indicadorNome?: string;
+  indicadorComissao?: number;
+  indicadorTelefone?: string;
+  indicadorEmail?: string;
+  companyName?: string;
+  companySubtitle?: string;
+  companyLogoUrl?: string;
   isSelected: boolean;
   onToggle: () => void;
   onDelete: () => void;
