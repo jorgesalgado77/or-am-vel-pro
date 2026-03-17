@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { maskCpfCnpj, maskPhone, unmask, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 const clientSchema = z.object({
   nome: z.string().trim().min(1, "Nome é obrigatório").max(200),
-  cpf: z.string().max(14).optional().or(z.literal("")),
+  cpf: z.string().max(18).optional().or(z.literal("")),
   quantidade_ambientes: z.coerce.number().int().min(0).optional(),
   descricao_ambientes: z.string().max(2000).optional().or(z.literal("")),
   telefone1: z.string().max(20).optional().or(z.literal("")),
@@ -34,35 +35,57 @@ interface ClientDrawerProps {
 }
 
 export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDrawerProps) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ClientForm>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
   });
+
+  const cpfValue = watch("cpf") || "";
+  const [cpfError, setCpfError] = useState("");
+  const isDocCnpj = isCnpj(cpfValue);
 
   useEffect(() => {
     if (client) {
       reset({
         nome: client.nome,
-        cpf: client.cpf || "",
+        cpf: client.cpf ? maskCpfCnpj(client.cpf) : "",
         quantidade_ambientes: client.quantidade_ambientes || 0,
         descricao_ambientes: client.descricao_ambientes || "",
-        telefone1: client.telefone1 || "",
-        telefone2: client.telefone2 || "",
+        telefone1: client.telefone1 ? maskPhone(client.telefone1) : "",
+        telefone2: client.telefone2 ? maskPhone(client.telefone2) : "",
         email: client.email || "",
         vendedor: client.vendedor || "",
       });
     } else {
       reset({
-        nome: "",
-        cpf: "",
-        quantidade_ambientes: 0,
-        descricao_ambientes: "",
-        telefone1: "",
-        telefone2: "",
-        email: "",
-        vendedor: "",
+        nome: "", cpf: "", quantidade_ambientes: 0, descricao_ambientes: "",
+        telefone1: "", telefone2: "", email: "", vendedor: "",
       });
     }
+    setCpfError("");
   }, [client, open, reset]);
+
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const masked = maskCpfCnpj(e.target.value);
+    setValue("cpf", masked);
+    const validation = validateCpfCnpj(masked);
+    setCpfError(validation.valid ? "" : validation.message || "");
+  };
+
+  const handlePhoneChange = (field: "telefone1" | "telefone2") => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(field, maskPhone(e.target.value));
+  };
+
+  const onSubmit = (data: ClientForm) => {
+    // Validate CPF/CNPJ before saving
+    if (data.cpf) {
+      const validation = validateCpfCnpj(data.cpf);
+      if (!validation.valid) {
+        setCpfError(validation.message || "Documento inválido");
+        return;
+      }
+    }
+    onSave(data);
+  };
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -73,8 +96,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
           </SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSave)} className="mt-6 space-y-6">
-          {/* Info Básica */}
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Informações Básicas
@@ -86,8 +108,15 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
                 {errors.nome && <p className="text-xs text-destructive mt-1">{errors.nome.message}</p>}
               </div>
               <div>
-                <Label htmlFor="cpf">CPF</Label>
-                <Input id="cpf" {...register("cpf")} placeholder="000.000.000-00" className="mt-1" />
+                <Label htmlFor="cpf">{isDocCnpj ? "CNPJ" : "CPF"}</Label>
+                <Input
+                  id="cpf"
+                  value={cpfValue}
+                  onChange={handleCpfChange}
+                  placeholder={isDocCnpj ? "00.000.000/0000-00" : "000.000.000-00"}
+                  className="mt-1"
+                />
+                {cpfError && <p className="text-xs text-destructive mt-1">{cpfError}</p>}
               </div>
               <div>
                 <Label htmlFor="vendedor">Vendedor Responsável</Label>
@@ -98,7 +127,6 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
 
           <Separator />
 
-          {/* Contato */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Contato
@@ -106,11 +134,23 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
             <div className="space-y-3">
               <div>
                 <Label htmlFor="telefone1">Telefone 1</Label>
-                <Input id="telefone1" {...register("telefone1")} placeholder="(00) 00000-0000" className="mt-1" />
+                <Input
+                  id="telefone1"
+                  value={watch("telefone1") || ""}
+                  onChange={handlePhoneChange("telefone1")}
+                  placeholder="(00) 00000-0000"
+                  className="mt-1"
+                />
               </div>
               <div>
                 <Label htmlFor="telefone2">Telefone 2</Label>
-                <Input id="telefone2" {...register("telefone2")} placeholder="(00) 00000-0000" className="mt-1" />
+                <Input
+                  id="telefone2"
+                  value={watch("telefone2") || ""}
+                  onChange={handlePhoneChange("telefone2")}
+                  placeholder="(00) 00000-0000"
+                  className="mt-1"
+                />
               </div>
               <div>
                 <Label htmlFor="email">Email</Label>
@@ -122,7 +162,6 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
 
           <Separator />
 
-          {/* Projeto */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Projeto
