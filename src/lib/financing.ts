@@ -1,18 +1,4 @@
-// Credit card installment rates (Sunup)
-const CREDIT_RATES: Record<number, number> = {
-  1: 0.0285,
-  2: 0.039,
-  3: 0.049,
-  4: 0.059,
-  5: 0.069,
-  6: 0.079,
-  7: 0.089,
-  8: 0.099,
-  9: 0.099,
-  10: 0.099,
-  11: 0.099,
-  12: 0.099,
-};
+// Financing calculation library
 
 export type FormaPagamento = 'A vista' | 'Boleto' | 'Credito' | 'Pix' | 'Credito / Boleto' | 'Entrada e Entrega';
 
@@ -25,6 +11,8 @@ export interface SimulationInput {
   parcelas: number;
   valorEntrada: number;
   plusPercentual: number;
+  creditRates?: Record<number, number>;
+  boletoRates?: Record<number, number>;
 }
 
 export interface SimulationResult {
@@ -34,12 +22,12 @@ export interface SimulationResult {
   valorFinal: number;
   valorParcela: number;
   taxaCredito: number;
+  taxaBoleto: number;
 }
 
 export function calculateSimulation(input: SimulationInput): SimulationResult {
-  const { valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual } = input;
+  const { valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, creditRates = {}, boletoRates = {} } = input;
 
-  // Apply discounts sequentially
   const afterDiscount1 = valorTela * (1 - desconto1 / 100);
   const afterDiscount2 = afterDiscount1 * (1 - desconto2 / 100);
   const valorComDesconto = afterDiscount2 * (1 - desconto3 / 100);
@@ -49,34 +37,43 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
   let valorFinal = saldo;
   let valorParcela = 0;
   let taxaCredito = 0;
+  let taxaBoleto = 0;
 
   switch (formaPagamento) {
     case 'A vista':
     case 'Pix': {
-      // Plus percentage applied
       valorFinal = saldo * (1 + plusPercentual / 100);
       valorParcela = valorFinal;
       break;
     }
     case 'Credito': {
-      taxaCredito = CREDIT_RATES[parcelas] || 0;
+      taxaCredito = creditRates[parcelas] || 0;
       valorFinal = saldo * (1 + taxaCredito);
       valorParcela = parcelas > 0 ? valorFinal / parcelas : valorFinal;
       break;
     }
     case 'Boleto': {
-      // Financing via boleto - simple split
-      valorFinal = saldo;
-      valorParcela = parcelas > 0 ? saldo / parcelas : saldo;
+      const coeff = boletoRates[parcelas] || 0;
+      taxaBoleto = coeff;
+      if (coeff > 0) {
+        // Coefficient-based: parcela = saldo * coeficiente
+        valorParcela = saldo * coeff;
+        valorFinal = valorParcela * parcelas;
+      } else {
+        valorFinal = saldo;
+        valorParcela = parcelas > 0 ? saldo / parcelas : saldo;
+      }
       break;
     }
     case 'Credito / Boleto': {
-      // 50% credit, 50% boleto
       const halfCredit = saldo * 0.5;
       const halfBoleto = saldo * 0.5;
-      taxaCredito = CREDIT_RATES[parcelas] || 0;
+      taxaCredito = creditRates[parcelas] || 0;
       const creditTotal = halfCredit * (1 + taxaCredito);
-      valorFinal = creditTotal + halfBoleto;
+      const bCoeff = boletoRates[parcelas] || 0;
+      taxaBoleto = bCoeff;
+      const boletoTotal = bCoeff > 0 ? (halfBoleto * bCoeff) * parcelas : halfBoleto;
+      valorFinal = creditTotal + boletoTotal;
       valorParcela = parcelas > 0 ? valorFinal / parcelas : valorFinal;
       break;
     }
@@ -93,6 +90,7 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
     saldo,
     valorFinal,
     taxaCredito,
+    taxaBoleto,
     valorParcela: Math.round(valorParcela * 100) / 100,
   };
 }
