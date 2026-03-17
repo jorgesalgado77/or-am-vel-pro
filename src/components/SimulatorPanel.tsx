@@ -51,7 +51,6 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const { settings } = useCompanySettings();
   const { hasPermission } = useCurrentUser();
 
-  // Load financing rates
   const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
   const { rates: creditoRates, providers: creditoProviders } = useFinancingRates("credito");
 
@@ -69,7 +68,6 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(formaPagamento);
   const showPlus = ["A vista", "Pix"].includes(formaPagamento);
 
-  // Get max installments for current provider
   const currentBoletoRates = boletoRates.filter((r) => r.provider_name === selectedBoletoProvider);
   const currentCreditoRates = creditoRates.filter((r) => r.provider_name === selectedCreditoProvider);
 
@@ -79,7 +77,6 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const maxParcelas = formaPagamento === "Boleto" ? maxBoletoInstallments
     : formaPagamento === "Credito" || formaPagamento === "Credito / Boleto" ? maxCreditoInstallments : 12;
 
-  // Build coefficient maps
   const boletoCoeffMap: Record<number, number> = {};
   currentBoletoRates.forEach((r) => { boletoCoeffMap[r.installments] = Number(r.coefficient); });
 
@@ -100,8 +97,10 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
     // If user's cargo has permission, unlock directly
     if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
     if (field === "plus" && hasPermission("plus")) { setPlusUnlocked(true); return; }
-    // Otherwise require manager password
-    if (!settings.manager_password) {
+
+    // Desconto 3 requires manager password, Plus requires admin password
+    const requiredPassword = field === "desconto3" ? settings.manager_password : settings.admin_password;
+    if (!requiredPassword) {
       if (field === "desconto3") setDesconto3Unlocked(true);
       else setPlusUnlocked(true);
       return;
@@ -112,7 +111,8 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   };
 
   const handlePasswordConfirm = () => {
-    if (passwordInput === settings.manager_password) {
+    const requiredPassword = pendingUnlock === "desconto3" ? settings.manager_password : settings.admin_password;
+    if (passwordInput === requiredPassword) {
       if (pendingUnlock === "desconto3") setDesconto3Unlocked(true);
       else if (pendingUnlock === "plus") setPlusUnlocked(true);
       setPasswordDialogOpen(false);
@@ -141,6 +141,8 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
     if (error) toast.error("Erro ao salvar simulação");
     else toast.success("Simulação salva com sucesso!");
   };
+
+  const passwordDialogTitle = pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -201,7 +203,6 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
               </Select>
             </div>
 
-            {/* Provider toggles */}
             {formaPagamento === "Boleto" && boletoProviders.length > 0 && (
               <div>
                 <Label>Financeira</Label>
@@ -316,7 +317,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" />Senha do Gerente</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" />{passwordDialogTitle}</DialogTitle>
           </DialogHeader>
           <div>
             <Label>Informe a senha para desbloquear</Label>

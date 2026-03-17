@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save, Upload, Building2, CreditCard, FileText, Users, Shield } from "lucide-react";
+import { Plus, Trash2, Save, Upload, Building2, CreditCard, FileText, Users, Shield, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -15,6 +15,7 @@ import type { FinancingRate } from "@/hooks/useFinancingRates";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { CargosTab } from "@/components/settings/CargosTab";
 import { UsuariosTab } from "@/components/settings/UsuariosTab";
+import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
   return (
@@ -43,8 +44,11 @@ function CompanySettingsTab() {
   const [subtitle, setSubtitle] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [managerPassword, setManagerPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [confirmManagerPassword, setConfirmManagerPassword] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState("");
+  const [showManagerPw, setShowManagerPw] = useState(false);
+  const [showAdminPw, setShowAdminPw] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -53,13 +57,17 @@ function CompanySettingsTab() {
     setSubtitle(settings.company_subtitle || "");
     setValidityDays(settings.budget_validity_days);
     setManagerPassword(settings.manager_password || "");
-    setConfirmPassword(settings.manager_password || "");
+    setConfirmManagerPassword(settings.manager_password || "");
+    setAdminPassword(settings.admin_password || "");
+    setConfirmAdminPassword(settings.admin_password || "");
   }, [settings]);
 
   const handleSave = async () => {
-    if (managerPassword && managerPassword !== confirmPassword) {
-      toast.error("As senhas não coincidem");
-      return;
+    if (managerPassword && managerPassword !== confirmManagerPassword) {
+      toast.error("Senhas do gerente não coincidem"); return;
+    }
+    if (adminPassword && adminPassword !== confirmAdminPassword) {
+      toast.error("Senhas do administrador não coincidem"); return;
     }
     setSaving(true);
     const { error } = await supabase.from("company_settings").update({
@@ -67,7 +75,8 @@ function CompanySettingsTab() {
       company_subtitle: subtitle,
       budget_validity_days: validityDays,
       manager_password: managerPassword,
-    }).eq("id", settings.id);
+      admin_password: adminPassword,
+    } as any).eq("id", settings.id);
     setSaving(false);
     if (error) toast.error("Erro ao salvar");
     else { toast.success("Configurações salvas!"); refresh(); }
@@ -106,19 +115,38 @@ function CompanySettingsTab() {
           <Label>Validade do Orçamento (dias)</Label>
           <Input type="number" value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} min={1} className="mt-1 max-w-[200px]" />
         </div>
+        <Separator />
         <div>
           <Label>Senha do Gerente</Label>
-          <p className="text-xs text-muted-foreground mb-1">Necessária para liberar Desconto 3 e Plus na simulação</p>
+          <p className="text-xs text-muted-foreground mb-1">Libera o campo Desconto 3 na simulação</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1 max-w-[600px]">
             <div className="relative">
-              <Input type={showPassword ? "text" : "password"} value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} placeholder="Definir senha" className="pr-10" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <Input type={showManagerPw ? "text" : "password"} value={managerPassword} onChange={(e) => setManagerPassword(e.target.value)} placeholder="Definir senha" className="pr-10" />
+              <button type="button" onClick={() => setShowManagerPw(!showManagerPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showManagerPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
+            <div>
+              <Input type={showManagerPw ? "text" : "password"} value={confirmManagerPassword} onChange={(e) => setConfirmManagerPassword(e.target.value)} placeholder="Confirmar senha" />
+              {managerPassword && confirmManagerPassword && managerPassword !== confirmManagerPassword && (
+                <p className="text-xs text-destructive mt-1">As senhas não coincidem</p>
+              )}
+            </div>
+          </div>
+        </div>
+        <div>
+          <Label>Senha do Administrador</Label>
+          <p className="text-xs text-muted-foreground mb-1">Libera o campo Plus na simulação</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1 max-w-[600px]">
             <div className="relative">
-              <Input type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar senha" className="pr-10" />
-              {managerPassword && confirmPassword && managerPassword !== confirmPassword && (
+              <Input type={showAdminPw ? "text" : "password"} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Definir senha" className="pr-10" />
+              <button type="button" onClick={() => setShowAdminPw(!showAdminPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showAdminPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <div>
+              <Input type={showAdminPw ? "text" : "password"} value={confirmAdminPassword} onChange={(e) => setConfirmAdminPassword(e.target.value)} placeholder="Confirmar senha" />
+              {adminPassword && confirmAdminPassword && adminPassword !== confirmAdminPassword && (
                 <p className="text-xs text-destructive mt-1">As senhas não coincidem</p>
               )}
             </div>
@@ -190,14 +218,82 @@ function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"
     refresh();
   };
 
+  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        if (rows.length < 2) { toast.error("Planilha vazia ou sem dados"); return; }
+
+        // Auto-detect: find provider name in first row or use filename
+        const headerRow = rows[0] as any[];
+        let providerName = "";
+
+        // Check if first cell has a name (not a number)
+        if (headerRow[0] && typeof headerRow[0] === "string" && isNaN(Number(headerRow[0]))) {
+          providerName = headerRow[0].trim();
+        } else {
+          providerName = file.name.replace(/\.(xlsx?|csv)$/i, "").trim();
+        }
+
+        // Parse rows: look for installment number + coefficient pairs
+        const parsedRates: { installments: number; coefficient: number }[] = [];
+
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i] as any[];
+          if (!row || row.length < 2) continue;
+
+          const col0 = Number(row[0]);
+          const col1 = Number(row[1]);
+
+          if (!isNaN(col0) && col0 >= 1 && col0 <= 120 && !isNaN(col1)) {
+            parsedRates.push({ installments: Math.round(col0), coefficient: col1 });
+          }
+        }
+
+        if (parsedRates.length === 0) { toast.error("Nenhum dado válido encontrado na planilha"); return; }
+
+        // Delete existing rates for this provider if it exists
+        await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", type);
+
+        // Insert new rates
+        const inserts = parsedRates.map((r) => ({
+          provider_name: providerName,
+          provider_type: type,
+          installments: r.installments,
+          coefficient: r.coefficient,
+        }));
+
+        const { error } = await supabase.from("financing_rates").insert(inserts);
+        if (error) {
+          toast.error("Erro ao importar taxas");
+        } else {
+          toast.success(`Importado "${providerName}" com ${parsedRates.length} parcelas!`);
+          refresh();
+        }
+      } catch (err) {
+        toast.error("Erro ao ler planilha");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = "";
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-end gap-3 mb-4">
+        <CardContent className="space-y-4">
+          <div className="flex items-end gap-3">
             <div className="flex-1">
               <Label>Nome da {type === "boleto" ? "Financeira" : "Operadora"}</Label>
               <Input value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Ex: BV Financeira" className="mt-1" />
@@ -205,6 +301,19 @@ function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"
             <Button onClick={handleAddProvider} className="gap-2">
               <Plus className="h-4 w-4" />Adicionar
             </Button>
+          </div>
+          <Separator />
+          <div>
+            <Label>Importar Planilha Excel</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              A planilha deve conter: coluna 1 = nº parcelas, coluna 2 = coeficiente/taxa. O nome na primeira célula será usado como nome da financeira.
+            </p>
+            <label className="cursor-pointer">
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelImport} />
+              <Button variant="outline" size="sm" className="gap-2" asChild>
+                <span><FileSpreadsheet className="h-4 w-4" />Importar Excel</span>
+              </Button>
+            </label>
           </div>
         </CardContent>
       </Card>
