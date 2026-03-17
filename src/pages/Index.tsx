@@ -23,7 +23,8 @@ export default function Index() {
     return currentUser.permissoes[perm];
   };
 
-  const [activeView, setActiveView] = useState("clients");
+  const [activeView, setActiveView] = useState("dashboard");
+  const [lastSims, setLastSims] = useState<Record<string, { valor_final: number; created_at: string }>>({});
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
