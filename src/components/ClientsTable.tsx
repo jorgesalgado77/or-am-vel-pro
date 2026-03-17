@@ -148,6 +148,20 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[180px]">
+            <Label className="text-xs mb-1 block">Indicador</Label>
+            <Select value={filterIndicador || "_all"} onValueChange={(v) => setFilterIndicador(v === "_all" ? "" : v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">Todos</SelectItem>
+                {indicadores.filter(i => i.ativo).map((ind) => (
+                  <SelectItem key={ind.id} value={ind.id}>
+                    {ind.nome} ({ind.comissao_percentual}%)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label className="text-xs mb-1 block">Data Início</Label>
             <Popover>
