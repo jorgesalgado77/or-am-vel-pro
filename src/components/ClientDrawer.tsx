@@ -123,8 +123,17 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
                 {cpfError && <p className="text-xs text-destructive mt-1">{cpfError}</p>}
               </div>
               <div>
-                <Label htmlFor="vendedor">Vendedor Responsável</Label>
-                <Input id="vendedor" {...register("vendedor")} className="mt-1" />
+                <Label htmlFor="vendedor">Projetista Responsável</Label>
+                <Select value={watch("vendedor") || ""} onValueChange={(v) => setValue("vendedor", v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {activeUsuarios.map((u) => (
+                      <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
+                        {u.apelido || u.nome_completo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
