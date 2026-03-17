@@ -17,6 +17,10 @@ interface SimulationPdfData {
   clientEmail?: string;
   clientPhone?: string;
   vendedor?: string;
+  indicadorNome?: string;
+  indicadorComissao?: number;
+  indicadorTelefone?: string;
+  indicadorEmail?: string;
   companyName?: string;
   companySubtitle?: string;
   companyLogoUrl?: string;
@@ -105,7 +109,10 @@ function buildHtml(data: SimulationPdfData): string {
       ${data.clientCpf ? `<div class="field"><div class="field-label">CPF</div><div class="field-value">${data.clientCpf}</div></div>` : ""}
       ${data.clientPhone ? `<div class="field"><div class="field-label">Telefone</div><div class="field-value">${data.clientPhone}</div></div>` : ""}
       ${data.clientEmail ? `<div class="field"><div class="field-label">Email</div><div class="field-value">${data.clientEmail}</div></div>` : ""}
-      ${data.vendedor ? `<div class="field"><div class="field-label">Vendedor</div><div class="field-value">${data.vendedor}</div></div>` : ""}
+      ${data.vendedor ? `<div class="field"><div class="field-label">Projetista</div><div class="field-value">${data.vendedor}</div></div>` : ""}
+      ${data.indicadorNome ? `<div class="field"><div class="field-label">Indicador</div><div class="field-value">${data.indicadorNome} (${data.indicadorComissao || 0}%)</div></div>` : ""}
+      ${data.indicadorTelefone ? `<div class="field"><div class="field-label">Tel. Indicador</div><div class="field-value">${data.indicadorTelefone}</div></div>` : ""}
+      ${data.indicadorEmail ? `<div class="field"><div class="field-label">Email Indicador</div><div class="field-value">${data.indicadorEmail}</div></div>` : ""}
     </div>
   </div>
 

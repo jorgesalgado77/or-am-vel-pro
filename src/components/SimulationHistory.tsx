@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useIndicadores } from "@/hooks/useIndicadores";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -36,6 +38,13 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [comparing, setComparing] = useState(false);
+  const { indicadores } = useIndicadores();
+  const { settings } = useCompanySettings();
+
+  const indicador = useMemo(() => {
+    if (!client.indicador_id) return null;
+    return indicadores.find(i => i.id === client.indicador_id) || null;
+  }, [client.indicador_id, indicadores]);
 
   const fetchSimulations = async () => {
     setLoading(true);
@@ -201,6 +210,13 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
                   clientEmail={client.email || undefined}
                   clientPhone={client.telefone1 || undefined}
                   vendedor={client.vendedor || undefined}
+                  indicadorNome={indicador?.nome}
+                  indicadorComissao={indicador?.comissao_percentual}
+                  indicadorTelefone={indicador?.telefone || undefined}
+                  indicadorEmail={indicador?.email || undefined}
+                  companyName={settings.company_name}
+                  companySubtitle={settings.company_subtitle || undefined}
+                  companyLogoUrl={settings.logo_url || undefined}
                   isSelected={selected.has(sim.id)}
                   onToggle={() => toggleSelect(sim.id)}
                   onDelete={() => handleDelete(sim.id)}
@@ -221,6 +237,13 @@ function SimulationCard({
   clientEmail,
   clientPhone,
   vendedor,
+  indicadorNome,
+  indicadorComissao,
+  indicadorTelefone,
+  indicadorEmail,
+  companyName,
+  companySubtitle,
+  companyLogoUrl,
   isSelected,
   onToggle,
   onDelete,
@@ -231,6 +254,13 @@ function SimulationCard({
   clientEmail?: string;
   clientPhone?: string;
   vendedor?: string;
+  indicadorNome?: string;
+  indicadorComissao?: number;
+  indicadorTelefone?: string;
+  indicadorEmail?: string;
+  companyName?: string;
+  companySubtitle?: string;
+  companyLogoUrl?: string;
   isSelected: boolean;
   onToggle: () => void;
   onDelete: () => void;
@@ -250,6 +280,13 @@ function SimulationCard({
       clientEmail,
       clientPhone,
       vendedor,
+      indicadorNome,
+      indicadorComissao,
+      indicadorTelefone,
+      indicadorEmail,
+      companyName,
+      companySubtitle,
+      companyLogoUrl,
       valorTela: Number(s.valor_tela),
       desconto1: Number(s.desconto1) || 0,
       desconto2: Number(s.desconto2) || 0,

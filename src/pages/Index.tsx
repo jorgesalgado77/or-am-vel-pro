@@ -6,6 +6,7 @@ import { SimulatorPanel } from "@/components/SimulatorPanel";
 import { SimulationHistory } from "@/components/SimulationHistory";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { UserSelector } from "@/components/UserSelector";
+import { Dashboard } from "@/components/Dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -22,7 +23,8 @@ export default function Index() {
     return currentUser.permissoes[perm];
   };
 
-  const [activeView, setActiveView] = useState("clients");
+  const [activeView, setActiveView] = useState("dashboard");
+  const [lastSims, setLastSims] = useState<Record<string, { valor_final: number; created_at: string }>>({});
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -42,7 +44,22 @@ export default function Index() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchClients(); }, []);
+  const fetchLastSims = async () => {
+    const { data } = await supabase
+      .from("simulations")
+      .select("client_id, valor_final, created_at")
+      .order("created_at", { ascending: false });
+    if (!data) return;
+    const map: Record<string, { valor_final: number; created_at: string }> = {};
+    data.forEach((s) => {
+      if (!map[s.client_id]) {
+        map[s.client_id] = { valor_final: Number(s.valor_final) || 0, created_at: s.created_at };
+      }
+    });
+    setLastSims(map);
+  };
+
+  useEffect(() => { fetchClients(); fetchLastSims(); }, []);
 
   // Redirect to allowed view when user changes
   useEffect(() => {
@@ -117,12 +134,14 @@ export default function Index() {
   const handleHistory = (client: Client) => { setHistoryClient(client); setSimulatingClient(null); setActiveView("history"); };
   const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); };
 
-  const currentTitle = activeView === "clients" ? "Clientes"
+  const currentTitle = activeView === "dashboard" ? "Dashboard"
+    : activeView === "clients" ? "Clientes"
     : activeView === "history" ? "Histórico de Simulações"
     : activeView === "settings" ? "Configurações"
     : "Simulador de Financiamento";
 
-  const currentSubtitle = activeView === "clients" ? `${clients.length} clientes cadastrados`
+  const currentSubtitle = activeView === "dashboard" ? "Visão geral do sistema"
+    : activeView === "clients" ? `${clients.length} clientes cadastrados`
     : activeView === "history" ? "Compare diferentes cenários de financiamento"
     : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
     : "Calcule descontos e condições de pagamento";
@@ -139,6 +158,10 @@ export default function Index() {
             <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
             <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
           </div>
+
+          {activeView === "dashboard" && (
+            <Dashboard clients={clients} lastSims={lastSims} />
+          )}
 
           {activeView === "clients" && (
             <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} />
