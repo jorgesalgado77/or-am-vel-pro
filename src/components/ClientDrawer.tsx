@@ -139,6 +139,20 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>Indicador do Cliente</Label>
+                <Select value={watch("indicador_id") || ""} onValueChange={(v) => setValue("indicador_id", v === "_none" ? "" : v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Nenhum</SelectItem>
+                    {activeIndicadores.map((ind) => (
+                      <SelectItem key={ind.id} value={ind.id}>
+                        {ind.nome} ({ind.comissao_percentual}%)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
