@@ -94,6 +94,29 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
     return calculateSimulation(input);
   }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates]);
 
+  const requestUnlock = (field: "desconto3" | "plus") => {
+    if (!settings.manager_password) {
+      if (field === "desconto3") setDesconto3Unlocked(true);
+      else setPlusUnlocked(true);
+      return;
+    }
+    setPendingUnlock(field);
+    setPasswordInput("");
+    setPasswordDialogOpen(true);
+  };
+
+  const handlePasswordConfirm = () => {
+    if (passwordInput === settings.manager_password) {
+      if (pendingUnlock === "desconto3") setDesconto3Unlocked(true);
+      else if (pendingUnlock === "plus") setPlusUnlocked(true);
+      setPasswordDialogOpen(false);
+      toast.success("Acesso liberado!");
+    } else {
+      toast.error("Senha incorreta");
+    }
+    setPasswordInput("");
+  };
+
   const handleSave = async () => {
     if (!client) { toast.error("Selecione um cliente para salvar a simulação"); return; }
     setSaving(true);
