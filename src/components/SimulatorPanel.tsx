@@ -306,6 +306,30 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" />Senha do Gerente</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label>Informe a senha para desbloquear</Label>
+            <Input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              className="mt-1"
+              placeholder="Senha"
+              onKeyDown={(e) => { if (e.key === "Enter") handlePasswordConfirm(); }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handlePasswordConfirm}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
