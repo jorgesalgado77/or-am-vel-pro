@@ -58,6 +58,7 @@ function CompanySettingsTab() {
   const [showAdminPw, setShowAdminPw] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [orcamentoInicial, setOrcamentoInicial] = useState(1);
 
   useEffect(() => {
     setName(settings.company_name);
