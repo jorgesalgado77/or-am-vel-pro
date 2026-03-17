@@ -8,6 +8,7 @@ export interface CompanySettings {
   logo_url: string | null;
   budget_validity_days: number;
   manager_password: string | null;
+  admin_password: string | null;
 }
 
 const DEFAULT_SETTINGS: CompanySettings = {
@@ -17,6 +18,7 @@ const DEFAULT_SETTINGS: CompanySettings = {
   logo_url: null,
   budget_validity_days: 30,
   manager_password: null,
+  admin_password: null,
 };
 
 let cachedSettings: CompanySettings | null = null;
