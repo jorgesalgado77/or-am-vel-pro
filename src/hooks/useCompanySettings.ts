@@ -9,6 +9,7 @@ export interface CompanySettings {
   budget_validity_days: number;
   manager_password: string | null;
   admin_password: string | null;
+  orcamento_numero_inicial: number;
 }
 
 const DEFAULT_SETTINGS: CompanySettings = {
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: CompanySettings = {
   budget_validity_days: 30,
   manager_password: null,
   admin_password: null,
+  orcamento_numero_inicial: 1,
 };
 
 let cachedSettings: CompanySettings | null = null;
@@ -42,7 +44,7 @@ export function useCompanySettings() {
         .limit(1)
         .single()
         .then(({ data }) => {
-          if (data) notify(data as CompanySettings);
+          if (data) notify(data as unknown as CompanySettings);
           setLoading(false);
         });
     }
@@ -53,7 +55,7 @@ export function useCompanySettings() {
 
   const refresh = async () => {
     const { data } = await supabase.from("company_settings").select("*").limit(1).single();
-    if (data) notify(data as CompanySettings);
+    if (data) notify(data as unknown as CompanySettings);
   };
 
   return { settings, loading, refresh };
