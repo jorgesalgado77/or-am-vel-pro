@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { maskCpfCnpj, maskPhone, unmask, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUsuarios } from "@/hooks/useUsuarios";
+import { useIndicadores } from "@/hooks/useIndicadores";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
