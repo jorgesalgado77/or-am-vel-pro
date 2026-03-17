@@ -43,6 +43,8 @@ function CompanySettingsTab() {
   const [subtitle, setSubtitle] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [managerPassword, setManagerPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
