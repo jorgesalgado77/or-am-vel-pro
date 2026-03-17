@@ -66,7 +66,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
     } else {
       reset({
         nome: "", cpf: "", quantidade_ambientes: 0, descricao_ambientes: "",
-        telefone1: "", telefone2: "", email: "", vendedor: "",
+        telefone1: "", telefone2: "", email: "", vendedor: "", indicador_id: "",
       });
     }
     setCpfError("");
