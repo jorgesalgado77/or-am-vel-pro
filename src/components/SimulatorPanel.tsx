@@ -63,12 +63,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
+  const [selectedIndicadorId, setSelectedIndicadorId] = useState("");
 
   // New client form state (when no client is provided)
   const [showClientForm, setShowClientForm] = useState(false);
   const [newClient, setNewClient] = useState({
     nome: "", cpf: "", telefone1: "", telefone2: "", email: "",
-    vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "",
+    vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "",
   });
 
   const { settings } = useCompanySettings();
