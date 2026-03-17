@@ -53,6 +53,7 @@ function CompanySettingsTab() {
     setSubtitle(settings.company_subtitle || "");
     setValidityDays(settings.budget_validity_days);
     setManagerPassword(settings.manager_password || "");
+    setConfirmPassword(settings.manager_password || "");
   }, [settings]);
 
   const handleSave = async () => {
