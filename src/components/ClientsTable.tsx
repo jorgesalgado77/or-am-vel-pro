@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUsuarios } from "@/hooks/useUsuarios";
+import { useIndicadores } from "@/hooks/useIndicadores";
 import { format, addDays, isPast, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,13 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const { settings } = useCompanySettings();
   const { projetistas } = useUsuarios();
+  const { indicadores } = useIndicadores();
+
+  const indicadorMap = useMemo(() => {
+    const map: Record<string, { nome: string; comissao: number }> = {};
+    indicadores.forEach(i => { map[i.id] = { nome: i.nome, comissao: i.comissao_percentual }; });
+    return map;
+  }, [indicadores]);
 
   useEffect(() => {
     if (clients.length === 0) return;
@@ -187,17 +195,18 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
               <TableHead className="font-medium">Projetista</TableHead>
               <TableHead className="font-medium">Último Orçamento</TableHead>
               <TableHead className="font-medium">Validade</TableHead>
+              <TableHead className="font-medium">Indicador</TableHead>
               <TableHead className="font-medium w-[150px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Carregando...</TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   {search || hasActiveFilters ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
                 </TableCell>
               </TableRow>
@@ -230,6 +239,14 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                             Até {format(addDays(new Date(sim.created_at), settings.budget_validity_days), "dd/MM/yyyy")}
                           </span>
                         )
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      {client.indicador_id && indicadorMap[client.indicador_id] ? (
+                        <span className="text-xs text-foreground">
+                          {indicadorMap[client.indicador_id].nome}{" "}
+                          <span className="text-muted-foreground">({indicadorMap[client.indicador_id].comissao}%)</span>
+                        </span>
                       ) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
