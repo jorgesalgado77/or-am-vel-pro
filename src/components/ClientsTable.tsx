@@ -38,6 +38,7 @@ interface ClientsTableProps {
 export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory }: ClientsTableProps) {
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
+  const [filterIndicador, setFilterIndicador] = useState("");
   const [dateStart, setDateStart] = useState<Date | undefined>();
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const [showFilters, setShowFilters] = useState(false);
