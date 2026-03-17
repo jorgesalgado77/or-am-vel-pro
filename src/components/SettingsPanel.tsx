@@ -17,7 +17,8 @@ import { CargosTab } from "@/components/settings/CargosTab";
 import { UsuariosTab } from "@/components/settings/UsuariosTab";
 import { DescontosTab } from "@/components/settings/DescontosTab";
 import { IndicadoresTab } from "@/components/settings/IndicadoresTab";
-import { UserCheck } from "lucide-react";
+import { ContratosTab } from "@/components/settings/ContratosTab";
+import { UserCheck, FileSignature } from "lucide-react";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
