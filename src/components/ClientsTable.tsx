@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { format, addDays, isPast, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
