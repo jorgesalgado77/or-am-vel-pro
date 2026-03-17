@@ -24,6 +24,7 @@ export function CargosTab() {
   const { cargos, refresh, DEFAULT_PERMISSOES } = useCargos();
   const [newName, setNewName] = useState("");
   const [editPerms, setEditPerms] = useState<Record<string, CargoPermissoes>>({});
+  const [editingName, setEditingName] = useState<Record<string, string>>({});
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
