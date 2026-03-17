@@ -113,6 +113,7 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
 
   const clearFilters = () => {
     setFilterProjetista("");
+    setFilterIndicador("");
     setDateStart(undefined);
     setDateEnd(undefined);
     setSearch("");

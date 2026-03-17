@@ -6,6 +6,9 @@ export interface Indicador {
   nome: string;
   comissao_percentual: number;
   ativo: boolean;
+  telefone: string | null;
+  email: string | null;
+  foto_url: string | null;
   created_at: string;
 }
 
