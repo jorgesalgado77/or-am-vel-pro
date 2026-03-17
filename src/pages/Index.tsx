@@ -4,6 +4,7 @@ import { ClientsTable } from "@/components/ClientsTable";
 import { ClientDrawer } from "@/components/ClientDrawer";
 import { SimulatorPanel } from "@/components/SimulatorPanel";
 import { SimulationHistory } from "@/components/SimulationHistory";
+import { SettingsPanel } from "@/components/SettingsPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -97,12 +98,16 @@ export default function Index() {
     ? "Clientes"
     : activeView === "history"
     ? "Histórico de Simulações"
+    : activeView === "settings"
+    ? "Configurações"
     : "Simulador de Financiamento";
 
   const currentSubtitle = activeView === "clients"
     ? `${clients.length} clientes cadastrados`
     : activeView === "history"
     ? "Compare diferentes cenários de financiamento"
+    : activeView === "settings"
+    ? "Gerencie empresa, financeiras e operadoras"
     : "Calcule descontos e condições de pagamento";
 
   return (
@@ -140,6 +145,8 @@ export default function Index() {
             onBack={() => { setActiveView("clients"); setHistoryClient(null); }}
           />
         )}
+
+        {activeView === "settings" && <SettingsPanel />}
 
         <ClientDrawer
           open={drawerOpen}

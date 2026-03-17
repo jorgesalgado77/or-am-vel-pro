@@ -17,6 +17,9 @@ interface SimulationPdfData {
   clientEmail?: string;
   clientPhone?: string;
   vendedor?: string;
+  companyName?: string;
+  companySubtitle?: string;
+  companyLogoUrl?: string;
   valorTela: number;
   desconto1: number;
   desconto2: number;
@@ -40,6 +43,11 @@ function buildHtml(data: SimulationPdfData): string {
     : format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 
   const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(data.formaPagamento);
+  const companyName = data.companyName || "INOVAMAD";
+  const companySub = data.companySubtitle || "Gestão & Financiamento";
+  const logoHtml = data.companyLogoUrl
+    ? `<img src="${data.companyLogoUrl}" alt="Logo" style="height:48px;width:auto;object-fit:contain;margin-right:12px;" />`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -50,6 +58,7 @@ function buildHtml(data: SimulationPdfData): string {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; background: #fff; padding: 40px; }
   .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 3px solid #0891b2; }
+  .header-left { display: flex; align-items: center; }
   .logo { font-size: 24px; font-weight: 700; color: #0891b2; letter-spacing: -0.5px; }
   .logo-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
   .date { font-size: 12px; color: #64748b; text-align: right; }
@@ -77,9 +86,12 @@ function buildHtml(data: SimulationPdfData): string {
 </head>
 <body>
   <div class="header">
-    <div>
-      <div class="logo">INOVAMAD</div>
-      <div class="logo-sub">Gestão & Financiamento</div>
+    <div class="header-left">
+      ${logoHtml}
+      <div>
+        <div class="logo">${companyName}</div>
+        <div class="logo-sub">${companySub}</div>
+      </div>
     </div>
     <div class="date">
       Simulação gerada em<br/><strong>${dateStr}</strong>
@@ -89,10 +101,7 @@ function buildHtml(data: SimulationPdfData): string {
   <div class="section">
     <div class="section-title">Dados do Cliente</div>
     <div class="client-grid">
-      <div class="field">
-        <div class="field-label">Nome</div>
-        <div class="field-value">${data.clientName}</div>
-      </div>
+      <div class="field"><div class="field-label">Nome</div><div class="field-value">${data.clientName}</div></div>
       ${data.clientCpf ? `<div class="field"><div class="field-label">CPF</div><div class="field-value">${data.clientCpf}</div></div>` : ""}
       ${data.clientPhone ? `<div class="field"><div class="field-label">Telefone</div><div class="field-value">${data.clientPhone}</div></div>` : ""}
       ${data.clientEmail ? `<div class="field"><div class="field-label">Email</div><div class="field-value">${data.clientEmail}</div></div>` : ""}
@@ -105,40 +114,22 @@ function buildHtml(data: SimulationPdfData): string {
     <table>
       <thead><tr><th>Descrição</th><th class="value-col">Valor</th></tr></thead>
       <tbody>
-        <tr>
-          <td>Valor de Tela</td>
-          <td class="value-col">${formatCurrency(data.valorTela)}</td>
-        </tr>
-        <tr>
-          <td class="muted">
-            Desconto Total
-            <div class="discount-detail">${data.desconto1}% + ${data.desconto2}% + ${data.desconto3}% (cascata)</div>
-          </td>
-          <td class="value-col muted">- ${formatCurrency(descontoTotal)}</td>
-        </tr>
-        <tr>
-          <td>Valor com Desconto</td>
-          <td class="value-col">${formatCurrency(data.valorComDesconto)}</td>
-        </tr>
-        <tr>
-          <td>Forma de Pagamento</td>
-          <td class="value-col">${FORMA_LABELS[data.formaPagamento] || data.formaPagamento}</td>
-        </tr>
+        <tr><td>Valor de Tela</td><td class="value-col">${formatCurrency(data.valorTela)}</td></tr>
+        <tr><td class="muted">Desconto Total<div class="discount-detail">${data.desconto1}% + ${data.desconto2}% + ${data.desconto3}% (cascata)</div></td><td class="value-col muted">- ${formatCurrency(descontoTotal)}</td></tr>
+        <tr><td>Valor com Desconto</td><td class="value-col">${formatCurrency(data.valorComDesconto)}</td></tr>
+        <tr><td>Forma de Pagamento</td><td class="value-col">${FORMA_LABELS[data.formaPagamento] || data.formaPagamento}</td></tr>
         ${data.valorEntrada > 0 ? `<tr><td>Entrada</td><td class="value-col">${formatCurrency(data.valorEntrada)}</td></tr>` : ""}
         ${data.valorEntrada > 0 ? `<tr><td>Saldo</td><td class="value-col">${formatCurrency(data.saldo)}</td></tr>` : ""}
         ${data.taxaCredito > 0 ? `<tr><td class="muted">Taxa de Crédito</td><td class="value-col muted">${(data.taxaCredito * 100).toFixed(2)}%</td></tr>` : ""}
         ${data.plusPercentual > 0 ? `<tr><td class="muted">Plus</td><td class="value-col muted">${data.plusPercentual.toFixed(2)}%</td></tr>` : ""}
-        <tr class="highlight-row">
-          <td>Valor Final</td>
-          <td class="value-col">${formatCurrency(data.valorFinal)}</td>
-        </tr>
+        <tr class="highlight-row"><td>Valor Final</td><td class="value-col">${formatCurrency(data.valorFinal)}</td></tr>
         ${showParcelas ? `<tr class="highlight-row"><td>Parcela (${data.parcelas}x)</td><td class="value-col">${formatCurrency(data.valorParcela)}</td></tr>` : ""}
       </tbody>
     </table>
   </div>
 
   <div class="footer">
-    INOVAMAD — Documento gerado automaticamente. Este é um resumo de simulação e não constitui contrato.
+    ${companyName} — Documento gerado automaticamente. Este é um resumo de simulação e não constitui contrato.
   </div>
 </body>
 </html>`;
@@ -147,18 +138,10 @@ function buildHtml(data: SimulationPdfData): string {
 export function generateSimulationPdf(data: SimulationPdfData) {
   const html = buildHtml(data);
   const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    alert("Permita pop-ups para gerar o PDF.");
-    return;
-  }
+  if (!printWindow) { alert("Permita pop-ups para gerar o PDF."); return; }
   printWindow.document.write(html);
   printWindow.document.close();
-  // Wait for content to render then trigger print
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.print();
-    }, 300);
-  };
+  printWindow.onload = () => { setTimeout(() => { printWindow.print(); }, 300); };
 }
 
 export type { SimulationPdfData };
