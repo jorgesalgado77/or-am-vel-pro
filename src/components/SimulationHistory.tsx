@@ -196,6 +196,11 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
                 <SimulationCard
                   key={sim.id}
                   simulation={sim}
+                  clientName={client.nome}
+                  clientCpf={client.cpf || undefined}
+                  clientEmail={client.email || undefined}
+                  clientPhone={client.telefone1 || undefined}
+                  vendedor={client.vendedor || undefined}
                   isSelected={selected.has(sim.id)}
                   onToggle={() => toggleSelect(sim.id)}
                   onDelete={() => handleDelete(sim.id)}
