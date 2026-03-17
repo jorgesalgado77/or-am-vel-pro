@@ -57,6 +57,10 @@ function CompanySettingsTab() {
   }, [settings]);
 
   const handleSave = async () => {
+    if (managerPassword && managerPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.from("company_settings").update({
       company_name: name,
