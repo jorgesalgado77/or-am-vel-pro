@@ -7,6 +7,9 @@ export interface FinancingRate {
   provider_type: "boleto" | "credito";
   installments: number;
   coefficient: number;
+  taxa_fixa: number;
+  coeficiente_60: number;
+  coeficiente_90: number;
 }
 
 export function useFinancingRates(providerType?: "boleto" | "credito") {
