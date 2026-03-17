@@ -7,6 +7,10 @@ export interface CurrentUser {
   nome_completo: string;
   apelido: string | null;
   cargo_id: string | null;
+  foto_url: string | null;
+  cargo_nome: string | null;
+  telefone: string | null;
+  email: string | null;
   permissoes: CargoPermissoes;
 }
 
