@@ -44,6 +44,21 @@ export default function Index() {
     setLoading(false);
   };
 
+  const fetchLastSims = async () => {
+    const { data } = await supabase
+      .from("simulations")
+      .select("client_id, valor_final, created_at")
+      .order("created_at", { ascending: false });
+    if (!data) return;
+    const map: Record<string, { valor_final: number; created_at: string }> = {};
+    data.forEach((s) => {
+      if (!map[s.client_id]) {
+        map[s.client_id] = { valor_final: Number(s.valor_final) || 0, created_at: s.created_at };
+      }
+    });
+    setLastSims(map);
+  };
+
   useEffect(() => { fetchClients(); }, []);
 
   // Redirect to allowed view when user changes
