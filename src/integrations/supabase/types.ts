@@ -14,7 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          cpf: string | null
+          created_at: string
+          descricao_ambientes: string | null
+          email: string | null
+          id: string
+          nome: string
+          quantidade_ambientes: number | null
+          telefone1: string | null
+          telefone2: string | null
+          updated_at: string
+          vendedor: string | null
+        }
+        Insert: {
+          cpf?: string | null
+          created_at?: string
+          descricao_ambientes?: string | null
+          email?: string | null
+          id?: string
+          nome: string
+          quantidade_ambientes?: number | null
+          telefone1?: string | null
+          telefone2?: string | null
+          updated_at?: string
+          vendedor?: string | null
+        }
+        Update: {
+          cpf?: string | null
+          created_at?: string
+          descricao_ambientes?: string | null
+          email?: string | null
+          id?: string
+          nome?: string
+          quantidade_ambientes?: number | null
+          telefone1?: string | null
+          telefone2?: string | null
+          updated_at?: string
+          vendedor?: string | null
+        }
+        Relationships: []
+      }
+      simulations: {
+        Row: {
+          client_id: string
+          created_at: string
+          desconto1: number | null
+          desconto2: number | null
+          desconto3: number | null
+          forma_pagamento: string
+          id: string
+          parcelas: number | null
+          plus_percentual: number | null
+          updated_at: string
+          valor_entrada: number | null
+          valor_final: number | null
+          valor_parcela: number | null
+          valor_tela: number
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          desconto1?: number | null
+          desconto2?: number | null
+          desconto3?: number | null
+          forma_pagamento?: string
+          id?: string
+          parcelas?: number | null
+          plus_percentual?: number | null
+          updated_at?: string
+          valor_entrada?: number | null
+          valor_final?: number | null
+          valor_parcela?: number | null
+          valor_tela?: number
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          desconto1?: number | null
+          desconto2?: number | null
+          desconto3?: number | null
+          forma_pagamento?: string
+          id?: string
+          parcelas?: number | null
+          plus_percentual?: number | null
+          updated_at?: string
+          valor_entrada?: number | null
+          valor_final?: number | null
+          valor_parcela?: number | null
+          valor_tela?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
