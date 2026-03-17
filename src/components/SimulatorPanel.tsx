@@ -12,6 +12,7 @@ import { generateSimulationPdf } from "@/lib/generatePdf";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -48,6 +49,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
 
   const { settings } = useCompanySettings();
+  const { hasPermission } = useCurrentUser();
 
   // Load financing rates
   const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
@@ -95,6 +97,10 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
   }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates]);
 
   const requestUnlock = (field: "desconto3" | "plus") => {
+    // If user's cargo has permission, unlock directly
+    if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
+    if (field === "plus" && hasPermission("plus")) { setPlusUnlocked(true); return; }
+    // Otherwise require manager password
     if (!settings.manager_password) {
       if (field === "desconto3") setDesconto3Unlocked(true);
       else setPlusUnlocked(true);
