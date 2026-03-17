@@ -279,7 +279,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       toast.success("Simulação salva com sucesso!");
       if (!client) {
         setShowClientForm(false);
-        setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "" });
+        setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "" });
       }
     }
   };
