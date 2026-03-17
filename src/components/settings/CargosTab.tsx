@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Pencil, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCargos, type CargoPermissoes } from "@/hooks/useCargos";
@@ -24,6 +24,7 @@ export function CargosTab() {
   const { cargos, refresh, DEFAULT_PERMISSOES } = useCargos();
   const [newName, setNewName] = useState("");
   const [editPerms, setEditPerms] = useState<Record<string, CargoPermissoes>>({});
+  const [editingName, setEditingName] = useState<Record<string, string>>({});
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -46,10 +47,19 @@ export function CargosTab() {
 
   const handleSave = async (cargoId: string) => {
     const perms = editPerms[cargoId];
-    if (!perms) return;
-    const { error } = await supabase.from("cargos").update({ permissoes: perms as any }).eq("id", cargoId);
+    const newNome = editingName[cargoId];
+    const updates: any = {};
+    if (perms) updates.permissoes = perms;
+    if (newNome !== undefined) updates.nome = newNome.trim();
+    if (Object.keys(updates).length === 0) return;
+    const { error } = await supabase.from("cargos").update(updates).eq("id", cargoId);
     if (error) toast.error("Erro ao salvar");
-    else { toast.success("Permissões salvas!"); setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; }); refresh(); }
+    else {
+      toast.success("Cargo salvo!");
+      setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+      setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+      refresh();
+    }
   };
 
   return (
@@ -73,9 +83,23 @@ export function CargosTab() {
           <Card key={cargo.id}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{cargo.nome}</CardTitle>
+                {editingName[cargo.id] !== undefined ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={editingName[cargo.id]}
+                      onChange={e => setEditingName(prev => ({ ...prev, [cargo.id]: e.target.value }))}
+                      className="h-8 w-48"
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => setEditingName(prev => { const n = { ...prev }; delete n[cargo.id]; return n; })}><X className="h-3 w-3" /></Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base">{cargo.nome}</CardTitle>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingName(prev => ({ ...prev, [cargo.id]: cargo.nome }))}><Pencil className="h-3 w-3" /></Button>
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  {editPerms[cargo.id] && (
+                  {(editPerms[cargo.id] || editingName[cargo.id] !== undefined) && (
                     <Button size="sm" onClick={() => handleSave(cargo.id)} className="gap-1"><Save className="h-3 w-3" />Salvar</Button>
                   )}
                   <Button size="sm" variant="destructive" onClick={() => handleDelete(cargo.id, cargo.nome)} className="gap-1"><Trash2 className="h-3 w-3" />Excluir</Button>
