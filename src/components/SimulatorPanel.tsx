@@ -195,9 +195,40 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
             </div>
 
             {client && (
-              <Button onClick={handleSave} disabled={saving} className="w-full mt-4 bg-success hover:bg-success/90 text-success-foreground">
-                {saving ? "Salvando..." : "Salvar Simulação"}
-              </Button>
+              <div className="flex gap-3 mt-4">
+                <Button onClick={handleSave} disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground">
+                  {saving ? "Salvando..." : "Salvar Simulação"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() =>
+                    generateSimulationPdf({
+                      clientName: client.nome,
+                      clientCpf: client.cpf || undefined,
+                      clientEmail: client.email || undefined,
+                      clientPhone: client.telefone1 || undefined,
+                      vendedor: client.vendedor || undefined,
+                      valorTela,
+                      desconto1,
+                      desconto2,
+                      desconto3,
+                      valorComDesconto: result.valorComDesconto,
+                      formaPagamento,
+                      parcelas,
+                      valorEntrada,
+                      plusPercentual,
+                      taxaCredito: result.taxaCredito,
+                      saldo: result.saldo,
+                      valorFinal: result.valorFinal,
+                      valorParcela: result.valorParcela,
+                    })
+                  }
+                >
+                  <FileDown className="h-4 w-4" />
+                  PDF
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
