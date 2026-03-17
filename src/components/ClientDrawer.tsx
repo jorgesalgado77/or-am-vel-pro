@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { maskCpfCnpj, maskPhone, unmask, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUsuarios } from "@/hooks/useUsuarios";
+import { useIndicadores } from "@/hooks/useIndicadores";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -24,6 +25,7 @@ const clientSchema = z.object({
   telefone2: z.string().max(20).optional().or(z.literal("")),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   vendedor: z.string().max(200).optional().or(z.literal("")),
+  indicador_id: z.string().optional().or(z.literal("")),
 });
 
 type ClientForm = z.infer<typeof clientSchema>;
@@ -42,6 +44,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   });
   const { usuarios } = useUsuarios();
   const activeUsuarios = usuarios.filter(u => u.ativo);
+  const { activeIndicadores } = useIndicadores();
 
   const cpfValue = watch("cpf") || "";
   const [cpfError, setCpfError] = useState("");
@@ -58,11 +61,12 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
         telefone2: client.telefone2 ? maskPhone(client.telefone2) : "",
         email: client.email || "",
         vendedor: client.vendedor || "",
+        indicador_id: (client as any).indicador_id || "",
       });
     } else {
       reset({
         nome: "", cpf: "", quantidade_ambientes: 0, descricao_ambientes: "",
-        telefone1: "", telefone2: "", email: "", vendedor: "",
+        telefone1: "", telefone2: "", email: "", vendedor: "", indicador_id: "",
       });
     }
     setCpfError("");
@@ -130,6 +134,20 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
                     {activeUsuarios.map((u) => (
                       <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
                         {u.apelido || u.nome_completo}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Indicador do Cliente</Label>
+                <Select value={watch("indicador_id") || ""} onValueChange={(v) => setValue("indicador_id", v === "_none" ? "" : v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Nenhum</SelectItem>
+                    {activeIndicadores.map((ind) => (
+                      <SelectItem key={ind.id} value={ind.id}>
+                        {ind.nome} ({ind.comissao_percentual}%)
                       </SelectItem>
                     ))}
                   </SelectContent>

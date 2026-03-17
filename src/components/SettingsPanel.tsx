@@ -16,6 +16,8 @@ import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { CargosTab } from "@/components/settings/CargosTab";
 import { UsuariosTab } from "@/components/settings/UsuariosTab";
 import { DescontosTab } from "@/components/settings/DescontosTab";
+import { IndicadoresTab } from "@/components/settings/IndicadoresTab";
+import { UserCheck } from "lucide-react";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
@@ -27,6 +29,7 @@ export function SettingsPanel() {
           <TabsTrigger value="cargos" className="gap-2"><Shield className="h-4 w-4" />Cargos</TabsTrigger>
           <TabsTrigger value="usuarios" className="gap-2"><Users className="h-4 w-4" />Usuários</TabsTrigger>
           <TabsTrigger value="descontos" className="gap-2"><FileText className="h-4 w-4" />Descontos</TabsTrigger>
+          <TabsTrigger value="indicadores" className="gap-2"><UserCheck className="h-4 w-4" />Indicadores</TabsTrigger>
           <TabsTrigger value="boleto" className="gap-2"><FileText className="h-4 w-4" />Financeiras (Boleto)</TabsTrigger>
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
         </TabsList>
@@ -34,6 +37,7 @@ export function SettingsPanel() {
         <TabsContent value="cargos"><CargosTab /></TabsContent>
         <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
         <TabsContent value="descontos"><DescontosTab /></TabsContent>
+        <TabsContent value="indicadores"><IndicadoresTab /></TabsContent>
         <TabsContent value="boleto"><BoletoRatesTab /></TabsContent>
         <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
       </Tabs>

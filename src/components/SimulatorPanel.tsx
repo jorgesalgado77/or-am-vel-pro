@@ -18,6 +18,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useDiscountOptions } from "@/hooks/useDiscountOptions";
 import { useUsuarios } from "@/hooks/useUsuarios";
+import { useIndicadores } from "@/hooks/useIndicadores";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -62,12 +63,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
+  const [selectedIndicadorId, setSelectedIndicadorId] = useState("");
 
   // New client form state (when no client is provided)
   const [showClientForm, setShowClientForm] = useState(false);
   const [newClient, setNewClient] = useState({
     nome: "", cpf: "", telefone1: "", telefone2: "", email: "",
-    vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "",
+    vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "",
   });
 
   const { settings } = useCompanySettings();
@@ -75,6 +77,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { getOptionsForField } = useDiscountOptions();
   const { usuarios } = useUsuarios();
   const activeUsuarios = usuarios.filter(u => u.ativo);
+  const { activeIndicadores } = useIndicadores();
+
+  // Get the selected indicador's commission
+  const selectedIndicador = activeIndicadores.find(i => i.id === selectedIndicadorId);
+  const comissaoPercentual = selectedIndicador ? selectedIndicador.comissao_percentual : 0;
+  const valorTelaComComissao = valorTela * (1 + comissaoPercentual / 100);
 
   const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
   const { rates: creditoRates, providers: creditoProviders } = useFinancingRates("credito");
@@ -120,7 +128,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
   const result = useMemo(() => {
     const input: SimulationInput = {
-      valorTela, desconto1, desconto2, desconto3,
+      valorTela: valorTelaComComissao, desconto1, desconto2, desconto3,
       formaPagamento, parcelas, valorEntrada, plusPercentual,
       creditRates: creditoCoeffMap,
       boletoRates: boletoCoeffMap,
@@ -128,7 +136,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       carenciaDias,
     };
     return calculateSimulation(input);
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates, carenciaDias]);
+  }, [valorTelaComComissao, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates, carenciaDias]);
 
   const requestUnlock = (field: "desconto3" | "plus") => {
     if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
@@ -226,7 +234,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           vendedor: newClient.vendedor || null,
           quantidade_ambientes: newClient.quantidade_ambientes || 0,
           descricao_ambientes: newClient.descricao_ambientes || null,
-        })
+          indicador_id: newClient.indicador_id || null,
+        } as any)
         .select("id")
         .single();
 
@@ -271,7 +280,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       toast.success("Simulação salva com sucesso!");
       if (!client) {
         setShowClientForm(false);
-        setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "" });
+        setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "" });
       }
     }
   };
@@ -315,6 +324,26 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
+              )}
+            </div>
+
+            <div>
+              <Label>Indicador do Cliente</Label>
+              <Select value={selectedIndicadorId || "_none"} onValueChange={(v) => setSelectedIndicadorId(v === "_none" ? "" : v)}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">Nenhum (0%)</SelectItem>
+                  {activeIndicadores.map((ind) => (
+                    <SelectItem key={ind.id} value={ind.id}>
+                      {ind.nome} ({ind.comissao_percentual}%)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {comissaoPercentual > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Acréscimo de {comissaoPercentual}%: {formatCurrency(valorTela)} → {formatCurrency(valorTelaComComissao)}
+                </p>
               )}
             </div>
 
@@ -468,7 +497,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <ResultRow label="Valor de Tela" value={formatCurrency(valorTela)} />
-              <ResultRow label="Desconto Total" value={formatCurrency(valorTela - result.valorComDesconto)} muted />
+              {comissaoPercentual > 0 && (
+                <ResultRow label={`Indicador (${comissaoPercentual}%)`} value={`+ ${formatCurrency(valorTelaComComissao - valorTela)}`} muted />
+              )}
+              {comissaoPercentual > 0 && (
+                <ResultRow label="Valor com Indicador" value={formatCurrency(valorTelaComComissao)} />
+              )}
+              <ResultRow label="Desconto Total" value={formatCurrency(valorTelaComComissao - result.valorComDesconto)} muted />
               <ResultRow label="Valor com Desconto" value={formatCurrency(result.valorComDesconto)} />
               <Separator />
               <ResultRow label="Entrada" value={formatCurrency(valorEntrada)} />
@@ -573,6 +608,20 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                       {activeUsuarios.map((u) => (
                         <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
                           {u.apelido || u.nome_completo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Indicador do Cliente</Label>
+                  <Select value={newClient.indicador_id || "_none"} onValueChange={(v) => setNewClient(p => ({ ...p, indicador_id: v === "_none" ? "" : v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Nenhum</SelectItem>
+                      {activeIndicadores.map((ind) => (
+                        <SelectItem key={ind.id} value={ind.id}>
+                          {ind.nome} ({ind.comissao_percentual}%)
                         </SelectItem>
                       ))}
                     </SelectContent>
