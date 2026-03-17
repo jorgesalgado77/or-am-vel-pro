@@ -242,6 +242,14 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                       ) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
+                      {client.indicador_id && indicadorMap[client.indicador_id] ? (
+                        <span className="text-xs text-foreground">
+                          {indicadorMap[client.indicador_id].nome}{" "}
+                          <span className="text-muted-foreground">({indicadorMap[client.indicador_id].comissao}%)</span>
+                        </span>
+                      ) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onSimulate(client)} title="Simular">
                           <Calculator className="h-4 w-4" />
