@@ -206,7 +206,7 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   {search || hasActiveFilters ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
                 </TableCell>
               </TableRow>
