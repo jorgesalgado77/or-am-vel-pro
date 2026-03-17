@@ -180,7 +180,51 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
           <CardContent className="space-y-4">
             <div>
               <Label>Valor de Tela</Label>
-              <Input type="number" value={valorTela} onChange={(e) => setValorTela(Number(e.target.value))} min={0} step={100} className="mt-1" />
+              <div className="flex gap-2 mt-1">
+                <Input type="number" value={valorTela} onChange={(e) => setValorTela(Number(e.target.value))} min={0} step={100} className="flex-1" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  title="Importar arquivo TXT ou XML"
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".txt,.xml";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        const content = ev.target?.result as string;
+                        if (!content) return;
+                        let total: number | null = null;
+
+                        if (file.name.toLowerCase().endsWith(".xml")) {
+                          // Try to find <Total> or <ValorTotal> tag
+                          const match = content.match(/<(?:Total|ValorTotal|TOTAL|valor_total)[^>]*>\s*([\d.,]+)\s*</i);
+                          if (match) total = parseFloat(match[1].replace(/\./g, "").replace(",", "."));
+                        } else {
+                          // TXT: find "Total =" line
+                          const match = content.match(/Total\s*=\s*([\d.,]+)/i);
+                          if (match) total = parseFloat(match[1].replace(",", "."));
+                        }
+
+                        if (total && !isNaN(total)) {
+                          setValorTela(total);
+                          toast.success(`Valor de tela importado: ${formatCurrency(total)}`);
+                        } else {
+                          toast.error("Não foi possível encontrar o valor total no arquivo");
+                        }
+                      };
+                      reader.readAsText(file);
+                    };
+                    input.click();
+                  }}
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3 items-end">
