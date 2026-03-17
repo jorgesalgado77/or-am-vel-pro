@@ -119,29 +119,38 @@ export type Database = {
       financing_rates: {
         Row: {
           coefficient: number
+          coeficiente_60: number
+          coeficiente_90: number
           created_at: string
           id: string
           installments: number
           provider_name: string
           provider_type: string
+          taxa_fixa: number
           updated_at: string
         }
         Insert: {
           coefficient?: number
+          coeficiente_60?: number
+          coeficiente_90?: number
           created_at?: string
           id?: string
           installments: number
           provider_name: string
           provider_type: string
+          taxa_fixa?: number
           updated_at?: string
         }
         Update: {
           coefficient?: number
+          coeficiente_60?: number
+          coeficiente_90?: number
           created_at?: string
           id?: string
           installments?: number
           provider_name?: string
           provider_type?: string
+          taxa_fixa?: number
           updated_at?: string
         }
         Relationships: []

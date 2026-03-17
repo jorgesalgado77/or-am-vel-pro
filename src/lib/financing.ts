@@ -2,6 +2,13 @@
 
 export type FormaPagamento = 'A vista' | 'Boleto' | 'Credito' | 'Pix' | 'Credito / Boleto' | 'Entrada e Entrega';
 
+export interface BoletoRateData {
+  coefficient: number;
+  taxa_fixa: number;
+  coeficiente_60: number;
+  coeficiente_90: number;
+}
+
 export interface SimulationInput {
   valorTela: number;
   desconto1: number;
@@ -13,6 +20,8 @@ export interface SimulationInput {
   plusPercentual: number;
   creditRates?: Record<number, number>;
   boletoRates?: Record<number, number>;
+  boletoRatesFull?: Record<number, BoletoRateData>;
+  carenciaDias?: 30 | 60 | 90;
 }
 
 export interface SimulationResult {
@@ -23,10 +32,11 @@ export interface SimulationResult {
   valorParcela: number;
   taxaCredito: number;
   taxaBoleto: number;
+  taxaFixaBoleto: number;
 }
 
 export function calculateSimulation(input: SimulationInput): SimulationResult {
-  const { valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, creditRates = {}, boletoRates = {} } = input;
+  const { valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, creditRates = {}, boletoRates = {}, boletoRatesFull = {}, carenciaDias = 30 } = input;
 
   const afterDiscount1 = valorTela * (1 - desconto1 / 100);
   const afterDiscount2 = afterDiscount1 * (1 - desconto2 / 100);
@@ -38,6 +48,7 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
   let valorParcela = 0;
   let taxaCredito = 0;
   let taxaBoleto = 0;
+  let taxaFixaBoleto = 0;
 
   switch (formaPagamento) {
     case 'A vista':
@@ -53,11 +64,27 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
       break;
     }
     case 'Boleto': {
-      const coeff = boletoRates[parcelas] || 0;
+      const rateData = boletoRatesFull[parcelas];
+      let coeff = boletoRates[parcelas] || 0;
+      let tFixa = 0;
+
+      if (rateData) {
+        tFixa = Number(rateData.taxa_fixa) || 0;
+        if (carenciaDias === 60) {
+          coeff = Number(rateData.coeficiente_60) || coeff;
+        } else if (carenciaDias === 90) {
+          coeff = Number(rateData.coeficiente_90) || coeff;
+        } else {
+          coeff = Number(rateData.coefficient) || coeff;
+        }
+      }
+
       taxaBoleto = coeff;
+      taxaFixaBoleto = tFixa;
+
       if (coeff > 0) {
-        // Coefficient-based: parcela = saldo * coeficiente
-        valorParcela = saldo * coeff;
+        // parcela = saldo * coeficiente + taxa fixa
+        valorParcela = saldo * coeff + tFixa;
         valorFinal = valorParcela * parcelas;
       } else {
         valorFinal = saldo;
@@ -70,9 +97,20 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
       const halfBoleto = saldo * 0.5;
       taxaCredito = creditRates[parcelas] || 0;
       const creditTotal = halfCredit * (1 + taxaCredito);
-      const bCoeff = boletoRates[parcelas] || 0;
+
+      const rateData = boletoRatesFull[parcelas];
+      let bCoeff = boletoRates[parcelas] || 0;
+      let tFixa = 0;
+      if (rateData) {
+        tFixa = Number(rateData.taxa_fixa) || 0;
+        if (carenciaDias === 60) bCoeff = Number(rateData.coeficiente_60) || bCoeff;
+        else if (carenciaDias === 90) bCoeff = Number(rateData.coeficiente_90) || bCoeff;
+        else bCoeff = Number(rateData.coefficient) || bCoeff;
+      }
       taxaBoleto = bCoeff;
-      const boletoTotal = bCoeff > 0 ? (halfBoleto * bCoeff) * parcelas : halfBoleto;
+      taxaFixaBoleto = tFixa;
+
+      const boletoTotal = bCoeff > 0 ? (halfBoleto * bCoeff + tFixa) * parcelas : halfBoleto;
       valorFinal = creditTotal + boletoTotal;
       valorParcela = parcelas > 0 ? valorFinal / parcelas : valorFinal;
       break;
@@ -91,6 +129,7 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
     valorFinal,
     taxaCredito,
     taxaBoleto,
+    taxaFixaBoleto,
     valorParcela: Math.round(valorParcela * 100) / 100,
   };
 }

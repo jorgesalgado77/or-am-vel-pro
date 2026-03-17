@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save, Upload, Building2, CreditCard, FileText, Users, Shield, FileSpreadsheet } from "lucide-react";
+import { Plus, Trash2, Save, Upload, Building2, CreditCard, FileText, Users, Shield, FileSpreadsheet, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -19,7 +19,7 @@ import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <Tabs defaultValue="company" className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" />Empresa</TabsTrigger>
@@ -31,8 +31,8 @@ export function SettingsPanel() {
         <TabsContent value="company"><CompanySettingsTab /></TabsContent>
         <TabsContent value="cargos"><CargosTab /></TabsContent>
         <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
-        <TabsContent value="boleto"><RatesTab type="boleto" title="Financeiras de Boleto" maxInstallments={24} /></TabsContent>
-        <TabsContent value="credito"><RatesTab type="credito" title="Operadoras de Crédito" maxInstallments={12} /></TabsContent>
+        <TabsContent value="boleto"><BoletoRatesTab /></TabsContent>
+        <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -102,14 +102,8 @@ function CompanySettingsTab() {
       <CardHeader><CardTitle className="text-base">Dados da Empresa</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>Nome da Empresa</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
-          </div>
-          <div>
-            <Label>Subtítulo</Label>
-            <Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" />
-          </div>
+          <div><Label>Nome da Empresa</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
+          <div><Label>Subtítulo</Label><Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" /></div>
         </div>
         <div>
           <Label>Validade do Orçamento (dias)</Label>
@@ -156,37 +150,230 @@ function CompanySettingsTab() {
         <div>
           <Label>Logo da Empresa</Label>
           <div className="flex items-center gap-4 mt-2">
-            {settings.logo_url && (
-              <img src={settings.logo_url} alt="Logo" className="h-12 w-auto object-contain rounded border border-border p-1" />
-            )}
+            {settings.logo_url && <img src={settings.logo_url} alt="Logo" className="h-12 w-auto object-contain rounded border border-border p-1" />}
             <label className="cursor-pointer">
               <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-              <Button variant="outline" size="sm" className="gap-2" asChild>
-                <span><Upload className="h-4 w-4" />{uploading ? "Enviando..." : "Enviar Logo"}</span>
-              </Button>
+              <Button variant="outline" size="sm" className="gap-2" asChild><span><Upload className="h-4 w-4" />{uploading ? "Enviando..." : "Enviar Logo"}</span></Button>
             </label>
           </div>
         </div>
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" />{saving ? "Salvando..." : "Salvar"}
-          </Button>
+          <Button onClick={handleSave} disabled={saving} className="gap-2"><Save className="h-4 w-4" />{saving ? "Salvando..." : "Salvar"}</Button>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"; title: string; maxInstallments: number }) {
-  const { rates, providers, refresh } = useFinancingRates(type);
+/* ===== BOLETO RATES TAB (5 columns) ===== */
+function BoletoRatesTab() {
+  const { rates, providers, refresh } = useFinancingRates("boleto");
+  const [newProviderName, setNewProviderName] = useState("");
+  const [editingRates, setEditingRates] = useState<Record<string, Partial<FinancingRate>>>({});
+
+  const handleAddProvider = async () => {
+    if (!newProviderName.trim()) return;
+    const inserts = Array.from({ length: 24 }, (_, i) => ({
+      provider_name: newProviderName.trim(),
+      provider_type: "boleto" as const,
+      installments: i + 1,
+      coefficient: 0,
+      taxa_fixa: 0,
+      coeficiente_60: 0,
+      coeficiente_90: 0,
+    }));
+    const { error } = await supabase.from("financing_rates").insert(inserts);
+    if (error) toast.error("Erro ao adicionar");
+    else { toast.success("Adicionado!"); setNewProviderName(""); refresh(); }
+  };
+
+  const handleDeleteProvider = async (providerName: string) => {
+    if (!confirm(`Excluir ${providerName}?`)) return;
+    const { error } = await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", "boleto");
+    if (error) toast.error("Erro ao excluir");
+    else { toast.success("Excluído!"); refresh(); }
+  };
+
+  const handleFieldChange = (rateId: string, field: string, value: number) => {
+    setEditingRates((prev) => ({ ...prev, [rateId]: { ...prev[rateId], [field]: value } }));
+  };
+
+  const handleSaveRates = async (providerName: string) => {
+    const providerRates = rates.filter((r) => r.provider_name === providerName);
+    const updates = providerRates
+      .filter((r) => editingRates[r.id])
+      .map((r) => supabase.from("financing_rates").update(editingRates[r.id] as any).eq("id", r.id));
+    if (updates.length === 0) return;
+    await Promise.all(updates);
+    toast.success(`Taxas de ${providerName} salvas!`);
+    setEditingRates({});
+    refresh();
+  };
+
+  const handleExportExcel = (providerName: string) => {
+    const providerRates = rates.filter((r) => r.provider_name === providerName).sort((a, b) => a.installments - b.installments);
+    const data = [[providerName, "", "", "", ""], ["Parcelas", "Taxa Fixa", "Coef. 30 dias", "Coef. 60 dias", "Coef. 90 dias"]];
+    providerRates.forEach((r) => {
+      data.push([String(r.installments), String(r.taxa_fixa), String(r.coefficient), String(r.coeficiente_60), String(r.coeficiente_90)]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Taxas");
+    XLSX.writeFile(wb, `${providerName}_boleto.xlsx`);
+    toast.success(`Planilha exportada: ${providerName}`);
+  };
+
+  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        if (rows.length < 2) { toast.error("Planilha vazia ou sem dados"); return; }
+
+        // First cell = provider name
+        const headerRow = rows[0] as any[];
+        let providerName = "";
+        if (headerRow[0] && typeof headerRow[0] === "string" && isNaN(Number(headerRow[0]))) {
+          providerName = headerRow[0].trim();
+        } else {
+          providerName = file.name.replace(/\.(xlsx?|csv)$/i, "").trim();
+        }
+
+        // Parse data rows (skip header rows)
+        const parsedRates: { installments: number; taxa_fixa: number; coefficient: number; coeficiente_60: number; coeficiente_90: number }[] = [];
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i] as any[];
+          if (!row || row.length < 2) continue;
+          const col0 = Number(row[0]);
+          if (isNaN(col0) || col0 < 1 || col0 > 120) continue;
+          parsedRates.push({
+            installments: Math.round(col0),
+            taxa_fixa: Number(row[1]) || 0,
+            coefficient: Number(row[2]) || 0,
+            coeficiente_60: Number(row[3]) || 0,
+            coeficiente_90: Number(row[4]) || 0,
+          });
+        }
+
+        if (parsedRates.length === 0) { toast.error("Nenhum dado válido encontrado"); return; }
+
+        await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", "boleto");
+        const inserts = parsedRates.map((r) => ({ ...r, provider_name: providerName, provider_type: "boleto" as const }));
+        const { error } = await supabase.from("financing_rates").insert(inserts);
+        if (error) toast.error("Erro ao importar");
+        else { toast.success(`Importado "${providerName}" com ${parsedRates.length} parcelas!`); refresh(); }
+      } catch { toast.error("Erro ao ler planilha"); }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><CardTitle className="text-base">Financeiras de Boleto</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <Label>Nome da Financeira</Label>
+              <Input value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Ex: BV Financeira" className="mt-1" />
+            </div>
+            <Button onClick={handleAddProvider} className="gap-2"><Plus className="h-4 w-4" />Adicionar</Button>
+          </div>
+          <Separator />
+          <div>
+            <Label>Importar Planilha Excel</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Primeira célula: nome da financeira. Colunas: Parcelas | Taxa Fixa | Coef. 30 dias | Coef. 60 dias | Coef. 90 dias
+            </p>
+            <label className="cursor-pointer">
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelImport} />
+              <Button variant="outline" size="sm" className="gap-2" asChild><span><FileSpreadsheet className="h-4 w-4" />Importar Excel</span></Button>
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {providers.map((provider) => {
+        const providerRates = rates.filter((r) => r.provider_name === provider).sort((a, b) => a.installments - b.installments);
+        return (
+          <Card key={provider}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-base">{provider}</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleExportExcel(provider)} className="gap-1"><Download className="h-3 w-3" />Exportar</Button>
+                  <Button size="sm" onClick={() => handleSaveRates(provider)} className="gap-1"><Save className="h-3 w-3" />Salvar</Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDeleteProvider(provider)} className="gap-1"><Trash2 className="h-3 w-3" />Excluir</Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-md overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-secondary/50">
+                      <TableHead className="w-20">Parcelas</TableHead>
+                      <TableHead>Taxa Fixa</TableHead>
+                      <TableHead>Coef. 30 dias</TableHead>
+                      <TableHead>Coef. 60 dias</TableHead>
+                      <TableHead>Coef. 90 dias</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {providerRates.map((rate) => (
+                      <TableRow key={rate.id}>
+                        <TableCell className="font-medium">{rate.installments}x</TableCell>
+                        <TableCell>
+                          <Input type="number" step="0.01" min={0} className="max-w-[140px] h-8"
+                            defaultValue={Number(rate.taxa_fixa)}
+                            onChange={(e) => handleFieldChange(rate.id, "taxa_fixa", Number(e.target.value))} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" step="0.000001" min={0} className="max-w-[140px] h-8"
+                            defaultValue={Number(rate.coefficient)}
+                            onChange={(e) => handleFieldChange(rate.id, "coefficient", Number(e.target.value))} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" step="0.000001" min={0} className="max-w-[140px] h-8"
+                            defaultValue={Number(rate.coeficiente_60)}
+                            onChange={(e) => handleFieldChange(rate.id, "coeficiente_60", Number(e.target.value))} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" step="0.000001" min={0} className="max-w-[140px] h-8"
+                            defaultValue={Number(rate.coeficiente_90)}
+                            onChange={(e) => handleFieldChange(rate.id, "coeficiente_90", Number(e.target.value))} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ===== CREDITO RATES TAB (simpler: parcelas + coeficiente) ===== */
+function CreditoRatesTab() {
+  const { rates, providers, refresh } = useFinancingRates("credito");
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, number>>({});
 
   const handleAddProvider = async () => {
     if (!newProviderName.trim()) return;
-    const inserts = Array.from({ length: maxInstallments }, (_, i) => ({
+    const inserts = Array.from({ length: 12 }, (_, i) => ({
       provider_name: newProviderName.trim(),
-      provider_type: type,
+      provider_type: "credito" as const,
       installments: i + 1,
       coefficient: 0,
     }));
@@ -197,7 +384,7 @@ function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"
 
   const handleDeleteProvider = async (providerName: string) => {
     if (!confirm(`Excluir ${providerName}?`)) return;
-    const { error } = await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", type);
+    const { error } = await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", "credito");
     if (error) toast.error("Erro ao excluir");
     else { toast.success("Excluído!"); refresh(); }
   };
@@ -218,10 +405,22 @@ function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"
     refresh();
   };
 
+  const handleExportExcel = (providerName: string) => {
+    const providerRates = rates.filter((r) => r.provider_name === providerName).sort((a, b) => a.installments - b.installments);
+    const data = [[providerName, ""], ["Parcelas", "Coeficiente / Taxa"]];
+    providerRates.forEach((r) => {
+      data.push([String(r.installments), String(r.coefficient)]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Taxas");
+    XLSX.writeFile(wb, `${providerName}_credito.xlsx`);
+    toast.success(`Planilha exportada: ${providerName}`);
+  };
+
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
@@ -229,58 +428,34 @@ function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        if (rows.length < 2) { toast.error("Planilha vazia"); return; }
 
-        if (rows.length < 2) { toast.error("Planilha vazia ou sem dados"); return; }
-
-        // Auto-detect: find provider name in first row or use filename
         const headerRow = rows[0] as any[];
         let providerName = "";
-
-        // Check if first cell has a name (not a number)
         if (headerRow[0] && typeof headerRow[0] === "string" && isNaN(Number(headerRow[0]))) {
           providerName = headerRow[0].trim();
         } else {
           providerName = file.name.replace(/\.(xlsx?|csv)$/i, "").trim();
         }
 
-        // Parse rows: look for installment number + coefficient pairs
         const parsedRates: { installments: number; coefficient: number }[] = [];
-
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i] as any[];
           if (!row || row.length < 2) continue;
-
           const col0 = Number(row[0]);
           const col1 = Number(row[1]);
-
           if (!isNaN(col0) && col0 >= 1 && col0 <= 120 && !isNaN(col1)) {
             parsedRates.push({ installments: Math.round(col0), coefficient: col1 });
           }
         }
+        if (parsedRates.length === 0) { toast.error("Nenhum dado válido"); return; }
 
-        if (parsedRates.length === 0) { toast.error("Nenhum dado válido encontrado na planilha"); return; }
-
-        // Delete existing rates for this provider if it exists
-        await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", type);
-
-        // Insert new rates
-        const inserts = parsedRates.map((r) => ({
-          provider_name: providerName,
-          provider_type: type,
-          installments: r.installments,
-          coefficient: r.coefficient,
-        }));
-
+        await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", "credito");
+        const inserts = parsedRates.map((r) => ({ ...r, provider_name: providerName, provider_type: "credito" as const }));
         const { error } = await supabase.from("financing_rates").insert(inserts);
-        if (error) {
-          toast.error("Erro ao importar taxas");
-        } else {
-          toast.success(`Importado "${providerName}" com ${parsedRates.length} parcelas!`);
-          refresh();
-        }
-      } catch (err) {
-        toast.error("Erro ao ler planilha");
-      }
+        if (error) toast.error("Erro ao importar");
+        else { toast.success(`Importado "${providerName}" com ${parsedRates.length} parcelas!`); refresh(); }
+      } catch { toast.error("Erro ao ler planilha"); }
     };
     reader.readAsArrayBuffer(file);
     e.target.value = "";
@@ -289,30 +464,24 @@ function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{title}</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Operadoras de Crédito</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-end gap-3">
             <div className="flex-1">
-              <Label>Nome da {type === "boleto" ? "Financeira" : "Operadora"}</Label>
-              <Input value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Ex: BV Financeira" className="mt-1" />
+              <Label>Nome da Operadora</Label>
+              <Input value={newProviderName} onChange={(e) => setNewProviderName(e.target.value)} placeholder="Ex: Stone" className="mt-1" />
             </div>
-            <Button onClick={handleAddProvider} className="gap-2">
-              <Plus className="h-4 w-4" />Adicionar
-            </Button>
+            <Button onClick={handleAddProvider} className="gap-2"><Plus className="h-4 w-4" />Adicionar</Button>
           </div>
           <Separator />
           <div>
             <Label>Importar Planilha Excel</Label>
             <p className="text-xs text-muted-foreground mb-2">
-              A planilha deve conter: coluna 1 = nº parcelas, coluna 2 = coeficiente/taxa. O nome na primeira célula será usado como nome da financeira.
+              Primeira célula: nome da operadora. Colunas: Parcelas | Coeficiente/Taxa
             </p>
             <label className="cursor-pointer">
               <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelImport} />
-              <Button variant="outline" size="sm" className="gap-2" asChild>
-                <span><FileSpreadsheet className="h-4 w-4" />Importar Excel</span>
-              </Button>
+              <Button variant="outline" size="sm" className="gap-2" asChild><span><FileSpreadsheet className="h-4 w-4" />Importar Excel</span></Button>
             </label>
           </div>
         </CardContent>
@@ -323,15 +492,12 @@ function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"
         return (
           <Card key={provider}>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-base">{provider}</CardTitle>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleSaveRates(provider)} className="gap-1">
-                    <Save className="h-3 w-3" />Salvar
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleDeleteProvider(provider)} className="gap-1">
-                    <Trash2 className="h-3 w-3" />Excluir
-                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleExportExcel(provider)} className="gap-1"><Download className="h-3 w-3" />Exportar</Button>
+                  <Button size="sm" onClick={() => handleSaveRates(provider)} className="gap-1"><Save className="h-3 w-3" />Salvar</Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDeleteProvider(provider)} className="gap-1"><Trash2 className="h-3 w-3" />Excluir</Button>
                 </div>
               </div>
             </CardHeader>
@@ -349,14 +515,9 @@ function RatesTab({ type, title, maxInstallments }: { type: "boleto" | "credito"
                       <TableRow key={rate.id}>
                         <TableCell className="font-medium">{rate.installments}x</TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            step="0.0001"
-                            min={0}
-                            className="max-w-[200px] h-8"
+                          <Input type="number" step="0.0001" min={0} className="max-w-[200px] h-8"
                             defaultValue={Number(rate.coefficient)}
-                            onChange={(e) => handleCoefficientChange(rate.id, Number(e.target.value))}
-                          />
+                            onChange={(e) => handleCoefficientChange(rate.id, Number(e.target.value))} />
                         </TableCell>
                       </TableRow>
                     ))}
