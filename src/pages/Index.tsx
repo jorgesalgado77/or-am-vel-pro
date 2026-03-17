@@ -62,6 +62,29 @@ export default function Index() {
     }
   }, [currentUser]);
 
+  const generateOrcamentoNumber = async (): Promise<{ numero_orcamento: string; numero_orcamento_seq: number }> => {
+    // Get max sequence used
+    const { data: maxData } = await supabase
+      .from("clients")
+      .select("numero_orcamento_seq")
+      .order("numero_orcamento_seq", { ascending: false })
+      .limit(1)
+      .single() as any;
+
+    let nextSeq: number;
+    if (!maxData?.numero_orcamento_seq) {
+      // Use configured start number
+      const { data: settingsData } = await supabase.from("company_settings").select("orcamento_numero_inicial").limit(1).single() as any;
+      nextSeq = settingsData?.orcamento_numero_inicial || 1;
+    } else {
+      nextSeq = (maxData.numero_orcamento_seq as number) + 1;
+    }
+
+    const padded = String(nextSeq).padStart(9, "0");
+    const formatted = `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}`;
+    return { numero_orcamento: formatted, numero_orcamento_seq: nextSeq };
+  };
+
   const handleSaveClient = async (data: Record<string, unknown>) => {
     setSaving(true);
     if (editingClient) {
@@ -69,7 +92,9 @@ export default function Index() {
       if (error) toast.error("Erro ao atualizar cliente");
       else toast.success("Cliente atualizado!");
     } else {
-      const { error } = await supabase.from("clients").insert(data as Database["public"]["Tables"]["clients"]["Insert"]);
+      const orcamento = await generateOrcamentoNumber();
+      const insertData = { ...data, ...orcamento } as any;
+      const { error } = await supabase.from("clients").insert(insertData);
       if (error) toast.error("Erro ao criar cliente");
       else toast.success("Cliente criado!");
     }
