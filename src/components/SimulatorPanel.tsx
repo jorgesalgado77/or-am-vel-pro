@@ -497,7 +497,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <ResultRow label="Valor de Tela" value={formatCurrency(valorTela)} />
-              <ResultRow label="Desconto Total" value={formatCurrency(valorTela - result.valorComDesconto)} muted />
+              {comissaoPercentual > 0 && (
+                <ResultRow label={`Indicador (${comissaoPercentual}%)`} value={`+ ${formatCurrency(valorTelaComComissao - valorTela)}`} muted />
+              )}
+              {comissaoPercentual > 0 && (
+                <ResultRow label="Valor com Indicador" value={formatCurrency(valorTelaComComissao)} />
+              )}
+              <ResultRow label="Desconto Total" value={formatCurrency(valorTelaComComissao - result.valorComDesconto)} muted />
               <ResultRow label="Valor com Desconto" value={formatCurrency(result.valorComDesconto)} />
               <Separator />
               <ResultRow label="Entrada" value={formatCurrency(valorEntrada)} />
