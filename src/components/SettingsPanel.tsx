@@ -26,12 +26,14 @@ export function SettingsPanel() {
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" />Empresa</TabsTrigger>
           <TabsTrigger value="cargos" className="gap-2"><Shield className="h-4 w-4" />Cargos</TabsTrigger>
           <TabsTrigger value="usuarios" className="gap-2"><Users className="h-4 w-4" />Usuários</TabsTrigger>
+          <TabsTrigger value="descontos" className="gap-2"><FileText className="h-4 w-4" />Descontos</TabsTrigger>
           <TabsTrigger value="boleto" className="gap-2"><FileText className="h-4 w-4" />Financeiras (Boleto)</TabsTrigger>
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanySettingsTab /></TabsContent>
         <TabsContent value="cargos"><CargosTab /></TabsContent>
         <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
+        <TabsContent value="descontos"><DescontosTab /></TabsContent>
         <TabsContent value="boleto"><BoletoRatesTab /></TabsContent>
         <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
       </Tabs>
