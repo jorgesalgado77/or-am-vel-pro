@@ -159,6 +159,10 @@ export default function Index() {
             <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
           </div>
 
+          {activeView === "dashboard" && (
+            <Dashboard clients={clients} lastSims={lastSims} />
+          )}
+
           {activeView === "clients" && (
             <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} />
           )}
