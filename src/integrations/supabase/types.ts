@@ -82,6 +82,7 @@ export type Database = {
       }
       company_settings: {
         Row: {
+          admin_password: string | null
           budget_validity_days: number
           company_name: string
           company_subtitle: string | null
@@ -92,6 +93,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_password?: string | null
           budget_validity_days?: number
           company_name?: string
           company_subtitle?: string | null
@@ -102,6 +104,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_password?: string | null
           budget_validity_days?: number
           company_name?: string
           company_subtitle?: string | null
