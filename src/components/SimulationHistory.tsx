@@ -210,6 +210,13 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
                   clientEmail={client.email || undefined}
                   clientPhone={client.telefone1 || undefined}
                   vendedor={client.vendedor || undefined}
+                  indicadorNome={indicador?.nome}
+                  indicadorComissao={indicador?.comissao_percentual}
+                  indicadorTelefone={indicador?.telefone || undefined}
+                  indicadorEmail={indicador?.email || undefined}
+                  companyName={settings.company_name}
+                  companySubtitle={settings.company_subtitle || undefined}
+                  companyLogoUrl={settings.logo_url || undefined}
                   isSelected={selected.has(sim.id)}
                   onToggle={() => toggleSelect(sim.id)}
                   onDelete={() => handleDelete(sim.id)}
