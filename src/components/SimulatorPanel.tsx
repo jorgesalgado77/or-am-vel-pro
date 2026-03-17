@@ -128,7 +128,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
   const result = useMemo(() => {
     const input: SimulationInput = {
-      valorTela, desconto1, desconto2, desconto3,
+      valorTela: valorTelaComComissao, desconto1, desconto2, desconto3,
       formaPagamento, parcelas, valorEntrada, plusPercentual,
       creditRates: creditoCoeffMap,
       boletoRates: boletoCoeffMap,
@@ -136,7 +136,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       carenciaDias,
     };
     return calculateSimulation(input);
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates, carenciaDias]);
+  }, [valorTelaComComissao, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates, carenciaDias]);
 
   const requestUnlock = (field: "desconto3" | "plus") => {
     if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
