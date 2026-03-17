@@ -525,8 +525,16 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>CPF</Label>
-                    <Input value={newClient.cpf} onChange={(e) => setNewClient(p => ({ ...p, cpf: e.target.value }))} className="mt-1" placeholder="000.000.000-00" />
+                    <Label>{isCnpj(newClient.cpf) ? "CNPJ" : "CPF"}</Label>
+                    <Input
+                      value={newClient.cpf}
+                      onChange={(e) => setNewClient(p => ({ ...p, cpf: maskCpfCnpj(e.target.value) }))}
+                      className="mt-1"
+                      placeholder={isCnpj(newClient.cpf) ? "00.000.000/0000-00" : "000.000.000-00"}
+                    />
+                    {newClient.cpf && !validateCpfCnpj(newClient.cpf).valid && (
+                      <p className="text-xs text-destructive mt-1">{validateCpfCnpj(newClient.cpf).message}</p>
+                    )}
                   </div>
                   <div>
                     <Label>Email</Label>
@@ -536,11 +544,21 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Telefone 1</Label>
-                    <Input value={newClient.telefone1} onChange={(e) => setNewClient(p => ({ ...p, telefone1: e.target.value }))} className="mt-1" placeholder="(00) 00000-0000" />
+                    <Input
+                      value={newClient.telefone1}
+                      onChange={(e) => setNewClient(p => ({ ...p, telefone1: maskPhone(e.target.value) }))}
+                      className="mt-1"
+                      placeholder="(00) 00000-0000"
+                    />
                   </div>
                   <div>
                     <Label>Telefone 2</Label>
-                    <Input value={newClient.telefone2} onChange={(e) => setNewClient(p => ({ ...p, telefone2: e.target.value }))} className="mt-1" placeholder="(00) 00000-0000" />
+                    <Input
+                      value={newClient.telefone2}
+                      onChange={(e) => setNewClient(p => ({ ...p, telefone2: maskPhone(e.target.value) }))}
+                      className="mt-1"
+                      placeholder="(00) 00000-0000"
+                    />
                   </div>
                 </div>
                 <div>
