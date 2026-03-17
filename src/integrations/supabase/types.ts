@@ -56,6 +56,66 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          budget_validity_days: number
+          company_name: string
+          company_subtitle: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          budget_validity_days?: number
+          company_name?: string
+          company_subtitle?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budget_validity_days?: number
+          company_name?: string
+          company_subtitle?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      financing_rates: {
+        Row: {
+          coefficient: number
+          created_at: string
+          id: string
+          installments: number
+          provider_name: string
+          provider_type: string
+          updated_at: string
+        }
+        Insert: {
+          coefficient?: number
+          created_at?: string
+          id?: string
+          installments: number
+          provider_name: string
+          provider_type: string
+          updated_at?: string
+        }
+        Update: {
+          coefficient?: number
+          created_at?: string
+          id?: string
+          installments?: number
+          provider_name?: string
+          provider_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       simulations: {
         Row: {
           client_id: string
