@@ -38,6 +38,14 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [comparing, setComparing] = useState(false);
+  const { indicadores } = useIndicadores();
+  const { settings } = useCompanySettings();
+
+  const indicador = useMemo(() => {
+    if (!client.indicador_id) return null;
+    return indicadores.find(i => i.id === client.indicador_id) || null;
+  }, [client.indicador_id, indicadores]);
+  const [comparing, setComparing] = useState(false);
 
   const fetchSimulations = async () => {
     setLoading(true);
