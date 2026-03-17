@@ -44,6 +44,13 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const { settings } = useCompanySettings();
   const { projetistas } = useUsuarios();
+  const { indicadores } = useIndicadores();
+
+  const indicadorMap = useMemo(() => {
+    const map: Record<string, { nome: string; comissao: number }> = {};
+    indicadores.forEach(i => { map[i.id] = { nome: i.nome, comissao: i.comissao_percentual }; });
+    return map;
+  }, [indicadores]);
 
   useEffect(() => {
     if (clients.length === 0) return;
