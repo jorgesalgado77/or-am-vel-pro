@@ -183,11 +183,11 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
               <Input type="number" value={valorTela} onChange={(e) => setValorTela(Number(e.target.value))} min={0} step={100} className="mt-1" />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-3 items-end">
               <div>
-                <Label>Desconto 1 (%)</Label>
+                <Label className="mb-1 block">Desconto 1 (%)</Label>
                 <Select value={String(desconto1)} onValueChange={(v) => setDesconto1(Number(v))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {getOptionsForField("desconto1").map((v) => (
                       <SelectItem key={v} value={String(v)}>{v}%</SelectItem>
@@ -196,9 +196,9 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
                 </Select>
               </div>
               <div>
-                <Label>Desconto 2 (%)</Label>
+                <Label className="mb-1 block">Desconto 2 (%)</Label>
                 <Select value={String(desconto2)} onValueChange={(v) => setDesconto2(Number(v))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {getOptionsForField("desconto2").map((v) => (
                       <SelectItem key={v} value={String(v)}>{v}%</SelectItem>
@@ -207,14 +207,14 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
                 </Select>
               </div>
               <div>
-                <Label className="flex items-center gap-1">
+                <Label className="mb-1 flex items-center gap-1">
                   Desconto 3 (%)
                   {!desconto3Unlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
                   {desconto3Unlocked && <LockOpen className="h-3 w-3 text-success" />}
                 </Label>
                 {desconto3Unlocked ? (
                   <Select value={String(desconto3)} onValueChange={(v) => setDesconto3(Number(v))}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {getOptionsForField("desconto3").map((v) => (
                         <SelectItem key={v} value={String(v)}>{v}%</SelectItem>
@@ -222,7 +222,7 @@ export function SimulatorPanel({ client, onBack }: SimulatorPanelProps) {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Button variant="outline" size="sm" className="mt-1 w-full h-10 gap-1 text-muted-foreground" onClick={() => requestUnlock("desconto3")}>
+                  <Button variant="outline" size="sm" className="w-full h-9 gap-1 text-muted-foreground" onClick={() => requestUnlock("desconto3")}>
                     <Lock className="h-3 w-3" />Desbloquear
                   </Button>
                 )}
