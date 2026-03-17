@@ -146,6 +146,8 @@ export default function Index() {
           />
         )}
 
+        {activeView === "settings" && <SettingsPanel />}
+
         <ClientDrawer
           open={drawerOpen}
           onClose={() => { setDrawerOpen(false); setEditingClient(null); }}
