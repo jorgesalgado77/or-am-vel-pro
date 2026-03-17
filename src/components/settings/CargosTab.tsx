@@ -47,10 +47,19 @@ export function CargosTab() {
 
   const handleSave = async (cargoId: string) => {
     const perms = editPerms[cargoId];
-    if (!perms) return;
-    const { error } = await supabase.from("cargos").update({ permissoes: perms as any }).eq("id", cargoId);
+    const newNome = editingName[cargoId];
+    const updates: any = {};
+    if (perms) updates.permissoes = perms;
+    if (newNome !== undefined) updates.nome = newNome.trim();
+    if (Object.keys(updates).length === 0) return;
+    const { error } = await supabase.from("cargos").update(updates).eq("id", cargoId);
     if (error) toast.error("Erro ao salvar");
-    else { toast.success("Permissões salvas!"); setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; }); refresh(); }
+    else {
+      toast.success("Cargo salvo!");
+      setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+      setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+      refresh();
+    }
   };
 
   return (
