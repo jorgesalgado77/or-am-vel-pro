@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FileDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { FileDown, Lock, LockOpen } from "lucide-react";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput } from "@/lib/financing";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import { supabase } from "@/integrations/supabase/client";
