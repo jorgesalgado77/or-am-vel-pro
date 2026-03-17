@@ -38,6 +38,7 @@ interface ClientsTableProps {
 export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory }: ClientsTableProps) {
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
+  const [filterIndicador, setFilterIndicador] = useState("");
   const [dateStart, setDateStart] = useState<Date | undefined>();
   const [dateEnd, setDateEnd] = useState<Date | undefined>();
   const [showFilters, setShowFilters] = useState(false);
@@ -89,6 +90,9 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
       // Filter by projetista
       if (filterProjetista && c.vendedor !== filterProjetista) return false;
 
+      // Filter by indicador
+      if (filterIndicador && c.indicador_id !== filterIndicador) return false;
+
       // Filter by date range
       if (dateStart || dateEnd) {
         const clientDate = new Date(c.created_at);
@@ -98,17 +102,18 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
 
       return true;
     });
-  }, [clients, search, filterProjetista, dateStart, dateEnd]);
+  }, [clients, search, filterProjetista, filterIndicador, dateStart, dateEnd]);
 
   const isExpired = (createdAt: string) => {
     const expiryDate = addDays(new Date(createdAt), settings.budget_validity_days);
     return isPast(expiryDate);
   };
 
-  const hasActiveFilters = filterProjetista || dateStart || dateEnd;
+  const hasActiveFilters = filterProjetista || filterIndicador || dateStart || dateEnd;
 
   const clearFilters = () => {
     setFilterProjetista("");
+    setFilterIndicador("");
     setDateStart(undefined);
     setDateEnd(undefined);
     setSearch("");
@@ -143,6 +148,20 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                 {projetistas.map((p) => (
                   <SelectItem key={p.id} value={p.apelido || p.nome_completo}>
                     {p.apelido || p.nome_completo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-[180px]">
+            <Label className="text-xs mb-1 block">Indicador</Label>
+            <Select value={filterIndicador || "_all"} onValueChange={(v) => setFilterIndicador(v === "_all" ? "" : v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">Todos</SelectItem>
+                {indicadores.filter(i => i.ativo).map((ind) => (
+                  <SelectItem key={ind.id} value={ind.id}>
+                    {ind.nome} ({ind.comissao_percentual}%)
                   </SelectItem>
                 ))}
               </SelectContent>
