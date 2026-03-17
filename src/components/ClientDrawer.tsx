@@ -25,6 +25,7 @@ const clientSchema = z.object({
   telefone2: z.string().max(20).optional().or(z.literal("")),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   vendedor: z.string().max(200).optional().or(z.literal("")),
+  indicador_id: z.string().optional().or(z.literal("")),
 });
 
 type ClientForm = z.infer<typeof clientSchema>;
