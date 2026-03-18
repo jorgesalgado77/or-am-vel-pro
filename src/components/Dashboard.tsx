@@ -111,19 +111,22 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
 
   // Contract tracking data
   const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
+  const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string }[]>([]);
 
   const fetchTrackingStats = useCallback(async () => {
     const { data } = await supabase
       .from("client_tracking")
       .select("valor_contrato, data_fechamento, created_at");
     if (data) {
-      const filtered = (data as any[]).filter((t) => {
-        const dateRef = t.data_fechamento || t.created_at;
-        return isInRange(dateRef, dateRange.start, dateRange.end);
-      });
+      const all = (data as any[]).map((t) => ({
+        valor_contrato: Number(t.valor_contrato) || 0,
+        dateRef: t.data_fechamento || t.created_at,
+      }));
+      const filtered = all.filter((t) => isInRange(t.dateRef, dateRange.start, dateRange.end));
+      setTrackingRaw(filtered);
       setTrackingData({
         count: filtered.length,
-        total: filtered.reduce((sum, t) => sum + (Number(t.valor_contrato) || 0), 0),
+        total: filtered.reduce((sum, t) => sum + t.valor_contrato, 0),
       });
     }
   }, [dateRange]);
