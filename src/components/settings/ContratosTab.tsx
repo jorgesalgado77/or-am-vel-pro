@@ -132,6 +132,7 @@ export function ContratosTab() {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
         setHtmlContent(result.value);
+        setEditorKey(k => k + 1);
         if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.docx$/i, ""));
         toast.success("Documento Word importado!");
       } else if (ext === "xlsx" || ext === "xls") {
