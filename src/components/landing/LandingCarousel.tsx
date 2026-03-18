@@ -2,6 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
 import { motion, AnimatePresence } from "framer-motion";
+import screenshotDashboard from "@/assets/screenshot-dashboard.jpg";
+import screenshotClients from "@/assets/screenshot-clients.jpg";
+import screenshotSimulator from "@/assets/screenshot-simulator.jpg";
+
+const FALLBACK_IMAGES = [screenshotDashboard, screenshotClients, screenshotSimulator];
 
 interface LandingCarouselProps {
   images: string[];
@@ -11,26 +16,27 @@ interface LandingCarouselProps {
 const LABELS = ["Dashboard com KPIs e gráficos", "Gestão completa de clientes", "Simulador de financiamento"];
 
 export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) {
+  const displayImages = images.length > 0 ? images : FALLBACK_IMAGES;
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(0);
 
   const next = useCallback(() => {
     setDirection(1);
-    setCurrent(prev => (prev + 1) % images.length);
-  }, [images.length]);
+    setCurrent(prev => (prev + 1) % displayImages.length);
+  }, [displayImages.length]);
 
   const prev = useCallback(() => {
     setDirection(-1);
-    setCurrent(prev => (prev - 1 + images.length) % images.length);
-  }, [images.length]);
+    setCurrent(prev => (prev - 1 + displayImages.length) % displayImages.length);
+  }, [displayImages.length]);
 
   useEffect(() => {
-    if (images.length <= 1) return;
+    if (displayImages.length <= 1) return;
     const interval = setInterval(next, 5000);
     return () => clearInterval(interval);
-  }, [next, images.length]);
+  }, [next, displayImages.length]);
 
-  if (images.length === 0) return null;
+  if (displayImages.length === 0) return null;
 
   const variants = {
     enter: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
@@ -56,7 +62,7 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
               <AnimatePresence initial={false} custom={direction} mode="wait">
                 <motion.img
                   key={current}
-                  src={images[current]}
+                  src={displayImages[current]}
                   alt={LABELS[current] || `Screenshot ${current + 1}`}
                   custom={direction}
                   variants={variants}
@@ -85,7 +91,7 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
               </motion.div>
             </AnimatePresence>
 
-            {images.length > 1 && (
+            {displayImages.length > 1 && (
               <>
                 <button
                   onClick={prev}
@@ -101,7 +107,7 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
                 </button>
 
                 <div className="flex justify-center gap-2 mt-4">
-                  {images.map((_, i) => (
+                  {displayImages.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => {
