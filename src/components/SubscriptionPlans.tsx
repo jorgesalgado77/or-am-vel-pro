@@ -101,8 +101,21 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
   const { plan: currentPlan, refresh } = useTenantPlanContext();
   const [annual, setAnnual] = useState(currentPlan.plano_periodo === "anual");
   const [loading, setLoading] = useState<string | null>(null);
+  const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
 
-  const handleSelectPlan = async (planId: string) => {
+  const getStartDate = () => {
+    const d = new Date();
+    return d.toLocaleDateString("pt-BR");
+  };
+
+  const getEndDate = () => {
+    const d = new Date();
+    if (annual) d.setFullYear(d.getFullYear() + 1);
+    else d.setMonth(d.getMonth() + 1);
+    return d.toLocaleDateString("pt-BR");
+  };
+
+  const handleRequestPlan = (planId: string) => {
     if (planId === currentPlan.plano) {
       toast.info("Você já está neste plano.");
       return;
@@ -111,10 +124,14 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
       toast.error("Não é possível voltar ao plano de teste.");
       return;
     }
+    const selected = PLANS.find((p) => p.id === planId);
+    if (selected) setConfirmPlan(selected);
+  };
 
-    setLoading(planId);
+  const handleConfirmPlan = async () => {
+    if (!confirmPlan) return;
+    setLoading(confirmPlan.id);
     try {
-      // Get tenant_id from company_settings
       const { data: settings } = await supabase
         .from("company_settings")
         .select("tenant_id")
@@ -125,25 +142,22 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
       if (!tenantId) {
         toast.error("Configuração de tenant não encontrada.");
         setLoading(null);
+        setConfirmPlan(null);
         return;
       }
 
       const periodo = annual ? "anual" : "mensal";
-      const selectedPlan = PLANS.find((p) => p.id === planId);
       const now = new Date();
       const endDate = new Date(now);
-      if (annual) {
-        endDate.setFullYear(endDate.getFullYear() + 1);
-      } else {
-        endDate.setMonth(endDate.getMonth() + 1);
-      }
+      if (annual) endDate.setFullYear(endDate.getFullYear() + 1);
+      else endDate.setMonth(endDate.getMonth() + 1);
 
       const { error } = await supabase
         .from("tenants")
         .update({
-          plano: planId,
+          plano: confirmPlan.id,
           plano_periodo: periodo,
-          max_usuarios: selectedPlan?.max_usuarios ?? 999,
+          max_usuarios: confirmPlan.max_usuarios ?? 999,
           assinatura_inicio: now.toISOString(),
           assinatura_fim: endDate.toISOString(),
           ativo: true,
@@ -153,13 +167,14 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
       if (error) {
         toast.error("Erro ao atualizar plano: " + error.message);
       } else {
-        toast.success(`Plano alterado para ${selectedPlan?.nome} (${periodo})!`);
+        toast.success(`Plano alterado para ${confirmPlan.nome} (${periodo})!`);
         await refresh();
       }
-    } catch (err) {
+    } catch {
       toast.error("Erro inesperado ao trocar de plano.");
     }
     setLoading(null);
+    setConfirmPlan(null);
   };
 
   return (
