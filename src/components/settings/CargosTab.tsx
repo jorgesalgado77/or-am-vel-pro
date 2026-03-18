@@ -25,6 +25,7 @@ export function CargosTab() {
   const [newName, setNewName] = useState("");
   const [editPerms, setEditPerms] = useState<Record<string, CargoPermissoes>>({});
   const [editingName, setEditingName] = useState<Record<string, string>>({});
+  const [editComissao, setEditComissao] = useState<Record<string, number>>({});
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -45,12 +46,16 @@ export function CargosTab() {
     setEditPerms(prev => ({ ...prev, [cargoId]: { ...existing, [key]: !existing[key] } }));
   };
 
+  const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined;
+
   const handleSave = async (cargoId: string) => {
     const perms = editPerms[cargoId];
     const newNome = editingName[cargoId];
+    const newComissao = editComissao[cargoId];
     const updates: any = {};
     if (perms) updates.permissoes = perms;
     if (newNome !== undefined) updates.nome = newNome.trim();
+    if (newComissao !== undefined) updates.comissao_percentual = newComissao;
     if (Object.keys(updates).length === 0) return;
     const { error } = await supabase.from("cargos").update(updates).eq("id", cargoId);
     if (error) toast.error("Erro ao salvar");
@@ -58,6 +63,7 @@ export function CargosTab() {
       toast.success("Cargo salvo!");
       setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
       setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+      setEditComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
       refresh();
     }
   };
@@ -79,6 +85,7 @@ export function CargosTab() {
 
       {cargos.map(cargo => {
         const perms = editPerms[cargo.id] || cargo.permissoes;
+        const comissao = editComissao[cargo.id] ?? cargo.comissao_percentual;
         return (
           <Card key={cargo.id}>
             <CardHeader className="pb-3">
@@ -99,14 +106,33 @@ export function CargosTab() {
                   </div>
                 )}
                 <div className="flex gap-2">
-                  {(editPerms[cargo.id] || editingName[cargo.id] !== undefined) && (
+                  {hasChanges(cargo.id) && (
                     <Button size="sm" onClick={() => handleSave(cargo.id)} className="gap-1"><Save className="h-3 w-3" />Salvar</Button>
                   )}
                   <Button size="sm" variant="destructive" onClick={() => handleDelete(cargo.id, cargo.nome)} className="gap-1"><Trash2 className="h-3 w-3" />Excluir</Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Commission percentage */}
+              <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="flex-1">
+                  <Label className="text-xs font-medium">Comissão sobre vendas (%)</Label>
+                  <p className="text-[10px] text-muted-foreground">Percentual calculado sobre o valor à vista da venda</p>
+                </div>
+                <div className="w-28">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={comissao}
+                    onChange={e => setEditComissao(prev => ({ ...prev, [cargo.id]: parseFloat(e.target.value) || 0 }))}
+                    className="h-8 text-sm text-right"
+                  />
+                </div>
+              </div>
+
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">

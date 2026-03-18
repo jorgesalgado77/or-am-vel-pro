@@ -15,6 +15,7 @@ export interface Cargo {
   id: string;
   nome: string;
   permissoes: CargoPermissoes;
+  comissao_percentual: number;
   created_at: string;
 }
 
@@ -34,7 +35,11 @@ export function useCargos() {
 
   const refresh = useCallback(async () => {
     const { data } = await supabase.from("cargos").select("*").order("nome");
-    if (data) setCargos(data.map(c => ({ ...c, permissoes: c.permissoes as unknown as CargoPermissoes })));
+    if (data) setCargos(data.map(c => ({
+      ...c,
+      permissoes: c.permissoes as unknown as CargoPermissoes,
+      comissao_percentual: Number((c as any).comissao_percentual) || 0,
+    })));
     setLoading(false);
   }, []);
 
