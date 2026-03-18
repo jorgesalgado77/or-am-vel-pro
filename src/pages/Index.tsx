@@ -153,6 +153,7 @@ export default function Index() {
             onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
             onSupport={() => setShowSupport(true)}
             unreadMessages={unreadMessages}
+            onlineUsers={onlineUsers}
           />
 
           <main className="flex-1 ml-60 p-6">
