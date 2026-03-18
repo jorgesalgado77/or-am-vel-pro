@@ -17,6 +17,7 @@ interface LoginProps {
 }
 
 export default function Login({ onLogin }: LoginProps) {
+  const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const [codigoLoja, setCodigoLoja] = useState("");
   const [nomeUsuario, setNomeUsuario] = useState("");
