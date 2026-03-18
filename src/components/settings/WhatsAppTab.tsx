@@ -47,11 +47,12 @@ export function WhatsAppTab() {
   const [enviarNotificacoes, setEnviarNotificacoes] = useState(true);
 
   const fetchSettings = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("whatsapp_settings")
       .select("*")
       .limit(1)
-      .single();
+      .maybeSingle();
+    
     if (data) {
       const s = data as unknown as WhatsAppSettings;
       setSettings(s);
@@ -65,6 +66,17 @@ export function WhatsAppTab() {
       setAtivo(s.ativo);
       setEnviarContrato(s.enviar_contrato);
       setEnviarNotificacoes(s.enviar_notificacoes);
+    } else if (!error) {
+      // Create default record if none exists
+      const { data: created } = await supabase
+        .from("whatsapp_settings")
+        .insert({} as any)
+        .select("*")
+        .single();
+      if (created) {
+        const s = created as unknown as WhatsAppSettings;
+        setSettings(s);
+      }
     }
     setLoading(false);
   };
