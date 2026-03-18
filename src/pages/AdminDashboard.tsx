@@ -13,10 +13,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminLandingPage } from "@/components/admin/AdminLandingPage";
+import { AdminDealRoom } from "@/components/admin/AdminDealRoom";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -100,6 +101,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [pWebhook, setPWebhook] = useState("");
   const [pAtivo, setPAtivo] = useState(false);
   const [tOcultarIndicador, setTOcultarIndicador] = useState(false);
+  const [tDealRoom, setTDealRoom] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -131,6 +133,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTNome(""); setTCodigo(""); setTEmail(""); setTTelefone("");
     setTPlano("trial"); setTPeriodo("mensal"); setTAtivo(true);
     setTOcultarIndicador(false);
+    setTDealRoom(false);
     setShowTenantDialog(true);
   };
 
@@ -141,6 +144,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTAtivo(t.ativo);
     const vip = (t as any).recursos_vip || {};
     setTOcultarIndicador(vip.ocultar_indicador || false);
+    setTDealRoom(vip.deal_room || false);
     setShowTenantDialog(true);
   };
 
@@ -156,7 +160,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       plano_periodo: tPeriodo,
       max_usuarios: maxUsers,
       ativo: tAtivo,
-      recursos_vip: { ocultar_indicador: tOcultarIndicador },
+      recursos_vip: { ocultar_indicador: tOcultarIndicador, deal_room: tDealRoom },
     };
 
     if (editingTenant) {
@@ -263,6 +267,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         <Tabs defaultValue="lojas" className="space-y-4">
           <TabsList>
             <TabsTrigger value="lojas" className="gap-2"><Store className="h-4 w-4" />Lojas</TabsTrigger>
+            <TabsTrigger value="dealroom" className="gap-2"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
             <TabsTrigger value="suporte" className="gap-2"><MessageSquare className="h-4 w-4" />Suporte</TabsTrigger>
             <TabsTrigger value="pagamentos" className="gap-2"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
             <TabsTrigger value="planos" className="gap-2"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
@@ -346,6 +351,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* TAB: Deal Room */}
+          <TabsContent value="dealroom">
+            <AdminDealRoom />
           </TabsContent>
 
           {/* TAB: Suporte */}
@@ -544,6 +554,16 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                   </div>
                 </div>
                 <Switch checked={tOcultarIndicador} onCheckedChange={setTOcultarIndicador} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Handshake className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Deal Room</p>
+                    <p className="text-xs text-muted-foreground">Libera acesso à Deal Room mesmo no plano Trial</p>
+                  </div>
+                </div>
+                <Switch checked={tDealRoom} onCheckedChange={setTDealRoom} />
               </div>
             </div>
           </div>

@@ -1,0 +1,306 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DollarSign, TrendingUp, Users, BarChart3, Trophy, Target,
+  RefreshCw, Store, Percent, Calendar, ArrowUpRight, ArrowDownRight,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useDealRoom, type DealRoomMetrics, type VendorRank, type DealRoomTransaction } from "@/hooks/useDealRoom";
+
+function formatCurrency(val: number) {
+  return `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+interface Tenant {
+  id: string;
+  nome_loja: string;
+  plano: string;
+  ativo: boolean;
+}
+
+export function AdminDealRoom() {
+  const { getMetrics, loading } = useDealRoom();
+  const [metrics, setMetrics] = useState<DealRoomMetrics | null>(null);
+  const [ranking, setRanking] = useState<VendorRank[]>([]);
+  const [transactions, setTransactions] = useState<DealRoomTransaction[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [filterTenant, setFilterTenant] = useState("all");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+
+  // Usage monitoring
+  const [usageData, setUsageData] = useState<{ tenant_id: string; nome_loja: string; plano: string; daily: number; total_reunioes: number; vendas: number; valor: number; receita_plataforma: number }[]>([]);
+
+  const fetchAll = async () => {
+    // Fetch tenants
+    const { data: tData } = await supabase.from("tenants").select("id, nome_loja, plano, ativo").eq("ativo", true);
+    if (tData) setTenants(tData as any);
+
+    // Fetch metrics
+    const filters: any = {};
+    if (filterTenant !== "all") filters.tenant_id = filterTenant;
+    if (filterDateFrom) filters.date_from = filterDateFrom;
+    if (filterDateTo) filters.date_to = filterDateTo;
+
+    const result = await getMetrics(filters);
+    if (result) {
+      setMetrics(result.metrics);
+      setRanking(result.ranking);
+      setTransactions(result.transactions);
+    }
+
+    // Build usage monitoring data
+    if (tData) {
+      const usageRows = await Promise.all(
+        (tData as Tenant[]).map(async (t) => {
+          const today = new Date().toISOString().split("T")[0];
+          const { count: dailyCount } = await supabase
+            .from("dealroom_usage")
+            .select("*", { count: "exact", head: true })
+            .eq("tenant_id", t.id)
+            .eq("usage_date", today);
+
+          const { count: totalReunioes } = await supabase
+            .from("dealroom_usage")
+            .select("*", { count: "exact", head: true })
+            .eq("tenant_id", t.id);
+
+          const { data: txns } = await supabase
+            .from("dealroom_transactions")
+            .select("valor_venda, taxa_plataforma_valor")
+            .eq("tenant_id", t.id);
+
+          const vendas = txns?.length || 0;
+          const valor = txns?.reduce((s, x) => s + Number((x as any).valor_venda), 0) || 0;
+          const receita = txns?.reduce((s, x) => s + Number((x as any).taxa_plataforma_valor), 0) || 0;
+
+          return {
+            tenant_id: t.id,
+            nome_loja: t.nome_loja,
+            plano: t.plano,
+            daily: dailyCount || 0,
+            total_reunioes: totalReunioes || 0,
+            vendas,
+            valor,
+            receita_plataforma: receita,
+          };
+        })
+      );
+      setUsageData(usageRows);
+    }
+  };
+
+  useEffect(() => { fetchAll(); }, [filterTenant, filterDateFrom, filterDateTo]);
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-4 items-end">
+        <div>
+          <Label className="text-xs">Loja</Label>
+          <Select value={filterTenant} onValueChange={setFilterTenant}>
+            <SelectTrigger className="w-48 mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as lojas</SelectItem>
+              {tenants.map(t => (
+                <SelectItem key={t.id} value={t.id}>{t.nome_loja}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">De</Label>
+          <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="mt-1 w-40" />
+        </div>
+        <div>
+          <Label className="text-xs">Até</Label>
+          <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="mt-1 w-40" />
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchAll} className="gap-2">
+          <RefreshCw className="h-3 w-3" /> Atualizar
+        </Button>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {[
+          { label: "Total Vendas", value: metrics?.totalVendas || 0, icon: TrendingUp, fmt: false },
+          { label: "Valor Transacionado", value: metrics?.totalTransacionado || 0, icon: DollarSign, fmt: true },
+          { label: "Receita Plataforma", value: metrics?.totalTaxas || 0, icon: Percent, fmt: true },
+          { label: "Ticket Médio", value: metrics?.ticketMedio || 0, icon: BarChart3, fmt: true },
+          { label: "Reuniões", value: metrics?.totalReunioes || 0, icon: Users, fmt: false },
+          { label: "Conversão", value: `${(metrics?.taxaConversao || 0).toFixed(1)}%`, icon: Target, fmt: false },
+        ].map((kpi) => (
+          <Card key={kpi.label}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <kpi.icon className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-xs text-muted-foreground">{kpi.label}</span>
+              </div>
+              <p className="text-lg font-bold text-foreground">
+                {kpi.fmt ? formatCurrency(kpi.value as number) : kpi.value}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Tabs defaultValue="ranking" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="ranking" className="gap-2"><Trophy className="h-4 w-4" />Ranking Vendedores</TabsTrigger>
+          <TabsTrigger value="monitoring" className="gap-2"><Store className="h-4 w-4" />Monitoramento Lojas</TabsTrigger>
+          <TabsTrigger value="transactions" className="gap-2"><DollarSign className="h-4 w-4" />Transações</TabsTrigger>
+        </TabsList>
+
+        {/* Ranking */}
+        <TabsContent value="ranking">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-amber-500" /> Ranking de Vendedores
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">#</TableHead>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead className="text-right">Total Vendido</TableHead>
+                    <TableHead className="text-right">Nº Vendas</TableHead>
+                    <TableHead className="text-right">Conversão</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ranking.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma venda registrada</TableCell>
+                    </TableRow>
+                  ) : ranking.map((v) => (
+                    <TableRow key={v.usuario_id}>
+                      <TableCell>
+                        <span className={`text-lg font-bold ${v.posicao === 1 ? "text-amber-500" : v.posicao === 2 ? "text-gray-400" : v.posicao === 3 ? "text-amber-700" : "text-muted-foreground"}`}>
+                          {v.posicao === 1 ? "🥇" : v.posicao === 2 ? "🥈" : v.posicao === 3 ? "🥉" : `${v.posicao}º`}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-medium">{v.nome}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(v.total_vendido)}</TableCell>
+                      <TableCell className="text-right">{v.vendas}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={v.taxa_conversao >= 50 ? "default" : "secondary"}>
+                          {v.taxa_conversao.toFixed(1)}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Monitoring */}
+        <TabsContent value="monitoring">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Store className="h-4 w-4" /> Monitoramento de Uso por Loja
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Loja</TableHead>
+                    <TableHead>Plano</TableHead>
+                    <TableHead className="text-right">Uso Diário</TableHead>
+                    <TableHead className="text-right">Total Reuniões</TableHead>
+                    <TableHead className="text-right">Vendas</TableHead>
+                    <TableHead className="text-right">Valor Gerado</TableHead>
+                    <TableHead className="text-right">Receita Plataforma</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {usageData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">Carregando...</TableCell>
+                    </TableRow>
+                  ) : usageData.map((row) => (
+                    <TableRow key={row.tenant_id}>
+                      <TableCell className="font-medium">{row.nome_loja}</TableCell>
+                      <TableCell>
+                        <Badge variant={row.plano === "premium" ? "destructive" : row.plano === "basico" ? "default" : "secondary"}>
+                          {row.plano === "premium" ? "Premium" : row.plano === "basico" ? "Básico" : "Trial"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {row.daily}
+                        {row.plano === "basico" && row.daily >= 1 && (
+                          <span className="ml-1 text-xs text-destructive">(limite)</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">{row.total_reunioes}</TableCell>
+                      <TableCell className="text-right">{row.vendas}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(row.valor)}</TableCell>
+                      <TableCell className="text-right font-semibold text-primary">{formatCurrency(row.receita_plataforma)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Transactions */}
+        <TabsContent value="transactions">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Últimas Transações</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead>Pagamento</TableHead>
+                    <TableHead className="text-right">Valor Venda</TableHead>
+                    <TableHead className="text-right">Taxa (2%)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma transação</TableCell>
+                    </TableRow>
+                  ) : transactions.map((tx) => (
+                    <TableRow key={tx.id}>
+                      <TableCell className="text-sm">
+                        {format(new Date(tx.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell>{tx.nome_cliente || "—"}</TableCell>
+                      <TableCell>{tx.nome_vendedor || "—"}</TableCell>
+                      <TableCell>{tx.forma_pagamento || "—"}</TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(tx.valor_venda)}</TableCell>
+                      <TableCell className="text-right text-primary font-semibold">{formatCurrency(tx.taxa_plataforma_valor)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

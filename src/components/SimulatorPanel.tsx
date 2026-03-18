@@ -20,6 +20,7 @@ import { ContractEditorDialog } from "@/components/ContractEditorDialog";
 import { CloseSaleModal } from "@/components/CloseSaleModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useDealRoom } from "@/hooks/useDealRoom";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -160,6 +161,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { activeIndicadores } = useIndicadores();
   const { isFeatureAllowed } = useTenantPlanContext();
   const canHideIndicador = isFeatureAllowed("ocultar_indicador");
+  const { validateAccess, recordSale, access: dealRoomAccess, loading: dealRoomLoading } = useDealRoom();
 
   // Get the selected indicador's commission
   const selectedIndicador = activeIndicadores.find(i => i.id === selectedIndicadorId);
@@ -541,11 +543,35 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [closeSaleItems, setCloseSaleItems] = useState<any[]>([]);
   const [closeSaleItemDetails, setCloseSaleItemDetails] = useState<any[]>([]);
 
-  const handleCloseSale = () => {
+  const handleCloseSale = async () => {
     if (!client) {
       toast.error("Selecione um cliente para fechar a venda");
       return;
     }
+
+    // Deal Room access validation via backend
+    try {
+      const { data: csettings } = await supabase.from("company_settings").select("tenant_id").limit(1).single();
+      const tenantId = (csettings as any)?.tenant_id;
+      if (tenantId) {
+        const accessResult = await validateAccess(tenantId, currentUser?.id);
+        if (!accessResult.allowed) {
+          // Show upgrade suggestion for basic plan
+          if (accessResult.reason?.includes("Básico")) {
+            toast.error(accessResult.reason, { duration: 6000 });
+          } else {
+            toast.error(accessResult.reason || "Acesso não permitido à Deal Room");
+          }
+          return;
+        }
+        if (accessResult.plano === "basico" && accessResult.usage !== undefined && accessResult.limit !== undefined) {
+          toast.info(`Uso diário: ${accessResult.usage}/${accessResult.limit} negociação(ões) no plano Básico`, { duration: 4000 });
+        }
+      }
+    } catch (err) {
+      console.error("Deal Room validation error:", err);
+    }
+
     setCloseSaleModalOpen(true);
   };
 
@@ -695,6 +721,26 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       await generateSaleCommissions();
     } catch (err) {
       console.error("Erro ao gerar comissões:", err);
+    }
+
+    // === RECORD DEAL ROOM TRANSACTION ===
+    try {
+      const { data: csettings } = await supabase.from("company_settings").select("tenant_id").limit(1).single();
+      const tenantId = (csettings as any)?.tenant_id;
+      if (tenantId) {
+        await recordSale(tenantId, {
+          valor_venda: result.valorFinal,
+          client_id: client.id,
+          usuario_id: currentUser?.id,
+          simulation_id: pendingSimId,
+          forma_pagamento: formaPagamento,
+          numero_contrato: closeSaleFormData?.numero_contrato || "",
+          nome_cliente: client.nome,
+          nome_vendedor: currentUser?.nome_completo || currentUser?.apelido || "",
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao registrar transação Deal Room:", err);
     }
 
     openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
