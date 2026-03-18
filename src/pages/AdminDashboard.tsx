@@ -138,6 +138,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTNome(t.nome_loja); setTCodigo(t.codigo_loja || ""); setTEmail(t.email_contato || "");
     setTTelefone(t.telefone_contato || ""); setTPlano(t.plano); setTPeriodo(t.plano_periodo);
     setTAtivo(t.ativo);
+    const vip = (t as any).recursos_vip || {};
+    setTOcultarIndicador(vip.ocultar_indicador || false);
     setShowTenantDialog(true);
   };
 
