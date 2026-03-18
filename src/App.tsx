@@ -6,6 +6,7 @@ import Index from "./pages/Index.tsx";
 import Admin from "./pages/Admin.tsx";
 import SignUp from "./pages/SignUp.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
+import RenewPlan from "./pages/RenewPlan.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
