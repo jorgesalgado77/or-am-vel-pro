@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { LogIn, Eye, EyeOff } from "lucide-react";
+import { LogIn, Eye, EyeOff, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { maskCodigoLoja } from "@/lib/masks";
+import { ClientTrackingModal } from "@/components/ClientTrackingModal";
 
 interface LoginProps {
   onLogin: (userId: string, primeiroLogin: boolean) => void;
