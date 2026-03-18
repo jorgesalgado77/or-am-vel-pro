@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, Save, Eye, Code } from "lucide-react";
+import { buildContractDocumentHtml } from "@/lib/contractDocument";
 
 interface ContractEditorDialogProps {
   open: boolean;
@@ -17,12 +18,10 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   const [viewMode, setViewMode] = useState<"editor" | "preview">("preview");
   const editorRef = useRef<HTMLDivElement>(null);
 
-  // Reset html when initialHtml changes (opening a different contract)
   useEffect(() => {
     setHtml(initialHtml);
     setViewMode("preview");
   }, [initialHtml]);
-
 
   const getCurrentHtml = () => {
     if (viewMode === "editor" && editorRef.current) {
@@ -30,6 +29,11 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     }
     return html;
   };
+
+  const previewDocument = useMemo(
+    () => buildContractDocumentHtml(html, `Contrato - ${clientName}`),
+    [html, clientName],
+  );
 
   const handleToggleView = () => {
     if (viewMode === "editor" && editorRef.current) {
@@ -44,12 +48,12 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="flex max-h-[90vh] max-w-7xl flex-col">
         <DialogHeader>
           <DialogTitle className="text-base">Contrato — {clientName}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center gap-2 mb-2">
+        <div className="mb-2 flex items-center gap-2">
           <Button
             variant={viewMode === "preview" ? "default" : "outline"}
             size="sm"
@@ -60,40 +64,25 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             {viewMode === "preview" ? "Editar" : "Visualizar"}
           </Button>
           <span className="text-xs text-muted-foreground">
-            {viewMode === "editor" ? "Edite o texto livremente" : "Pré-visualização do contrato"}
+            {viewMode === "editor" ? "Edite o HTML livremente" : "Preview fiel ao documento impresso"}
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto border border-border rounded-lg">
+        <div className="flex-1 overflow-hidden rounded-lg border border-border">
           {viewMode === "editor" ? (
             <div
               ref={editorRef}
               contentEditable
               suppressContentEditableWarning
-              className="min-h-[400px] p-6 bg-background text-foreground text-sm focus:outline-none prose prose-sm max-w-none"
+              className="prose prose-sm min-h-[400px] max-w-none overflow-y-auto bg-background p-6 text-sm text-foreground focus:outline-none"
               dangerouslySetInnerHTML={{ __html: html }}
             />
           ) : (
-            <div className="bg-muted/30 p-4 flex justify-center">
-              <div
-                className="bg-white text-black shadow-lg border border-gray-200"
-                style={{
-                  width: "210mm",
-                  minHeight: "297mm",
-                  padding: "15mm",
-                  fontFamily: "'Segoe UI', 'Arial', sans-serif",
-                  fontSize: "12pt",
-                  lineHeight: "1.6",
-                  boxSizing: "border-box",
-                }}
-              >
-                <div
-                  className="prose prose-sm max-w-none"
-                  style={{ fontSize: "inherit", lineHeight: "inherit" }}
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
-              </div>
-            </div>
+            <iframe
+              title={`Preview do contrato de ${clientName}`}
+              className="h-[70vh] w-full bg-muted/20"
+              srcDoc={previewDocument}
+            />
           )}
         </div>
 

@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FileText, Eye, Printer, Pencil, ArrowLeft } from "lucide-react";
 import { ContractEditorDialog } from "./ContractEditorDialog";
+import { openContractPrintWindow } from "@/lib/contractDocument";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -50,15 +49,7 @@ export function ClientContracts({ client, onBack }: ClientContractsProps) {
   useEffect(() => { fetchContracts(); }, [client.id]);
 
   const handlePrint = (contract: ClientContract) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client.nome}</title>
-      <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
-      @media print{@page{margin:15mm;size:A4;}}</style></head>
-      <body>${contract.conteudo_html}</body></html>`;
-    printWindow.document.write(fullHtml);
-    printWindow.document.close();
-    printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
+    openContractPrintWindow(contract.conteudo_html, `Contrato - ${client.nome}`);
   };
 
   const handleSaveEdit = async (finalHtml: string) => {
@@ -73,18 +64,7 @@ export function ClientContracts({ client, onBack }: ClientContractsProps) {
     toast.success("Contrato atualizado!");
     setEditingContract(null);
     fetchContracts();
-
-    // Print after save
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client.nome}</title>
-        <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
-        @media print{@page{margin:15mm;size:A4;}}</style></head>
-        <body>${finalHtml}</body></html>`;
-      printWindow.document.write(fullHtml);
-      printWindow.document.close();
-      printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
-    }
+    openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
   };
 
   return (
@@ -162,7 +142,6 @@ export function ClientContracts({ client, onBack }: ClientContractsProps) {
         </CardContent>
       </Card>
 
-      {/* View contract dialog */}
       {viewingContract && (
         <ContractEditorDialog
           open={!!viewingContract}
@@ -170,23 +149,12 @@ export function ClientContracts({ client, onBack }: ClientContractsProps) {
           initialHtml={viewingContract.conteudo_html}
           clientName={client.nome}
           onConfirm={(html) => {
-            // Just print, don't save
-            const printWindow = window.open("", "_blank");
-            if (printWindow) {
-              const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client.nome}</title>
-                <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
-                @media print{@page{margin:15mm;size:A4;}}</style></head>
-                <body>${html}</body></html>`;
-              printWindow.document.write(fullHtml);
-              printWindow.document.close();
-              printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
-            }
+            openContractPrintWindow(html, `Contrato - ${client.nome}`);
             setViewingContract(null);
           }}
         />
       )}
 
-      {/* Edit contract dialog */}
       {editingContract && (
         <ContractEditorDialog
           open={!!editingContract}

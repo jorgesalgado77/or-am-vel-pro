@@ -19,6 +19,7 @@ import { FileText, Eye, Pencil, Printer } from "lucide-react";
 import { ContractEditorDialog } from "@/components/ContractEditorDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { openContractPrintWindow } from "@/lib/contractDocument";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -137,15 +138,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   };
 
   const handlePrintContract = (html: string) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client?.nome || "Cliente"}</title>
-      <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
-      @media print{@page{margin:15mm;size:A4;}}</style></head>
-      <body>${html}</body></html>`;
-    printWindow.document.write(fullHtml);
-    printWindow.document.close();
-    printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
+    openContractPrintWindow(html, `Contrato - ${client?.nome || "Cliente"}`);
   };
 
   const handleSaveContractEdit = async (finalHtml: string) => {

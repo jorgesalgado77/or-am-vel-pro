@@ -15,6 +15,8 @@ export interface ImportedContractContent {
 type PdfTextItem = {
   str: string;
   transform: number[];
+  width?: number;
+  height?: number;
 };
 
 const escapeHtml = (value: string) =>
@@ -25,58 +27,92 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const preserveDocumentStructure = (html: string) => {
+  const trimmed = html.trim();
+  if (!trimmed) return trimmed;
+
+  if (/contract-page|data-contract-page/iu.test(trimmed)) return trimmed;
+
+  const bodyMatch = trimmed.match(/<body[^>]*>([\s\S]*)<\/body>/iu);
+  const content = bodyMatch?.[1]?.trim() ?? trimmed;
+
+  if (/<html[\s>]/iu.test(trimmed)) return trimmed;
+
+  const pages = content
+    .split(/<hr\b[^>]*>/giu)
+    .map((page) => page.trim())
+    .filter(Boolean);
+
+  return pages
+    .map(
+      (page) => `<section class="contract-page" data-contract-page="true"><div class="contract-page__content">${page}</div></section>`,
+    )
+    .join("");
+};
+
 export const sanitizeImportedHtml = (html: string) => {
-  if (!html.trim() || typeof DOMParser === "undefined") return html;
+  if (!html.trim() || typeof DOMParser === "undefined") return preserveDocumentStructure(html);
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
-  doc.querySelectorAll("script, style, meta, link, title").forEach((n) => n.remove());
+  doc.querySelectorAll("script, meta, link, title").forEach((n) => n.remove());
   doc.querySelectorAll("*").forEach((el) => {
     [...el.attributes].forEach((attr) => {
       if (attr.name.toLowerCase().startsWith("on")) el.removeAttribute(attr.name);
     });
   });
-  return (doc.body?.innerHTML || html).trim();
+
+  const styleTags = Array.from(doc.querySelectorAll("style")).map((style) => style.outerHTML).join("\n");
+  const bodyContent = (doc.body?.innerHTML || html).trim();
+  const preserved = preserveDocumentStructure(bodyContent);
+
+  return styleTags ? `${styleTags}\n${preserved}` : preserved;
 };
 
 const normalizeSuggestedName = (fileName: string) => fileName.replace(/\.[^.]+$/u, "");
 
-const textBlocksToHtml = (blocks: string[]) =>
-  blocks
-    .map((b) => b.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .map((b) => `<p>${escapeHtml(b)}</p>`)
+const buildPdfPageHtml = (items: PdfTextItem[], pageWidth: number, pageHeight: number) => {
+  const textItems = items
+    .map((item) => {
+      const text = item.str.replace(/\s+/g, " ").trim();
+      if (!text) return null;
+
+      const x = item.transform[4];
+      const y = item.transform[5];
+      const fontSize = Math.max(Math.abs(item.transform[0] || item.height || 12), 8);
+      const width = item.width || text.length * (fontSize * 0.52);
+
+      return {
+        text,
+        x,
+        y,
+        width,
+        fontSize,
+        leftPercent: (x / pageWidth) * 100,
+        topPercent: ((pageHeight - y - fontSize) / pageHeight) * 100,
+        widthPercent: (width / pageWidth) * 100,
+      };
+    })
+    .filter(Boolean) as Array<{
+      text: string;
+      x: number;
+      y: number;
+      width: number;
+      fontSize: number;
+      leftPercent: number;
+      topPercent: number;
+      widthPercent: number;
+    }>;
+
+  const positionedItems = textItems
+    .map(
+      (item) => `<div style="position:absolute;left:${item.leftPercent}%;top:${item.topPercent}%;width:${Math.max(item.widthPercent, 2)}%;font-size:${item.fontSize}px;line-height:1.15;white-space:pre-wrap;">${escapeHtml(item.text)}</div>`,
+    )
     .join("");
 
-const buildPdfPageHtml = (items: PdfTextItem[]) => {
-  const lines: Array<{ y: number; chunks: Array<{ x: number; text: string }> }> = [];
-
-  items.forEach((item) => {
-    const text = item.str.replace(/\s+/g, " ").trim();
-    if (!text) return;
-    const y = Math.round(item.transform[5] * 2) / 2;
-    let line = lines.find((e) => Math.abs(e.y - y) < 3);
-    if (!line) {
-      line = { y, chunks: [] };
-      lines.push(line);
-    }
-    line.chunks.push({ x: item.transform[4], text });
-  });
-
-  return lines
-    .sort((a, b) => b.y - a.y)
-    .map((line) =>
-      line.chunks
-        .sort((a, b) => a.x - b.x)
-        .map((c) => c.text)
-        .join(" ")
-        .replace(/\s+([,.;:!?])/g, "$1")
-        .trim(),
-    )
-    .filter(Boolean);
+  return `<section class="contract-page" data-contract-page="true"><div class="contract-page__content" style="position:relative;width:100%;min-height:267mm;">${positionedItems}</div></section>`;
 };
 
-/* ─── OCR fallback via edge function ─── */
 const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -99,8 +135,6 @@ const ocrPdfViaEdgeFunction = async (arrayBuffer: ArrayBuffer): Promise<string> 
   return data?.html || "";
 };
 
-/* ─── Field highlighting ─── */
-
 const FIELD_PATTERNS: Array<{ pattern: RegExp; variable: string; label: string }> = [
   { pattern: /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, variable: "{{cpf_cliente}}", label: "CPF" },
   { pattern: /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, variable: "{{cpf_cliente}}", label: "CNPJ" },
@@ -119,18 +153,19 @@ const FIELD_PATTERNS: Array<{ pattern: RegExp; variable: string; label: string }
   },
 ];
 
+const isSafeTextContainer = (element: Element | null) => {
+  if (!element) return false;
+  const tag = element.tagName.toLowerCase();
+  return !["style", "script", "mark", "table", "thead", "tbody", "tr", "td", "th"].includes(tag);
+};
+
 export const highlightSuggestedFields = (html: string): string => {
-  if (!html) return html;
-
-  let result = html;
-
-  // Work on text nodes only by using a temporary DOM
-  if (typeof DOMParser === "undefined") return result;
+  if (!html || typeof DOMParser === "undefined") return html;
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
   const container = doc.body.firstElementChild;
-  if (!container) return result;
+  if (!container) return html;
 
   const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
@@ -139,6 +174,8 @@ export const highlightSuggestedFields = (html: string): string => {
   }
 
   for (const textNode of textNodes) {
+    if (!isSafeTextContainer(textNode.parentElement)) continue;
+
     const text = textNode.textContent || "";
     let newHtml = text;
     let hasMatch = false;
@@ -175,7 +212,6 @@ export const removeHighlights = (html: string): string => {
       parent.removeChild(mark);
     }
   });
-  // Also unwrap our helper spans
   doc.querySelectorAll("span:not([class])").forEach((span) => {
     if (span.childNodes.length && span.parentNode) {
       while (span.firstChild) span.parentNode.insertBefore(span.firstChild, span);
@@ -185,12 +221,9 @@ export const removeHighlights = (html: string): string => {
   return doc.body.firstElementChild?.innerHTML || html;
 };
 
-/* ─── Import functions ─── */
-
 const importPdf = async (file: File): Promise<ImportedContractContent> => {
   const arrayBuffer = await file.arrayBuffer();
 
-  // Step 1: try programmatic extraction
   let html = "";
   try {
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
@@ -198,24 +231,22 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
 
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1 });
       const textContent = await page.getTextContent();
-      const lines = buildPdfPageHtml(textContent.items as PdfTextItem[]);
-      if (lines.length > 0) {
-        pages.push(textBlocksToHtml(lines));
+      const pageHtml = buildPdfPageHtml(textContent.items as PdfTextItem[], viewport.width, viewport.height);
+      if (pageHtml) {
+        pages.push(pageHtml);
       }
     }
 
-    html = sanitizeImportedHtml(pages.join("<hr />"));
+    html = sanitizeImportedHtml(pages.join(""));
   } catch (err) {
     console.warn("pdfjs extraction failed, will try OCR:", err);
   }
 
-  // Step 2: check if extraction yielded meaningful text
   const plainText = html.replace(/<[^>]+>/g, "").trim();
 
   if (plainText.length < 50) {
-    // Fallback to OCR via edge function
-    console.log("PDF text extraction yielded minimal content, using OCR...");
     try {
       const ocrHtml = await ocrPdfViaEdgeFunction(arrayBuffer);
       if (ocrHtml) {
@@ -225,7 +256,7 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
       console.error("OCR fallback failed:", ocrErr);
       if (!html) {
         throw new Error(
-          "Não foi possível extrair texto deste PDF. O arquivo pode ser uma imagem escaneada sem texto selecionável."
+          "Não foi possível extrair o layout deste PDF. Use um arquivo com texto selecionável ou PDF com melhor definição."
         );
       }
     }
