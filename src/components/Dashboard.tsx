@@ -585,10 +585,24 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
         </Card>
       </div>
 
+      {/* Deal Room Widget */}
+      <DealRoomStoreWidgetWrapper />
+
       {/* Contratos Fechados - Acompanhamento */}
       <ContractTrackingList />
     </div>
   );
+}
+
+function DealRoomStoreWidgetWrapper() {
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.from("company_settings").select("tenant_id").limit(1).single().then(({ data }) => {
+      if (data) setTenantId((data as any).tenant_id);
+    });
+  }, []);
+  if (!tenantId) return null;
+  return <DealRoomStoreWidget tenantId={tenantId} />;
 }
 
 const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent, destructive, success }: {
