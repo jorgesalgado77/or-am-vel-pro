@@ -118,7 +118,7 @@ export default function Login({ onLogin }: LoginProps) {
                 id="nomeUsuario"
                 value={nomeUsuario}
                 onChange={(e) => setNomeUsuario(e.target.value)}
-                placeholder="Nome ou apelido"
+                placeholder="Nome, apelido ou email"
                 className="mt-1"
                 autoComplete="username"
               />
