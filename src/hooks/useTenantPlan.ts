@@ -22,6 +22,7 @@ const DEFAULT_PLAN: TenantPlan = {
   dias_restantes: 7,
   trial_fim: null,
   assinatura_fim: null,
+  recursos_vip: { ocultar_indicador: false },
 };
 
 // Features blocked per plan
