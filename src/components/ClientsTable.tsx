@@ -188,6 +188,53 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
       {showFilters && (
         <div className="flex items-end gap-3 mb-4 p-3 bg-muted/30 rounded-lg border border-border flex-wrap">
           <div className="min-w-[180px]">
+            <Label className="text-xs mb-1 block">Período</Label>
+            <Select value={periodFilter} onValueChange={(v) => setPeriodFilter(v)}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mes_atual">Mês Atual</SelectItem>
+                <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
+                <SelectItem value="60_dias">Últimos 60 dias</SelectItem>
+                <SelectItem value="90_dias">Últimos 90 dias</SelectItem>
+                <SelectItem value="6_meses">Últimos 6 meses</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="personalizado">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {periodFilter === "personalizado" && (
+            <>
+              <div>
+                <Label className="text-xs mb-1 block">Data Início</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal h-9", !dateStart && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1 h-3 w-3" />
+                      {dateStart ? format(dateStart, "dd/MM/yyyy") : "Início"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateStart} onSelect={setDateStart} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Data Fim</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal h-9", !dateEnd && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1 h-3 w-3" />
+                      {dateEnd ? format(dateEnd, "dd/MM/yyyy") : "Fim"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateEnd} onSelect={setDateEnd} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </>
+          )}
+          <div className="min-w-[180px]">
             <Label className="text-xs mb-1 block">Projetista</Label>
             <Select value={filterProjetista || "_all"} onValueChange={(v) => setFilterProjetista(v === "_all" ? "" : v)}>
               <SelectTrigger className="h-9"><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -214,34 +261,6 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs mb-1 block">Data Início</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal h-9", !dateStart && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-1 h-3 w-3" />
-                  {dateStart ? format(dateStart, "dd/MM/yyyy") : "Início"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateStart} onSelect={setDateStart} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div>
-            <Label className="text-xs mb-1 block">Data Fim</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal h-9", !dateEnd && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-1 h-3 w-3" />
-                  {dateEnd ? format(dateEnd, "dd/MM/yyyy") : "Fim"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateEnd} onSelect={setDateEnd} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
-              </PopoverContent>
-            </Popover>
           </div>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground h-9" onClick={clearFilters}>
