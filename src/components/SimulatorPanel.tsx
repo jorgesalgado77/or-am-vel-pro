@@ -635,30 +635,42 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 {showParcelas && <ResultRow label={`Parcela (${parcelas}x)`} value={formatCurrency(result.valorParcela)} highlight />}
               </div>
 
-              <div className="flex gap-3 mt-4">
-                <Button onClick={handleSave} disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground gap-2">
-                  <Save className="h-4 w-4" />
-                  {saving ? "Salvando..." : client ? "Salvar Simulação" : "Salvar Simulação"}
-                </Button>
+              <div className="flex flex-col gap-3 mt-4">
+                <div className="flex gap-3">
+                  <Button onClick={handleSave} disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground gap-2">
+                    <Save className="h-4 w-4" />
+                    {saving ? "Salvando..." : "Salvar Simulação"}
+                  </Button>
+                  {client && (
+                    <Button variant="outline" className="gap-2" onClick={() =>
+                      generateSimulationPdf({
+                        clientName: client.nome,
+                        clientCpf: client.cpf || undefined,
+                        clientEmail: client.email || undefined,
+                        clientPhone: client.telefone1 || undefined,
+                        vendedor: client.vendedor || undefined,
+                        companyName: settings.company_name,
+                        companySubtitle: settings.company_subtitle || undefined,
+                        companyLogoUrl: settings.logo_url || undefined,
+                        valorTela, desconto1, desconto2, desconto3,
+                        valorComDesconto: result.valorComDesconto,
+                        formaPagamento, parcelas, valorEntrada, plusPercentual,
+                        taxaCredito: result.taxaCredito,
+                        saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
+                      })
+                    }>
+                      <FileDown className="h-4 w-4" />PDF
+                    </Button>
+                  )}
+                </div>
                 {client && (
-                  <Button variant="outline" className="gap-2" onClick={() =>
-                    generateSimulationPdf({
-                      clientName: client.nome,
-                      clientCpf: client.cpf || undefined,
-                      clientEmail: client.email || undefined,
-                      clientPhone: client.telefone1 || undefined,
-                      vendedor: client.vendedor || undefined,
-                      companyName: settings.company_name,
-                      companySubtitle: settings.company_subtitle || undefined,
-                      companyLogoUrl: settings.logo_url || undefined,
-                      valorTela, desconto1, desconto2, desconto3,
-                      valorComDesconto: result.valorComDesconto,
-                      formaPagamento, parcelas, valorEntrada, plusPercentual,
-                      taxaCredito: result.taxaCredito,
-                      saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
-                    })
-                  }>
-                    <FileDown className="h-4 w-4" />PDF
+                  <Button
+                    onClick={handleCloseSale}
+                    disabled={closingSale}
+                    className="w-full gap-2 bg-primary hover:bg-primary/90"
+                  >
+                    <Handshake className="h-4 w-4" />
+                    {closingSale ? "Gerando contrato..." : "Fechar Venda"}
                   </Button>
                 )}
               </div>
