@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
+import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
