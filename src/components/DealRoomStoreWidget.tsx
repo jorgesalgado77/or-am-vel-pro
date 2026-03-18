@@ -92,6 +92,7 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
           </CardContent>
         </Card>
       )}
+      <OnboardingDialog featureKey="dealroom" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
   );
 }
