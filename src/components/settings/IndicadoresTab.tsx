@@ -208,6 +208,7 @@ export function IndicadoresTab() {
           </Table>
         </CardContent>
       </Card>
+      <ComissoesIndicadores />
     </div>
   );
 }
