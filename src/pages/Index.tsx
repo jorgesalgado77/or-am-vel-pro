@@ -174,6 +174,7 @@ export default function Index() {
     : activeView === "payroll" ? "Folha de Pagamento"
     : activeView === "settings" ? "Configurações"
     : activeView === "messages" ? "Mensagens"
+    : activeView === "plans" ? "Planos de Assinatura"
     : "Simulador de Financiamento";
 
   const currentSubtitle = activeView === "dashboard" ? "Visão geral do sistema"
