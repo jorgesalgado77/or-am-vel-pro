@@ -153,6 +153,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { getOptionsForField } = useDiscountOptions();
   const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();
+  const { isFeatureAllowed } = useTenantPlanContext();
+  const canHideIndicador = isFeatureAllowed("ocultar_indicador");
 
   // Get the selected indicador's commission
   const selectedIndicador = activeIndicadores.find(i => i.id === selectedIndicadorId);
