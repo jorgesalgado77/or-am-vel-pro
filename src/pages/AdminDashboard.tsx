@@ -353,6 +353,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </Card>
           </TabsContent>
 
+          {/* TAB: Deal Room */}
+          <TabsContent value="dealroom">
+            <AdminDealRoom />
+          </TabsContent>
+
           {/* TAB: Suporte */}
           <TabsContent value="suporte">
             <AdminTickets adminName={adminName} />
