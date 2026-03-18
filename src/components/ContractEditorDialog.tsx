@@ -74,11 +74,25 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
               dangerouslySetInnerHTML={{ __html: html }}
             />
           ) : (
-            <div className="min-h-[400px] p-6 bg-white text-black">
+            <div className="bg-muted/30 p-4 flex justify-center">
               <div
-                className="prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: html }}
-              />
+                className="bg-white text-black shadow-lg border border-gray-200"
+                style={{
+                  width: "210mm",
+                  minHeight: "297mm",
+                  padding: "15mm",
+                  fontFamily: "'Segoe UI', 'Arial', sans-serif",
+                  fontSize: "12pt",
+                  lineHeight: "1.6",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div
+                  className="prose prose-sm max-w-none"
+                  style={{ fontSize: "inherit", lineHeight: "inherit" }}
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              </div>
             </div>
           )}
         </div>

@@ -17,6 +17,7 @@ const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const },
   { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const },
   { id: "simulator", label: "Simulador", icon: Calculator, perm: "simulador" as const },
+  { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "configuracoes" as const },
   { id: "settings", label: "Configurações", icon: Settings, perm: "configuracoes" as const },
 ];
 

@@ -241,6 +241,10 @@ export default function Index() {
               <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
             )}
 
+            {activeView === "payroll" && (
+              <PayrollReport onBack={() => setActiveView("dashboard")} />
+            )}
+
             {activeView === "settings" && <SettingsPanel />}
 
             {activeView === "messages" && (
