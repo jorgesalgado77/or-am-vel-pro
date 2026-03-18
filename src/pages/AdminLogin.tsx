@@ -25,6 +25,9 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
     }
     setLoading(true);
 
+    // Hash the input password
+    const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: senha }) as any;
+
     const { data, error } = await supabase
       .from("admin_master")
       .select("id, nome, email, senha")
@@ -37,7 +40,7 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
       return;
     }
 
-    if ((data as any).senha !== senha) {
+    if ((data as any).senha !== hashResult) {
       toast.error("Senha incorreta");
       setLoading(false);
       return;
