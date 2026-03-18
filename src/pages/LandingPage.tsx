@@ -52,7 +52,7 @@ export default function LandingPage() {
           />
         )}
 
-        {s.carousel && config.carousel_images.length > 0 && (
+        {s.carousel && (
           <LandingCarousel
             images={config.carousel_images}
             primaryColor={config.primary_color}
