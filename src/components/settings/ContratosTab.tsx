@@ -68,6 +68,7 @@ export function ContratosTab() {
     setNome("Novo Contrato");
     setHtmlContent(DEFAULT_CONTRACT_HTML);
     setViewMode("editor");
+    setEditorKey(k => k + 1);
   };
 
   const handleEdit = (t: ContractTemplate) => {
