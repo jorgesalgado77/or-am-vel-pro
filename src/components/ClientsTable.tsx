@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Pencil, Trash2, Plus, Search, Calculator, History, AlertTriangle, CalendarIcon, Filter, X, FileText } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Calculator, History, AlertTriangle, CalendarIcon, Filter, X, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/financing";
@@ -46,6 +46,8 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(true);
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
   const { settings } = useCompanySettings();
   const { projetistas } = useUsuarios();
   const { indicadores } = useIndicadores();
@@ -150,6 +152,15 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
       return true;
     });
   }, [clients, search, filterProjetista, filterIndicador, effectiveDates]);
+
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1); }, [search, filterProjetista, filterIndicador, periodFilter, dateStart, dateEnd]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
 
   const isExpired = (createdAt: string) => {
     const expiryDate = addDays(new Date(createdAt), settings.budget_validity_days);
@@ -302,7 +313,7 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((client) => {
+              paginated.map((client) => {
                 const sim = lastSims[client.id];
                 const expired = sim ? isExpired(sim.created_at) : false;
                 return (
@@ -370,6 +381,33 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {filtered.length > pageSize && (
+        <div className="flex items-center justify-between mt-3 px-1">
+          <span className="text-xs text-muted-foreground">
+            Mostrando {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filtered.length)} de {filtered.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .map((p, idx, arr) => (
+                <span key={p} className="flex items-center">
+                  {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-xs text-muted-foreground">…</span>}
+                  <Button variant={p === currentPage ? "default" : "outline"} size="icon" className="h-8 w-8 text-xs" onClick={() => setCurrentPage(p)}>
+                    {p}
+                  </Button>
+                </span>
+              ))}
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
