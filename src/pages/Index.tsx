@@ -168,6 +168,7 @@ export default function Index() {
     : activeView === "history" ? "Histórico de Simulações"
     : activeView === "contracts" ? "Contratos do Cliente"
     : activeView === "settings" ? "Configurações"
+    : activeView === "messages" ? "Mensagens"
     : "Simulador de Financiamento";
 
   const currentSubtitle = activeView === "dashboard" ? "Visão geral do sistema"
@@ -175,6 +176,7 @@ export default function Index() {
     : activeView === "history" ? "Compare diferentes cenários de financiamento"
     : activeView === "contracts" ? "Visualize e edite contratos gerados"
     : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
+    : activeView === "messages" ? "Comunicação com clientes"
     : "Calcule descontos e condições de pagamento";
 
   // Show login if no user is logged in
