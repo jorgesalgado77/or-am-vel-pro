@@ -227,6 +227,7 @@ export function AdminDealRoom() {
           <TabsTrigger value="ranking" className="gap-2"><Trophy className="h-4 w-4" />Ranking Vendedores</TabsTrigger>
           <TabsTrigger value="monitoring" className="gap-2"><Store className="h-4 w-4" />Monitoramento Lojas</TabsTrigger>
           <TabsTrigger value="transactions" className="gap-2"><DollarSign className="h-4 w-4" />Transações</TabsTrigger>
+          <TabsTrigger value="charts" className="gap-2"><LineChartIcon className="h-4 w-4" />Gráficos</TabsTrigger>
         </TabsList>
 
         {/* Ranking */}
