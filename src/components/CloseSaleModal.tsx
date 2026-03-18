@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Trash2, Save, Handshake } from "lucide-react";
 import { maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { formatCurrency } from "@/lib/financing";
+import { FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
@@ -201,10 +202,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
   const totalAmbientes = useMemo(() => items.reduce((acc, item) => acc + item.valor_ambiente, 0), [items]);
 
-  const formaLabel: Record<string, string> = {
-    "A vista": "À Vista", Pix: "Pix", Credito: "Cartão de Crédito",
-    Boleto: "Boleto", "Credito / Boleto": "Crédito + Boleto", "Entrada e Entrega": "Entrada e Entrega",
-  };
+  const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
   const handleSubmit = () => {
     if (!form.nome_completo.trim()) {

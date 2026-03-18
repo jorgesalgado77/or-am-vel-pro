@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake, Trash2, RotateCcw, EyeOff, Eye } from "lucide-react";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData, type CreditRateData } from "@/lib/financing";
+import { generateOrcamentoNumber, applyDiscounts, FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
+import { validateFileUpload } from "@/lib/validation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { generateSimulationPdf } from "@/lib/generatePdf";
@@ -263,6 +265,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       if (!files || files.length === 0) return;
 
       Array.from(files).forEach((file) => {
+        const fileValidation = validateFileUpload(file);
+        if (!fileValidation.valid) {
+          toast.error(fileValidation.message || "Arquivo inválido");
+          return;
+        }
         const reader = new FileReader();
         reader.onload = (ev) => {
           const content = ev.target?.result as string;
@@ -414,16 +421,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       setSaving(true);
 
       // Generate orçamento number
-      const { data: maxData } = await supabase.from("clients").select("numero_orcamento_seq").order("numero_orcamento_seq", { ascending: false }).limit(1).single() as any;
-      let nextSeq: number;
-      if (!maxData?.numero_orcamento_seq) {
-        const { data: settingsData } = await supabase.from("company_settings").select("orcamento_numero_inicial").limit(1).single() as any;
-        nextSeq = settingsData?.orcamento_numero_inicial || 1;
-      } else {
-        nextSeq = (maxData.numero_orcamento_seq as number) + 1;
-      }
-      const padded = String(nextSeq).padStart(9, "0");
-      const numeroOrcamento = `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}`;
+      const { numero_orcamento: numeroOrcamento, numero_orcamento_seq: nextSeq } = await generateOrcamentoNumber();
 
       const { data: created, error: clientError } = await supabase
         .from("clients")
@@ -550,10 +548,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
       // Fill template variables
       const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-      const formaLabel: Record<string, string> = {
-        "A vista": "À Vista", Pix: "Pix", Credito: "Cartão de Crédito",
-        Boleto: "Boleto", "Credito / Boleto": "Crédito + Boleto", "Entrada e Entrega": "Entrada e Entrega",
-      };
+      const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
       // Build items HTML table
       let itensHtml = "";
@@ -671,10 +666,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     if (!client) return;
 
     // Calculate "valor à vista" = after all discounts, before financing
-    const valorBase = valorTelaComComissao;
-    const afterD1 = valorBase * (1 - desconto1 / 100);
-    const afterD2 = afterD1 * (1 - desconto2 / 100);
-    const valorAVista = afterD2 * (1 - desconto3 / 100);
+    const valorAVista = applyDiscounts(valorTelaComComissao, desconto1, desconto2, desconto3);
 
     const mesRef = format(new Date(), "yyyy-MM");
     const contratoNum = closeSaleFormData?.numero_contrato || client.numero_orcamento || "";
