@@ -13,9 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
+import { AdminLandingPage } from "@/components/admin/AdminLandingPage";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
