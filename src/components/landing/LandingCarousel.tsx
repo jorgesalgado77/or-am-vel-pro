@@ -62,7 +62,7 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
               <AnimatePresence initial={false} custom={direction} mode="wait">
                 <motion.img
                   key={current}
-                  src={images[current]}
+                  src={displayImages[current]}
                   alt={LABELS[current] || `Screenshot ${current + 1}`}
                   custom={direction}
                   variants={variants}
