@@ -371,7 +371,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       };
 
       Object.entries(replacements).forEach(([key, val]) => {
-        html = html.replaceAll(key, val);
+        html = html.split(key).join(val);
       });
 
       // Save contract linked to client and simulation
