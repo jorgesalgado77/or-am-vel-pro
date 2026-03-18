@@ -490,6 +490,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     if (error) toast.error("Erro ao salvar simulação");
     else {
       toast.success("Simulação salva com sucesso!");
+
+      // Audit: simulation saved
+      const userInfo = getAuditUserInfo();
+      logAudit({
+        acao: "simulacao_salva",
+        entidade: "simulation",
+        entidade_id: clientId,
+        detalhes: {
+          valor_tela: valorTela,
+          valor_final: result.valorFinal,
+          forma_pagamento: formaPagamento,
+          desconto1, desconto2, desconto3,
+        },
+        ...userInfo,
+      });
+
       if (!client) {
         setShowClientForm(false);
         setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "" });
