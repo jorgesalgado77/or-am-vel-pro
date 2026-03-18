@@ -14,7 +14,7 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { format, addDays, isPast, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { format, addDays, isPast, isAfter, isBefore, startOfDay, endOfDay, startOfMonth, subMonths, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -41,9 +41,10 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
-  const [dateStart, setDateStart] = useState<Date | undefined>();
-  const [dateEnd, setDateEnd] = useState<Date | undefined>();
-  const [showFilters, setShowFilters] = useState(false);
+  const [periodFilter, setPeriodFilter] = useState("mes_atual");
+  const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
+  const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState(true);
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const { settings } = useCompanySettings();
   const { projetistas } = useUsuarios();
@@ -79,11 +80,52 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
     fetchLastSims();
   }, [clients]);
 
+  // Compute effective date range from period filter
+  const effectiveDates = useMemo(() => {
+    const now = new Date();
+    let start: Date | undefined;
+    let end: Date | undefined;
+
+    switch (periodFilter) {
+      case "mes_atual":
+        start = startOfMonth(now);
+        end = now;
+        break;
+      case "mes_anterior": {
+        const prev = subMonths(now, 1);
+        start = startOfMonth(prev);
+        end = endOfDay(new Date(prev.getFullYear(), prev.getMonth() + 1, 0));
+        break;
+      }
+      case "60_dias":
+        start = subDays(now, 60);
+        end = now;
+        break;
+      case "90_dias":
+        start = subDays(now, 90);
+        end = now;
+        break;
+      case "6_meses":
+        start = subMonths(now, 6);
+        end = now;
+        break;
+      case "personalizado":
+        start = dateStart;
+        end = dateEnd;
+        break;
+      case "todos":
+      default:
+        start = undefined;
+        end = undefined;
+        break;
+    }
+    return { start, end };
+  }, [periodFilter, dateStart, dateEnd]);
+
   const filtered = useMemo(() => {
     return clients.filter((c) => {
       const q = search.toLowerCase().trim();
 
-      // Text search across multiple fields
       if (q) {
         const matchesText =
           c.nome.toLowerCase().includes(q) ||
@@ -94,33 +136,32 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
         if (!matchesText) return false;
       }
 
-      // Filter by projetista
       if (filterProjetista && c.vendedor !== filterProjetista) return false;
-
-      // Filter by indicador
       if (filterIndicador && c.indicador_id !== filterIndicador) return false;
 
-      // Filter by date range
-      if (dateStart || dateEnd) {
+      // Date filtering
+      const { start, end } = effectiveDates;
+      if (start || end) {
         const clientDate = new Date(c.created_at);
-        if (dateStart && isBefore(clientDate, startOfDay(dateStart))) return false;
-        if (dateEnd && isAfter(clientDate, endOfDay(dateEnd))) return false;
+        if (start && isBefore(clientDate, startOfDay(start))) return false;
+        if (end && isAfter(clientDate, endOfDay(end))) return false;
       }
 
       return true;
     });
-  }, [clients, search, filterProjetista, filterIndicador, dateStart, dateEnd]);
+  }, [clients, search, filterProjetista, filterIndicador, effectiveDates]);
 
   const isExpired = (createdAt: string) => {
     const expiryDate = addDays(new Date(createdAt), settings.budget_validity_days);
     return isPast(expiryDate);
   };
 
-  const hasActiveFilters = filterProjetista || filterIndicador || dateStart || dateEnd;
+  const hasActiveFilters = filterProjetista || filterIndicador || periodFilter !== "mes_atual";
 
   const clearFilters = () => {
     setFilterProjetista("");
     setFilterIndicador("");
+    setPeriodFilter("mes_atual");
     setDateStart(undefined);
     setDateEnd(undefined);
     setSearch("");
@@ -146,6 +187,53 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
       {/* Advanced filters row */}
       {showFilters && (
         <div className="flex items-end gap-3 mb-4 p-3 bg-muted/30 rounded-lg border border-border flex-wrap">
+          <div className="min-w-[180px]">
+            <Label className="text-xs mb-1 block">Período</Label>
+            <Select value={periodFilter} onValueChange={(v) => setPeriodFilter(v)}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mes_atual">Mês Atual</SelectItem>
+                <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
+                <SelectItem value="60_dias">Últimos 60 dias</SelectItem>
+                <SelectItem value="90_dias">Últimos 90 dias</SelectItem>
+                <SelectItem value="6_meses">Últimos 6 meses</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="personalizado">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {periodFilter === "personalizado" && (
+            <>
+              <div>
+                <Label className="text-xs mb-1 block">Data Início</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal h-9", !dateStart && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1 h-3 w-3" />
+                      {dateStart ? format(dateStart, "dd/MM/yyyy") : "Início"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateStart} onSelect={setDateStart} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Data Fim</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal h-9", !dateEnd && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-1 h-3 w-3" />
+                      {dateEnd ? format(dateEnd, "dd/MM/yyyy") : "Fim"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateEnd} onSelect={setDateEnd} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </>
+          )}
           <div className="min-w-[180px]">
             <Label className="text-xs mb-1 block">Projetista</Label>
             <Select value={filterProjetista || "_all"} onValueChange={(v) => setFilterProjetista(v === "_all" ? "" : v)}>
@@ -173,34 +261,6 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label className="text-xs mb-1 block">Data Início</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal h-9", !dateStart && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-1 h-3 w-3" />
-                  {dateStart ? format(dateStart, "dd/MM/yyyy") : "Início"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateStart} onSelect={setDateStart} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div>
-            <Label className="text-xs mb-1 block">Data Fim</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal h-9", !dateEnd && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-1 h-3 w-3" />
-                  {dateEnd ? format(dateEnd, "dd/MM/yyyy") : "Fim"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateEnd} onSelect={setDateEnd} locale={ptBR} className={cn("p-3 pointer-events-auto")} />
-              </PopoverContent>
-            </Popover>
           </div>
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground h-9" onClick={clearFilters}>
