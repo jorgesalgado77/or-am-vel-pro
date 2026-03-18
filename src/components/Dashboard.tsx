@@ -48,9 +48,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
-    evolucao: true,
-    projetista: true,
-    indicador: true,
+    evolucao: false,
+    projetista: false,
+    indicador: false,
   });
 
   const toggleChart = (key: ChartKey) => {

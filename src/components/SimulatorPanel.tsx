@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake } from "lucide-react";
+import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake, Trash2 } from "lucide-react";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData } from "@/lib/financing";
 import { format } from "date-fns";
@@ -68,6 +69,18 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [selectedIndicadorId, setSelectedIndicadorId] = useState("");
 
+  // Environment list from imported files
+  interface ImportedEnvironment {
+    id: string;
+    fileName: string;
+    environmentName: string;
+    pieceCount: number;
+    totalValue: number;
+    importedAt: Date;
+    file: File;
+  }
+  const [environments, setEnvironments] = useState<ImportedEnvironment[]>([]);
+
   // New client form state (when no client is provided)
   const [showClientForm, setShowClientForm] = useState(false);
   const [newClient, setNewClient] = useState({
@@ -76,7 +89,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   });
 
   const { settings } = useCompanySettings();
-  const { hasPermission } = useCurrentUser();
+  const { hasPermission, currentUser } = useCurrentUser();
   const { getOptionsForField } = useDiscountOptions();
   const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();
@@ -172,35 +185,88 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".txt,.xml";
+    input.multiple = true;
     input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      setImportedFile(file);
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const content = ev.target?.result as string;
-        if (!content) return;
-        let total: number | null = null;
+      const files = (e.target as HTMLInputElement).files;
+      if (!files || files.length === 0) return;
 
-        if (file.name.toLowerCase().endsWith(".xml")) {
-          const match = content.match(/<(?:Total|ValorTotal|TOTAL|valor_total)[^>]*>\s*([\d.,]+)\s*</i);
-          if (match) total = parseFloat(match[1].replace(/\./g, "").replace(",", "."));
-        } else {
-          const match = content.match(/Total\s*=\s*([\d.,]+)/i);
-          if (match) total = parseFloat(match[1].replace(",", "."));
-        }
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const content = ev.target?.result as string;
+          if (!content) return;
 
-        if (total && !isNaN(total)) {
-          setValorTela(total);
-          toast.success(`Valor de tela importado: ${formatCurrency(total)}`);
-        } else {
-          toast.error("Não foi possível encontrar o valor total no arquivo");
-        }
-      };
-      reader.readAsText(file);
+          let total: number | null = null;
+          let envName = file.name.replace(/\.(txt|xml)$/i, "");
+          let pieces = 0;
+
+          if (file.name.toLowerCase().endsWith(".xml")) {
+            const matchTotal = content.match(/<(?:Total|ValorTotal|TOTAL|valor_total)[^>]*>\s*([\d.,]+)\s*</i);
+            if (matchTotal) total = parseFloat(matchTotal[1].replace(/\./g, "").replace(",", "."));
+            // Try to extract environment name
+            const matchEnv = content.match(/<(?:Ambiente|NomeAmbiente|AMBIENTE|ambiente)[^>]*>\s*([^<]+)\s*</i);
+            if (matchEnv) envName = matchEnv[1].trim();
+            // Try to extract piece count
+            const matchPieces = content.match(/<(?:QtdPecas|Quantidade|QTD|qtd_pecas|TotalPecas)[^>]*>\s*(\d+)\s*</i);
+            if (matchPieces) pieces = parseInt(matchPieces[1]);
+          } else {
+            const matchTotal = content.match(/Total\s*=\s*([\d.,]+)/i);
+            if (matchTotal) total = parseFloat(matchTotal[1].replace(",", "."));
+            // Try environment name
+            const matchEnv = content.match(/Ambiente\s*[=:]\s*(.+)/i);
+            if (matchEnv) envName = matchEnv[1].trim();
+            // Try piece count
+            const matchPieces = content.match(/(?:Pecas|Peças|Quantidade)\s*[=:]\s*(\d+)/i);
+            if (matchPieces) pieces = parseInt(matchPieces[1]);
+          }
+
+          if (total && !isNaN(total)) {
+            const newEnv: ImportedEnvironment = {
+              id: crypto.randomUUID(),
+              fileName: file.name,
+              environmentName: envName,
+              pieceCount: pieces,
+              totalValue: total,
+              importedAt: new Date(),
+              file,
+            };
+            setEnvironments((prev) => [...prev, newEnv]);
+            setImportedFile(file);
+            toast.success(`Ambiente "${envName}" importado: ${formatCurrency(total)}`);
+          } else {
+            toast.error(`Não foi possível encontrar o valor total em ${file.name}`);
+          }
+        };
+        reader.readAsText(file);
+      });
     };
     input.click();
   };
+
+  // Update valorTela whenever environments change
+  useEffect(() => {
+    if (environments.length > 0) {
+      const sum = environments.reduce((acc, env) => acc + env.totalValue, 0);
+      setValorTela(sum);
+    }
+  }, [environments]);
+
+  const handleRemoveEnvironment = (envId: string) => {
+    setEnvironments((prev) => {
+      const updated = prev.filter((e) => e.id !== envId);
+      if (updated.length === 0) {
+        setValorTela(0);
+        setImportedFile(null);
+      }
+      return updated;
+    });
+    toast.success("Ambiente removido");
+  };
+
+  const canDeleteEnvironment = useMemo(() => {
+    const cargoNome = currentUser?.cargo_nome?.toUpperCase() || "";
+    return cargoNome.includes("ADMIN") || cargoNome.includes("GERENTE");
+  }, [currentUser]);
 
   const uploadFile = async (file: File, clientId: string): Promise<{ url: string; nome: string } | null> => {
     const ext = file.name.split(".").pop() || "txt";
@@ -454,7 +520,50 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                   <Upload className="h-4 w-4" />
                 </Button>
               </div>
-              {importedFile && (
+              {environments.length > 0 && (
+                <div className="mt-2 border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="text-xs py-1.5 h-auto">Ambiente</TableHead>
+                        <TableHead className="text-xs py-1.5 h-auto text-center">Peças</TableHead>
+                        <TableHead className="text-xs py-1.5 h-auto text-right">Valor</TableHead>
+                        <TableHead className="text-xs py-1.5 h-auto text-center">Data</TableHead>
+                        {canDeleteEnvironment && <TableHead className="text-xs py-1.5 h-auto w-8"></TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {environments.map((env) => (
+                        <TableRow key={env.id} className="text-xs">
+                          <TableCell className="py-1.5 font-medium">{env.environmentName}</TableCell>
+                          <TableCell className="py-1.5 text-center">{env.pieceCount || "—"}</TableCell>
+                          <TableCell className="py-1.5 text-right tabular-nums">{formatCurrency(env.totalValue)}</TableCell>
+                          <TableCell className="py-1.5 text-center text-muted-foreground">
+                            {format(env.importedAt, "dd/MM HH:mm")}
+                          </TableCell>
+                          {canDeleteEnvironment && (
+                            <TableCell className="py-1.5 text-center">
+                              <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => handleRemoveEnvironment(env.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                      {environments.length > 1 && (
+                        <TableRow className="bg-primary/5 font-semibold text-xs">
+                          <TableCell className="py-1.5">Total ({environments.length} ambientes)</TableCell>
+                          <TableCell className="py-1.5 text-center">{environments.reduce((s, e) => s + e.pieceCount, 0) || "—"}</TableCell>
+                          <TableCell className="py-1.5 text-right tabular-nums text-primary">{formatCurrency(environments.reduce((s, e) => s + e.totalValue, 0))}</TableCell>
+                          <TableCell className="py-1.5"></TableCell>
+                          {canDeleteEnvironment && <TableCell className="py-1.5"></TableCell>}
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {environments.length === 0 && importedFile && (
                 <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
                   <FileText className="h-3 w-3 shrink-0" />
                   <span className="truncate flex-1">{importedFile.name}</span>
