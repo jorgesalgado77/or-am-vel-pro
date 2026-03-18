@@ -21,6 +21,7 @@ export default function Login({ onLogin }: LoginProps) {
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showTracking, setShowTracking] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
