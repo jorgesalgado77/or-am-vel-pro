@@ -255,8 +255,28 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     ].filter(d => d.value > 0);
   }, [stats]);
 
+  // Contracts monthly evolution data
+  const contractsLineData = useMemo(() => {
+    if (trackingRaw.length === 0) return [];
+    const byMonth: Record<string, { count: number; total: number }> = {};
+    trackingRaw.forEach(t => {
+      const key = format(new Date(t.dateRef), "yyyy-MM");
+      if (!byMonth[key]) byMonth[key] = { count: 0, total: 0 };
+      byMonth[key].count++;
+      byMonth[key].total += t.valor_contrato;
+    });
+    return Object.entries(byMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, data]) => ({
+        month: format(parseISO(month + "-01"), "MMM/yy", { locale: ptBR }),
+        contratos: data.count,
+        valor: data.total,
+      }));
+  }, [trackingRaw]);
+
   const chartToggles: { key: ChartKey; label: string }[] = useMemo(() => [
     { key: "evolucao", label: "Evolução" },
+    { key: "contratos", label: "Contratos" },
     { key: "projetista", label: "Projetista" },
     { key: "indicador", label: "Indicador" },
   ], []);
