@@ -17,6 +17,8 @@ export interface CompanySettings {
   cidade_loja: string | null;
   uf_loja: string | null;
   cep_loja: string | null;
+  telefone_loja: string | null;
+  email_loja: string | null;
 }
 
 const DEFAULT_SETTINGS: CompanySettings = {
@@ -35,6 +37,8 @@ const DEFAULT_SETTINGS: CompanySettings = {
   cidade_loja: null,
   uf_loja: null,
   cep_loja: null,
+  telefone_loja: null,
+  email_loja: null,
 };
 
 let cachedSettings: CompanySettings | null = null;
