@@ -14,6 +14,7 @@ import {
   Flame, Snowflake, ExternalLink, BookOpen,
 } from "lucide-react";
 import { useVendaZap } from "@/hooks/useVendaZap";
+import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -70,6 +71,7 @@ interface VendaZapPanelProps {
 export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const { currentUser } = useCurrentUser();
   const { addon, messages, loading, generating, dailyUsage, generateMessage, fetchMessages } = useVendaZap(tenantId);
+  const { showOnboarding, setShowOnboarding } = useOnboarding("vendazap");
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
@@ -565,6 +567,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
           </Card>
         </TabsContent>
       </Tabs>
+      <OnboardingDialog featureKey="vendazap" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
   );
 }

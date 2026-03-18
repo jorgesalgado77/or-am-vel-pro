@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { differenceInDays } from "date-fns";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ interface ClientsKanbanProps {
 
 const KANBAN_COLUMNS = [
   { id: "novo", label: "Novo", color: "hsl(var(--primary))", icon: "🆕" },
-  { id: "em_negociacao", label: "Em Negociação", color: "hsl(210 80% 55%)", icon: "🤝" },
+  { id: "em_negociacao", label: "Em Negociação", color: "hsl(270 70% 55%)", icon: "🤝" },
   { id: "proposta_enviada", label: "Proposta Enviada", color: "hsl(45 93% 47%)", icon: "📨" },
   { id: "fechado", label: "Fechado", color: "hsl(142 71% 45%)", icon: "✅" },
   { id: "perdido", label: "Perdido", color: "hsl(0 72% 51%)", icon: "❌" },
@@ -327,8 +328,8 @@ export function ClientsKanban({
                         ref={provided.innerRef}
                         {...provided.droppableProps}
                         className={cn(
-                          "space-y-2 min-h-[180px] rounded-md transition-colors p-1",
-                          snapshot.isDraggingOver && "bg-primary/5"
+                          "space-y-2 min-h-[180px] rounded-md transition-all duration-300 p-1",
+                          snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20 shadow-[0_0_15px_hsl(var(--primary)/0.15)]"
                         )}
                       >
                         {(columnData[col.id] || []).map((client, index) => {
@@ -336,13 +337,15 @@ export function ClientsKanban({
                           const expired = sim ? isExpired(sim.created_at) : false;
                           return (
                             <Draggable key={client.id} draggableId={client.id} index={index}>
-                              {(provided, snapshot) => (
+                              {(provided, snapshot) => {
+                                const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
+                                return (
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   className={cn(
                                     "rounded-lg border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer group border-l-[3px]",
-                                    snapshot.isDragging && "shadow-lg ring-2 ring-primary/30 rotate-1",
+                                    snapshot.isDragging && "shadow-[0_0_20px_hsl(var(--primary)/0.3)] ring-2 ring-primary/40 rotate-1 scale-105",
                                     expired && "border-destructive/30"
                                   )}
                                   style={{
@@ -364,9 +367,24 @@ export function ClientsKanban({
                                       </div>
                                     </div>
                                     <div className="flex items-center justify-between mt-2">
-                                      <span className="text-[11px] text-muted-foreground">
-                                        {format(new Date(client.created_at), "dd/MM/yy")}
-                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[11px] text-muted-foreground">
+                                          {format(new Date(client.created_at), "dd/MM/yy")}
+                                        </span>
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-[9px] h-4 px-1 font-medium",
+                                            daysInColumn === 0 && "border-green-400 text-green-600",
+                                            daysInColumn >= 1 && daysInColumn <= 3 && "border-yellow-400 text-yellow-600",
+                                            daysInColumn >= 4 && daysInColumn <= 7 && "border-orange-400 text-orange-600",
+                                            daysInColumn > 7 && "border-destructive text-destructive"
+                                          )}
+                                        >
+                                          <Clock className="h-2.5 w-2.5 mr-0.5" />
+                                          {daysInColumn === 0 ? "hoje" : `${daysInColumn}d`}
+                                        </Badge>
+                                      </div>
                                       {sim && (
                                         <span className={cn(
                                           "text-xs font-semibold",
@@ -384,7 +402,8 @@ export function ClientsKanban({
                                     )}
                                   </div>
                                 </div>
-                              )}
+                                );
+                              }}
                             </Draggable>
                           );
                         })}

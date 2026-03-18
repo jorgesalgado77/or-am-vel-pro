@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingUp, Target, Percent, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDealRoom } from "@/hooks/useDealRoom";
+import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
 
 function formatCurrency(val: number) {
   return `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -15,6 +16,7 @@ interface DealRoomStoreWidgetProps {
 
 export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
   const { getMetrics } = useDealRoom();
+  const { showOnboarding, setShowOnboarding } = useOnboarding("dealroom");
   const [metrics, setMetrics] = useState<{
     totalVendas: number;
     totalTransacionado: number;
@@ -90,6 +92,7 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
           </CardContent>
         </Card>
       )}
+      <OnboardingDialog featureKey="dealroom" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
   );
 }
