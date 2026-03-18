@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +11,7 @@ import { toast } from "sonner";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
   RefreshCw, Zap, History, Send, ArrowLeft, Handshake,
+  Flame, Snowflake, ExternalLink, BookOpen,
 } from "lucide-react";
 import { useVendaZap } from "@/hooks/useVendaZap";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -39,6 +38,30 @@ const TONES = [
   { value: "amigavel", label: "Amigável" },
 ];
 
+const READY_COPIES: { label: string; tipo: string; mensagem: string }[] = [
+  { label: "Reativação", tipo: "reativacao", mensagem: "Olá [NOME]! 👋 Tudo bem? Estive revendo seu projeto e percebi que ficou muito especial. Ainda tem interesse? Consigo manter as condições por mais alguns dias. Me avise! 😊" },
+  { label: "Objeção de preço", tipo: "objecao", mensagem: "Entendo sua preocupação com o valor, [NOME]. Mas pense assim: o investimento se dilui ao longo de anos de uso diário. Posso simular condições de pagamento que caibam no seu orçamento? 💡" },
+  { label: "Indecisão", tipo: "objecao", mensagem: "[NOME], sei que é uma decisão importante! Por isso quero te ajudar. Que tal agendarmos uma conversa rápida para tirar todas as suas dúvidas? Sem compromisso! 🤝" },
+  { label: "Concorrência", tipo: "objecao", mensagem: "[NOME], antes de decidir, compare não só o preço, mas a qualidade do material, o prazo de entrega e a garantia. Posso te mostrar nossos diferenciais? Vai se surpreender! ✨" },
+  { label: "Urgência", tipo: "urgencia", mensagem: "[NOME], seu orçamento expira em breve e as condições especiais que conseguimos podem mudar. Que tal fecharmos essa semana? Garanto o melhor cenário pra você! ⏰" },
+  { label: "Convite p/ fechamento", tipo: "fechamento", mensagem: "[NOME], está tudo pronto para o seu projeto! Vamos finalizar? Preparei condições especiais e consigo encaixar a entrega no prazo ideal pra você. Posso enviar o contrato? 📋✅" },
+];
+
+function getClientScore(client: Client, diasSemResposta: number): { label: string; emoji: string; color: string } {
+  if (client.status === "fechado") return { label: "Fechado", emoji: "✅", color: "text-green-600" };
+
+  // Hot: recent activity, in negotiation
+  if (diasSemResposta <= 3 && ["em_negociacao", "proposta_enviada"].includes(client.status)) {
+    return { label: "Quente", emoji: "🔥", color: "text-red-500" };
+  }
+  // Warm: some days, or new lead
+  if (diasSemResposta <= 7 || client.status === "novo") {
+    return { label: "Morno", emoji: "🟡", color: "text-yellow-500" };
+  }
+  // Cold
+  return { label: "Frio", emoji: "❄️", color: "text-blue-400" };
+}
+
 interface VendaZapPanelProps {
   tenantId: string | null;
   onBack?: () => void;
@@ -56,6 +79,8 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const [mensagemCliente, setMensagemCliente] = useState("");
   const [mensagemGerada, setMensagemGerada] = useState("");
   const [lastSim, setLastSim] = useState<any>(null);
+  const [autoSuggestion, setAutoSuggestion] = useState("");
+  const [autoSuggestionLoading, setAutoSuggestionLoading] = useState(false);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -68,7 +93,6 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   useEffect(() => {
     if (selectedClient) {
       fetchMessages(selectedClient.id);
-      // Fetch last simulation for context
       supabase
         .from("simulations")
         .select("*")
@@ -76,13 +100,47 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle()
-        .then(({ data }) => setLastSim(data));
+        .then(({ data }) => {
+          setLastSim(data);
+          // Auto-suggestion when opening client
+          if (addon?.ativo) {
+            generateAutoSuggestion(selectedClient, data);
+          }
+        });
+    } else {
+      setAutoSuggestion("");
     }
   }, [selectedClient?.id]);
 
   const diasSemResposta = selectedClient
     ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
+
+  const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
+
+  const generateAutoSuggestion = async (client: Client, sim: any) => {
+    setAutoSuggestionLoading(true);
+    const days = Math.floor((Date.now() - new Date(client.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+    // Determine best copy type based on context
+    let autoCopyType = "geral";
+    if (days > 7) autoCopyType = "reativacao";
+    else if (client.status === "proposta_enviada") autoCopyType = "fechamento";
+    else if (client.status === "em_negociacao") autoCopyType = "reuniao";
+    else if (days > 3) autoCopyType = "urgencia";
+
+    const result = await generateMessage({
+      nome_cliente: client.nome,
+      valor_orcamento: sim?.valor_final || sim?.valor_tela,
+      status_negociacao: client.status || "novo",
+      dias_sem_resposta: days,
+      tipo_copy: autoCopyType,
+      tom: "amigavel",
+      client_id: client.id,
+      usuario_id: currentUser?.id,
+    });
+    if (result) setAutoSuggestion(result);
+    setAutoSuggestionLoading(false);
+  };
 
   const handleGenerate = async () => {
     const result = await generateMessage({
@@ -99,9 +157,28 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
     if (result) setMensagemGerada(result);
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(mensagemGerada);
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
     toast.success("Mensagem copiada!");
+  };
+
+  const handleCopyAndOpenWhatsApp = (text: string, phone?: string | null) => {
+    navigator.clipboard.writeText(text);
+    const encodedText = encodeURIComponent(text);
+    const cleanPhone = phone?.replace(/\D/g, "") || "";
+    const waUrl = cleanPhone
+      ? `https://wa.me/55${cleanPhone}?text=${encodedText}`
+      : `https://wa.me/?text=${encodedText}`;
+    window.open(waUrl, "_blank");
+    toast.success("Mensagem copiada e WhatsApp aberto!");
+  };
+
+  const handleUseReadyCopy = (copy: typeof READY_COPIES[0]) => {
+    const replaced = selectedClient
+      ? copy.mensagem.replace(/\[NOME\]/g, selectedClient.nome.split(" ")[0])
+      : copy.mensagem.replace(/\[NOME\]/g, "Cliente");
+    setMensagemGerada(replaced);
+    setTipoCopy(copy.tipo);
   };
 
   const filteredClients = clients.filter(c =>
@@ -122,7 +199,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         <h3 className="text-lg font-semibold text-foreground">VendaZap AI</h3>
         <p className="text-sm text-muted-foreground text-center max-w-md">
           Assistente inteligente de vendas para WhatsApp. Este add-on não está ativo para sua loja.
-          Entre em contato com o suporte para adquirir.
+          Entre em contato com o suporte para adquirir — R$ 69/mês.
         </p>
         {onBack && <Button variant="outline" onClick={onBack} className="gap-2"><ArrowLeft className="h-4 w-4" />Voltar</Button>}
       </div>
@@ -137,7 +214,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         </Button>
       )}
 
-      {/* Header with usage */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
@@ -155,8 +232,9 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
       </div>
 
       <Tabs defaultValue="gerar" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="gerar" className="gap-2"><Sparkles className="h-4 w-4" />Gerar Mensagem</TabsTrigger>
+        <TabsList className="grid grid-cols-3 w-full">
+          <TabsTrigger value="gerar" className="gap-2"><Sparkles className="h-4 w-4" />Gerar</TabsTrigger>
+          <TabsTrigger value="prontas" className="gap-2"><BookOpen className="h-4 w-4" />Copys Prontas</TabsTrigger>
           <TabsTrigger value="historico" className="gap-2"><History className="h-4 w-4" />Histórico</TabsTrigger>
         </TabsList>
 
@@ -177,25 +255,39 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
                   />
                   {searchClient && !selectedClient && (
                     <ScrollArea className="h-32 border rounded-md">
-                      {filteredClients.slice(0, 8).map(c => (
-                        <button
-                          key={c.id}
-                          onClick={() => { setSelectedClient(c); setSearchClient(""); }}
-                          className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors text-sm"
-                        >
-                          <span className="font-medium text-foreground">{c.nome}</span>
-                          {c.numero_orcamento && (
-                            <span className="text-muted-foreground ml-2">#{c.numero_orcamento}</span>
-                          )}
-                        </button>
-                      ))}
+                      {filteredClients.slice(0, 8).map(c => {
+                        const days = Math.floor((Date.now() - new Date(c.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+                        const score = getClientScore(c, days);
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => { setSelectedClient(c); setSearchClient(""); setMensagemGerada(""); }}
+                            className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors text-sm flex items-center justify-between"
+                          >
+                            <div>
+                              <span className="font-medium text-foreground">{c.nome}</span>
+                              {c.numero_orcamento && (
+                                <span className="text-muted-foreground ml-2">#{c.numero_orcamento}</span>
+                              )}
+                            </div>
+                            <span className="text-xs">{score.emoji} {score.label}</span>
+                          </button>
+                        );
+                      })}
                     </ScrollArea>
                   )}
                   {selectedClient && (
                     <div className="bg-secondary/50 rounded-lg p-3 space-y-1">
                       <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm text-foreground">{selectedClient.nome}</p>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedClient(null)} className="h-6 text-xs">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm text-foreground">{selectedClient.nome}</p>
+                          {clientScore && (
+                            <Badge variant="outline" className={`text-[10px] ${clientScore.color}`}>
+                              {clientScore.emoji} {clientScore.label}
+                            </Badge>
+                          )}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); setAutoSuggestion(""); setMensagemGerada(""); }} className="h-6 text-xs">
                           Trocar
                         </Button>
                       </div>
@@ -216,7 +308,42 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
                 </CardContent>
               </Card>
 
-              {/* Copy Type Selection */}
+              {/* Auto Suggestion */}
+              {selectedClient && (autoSuggestion || autoSuggestionLoading) && (
+                <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/10 dark:border-amber-900">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                      <Sparkles className="h-4 w-4" />
+                      Sugestão automática para este cliente
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {autoSuggestionLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Analisando contexto do cliente...
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{autoSuggestion}</p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handleCopy(autoSuggestion)}>
+                            <Copy className="h-3 w-3" />Copiar
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handleCopyAndOpenWhatsApp(autoSuggestion, selectedClient?.telefone1)}>
+                            <ExternalLink className="h-3 w-3" />Copiar + WhatsApp
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setMensagemGerada(autoSuggestion)}>
+                            Usar esta
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Copy Type */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">Tipo de Mensagem</CardTitle>
@@ -265,21 +392,19 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
               </Card>
 
               {/* Client Message Analysis */}
-              {tipoCopy === "objecao" && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Mensagem do Cliente</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Textarea
-                      placeholder="Cole aqui a mensagem do cliente para análise..."
-                      value={mensagemCliente}
-                      onChange={(e) => setMensagemCliente(e.target.value)}
-                      rows={3}
-                    />
-                  </CardContent>
-                </Card>
-              )}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Mensagem do Cliente (opcional)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    placeholder="Cole aqui a mensagem do cliente para a IA analisar e gerar a melhor resposta..."
+                    value={mensagemCliente}
+                    onChange={(e) => setMensagemCliente(e.target.value)}
+                    rows={3}
+                  />
+                </CardContent>
+              </Card>
 
               <Button
                 onClick={handleGenerate}
@@ -311,7 +436,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
                       Mensagem Gerada
                     </CardTitle>
                     {mensagemGerada && (
-                      <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1 h-7">
+                      <Button variant="outline" size="sm" onClick={() => handleCopy(mensagemGerada)} className="gap-1 h-7">
                         <Copy className="h-3 w-3" />Copiar
                       </Button>
                     )}
@@ -328,24 +453,70 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                       <Bot className="h-12 w-12 mb-3 opacity-30" />
-                      <p className="text-sm">Selecione um cliente e tipo de mensagem, depois clique em "Gerar Mensagem"</p>
+                      <p className="text-sm text-center">Selecione um cliente e tipo de mensagem, depois clique em "Gerar Mensagem"</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
               {mensagemGerada && (
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleGenerate} disabled={generating} className="flex-1 gap-2">
-                    <RefreshCw className="h-4 w-4" />Regenerar
-                  </Button>
-                  <Button variant="outline" onClick={handleCopy} className="flex-1 gap-2">
-                    <Copy className="h-4 w-4" />Copiar para WhatsApp
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleGenerate} disabled={generating} className="flex-1 gap-2">
+                      <RefreshCw className="h-4 w-4" />Regenerar
+                    </Button>
+                    <Button variant="outline" onClick={() => handleCopy(mensagemGerada)} className="flex-1 gap-2">
+                      <Copy className="h-4 w-4" />Copiar
+                    </Button>
+                  </div>
+                  <Button
+                    onClick={() => handleCopyAndOpenWhatsApp(mensagemGerada, selectedClient?.telefone1)}
+                    className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Copiar + Abrir WhatsApp
                   </Button>
                 </div>
               )}
             </div>
           </div>
+        </TabsContent>
+
+        {/* Copys Prontas Tab */}
+        <TabsContent value="prontas" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Copys Prontas — Clique para usar
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-3">
+                {READY_COPIES.map((copy, i) => (
+                  <div key={i} className="border rounded-lg p-3 space-y-2 hover:border-primary/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="secondary" className="text-[10px]">{copy.label}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{copy.mensagem.substring(0, 100)}...</p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handleUseReadyCopy(copy)}>
+                        <Sparkles className="h-3 w-3" />Usar
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => {
+                        const text = selectedClient
+                          ? copy.mensagem.replace(/\[NOME\]/g, selectedClient.nome.split(" ")[0])
+                          : copy.mensagem.replace(/\[NOME\]/g, "Cliente");
+                        handleCopy(text);
+                      }}>
+                        <Copy className="h-3 w-3" />Copiar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="historico">
@@ -376,12 +547,14 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
                             <p className="text-xs text-muted-foreground">Cliente: {(msg.contexto as any).nome_cliente}</p>
                           )}
                           <p className="text-sm text-foreground whitespace-pre-wrap">{msg.mensagem_gerada}</p>
-                          <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => {
-                            navigator.clipboard.writeText(msg.mensagem_gerada);
-                            toast.success("Copiada!");
-                          }}>
-                            <Copy className="h-3 w-3" />Copiar
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => handleCopy(msg.mensagem_gerada)}>
+                              <Copy className="h-3 w-3" />Copiar
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => handleCopyAndOpenWhatsApp(msg.mensagem_gerada)}>
+                              <ExternalLink className="h-3 w-3" />WhatsApp
+                            </Button>
+                          </div>
                         </div>
                       );
                     })}
