@@ -99,6 +99,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     evolucao: false,
     projetista: false,
     indicador: false,
+    contratos: false,
   });
 
   // Date filter state
