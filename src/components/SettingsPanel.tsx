@@ -87,6 +87,7 @@ function CompanySettingsTab() {
     const { error } = await supabase.from("company_settings").update({
       company_name: name,
       company_subtitle: subtitle,
+      codigo_loja: codigoLoja.trim() || null,
       budget_validity_days: validityDays,
       manager_password: managerPassword,
       admin_password: adminPassword,
