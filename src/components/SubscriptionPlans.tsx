@@ -320,6 +320,69 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
       <p className="text-xs text-center text-muted-foreground">
         Os pagamentos são processados de forma segura. Você pode alterar ou cancelar seu plano a qualquer momento.
       </p>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={!!confirmPlan} onOpenChange={(open) => !open && setConfirmPlan(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-primary" />
+              Confirmar Troca de Plano
+            </DialogTitle>
+            <DialogDescription>
+              Revise os detalhes antes de confirmar a alteração.
+            </DialogDescription>
+          </DialogHeader>
+          {confirmPlan && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Plano atual:</span>
+                  <span className="font-medium">{PLANS.find(p => p.id === currentPlan.plano)?.nome || currentPlan.plano}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Novo plano:</span>
+                  <span className="font-semibold text-primary">{confirmPlan.nome}</span>
+                </div>
+                <div className="border-t pt-2 mt-2" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Período:</span>
+                  <span className="font-medium">{annual ? "Anual" : "Mensal"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Valor:</span>
+                  <span className="font-bold text-foreground">
+                    {formatCurrency(annual ? confirmPlan.preco_anual_mensal : confirmPlan.preco_mensal)}/mês
+                  </span>
+                </div>
+                {annual && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total anual:</span>
+                    <span className="font-medium">{formatCurrency(confirmPlan.preco_anual_mensal * 12)}</span>
+                  </div>
+                )}
+                <div className="border-t pt-2 mt-2" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Início:</span>
+                  <span className="font-medium">{getStartDate()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Vencimento:</span>
+                  <span className="font-medium">{getEndDate()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmPlan(null)} disabled={!!loading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmPlan} disabled={!!loading}>
+              {loading ? "Processando..." : "Confirmar e Assinar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
