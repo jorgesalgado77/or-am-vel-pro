@@ -471,6 +471,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </Card>
             </div>
           </TabsContent>
+
+          {/* TAB: Landing Page */}
+          <TabsContent value="landing">
+            <AdminLandingPage />
+          </TabsContent>
         </Tabs>
       </main>
 
