@@ -81,6 +81,16 @@ export default function Login({ onLogin }: LoginProps) {
 
     setLoading(false);
     toast.success(`Bem-vindo, ${user.apelido || user.nome_completo}!`);
+
+    logAudit({
+      acao: "usuario_login",
+      entidade: "user",
+      entidade_id: user.id,
+      usuario_id: user.id,
+      usuario_nome: user.apelido || user.nome_completo,
+      detalhes: { nome: user.nome_completo },
+    });
+
     onLogin(user.id, user.primeiro_login ?? true);
   };
 
