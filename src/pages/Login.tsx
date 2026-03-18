@@ -7,6 +7,7 @@ import { LogIn, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { maskCodigoLoja } from "@/lib/masks";
 
 interface LoginProps {
   onLogin: (userId: string, primeiroLogin: boolean) => void;
