@@ -33,7 +33,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   settings: { title: "Configurações", subtitle: "Gerencie empresa, financeiras e operadoras" },
   messages: { title: "Mensagens", subtitle: "Comunicação com clientes" },
   plans: { title: "Planos de Assinatura", subtitle: "Gerencie seu plano e pagamentos" },
-  simulator: { title: "Simulador de Financiamento", subtitle: "Calcule descontos e condições de pagamento" },
+  simulator: { title: "Negociação e Simulação de Financiamentos", subtitle: "Calcule descontos e condições de pagamento" },
 };
 
 export default function Index() {

@@ -49,7 +49,7 @@ const CHART_COLORS = [
 const currencyFormatter = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
-type ChartKey = "evolucao" | "projetista" | "indicador";
+type ChartKey = "evolucao" | "projetista" | "indicador" | "contratos";
 
 type DateFilterPreset = "mes_atual" | "30dias" | "60dias" | "90dias" | "6meses" | "personalizado";
 
@@ -99,6 +99,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     evolucao: false,
     projetista: false,
     indicador: false,
+    contratos: false,
   });
 
   // Date filter state
@@ -110,19 +111,22 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
 
   // Contract tracking data
   const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
+  const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string }[]>([]);
 
   const fetchTrackingStats = useCallback(async () => {
     const { data } = await supabase
       .from("client_tracking")
       .select("valor_contrato, data_fechamento, created_at");
     if (data) {
-      const filtered = (data as any[]).filter((t) => {
-        const dateRef = t.data_fechamento || t.created_at;
-        return isInRange(dateRef, dateRange.start, dateRange.end);
-      });
+      const all = (data as any[]).map((t) => ({
+        valor_contrato: Number(t.valor_contrato) || 0,
+        dateRef: t.data_fechamento || t.created_at,
+      }));
+      const filtered = all.filter((t) => isInRange(t.dateRef, dateRange.start, dateRange.end));
+      setTrackingRaw(filtered);
       setTrackingData({
         count: filtered.length,
-        total: filtered.reduce((sum, t) => sum + (Number(t.valor_contrato) || 0), 0),
+        total: filtered.reduce((sum, t) => sum + t.valor_contrato, 0),
       });
     }
   }, [dateRange]);
@@ -251,8 +255,28 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     ].filter(d => d.value > 0);
   }, [stats]);
 
+  // Contracts monthly evolution data
+  const contractsLineData = useMemo(() => {
+    if (trackingRaw.length === 0) return [];
+    const byMonth: Record<string, { count: number; total: number }> = {};
+    trackingRaw.forEach(t => {
+      const key = format(new Date(t.dateRef), "yyyy-MM");
+      if (!byMonth[key]) byMonth[key] = { count: 0, total: 0 };
+      byMonth[key].count++;
+      byMonth[key].total += t.valor_contrato;
+    });
+    return Object.entries(byMonth)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, data]) => ({
+        month: format(parseISO(month + "-01"), "MMM/yy", { locale: ptBR }),
+        contratos: data.count,
+        valor: data.total,
+      }));
+  }, [trackingRaw]);
+
   const chartToggles: { key: ChartKey; label: string }[] = useMemo(() => [
     { key: "evolucao", label: "Evolução" },
+    { key: "contratos", label: "Contratos" },
     { key: "projetista", label: "Projetista" },
     { key: "indicador", label: "Indicador" },
   ], []);
@@ -360,6 +384,44 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
                   />
                   <Line yAxisId="valor" type="monotone" dataKey="valor" stroke="hsl(200, 70%, 50%)" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(200, 70%, 50%)" }} name="valor" />
                   <Line yAxisId="count" type="monotone" dataKey="orcamentos" stroke="hsl(160, 60%, 45%)" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3, fill: "hsl(160, 60%, 45%)" }} name="orcamentos" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Contracts Evolution Chart */}
+      {visibleCharts.contratos && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Evolução Mensal de Contratos Fechados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {contractsLineData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum contrato registrado no período</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={contractsLineData} margin={{ top: 8, right: 20, left: 8, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis yAxisId="valor" orientation="left" tickFormatter={currencyFormatter} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={95} />
+                  <YAxis yAxisId="count" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={40} />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      name === "valor" ? currencyFormatter(value) : value,
+                      name === "valor" ? "Valor Total" : "Qtd. Contratos",
+                    ]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: 13,
+                    }}
+                    labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                  />
+                  <Line yAxisId="valor" type="monotone" dataKey="valor" stroke="hsl(140, 60%, 40%)" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(140, 60%, 40%)" }} name="valor" />
+                  <Line yAxisId="count" type="monotone" dataKey="contratos" stroke="hsl(200, 70%, 50%)" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3, fill: "hsl(200, 70%, 50%)" }} name="contratos" />
                 </LineChart>
               </ResponsiveContainer>
             )}

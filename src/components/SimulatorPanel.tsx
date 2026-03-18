@@ -840,7 +840,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader className="pb-4"><CardTitle className="text-base">Parâmetros da Simulação</CardTitle></CardHeader>
+          <CardHeader className="pb-4"><CardTitle className="text-base">Parâmetros da Negociação</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div>
               <Label>Valor de Tela</Label>
