@@ -156,11 +156,12 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
     return isPast(expiryDate);
   };
 
-  const hasActiveFilters = filterProjetista || filterIndicador || dateStart || dateEnd;
+  const hasActiveFilters = filterProjetista || filterIndicador || periodFilter !== "mes_atual";
 
   const clearFilters = () => {
     setFilterProjetista("");
     setFilterIndicador("");
+    setPeriodFilter("mes_atual");
     setDateStart(undefined);
     setDateEnd(undefined);
     setSearch("");
