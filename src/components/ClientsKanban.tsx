@@ -49,7 +49,7 @@ interface ClientsKanbanProps {
 
 const KANBAN_COLUMNS = [
   { id: "novo", label: "Novo", color: "hsl(var(--primary))", icon: "🆕" },
-  { id: "em_negociacao", label: "Em Negociação", color: "hsl(210 80% 55%)", icon: "🤝" },
+  { id: "em_negociacao", label: "Em Negociação", color: "hsl(270 70% 55%)", icon: "🤝" },
   { id: "proposta_enviada", label: "Proposta Enviada", color: "hsl(45 93% 47%)", icon: "📨" },
   { id: "fechado", label: "Fechado", color: "hsl(142 71% 45%)", icon: "✅" },
   { id: "perdido", label: "Perdido", color: "hsl(0 72% 51%)", icon: "❌" },
