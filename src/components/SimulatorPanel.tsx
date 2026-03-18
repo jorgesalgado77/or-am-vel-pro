@@ -661,10 +661,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     if (!client) return;
 
     // Calculate "valor à vista" = after all discounts, before financing
-    const valorBase = valorTelaComComissao;
-    const afterD1 = valorBase * (1 - desconto1 / 100);
-    const afterD2 = afterD1 * (1 - desconto2 / 100);
-    const valorAVista = afterD2 * (1 - desconto3 / 100);
+    const valorAVista = applyDiscounts(valorTelaComComissao, desconto1, desconto2, desconto3);
 
     const mesRef = format(new Date(), "yyyy-MM");
     const contratoNum = closeSaleFormData?.numero_contrato || client.numero_orcamento || "";
