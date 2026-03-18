@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LogIn, Eye, EyeOff, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit } from "@/services/auditService";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { maskCodigoLoja } from "@/lib/masks";
 import { ClientTrackingModal } from "@/components/ClientTrackingModal";
