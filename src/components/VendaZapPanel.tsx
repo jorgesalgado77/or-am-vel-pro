@@ -71,6 +71,7 @@ interface VendaZapPanelProps {
 export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const { currentUser } = useCurrentUser();
   const { addon, messages, loading, generating, dailyUsage, generateMessage, fetchMessages } = useVendaZap(tenantId);
+  const { showOnboarding, setShowOnboarding } = useOnboarding("vendazap");
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
