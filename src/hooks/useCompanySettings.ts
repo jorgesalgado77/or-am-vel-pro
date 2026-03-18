@@ -11,6 +11,12 @@ export interface CompanySettings {
   admin_password: string | null;
   orcamento_numero_inicial: number;
   codigo_loja: string | null;
+  cnpj_loja: string | null;
+  endereco_loja: string | null;
+  bairro_loja: string | null;
+  cidade_loja: string | null;
+  uf_loja: string | null;
+  cep_loja: string | null;
 }
 
 const DEFAULT_SETTINGS: CompanySettings = {
