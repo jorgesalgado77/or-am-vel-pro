@@ -15,27 +15,28 @@ interface LandingCarouselProps {
 
 const LABELS = ["Dashboard com KPIs e gráficos", "Gestão completa de clientes", "Simulador de financiamento"];
 
-const displayImages = images.length > 0 ? images : FALLBACK_IMAGES;
+export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) {
+  const displayImages = images.length > 0 ? images : FALLBACK_IMAGES;
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(0);
 
   const next = useCallback(() => {
     setDirection(1);
-    setCurrent(prev => (prev + 1) % images.length);
-  }, [images.length]);
+    setCurrent(prev => (prev + 1) % displayImages.length);
+  }, [displayImages.length]);
 
   const prev = useCallback(() => {
     setDirection(-1);
-    setCurrent(prev => (prev - 1 + images.length) % images.length);
-  }, [images.length]);
+    setCurrent(prev => (prev - 1 + displayImages.length) % displayImages.length);
+  }, [displayImages.length]);
 
   useEffect(() => {
-    if (images.length <= 1) return;
+    if (displayImages.length <= 1) return;
     const interval = setInterval(next, 5000);
     return () => clearInterval(interval);
-  }, [next, images.length]);
+  }, [next, displayImages.length]);
 
-  if (images.length === 0) return null;
+  if (displayImages.length === 0) return null;
 
   const variants = {
     enter: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
