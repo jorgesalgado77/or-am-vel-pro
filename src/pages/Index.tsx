@@ -12,6 +12,7 @@ import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { SupportDialog } from "@/components/SupportDialog";
 import { MessagesPanel } from "@/components/MessagesPanel";
 import { PlanBanner } from "@/components/PlanBanner";
+import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import Login from "@/pages/Login";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
