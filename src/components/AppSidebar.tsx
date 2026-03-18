@@ -10,6 +10,7 @@ interface AppSidebarProps {
   onViewChange: (view: string) => void;
   onChangePassword?: () => void;
   onSupport?: () => void;
+  unreadMessages?: number;
 }
 
 const navItems = [
