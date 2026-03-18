@@ -116,6 +116,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? "");
+  const [hideIndicador, setHideIndicador] = useState(false);
 
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
     return (stored.environments || []).map((e) => ({
