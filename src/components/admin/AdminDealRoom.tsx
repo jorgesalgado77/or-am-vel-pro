@@ -106,6 +106,67 @@ export function AdminDealRoom() {
     }
   };
 
+  // Build monthly chart data from transactions
+  const monthlyData = useMemo(() => {
+    if (!transactions.length) return [];
+    const map = new Map<string, { vendas: number; receita: number; taxas: number }>();
+    // Initialize last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const d = subMonths(new Date(), i);
+      const key = format(d, "yyyy-MM");
+      map.set(key, { vendas: 0, receita: 0, taxas: 0 });
+    }
+    transactions.forEach(tx => {
+      const key = tx.created_at.substring(0, 7); // yyyy-MM
+      const entry = map.get(key);
+      if (entry) {
+        entry.vendas += 1;
+        entry.receita += Number(tx.valor_venda);
+        entry.taxas += Number(tx.taxa_plataforma_valor);
+      }
+    });
+    return Array.from(map.entries()).map(([month, data]) => ({
+      month: format(parseISO(`${month}-01`), "MMM/yy", { locale: ptBR }),
+      ...data,
+    }));
+  }, [transactions]);
+
+  // Period comparison: current month vs previous month
+  const periodComparison = useMemo(() => {
+    if (!transactions.length) return [];
+    const now = new Date();
+    const curStart = startOfMonth(now);
+    const prevStart = startOfMonth(subMonths(now, 1));
+    const prevEnd = endOfMonth(subMonths(now, 1));
+
+    let curReceita = 0, curTaxas = 0, curVendas = 0;
+    let prevReceita = 0, prevTaxas = 0, prevVendas = 0;
+
+    transactions.forEach(tx => {
+      const d = new Date(tx.created_at);
+      if (d >= curStart) {
+        curReceita += Number(tx.valor_venda);
+        curTaxas += Number(tx.taxa_plataforma_valor);
+        curVendas += 1;
+      } else if (d >= prevStart && d <= prevEnd) {
+        prevReceita += Number(tx.valor_venda);
+        prevTaxas += Number(tx.taxa_plataforma_valor);
+        prevVendas += 1;
+      }
+    });
+
+    return [
+      { periodo: format(prevStart, "MMM/yy", { locale: ptBR }), receita: prevReceita, taxas: prevTaxas, vendas: prevVendas },
+      { periodo: format(curStart, "MMM/yy", { locale: ptBR }), receita: curReceita, taxas: curTaxas, vendas: curVendas },
+    ];
+  }, [transactions]);
+
+  const chartConfig = {
+    receita: { label: "Receita", color: "hsl(var(--primary))" },
+    taxas: { label: "Taxas", color: "hsl(var(--accent))" },
+    vendas: { label: "Vendas", color: "hsl(var(--secondary))" },
+  };
+
   useEffect(() => { fetchAll(); }, [filterTenant, filterDateFrom, filterDateTo]);
 
   return (
