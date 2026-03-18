@@ -95,6 +95,10 @@ export function useTenantPlan() {
 
   const isFeatureAllowed = (feature: keyof typeof PLAN_FEATURES["trial"]): boolean => {
     if (plan.expirado) return false;
+    // Check tenant-level VIP overrides first
+    if (plan.recursos_vip && plan.recursos_vip[feature] !== undefined) {
+      return plan.recursos_vip[feature];
+    }
     const features = PLAN_FEATURES[plan.plano] || PLAN_FEATURES.trial;
     return features[feature] ?? false;
   };
