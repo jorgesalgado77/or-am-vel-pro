@@ -20,6 +20,7 @@ import { IndicadoresTab } from "@/components/settings/IndicadoresTab";
 import { ContratosTab } from "@/components/settings/ContratosTab";
 import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
 import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
+import { AuditLogsTab } from "@/components/settings/AuditLogsTab";
 import { UserCheck, FileSignature, MessageSquare, ClipboardList } from "lucide-react";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 import { Switch } from "@/components/ui/switch";
