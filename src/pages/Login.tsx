@@ -44,16 +44,18 @@ export default function Login({ onLogin }: LoginProps) {
       return;
     }
 
-    // Find user by name or apelido
+    // Find user by name, apelido or email
     const { data: users } = await supabase
       .from("usuarios")
-      .select("id, nome_completo, apelido, ativo, senha, primeiro_login")
+      .select("id, nome_completo, apelido, email, ativo, senha, primeiro_login")
       .eq("ativo", true);
 
+    const input = nomeUsuario.trim().toLowerCase();
     const user = (users as any[])?.find(
       (u) =>
-        u.apelido?.toLowerCase() === nomeUsuario.trim().toLowerCase() ||
-        u.nome_completo.toLowerCase() === nomeUsuario.trim().toLowerCase()
+        u.apelido?.toLowerCase() === input ||
+        u.nome_completo.toLowerCase() === input ||
+        u.email?.toLowerCase() === input
     );
 
     if (!user) {
