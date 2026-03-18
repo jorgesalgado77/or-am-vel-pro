@@ -65,6 +65,26 @@ export function ClientTrackingModal({ open, onClose }: Props) {
     }
   }, [open]);
 
+  // Realtime: auto-load new messages from loja
+  useEffect(() => {
+    if (!tracking) return;
+    const channel = supabase
+      .channel(`client-tracking-${tracking.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "tracking_messages" },
+        (payload) => {
+          const msg = payload.new as any;
+          if (msg.tracking_id === tracking.id && msg.remetente_tipo === "loja") {
+            setMessages((prev) => [...prev, msg]);
+            toast.info("Nova resposta da loja!");
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tracking]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);

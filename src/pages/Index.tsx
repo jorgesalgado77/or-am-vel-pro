@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
+import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -28,7 +29,8 @@ export default function Index() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(0);
+  const { unreadCount: realtimeUnread } = useRealtimeMessages();
+  const unreadMessages = realtimeUnread;
 
   const hasPermission = (perm: keyof import("@/hooks/useCargos").CargoPermissoes) => {
     if (!currentUser) return true;
@@ -239,7 +241,7 @@ export default function Index() {
             {activeView === "settings" && <SettingsPanel />}
 
             {activeView === "messages" && (
-              <MessagesPanel onUnreadChange={setUnreadMessages} />
+              <MessagesPanel />
             )}
 
             <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={handleSaveClient} client={editingClient} saving={saving} />
