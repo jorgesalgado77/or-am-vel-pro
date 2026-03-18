@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { supabase } from "@/integrations/supabase/client";
+import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { addDays, isPast, format, parseISO, startOfMonth, subDays, subMonths, isAfter, isBefore, endOfDay, startOfDay } from "date-fns";
