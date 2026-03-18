@@ -369,6 +369,93 @@ export function AdminDealRoom() {
             </CardContent>
           </Card>
         </TabsContent>
+        {/* Charts */}
+        <TabsContent value="charts" className="space-y-6">
+          {/* Monthly Revenue Evolution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <LineChartIcon className="h-4 w-4 text-primary" /> Evolução Mensal de Receita (últimos 6 meses)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyData.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhum dado disponível</p>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                  <LineChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                    <XAxis dataKey="month" className="text-xs" />
+                    <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                    <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => {
+                      const label = name === "receita" ? "Receita" : "Taxas";
+                      return <span>{label}: {formatCurrency(Number(value))}</span>;
+                    }} />} />
+                    <Line type="monotone" dataKey="receita" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 4 }} name="receita" />
+                    <Line type="monotone" dataKey="taxas" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 3 }} name="taxas" />
+                  </LineChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Period Comparison */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" /> Comparativo: Mês Atual vs Mês Anterior
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {periodComparison.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhum dado disponível</p>
+              ) : (
+                <div className="space-y-4">
+                  <ChartContainer config={chartConfig} className="h-[280px] w-full">
+                    <BarChart data={periodComparison}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                      <XAxis dataKey="periodo" className="text-xs" />
+                      <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                      <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => {
+                        const labels: Record<string, string> = { receita: "Receita", taxas: "Taxas", vendas: "Vendas" };
+                        const isMonetary = name !== "vendas";
+                        return <span>{labels[name as string] || name}: {isMonetary ? formatCurrency(Number(value)) : value}</span>;
+                      }} />} />
+                      <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="receita" />
+                      <Bar dataKey="taxas" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="taxas" />
+                    </BarChart>
+                  </ChartContainer>
+
+                  {/* Delta summary */}
+                  {periodComparison.length === 2 && (
+                    <div className="grid grid-cols-3 gap-4">
+                      {[
+                        { label: "Receita", cur: periodComparison[1].receita, prev: periodComparison[0].receita, fmt: true },
+                        { label: "Taxas", cur: periodComparison[1].taxas, prev: periodComparison[0].taxas, fmt: true },
+                        { label: "Vendas", cur: periodComparison[1].vendas, prev: periodComparison[0].vendas, fmt: false },
+                      ].map(d => {
+                        const delta = d.prev > 0 ? ((d.cur - d.prev) / d.prev) * 100 : d.cur > 0 ? 100 : 0;
+                        const up = delta >= 0;
+                        return (
+                          <div key={d.label} className="rounded-lg border p-3 text-center">
+                            <p className="text-xs text-muted-foreground mb-1">{d.label}</p>
+                            <p className="text-lg font-bold text-foreground">
+                              {d.fmt ? formatCurrency(d.cur) : d.cur}
+                            </p>
+                            <div className={`flex items-center justify-center gap-1 text-xs mt-1 ${up ? "text-green-600" : "text-destructive"}`}>
+                              {up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                              {Math.abs(delta).toFixed(1)}% vs mês anterior
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
