@@ -199,6 +199,26 @@ function CompanySettingsTab() {
   );
 }
 
+function NotificationSoundToggle() {
+  const [enabled, setEnabled] = useState(isNotificationSoundEnabled());
+
+  const handleToggle = (val: boolean) => {
+    setEnabled(val);
+    setNotificationSoundEnabled(val);
+    toast.success(val ? "Som de notificação ativado" : "Som de notificação desativado");
+  };
+
+  return (
+    <div className="flex items-center justify-between max-w-[600px]">
+      <div>
+        <Label>Som de Notificação</Label>
+        <p className="text-xs text-muted-foreground">Toca um som ao receber novas mensagens em tempo real</p>
+      </div>
+      <Switch checked={enabled} onCheckedChange={handleToggle} />
+    </div>
+  );
+}
+
 /* ===== BOLETO RATES TAB (5 columns) ===== */
 function BoletoRatesTab() {
   const { rates, providers, refresh } = useFinancingRates("boleto");
