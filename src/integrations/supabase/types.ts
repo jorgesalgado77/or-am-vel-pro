@@ -1136,33 +1136,39 @@ export type Database = {
       }
       vendazap_addon: {
         Row: {
+          api_provider: string
           ativo: boolean
           created_at: string
           id: string
           max_mensagens_dia: number
           max_tokens_mensagem: number
+          openai_model: string
           prompt_sistema: string
           tenant_id: string
           tom_padrao: string
           updated_at: string
         }
         Insert: {
+          api_provider?: string
           ativo?: boolean
           created_at?: string
           id?: string
           max_mensagens_dia?: number
           max_tokens_mensagem?: number
+          openai_model?: string
           prompt_sistema?: string
           tenant_id: string
           tom_padrao?: string
           updated_at?: string
         }
         Update: {
+          api_provider?: string
           ativo?: boolean
           created_at?: string
           id?: string
           max_mensagens_dia?: number
           max_tokens_mensagem?: number
+          openai_model?: string
           prompt_sistema?: string
           tenant_id?: string
           tom_padrao?: string
