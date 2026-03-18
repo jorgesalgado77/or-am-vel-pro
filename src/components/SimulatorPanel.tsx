@@ -20,6 +20,7 @@ import { ContractEditorDialog } from "@/components/ContractEditorDialog";
 import { CloseSaleModal } from "@/components/CloseSaleModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -183,36 +184,54 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const showPlus = ["A vista", "Pix"].includes(formaPagamento);
   const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
 
-  const currentBoletoRates = boletoRates.filter((r) => r.provider_name === selectedBoletoProvider);
-  const currentCreditoRates = creditoRates.filter((r) => r.provider_name === selectedCreditoProvider);
+  const currentBoletoRates = useMemo(() =>
+    boletoRates.filter((r) => r.provider_name === selectedBoletoProvider),
+    [boletoRates, selectedBoletoProvider]
+  );
+  const currentCreditoRates = useMemo(() =>
+    creditoRates.filter((r) => r.provider_name === selectedCreditoProvider),
+    [creditoRates, selectedCreditoProvider]
+  );
 
-  const maxBoletoInstallments = currentBoletoRates.length > 0 ? Math.max(...currentBoletoRates.map((r) => r.installments)) : 12;
-  const maxCreditoInstallments = currentCreditoRates.length > 0 ? Math.max(...currentCreditoRates.map((r) => r.installments)) : 12;
+  const maxBoletoInstallments = useMemo(() =>
+    currentBoletoRates.length > 0 ? Math.max(...currentBoletoRates.map((r) => r.installments)) : 12,
+    [currentBoletoRates]
+  );
+  const maxCreditoInstallments = useMemo(() =>
+    currentCreditoRates.length > 0 ? Math.max(...currentCreditoRates.map((r) => r.installments)) : 12,
+    [currentCreditoRates]
+  );
 
   const maxParcelas = formaPagamento === "Boleto" ? maxBoletoInstallments
     : formaPagamento === "Credito" || formaPagamento === "Credito / Boleto" ? maxCreditoInstallments : 12;
 
-  const boletoCoeffMap: Record<number, number> = {};
-  const boletoRatesFullMap: Record<number, BoletoRateData> = {};
-  currentBoletoRates.forEach((r) => {
-    boletoCoeffMap[r.installments] = Number(r.coefficient);
-    boletoRatesFullMap[r.installments] = {
-      coefficient: Number(r.coefficient),
-      taxa_fixa: Number(r.taxa_fixa),
-      coeficiente_60: Number(r.coeficiente_60),
-      coeficiente_90: Number(r.coeficiente_90),
-    };
-  });
+  const { boletoCoeffMap, boletoRatesFullMap } = useMemo(() => {
+    const coeffMap: Record<number, number> = {};
+    const fullMap: Record<number, BoletoRateData> = {};
+    currentBoletoRates.forEach((r) => {
+      coeffMap[r.installments] = Number(r.coefficient);
+      fullMap[r.installments] = {
+        coefficient: Number(r.coefficient),
+        taxa_fixa: Number(r.taxa_fixa),
+        coeficiente_60: Number(r.coeficiente_60),
+        coeficiente_90: Number(r.coeficiente_90),
+      };
+    });
+    return { boletoCoeffMap: coeffMap, boletoRatesFullMap: fullMap };
+  }, [currentBoletoRates]);
 
-  const creditoCoeffMap: Record<number, number> = {};
-  const creditoRatesFullMap: Record<number, { coefficient: number; taxa_fixa: number }> = {};
-  currentCreditoRates.forEach((r) => {
-    creditoCoeffMap[r.installments] = Number(r.coefficient);
-    creditoRatesFullMap[r.installments] = {
-      coefficient: Number(r.coefficient),
-      taxa_fixa: Number(r.taxa_fixa),
-    };
-  });
+  const { creditoCoeffMap, creditoRatesFullMap } = useMemo(() => {
+    const coeffMap: Record<number, number> = {};
+    const fullMap: Record<number, { coefficient: number; taxa_fixa: number }> = {};
+    currentCreditoRates.forEach((r) => {
+      coeffMap[r.installments] = Number(r.coefficient);
+      fullMap[r.installments] = {
+        coefficient: Number(r.coefficient),
+        taxa_fixa: Number(r.taxa_fixa),
+      };
+    });
+    return { creditoCoeffMap: coeffMap, creditoRatesFullMap: fullMap };
+  }, [currentCreditoRates]);
 
   const result = useMemo(() => {
     const input: SimulationInput = {
@@ -225,7 +244,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       carenciaDias,
     };
     return calculateSimulation(input);
-  }, [valorTelaComComissao, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates, carenciaDias]);
+  }, [valorTelaComComissao, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, boletoCoeffMap, boletoRatesFullMap, creditoCoeffMap, creditoRatesFullMap, carenciaDias]);
 
   const requestUnlock = (field: "desconto3" | "plus") => {
     if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
@@ -249,6 +268,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       else if (pendingUnlock === "plus") setPlusUnlocked(true);
       setPasswordDialogOpen(false);
       toast.success("Acesso liberado!");
+
+      // Audit: field unlocked
+      const userInfo = getAuditUserInfo();
+      logAudit({
+        acao: pendingUnlock === "desconto3" ? "desconto_desbloqueado" : "plus_desbloqueado",
+        entidade: "security",
+        detalhes: { campo: pendingUnlock, cliente: client?.nome },
+        ...userInfo,
+      });
     } else {
       toast.error("Senha incorreta");
     }
@@ -480,6 +508,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     if (error) toast.error("Erro ao salvar simulação");
     else {
       toast.success("Simulação salva com sucesso!");
+
+      // Audit: simulation saved
+      const userInfo = getAuditUserInfo();
+      logAudit({
+        acao: "simulacao_salva",
+        entidade: "simulation",
+        entidade_id: clientId,
+        detalhes: {
+          valor_tela: valorTela,
+          valor_final: result.valorFinal,
+          forma_pagamento: formaPagamento,
+          desconto1, desconto2, desconto3,
+        },
+        ...userInfo,
+      });
+
       if (!client) {
         setShowClientForm(false);
         setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "" });
@@ -654,6 +698,21 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     }
 
     openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
+
+    // Audit: sale closed
+    const userInfo = getAuditUserInfo();
+    logAudit({
+      acao: "venda_fechada",
+      entidade: "contract",
+      entidade_id: pendingSimId,
+      detalhes: {
+        cliente: client.nome,
+        cliente_id: client.id,
+        valor_final: result.valorFinal,
+        forma_pagamento: formaPagamento,
+      },
+      ...userInfo,
+    });
 
     toast.success("Venda fechada! Contrato gerado, comissões criadas e salvo.");
     setContractEditorOpen(false);

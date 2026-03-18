@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LogIn, Eye, EyeOff, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit } from "@/services/auditService";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { maskCodigoLoja } from "@/lib/masks";
 import { ClientTrackingModal } from "@/components/ClientTrackingModal";
@@ -80,6 +81,16 @@ export default function Login({ onLogin }: LoginProps) {
 
     setLoading(false);
     toast.success(`Bem-vindo, ${user.apelido || user.nome_completo}!`);
+
+    logAudit({
+      acao: "usuario_login",
+      entidade: "user",
+      entidade_id: user.id,
+      usuario_id: user.id,
+      usuario_nome: user.apelido || user.nome_completo,
+      detalhes: { nome: user.nome_completo },
+    });
+
     onLogin(user.id, user.primeiro_login ?? true);
   };
 
