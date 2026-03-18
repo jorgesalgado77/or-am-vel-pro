@@ -104,8 +104,9 @@ export default function Login({ onLogin }: LoginProps) {
               <Input
                 id="codigoLoja"
                 value={codigoLoja}
-                onChange={(e) => setCodigoLoja(e.target.value)}
-                placeholder="Ex: 001"
+                onChange={(e) => setCodigoLoja(maskCodigoLoja(e.target.value))}
+                placeholder="000.000"
+                maxLength={7}
                 className="mt-1"
               />
             </div>
