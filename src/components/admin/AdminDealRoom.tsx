@@ -199,6 +199,7 @@ export function AdminDealRoom() {
               <SelectItem value="premium">Premium</SelectItem>
             </SelectContent>
           </Select>
+        </div>
         <div>
           <Label className="text-xs">De</Label>
           <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="mt-1 w-40" />
