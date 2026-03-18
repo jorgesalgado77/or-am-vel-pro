@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus } from "lucide-react";
+import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/financing";
@@ -14,7 +14,7 @@ import { useIndicadores } from "@/hooks/useIndicadores";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
-import { addDays, isPast, format, parseISO } from "date-fns";
+import { addDays, isPast, format, parseISO, startOfMonth, subDays, subMonths, isAfter, isBefore, endOfDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -51,6 +51,47 @@ const currencyFormatter = (v: number) =>
 
 type ChartKey = "evolucao" | "projetista" | "indicador";
 
+type DateFilterPreset = "mes_atual" | "30dias" | "60dias" | "90dias" | "6meses" | "personalizado";
+
+const DATE_FILTER_OPTIONS: { value: DateFilterPreset; label: string }[] = [
+  { value: "mes_atual", label: "Mês Atual" },
+  { value: "30dias", label: "Últimos 30 dias" },
+  { value: "60dias", label: "Últimos 60 dias" },
+  { value: "90dias", label: "Últimos 90 dias" },
+  { value: "6meses", label: "Últimos 6 meses" },
+  { value: "personalizado", label: "Personalizado" },
+];
+
+function getDateRange(preset: DateFilterPreset, customStart?: string, customEnd?: string): { start: Date; end: Date } {
+  const now = new Date();
+  const end = endOfDay(now);
+
+  switch (preset) {
+    case "mes_atual":
+      return { start: startOfMonth(now), end };
+    case "30dias":
+      return { start: startOfDay(subDays(now, 30)), end };
+    case "60dias":
+      return { start: startOfDay(subDays(now, 60)), end };
+    case "90dias":
+      return { start: startOfDay(subDays(now, 90)), end };
+    case "6meses":
+      return { start: startOfDay(subMonths(now, 6)), end };
+    case "personalizado":
+      return {
+        start: customStart ? startOfDay(new Date(customStart)) : startOfMonth(now),
+        end: customEnd ? endOfDay(new Date(customEnd)) : end,
+      };
+    default:
+      return { start: startOfMonth(now), end };
+  }
+}
+
+function isInRange(dateStr: string, start: Date, end: Date): boolean {
+  const d = new Date(dateStr);
+  return (isAfter(d, start) || d.getTime() === start.getTime()) && (isBefore(d, end) || d.getTime() === end.getTime());
+}
+
 export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardProps) {
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
@@ -60,31 +101,83 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     indicador: false,
   });
 
+  // Date filter state
+  const [datePreset, setDatePreset] = useState<DateFilterPreset>("mes_atual");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const dateRange = useMemo(() => getDateRange(datePreset, customStart, customEnd), [datePreset, customStart, customEnd]);
+
+  // Contract tracking data
+  const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
+
+  const fetchTrackingStats = useCallback(async () => {
+    const { data } = await supabase
+      .from("client_tracking")
+      .select("valor_contrato, data_fechamento, created_at");
+    if (data) {
+      const filtered = (data as any[]).filter((t) => {
+        const dateRef = t.data_fechamento || t.created_at;
+        return isInRange(dateRef, dateRange.start, dateRange.end);
+      });
+      setTrackingData({
+        count: filtered.length,
+        total: filtered.reduce((sum, t) => sum + (Number(t.valor_contrato) || 0), 0),
+      });
+    }
+  }, [dateRange]);
+
+  useEffect(() => { fetchTrackingStats(); }, [fetchTrackingStats]);
+
   const toggleChart = useCallback((key: ChartKey) => {
     setVisibleCharts(prev => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
   const budgetValidityDays = settings.budget_validity_days;
 
+  // Filter clients by date range
+  const filteredClients = useMemo(() =>
+    clients.filter(c => isInRange(c.created_at, dateRange.start, dateRange.end)),
+    [clients, dateRange]
+  );
+
+  // Filter simulations by date range
+  const filteredSimulations = useMemo(() =>
+    allSimulations.filter(s => isInRange(s.created_at, dateRange.start, dateRange.end)),
+    [allSimulations, dateRange]
+  );
+
+  // Filter lastSims to only include filtered clients
+  const filteredLastSims = useMemo(() => {
+    const filteredIds = new Set(filteredClients.map(c => c.id));
+    const result: Record<string, LastSimInfo> = {};
+    for (const [id, sim] of Object.entries(lastSims)) {
+      if (filteredIds.has(id) && isInRange(sim.created_at, dateRange.start, dateRange.end)) {
+        result[id] = sim;
+      }
+    }
+    return result;
+  }, [filteredClients, lastSims, dateRange]);
+
   const stats = useMemo(() => {
-    const totalClients = clients.length;
-    const clientsWithSim = clients.filter(c => lastSims[c.id]).length;
+    const totalClients = filteredClients.length;
+    const clientsWithSim = filteredClients.filter(c => filteredLastSims[c.id]).length;
     const clientsWithoutSim = totalClients - clientsWithSim;
 
-    const expired = clients.filter(c => {
-      const sim = lastSims[c.id];
+    const expired = filteredClients.filter(c => {
+      const sim = filteredLastSims[c.id];
       if (!sim) return false;
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    const totalValue = Object.values(lastSims).reduce((sum, s) => sum + s.valor_final, 0);
+    const totalValue = Object.values(filteredLastSims).reduce((sum, s) => sum + s.valor_final, 0);
 
     const byProjetista: Record<string, { count: number; total: number; expired: number }> = {};
-    clients.forEach(c => {
+    filteredClients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
       if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0 };
       byProjetista[name].count++;
-      const sim = lastSims[c.id];
+      const sim = filteredLastSims[c.id];
       if (sim) {
         byProjetista[name].total += sim.valor_final;
         if (isPast(addDays(new Date(sim.created_at), budgetValidityDays))) {
@@ -94,7 +187,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     });
 
     const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number }> = {};
-    clients.forEach(c => {
+    filteredClients.forEach(c => {
       if (!c.indicador_id) return;
       const ind = indicadores.find(i => i.id === c.indicador_id);
       if (!ind) return;
@@ -102,7 +195,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
         byIndicador[c.indicador_id] = { nome: ind.nome, comissao: ind.comissao_percentual, count: 0, total: 0, comissaoTotal: 0 };
       }
       byIndicador[c.indicador_id].count++;
-      const sim = lastSims[c.id];
+      const sim = filteredLastSims[c.id];
       if (sim) {
         byIndicador[c.indicador_id].total += sim.valor_final;
         byIndicador[c.indicador_id].comissaoTotal += sim.valor_final * (ind.comissao_percentual / 100);
@@ -114,13 +207,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
     };
-  }, [clients, lastSims, budgetValidityDays, indicadores]);
+  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores]);
 
-  // Line chart data: aggregate simulations by month
+  // Line chart data: aggregate filtered simulations by month
   const lineData = useMemo(() => {
-    if (allSimulations.length === 0) return [];
+    if (filteredSimulations.length === 0) return [];
     const byMonth: Record<string, { count: number; total: number }> = {};
-    allSimulations.forEach(s => {
+    filteredSimulations.forEach(s => {
       const key = format(parseISO(s.created_at), "yyyy-MM");
       if (!byMonth[key]) byMonth[key] = { count: 0, total: 0 };
       byMonth[key].count++;
@@ -133,7 +226,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
         orcamentos: data.count,
         valor: data.total,
       }));
-  }, [allSimulations]);
+  }, [filteredSimulations]);
 
   const barData = useMemo(() =>
     stats.byProjetista.map(([name, data]) => ({
@@ -166,13 +259,57 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
 
   return (
     <div className="space-y-6">
+      {/* Date Filter Bar */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Período:</span>
+            </div>
+            <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DateFilterPreset)}>
+              <SelectTrigger className="w-[180px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DATE_FILTER_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {datePreset === "personalizado" && (
+              <>
+                <Input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="w-[150px] h-8 text-sm"
+                />
+                <span className="text-xs text-muted-foreground">até</span>
+                <Input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="w-[150px] h-8 text-sm"
+                />
+              </>
+            )}
+            <span className="text-xs text-muted-foreground ml-auto">
+              {format(dateRange.start, "dd/MM/yyyy")} — {format(dateRange.end, "dd/MM/yyyy")}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         <KpiCard icon={Users} label="Total de Clientes" value={String(stats.totalClients)} />
         <KpiCard icon={Calculator} label="Com Orçamento" value={String(stats.clientsWithSim)} accent />
         <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
         <KpiCard icon={AlertTriangle} label="Expirados" value={String(stats.expired)} destructive={stats.expired > 0} />
         <KpiCard icon={TrendingUp} label="Valor Total" value={formatCurrency(stats.totalValue)} accent />
+        <KpiCard icon={FileCheck} label="Contratos Fechados" value={String(trackingData.count)} success />
+        <KpiCard icon={DollarSign} label="Valor Contratos" value={formatCurrency(trackingData.total)} success />
       </div>
 
       {/* Chart visibility toggles */}
@@ -200,7 +337,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
           </CardHeader>
           <CardContent>
             {lineData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma simulação registrada</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma simulação registrada no período</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={lineData} margin={{ top: 8, right: 20, left: 8, bottom: 4 }}>
@@ -239,7 +376,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
             </CardHeader>
             <CardContent>
               {barData.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado</p>
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado no período</p>
               ) : (
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={barData} margin={{ top: 8, right: 12, left: 8, bottom: 4 }}>
@@ -277,7 +414,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
             </CardHeader>
             <CardContent className="flex items-center justify-center">
               {pieData.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado</p>
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado no período</p>
               ) : (
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
@@ -322,7 +459,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
           </CardHeader>
           <CardContent>
             {stats.byProjetista.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado no período</p>
             ) : (
               <Table>
                 <TableHeader>
@@ -356,7 +493,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
           </CardHeader>
           <CardContent>
             {stats.byIndicador.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Nenhum indicador vinculado</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum indicador vinculado no período</p>
             ) : (
               <Table>
                 <TableHeader>
@@ -391,14 +528,22 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
   );
 }
 
-const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent, destructive }: {
-  icon: React.ElementType; label: string; value: string; accent?: boolean; destructive?: boolean;
+const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent, destructive, success }: {
+  icon: React.ElementType; label: string; value: string; accent?: boolean; destructive?: boolean; success?: boolean;
 }) {
   return (
-    <Card className={destructive ? "border-destructive/30" : ""}>
+    <Card className={destructive ? "border-destructive/30" : success ? "border-emerald-500/30" : ""}>
       <CardContent className="p-4 flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${destructive ? "bg-destructive/10" : accent ? "bg-primary/10" : "bg-secondary"}`}>
-          <Icon className={`h-5 w-5 ${destructive ? "text-destructive" : accent ? "text-primary" : "text-muted-foreground"}`} />
+        <div className={`p-2 rounded-lg ${
+          destructive ? "bg-destructive/10" : 
+          success ? "bg-emerald-500/10" : 
+          accent ? "bg-primary/10" : "bg-secondary"
+        }`}>
+          <Icon className={`h-5 w-5 ${
+            destructive ? "text-destructive" : 
+            success ? "text-emerald-600" : 
+            accent ? "text-primary" : "text-muted-foreground"
+          }`} />
         </div>
         <div>
           <p className="text-xs text-muted-foreground">{label}</p>
@@ -472,7 +617,6 @@ function ContractTrackingList() {
       toast.success("Status atualizado!");
       setTrackings((prev) => prev.map((t) => t.id === id ? { ...t, status: newStatus } : t));
 
-      // Audit log
       const userInfo = getAuditUserInfo();
       logAudit({
         acao: "status_tracking_alterado",
