@@ -303,6 +303,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   };
 
   const [closingSale, setClosingSale] = useState(false);
+  const [contractEditorOpen, setContractEditorOpen] = useState(false);
+  const [contractHtml, setContractHtml] = useState("");
+  const [pendingSimId, setPendingSimId] = useState<string | null>(null);
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
 
   const handleCloseSale = async () => {
     if (!client) {
@@ -375,33 +379,47 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         html = html.split(key).join(val);
       });
 
-      // Save contract linked to client and simulation
-      const { error: contractError } = await supabase.from("client_contracts").insert({
-        client_id: client.id,
-        simulation_id: simData.id,
-        template_id: (template as any).id,
-        conteudo_html: html,
-      } as any);
-
-      if (contractError) { toast.error("Erro ao salvar contrato"); setClosingSale(false); return; }
-
-      // Generate PDF in new window
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client.nome}</title>
-          <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
-          @media print{@page{margin:15mm;size:A4;}}</style></head>
-          <body>${html}</body></html>`;
-        printWindow.document.write(fullHtml);
-        printWindow.document.close();
-        printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
-      }
-
-      toast.success("Venda fechada! Contrato gerado e salvo.");
+      // Open editor dialog for review/edit before saving
+      setPendingSimId(simData.id);
+      setPendingTemplateId((template as any).id);
+      setContractHtml(html);
+      setContractEditorOpen(true);
     } catch (err) {
       console.error(err);
       toast.error("Erro ao fechar venda");
     }
+    setClosingSale(false);
+  };
+
+  const handleContractConfirm = async (finalHtml: string) => {
+    if (!client || !pendingSimId) return;
+    setClosingSale(true);
+
+    const { error: contractError } = await supabase.from("client_contracts").insert({
+      client_id: client.id,
+      simulation_id: pendingSimId,
+      template_id: pendingTemplateId,
+      conteudo_html: finalHtml,
+    } as any);
+
+    if (contractError) { toast.error("Erro ao salvar contrato"); setClosingSale(false); return; }
+
+    // Print
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client.nome}</title>
+        <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
+        @media print{@page{margin:15mm;size:A4;}}</style></head>
+        <body>${finalHtml}</body></html>`;
+      printWindow.document.write(fullHtml);
+      printWindow.document.close();
+      printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
+    }
+
+    toast.success("Venda fechada! Contrato gerado e salvo.");
+    setContractEditorOpen(false);
+    setPendingSimId(null);
+    setPendingTemplateId(null);
     setClosingSale(false);
   };
 
