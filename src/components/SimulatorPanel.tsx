@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import { ContractEditorDialog } from "@/components/ContractEditorDialog";
+import { CloseSaleModal } from "@/components/CloseSaleModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
@@ -468,16 +469,29 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [contractHtml, setContractHtml] = useState("");
   const [pendingSimId, setPendingSimId] = useState<string | null>(null);
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
+  const [closeSaleModalOpen, setCloseSaleModalOpen] = useState(false);
+  const [closeSaleFormData, setCloseSaleFormData] = useState<any>(null);
+  const [closeSaleItems, setCloseSaleItems] = useState<any[]>([]);
+  const [closeSaleItemDetails, setCloseSaleItemDetails] = useState<any[]>([]);
 
-  const handleCloseSale = async () => {
+  const handleCloseSale = () => {
     if (!client) {
       toast.error("Selecione um cliente para fechar a venda");
       return;
     }
+    setCloseSaleModalOpen(true);
+  };
 
+  const handleCloseSaleConfirm = async (formData: any, items: any[], itemDetails: any[]) => {
+    if (!client) return;
+    setCloseSaleFormData(formData);
+    setCloseSaleItems(items);
+    setCloseSaleItemDetails(itemDetails);
     setClosingSale(true);
+    setCloseSaleModalOpen(false);
+
     try {
-      // First save the simulation
+      // Save the simulation
       let arquivoUrl: string | null = null;
       let arquivoNome: string | null = null;
       if (importedFile) {
@@ -516,24 +530,69 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         Boleto: "Boleto", "Credito / Boleto": "Crédito + Boleto", "Entrada e Entrega": "Entrada e Entrega",
       };
 
+      // Build items HTML table
+      let itensHtml = "";
+      if (items.length > 0) {
+        itensHtml = `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;">
+          <tr style="background:#f0f0f0;"><th>Item</th><th>Qtd</th><th>Descrição/Ambiente</th><th>Fornecedor</th><th>Prazo</th><th>Valor</th></tr>
+          ${items.map((it: any, i: number) => `<tr><td style="text-align:center">${i + 1}</td><td style="text-align:center">${it.quantidade}</td><td>${it.descricao_ambiente}</td><td>${it.fornecedor}</td><td>${it.prazo}</td><td style="text-align:right">${formatCurrency(it.valor_ambiente)}</td></tr>`).join("")}
+          <tr style="font-weight:bold;"><td colspan="5" style="text-align:right">Total:</td><td style="text-align:right">${formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0))}</td></tr>
+        </table>`;
+      }
+
+      // Build item details HTML
+      let detalhesHtml = "";
+      if (itemDetails.length > 0) {
+        detalhesHtml = `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
+          <tr style="background:#f0f0f0;"><th>Item</th><th>Títulos</th><th>Corpo</th><th>Porta</th><th>Puxador</th><th>Complemento</th><th>Modelo</th></tr>
+          ${itemDetails.map((d: any) => `<tr><td style="text-align:center">${d.item_num}</td><td>${d.titulos}</td><td>${d.corpo}</td><td>${d.porta}</td><td>${d.puxador}</td><td>${d.complemento}</td><td>${d.modelo}</td></tr>`).join("")}
+        </table>`;
+      }
+
       let html = (template as any).conteudo_html as string;
       const replacements: Record<string, string> = {
-        "{{nome_cliente}}": client.nome || "",
-        "{{cpf_cliente}}": client.cpf || "",
-        "{{telefone_cliente}}": client.telefone1 || "",
-        "{{email_cliente}}": client.email || "",
+        "{{nome_cliente}}": formData.nome_completo || client.nome || "",
+        "{{cpf_cliente}}": formData.cpf_cnpj || client.cpf || "",
+        "{{rg_insc_estadual}}": formData.rg_insc_estadual || "",
+        "{{telefone_cliente}}": formData.telefone || client.telefone1 || "",
+        "{{email_cliente}}": formData.email || client.email || "",
         "{{numero_orcamento}}": client.numero_orcamento || "",
-        "{{projetista}}": client.vendedor || "",
+        "{{numero_contrato}}": formData.numero_contrato || "",
+        "{{data_fechamento}}": formData.data_fechamento ? format(new Date(formData.data_fechamento + "T12:00:00"), "dd/MM/yyyy") : "",
+        "{{responsavel_venda}}": formData.responsavel_venda || "",
+        "{{data_nascimento}}": formData.data_nascimento ? format(new Date(formData.data_nascimento + "T12:00:00"), "dd/MM/yyyy") : "",
+        "{{profissao}}": formData.profissao || "",
+        "{{endereco}}": formData.endereco || "",
+        "{{bairro}}": formData.bairro || "",
+        "{{cidade}}": formData.cidade || "",
+        "{{uf}}": formData.uf || "",
+        "{{cep}}": formData.cep || "",
+        "{{endereco_entrega}}": formData.endereco_entrega || "",
+        "{{bairro_entrega}}": formData.bairro_entrega || "",
+        "{{cidade_entrega}}": formData.cidade_entrega || "",
+        "{{uf_entrega}}": formData.uf_entrega || "",
+        "{{cep_entrega}}": formData.cep_entrega || "",
+        "{{prazo_entrega}}": formData.prazo_entrega || "",
+        "{{observacoes}}": formData.observacoes || "",
+        "{{projetista}}": formData.responsavel_venda || client.vendedor || "",
         "{{valor_tela}}": formatCurrency(valorTela),
         "{{valor_final}}": formatCurrency(result.valorFinal),
         "{{forma_pagamento}}": formaLabel[formaPagamento] || formaPagamento,
-        "{{parcelas}}": String(parcelas),
-        "{{valor_parcela}}": formatCurrency(result.valorParcela),
-        "{{valor_entrada}}": formatCurrency(valorEntrada),
+        "{{parcelas}}": String(formData.qtd_parcelas || parcelas),
+        "{{valor_parcela}}": formatCurrency(formData.valor_parcelas || result.valorParcela),
+        "{{valor_entrada}}": formatCurrency(formData.valor_entrada || valorEntrada),
         "{{data_atual}}": dataAtual,
         "{{empresa_nome}}": settings.company_name || "INOVAMAD",
+        "{{cnpj_loja}}": (settings as any).cnpj_loja || "",
+        "{{endereco_loja}}": (settings as any).endereco_loja || "",
+        "{{bairro_loja}}": (settings as any).bairro_loja || "",
+        "{{cidade_loja}}": (settings as any).cidade_loja || "",
+        "{{uf_loja}}": (settings as any).uf_loja || "",
         "{{indicador_nome}}": selectedIndicador?.nome || "",
         "{{indicador_comissao}}": String(comissaoPercentual),
+        "{{itens_tabela}}": itensHtml,
+        "{{itens_detalhes}}": detalhesHtml,
+        "{{total_ambientes}}": formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0)),
       };
 
       Object.entries(replacements).forEach(([key, val]) => {
@@ -1098,6 +1157,23 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CloseSaleModal
+        open={closeSaleModalOpen}
+        onClose={() => setCloseSaleModalOpen(false)}
+        onConfirm={handleCloseSaleConfirm}
+        client={client}
+        simulationData={{
+          valorFinal: result.valorFinal,
+          valorEntrada,
+          parcelas,
+          valorParcela: result.valorParcela,
+          formaPagamento,
+          vendedor: client?.vendedor || "",
+          numeroOrcamento: client?.numero_orcamento || "",
+        }}
+        saving={closingSale}
+      />
 
       {client && (
         <ContractEditorDialog

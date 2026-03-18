@@ -62,6 +62,12 @@ function CompanySettingsTab() {
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [codigoLoja, setCodigoLoja] = useState("");
+  const [cnpjLoja, setCnpjLoja] = useState("");
+  const [enderecoLoja, setEnderecoLoja] = useState("");
+  const [bairroLoja, setBairroLoja] = useState("");
+  const [cidadeLoja, setCidadeLoja] = useState("");
+  const [ufLoja, setUfLoja] = useState("");
+  const [cepLoja, setCepLoja] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [managerPassword, setManagerPassword] = useState("");
   const [confirmManagerPassword, setConfirmManagerPassword] = useState("");
@@ -76,7 +82,13 @@ function CompanySettingsTab() {
   useEffect(() => {
     setName(settings.company_name);
     setSubtitle(settings.company_subtitle || "");
-    setCodigoLoja((settings as any).codigo_loja || "");
+    setCodigoLoja(settings.codigo_loja || "");
+    setCnpjLoja(settings.cnpj_loja || "");
+    setEnderecoLoja(settings.endereco_loja || "");
+    setBairroLoja(settings.bairro_loja || "");
+    setCidadeLoja(settings.cidade_loja || "");
+    setUfLoja(settings.uf_loja || "");
+    setCepLoja(settings.cep_loja || "");
     setValidityDays(settings.budget_validity_days);
     setManagerPassword(settings.manager_password || "");
     setConfirmManagerPassword(settings.manager_password || "");
@@ -97,6 +109,12 @@ function CompanySettingsTab() {
       company_name: name,
       company_subtitle: subtitle,
       codigo_loja: codigoLoja.trim() || null,
+      cnpj_loja: cnpjLoja.trim() || null,
+      endereco_loja: enderecoLoja.trim() || null,
+      bairro_loja: bairroLoja.trim() || null,
+      cidade_loja: cidadeLoja.trim() || null,
+      uf_loja: ufLoja.trim() || null,
+      cep_loja: cepLoja.trim() || null,
       budget_validity_days: validityDays,
       manager_password: managerPassword,
       admin_password: adminPassword,
@@ -130,6 +148,16 @@ function CompanySettingsTab() {
           <div><Label>Nome da Empresa</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
           <div><Label>Subtítulo</Label><Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" /></div>
           <div><Label>Código da Loja</Label><Input value={codigoLoja} onChange={(e) => setCodigoLoja(e.target.value)} placeholder="Ex: 001" className="mt-1" /></div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><Label>CNPJ da Loja</Label><Input value={cnpjLoja} onChange={(e) => setCnpjLoja(e.target.value)} placeholder="00.000.000/0000-00" className="mt-1" /></div>
+          <div className="md:col-span-2"><Label>Endereço da Loja</Label><Input value={enderecoLoja} onChange={(e) => setEnderecoLoja(e.target.value)} placeholder="Rua, número" className="mt-1" /></div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div><Label>Bairro</Label><Input value={bairroLoja} onChange={(e) => setBairroLoja(e.target.value)} className="mt-1" /></div>
+          <div><Label>Cidade</Label><Input value={cidadeLoja} onChange={(e) => setCidadeLoja(e.target.value)} className="mt-1" /></div>
+          <div><Label>UF</Label><Input value={ufLoja} onChange={(e) => setUfLoja(e.target.value)} placeholder="SP" maxLength={2} className="mt-1" /></div>
+          <div><Label>CEP</Label><Input value={cepLoja} onChange={(e) => setCepLoja(e.target.value)} placeholder="00000-000" className="mt-1" /></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

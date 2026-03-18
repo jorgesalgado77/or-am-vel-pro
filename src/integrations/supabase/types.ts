@@ -270,44 +270,62 @@ export type Database = {
       company_settings: {
         Row: {
           admin_password: string | null
+          bairro_loja: string | null
           budget_validity_days: number
+          cep_loja: string | null
+          cidade_loja: string | null
+          cnpj_loja: string | null
           codigo_loja: string | null
           company_name: string
           company_subtitle: string | null
           created_at: string
+          endereco_loja: string | null
           id: string
           logo_url: string | null
           manager_password: string | null
           orcamento_numero_inicial: number
           tenant_id: string | null
+          uf_loja: string | null
           updated_at: string
         }
         Insert: {
           admin_password?: string | null
+          bairro_loja?: string | null
           budget_validity_days?: number
+          cep_loja?: string | null
+          cidade_loja?: string | null
+          cnpj_loja?: string | null
           codigo_loja?: string | null
           company_name?: string
           company_subtitle?: string | null
           created_at?: string
+          endereco_loja?: string | null
           id?: string
           logo_url?: string | null
           manager_password?: string | null
           orcamento_numero_inicial?: number
           tenant_id?: string | null
+          uf_loja?: string | null
           updated_at?: string
         }
         Update: {
           admin_password?: string | null
+          bairro_loja?: string | null
           budget_validity_days?: number
+          cep_loja?: string | null
+          cidade_loja?: string | null
+          cnpj_loja?: string | null
           codigo_loja?: string | null
           company_name?: string
           company_subtitle?: string | null
           created_at?: string
+          endereco_loja?: string | null
           id?: string
           logo_url?: string | null
           manager_password?: string | null
           orcamento_numero_inicial?: number
           tenant_id?: string | null
+          uf_loja?: string | null
           updated_at?: string
         }
         Relationships: [
