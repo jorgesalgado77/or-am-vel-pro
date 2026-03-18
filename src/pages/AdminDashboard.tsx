@@ -98,6 +98,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [pKeySecret, setPKeySecret] = useState("");
   const [pWebhook, setPWebhook] = useState("");
   const [pAtivo, setPAtivo] = useState(false);
+  const [tOcultarIndicador, setTOcultarIndicador] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
