@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ClientsTable } from "@/components/ClientsTable";
 import { ClientDrawer } from "@/components/ClientDrawer";
@@ -18,6 +18,8 @@ import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
 import { useClientManager } from "@/hooks/useClientManager";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
