@@ -49,6 +49,7 @@ export function ContratosTab() {
   const [viewMode, setViewMode] = useState<"editor" | "preview">("editor");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const fetchTemplates = async () => {
