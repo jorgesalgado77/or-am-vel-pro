@@ -6,7 +6,16 @@ import screenKanban from "@/assets/screen-kanban.jpg";
 import screenDashboard from "@/assets/screen-dashboard.jpg";
 import screenSimulator from "@/assets/screen-simulator.jpg";
 import screenVendazap from "@/assets/screen-vendazap.jpg";
-import screenContratos from "@/assets/screen-contratos.jpg";
+
+interface LandingCarouselProps {
+  images: string[];
+  primaryColor: string;
+}
+
+interface CarouselSlide {
+  src: string;
+  label: string;
+}
 
 const REAL_SLIDES: CarouselSlide[] = [
   {
