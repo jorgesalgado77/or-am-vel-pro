@@ -219,6 +219,10 @@ export default function Index() {
             <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
           )}
 
+          {activeView === "contracts" && contractsClient && (
+            <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
+          )}
+
           {activeView === "settings" && <SettingsPanel />}
 
           <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={handleSaveClient} client={editingClient} saving={saving} />
