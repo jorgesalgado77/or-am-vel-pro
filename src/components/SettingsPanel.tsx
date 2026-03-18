@@ -21,6 +21,8 @@ import { ContratosTab } from "@/components/settings/ContratosTab";
 import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
 import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
 import { UserCheck, FileSignature, MessageSquare, ClipboardList } from "lucide-react";
+import { isNotificationSoundEnabled, setNotificationSoundEnabled } from "@/lib/notificationSound";
+import { Switch } from "@/components/ui/switch";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
