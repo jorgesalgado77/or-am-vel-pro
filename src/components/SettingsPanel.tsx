@@ -52,6 +52,7 @@ function CompanySettingsTab() {
   const { settings, refresh } = useCompanySettings();
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
+  const [codigoLoja, setCodigoLoja] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [managerPassword, setManagerPassword] = useState("");
   const [confirmManagerPassword, setConfirmManagerPassword] = useState("");
