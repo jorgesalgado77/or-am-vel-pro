@@ -29,6 +29,12 @@ const DEFAULT_SETTINGS: CompanySettings = {
   admin_password: null,
   orcamento_numero_inicial: 1,
   codigo_loja: null,
+  cnpj_loja: null,
+  endereco_loja: null,
+  bairro_loja: null,
+  cidade_loja: null,
+  uf_loja: null,
+  cep_loja: null,
 };
 
 let cachedSettings: CompanySettings | null = null;
