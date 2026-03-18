@@ -191,59 +191,62 @@ export default function Index() {
 
   return (
     <CurrentUserContext.Provider value={{ currentUser, selectUser, logout, hasPermission }}>
-      <div className="flex min-h-screen bg-background">
-        <AppSidebar
-          activeView={activeView}
-          onViewChange={handleViewChange}
-          onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
-          onSupport={() => setShowSupport(true)}
-        />
+      <TenantPlanContext.Provider value={tenantPlan}>
+        <div className="flex min-h-screen bg-background">
+          <AppSidebar
+            activeView={activeView}
+            onViewChange={handleViewChange}
+            onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
+            onSupport={() => setShowSupport(true)}
+          />
 
-        <main className="flex-1 ml-60 p-6">
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
-          </div>
+          <main className="flex-1 ml-60 p-6">
+            <PlanBanner />
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
+            </div>
 
-          {activeView === "dashboard" && (
-            <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} />
-          )}
+            {activeView === "dashboard" && (
+              <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} />
+            )}
 
-          {activeView === "clients" && (
-            <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
-          )}
+            {activeView === "clients" && (
+              <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
+            )}
 
-          {activeView === "simulator" && (
-            <SimulatorPanel
-              client={simulatingClient}
-              onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
-              onClientCreated={fetchClients}
+            {activeView === "simulator" && (
+              <SimulatorPanel
+                client={simulatingClient}
+                onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
+                onClientCreated={fetchClients}
+              />
+            )}
+
+            {activeView === "history" && historyClient && (
+              <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
+            )}
+
+            {activeView === "contracts" && contractsClient && (
+              <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
+            )}
+
+            {activeView === "settings" && <SettingsPanel />}
+
+            <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={handleSaveClient} client={editingClient} saving={saving} />
+          </main>
+
+          {currentUser && (
+            <ChangePasswordDialog
+              open={showChangePassword}
+              userId={currentUser.id}
+              forced={forcedPasswordChange}
+              onClose={handlePasswordChanged}
             />
           )}
-
-          {activeView === "history" && historyClient && (
-            <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
-          )}
-
-          {activeView === "contracts" && contractsClient && (
-            <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
-          )}
-
-          {activeView === "settings" && <SettingsPanel />}
-
-          <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={handleSaveClient} client={editingClient} saving={saving} />
-        </main>
-
-        {currentUser && (
-          <ChangePasswordDialog
-            open={showChangePassword}
-            userId={currentUser.id}
-            forced={forcedPasswordChange}
-            onClose={handlePasswordChanged}
-          />
-        )}
-        <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
-      </div>
+          <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
+        </div>
+      </TenantPlanContext.Provider>
     </CurrentUserContext.Provider>
   );
 }
