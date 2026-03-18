@@ -123,11 +123,17 @@ export type Database = {
       client_tracking: {
         Row: {
           client_id: string
+          comissao_data_pagamento: string | null
+          comissao_percentual: number | null
+          comissao_status: string
+          comissao_valor: number | null
           contract_id: string | null
           cpf_cnpj: string | null
           created_at: string
           data_fechamento: string | null
           id: string
+          indicador_id: string | null
+          indicador_nome: string | null
           nome_cliente: string
           numero_contrato: string
           projetista: string | null
@@ -138,11 +144,17 @@ export type Database = {
         }
         Insert: {
           client_id: string
+          comissao_data_pagamento?: string | null
+          comissao_percentual?: number | null
+          comissao_status?: string
+          comissao_valor?: number | null
           contract_id?: string | null
           cpf_cnpj?: string | null
           created_at?: string
           data_fechamento?: string | null
           id?: string
+          indicador_id?: string | null
+          indicador_nome?: string | null
           nome_cliente: string
           numero_contrato: string
           projetista?: string | null
@@ -153,11 +165,17 @@ export type Database = {
         }
         Update: {
           client_id?: string
+          comissao_data_pagamento?: string | null
+          comissao_percentual?: number | null
+          comissao_status?: string
+          comissao_valor?: number | null
           contract_id?: string | null
           cpf_cnpj?: string | null
           created_at?: string
           data_fechamento?: string | null
           id?: string
+          indicador_id?: string | null
+          indicador_nome?: string | null
           nome_cliente?: string
           numero_contrato?: string
           projetista?: string | null
@@ -179,6 +197,13 @@ export type Database = {
             columns: ["contract_id"]
             isOneToOne: false
             referencedRelation: "client_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_tracking_indicador_id_fkey"
+            columns: ["indicador_id"]
+            isOneToOne: false
+            referencedRelation: "indicadores"
             referencedColumns: ["id"]
           },
         ]
