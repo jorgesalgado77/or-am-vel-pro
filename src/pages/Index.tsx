@@ -6,6 +6,7 @@ import { SimulatorPanel } from "@/components/SimulatorPanel";
 import { SimulationHistory } from "@/components/SimulationHistory";
 import { ClientContracts } from "@/components/ClientContracts";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { PayrollReport } from "@/components/PayrollReport";
 import { Dashboard } from "@/components/Dashboard";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { SupportDialog } from "@/components/SupportDialog";
@@ -169,6 +170,7 @@ export default function Index() {
     : activeView === "clients" ? "Clientes"
     : activeView === "history" ? "Histórico de Simulações"
     : activeView === "contracts" ? "Contratos do Cliente"
+    : activeView === "payroll" ? "Folha de Pagamento"
     : activeView === "settings" ? "Configurações"
     : activeView === "messages" ? "Mensagens"
     : "Simulador de Financiamento";
@@ -177,6 +179,7 @@ export default function Index() {
     : activeView === "clients" ? `${clients.length} clientes cadastrados`
     : activeView === "history" ? "Compare diferentes cenários de financiamento"
     : activeView === "contracts" ? "Visualize e edite contratos gerados"
+    : activeView === "payroll" ? "Relatório com dados de regime, salário e comissão"
     : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
     : activeView === "messages" ? "Comunicação com clientes"
     : "Calcule descontos e condições de pagamento";
@@ -236,6 +239,10 @@ export default function Index() {
 
             {activeView === "contracts" && contractsClient && (
               <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
+            )}
+
+            {activeView === "payroll" && (
+              <PayrollReport onBack={() => setActiveView("dashboard")} />
             )}
 
             {activeView === "settings" && <SettingsPanel />}
