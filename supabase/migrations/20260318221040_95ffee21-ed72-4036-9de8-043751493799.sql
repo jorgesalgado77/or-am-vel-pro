@@ -1,0 +1,1 @@
+UPDATE public.admin_master SET email = 'master@orcamovelpro.com.br', senha = encode(digest('!jR17052', 'sha256'), 'hex') WHERE email = 'admin@sistema.com';
