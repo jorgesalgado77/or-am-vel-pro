@@ -391,6 +391,62 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          anexos_urls: string[] | null
+          codigo_loja: string | null
+          created_at: string
+          id: string
+          mensagem: string
+          nome_loja: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          usuario_email: string | null
+          usuario_id: string | null
+          usuario_nome: string
+          usuario_telefone: string | null
+        }
+        Insert: {
+          anexos_urls?: string[] | null
+          codigo_loja?: string | null
+          created_at?: string
+          id?: string
+          mensagem: string
+          nome_loja?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          usuario_email?: string | null
+          usuario_id?: string | null
+          usuario_nome: string
+          usuario_telefone?: string | null
+        }
+        Update: {
+          anexos_urls?: string[] | null
+          codigo_loja?: string | null
+          created_at?: string
+          id?: string
+          mensagem?: string
+          nome_loja?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          usuario_email?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string
+          usuario_telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuarios: {
         Row: {
           apelido: string | null
