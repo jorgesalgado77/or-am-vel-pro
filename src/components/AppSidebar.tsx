@@ -68,7 +68,12 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               )}
             >
               <item.icon className="h-4 w-4" />
-              {item.label}
+              <span className="truncate">{item.label}</span>
+              {item.badge && (
+                <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 h-4 font-bold bg-primary/10 text-primary border-primary/20">
+                  {item.badge}
+                </Badge>
+              )}
             </button>
           ))}
         {/* Mensagens button */}
