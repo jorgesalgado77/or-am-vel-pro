@@ -416,6 +416,125 @@ export type Database = {
         }
         Relationships: []
       }
+      dealroom_transactions: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          forma_pagamento: string | null
+          id: string
+          nome_cliente: string | null
+          nome_vendedor: string | null
+          numero_contrato: string | null
+          simulation_id: string | null
+          taxa_plataforma_percentual: number
+          taxa_plataforma_valor: number
+          tenant_id: string
+          updated_at: string
+          usuario_id: string | null
+          valor_venda: number
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          forma_pagamento?: string | null
+          id?: string
+          nome_cliente?: string | null
+          nome_vendedor?: string | null
+          numero_contrato?: string | null
+          simulation_id?: string | null
+          taxa_plataforma_percentual?: number
+          taxa_plataforma_valor?: number
+          tenant_id: string
+          updated_at?: string
+          usuario_id?: string | null
+          valor_venda?: number
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          forma_pagamento?: string | null
+          id?: string
+          nome_cliente?: string | null
+          nome_vendedor?: string | null
+          numero_contrato?: string | null
+          simulation_id?: string | null
+          taxa_plataforma_percentual?: number
+          taxa_plataforma_valor?: number
+          tenant_id?: string
+          updated_at?: string
+          usuario_id?: string | null
+          valor_venda?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealroom_transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealroom_transactions_simulation_id_fkey"
+            columns: ["simulation_id"]
+            isOneToOne: false
+            referencedRelation: "simulations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealroom_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealroom_transactions_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealroom_usage: {
+        Row: {
+          created_at: string
+          id: string
+          tenant_id: string
+          usage_date: string
+          usuario_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tenant_id: string
+          usage_date?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          usage_date?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealroom_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealroom_usage_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_options: {
         Row: {
           created_at: string
@@ -1065,8 +1184,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_dealroom_daily_usage: {
+        Args: { p_date?: string; p_tenant_id: string }
+        Returns: number
+      }
       get_next_orcamento_number: { Args: never; Returns: string }
       hash_password: { Args: { plain_text: string }; Returns: string }
+      validate_dealroom_access: {
+        Args: { p_tenant_id: string; p_usuario_id?: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
