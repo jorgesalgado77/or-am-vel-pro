@@ -136,6 +136,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTPlano("trial"); setTPeriodo("mensal"); setTAtivo(true);
     setTOcultarIndicador(false);
     setTDealRoom(false);
+    setTVendaZap(false);
     setShowTenantDialog(true);
   };
 
