@@ -35,6 +35,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   messages: { title: "Mensagens", subtitle: "Comunicação com clientes" },
   plans: { title: "Planos de Assinatura", subtitle: "Gerencie seu plano e pagamentos" },
   simulator: { title: "Negociação e Simulação de Financiamentos", subtitle: "Calcule descontos e condições de pagamento" },
+  vendazap: { title: "VendaZap AI", subtitle: "Assistente inteligente de vendas para WhatsApp" },
 };
 
 export default function Index() {
