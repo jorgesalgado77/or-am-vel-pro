@@ -97,7 +97,7 @@ function loadStoredState(): Partial<SimulatorStoredState> {
 export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPanelProps) {
   const stored = useMemo(() => loadStoredState(), []);
 
-  const [valorTela, setValorTela] = useState(stored.valorTela ?? 10000);
+  const [valorTela, setValorTela] = useState(stored.valorTela ?? 0);
   const [desconto1, setDesconto1] = useState(stored.desconto1 ?? 0);
   const [desconto2, setDesconto2] = useState(stored.desconto2 ?? 0);
   const [desconto3, setDesconto3] = useState(stored.desconto3 ?? 0);
