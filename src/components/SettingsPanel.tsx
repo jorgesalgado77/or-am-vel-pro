@@ -177,6 +177,8 @@ function CompanySettingsTab() {
           </div>
         </div>
         <Separator />
+        <NotificationSoundToggle />
+        <Separator />
         <div>
           <Label>Logo da Empresa</Label>
           <div className="flex items-center gap-4 mt-2">
