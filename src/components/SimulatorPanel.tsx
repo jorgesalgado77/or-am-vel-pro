@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import { ContractEditorDialog } from "@/components/ContractEditorDialog";
+import { CloseSaleModal } from "@/components/CloseSaleModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
