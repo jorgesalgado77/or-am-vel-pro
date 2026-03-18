@@ -473,6 +473,9 @@ export type Database = {
           id: string
           mensagem: string
           nome_loja: string | null
+          respondido_em: string | null
+          respondido_por: string | null
+          resposta_admin: string | null
           status: string
           tipo: string
           updated_at: string
@@ -488,6 +491,9 @@ export type Database = {
           id?: string
           mensagem: string
           nome_loja?: string | null
+          respondido_em?: string | null
+          respondido_por?: string | null
+          resposta_admin?: string | null
           status?: string
           tipo: string
           updated_at?: string
@@ -503,6 +509,9 @@ export type Database = {
           id?: string
           mensagem?: string
           nome_loja?: string | null
+          respondido_em?: string | null
+          respondido_por?: string | null
+          resposta_admin?: string | null
           status?: string
           tipo?: string
           updated_at?: string

@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare,
 } from "lucide-react";
+import { AdminTickets } from "@/components/admin/AdminTickets";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -256,6 +257,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         <Tabs defaultValue="lojas" className="space-y-4">
           <TabsList>
             <TabsTrigger value="lojas" className="gap-2"><Store className="h-4 w-4" />Lojas</TabsTrigger>
+            <TabsTrigger value="suporte" className="gap-2"><MessageSquare className="h-4 w-4" />Suporte</TabsTrigger>
             <TabsTrigger value="pagamentos" className="gap-2"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
             <TabsTrigger value="planos" className="gap-2"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
           </TabsList>
@@ -337,6 +339,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* TAB: Suporte */}
+          <TabsContent value="suporte">
+            <AdminTickets adminName={adminName} />
           </TabsContent>
 
           {/* TAB: Pagamentos */}
