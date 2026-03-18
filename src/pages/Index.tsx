@@ -14,14 +14,25 @@ import { MessagesPanel } from "@/components/MessagesPanel";
 import { PlanBanner } from "@/components/PlanBanner";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import Login from "@/pages/Login";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
 import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
+import { useClientManager } from "@/hooks/useClientManager";
+import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
+
+const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
+  dashboard: { title: "Dashboard", subtitle: "Visão geral do sistema" },
+  clients: { title: "Clientes", subtitle: "" }, // dynamic subtitle
+  history: { title: "Histórico de Simulações", subtitle: "Compare diferentes cenários de financiamento" },
+  contracts: { title: "Contratos do Cliente", subtitle: "Visualize e edite contratos gerados" },
+  payroll: { title: "Folha de Pagamento", subtitle: "Relatório com dados de regime, salário e comissão" },
+  settings: { title: "Configurações", subtitle: "Gerencie empresa, financeiras e operadoras" },
+  messages: { title: "Mensagens", subtitle: "Comunicação com clientes" },
+  plans: { title: "Planos de Assinatura", subtitle: "Gerencie seu plano e pagamentos" },
+  simulator: { title: "Simulador de Financiamento", subtitle: "Calcule descontos e condições de pagamento" },
+};
 
 export default function Index() {
   const userCtx = useCurrentUserLoader();
@@ -31,8 +42,7 @@ export default function Index() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
-  const { unreadCount: realtimeUnread } = useRealtimeMessages();
-  const unreadMessages = realtimeUnread;
+  const { unreadCount: unreadMessages } = useRealtimeMessages();
 
   const hasPermission = (perm: keyof import("@/hooks/useCargos").CargoPermissoes) => {
     if (!currentUser) return true;
@@ -40,47 +50,16 @@ export default function Index() {
   };
 
   const [activeView, setActiveView] = useState("dashboard");
-  const [lastSims, setLastSims] = useState<Record<string, { valor_final: number; created_at: string }>>({});
-  const [allSimulations, setAllSimulations] = useState<{ created_at: string; valor_final: number }[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [contractsClient, setContractsClient] = useState<Client | null>(null);
-  const [saving, setSaving] = useState(false);
 
-  const fetchClients = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("clients")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) toast.error("Erro ao carregar clientes");
-    else setClients(data || []);
-    setLoading(false);
-  };
-
-  const fetchLastSims = async () => {
-    const { data } = await supabase
-      .from("simulations")
-      .select("client_id, valor_final, created_at")
-      .order("created_at", { ascending: false });
-    if (!data) return;
-    const map: Record<string, { valor_final: number; created_at: string }> = {};
-    const allSims: { created_at: string; valor_final: number }[] = [];
-    data.forEach((s) => {
-      allSims.push({ created_at: s.created_at, valor_final: Number(s.valor_final) || 0 });
-      if (!map[s.client_id]) {
-        map[s.client_id] = { valor_final: Number(s.valor_final) || 0, created_at: s.created_at };
-      }
-    });
-    setLastSims(map);
-    setAllSimulations(allSims);
-  };
-
-  useEffect(() => { fetchClients(); fetchLastSims(); }, []);
+  const {
+    clients, loading, lastSims, allSimulations, saving,
+    fetchClients, handleSaveClient, handleDeleteClient,
+  } = useClientManager();
 
   // Redirect to allowed view when user changes
   useEffect(() => {
@@ -113,51 +92,11 @@ export default function Index() {
     setForcedPasswordChange(false);
   };
 
-  const generateOrcamentoNumber = async (): Promise<{ numero_orcamento: string; numero_orcamento_seq: number }> => {
-    const { data: maxData } = await supabase
-      .from("clients")
-      .select("numero_orcamento_seq")
-      .order("numero_orcamento_seq", { ascending: false })
-      .limit(1)
-      .single() as any;
-
-    let nextSeq: number;
-    if (!maxData?.numero_orcamento_seq) {
-      const { data: settingsData } = await supabase.from("company_settings").select("orcamento_numero_inicial").limit(1).single() as any;
-      nextSeq = settingsData?.orcamento_numero_inicial || 1;
-    } else {
-      nextSeq = (maxData.numero_orcamento_seq as number) + 1;
-    }
-
-    const padded = String(nextSeq).padStart(9, "0");
-    const formatted = `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}`;
-    return { numero_orcamento: formatted, numero_orcamento_seq: nextSeq };
-  };
-
-  const handleSaveClient = async (data: Record<string, unknown>) => {
-    setSaving(true);
-    if (editingClient) {
-      const { error } = await supabase.from("clients").update(data).eq("id", editingClient.id);
-      if (error) toast.error("Erro ao atualizar cliente");
-      else toast.success("Cliente atualizado!");
-    } else {
-      const orcamento = await generateOrcamentoNumber();
-      const insertData = { ...data, ...orcamento } as any;
-      const { error } = await supabase.from("clients").insert(insertData);
-      if (error) toast.error("Erro ao criar cliente");
-      else toast.success("Cliente criado!");
-    }
-    setSaving(false);
-    setDrawerOpen(false);
-    setEditingClient(null);
-    fetchClients();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
-    const { error } = await supabase.from("clients").delete().eq("id", id);
-    if (error) toast.error("Erro ao excluir cliente");
-    else { toast.success("Cliente excluído"); fetchClients(); }
+  const onSaveClient = async (data: Record<string, unknown>) => {
+    handleSaveClient(data, editingClient, () => {
+      setDrawerOpen(false);
+      setEditingClient(null);
+    });
   };
 
   const handleEdit = (client: Client) => { setEditingClient(client); setDrawerOpen(true); };
@@ -167,25 +106,11 @@ export default function Index() {
   const handleContracts = (client: Client) => { setContractsClient(client); setSimulatingClient(null); setHistoryClient(null); setActiveView("contracts"); };
   const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); };
 
-  const currentTitle = activeView === "dashboard" ? "Dashboard"
-    : activeView === "clients" ? "Clientes"
-    : activeView === "history" ? "Histórico de Simulações"
-    : activeView === "contracts" ? "Contratos do Cliente"
-    : activeView === "payroll" ? "Folha de Pagamento"
-    : activeView === "settings" ? "Configurações"
-    : activeView === "messages" ? "Mensagens"
-    : activeView === "plans" ? "Planos de Assinatura"
-    : "Simulador de Financiamento";
-
-  const currentSubtitle = activeView === "dashboard" ? "Visão geral do sistema"
-    : activeView === "clients" ? `${clients.length} clientes cadastrados`
-    : activeView === "history" ? "Compare diferentes cenários de financiamento"
-    : activeView === "contracts" ? "Visualize e edite contratos gerados"
-    : activeView === "payroll" ? "Relatório com dados de regime, salário e comissão"
-    : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
-    : activeView === "messages" ? "Comunicação com clientes"
-    : activeView === "plans" ? "Gerencie seu plano e pagamentos"
-    : "Calcule descontos e condições de pagamento";
+  const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
+  const currentTitle = viewMeta.title;
+  const currentSubtitle = activeView === "clients"
+    ? `${clients.length} clientes cadastrados`
+    : viewMeta.subtitle;
 
   // Show login if no user is logged in
   if (!currentUser && !userCtx.loading) {
@@ -225,7 +150,7 @@ export default function Index() {
             )}
 
             {activeView === "clients" && (
-              <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
+              <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClient} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
             )}
 
             {activeView === "simulator" && (
@@ -258,7 +183,7 @@ export default function Index() {
               <MessagesPanel />
             )}
 
-            <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={handleSaveClient} client={editingClient} saving={saving} />
+            <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
           </main>
 
           {currentUser && (
