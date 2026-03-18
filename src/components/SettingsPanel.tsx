@@ -202,6 +202,7 @@ function CompanySettingsTab() {
 
 function NotificationSoundToggle() {
   const [enabled, setEnabled] = useState(isNotificationSoundEnabled());
+  const [volume, setVolume] = useState(getNotificationVolume());
 
   const handleToggle = (val: boolean) => {
     setEnabled(val);
@@ -209,13 +210,42 @@ function NotificationSoundToggle() {
     toast.success(val ? "Som de notificação ativado" : "Som de notificação desativado");
   };
 
+  const handleVolumeChange = (val: number[]) => {
+    const v = val[0];
+    setVolume(v);
+    setNotificationVolume(v);
+  };
+
+  const handleTestSound = () => {
+    playNotificationSound();
+  };
+
   return (
-    <div className="flex items-center justify-between max-w-[600px]">
-      <div>
-        <Label>Som de Notificação</Label>
-        <p className="text-xs text-muted-foreground">Toca um som ao receber novas mensagens em tempo real</p>
+    <div className="space-y-3 max-w-[600px]">
+      <div className="flex items-center justify-between">
+        <div>
+          <Label>Som de Notificação</Label>
+          <p className="text-xs text-muted-foreground">Toca um som ao receber novas mensagens em tempo real</p>
+        </div>
+        <Switch checked={enabled} onCheckedChange={handleToggle} />
       </div>
-      <Switch checked={enabled} onCheckedChange={handleToggle} />
+      {enabled && (
+        <div className="flex items-center gap-3 pl-1">
+          <span className="text-xs text-muted-foreground w-12">Volume</span>
+          <Slider
+            value={[volume]}
+            onValueChange={handleVolumeChange}
+            min={0.05}
+            max={1}
+            step={0.05}
+            className="flex-1"
+          />
+          <span className="text-xs text-muted-foreground w-10 text-right">{Math.round(volume * 100)}%</span>
+          <Button variant="outline" size="sm" onClick={handleTestSound} className="text-xs h-7 px-2">
+            Testar
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
