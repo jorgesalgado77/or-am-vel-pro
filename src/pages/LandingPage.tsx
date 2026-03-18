@@ -8,6 +8,7 @@ import { LandingHowItWorks } from "@/components/landing/LandingHowItWorks";
 import { LandingTestimonials } from "@/components/landing/LandingTestimonials";
 import { LandingProof } from "@/components/landing/LandingProof";
 import { LandingPlans } from "@/components/landing/LandingPlans";
+import { LandingAddons } from "@/components/landing/LandingAddons";
 import { LandingLeadForm } from "@/components/landing/LandingLeadForm";
 import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingFooter } from "@/components/landing/LandingFooter";
@@ -83,6 +84,8 @@ export default function LandingPage() {
             primaryColor={config.primary_color}
           />
         )}
+
+        <LandingAddons primaryColor={config.primary_color} />
 
         {s.lead_form && (
           <LandingLeadForm primaryColor={config.primary_color} />
