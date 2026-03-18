@@ -42,7 +42,7 @@ export interface SimulationResult {
 }
 
 export function calculateSimulation(input: SimulationInput): SimulationResult {
-  const { valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, creditRates = {}, boletoRates = {}, boletoRatesFull = {}, carenciaDias = 30 } = input;
+  const { valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, creditRates = {}, creditRatesFull = {}, boletoRates = {}, boletoRatesFull = {}, carenciaDias = 30 } = input;
 
   const afterDiscount1 = valorTela * (1 - desconto1 / 100);
   const afterDiscount2 = afterDiscount1 * (1 - desconto2 / 100);

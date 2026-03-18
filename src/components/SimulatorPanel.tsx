@@ -203,13 +203,21 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   });
 
   const creditoCoeffMap: Record<number, number> = {};
-  currentCreditoRates.forEach((r) => { creditoCoeffMap[r.installments] = Number(r.coefficient); });
+  const creditoRatesFullMap: Record<number, { coefficient: number; taxa_fixa: number }> = {};
+  currentCreditoRates.forEach((r) => {
+    creditoCoeffMap[r.installments] = Number(r.coefficient);
+    creditoRatesFullMap[r.installments] = {
+      coefficient: Number(r.coefficient),
+      taxa_fixa: Number(r.taxa_fixa),
+    };
+  });
 
   const result = useMemo(() => {
     const input: SimulationInput = {
       valorTela: valorTelaComComissao, desconto1, desconto2, desconto3,
       formaPagamento, parcelas, valorEntrada, plusPercentual,
       creditRates: creditoCoeffMap,
+      creditRatesFull: creditoRatesFullMap,
       boletoRates: boletoCoeffMap,
       boletoRatesFull: boletoRatesFullMap,
       carenciaDias,
