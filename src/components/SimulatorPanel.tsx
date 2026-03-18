@@ -691,7 +691,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             <div>
               <div className="flex items-center justify-between">
                 <Label>Indicador do Cliente</Label>
-                {selectedIndicadorId && comissaoPercentual > 0 && (
+                {selectedIndicadorId && comissaoPercentual > 0 && canHideIndicador && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -702,6 +702,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                     {hideIndicador ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                     {hideIndicador ? "Mostrar" : "Ocultar"}
                   </Button>
+                )}
+                {selectedIndicadorId && comissaoPercentual > 0 && !canHideIndicador && (
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Lock className="h-3 w-3" /> VIP
+                  </span>
                 )}
               </div>
               {!hideIndicador && (
