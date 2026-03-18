@@ -341,10 +341,14 @@ export function ClientsKanban({
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   className={cn(
-                                    "rounded-lg border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer group",
+                                    "rounded-lg border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer group border-l-[3px]",
                                     snapshot.isDragging && "shadow-lg ring-2 ring-primary/30 rotate-1",
                                     expired && "border-destructive/30"
                                   )}
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                    borderLeftColor: col.color,
+                                  }}
                                   onClick={() => setExpandedClient(client)}
                                 >
                                   <div className="p-3">
