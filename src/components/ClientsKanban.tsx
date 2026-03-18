@@ -367,9 +367,24 @@ export function ClientsKanban({
                                       </div>
                                     </div>
                                     <div className="flex items-center justify-between mt-2">
-                                      <span className="text-[11px] text-muted-foreground">
-                                        {format(new Date(client.created_at), "dd/MM/yy")}
-                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[11px] text-muted-foreground">
+                                          {format(new Date(client.created_at), "dd/MM/yy")}
+                                        </span>
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-[9px] h-4 px-1 font-medium",
+                                            daysInColumn === 0 && "border-green-400 text-green-600",
+                                            daysInColumn >= 1 && daysInColumn <= 3 && "border-yellow-400 text-yellow-600",
+                                            daysInColumn >= 4 && daysInColumn <= 7 && "border-orange-400 text-orange-600",
+                                            daysInColumn > 7 && "border-destructive text-destructive"
+                                          )}
+                                        >
+                                          <Clock className="h-2.5 w-2.5 mr-0.5" />
+                                          {daysInColumn === 0 ? "hoje" : `${daysInColumn}d`}
+                                        </Badge>
+                                      </div>
                                       {sim && (
                                         <span className={cn(
                                           "text-xs font-semibold",
