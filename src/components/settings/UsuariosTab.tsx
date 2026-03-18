@@ -8,13 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Trash2, Pencil, Camera } from "lucide-react";
+import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useCargos } from "@/hooks/useCargos";
 
-const EMPTY_FORM = { nome_completo: "", apelido: "", telefone: "", email: "", cargo_id: "", foto_url: "" };
+const EMPTY_FORM = { nome_completo: "", apelido: "", telefone: "", email: "", cargo_id: "", foto_url: "", senha: "" };
 
 function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -27,6 +27,10 @@ export function UsuariosTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{ open: boolean; userId: string; userName: string }>({ open: false, userId: "", userName: "" });
+  const [resetSenha, setResetSenha] = useState("");
+  const [showResetPwd, setShowResetPwd] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,6 +54,7 @@ export function UsuariosTab() {
 
   const handleAdd = async () => {
     if (!form.nome_completo.trim()) { toast.error("Nome completo é obrigatório"); return; }
+    if (!form.senha.trim()) { toast.error("Senha é obrigatória para novos usuários"); return; }
     const { error } = await supabase.from("usuarios").insert({
       nome_completo: form.nome_completo.trim(),
       apelido: form.apelido.trim() || null,
@@ -57,6 +62,8 @@ export function UsuariosTab() {
       email: form.email.trim() || null,
       cargo_id: form.cargo_id || null,
       foto_url: form.foto_url || null,
+      senha: form.senha,
+      primeiro_login: true,
     } as any);
     if (error) toast.error("Erro ao adicionar usuário");
     else { toast.success("Usuário adicionado!"); setForm(EMPTY_FORM); refresh(); }
@@ -71,22 +78,38 @@ export function UsuariosTab() {
       email: u.email || "",
       cargo_id: u.cargo_id || "",
       foto_url: (u as any).foto_url || "",
+      senha: "",
     });
     setEditDialogOpen(true);
   };
 
   const handleEditSave = async () => {
     if (!editingId || !form.nome_completo.trim()) { toast.error("Nome completo é obrigatório"); return; }
-    const { error } = await supabase.from("usuarios").update({
+    const updateData: any = {
       nome_completo: form.nome_completo.trim(),
       apelido: form.apelido.trim() || null,
       telefone: form.telefone.trim() || null,
       email: form.email.trim() || null,
       cargo_id: form.cargo_id || null,
       foto_url: form.foto_url || null,
-    } as any).eq("id", editingId);
+    };
+    const { error } = await supabase.from("usuarios").update(updateData).eq("id", editingId);
     if (error) toast.error("Erro ao atualizar");
     else { toast.success("Usuário atualizado!"); setEditDialogOpen(false); setEditingId(null); setForm(EMPTY_FORM); refresh(); }
+  };
+
+  const handleResetPassword = async () => {
+    if (resetSenha.length < 4) { toast.error("A senha deve ter pelo menos 4 caracteres"); return; }
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ senha: resetSenha, primeiro_login: true } as any)
+      .eq("id", resetPasswordDialog.userId);
+    if (error) toast.error("Erro ao resetar senha");
+    else {
+      toast.success("Senha resetada! O usuário deverá alterá-la no próximo login.");
+      setResetPasswordDialog({ open: false, userId: "", userName: "" });
+      setResetSenha("");
+    }
   };
 
   const handleToggleAtivo = async (id: string, currentAtivo: boolean) => {
@@ -165,6 +188,28 @@ export function UsuariosTab() {
             </SelectContent>
           </Select>
         </div>
+        {!isDialog && (
+          <div>
+            <Label>Senha Inicial *</Label>
+            <div className="relative mt-1">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={form.senha}
+                onChange={e => setForm(f => ({ ...f, senha: e.target.value }))}
+                placeholder="Mínimo 4 caracteres"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -195,7 +240,7 @@ export function UsuariosTab() {
                   <TableHead>Email</TableHead>
                   <TableHead>Cargo</TableHead>
                   <TableHead className="text-center">Ativo</TableHead>
-                  <TableHead className="w-24"></TableHead>
+                  <TableHead className="w-28"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -224,10 +269,18 @@ export function UsuariosTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleEdit(u)}>
+                        <Button size="icon" variant="ghost" onClick={() => handleEdit(u)} title="Editar">
                           <Pencil className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDelete(u.id, u.nome_completo)}>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setResetPasswordDialog({ open: true, userId: u.id, userName: u.apelido || u.nome_completo })}
+                          title="Resetar Senha"
+                        >
+                          <KeyRound className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => handleDelete(u.id, u.nome_completo)} title="Excluir">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -240,6 +293,7 @@ export function UsuariosTab() {
         </CardContent>
       </Card>
 
+      {/* Edit User Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Editar Usuário</DialogTitle></DialogHeader>
@@ -247,6 +301,42 @@ export function UsuariosTab() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleEditSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialog.open} onOpenChange={(o) => { if (!o) setResetPasswordDialog({ open: false, userId: "", userName: "" }); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Resetar Senha</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Definir nova senha para <strong>{resetPasswordDialog.userName}</strong>. O usuário será obrigado a alterá-la no próximo login.
+            </p>
+          </DialogHeader>
+          <div>
+            <Label>Nova Senha</Label>
+            <div className="relative mt-1">
+              <Input
+                type={showResetPwd ? "text" : "password"}
+                value={resetSenha}
+                onChange={(e) => setResetSenha(e.target.value)}
+                placeholder="Mínimo 4 caracteres"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowResetPwd(!showResetPwd)}
+                tabIndex={-1}
+              >
+                {showResetPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPasswordDialog({ open: false, userId: "", userName: "" })}>Cancelar</Button>
+            <Button onClick={handleResetPassword}>Resetar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,4 @@
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard } from "lucide-react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 interface AppSidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
+  onChangePassword?: () => void;
 }
 
 const navItems = [
@@ -21,7 +22,7 @@ function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }
 
-export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
+export function AppSidebar({ activeView, onViewChange, onChangePassword }: AppSidebarProps) {
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
 
@@ -91,9 +92,16 @@ export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {
               )}
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="w-full gap-2 text-muted-foreground" onClick={logout}>
-            <LogOut className="h-3 w-3" />Trocar Usuário
-          </Button>
+          <div className="flex gap-1">
+            {onChangePassword && (
+              <Button variant="ghost" size="sm" className="flex-1 gap-2 text-muted-foreground" onClick={onChangePassword}>
+                <KeyRound className="h-3 w-3" />Alterar Senha
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" className="flex-1 gap-2 text-muted-foreground" onClick={logout}>
+              <LogOut className="h-3 w-3" />Sair
+            </Button>
+          </div>
         </div>
       )}
     </aside>
