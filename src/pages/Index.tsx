@@ -184,6 +184,7 @@ export default function Index() {
     : activeView === "payroll" ? "Relatório com dados de regime, salário e comissão"
     : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
     : activeView === "messages" ? "Comunicação com clientes"
+    : activeView === "plans" ? "Gerencie seu plano e pagamentos"
     : "Calcule descontos e condições de pagamento";
 
   // Show login if no user is logged in
