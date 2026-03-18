@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
@@ -41,9 +42,20 @@ const CHART_COLORS = [
 const currencyFormatter = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
+type ChartKey = "evolucao" | "projetista" | "indicador";
+
 export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardProps) {
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
+  const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
+    evolucao: true,
+    projetista: true,
+    indicador: true,
+  });
+
+  const toggleChart = (key: ChartKey) => {
+    setVisibleCharts(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const stats = useMemo(() => {
     const totalClients = clients.length;
@@ -134,6 +146,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     ].filter(d => d.value > 0);
   }, [stats]);
 
+  const chartToggles: { key: ChartKey; label: string }[] = [
+    { key: "evolucao", label: "Evolução" },
+    { key: "projetista", label: "Projetista" },
+    { key: "indicador", label: "Indicador" },
+  ];
+
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
@@ -145,59 +163,44 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
         <KpiCard icon={TrendingUp} label="Valor Total" value={formatCurrency(stats.totalValue)} accent />
       </div>
 
-      {/* Line Chart - Evolução dos Orçamentos */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Evolução dos Orçamentos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {lineData.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma simulação registrada</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={lineData} margin={{ top: 8, right: 20, left: 8, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-                <YAxis yAxisId="valor" orientation="left" tickFormatter={currencyFormatter} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={95} />
-                <YAxis yAxisId="count" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={40} />
-                <Tooltip
-                  formatter={(value: number, name: string) => [
-                    name === "valor" ? currencyFormatter(value) : value,
-                    name === "valor" ? "Valor Total" : "Qtd. Orçamentos",
-                  ]}
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    fontSize: 13,
-                  }}
-                  labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
-                />
-                <Line yAxisId="valor" type="monotone" dataKey="valor" stroke="hsl(200, 70%, 50%)" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(200, 70%, 50%)" }} name="valor" />
-                <Line yAxisId="count" type="monotone" dataKey="orcamentos" stroke="hsl(160, 60%, 45%)" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3, fill: "hsl(160, 60%, 45%)" }} name="orcamentos" />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      {/* Chart visibility toggles */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground font-medium">Gráficos:</span>
+        {chartToggles.map(({ key, label }) => (
+          <Button
+            key={key}
+            variant={visibleCharts[key] ? "default" : "outline"}
+            size="sm"
+            className="gap-1.5 h-7 text-xs"
+            onClick={() => toggleChart(key)}
+          >
+            {visibleCharts[key] ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+            {label}
+          </Button>
+        ))}
+      </div>
 
-      {/* Bar + Pie Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+      {/* Line Chart - Evolução dos Orçamentos */}
+      {visibleCharts.evolucao && (
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Valor por Projetista</CardTitle>
+            <CardTitle className="text-base">Evolução dos Orçamentos</CardTitle>
           </CardHeader>
           <CardContent>
-            {barData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado</p>
+            {lineData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma simulação registrada</p>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={barData} margin={{ top: 8, right: 12, left: 8, bottom: 4 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={lineData} margin={{ top: 8, right: 20, left: 8, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tickFormatter={currencyFormatter} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={90} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis yAxisId="valor" orientation="left" tickFormatter={currencyFormatter} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={95} />
+                  <YAxis yAxisId="count" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={40} />
                   <Tooltip
-                    formatter={(value: number) => [currencyFormatter(value), "Valor"]}
+                    formatter={(value: number, name: string) => [
+                      name === "valor" ? currencyFormatter(value) : value,
+                      name === "valor" ? "Valor Total" : "Qtd. Orçamentos",
+                    ]}
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
@@ -206,59 +209,97 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
                     }}
                     labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
                   />
-                  <Bar dataKey="valor" radius={[6, 6, 0, 0]} maxBarSize={56}>
-                    {barData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                  <Line yAxisId="valor" type="monotone" dataKey="valor" stroke="hsl(200, 70%, 50%)" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(200, 70%, 50%)" }} name="valor" />
+                  <Line yAxisId="count" type="monotone" dataKey="orcamentos" stroke="hsl(160, 60%, 45%)" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3, fill: "hsl(160, 60%, 45%)" }} name="orcamentos" />
+                </LineChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
+      )}
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              {stats.byIndicador.length > 0 ? "Clientes por Indicador" : "Status dos Clientes"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            {pieData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    labelLine={false}
-                    style={{ fontSize: 11 }}
-                  >
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => [value, "Clientes"]}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: 13,
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+      {/* Bar + Pie Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {visibleCharts.projetista && (
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Valor por Projetista</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {barData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={barData} margin={{ top: 8, right: 12, left: 8, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                    <YAxis tickFormatter={currencyFormatter} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={90} />
+                    <Tooltip
+                      formatter={(value: number) => [currencyFormatter(value), "Valor"]}
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: 13,
+                      }}
+                      labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                    />
+                    <Bar dataKey="valor" radius={[6, 6, 0, 0]} maxBarSize={56}>
+                      {barData.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {visibleCharts.indicador && (
+          <Card className={!visibleCharts.projetista ? "lg:col-span-3" : ""}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                {stats.byIndicador.length > 0 ? "Clientes por Indicador" : "Status dos Clientes"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-center">
+              {pieData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum dado</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={85}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                      labelLine={false}
+                      style={{ fontSize: 11 }}
+                    >
+                      {pieData.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => [value, "Clientes"]}
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        fontSize: 13,
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Tables Row */}
