@@ -41,6 +41,7 @@ export function AdminDealRoom() {
   const [transactions, setTransactions] = useState<DealRoomTransaction[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [filterTenant, setFilterTenant] = useState("all");
+  const [filterPlan, setFilterPlan] = useState("all");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
 
