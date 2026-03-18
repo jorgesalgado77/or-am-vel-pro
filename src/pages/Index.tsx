@@ -12,6 +12,7 @@ import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { SupportDialog } from "@/components/SupportDialog";
 import { MessagesPanel } from "@/components/MessagesPanel";
 import { PlanBanner } from "@/components/PlanBanner";
+import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import Login from "@/pages/Login";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -173,6 +174,7 @@ export default function Index() {
     : activeView === "payroll" ? "Folha de Pagamento"
     : activeView === "settings" ? "Configurações"
     : activeView === "messages" ? "Mensagens"
+    : activeView === "plans" ? "Planos de Assinatura"
     : "Simulador de Financiamento";
 
   const currentSubtitle = activeView === "dashboard" ? "Visão geral do sistema"
@@ -182,6 +184,7 @@ export default function Index() {
     : activeView === "payroll" ? "Relatório com dados de regime, salário e comissão"
     : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
     : activeView === "messages" ? "Comunicação com clientes"
+    : activeView === "plans" ? "Gerencie seu plano e pagamentos"
     : "Calcule descontos e condições de pagamento";
 
   // Show login if no user is logged in
@@ -246,6 +249,10 @@ export default function Index() {
             )}
 
             {activeView === "settings" && <SettingsPanel />}
+
+            {activeView === "plans" && (
+              <SubscriptionPlans onBack={() => setActiveView("dashboard")} />
+            )}
 
             {activeView === "messages" && (
               <MessagesPanel />
