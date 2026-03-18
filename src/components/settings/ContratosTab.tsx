@@ -76,6 +76,7 @@ export function ContratosTab() {
     setNome(t.nome);
     setHtmlContent(t.conteudo_html);
     setViewMode("editor");
+    setEditorKey(k => k + 1);
   };
 
   const handleSave = async () => {
