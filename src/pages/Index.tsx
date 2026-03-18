@@ -8,6 +8,7 @@ import { ClientContracts } from "@/components/ClientContracts";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { Dashboard } from "@/components/Dashboard";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { SupportDialog } from "@/components/SupportDialog";
 import Login from "@/pages/Login";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ export default function Index() {
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
 
   const hasPermission = (perm: keyof import("@/hooks/useCargos").CargoPermissoes) => {
     if (!currentUser) return true;
@@ -191,6 +193,7 @@ export default function Index() {
           activeView={activeView}
           onViewChange={handleViewChange}
           onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
+          onSupport={() => setShowSupport(true)}
         />
 
         <main className="flex-1 ml-60 p-6">
@@ -236,6 +239,7 @@ export default function Index() {
             onClose={handlePasswordChanged}
           />
         )}
+        <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
       </div>
     </CurrentUserContext.Provider>
   );

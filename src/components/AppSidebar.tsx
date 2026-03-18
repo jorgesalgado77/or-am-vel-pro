@@ -1,4 +1,4 @@
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound } from "lucide-react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -9,6 +9,7 @@ interface AppSidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
   onChangePassword?: () => void;
+  onSupport?: () => void;
 }
 
 const navItems = [
@@ -22,7 +23,7 @@ function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }
 
-export function AppSidebar({ activeView, onViewChange, onChangePassword }: AppSidebarProps) {
+export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport }: AppSidebarProps) {
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
 
@@ -59,6 +60,16 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword }: AppSi
               {item.label}
             </button>
           ))}
+        {/* Suporte button - visible to all */}
+        <div className="mt-auto pt-2 border-t border-border mx-1">
+          <button
+            onClick={onSupport}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors duration-150"
+          >
+            <LifeBuoy className="h-4 w-4" />
+            Suporte
+          </button>
+        </div>
       </nav>
       {currentUser && (
         <div className="p-3 border-t border-border">
