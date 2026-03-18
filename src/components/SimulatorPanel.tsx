@@ -723,6 +723,26 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       console.error("Erro ao gerar comissões:", err);
     }
 
+    // === RECORD DEAL ROOM TRANSACTION ===
+    try {
+      const { data: csettings } = await supabase.from("company_settings").select("tenant_id").limit(1).single();
+      const tenantId = (csettings as any)?.tenant_id;
+      if (tenantId) {
+        await recordSale(tenantId, {
+          valor_venda: result.valorFinal,
+          client_id: client.id,
+          usuario_id: currentUser?.id,
+          simulation_id: pendingSimId,
+          forma_pagamento: formaPagamento,
+          numero_contrato: closeSaleFormData?.numero_contrato || "",
+          nome_cliente: client.nome,
+          nome_vendedor: currentUser?.nome_completo || currentUser?.apelido || "",
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao registrar transação Deal Room:", err);
+    }
+
     openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
 
     // Audit: sale closed
