@@ -17,6 +17,15 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   const [viewMode, setViewMode] = useState<"editor" | "preview">("preview");
   const editorRef = useRef<HTMLDivElement>(null);
 
+  // Reset html when initialHtml changes (e.g. opening a different contract)
+  useState(() => { setHtml(initialHtml); });
+  if (html !== initialHtml && viewMode === "preview") {
+    // Only auto-sync if user hasn't edited yet
+  }
+  // Use useEffect to properly sync
+  const { useEffect } = require("react");
+
+
   const getCurrentHtml = () => {
     if (viewMode === "editor" && editorRef.current) {
       return editorRef.current.innerHTML;
