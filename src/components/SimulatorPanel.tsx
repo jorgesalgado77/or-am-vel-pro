@@ -265,6 +265,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       if (!files || files.length === 0) return;
 
       Array.from(files).forEach((file) => {
+        const fileValidation = validateFileUpload(file);
+        if (!fileValidation.valid) {
+          toast.error(fileValidation.message || "Arquivo inválido");
+          return;
+        }
         const reader = new FileReader();
         reader.onload = (ev) => {
           const content = ev.target?.result as string;
