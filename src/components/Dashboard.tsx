@@ -49,7 +49,7 @@ const CHART_COLORS = [
 const currencyFormatter = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
-type ChartKey = "evolucao" | "projetista" | "indicador";
+type ChartKey = "evolucao" | "projetista" | "indicador" | "contratos";
 
 type DateFilterPreset = "mes_atual" | "30dias" | "60dias" | "90dias" | "6meses" | "personalizado";
 
