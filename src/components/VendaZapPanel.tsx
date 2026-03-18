@@ -567,6 +567,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
           </Card>
         </TabsContent>
       </Tabs>
+      <OnboardingDialog featureKey="vendazap" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
   );
 }
