@@ -37,6 +37,7 @@ export function SettingsPanel() {
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
           <TabsTrigger value="contratos" className="gap-2"><FileSignature className="h-4 w-4" />Contratos</TabsTrigger>
           <TabsTrigger value="whatsapp" className="gap-2"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
+          <TabsTrigger value="acompanhamento" className="gap-2"><ClipboardList className="h-4 w-4" />Acompanhamento</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanySettingsTab /></TabsContent>
         <TabsContent value="cargos"><CargosTab /></TabsContent>
