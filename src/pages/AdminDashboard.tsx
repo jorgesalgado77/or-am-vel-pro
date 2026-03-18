@@ -488,6 +488,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsContent value="landing">
             <AdminLandingPage />
           </TabsContent>
+
+          {/* TAB: VendaZap AI */}
+          <TabsContent value="vendazap">
+            <AdminVendaZap />
+          </TabsContent>
         </Tabs>
       </main>
 
