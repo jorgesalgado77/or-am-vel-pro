@@ -9,11 +9,13 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { Dashboard } from "@/components/Dashboard";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { SupportDialog } from "@/components/SupportDialog";
+import { PlanBanner } from "@/components/PlanBanner";
 import Login from "@/pages/Login";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser";
+import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
