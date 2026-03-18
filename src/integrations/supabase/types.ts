@@ -156,6 +156,7 @@ export type Database = {
         Row: {
           admin_password: string | null
           budget_validity_days: number
+          codigo_loja: string | null
           company_name: string
           company_subtitle: string | null
           created_at: string
@@ -168,6 +169,7 @@ export type Database = {
         Insert: {
           admin_password?: string | null
           budget_validity_days?: number
+          codigo_loja?: string | null
           company_name?: string
           company_subtitle?: string | null
           created_at?: string
@@ -180,6 +182,7 @@ export type Database = {
         Update: {
           admin_password?: string | null
           budget_validity_days?: number
+          codigo_loja?: string | null
           company_name?: string
           company_subtitle?: string | null
           created_at?: string
@@ -398,6 +401,8 @@ export type Database = {
           foto_url: string | null
           id: string
           nome_completo: string
+          primeiro_login: boolean
+          senha: string | null
           telefone: string | null
           updated_at: string
         }
@@ -410,6 +415,8 @@ export type Database = {
           foto_url?: string | null
           id?: string
           nome_completo: string
+          primeiro_login?: boolean
+          senha?: string | null
           telefone?: string | null
           updated_at?: string
         }
@@ -422,6 +429,8 @@ export type Database = {
           foto_url?: string | null
           id?: string
           nome_completo?: string
+          primeiro_login?: boolean
+          senha?: string | null
           telefone?: string | null
           updated_at?: string
         }
