@@ -520,11 +520,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                   <Upload className="h-4 w-4" />
                 </Button>
               </div>
-              {environments.length > 0 && (
-                <div className="mt-2 border rounded-md overflow-hidden">
+              <div className="mt-2 border rounded-md overflow-hidden">
+                <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Ambientes Importados</span>
+                  <span className="text-xs text-muted-foreground">{environments.length} arquivo(s)</span>
+                </div>
+                {environments.length > 0 ? (
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/50">
+                      <TableRow className="bg-muted/30">
                         <TableHead className="text-xs py-1.5 h-auto">Ambiente</TableHead>
                         <TableHead className="text-xs py-1.5 h-auto text-center">Peças</TableHead>
                         <TableHead className="text-xs py-1.5 h-auto text-right">Valor</TableHead>
@@ -567,17 +571,14 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                       )}
                     </TableBody>
                   </Table>
-                </div>
-              )}
-              {environments.length === 0 && importedFile && (
-                <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-                  <FileText className="h-3 w-3 shrink-0" />
-                  <span className="truncate flex-1">{importedFile.name}</span>
-                  <Button variant="ghost" size="icon" className="h-4 w-4 p-0" onClick={() => setImportedFile(null)}>
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+                ) : (
+                  <div className="flex flex-col items-center gap-1 py-4 text-muted-foreground">
+                    <Upload className="h-5 w-5" />
+                    <p className="text-xs">Nenhum ambiente importado</p>
+                    <p className="text-[10px]">Clique no botão acima para importar arquivos TXT ou XML</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
