@@ -23,7 +23,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
 
-  const isAdmin = currentUser?.email?.toLowerCase() === ADMIN_EMAIL;
+  const isAdmin = currentUser?.cargo_nome?.toUpperCase().includes("ADMINISTRADOR") || currentUser?.cargo_nome?.toUpperCase().includes("ADMIN");
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true },
