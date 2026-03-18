@@ -543,10 +543,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
       // Fill template variables
       const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-      const formaLabel: Record<string, string> = {
-        "A vista": "À Vista", Pix: "Pix", Credito: "Cartão de Crédito",
-        Boleto: "Boleto", "Credito / Boleto": "Crédito + Boleto", "Entrada e Entrega": "Entrada e Entrega",
-      };
+      const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
       // Build items HTML table
       let itensHtml = "";
