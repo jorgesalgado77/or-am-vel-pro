@@ -87,7 +87,7 @@ export default function Login({ onLogin }: LoginProps) {
             <img
               src={settings.logo_url}
               alt="Logo"
-              className="h-16 w-auto object-contain mx-auto"
+              className="h-20 w-auto object-contain mx-auto mb-2"
             />
           )}
           <div>
