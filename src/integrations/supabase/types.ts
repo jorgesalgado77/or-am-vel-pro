@@ -279,11 +279,13 @@ export type Database = {
           company_name: string
           company_subtitle: string | null
           created_at: string
+          email_loja: string | null
           endereco_loja: string | null
           id: string
           logo_url: string | null
           manager_password: string | null
           orcamento_numero_inicial: number
+          telefone_loja: string | null
           tenant_id: string | null
           uf_loja: string | null
           updated_at: string
@@ -299,11 +301,13 @@ export type Database = {
           company_name?: string
           company_subtitle?: string | null
           created_at?: string
+          email_loja?: string | null
           endereco_loja?: string | null
           id?: string
           logo_url?: string | null
           manager_password?: string | null
           orcamento_numero_inicial?: number
+          telefone_loja?: string | null
           tenant_id?: string | null
           uf_loja?: string | null
           updated_at?: string
@@ -319,11 +323,13 @@ export type Database = {
           company_name?: string
           company_subtitle?: string | null
           created_at?: string
+          email_loja?: string | null
           endereco_loja?: string | null
           id?: string
           logo_url?: string | null
           manager_password?: string | null
           orcamento_numero_inicial?: number
+          telefone_loja?: string | null
           tenant_id?: string | null
           uf_loja?: string | null
           updated_at?: string
