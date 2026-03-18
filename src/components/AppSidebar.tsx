@@ -31,6 +31,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
     { id: "simulator", label: "Simulador", icon: Calculator, perm: "simulador" as const, show: true },
     { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "configuracoes" as const, show: isAdmin },
     { id: "settings", label: "Configurações", icon: Settings, perm: "configuracoes" as const, show: true },
+    { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "configuracoes" as const, show: isAdmin },
   ];
 
   return (

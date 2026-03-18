@@ -250,6 +250,10 @@ export default function Index() {
 
             {activeView === "settings" && <SettingsPanel />}
 
+            {activeView === "plans" && (
+              <SubscriptionPlans onBack={() => setActiveView("dashboard")} />
+            )}
+
             {activeView === "messages" && (
               <MessagesPanel />
             )}
