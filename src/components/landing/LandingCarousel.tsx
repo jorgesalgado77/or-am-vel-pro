@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
 import { motion, AnimatePresence } from "framer-motion";
-import screenshotDashboard from "@/assets/screenshot-dashboard.jpg";
-import screenshotClients from "@/assets/screenshot-clients.jpg";
-import screenshotSimulator from "@/assets/screenshot-simulator.jpg";
+import carousel1 from "@/assets/carousel-1.jpg";
+import carousel2 from "@/assets/carousel-2.jpg";
+import carousel3 from "@/assets/carousel-3.jpg";
 
-const FALLBACK_IMAGES = [screenshotDashboard, screenshotClients, screenshotSimulator];
+const FALLBACK_IMAGES = [carousel1, carousel2, carousel3];
 
 interface LandingCarouselProps {
   images: string[];
