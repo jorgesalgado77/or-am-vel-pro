@@ -120,6 +120,69 @@ export type Database = {
           },
         ]
       }
+      client_tracking: {
+        Row: {
+          client_id: string
+          contract_id: string | null
+          cpf_cnpj: string | null
+          created_at: string
+          data_fechamento: string | null
+          id: string
+          nome_cliente: string
+          numero_contrato: string
+          projetista: string | null
+          quantidade_ambientes: number | null
+          status: string
+          updated_at: string
+          valor_contrato: number | null
+        }
+        Insert: {
+          client_id: string
+          contract_id?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          data_fechamento?: string | null
+          id?: string
+          nome_cliente: string
+          numero_contrato: string
+          projetista?: string | null
+          quantidade_ambientes?: number | null
+          status?: string
+          updated_at?: string
+          valor_contrato?: number | null
+        }
+        Update: {
+          client_id?: string
+          contract_id?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          data_fechamento?: string | null
+          id?: string
+          nome_cliente?: string
+          numero_contrato?: string
+          projetista?: string | null
+          quantidade_ambientes?: number | null
+          status?: string
+          updated_at?: string
+          valor_contrato?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_tracking_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_tracking_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "client_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           cpf: string | null
@@ -589,6 +652,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tracking_messages: {
+        Row: {
+          created_at: string
+          id: string
+          lida: boolean
+          mensagem: string
+          remetente_nome: string | null
+          remetente_tipo: string
+          tracking_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lida?: boolean
+          mensagem: string
+          remetente_nome?: string | null
+          remetente_tipo?: string
+          tracking_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lida?: boolean
+          mensagem?: string
+          remetente_nome?: string | null
+          remetente_tipo?: string
+          tracking_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_messages_tracking_id_fkey"
+            columns: ["tracking_id"]
+            isOneToOne: false
+            referencedRelation: "client_tracking"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usuarios: {
         Row: {
