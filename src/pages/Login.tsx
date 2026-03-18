@@ -3,19 +3,21 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { LogIn, Eye, EyeOff, Search } from "lucide-react";
+import { LogIn, Eye, EyeOff, Search, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { maskCodigoLoja } from "@/lib/masks";
 import { ClientTrackingModal } from "@/components/ClientTrackingModal";
+import { useNavigate } from "react-router-dom";
 
 interface LoginProps {
   onLogin: (userId: string, primeiroLogin: boolean) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
+  const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const [codigoLoja, setCodigoLoja] = useState("");
   const [nomeUsuario, setNomeUsuario] = useState("");
@@ -106,10 +108,14 @@ export default function Login({ onLogin }: LoginProps) {
             />
           )}
           <div>
-            <h1 className="text-xl font-bold text-foreground">{settings.company_name}</h1>
-            {settings.company_subtitle && (
-              <p className="text-sm text-muted-foreground">{settings.company_subtitle}</p>
-            )}
+            <h1 className="text-xl font-bold text-foreground">
+              {settings.company_name !== "INOVAMAD" ? settings.company_name : "OrçaMóvel PRO"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {settings.company_subtitle && settings.company_subtitle !== "Gestão & Financiamento"
+                ? settings.company_subtitle
+                : "Orce. Venda. Simplifique"}
+            </p>
           </div>
         </CardHeader>
         <CardContent>
@@ -163,8 +169,12 @@ export default function Login({ onLogin }: LoginProps) {
               {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-3 pt-3 border-t border-border">
-            <Button variant="outline" className="w-full gap-2" onClick={() => setShowTracking(true)}>
+          <div className="mt-3 pt-3 border-t border-border space-y-2">
+            <Button variant="outline" className="w-full gap-2" onClick={() => navigate("/signup")}>
+              <UserPlus className="h-4 w-4" />
+              Criar minha conta
+            </Button>
+            <Button variant="ghost" className="w-full gap-2" onClick={() => setShowTracking(true)}>
               <Search className="h-4 w-4" />
               Acompanhe seu Projeto
             </Button>

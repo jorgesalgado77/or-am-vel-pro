@@ -23,8 +23,8 @@ export interface CompanySettings {
 
 const DEFAULT_SETTINGS: CompanySettings = {
   id: "",
-  company_name: "INOVAMAD",
-  company_subtitle: "Gestão & Financiamento",
+  company_name: "OrçaMóvel PRO",
+  company_subtitle: "Orce. Venda. Simplifique",
   logo_url: null,
   budget_validity_days: 30,
   manager_password: null,
