@@ -555,6 +555,16 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 </div>
                 <Switch checked={tOcultarIndicador} onCheckedChange={setTOcultarIndicador} />
               </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Handshake className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Deal Room</p>
+                    <p className="text-xs text-muted-foreground">Libera acesso à Deal Room mesmo no plano Trial</p>
+                  </div>
+                </div>
+                <Switch checked={tDealRoom} onCheckedChange={setTDealRoom} />
+              </div>
             </div>
           </div>
           <DialogFooter>
