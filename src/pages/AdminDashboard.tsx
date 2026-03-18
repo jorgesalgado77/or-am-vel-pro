@@ -148,6 +148,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const vip = (t as any).recursos_vip || {};
     setTOcultarIndicador(vip.ocultar_indicador || false);
     setTDealRoom(vip.deal_room || false);
+    setTVendaZap(vip.vendazap || false);
     setShowTenantDialog(true);
   };
 
