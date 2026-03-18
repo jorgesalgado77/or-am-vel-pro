@@ -1,46 +1,80 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
 import { motion, AnimatePresence } from "framer-motion";
-import screenshotDashboard from "@/assets/screenshot-dashboard.jpg";
-import screenshotClients from "@/assets/screenshot-clients.jpg";
-import screenshotSimulator from "@/assets/screenshot-simulator.jpg";
-
-const FALLBACK_IMAGES = [screenshotDashboard, screenshotClients, screenshotSimulator];
+import carousel1 from "@/assets/carousel-1.jpg";
+import carousel2 from "@/assets/carousel-2.jpg";
+import carousel3 from "@/assets/carousel-3.jpg";
 
 interface LandingCarouselProps {
   images: string[];
   primaryColor: string;
 }
 
-const LABELS = [
-  "Painel de controle com KPIs e gráficos em tempo real",
-  "Kanban de clientes com arrastar e soltar",
-  "Simulador de financiamento com múltiplas bandeiras",
+interface CarouselSlide {
+  src: string;
+  label: string;
+}
+
+const REAL_SLIDES: CarouselSlide[] = [
+  {
+    src: carousel1,
+    label: "Kanban comercial atualizado com etapas reais do funil de clientes",
+  },
+  {
+    src: carousel2,
+    label: "Tela operacional do OrçaMovel Pro com gestão real da negociação",
+  },
+  {
+    src: carousel3,
+    label: "Fluxo real de orçamento e acompanhamento comercial do sistema",
+  },
 ];
 
+const LEGACY_MOCK_PATTERNS = [
+  "screenshot-dashboard.jpg",
+  "screenshot-clients.jpg",
+  "screenshot-simulator.jpg",
+];
+
+function buildSlides(images: string[]): CarouselSlide[] {
+  const customSlides = images
+    .filter(Boolean)
+    .filter((image) => !LEGACY_MOCK_PATTERNS.some((pattern) => image.includes(pattern)))
+    .map((src, index) => ({
+      src,
+      label: `Tela real personalizada ${index + 1} do OrçaMovel Pro`,
+    }));
+
+  return [...REAL_SLIDES, ...customSlides];
+}
+
 export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) {
-  const displayImages = images.length > 0 ? images : FALLBACK_IMAGES;
+  const slides = useMemo(() => buildSlides(images), [images]);
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(0);
 
   const next = useCallback(() => {
     setDirection(1);
-    setCurrent(prev => (prev + 1) % displayImages.length);
-  }, [displayImages.length]);
+    setCurrent((prev) => (prev + 1) % slides.length);
+  }, [slides.length]);
 
   const prev = useCallback(() => {
     setDirection(-1);
-    setCurrent(prev => (prev - 1 + displayImages.length) % displayImages.length);
-  }, [displayImages.length]);
+    setCurrent((prev) => (prev - 1 + slides.length) % slides.length);
+  }, [slides.length]);
 
   useEffect(() => {
-    if (displayImages.length <= 1) return;
+    setCurrent(0);
+  }, [slides.length]);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
     const interval = setInterval(next, 5000);
     return () => clearInterval(interval);
-  }, [next, displayImages.length]);
+  }, [next, slides.length]);
 
-  if (displayImages.length === 0) return null;
+  if (slides.length === 0) return null;
 
   const variants = {
     enter: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
@@ -49,25 +83,25 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
   };
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-20 bg-background">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection>
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Veja o <span style={{ color: primaryColor }}>sistema</span> em ação
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Veja o <span className="text-primary">sistema</span> em ação
             </h2>
-            <p className="text-lg text-gray-600">Interface intuitiva, resultados profissionais.</p>
+            <p className="text-lg text-muted-foreground">Capturas reais da versão mais recente do OrçaMovel Pro.</p>
           </div>
         </AnimatedSection>
 
         <AnimatedSection variant="scaleUp">
           <div className="relative">
-            <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-200 bg-gray-100 aspect-video relative">
+            <div className="rounded-2xl overflow-hidden shadow-2xl border border-border bg-muted aspect-video relative">
               <AnimatePresence initial={false} custom={direction} mode="wait">
                 <motion.img
-                  key={current}
-                  src={displayImages[current]}
-                  alt={LABELS[current] || `Screenshot ${current + 1}`}
+                  key={slides[current].src}
+                  src={slides[current].src}
+                  alt={slides[current].label}
                   custom={direction}
                   variants={variants}
                   initial="enter"
@@ -75,54 +109,57 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
                   exit="exit"
                   transition={{ duration: 0.4, ease: "easeInOut" }}
                   className="w-full h-full object-cover absolute inset-0"
+                  loading="lazy"
                 />
               </AnimatePresence>
             </div>
 
-            {/* Label */}
             <AnimatePresence mode="wait">
               <motion.div
-                key={current}
+                key={`${slides[current].src}-label`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
                 className="text-center mt-4"
               >
-                <span className="text-sm font-medium text-gray-600">
-                  {LABELS[current] || `Screenshot ${current + 1}`}
+                <span className="text-sm font-medium text-muted-foreground">
+                  {slides[current].label}
                 </span>
               </motion.div>
             </AnimatePresence>
 
-            {displayImages.length > 1 && (
+            {slides.length > 1 && (
               <>
                 <button
                   onClick={prev}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white transition-colors hover:scale-110"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 shadow-lg flex items-center justify-center hover:bg-background transition-colors hover:scale-110"
+                  aria-label="Imagem anterior"
                 >
-                  <ChevronLeft className="h-5 w-5 text-gray-700" />
+                  <ChevronLeft className="h-5 w-5 text-foreground" />
                 </button>
                 <button
                   onClick={next}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white transition-colors hover:scale-110"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 shadow-lg flex items-center justify-center hover:bg-background transition-colors hover:scale-110"
+                  aria-label="Próxima imagem"
                 >
-                  <ChevronRight className="h-5 w-5 text-gray-700" />
+                  <ChevronRight className="h-5 w-5 text-foreground" />
                 </button>
 
                 <div className="flex justify-center gap-2 mt-4">
-                  {displayImages.map((_, i) => (
+                  {slides.map((slide, index) => (
                     <button
-                      key={i}
+                      key={slide.src}
                       onClick={() => {
-                        setDirection(i > current ? 1 : -1);
-                        setCurrent(i);
+                        setDirection(index > current ? 1 : -1);
+                        setCurrent(index);
                       }}
-                      className="h-2.5 rounded-full transition-all duration-300"
+                      className="h-2.5 rounded-full transition-all duration-300 bg-muted"
                       style={{
-                        width: i === current ? 24 : 10,
-                        backgroundColor: i === current ? primaryColor : "#d1d5db",
+                        width: index === current ? 24 : 10,
+                        backgroundColor: index === current ? primaryColor : undefined,
                       }}
+                      aria-label={`Ir para imagem ${index + 1}`}
                     />
                   ))}
                 </div>

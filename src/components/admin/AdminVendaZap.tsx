@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Bot, Store, BarChart3, Settings, Sparkles, MessageSquare,
-  Save, Edit, Plus, RefreshCw, Zap,
+  Save, Edit, Plus, RefreshCw, Zap, KeyRound,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -27,6 +27,8 @@ interface AddonRow {
   max_tokens_mensagem: number;
   prompt_sistema: string;
   tom_padrao: string;
+  api_provider: string;
+  openai_model: string;
   created_at: string;
   tenant_nome?: string;
 }
@@ -38,6 +40,8 @@ interface UsageRow {
   total_tokens: number;
 }
 
+const OPENAI_MODELS = ["gpt-4.1-mini", "gpt-4o-mini", "gpt-5-mini"];
+
 export function AdminVendaZap() {
   const [addons, setAddons] = useState<AddonRow[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
@@ -46,13 +50,13 @@ export function AdminVendaZap() {
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [editingAddon, setEditingAddon] = useState<AddonRow | null>(null);
 
-  // Form
   const [fTenantId, setFTenantId] = useState("");
   const [fAtivo, setFAtivo] = useState(true);
   const [fMaxMsg, setFMaxMsg] = useState(50);
   const [fMaxTokens, setFMaxTokens] = useState(300);
   const [fPrompt, setFPrompt] = useState("Você é um assistente de vendas especializado em móveis planejados. Gere mensagens curtas, persuasivas e naturais para WhatsApp. Foco em conversão.");
   const [fTom, setFTom] = useState("persuasivo");
+  const [fModel, setFModel] = useState("gpt-4.1-mini");
 
   const fetchData = async () => {
     setLoading(true);
@@ -64,35 +68,35 @@ export function AdminVendaZap() {
 
     const tenantsList = (tenantsRes.data || []) as any[];
     setTenants(tenantsList);
-
     const tenantMap = Object.fromEntries(tenantsList.map((t: any) => [t.id, t.nome_loja]));
 
     if (addonsRes.data) {
-      setAddons((addonsRes.data as any[]).map(a => ({
-        ...a,
-        tenant_nome: tenantMap[a.tenant_id] || "Desconhecida",
+      setAddons((addonsRes.data as any[]).map((addon) => ({
+        ...addon,
+        tenant_nome: tenantMap[addon.tenant_id] || "Desconhecida",
       })));
     }
 
-    // Aggregate usage
     const msgData = (messagesRes.data || []) as any[];
     const usageMap: Record<string, { total_mensagens: number; total_tokens: number }> = {};
-    msgData.forEach((m: any) => {
-      if (!usageMap[m.tenant_id]) usageMap[m.tenant_id] = { total_mensagens: 0, total_tokens: 0 };
-      usageMap[m.tenant_id].total_mensagens++;
-      usageMap[m.tenant_id].total_tokens += m.tokens_usados || 0;
+    msgData.forEach((message) => {
+      if (!usageMap[message.tenant_id]) usageMap[message.tenant_id] = { total_mensagens: 0, total_tokens: 0 };
+      usageMap[message.tenant_id].total_mensagens += 1;
+      usageMap[message.tenant_id].total_tokens += message.tokens_usados || 0;
     });
 
-    setUsageStats(Object.entries(usageMap).map(([tid, stats]) => ({
-      tenant_id: tid,
-      tenant_nome: tenantMap[tid] || "Desconhecida",
+    setUsageStats(Object.entries(usageMap).map(([tenantId, stats]) => ({
+      tenant_id: tenantId,
+      tenant_nome: tenantMap[tenantId] || "Desconhecida",
       ...stats,
     })));
 
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const openNew = () => {
     setEditingAddon(null);
@@ -102,60 +106,70 @@ export function AdminVendaZap() {
     setFMaxTokens(300);
     setFPrompt("Você é um assistente de vendas especializado em móveis planejados. Gere mensagens curtas, persuasivas e naturais para WhatsApp. Foco em conversão.");
     setFTom("persuasivo");
+    setFModel("gpt-4.1-mini");
     setShowConfigDialog(true);
   };
 
-  const openEdit = (a: AddonRow) => {
-    setEditingAddon(a);
-    setFTenantId(a.tenant_id);
-    setFAtivo(a.ativo);
-    setFMaxMsg(a.max_mensagens_dia);
-    setFMaxTokens(a.max_tokens_mensagem);
-    setFPrompt(a.prompt_sistema);
-    setFTom(a.tom_padrao);
+  const openEdit = (addon: AddonRow) => {
+    setEditingAddon(addon);
+    setFTenantId(addon.tenant_id);
+    setFAtivo(addon.ativo);
+    setFMaxMsg(addon.max_mensagens_dia);
+    setFMaxTokens(addon.max_tokens_mensagem);
+    setFPrompt(addon.prompt_sistema);
+    setFTom(addon.tom_padrao);
+    setFModel(addon.openai_model || "gpt-4.1-mini");
     setShowConfigDialog(true);
   };
 
   const saveAddon = async () => {
-    if (!fTenantId) { toast.error("Selecione uma loja"); return; }
-    const payload: any = {
+    if (!fTenantId) {
+      toast.error("Selecione uma loja");
+      return;
+    }
+
+    const payload = {
       tenant_id: fTenantId,
       ativo: fAtivo,
       max_mensagens_dia: fMaxMsg,
       max_tokens_mensagem: fMaxTokens,
       prompt_sistema: fPrompt,
       tom_padrao: fTom,
+      api_provider: "openai",
+      openai_model: fModel,
     };
 
     if (editingAddon) {
-      const { error } = await supabase.from("vendazap_addon").update(payload).eq("id", editingAddon.id);
+      const { error } = await supabase.from("vendazap_addon").update(payload as any).eq("id", editingAddon.id);
       if (error) toast.error("Erro ao atualizar");
       else toast.success("Configuração atualizada!");
     } else {
-      const { error } = await supabase.from("vendazap_addon").insert(payload);
+      const { error } = await supabase.from("vendazap_addon").insert(payload as any);
       if (error) {
         if (error.code === "23505") toast.error("Esta loja já possui VendaZap configurado");
         else toast.error("Erro ao criar configuração");
-      } else toast.success("VendaZap ativado para a loja!");
+      } else {
+        toast.success("VendaZap ativado para a loja!");
+      }
     }
+
     setShowConfigDialog(false);
     fetchData();
   };
 
-  const totalMsgs = usageStats.reduce((s, u) => s + u.total_mensagens, 0);
-  const totalTokens = usageStats.reduce((s, u) => s + u.total_tokens, 0);
-  const lojasAtivas = addons.filter(a => a.ativo).length;
+  const totalMsgs = usageStats.reduce((sum, usage) => sum + usage.total_mensagens, 0);
+  const totalTokens = usageStats.reduce((sum, usage) => sum + usage.total_tokens, 0);
+  const lojasAtivas = addons.filter((addon) => addon.ativo).length;
 
   return (
     <div className="space-y-6">
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Lojas com VendaZap", value: addons.length, icon: Store },
           { label: "Lojas Ativas", value: lojasAtivas, icon: Zap },
           { label: "Mensagens Geradas", value: totalMsgs, icon: MessageSquare },
           { label: "Tokens Consumidos", value: totalTokens.toLocaleString("pt-BR"), icon: Sparkles },
-        ].map(kpi => (
+        ].map((kpi) => (
           <Card key={kpi.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <kpi.icon className="h-5 w-5 text-primary shrink-0" />
@@ -172,7 +186,7 @@ export function AdminVendaZap() {
         <TabsList>
           <TabsTrigger value="lojas" className="gap-2"><Store className="h-4 w-4" />Lojas</TabsTrigger>
           <TabsTrigger value="uso" className="gap-2"><BarChart3 className="h-4 w-4" />Uso</TabsTrigger>
-          <TabsTrigger value="config" className="gap-2"><Settings className="h-4 w-4" />Config Global</TabsTrigger>
+          <TabsTrigger value="config" className="gap-2"><Settings className="h-4 w-4" />Config OpenAI</TabsTrigger>
         </TabsList>
 
         <TabsContent value="lojas" className="space-y-4">
@@ -194,8 +208,8 @@ export function AdminVendaZap() {
                   <TableRow>
                     <TableHead>Loja</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Modelo</TableHead>
                     <TableHead>Limite/Dia</TableHead>
-                    <TableHead>Tom Padrão</TableHead>
                     <TableHead>Desde</TableHead>
                     <TableHead className="w-20">Ações</TableHead>
                   </TableRow>
@@ -205,17 +219,15 @@ export function AdminVendaZap() {
                     <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
                   ) : addons.length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma loja com VendaZap</TableCell></TableRow>
-                  ) : addons.map(a => (
-                    <TableRow key={a.id}>
-                      <TableCell className="font-medium text-foreground">{a.tenant_nome}</TableCell>
+                  ) : addons.map((addon) => (
+                    <TableRow key={addon.id}>
+                      <TableCell className="font-medium text-foreground">{addon.tenant_nome}</TableCell>
+                      <TableCell><Badge variant={addon.ativo ? "default" : "secondary"}>{addon.ativo ? "Ativo" : "Inativo"}</Badge></TableCell>
+                      <TableCell className="text-muted-foreground">{addon.openai_model || "gpt-4.1-mini"}</TableCell>
+                      <TableCell className="text-muted-foreground">{addon.max_mensagens_dia > 0 ? addon.max_mensagens_dia : "∞"}</TableCell>
+                      <TableCell className="text-muted-foreground">{format(new Date(addon.created_at), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
                       <TableCell>
-                        <Badge variant={a.ativo ? "default" : "secondary"}>{a.ativo ? "Ativo" : "Inativo"}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{a.max_mensagens_dia > 0 ? a.max_mensagens_dia : "∞"}</TableCell>
-                      <TableCell className="capitalize text-muted-foreground">{a.tom_padrao}</TableCell>
-                      <TableCell className="text-muted-foreground">{format(new Date(a.created_at), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(addon)}>
                           <Edit className="h-3 w-3" />
                         </Button>
                       </TableCell>
@@ -242,11 +254,11 @@ export function AdminVendaZap() {
                 <TableBody>
                   {usageStats.length === 0 ? (
                     <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Sem dados de uso</TableCell></TableRow>
-                  ) : usageStats.sort((a, b) => b.total_mensagens - a.total_mensagens).map(u => (
-                    <TableRow key={u.tenant_id}>
-                      <TableCell className="font-medium text-foreground">{u.tenant_nome}</TableCell>
-                      <TableCell className="text-muted-foreground">{u.total_mensagens}</TableCell>
-                      <TableCell className="text-muted-foreground">{u.total_tokens.toLocaleString("pt-BR")}</TableCell>
+                  ) : usageStats.sort((a, b) => b.total_mensagens - a.total_mensagens).map((usage) => (
+                    <TableRow key={usage.tenant_id}>
+                      <TableCell className="font-medium text-foreground">{usage.tenant_nome}</TableCell>
+                      <TableCell className="text-muted-foreground">{usage.total_mensagens}</TableCell>
+                      <TableCell className="text-muted-foreground">{usage.total_tokens.toLocaleString("pt-BR")}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -258,23 +270,29 @@ export function AdminVendaZap() {
         <TabsContent value="config" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Configurações Globais do VendaZap AI</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" />Configuração da OpenAI</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-border p-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Provider ativo</p>
+                  <Badge variant="secondary">OpenAI</Badge>
+                  <p className="text-xs text-muted-foreground">O VendaZap agora está preparado para usar a API da OpenAI.</p>
+                </div>
+                <div className="rounded-lg border border-border p-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Secret esperado</p>
+                  <Input value="OPENAI_API_KEY" readOnly />
+                  <p className="text-xs text-muted-foreground">A chave será adicionada depois como segredo seguro do projeto.</p>
+                </div>
+              </div>
               <p className="text-sm text-muted-foreground">
-                As configurações de prompt e limites são definidas individualmente para cada loja.
-                Use a aba "Lojas" para editar cada configuração.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                O VendaZap utiliza inteligência artificial integrada à plataforma (Lovable AI).
-                Não é necessário configurar chaves de API externas.
+                Cada loja pode definir modelo, prompt e limite de uso individualmente. A chave privada não é salva no banco.
               </p>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Config Dialog */}
       <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -289,8 +307,8 @@ export function AdminVendaZap() {
               <Select value={fTenantId} onValueChange={setFTenantId} disabled={!!editingAddon}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione uma loja" /></SelectTrigger>
                 <SelectContent>
-                  {tenants.map((t: any) => (
-                    <SelectItem key={t.id} value={t.id}>{t.nome_loja}</SelectItem>
+                  {tenants.map((tenant: any) => (
+                    <SelectItem key={tenant.id} value={tenant.id}>{tenant.nome_loja}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -319,14 +337,20 @@ export function AdminVendaZap() {
               </div>
             </div>
             <div>
+              <Label>Modelo OpenAI</Label>
+              <Select value={fModel} onValueChange={setFModel}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {OPENAI_MODELS.map((model) => (
+                    <SelectItem key={model} value={model}>{model}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Prompt do Sistema</Label>
-              <Textarea
-                value={fPrompt}
-                onChange={(e) => setFPrompt(e.target.value)}
-                rows={4}
-                className="mt-1 text-xs"
-              />
-              <p className="text-[10px] text-muted-foreground mt-0.5">Instrução base enviada para a IA em cada requisição</p>
+              <Textarea value={fPrompt} onChange={(e) => setFPrompt(e.target.value)} rows={4} className="mt-1 text-xs" />
+              <p className="text-[10px] text-muted-foreground mt-0.5">Instrução base enviada para a OpenAI em cada requisição.</p>
             </div>
           </div>
           <DialogFooter>

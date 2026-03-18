@@ -10,6 +10,8 @@ export interface VendaZapAddon {
   max_tokens_mensagem: number;
   prompt_sistema: string;
   tom_padrao: string;
+  api_provider: string;
+  openai_model: string;
 }
 
 export interface VendaZapMessage {
@@ -34,30 +36,33 @@ export function useVendaZap(tenantId: string | null) {
   const [dailyUsage, setDailyUsage] = useState(0);
 
   const fetchAddon = async () => {
-    if (!tenantId) { setLoading(false); return; }
-    
+    if (!tenantId) {
+      setLoading(false);
+      return;
+    }
+
     const { data } = await supabase
       .from("vendazap_addon")
       .select("*")
       .eq("tenant_id", tenantId)
       .maybeSingle();
-    
+
     if (data) setAddon(data as unknown as VendaZapAddon);
     setLoading(false);
   };
 
   const fetchMessages = async (clientId?: string) => {
     if (!tenantId) return;
-    
+
     let query = supabase
       .from("vendazap_messages")
       .select("*")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(50);
-    
+
     if (clientId) query = query.eq("client_id", clientId);
-    
+
     const { data } = await query;
     if (data) setMessages(data as unknown as VendaZapMessage[]);
   };
@@ -70,8 +75,8 @@ export function useVendaZap(tenantId: string | null) {
       .select("mensagens_geradas")
       .eq("tenant_id", tenantId)
       .eq("usage_date", today);
-    
-    const total = (data || []).reduce((sum, r: any) => sum + (r.mensagens_geradas || 0), 0);
+
+    const total = (data || []).reduce((sum, row: any) => sum + (row.mensagens_geradas || 0), 0);
     setDailyUsage(total);
   };
 
@@ -103,11 +108,15 @@ export function useVendaZap(tenantId: string | null) {
     }
 
     setGenerating(true);
+
     try {
       const { data, error } = await supabase.functions.invoke("vendazap-ai", {
         body: {
           ...params,
           prompt_sistema: addon.prompt_sistema,
+          api_provider: addon.api_provider,
+          openai_model: addon.openai_model,
+          max_tokens: addon.max_tokens_mensagem,
         },
       });
 
@@ -118,7 +127,6 @@ export function useVendaZap(tenantId: string | null) {
         return null;
       }
 
-      // Save message to history
       await supabase.from("vendazap_messages").insert({
         tenant_id: tenantId,
         usuario_id: params.usuario_id || null,
@@ -130,13 +138,14 @@ export function useVendaZap(tenantId: string | null) {
           valor_orcamento: params.valor_orcamento,
           status_negociacao: params.status_negociacao,
           dias_sem_resposta: params.dias_sem_resposta,
+          provider: addon.api_provider,
+          model: addon.openai_model,
         },
         mensagem_cliente: params.mensagem_cliente || null,
         mensagem_gerada: data.mensagem,
         tokens_usados: data.tokens_usados || 0,
       } as any);
 
-      // Update daily usage
       const today = new Date().toISOString().split("T")[0];
       const { data: existingUsage } = await supabase
         .from("vendazap_usage")
@@ -161,7 +170,7 @@ export function useVendaZap(tenantId: string | null) {
         } as any);
       }
 
-      setDailyUsage(prev => prev + 1);
+      setDailyUsage((prev) => prev + 1);
       await fetchMessages(params.client_id);
       setGenerating(false);
       return data.mensagem as string;
