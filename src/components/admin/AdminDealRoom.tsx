@@ -170,7 +170,7 @@ export function AdminDealRoom() {
     vendas: { label: "Vendas", color: "hsl(var(--secondary))" },
   };
 
-  useEffect(() => { fetchAll(); }, [filterTenant, filterDateFrom, filterDateTo]);
+  useEffect(() => { fetchAll(); }, [filterTenant, filterPlan, filterDateFrom, filterDateTo]);
 
   return (
     <div className="space-y-6">
