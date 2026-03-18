@@ -193,6 +193,7 @@ export default function Index() {
           activeView={activeView}
           onViewChange={handleViewChange}
           onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
+          onSupport={() => setShowSupport(true)}
         />
 
         <main className="flex-1 ml-60 p-6">
