@@ -925,7 +925,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full gap-2 text-muted-foreground"
+                  className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
                   onClick={() => {
                     setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
                     setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
