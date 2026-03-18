@@ -287,38 +287,54 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             // Try environment name
             const matchEnv = content.match(/Ambiente\s*[=:]\s*(.+)/i);
             if (matchEnv) envName = matchEnv[1].trim();
-            // Count pieces from TXT - sum first column values or count data lines
+            // Count pieces from TXT - sum quantity column values
             const lines = content.split(/\r?\n/).filter(l => l.trim());
             let itemCount = 0;
             let foundExplicit = false;
 
             // First try explicit piece count pattern
-            const matchPieces = content.match(/(?:Pecas|Peças|Quantidade|Total\s*de\s*Pe[çc]as|Qtd)\s*[=:]\s*(\d+)/i);
+            const matchPieces = content.match(/(?:Pecas|Peças|Quantidade\s*(?:de\s*)?(?:Pe[çc]as)?|Total\s*de\s*Pe[çc]as|Qtd\s*(?:Pe[çc]as)?)\s*[=:]\s*(\d+)/i);
             if (matchPieces) {
               itemCount = parseInt(matchPieces[1]);
               foundExplicit = true;
             }
 
             if (!foundExplicit) {
+              // Detect if file uses tabular format with separators
+              const hasTabs = content.includes('\t');
+              const hasSemicolons = content.includes(';');
+              const hasPipes = content.includes('|');
+              const separator = hasTabs ? /\t/ : hasSemicolons ? /;/ : hasPipes ? /\|/ : null;
+
               for (const line of lines) {
                 const trimmed = line.trim();
                 // Skip known non-data lines
-                if (/^(Total|Ambiente|Pecas|Peças|Quantidade|Descri|Nome|---)/i.test(trimmed)) continue;
-                if (trimmed.length < 2) continue;
+                if (/^(Total|Ambiente|Pecas|Peças|Quantidade|Descri|Nome|Projeto|Observ|Data|Vers|---|\*|#|=)/i.test(trimmed)) continue;
+                if (trimmed.length < 3) continue;
+                // Skip lines that look like dates (dd/mm/yyyy)
+                if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmed)) continue;
+                // Skip lines that are purely numeric (page numbers, totals, etc.)
+                if (/^[\d.,]+$/.test(trimmed)) continue;
                 
-                // Try to get quantity from first column (tab/semicolon/pipe/space separated)
-                const cols = trimmed.split(/[\t;|]/);
-                if (cols.length >= 2) {
-                  const firstCol = cols[0].trim();
-                  const qty = parseInt(firstCol);
-                  if (!isNaN(qty) && qty > 0 && qty < 10000) {
-                    itemCount += qty;
-                    continue;
+                if (separator) {
+                  // Tabular data: extract quantity from first column
+                  const cols = trimmed.split(separator);
+                  if (cols.length >= 2) {
+                    const firstCol = cols[0].trim();
+                    const qty = parseInt(firstCol);
+                    if (!isNaN(qty) && qty > 0 && qty < 10000) {
+                      itemCount += qty;
+                    }
                   }
-                }
-                // If line contains numeric data, count as 1 piece
-                if (/\d/.test(trimmed) && !/^[=\-#]/.test(trimmed)) {
-                  itemCount++;
+                } else {
+                  // Space-separated: try to extract leading quantity
+                  const leadingQty = trimmed.match(/^(\d+)\s+\S/);
+                  if (leadingQty) {
+                    const qty = parseInt(leadingQty[1]);
+                    if (qty > 0 && qty < 10000) {
+                      itemCount += qty;
+                    }
+                  }
                 }
               }
             }
