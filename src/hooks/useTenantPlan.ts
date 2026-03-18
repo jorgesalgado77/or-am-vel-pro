@@ -86,6 +86,7 @@ export function useTenantPlan() {
       dias_restantes: diasRestantes,
       trial_fim: t.trial_fim,
       assinatura_fim: t.assinatura_fim,
+      recursos_vip: (t.recursos_vip as Record<string, boolean>) || { ocultar_indicador: false },
     });
     setLoading(false);
   };
