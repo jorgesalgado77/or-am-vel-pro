@@ -60,6 +60,16 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               {item.label}
             </button>
           ))}
+        {/* Suporte button - visible to all */}
+        <div className="mt-auto pt-2 border-t border-border mx-1">
+          <button
+            onClick={onSupport}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors duration-150"
+          >
+            <LifeBuoy className="h-4 w-4" />
+            Suporte
+          </button>
+        </div>
       </nav>
       {currentUser && (
         <div className="p-3 border-t border-border">

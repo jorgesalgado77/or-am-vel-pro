@@ -239,6 +239,7 @@ export default function Index() {
             onClose={handlePasswordChanged}
           />
         )}
+        <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
       </div>
     </CurrentUserContext.Provider>
   );
