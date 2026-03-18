@@ -923,6 +923,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                   <Handshake className="h-4 w-4" />
                   {closingSale ? "Gerando contrato..." : "Fechar Venda"}
                 </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-muted-foreground"
+                  onClick={() => {
+                    setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
+                    setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
+                    setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
+                    setDesconto3Unlocked(false); setPlusUnlocked(false);
+                    setEnvironments([]); setImportedFile(null);
+                    sessionStorage.removeItem(SIM_STORAGE_KEY);
+                    toast.success("Simulação limpa");
+                  }}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Limpar Simulação
+                </Button>
                 {!client && (
                   <p className="text-xs text-muted-foreground text-center">
                     Selecione um cliente para concluir a venda e gerar contrato.
