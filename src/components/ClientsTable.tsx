@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Pencil, Trash2, Plus, Search, Calculator, History, AlertTriangle, CalendarIcon, Filter, X } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Calculator, History, AlertTriangle, CalendarIcon, Filter, X, FileText } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/financing";
@@ -34,9 +34,10 @@ interface ClientsTableProps {
   onAdd: () => void;
   onSimulate: (client: Client) => void;
   onHistory: (client: Client) => void;
+  onContracts: (client: Client) => void;
 }
 
-export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory }: ClientsTableProps) {
+export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory, onContracts }: ClientsTableProps) {
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
@@ -281,6 +282,9 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onHistory(client)} title="Histórico">
                           <History className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onContracts(client)} title="Contratos">
+                          <FileText className="h-4 w-4" />
                         </Button>
                         {canEdit && (
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(client)} title="Editar">
