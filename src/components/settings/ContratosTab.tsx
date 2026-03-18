@@ -389,8 +389,25 @@ export function ContratosTab() {
                 dangerouslySetInnerHTML={{ __html: htmlContent }}
               />
             ) : (
-              <div className="min-h-[400px] rounded-lg border border-border bg-background p-6 text-foreground">
-                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: htmlContent }} />
+              <div className="rounded-lg border border-border bg-muted/30 p-4 flex justify-center overflow-auto">
+                <div
+                  className="bg-white text-black shadow-lg"
+                  style={{
+                    width: "210mm",
+                    minHeight: "297mm",
+                    padding: "15mm",
+                    fontFamily: "'Segoe UI', 'Arial', sans-serif",
+                    fontSize: "12pt",
+                    lineHeight: "1.6",
+                    boxSizing: "border-box" as const,
+                  }}
+                >
+                  <div
+                    className="prose prose-sm max-w-none"
+                    style={{ fontSize: "inherit", lineHeight: "inherit" }}
+                    dangerouslySetInnerHTML={{ __html: htmlContent }}
+                  />
+                </div>
               </div>
             )}
 
