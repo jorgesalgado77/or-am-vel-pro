@@ -41,6 +41,42 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          acao: string
+          created_at: string
+          detalhes: Json | null
+          entidade: string
+          entidade_id: string | null
+          id: string
+          ip_address: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          detalhes?: Json | null
+          entidade: string
+          entidade_id?: string | null
+          id?: string
+          ip_address?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          detalhes?: Json | null
+          entidade?: string
+          entidade_id?: string | null
+          id?: string
+          ip_address?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: []
+      }
       cargos: {
         Row: {
           comissao_percentual: number
