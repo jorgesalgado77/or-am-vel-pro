@@ -105,8 +105,8 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
         </AnimatedSection>
 
         <AnimatedSection variant="scaleUp">
-          <div className="relative">
-            <div className="rounded-2xl overflow-hidden shadow-2xl border border-border bg-muted aspect-video relative">
+          <div className="relative group">
+            <div className="rounded-2xl overflow-hidden shadow-2xl border border-border bg-muted aspect-video relative transition-all duration-500 group-hover:shadow-[0_20px_60px_-10px_hsl(var(--primary)/0.3)] group-hover:scale-[1.02] group-hover:border-primary/40">
               <AnimatePresence initial={false} custom={direction} mode="wait">
                 <motion.img
                   key={slides[current].src}
@@ -118,10 +118,11 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
                   animate="center"
                   exit="exit"
                   transition={{ duration: 0.4, ease: "easeInOut" }}
-                  className="w-full h-full object-cover absolute inset-0"
+                  className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                 />
               </AnimatePresence>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             </div>
 
             <AnimatePresence mode="wait">
