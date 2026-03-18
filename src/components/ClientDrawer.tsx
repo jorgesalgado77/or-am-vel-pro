@@ -8,13 +8,27 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { maskCpfCnpj, maskPhone, unmask, isCnpj, validateCpfCnpj } from "@/lib/masks";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { FileText, Eye, Pencil, Printer } from "lucide-react";
+import { ContractEditorDialog } from "@/components/ContractEditorDialog";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
+
+interface ClientContract {
+  id: string;
+  conteudo_html: string;
+  created_at: string;
+  simulation_id: string | null;
+}
 
 const clientSchema = z.object({
   nome: z.string().trim().min(1, "Nome é obrigatório").max(200),
@@ -48,6 +62,13 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   const cpfValue = watch("cpf") || "";
   const [cpfError, setCpfError] = useState("");
   const isDocCnpj = isCnpj(cpfValue);
+  const [activeTab, setActiveTab] = useState("dados");
+
+  const [contracts, setContracts] = useState<ClientContract[]>([]);
+  const [loadingContracts, setLoadingContracts] = useState(false);
+  const [viewingContract, setViewingContract] = useState<ClientContract | null>(null);
+  const [editingContract, setEditingContract] = useState<ClientContract | null>(null);
+  const [savingContract, setSavingContract] = useState(false);
 
   useEffect(() => {
     if (client) {
@@ -60,7 +81,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
         telefone2: client.telefone2 ? maskPhone(client.telefone2) : "",
         email: client.email || "",
         vendedor: client.vendedor || "",
-        indicador_id: (client as any).indicador_id || "",
+        indicador_id: client.indicador_id || "",
       });
     } else {
       reset({
@@ -69,7 +90,29 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
       });
     }
     setCpfError("");
+    setActiveTab("dados");
   }, [client, open, reset]);
+
+  useEffect(() => {
+    if (!open || !client) return;
+    const fetchContracts = async () => {
+      setLoadingContracts(true);
+      const { data, error } = await supabase
+        .from("client_contracts")
+        .select("id, conteudo_html, created_at, simulation_id")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        toast.error("Erro ao carregar contratos do cliente");
+      } else {
+        setContracts((data as ClientContract[]) || []);
+      }
+      setLoadingContracts(false);
+    };
+
+    fetchContracts();
+  }, [open, client]);
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const masked = maskCpfCnpj(e.target.value);
@@ -83,7 +126,6 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   };
 
   const onSubmit = (data: ClientForm) => {
-    // Validate CPF/CNPJ before saving
     if (data.cpf) {
       const validation = validateCpfCnpj(data.cpf);
       if (!validation.valid) {
@@ -94,135 +136,262 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
     onSave(data);
   };
 
+  const handlePrintContract = (html: string) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client?.nome || "Cliente"}</title>
+      <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
+      @media print{@page{margin:15mm;size:A4;}}</style></head>
+      <body>${html}</body></html>`;
+    printWindow.document.write(fullHtml);
+    printWindow.document.close();
+    printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
+  };
+
+  const handleSaveContractEdit = async (finalHtml: string) => {
+    if (!editingContract) return;
+    setSavingContract(true);
+    const { error } = await supabase
+      .from("client_contracts")
+      .update({ conteudo_html: finalHtml } as any)
+      .eq("id", editingContract.id);
+
+    setSavingContract(false);
+    if (error) {
+      toast.error("Erro ao salvar contrato");
+      return;
+    }
+
+    toast.success("Contrato atualizado!");
+    setContracts(prev => prev.map(c => c.id === editingContract.id ? { ...c, conteudo_html: finalHtml } : c));
+    setEditingContract(null);
+    handlePrintContract(finalHtml);
+  };
+
+  const formContent = (
+    <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          Informações Básicas
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="nome">Nome *</Label>
+            <Input id="nome" {...register("nome")} className="mt-1" />
+            {errors.nome && <p className="text-xs text-destructive mt-1">{errors.nome.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="cpf">{isDocCnpj ? "CNPJ" : "CPF"}</Label>
+            <Input
+              id="cpf"
+              value={cpfValue}
+              onChange={handleCpfChange}
+              placeholder={isDocCnpj ? "00.000.000/0000-00" : "000.000.000-00"}
+              className="mt-1"
+            />
+            {cpfError && <p className="text-xs text-destructive mt-1">{cpfError}</p>}
+          </div>
+          <div>
+            <Label htmlFor="vendedor">Projetista Responsável</Label>
+            <Select value={watch("vendedor") || ""} onValueChange={(v) => setValue("vendedor", v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectContent>
+                {projetistas.map((u) => (
+                  <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
+                    {u.apelido || u.nome_completo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Indicador do Cliente</Label>
+            <Select value={watch("indicador_id") || ""} onValueChange={(v) => setValue("indicador_id", v === "_none" ? "" : v)}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none">Nenhum</SelectItem>
+                {activeIndicadores.map((ind) => (
+                  <SelectItem key={ind.id} value={ind.id}>
+                    {ind.nome} ({ind.comissao_percentual}%)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          Contato
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="telefone1">Telefone 1</Label>
+            <Input
+              id="telefone1"
+              value={watch("telefone1") || ""}
+              onChange={handlePhoneChange("telefone1")}
+              placeholder="(00) 00000-0000"
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="telefone2">Telefone 2</Label>
+            <Input
+              id="telefone2"
+              value={watch("telefone2") || ""}
+              onChange={handlePhoneChange("telefone2")}
+              placeholder="(00) 00000-0000"
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" {...register("email")} className="mt-1" />
+            {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          Projeto
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="quantidade_ambientes">Quantidade de Ambientes</Label>
+            <Input id="quantidade_ambientes" type="number" min={0} {...register("quantidade_ambientes")} className="mt-1" />
+          </div>
+          <div>
+            <Label htmlFor="descricao_ambientes">Descrição dos Ambientes</Label>
+            <Textarea
+              id="descricao_ambientes"
+              {...register("descricao_ambientes")}
+              placeholder="Ex: Cozinha planejada, quarto casal, closet..."
+              rows={4}
+              className="mt-1"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3 pt-4">
+        <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground">
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
+    </form>
+  );
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-[420px] sm:w-[480px] overflow-y-auto">
+      <SheetContent className="w-[420px] sm:w-[560px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="text-foreground">
             {client ? "Editar Cliente" : "Novo Cliente"}
           </SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Informações Básicas
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="nome">Nome *</Label>
-                <Input id="nome" {...register("nome")} className="mt-1" />
-                {errors.nome && <p className="text-xs text-destructive mt-1">{errors.nome.message}</p>}
-              </div>
-              <div>
-                <Label htmlFor="cpf">{isDocCnpj ? "CNPJ" : "CPF"}</Label>
-                <Input
-                  id="cpf"
-                  value={cpfValue}
-                  onChange={handleCpfChange}
-                  placeholder={isDocCnpj ? "00.000.000/0000-00" : "000.000.000-00"}
-                  className="mt-1"
-                />
-                {cpfError && <p className="text-xs text-destructive mt-1">{cpfError}</p>}
-              </div>
-              <div>
-                <Label htmlFor="vendedor">Projetista Responsável</Label>
-                <Select value={watch("vendedor") || ""} onValueChange={(v) => setValue("vendedor", v)}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    {projetistas.map((u) => (
-                      <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
-                        {u.apelido || u.nome_completo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Indicador do Cliente</Label>
-                <Select value={watch("indicador_id") || ""} onValueChange={(v) => setValue("indicador_id", v === "_none" ? "" : v)}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Nenhum</SelectItem>
-                    {activeIndicadores.map((ind) => (
-                      <SelectItem key={ind.id} value={ind.id}>
-                        {ind.nome} ({ind.comissao_percentual}%)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
+        {client ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6 space-y-4">
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="dados">Dados</TabsTrigger>
+              <TabsTrigger value="contratos">Contratos</TabsTrigger>
+            </TabsList>
 
-          <Separator />
+            <TabsContent value="dados" className="mt-0">
+              {formContent}
+            </TabsContent>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Contato
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="telefone1">Telefone 1</Label>
-                <Input
-                  id="telefone1"
-                  value={watch("telefone1") || ""}
-                  onChange={handlePhoneChange("telefone1")}
-                  placeholder="(00) 00000-0000"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="telefone2">Telefone 2</Label>
-                <Input
-                  id="telefone2"
-                  value={watch("telefone2") || ""}
-                  onChange={handlePhoneChange("telefone2")}
-                  placeholder="(00) 00000-0000"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" {...register("email")} className="mt-1" />
-                {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
-              </div>
-            </div>
-          </div>
+            <TabsContent value="contratos" className="mt-0 space-y-3">
+              {loadingContracts ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Carregando contratos...</p>
+              ) : contracts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum contrato gerado para este cliente</p>
+              ) : (
+                contracts.map((contract) => (
+                  <div
+                    key={contract.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-secondary/30 transition-colors"
+                  >
+                    <FileText className="h-4 w-4 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {format(new Date(contract.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {contract.simulation_id ? "Vinculado à simulação" : "Contrato avulso"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setViewingContract(contract)}
+                        title="Visualizar"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setEditingContract(contract)}
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-primary"
+                        onClick={() => handlePrintContract(contract.conteudo_html)}
+                        title="Imprimir"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          formContent
+        )}
 
-          <Separator />
+        {viewingContract && (
+          <ContractEditorDialog
+            open={!!viewingContract}
+            onClose={() => setViewingContract(null)}
+            initialHtml={viewingContract.conteudo_html}
+            clientName={client?.nome || "Cliente"}
+            onConfirm={(html) => {
+              handlePrintContract(html);
+              setViewingContract(null);
+            }}
+          />
+        )}
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Projeto
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="quantidade_ambientes">Quantidade de Ambientes</Label>
-                <Input id="quantidade_ambientes" type="number" min={0} {...register("quantidade_ambientes")} className="mt-1" />
-              </div>
-              <div>
-                <Label htmlFor="descricao_ambientes">Descrição dos Ambientes</Label>
-                <Textarea
-                  id="descricao_ambientes"
-                  {...register("descricao_ambientes")}
-                  placeholder="Ex: Cozinha planejada, quarto casal, closet..."
-                  rows={4}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground">
-              {saving ? "Salvando..." : "Salvar"}
-            </Button>
-          </div>
-        </form>
+        {editingContract && (
+          <ContractEditorDialog
+            open={!!editingContract}
+            onClose={() => setEditingContract(null)}
+            initialHtml={editingContract.conteudo_html}
+            clientName={client?.nome || "Cliente"}
+            onConfirm={handleSaveContractEdit}
+            saving={savingContract}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
