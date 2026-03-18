@@ -300,6 +300,7 @@ export function ContratosTab() {
             {/* Editor / Preview */}
             {viewMode === "editor" ? (
               <div
+                key={editorKey}
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
