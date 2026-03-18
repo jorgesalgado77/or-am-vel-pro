@@ -44,7 +44,7 @@ export function LandingHeader({ primaryColor }: LandingHeaderProps) {
               Planos
             </button>
             <Button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/app")}
               style={{ backgroundColor: primaryColor }}
               className="text-white hover:opacity-90 transition-opacity"
             >
@@ -65,7 +65,7 @@ export function LandingHeader({ primaryColor }: LandingHeaderProps) {
           <button onClick={() => scrollTo("hero")} className="block w-full text-left text-sm font-medium text-gray-600 py-2">Início</button>
           <button onClick={() => scrollTo("benefits")} className="block w-full text-left text-sm font-medium text-gray-600 py-2">Benefícios</button>
           <button onClick={() => scrollTo("plans")} className="block w-full text-left text-sm font-medium text-gray-600 py-2">Planos</button>
-          <Button onClick={() => navigate("/")} style={{ backgroundColor: primaryColor }} className="w-full text-white">
+          <Button onClick={() => navigate("/app")} style={{ backgroundColor: primaryColor }} className="w-full text-white">
             Entrar
           </Button>
         </div>

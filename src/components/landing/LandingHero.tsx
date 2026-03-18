@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, CheckCircle2 } from "lucide-react";
+import heroImg from "@/assets/hero-furniture.jpg";
 
 interface LandingHeroProps {
   title: string;
@@ -15,11 +16,13 @@ export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor,
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const displayImage = imageUrl || heroImg;
+
   return (
     <section id="hero" className="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden">
       {/* Background gradient */}
       <div
-        className="absolute inset-0 opacity-5"
+        className="absolute inset-0 opacity-[0.03]"
         style={{
           background: `radial-gradient(ellipse at 30% 20%, ${primaryColor}, transparent 70%), radial-gradient(ellipse at 70% 80%, ${secondaryColor}, transparent 70%)`,
         }}
@@ -28,8 +31,14 @@ export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor,
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-8">
-            <div className="space-y-4">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight">
+            {/* Trust badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-200">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700">+500 lojas já confiam no OrçaMóvel PRO</span>
+            </div>
+
+            <div className="space-y-5">
+              <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold text-gray-900 leading-[1.1] tracking-tight">
                 {title}
               </h1>
               <p className="text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl">
@@ -59,7 +68,7 @@ export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor,
               </Button>
             </div>
 
-            <div className="flex items-center gap-6 text-sm text-gray-500">
+            <div className="flex flex-wrap items-center gap-6 text-sm text-gray-500">
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-green-500" />
                 Sem cartão de crédito
@@ -68,40 +77,31 @@ export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor,
                 <div className="h-2 w-2 rounded-full bg-green-500" />
                 Cancele quando quiser
               </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                Suporte humanizado
+              </div>
             </div>
           </div>
 
           <div className="relative">
             {videoUrl ? (
               <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
-                <video src={videoUrl} controls className="w-full" poster={imageUrl || undefined} />
-              </div>
-            ) : imageUrl ? (
-              <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
-                <img src={imageUrl} alt="OrçaMóvel PRO" className="w-full h-auto" />
+                <video src={videoUrl} controls className="w-full" poster={displayImage} />
               </div>
             ) : (
-              <div
-                className="rounded-2xl p-8 shadow-2xl border border-gray-200"
-                style={{ background: `linear-gradient(135deg, ${primaryColor}08, ${secondaryColor}15)` }}
-              >
-                <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 rounded-full bg-red-400" />
-                    <div className="h-3 w-3 rounded-full bg-yellow-400" />
-                    <div className="h-3 w-3 rounded-full bg-green-400" />
-                    <div className="flex-1 h-6 bg-gray-100 rounded ml-2" />
-                  </div>
-                  <div className="grid grid-cols-4 gap-3">
-                    {[1, 2, 3, 4].map(i => (
-                      <div key={i} className="h-20 rounded-lg" style={{ backgroundColor: i === 1 ? `${primaryColor}15` : "#f3f4f6" }} />
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-gray-100 rounded w-3/4" />
-                    <div className="h-4 bg-gray-100 rounded w-1/2" />
-                    <div className="h-32 rounded-lg" style={{ backgroundColor: `${secondaryColor}10` }} />
-                  </div>
+              <div className="relative">
+                <div className="rounded-2xl overflow-hidden shadow-2xl">
+                  <img src={displayImage} alt="Móveis planejados de alta qualidade" className="w-full h-auto object-cover" />
+                </div>
+                {/* Floating stat card */}
+                <div className="absolute -bottom-4 -left-4 bg-white rounded-xl shadow-lg p-4 border border-gray-100">
+                  <p className="text-2xl font-bold" style={{ color: primaryColor }}>98%</p>
+                  <p className="text-xs text-gray-500">de satisfação</p>
+                </div>
+                <div className="absolute -top-4 -right-4 bg-white rounded-xl shadow-lg p-4 border border-gray-100">
+                  <p className="text-2xl font-bold text-green-600">3x</p>
+                  <p className="text-xs text-gray-500">mais vendas</p>
                 </div>
               </div>
             )}
