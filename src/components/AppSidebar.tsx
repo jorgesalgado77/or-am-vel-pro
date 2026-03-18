@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { OnlineUser } from "@/hooks/useOnlinePresence";
@@ -28,14 +29,14 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
   const isAdmin = currentUser?.cargo_nome?.toUpperCase().includes("ADMINISTRADOR") || currentUser?.cargo_nome?.toUpperCase().includes("ADMIN");
 
   const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true },
-    { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true },
-    { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true },
-    { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "configuracoes" as const, show: isAdmin },
-    { id: "settings", label: "Configurações", icon: Settings, perm: "configuracoes" as const, show: true },
-    { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "configuracoes" as const, show: isAdmin },
-    { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "simulador" as const, show: true },
-    { id: "dealroom", label: "Deal Room", icon: Video, perm: "simulador" as const, show: true },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
+    { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true, badge: null },
+    { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
+    { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "configuracoes" as const, show: isAdmin, badge: null },
+    { id: "settings", label: "Configurações", icon: Settings, perm: "configuracoes" as const, show: true, badge: null },
+    { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "configuracoes" as const, show: isAdmin, badge: null },
+    { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "simulador" as const, show: true, badge: "ADD-ON" },
+    { id: "dealroom", label: "Deal Room", icon: Video, perm: "simulador" as const, show: true, badge: "PREMIUM" },
   ];
 
   return (
@@ -67,7 +68,12 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               )}
             >
               <item.icon className="h-4 w-4" />
-              {item.label}
+              <span className="truncate">{item.label}</span>
+              {item.badge && (
+                <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 h-4 font-bold bg-primary/10 text-primary border-primary/20">
+                  {item.badge}
+                </Badge>
+              )}
             </button>
           ))}
         {/* Mensagens button */}
