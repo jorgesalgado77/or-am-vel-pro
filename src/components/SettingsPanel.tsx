@@ -18,7 +18,8 @@ import { UsuariosTab } from "@/components/settings/UsuariosTab";
 import { DescontosTab } from "@/components/settings/DescontosTab";
 import { IndicadoresTab } from "@/components/settings/IndicadoresTab";
 import { ContratosTab } from "@/components/settings/ContratosTab";
-import { UserCheck, FileSignature } from "lucide-react";
+import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
+import { UserCheck, FileSignature, MessageSquare } from "lucide-react";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
@@ -34,6 +35,7 @@ export function SettingsPanel() {
           <TabsTrigger value="boleto" className="gap-2"><FileText className="h-4 w-4" />Financeiras (Boleto)</TabsTrigger>
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
           <TabsTrigger value="contratos" className="gap-2"><FileSignature className="h-4 w-4" />Contratos</TabsTrigger>
+          <TabsTrigger value="whatsapp" className="gap-2"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanySettingsTab /></TabsContent>
         <TabsContent value="cargos"><CargosTab /></TabsContent>
@@ -43,6 +45,7 @@ export function SettingsPanel() {
         <TabsContent value="boleto"><BoletoRatesTab /></TabsContent>
         <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
         <TabsContent value="contratos"><ContratosTab /></TabsContent>
+        <TabsContent value="whatsapp"><WhatsAppTab /></TabsContent>
       </Tabs>
     </div>
   );
