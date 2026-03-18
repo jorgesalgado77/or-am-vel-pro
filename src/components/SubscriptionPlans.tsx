@@ -305,7 +305,7 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
                   <Button
                     className={cn("w-full", p.destaque && "bg-primary hover:bg-primary/90")}
                     variant={p.destaque ? "default" : "outline"}
-                    onClick={() => handleSelectPlan(p.id)}
+                    onClick={() => handleRequestPlan(p.id)}
                     disabled={loading === p.id}
                   >
                     {loading === p.id ? "Processando..." : `Assinar ${p.nome}`}
