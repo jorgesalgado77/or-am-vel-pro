@@ -543,11 +543,35 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [closeSaleItems, setCloseSaleItems] = useState<any[]>([]);
   const [closeSaleItemDetails, setCloseSaleItemDetails] = useState<any[]>([]);
 
-  const handleCloseSale = () => {
+  const handleCloseSale = async () => {
     if (!client) {
       toast.error("Selecione um cliente para fechar a venda");
       return;
     }
+
+    // Deal Room access validation via backend
+    try {
+      const { data: csettings } = await supabase.from("company_settings").select("tenant_id").limit(1).single();
+      const tenantId = (csettings as any)?.tenant_id;
+      if (tenantId) {
+        const accessResult = await validateAccess(tenantId, currentUser?.id);
+        if (!accessResult.allowed) {
+          // Show upgrade suggestion for basic plan
+          if (accessResult.reason?.includes("Básico")) {
+            toast.error(accessResult.reason, { duration: 6000 });
+          } else {
+            toast.error(accessResult.reason || "Acesso não permitido à Deal Room");
+          }
+          return;
+        }
+        if (accessResult.plano === "basico" && accessResult.usage !== undefined && accessResult.limit !== undefined) {
+          toast.info(`Uso diário: ${accessResult.usage}/${accessResult.limit} negociação(ões) no plano Básico`, { duration: 4000 });
+        }
+      }
+    } catch (err) {
+      console.error("Deal Room validation error:", err);
+    }
+
     setCloseSaleModalOpen(true);
   };
 
