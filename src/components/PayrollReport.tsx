@@ -23,11 +23,16 @@ function formatCurrency(value: number): string {
 
 interface PayrollCommission {
   id: string;
-  usuario_id: string;
+  usuario_id: string | null;
+  indicador_id: string | null;
   mes_referencia: string;
   valor_comissao: number;
+  valor_base: number;
   status: string;
   observacao: string | null;
+  cargo_referencia: string | null;
+  contrato_numero: string | null;
+  client_name: string | null;
   created_at: string;
 }
 
