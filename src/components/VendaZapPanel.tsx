@@ -14,6 +14,7 @@ import {
   Flame, Snowflake, ExternalLink, BookOpen,
 } from "lucide-react";
 import { useVendaZap } from "@/hooks/useVendaZap";
+import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
