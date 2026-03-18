@@ -13,9 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
+import { AdminVendaZap } from "@/components/admin/AdminVendaZap";
 import { AdminLandingPage } from "@/components/admin/AdminLandingPage";
 import { AdminDealRoom } from "@/components/admin/AdminDealRoom";
 import { format, isAfter, isBefore, addDays } from "date-fns";
@@ -102,6 +103,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [pAtivo, setPAtivo] = useState(false);
   const [tOcultarIndicador, setTOcultarIndicador] = useState(false);
   const [tDealRoom, setTDealRoom] = useState(false);
+  const [tVendaZap, setTVendaZap] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -134,6 +136,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTPlano("trial"); setTPeriodo("mensal"); setTAtivo(true);
     setTOcultarIndicador(false);
     setTDealRoom(false);
+    setTVendaZap(false);
     setShowTenantDialog(true);
   };
 
@@ -145,6 +148,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const vip = (t as any).recursos_vip || {};
     setTOcultarIndicador(vip.ocultar_indicador || false);
     setTDealRoom(vip.deal_room || false);
+    setTVendaZap(vip.vendazap || false);
     setShowTenantDialog(true);
   };
 
@@ -160,7 +164,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       plano_periodo: tPeriodo,
       max_usuarios: maxUsers,
       ativo: tAtivo,
-      recursos_vip: { ocultar_indicador: tOcultarIndicador, deal_room: tDealRoom },
+      recursos_vip: { ocultar_indicador: tOcultarIndicador, deal_room: tDealRoom, vendazap: tVendaZap },
     };
 
     if (editingTenant) {
@@ -272,6 +276,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <TabsTrigger value="pagamentos" className="gap-2"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
             <TabsTrigger value="planos" className="gap-2"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
             <TabsTrigger value="landing" className="gap-2"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
+            <TabsTrigger value="vendazap" className="gap-2"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
           </TabsList>
 
           {/* TAB: Lojas */}
@@ -486,6 +491,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsContent value="landing">
             <AdminLandingPage />
           </TabsContent>
+
+          {/* TAB: VendaZap AI */}
+          <TabsContent value="vendazap">
+            <AdminVendaZap />
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -564,6 +574,16 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                   </div>
                 </div>
                 <Switch checked={tDealRoom} onCheckedChange={setTDealRoom} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">VendaZap AI</p>
+                    <p className="text-xs text-muted-foreground">Libera assistente de vendas IA para WhatsApp</p>
+                  </div>
+                </div>
+                <Switch checked={tVendaZap} onCheckedChange={setTVendaZap} />
               </div>
             </div>
           </div>
