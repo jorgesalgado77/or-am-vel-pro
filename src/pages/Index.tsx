@@ -121,7 +121,10 @@ export default function Index() {
   const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); };
 
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
-  const currentTitle = viewMeta.title;
+  const storeName = settings.company_name || "OrçaMóvel PRO";
+  const currentTitle = activeView === "dashboard"
+    ? `${storeName} - Dashboard`
+    : viewMeta.title;
   const currentSubtitle = activeView === "clients"
     ? `${clients.length} clientes cadastrados`
     : viewMeta.subtitle;
