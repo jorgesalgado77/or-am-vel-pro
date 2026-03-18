@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Trash2, Save, Handshake } from "lucide-react";
 import { maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { formatCurrency } from "@/lib/financing";
+import { FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
