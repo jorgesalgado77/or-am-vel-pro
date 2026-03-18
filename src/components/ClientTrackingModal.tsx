@@ -78,6 +78,7 @@ export function ClientTrackingModal({ open, onClose }: Props) {
           const msg = payload.new as any;
           if (msg.tracking_id === tracking.id && msg.remetente_tipo === "loja") {
             setMessages((prev) => [...prev, msg]);
+            playNotificationSound();
             toast.info("Nova resposta da loja!");
           }
         }
