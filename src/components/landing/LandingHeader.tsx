@@ -43,6 +43,9 @@ export function LandingHeader({ primaryColor }: LandingHeaderProps) {
             <button onClick={() => scrollTo("plans")} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
               Planos
             </button>
+            <button onClick={() => scrollTo("addons")} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+              Add-ons
+            </button>
             <Button
               onClick={() => navigate("/app")}
               style={{ backgroundColor: primaryColor }}
