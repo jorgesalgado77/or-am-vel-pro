@@ -341,6 +341,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </Card>
           </TabsContent>
 
+          {/* TAB: Suporte */}
+          <TabsContent value="suporte">
+            <AdminTickets adminName={adminName} />
+          </TabsContent>
+
           {/* TAB: Pagamentos */}
           <TabsContent value="pagamentos" className="space-y-4">
             <div className="flex items-center justify-between">
