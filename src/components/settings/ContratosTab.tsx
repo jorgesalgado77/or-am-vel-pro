@@ -152,6 +152,7 @@ export function ContratosTab() {
         const { data: { publicUrl } } = supabase.storage.from("company-assets").getPublicUrl(path);
 
         setHtmlContent(`<p><em>PDF importado: ${file.name}</em></p><p>O conteúdo do PDF foi armazenado. Você pode editar o texto do contrato abaixo ou substituir pelo conteúdo desejado.</p><hr/><p>Arquivo original: <a href="${publicUrl}" target="_blank">${file.name}</a></p>`);
+        setEditorKey(k => k + 1);
         if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.pdf$/i, ""));
         toast.success("PDF importado! Edite o conteúdo do contrato manualmente.");
       } else {
