@@ -7,6 +7,7 @@ import { LogIn, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { maskCodigoLoja } from "@/lib/masks";
 
 interface LoginProps {
   onLogin: (userId: string, primeiroLogin: boolean) => void;
@@ -86,7 +87,7 @@ export default function Login({ onLogin }: LoginProps) {
             <img
               src={settings.logo_url}
               alt="Logo"
-              className="h-16 w-auto object-contain mx-auto"
+              className="h-20 w-auto object-contain mx-auto mb-2"
             />
           )}
           <div>
@@ -103,8 +104,9 @@ export default function Login({ onLogin }: LoginProps) {
               <Input
                 id="codigoLoja"
                 value={codigoLoja}
-                onChange={(e) => setCodigoLoja(e.target.value)}
-                placeholder="Ex: 001"
+                onChange={(e) => setCodigoLoja(maskCodigoLoja(e.target.value))}
+                placeholder="000.000"
+                maxLength={7}
                 className="mt-1"
               />
             </div>
