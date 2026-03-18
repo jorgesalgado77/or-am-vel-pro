@@ -686,19 +686,35 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             </div>
 
             <div>
-              <Label>Indicador do Cliente</Label>
-              <Select value={selectedIndicadorId || "_none"} onValueChange={(v) => setSelectedIndicadorId(v === "_none" ? "" : v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">Nenhum (0%)</SelectItem>
-                  {activeIndicadores.map((ind) => (
-                    <SelectItem key={ind.id} value={ind.id}>
-                      {ind.nome} ({ind.comissao_percentual}%)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {comissaoPercentual > 0 && (
+              <div className="flex items-center justify-between">
+                <Label>Indicador do Cliente</Label>
+                {selectedIndicadorId && comissaoPercentual > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs gap-1 text-muted-foreground"
+                    onClick={() => setHideIndicador(!hideIndicador)}
+                    title={hideIndicador ? "Mostrar indicador" : "Ocultar indicador da tela"}
+                  >
+                    {hideIndicador ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                    {hideIndicador ? "Mostrar" : "Ocultar"}
+                  </Button>
+                )}
+              </div>
+              {!hideIndicador && (
+                <Select value={selectedIndicadorId || "_none"} onValueChange={(v) => setSelectedIndicadorId(v === "_none" ? "" : v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Nenhum (0%)</SelectItem>
+                    {activeIndicadores.map((ind) => (
+                      <SelectItem key={ind.id} value={ind.id}>
+                        {ind.nome} ({ind.comissao_percentual}%)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {!hideIndicador && comissaoPercentual > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Acréscimo de {comissaoPercentual}%: {formatCurrency(valorTela)} → {formatCurrency(valorTelaComComissao)}
                 </p>
