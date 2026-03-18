@@ -402,7 +402,8 @@ export function ClientsKanban({
                                     )}
                                   </div>
                                 </div>
-                                )}
+                                );
+                              }}
                             </Draggable>
                           );
                         })}
