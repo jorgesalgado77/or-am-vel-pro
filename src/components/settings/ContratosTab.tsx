@@ -49,6 +49,7 @@ export function ContratosTab() {
   const [viewMode, setViewMode] = useState<"editor" | "preview">("editor");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const fetchTemplates = async () => {
@@ -67,6 +68,7 @@ export function ContratosTab() {
     setNome("Novo Contrato");
     setHtmlContent(DEFAULT_CONTRACT_HTML);
     setViewMode("editor");
+    setEditorKey(k => k + 1);
   };
 
   const handleEdit = (t: ContractTemplate) => {
@@ -74,6 +76,7 @@ export function ContratosTab() {
     setNome(t.nome);
     setHtmlContent(t.conteudo_html);
     setViewMode("editor");
+    setEditorKey(k => k + 1);
   };
 
   const handleSave = async () => {
@@ -129,6 +132,7 @@ export function ContratosTab() {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.convertToHtml({ arrayBuffer });
         setHtmlContent(result.value);
+        setEditorKey(k => k + 1);
         if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.docx$/i, ""));
         toast.success("Documento Word importado!");
       } else if (ext === "xlsx" || ext === "xls") {
@@ -137,6 +141,7 @@ export function ContratosTab() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const html = XLSX.utils.sheet_to_html(sheet);
         setHtmlContent(html);
+        setEditorKey(k => k + 1);
         if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.(xlsx?|csv)$/i, ""));
         toast.success("Planilha Excel importada!");
       } else if (ext === "pdf") {
@@ -147,6 +152,7 @@ export function ContratosTab() {
         const { data: { publicUrl } } = supabase.storage.from("company-assets").getPublicUrl(path);
 
         setHtmlContent(`<p><em>PDF importado: ${file.name}</em></p><p>O conteúdo do PDF foi armazenado. Você pode editar o texto do contrato abaixo ou substituir pelo conteúdo desejado.</p><hr/><p>Arquivo original: <a href="${publicUrl}" target="_blank">${file.name}</a></p>`);
+        setEditorKey(k => k + 1);
         if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.pdf$/i, ""));
         toast.success("PDF importado! Edite o conteúdo do contrato manualmente.");
       } else {
@@ -294,6 +300,7 @@ export function ContratosTab() {
             {/* Editor / Preview */}
             {viewMode === "editor" ? (
               <div
+                key={editorKey}
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
