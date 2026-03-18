@@ -337,13 +337,15 @@ export function ClientsKanban({
                           const expired = sim ? isExpired(sim.created_at) : false;
                           return (
                             <Draggable key={client.id} draggableId={client.id} index={index}>
-                              {(provided, snapshot) => (
+                              {(provided, snapshot) => {
+                                const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
+                                return (
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   className={cn(
                                     "rounded-lg border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer group border-l-[3px]",
-                                    snapshot.isDragging && "shadow-lg ring-2 ring-primary/30 rotate-1",
+                                    snapshot.isDragging && "shadow-[0_0_20px_hsl(var(--primary)/0.3)] ring-2 ring-primary/40 rotate-1 scale-105",
                                     expired && "border-destructive/30"
                                   )}
                                   style={{
