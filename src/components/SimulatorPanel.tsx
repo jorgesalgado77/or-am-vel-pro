@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake, Trash2 } from "lucide-react";
+import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake, Trash2, RotateCcw } from "lucide-react";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData } from "@/lib/financing";
 import { format } from "date-fns";
@@ -97,7 +97,7 @@ function loadStoredState(): Partial<SimulatorStoredState> {
 export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPanelProps) {
   const stored = useMemo(() => loadStoredState(), []);
 
-  const [valorTela, setValorTela] = useState(stored.valorTela ?? 10000);
+  const [valorTela, setValorTela] = useState(stored.valorTela ?? 0);
   const [desconto1, setDesconto1] = useState(stored.desconto1 ?? 0);
   const [desconto2, setDesconto2] = useState(stored.desconto2 ?? 0);
   const [desconto3, setDesconto3] = useState(stored.desconto3 ?? 0);
@@ -922,6 +922,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 >
                   <Handshake className="h-4 w-4" />
                   {closingSale ? "Gerando contrato..." : "Fechar Venda"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-muted-foreground"
+                  onClick={() => {
+                    setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
+                    setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
+                    setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
+                    setDesconto3Unlocked(false); setPlusUnlocked(false);
+                    setEnvironments([]); setImportedFile(null);
+                    sessionStorage.removeItem(SIM_STORAGE_KEY);
+                    toast.success("Simulação limpa");
+                  }}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Limpar Simulação
                 </Button>
                 {!client && (
                   <p className="text-xs text-muted-foreground text-center">
