@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, CheckCircle2 } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
-import heroImg from "@/assets/hero-furniture.jpg";
+import heroImg from "@/assets/carousel-1.jpg";
 
 interface LandingHeroProps {
   title: string;
@@ -93,16 +93,16 @@ export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor,
                 </div>
               ) : (
                 <div className="relative">
-                  <div className="rounded-2xl overflow-hidden shadow-2xl">
-                    <img src={displayImage} alt="Móveis planejados de alta qualidade" className="w-full h-auto object-cover" />
+                  <div className="rounded-2xl overflow-hidden shadow-2xl border border-border bg-card">
+                    <img src={displayImage} alt="Tela real do OrçaMóvel PRO" className="w-full h-auto object-cover" loading="eager" />
                   </div>
-                  <div className="absolute -bottom-4 -left-4 bg-white rounded-xl shadow-lg p-4 border border-gray-100">
-                    <p className="text-2xl font-bold" style={{ color: primaryColor }}>98%</p>
-                    <p className="text-xs text-gray-500">de satisfação</p>
+                  <div className="absolute -bottom-4 -left-4 bg-background rounded-xl shadow-lg p-4 border border-border">
+                    <p className="text-2xl font-bold text-primary">Kanban</p>
+                    <p className="text-xs text-muted-foreground">versão real do sistema</p>
                   </div>
-                  <div className="absolute -top-4 -right-4 bg-white rounded-xl shadow-lg p-4 border border-gray-100">
-                    <p className="text-2xl font-bold text-green-600">3x</p>
-                    <p className="text-xs text-gray-500">mais vendas</p>
+                  <div className="absolute -top-4 -right-4 bg-background rounded-xl shadow-lg p-4 border border-border">
+                    <p className="text-2xl font-bold text-primary">100%</p>
+                    <p className="text-xs text-muted-foreground">telas reais</p>
                   </div>
                 </div>
               )}

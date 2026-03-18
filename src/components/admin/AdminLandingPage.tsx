@@ -341,7 +341,7 @@ export function AdminLandingPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {config.carousel_images.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma imagem adicionada. O carrossel ficará oculto.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Sem URLs extras cadastradas. O carrossel usará automaticamente as screenshots reais locais do sistema.</p>
               )}
               {config.carousel_images.map((url, i) => (
                 <div key={i} className="flex gap-2 items-center">
