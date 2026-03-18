@@ -49,8 +49,10 @@ export function AdminDealRoom() {
   const [usageData, setUsageData] = useState<{ tenant_id: string; nome_loja: string; plano: string; daily: number; total_reunioes: number; vendas: number; valor: number; receita_plataforma: number }[]>([]);
 
   const fetchAll = async () => {
-    // Fetch tenants
-    const { data: tData } = await supabase.from("tenants").select("id, nome_loja, plano, ativo").eq("ativo", true);
+    // Fetch tenants (with optional plan filter)
+    const tenantQuery = supabase.from("tenants").select("id, nome_loja, plano, ativo").eq("ativo", true);
+    if (filterPlan !== "all") tenantQuery.eq("plano", filterPlan);
+    const { data: tData } = await tenantQuery;
     if (tData) setTenants(tData as any);
 
     // Fetch metrics
