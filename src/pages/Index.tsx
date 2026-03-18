@@ -203,6 +203,13 @@ export default function Index() {
               <MessagesPanel />
             )}
 
+            {activeView === "vendazap" && (
+              <VendaZapPanel
+                tenantId={(settings as any)?.tenant_id || null}
+                onBack={() => setActiveView("clients")}
+              />
+            )}
+
             <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
           </main>
 

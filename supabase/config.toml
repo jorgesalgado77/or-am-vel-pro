@@ -2,3 +2,6 @@ project_id = "rgvofhhcrwzpcuamhyzl"
 
 [functions.contract-ocr]
 verify_jwt = false
+
+[functions.vendazap-ai]
+verify_jwt = false
