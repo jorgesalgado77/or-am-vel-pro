@@ -191,6 +191,7 @@ export type Database = {
           logo_url: string | null
           manager_password: string | null
           orcamento_numero_inicial: number
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -204,6 +205,7 @@ export type Database = {
           logo_url?: string | null
           manager_password?: string | null
           orcamento_numero_inicial?: number
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -217,9 +219,18 @@ export type Database = {
           logo_url?: string | null
           manager_password?: string | null
           orcamento_numero_inicial?: number
+          tenant_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contract_templates: {
         Row: {
@@ -677,6 +688,7 @@ export type Database = {
     }
     Functions: {
       get_next_orcamento_number: { Args: never; Returns: string }
+      hash_password: { Args: { plain_text: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
