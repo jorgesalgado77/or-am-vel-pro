@@ -215,9 +215,27 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             // Try environment name
             const matchEnv = content.match(/Ambiente\s*[=:]\s*(.+)/i);
             if (matchEnv) envName = matchEnv[1].trim();
-            // Try piece count
+            // Count lines with data (items/pieces) - each non-header, non-total line with numbers in first column
+            const lines = content.split(/\r?\n/).filter(l => l.trim());
+            let itemCount = 0;
+            for (const line of lines) {
+              // Skip header/total/empty lines, count lines starting with a number (quantity column)
+              const trimmed = line.trim();
+              if (/^Total\s*=/i.test(trimmed)) continue;
+              if (/^Ambiente\s*[=:]/i.test(trimmed)) continue;
+              if (/^Pecas\s*[=:]/i.test(trimmed) || /^Peças\s*[=:]/i.test(trimmed) || /^Quantidade\s*[=:]/i.test(trimmed)) continue;
+              // If line starts with a digit or has tab/semicolon separated values starting with digit
+              const firstCol = trimmed.split(/[\t;|,]/)[0]?.trim();
+              if (firstCol && /^\d+$/.test(firstCol)) {
+                itemCount += parseInt(firstCol);
+              } else if (/^\d/.test(trimmed)) {
+                itemCount++;
+              }
+            }
+            // Also try explicit piece count pattern
             const matchPieces = content.match(/(?:Pecas|Peças|Quantidade)\s*[=:]\s*(\d+)/i);
-            if (matchPieces) pieces = parseInt(matchPieces[1]);
+            if (matchPieces) itemCount = parseInt(matchPieces[1]);
+            pieces = itemCount;
           }
 
           if (total && !isNaN(total)) {
@@ -509,7 +527,19 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             <div>
               <Label>Valor de Tela</Label>
               <div className="flex gap-2 mt-1">
-                <Input type="number" value={valorTela} onChange={(e) => setValorTela(Number(e.target.value))} min={0} step={100} className="flex-1" />
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={valorTela ? valorTela.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "");
+                      setValorTela(parseInt(raw || "0") / 100);
+                    }}
+                    className="pl-10"
+                  />
+                </div>
                 <Button
                   variant="outline"
                   size="icon"
@@ -717,7 +747,19 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
             <div>
               <Label>Valor de Entrada</Label>
-              <Input type="number" value={valorEntrada} onChange={(e) => setValorEntrada(Number(e.target.value))} min={0} step={100} className="mt-1" />
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={valorEntrada ? valorEntrada.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "");
+                    setValorEntrada(parseInt(raw || "0") / 100);
+                  }}
+                  className="pl-10"
+                />
+              </div>
             </div>
 
             {showPlus && (
