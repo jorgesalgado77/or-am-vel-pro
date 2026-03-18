@@ -6,6 +6,7 @@ import { SimulatorPanel } from "@/components/SimulatorPanel";
 import { SimulationHistory } from "@/components/SimulationHistory";
 import { ClientContracts } from "@/components/ClientContracts";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { PayrollReport } from "@/components/PayrollReport";
 import { Dashboard } from "@/components/Dashboard";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { SupportDialog } from "@/components/SupportDialog";
