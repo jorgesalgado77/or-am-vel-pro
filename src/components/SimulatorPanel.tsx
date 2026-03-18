@@ -215,26 +215,41 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             // Try environment name
             const matchEnv = content.match(/Ambiente\s*[=:]\s*(.+)/i);
             if (matchEnv) envName = matchEnv[1].trim();
-            // Count lines with data (items/pieces) - each non-header, non-total line with numbers in first column
+            // Count pieces from TXT - sum first column values or count data lines
             const lines = content.split(/\r?\n/).filter(l => l.trim());
             let itemCount = 0;
-            for (const line of lines) {
-              // Skip header/total/empty lines, count lines starting with a number (quantity column)
-              const trimmed = line.trim();
-              if (/^Total\s*=/i.test(trimmed)) continue;
-              if (/^Ambiente\s*[=:]/i.test(trimmed)) continue;
-              if (/^Pecas\s*[=:]/i.test(trimmed) || /^Peças\s*[=:]/i.test(trimmed) || /^Quantidade\s*[=:]/i.test(trimmed)) continue;
-              // If line starts with a digit or has tab/semicolon separated values starting with digit
-              const firstCol = trimmed.split(/[\t;|,]/)[0]?.trim();
-              if (firstCol && /^\d+$/.test(firstCol)) {
-                itemCount += parseInt(firstCol);
-              } else if (/^\d/.test(trimmed)) {
-                itemCount++;
+            let foundExplicit = false;
+
+            // First try explicit piece count pattern
+            const matchPieces = content.match(/(?:Pecas|Peças|Quantidade|Total\s*de\s*Pe[çc]as|Qtd)\s*[=:]\s*(\d+)/i);
+            if (matchPieces) {
+              itemCount = parseInt(matchPieces[1]);
+              foundExplicit = true;
+            }
+
+            if (!foundExplicit) {
+              for (const line of lines) {
+                const trimmed = line.trim();
+                // Skip known non-data lines
+                if (/^(Total|Ambiente|Pecas|Peças|Quantidade|Descri|Nome|---)/i.test(trimmed)) continue;
+                if (trimmed.length < 2) continue;
+                
+                // Try to get quantity from first column (tab/semicolon/pipe/space separated)
+                const cols = trimmed.split(/[\t;|]/);
+                if (cols.length >= 2) {
+                  const firstCol = cols[0].trim();
+                  const qty = parseInt(firstCol);
+                  if (!isNaN(qty) && qty > 0 && qty < 10000) {
+                    itemCount += qty;
+                    continue;
+                  }
+                }
+                // If line contains numeric data, count as 1 piece
+                if (/\d/.test(trimmed) && !/^[=\-#]/.test(trimmed)) {
+                  itemCount++;
+                }
               }
             }
-            // Also try explicit piece count pattern
-            const matchPieces = content.match(/(?:Pecas|Peças|Quantidade)\s*[=:]\s*(\d+)/i);
-            if (matchPieces) itemCount = parseInt(matchPieces[1]);
             pieces = itemCount;
           }
 
