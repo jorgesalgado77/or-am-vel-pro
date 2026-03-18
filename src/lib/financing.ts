@@ -9,6 +9,11 @@ export interface BoletoRateData {
   coeficiente_90: number;
 }
 
+export interface CreditRateData {
+  coefficient: number;
+  taxa_fixa: number;
+}
+
 export interface SimulationInput {
   valorTela: number;
   desconto1: number;
@@ -19,6 +24,7 @@ export interface SimulationInput {
   valorEntrada: number;
   plusPercentual: number;
   creditRates?: Record<number, number>;
+  creditRatesFull?: Record<number, CreditRateData>;
   boletoRates?: Record<number, number>;
   boletoRatesFull?: Record<number, BoletoRateData>;
   carenciaDias?: 30 | 60 | 90;
