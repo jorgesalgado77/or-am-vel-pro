@@ -389,6 +389,15 @@ export function ContratosTab() {
                 suppressContentEditableWarning
                 className="prose prose-sm min-h-[400px] max-w-none rounded-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                 dangerouslySetInnerHTML={{ __html: htmlContent }}
+                onKeyDown={(e) => {
+                  // Paste as plain text to protect structure
+                  if (e.key === "v" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    navigator.clipboard.readText().then((text) => {
+                      document.execCommand("insertText", false, text);
+                    });
+                  }
+                }}
               />
             ) : (
               <iframe
