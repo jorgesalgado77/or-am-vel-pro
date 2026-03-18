@@ -176,7 +176,8 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
     setDateStart(undefined);
     setDateEnd(undefined);
     setSearch("");
-  };
+
+  return (
     <div className="flex flex-col h-full">
       {/* Search bar + action buttons */}
       <div className="flex items-center justify-between gap-4 mb-3">
