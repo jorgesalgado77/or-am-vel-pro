@@ -88,6 +88,31 @@ export function MessagesPanel({ onUnreadChange }: MessagesPanelProps) {
 
   useEffect(() => { fetchTrackingsWithMessages(); }, []);
 
+  // Realtime: auto-refresh when new messages arrive
+  useEffect(() => {
+    const channel = supabase
+      .channel("messages-panel-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "tracking_messages" },
+        (payload) => {
+          const msg = payload.new as any;
+          if (msg.remetente_tipo === "cliente") {
+            // Refresh list
+            fetchTrackingsWithMessages();
+            // If conversation is open for this tracking, auto-load new message
+            if (selectedTracking && msg.tracking_id === selectedTracking.id) {
+              setMessages((prev) => [...prev, msg]);
+              // Mark as read immediately
+              supabase.from("tracking_messages").update({ lida: true } as any).eq("id", msg.id);
+            }
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedTracking]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
