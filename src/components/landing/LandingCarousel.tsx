@@ -2,18 +2,22 @@ import { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
 import { motion, AnimatePresence } from "framer-motion";
-import carousel1 from "@/assets/carousel-1.jpg";
-import carousel2 from "@/assets/carousel-2.jpg";
-import carousel3 from "@/assets/carousel-3.jpg";
+import screenshotDashboard from "@/assets/screenshot-dashboard.jpg";
+import screenshotClients from "@/assets/screenshot-clients.jpg";
+import screenshotSimulator from "@/assets/screenshot-simulator.jpg";
 
-const FALLBACK_IMAGES = [carousel1, carousel2, carousel3];
+const FALLBACK_IMAGES = [screenshotDashboard, screenshotClients, screenshotSimulator];
 
 interface LandingCarouselProps {
   images: string[];
   primaryColor: string;
 }
 
-const LABELS = ["Dashboard com KPIs e gráficos", "Gestão completa de clientes", "Simulador de financiamento"];
+const LABELS = [
+  "Painel de controle com KPIs e gráficos em tempo real",
+  "Kanban de clientes com arrastar e soltar",
+  "Simulador de financiamento com múltiplas bandeiras",
+];
 
 export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) {
   const displayImages = images.length > 0 ? images : FALLBACK_IMAGES;
