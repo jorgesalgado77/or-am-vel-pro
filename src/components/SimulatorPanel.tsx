@@ -215,9 +215,27 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             // Try environment name
             const matchEnv = content.match(/Ambiente\s*[=:]\s*(.+)/i);
             if (matchEnv) envName = matchEnv[1].trim();
-            // Try piece count
+            // Count lines with data (items/pieces) - each non-header, non-total line with numbers in first column
+            const lines = content.split(/\r?\n/).filter(l => l.trim());
+            let itemCount = 0;
+            for (const line of lines) {
+              // Skip header/total/empty lines, count lines starting with a number (quantity column)
+              const trimmed = line.trim();
+              if (/^Total\s*=/i.test(trimmed)) continue;
+              if (/^Ambiente\s*[=:]/i.test(trimmed)) continue;
+              if (/^Pecas\s*[=:]/i.test(trimmed) || /^Peças\s*[=:]/i.test(trimmed) || /^Quantidade\s*[=:]/i.test(trimmed)) continue;
+              // If line starts with a digit or has tab/semicolon separated values starting with digit
+              const firstCol = trimmed.split(/[\t;|,]/)[0]?.trim();
+              if (firstCol && /^\d+$/.test(firstCol)) {
+                itemCount += parseInt(firstCol);
+              } else if (/^\d/.test(trimmed)) {
+                itemCount++;
+              }
+            }
+            // Also try explicit piece count pattern
             const matchPieces = content.match(/(?:Pecas|Peças|Quantidade)\s*[=:]\s*(\d+)/i);
-            if (matchPieces) pieces = parseInt(matchPieces[1]);
+            if (matchPieces) itemCount = parseInt(matchPieces[1]);
+            pieces = itemCount;
           }
 
           if (total && !isNaN(total)) {
