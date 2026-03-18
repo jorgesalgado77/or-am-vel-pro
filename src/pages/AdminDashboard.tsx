@@ -524,6 +524,21 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               <Switch checked={tAtivo} onCheckedChange={setTAtivo} />
               <Label>Loja ativa</Label>
             </div>
+            <div className="border rounded-lg p-3 space-y-3">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Crown className="h-4 w-4 text-primary" /> Recursos VIP
+              </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Ocultar Indicador</p>
+                    <p className="text-xs text-muted-foreground">Permite ocultar informações do indicador no simulador</p>
+                  </div>
+                </div>
+                <Switch checked={tOcultarIndicador} onCheckedChange={setTOcultarIndicador} />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTenantDialog(false)}>Cancelar</Button>
