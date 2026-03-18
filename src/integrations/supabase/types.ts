@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_master: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          senha: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          nome?: string
+          senha: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          senha?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cargos: {
         Row: {
           created_at: string
@@ -326,6 +353,42 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_settings: {
+        Row: {
+          api_key_public: string | null
+          api_key_secret: string | null
+          ativo: boolean
+          configuracoes: Json | null
+          created_at: string
+          gateway_name: string
+          id: string
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          api_key_public?: string | null
+          api_key_secret?: string | null
+          ativo?: boolean
+          configuracoes?: Json | null
+          created_at?: string
+          gateway_name: string
+          id?: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          api_key_public?: string | null
+          api_key_secret?: string | null
+          ativo?: boolean
+          configuracoes?: Json | null
+          created_at?: string
+          gateway_name?: string
+          id?: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       simulations: {
         Row: {
           arquivo_nome: string | null
@@ -446,6 +509,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tenants: {
+        Row: {
+          assinatura_fim: string | null
+          assinatura_inicio: string | null
+          ativo: boolean
+          codigo_loja: string | null
+          created_at: string
+          email_contato: string | null
+          id: string
+          max_usuarios: number
+          nome_loja: string
+          plano: string
+          plano_periodo: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          telefone_contato: string | null
+          trial_fim: string
+          trial_inicio: string
+          updated_at: string
+        }
+        Insert: {
+          assinatura_fim?: string | null
+          assinatura_inicio?: string | null
+          ativo?: boolean
+          codigo_loja?: string | null
+          created_at?: string
+          email_contato?: string | null
+          id?: string
+          max_usuarios?: number
+          nome_loja: string
+          plano?: string
+          plano_periodo?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          telefone_contato?: string | null
+          trial_fim?: string
+          trial_inicio?: string
+          updated_at?: string
+        }
+        Update: {
+          assinatura_fim?: string | null
+          assinatura_inicio?: string | null
+          ativo?: boolean
+          codigo_loja?: string | null
+          created_at?: string
+          email_contato?: string | null
+          id?: string
+          max_usuarios?: number
+          nome_loja?: string
+          plano?: string
+          plano_periodo?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          telefone_contato?: string | null
+          trial_fim?: string
+          trial_inicio?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       usuarios: {
         Row: {
