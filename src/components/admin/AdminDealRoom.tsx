@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DollarSign, TrendingUp, Users, BarChart3, Trophy, Target,
-  RefreshCw, Store, Percent, Calendar, ArrowUpRight, ArrowDownRight,
+  RefreshCw, Store, Percent, Calendar, ArrowUpRight, ArrowDownRight, LineChart as LineChartIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useDealRoom, type DealRoomMetrics, type VendorRank, type DealRoomTransaction } from "@/hooks/useDealRoom";
+import {
+  ChartContainer, ChartTooltip, ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
+  BarChart, Bar, Legend, Tooltip,
+} from "recharts";
 
 function formatCurrency(val: number) {
   return `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -99,6 +106,67 @@ export function AdminDealRoom() {
     }
   };
 
+  // Build monthly chart data from transactions
+  const monthlyData = useMemo(() => {
+    if (!transactions.length) return [];
+    const map = new Map<string, { vendas: number; receita: number; taxas: number }>();
+    // Initialize last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const d = subMonths(new Date(), i);
+      const key = format(d, "yyyy-MM");
+      map.set(key, { vendas: 0, receita: 0, taxas: 0 });
+    }
+    transactions.forEach(tx => {
+      const key = tx.created_at.substring(0, 7); // yyyy-MM
+      const entry = map.get(key);
+      if (entry) {
+        entry.vendas += 1;
+        entry.receita += Number(tx.valor_venda);
+        entry.taxas += Number(tx.taxa_plataforma_valor);
+      }
+    });
+    return Array.from(map.entries()).map(([month, data]) => ({
+      month: format(parseISO(`${month}-01`), "MMM/yy", { locale: ptBR }),
+      ...data,
+    }));
+  }, [transactions]);
+
+  // Period comparison: current month vs previous month
+  const periodComparison = useMemo(() => {
+    if (!transactions.length) return [];
+    const now = new Date();
+    const curStart = startOfMonth(now);
+    const prevStart = startOfMonth(subMonths(now, 1));
+    const prevEnd = endOfMonth(subMonths(now, 1));
+
+    let curReceita = 0, curTaxas = 0, curVendas = 0;
+    let prevReceita = 0, prevTaxas = 0, prevVendas = 0;
+
+    transactions.forEach(tx => {
+      const d = new Date(tx.created_at);
+      if (d >= curStart) {
+        curReceita += Number(tx.valor_venda);
+        curTaxas += Number(tx.taxa_plataforma_valor);
+        curVendas += 1;
+      } else if (d >= prevStart && d <= prevEnd) {
+        prevReceita += Number(tx.valor_venda);
+        prevTaxas += Number(tx.taxa_plataforma_valor);
+        prevVendas += 1;
+      }
+    });
+
+    return [
+      { periodo: format(prevStart, "MMM/yy", { locale: ptBR }), receita: prevReceita, taxas: prevTaxas, vendas: prevVendas },
+      { periodo: format(curStart, "MMM/yy", { locale: ptBR }), receita: curReceita, taxas: curTaxas, vendas: curVendas },
+    ];
+  }, [transactions]);
+
+  const chartConfig = {
+    receita: { label: "Receita", color: "hsl(var(--primary))" },
+    taxas: { label: "Taxas", color: "hsl(var(--accent))" },
+    vendas: { label: "Vendas", color: "hsl(var(--secondary))" },
+  };
+
   useEffect(() => { fetchAll(); }, [filterTenant, filterDateFrom, filterDateTo]);
 
   return (
@@ -159,6 +227,7 @@ export function AdminDealRoom() {
           <TabsTrigger value="ranking" className="gap-2"><Trophy className="h-4 w-4" />Ranking Vendedores</TabsTrigger>
           <TabsTrigger value="monitoring" className="gap-2"><Store className="h-4 w-4" />Monitoramento Lojas</TabsTrigger>
           <TabsTrigger value="transactions" className="gap-2"><DollarSign className="h-4 w-4" />Transações</TabsTrigger>
+          <TabsTrigger value="charts" className="gap-2"><LineChartIcon className="h-4 w-4" />Gráficos</TabsTrigger>
         </TabsList>
 
         {/* Ranking */}
@@ -297,6 +366,93 @@ export function AdminDealRoom() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        {/* Charts */}
+        <TabsContent value="charts" className="space-y-6">
+          {/* Monthly Revenue Evolution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <LineChartIcon className="h-4 w-4 text-primary" /> Evolução Mensal de Receita (últimos 6 meses)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyData.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhum dado disponível</p>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                  <LineChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                    <XAxis dataKey="month" className="text-xs" />
+                    <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                    <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => {
+                      const label = name === "receita" ? "Receita" : "Taxas";
+                      return <span>{label}: {formatCurrency(Number(value))}</span>;
+                    }} />} />
+                    <Line type="monotone" dataKey="receita" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 4 }} name="receita" />
+                    <Line type="monotone" dataKey="taxas" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 3 }} name="taxas" />
+                  </LineChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Period Comparison */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" /> Comparativo: Mês Atual vs Mês Anterior
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {periodComparison.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhum dado disponível</p>
+              ) : (
+                <div className="space-y-4">
+                  <ChartContainer config={chartConfig} className="h-[280px] w-full">
+                    <BarChart data={periodComparison}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                      <XAxis dataKey="periodo" className="text-xs" />
+                      <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                      <ChartTooltip content={<ChartTooltipContent formatter={(value, name) => {
+                        const labels: Record<string, string> = { receita: "Receita", taxas: "Taxas", vendas: "Vendas" };
+                        const isMonetary = name !== "vendas";
+                        return <span>{labels[name as string] || name}: {isMonetary ? formatCurrency(Number(value)) : value}</span>;
+                      }} />} />
+                      <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="receita" />
+                      <Bar dataKey="taxas" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="taxas" />
+                    </BarChart>
+                  </ChartContainer>
+
+                  {/* Delta summary */}
+                  {periodComparison.length === 2 && (
+                    <div className="grid grid-cols-3 gap-4">
+                      {[
+                        { label: "Receita", cur: periodComparison[1].receita, prev: periodComparison[0].receita, fmt: true },
+                        { label: "Taxas", cur: periodComparison[1].taxas, prev: periodComparison[0].taxas, fmt: true },
+                        { label: "Vendas", cur: periodComparison[1].vendas, prev: periodComparison[0].vendas, fmt: false },
+                      ].map(d => {
+                        const delta = d.prev > 0 ? ((d.cur - d.prev) / d.prev) * 100 : d.cur > 0 ? 100 : 0;
+                        const up = delta >= 0;
+                        return (
+                          <div key={d.label} className="rounded-lg border p-3 text-center">
+                            <p className="text-xs text-muted-foreground mb-1">{d.label}</p>
+                            <p className="text-lg font-bold text-foreground">
+                              {d.fmt ? formatCurrency(d.cur) : d.cur}
+                            </p>
+                            <div className={`flex items-center justify-center gap-1 text-xs mt-1 ${up ? "text-green-600" : "text-destructive"}`}>
+                              {up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                              {Math.abs(delta).toFixed(1)}% vs mês anterior
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
