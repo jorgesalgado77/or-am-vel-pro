@@ -108,10 +108,14 @@ export default function Login({ onLogin }: LoginProps) {
             />
           )}
           <div>
-            <h1 className="text-xl font-bold text-foreground">{settings.company_name}</h1>
-            {settings.company_subtitle && (
-              <p className="text-sm text-muted-foreground">{settings.company_subtitle}</p>
-            )}
+            <h1 className="text-xl font-bold text-foreground">
+              {settings.company_name !== "INOVAMAD" ? settings.company_name : "OrçaMóvel PRO"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {settings.company_subtitle && settings.company_subtitle !== "Gestão & Financiamento"
+                ? settings.company_subtitle
+                : "Orce. Venda. Simplifique"}
+            </p>
           </div>
         </CardHeader>
         <CardContent>
