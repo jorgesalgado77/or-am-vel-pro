@@ -262,11 +262,16 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
               </SelectContent>
             </Select>
           </div>
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground h-9" onClick={clearFilters}>
-              <X className="h-3 w-3" />Limpar
-            </Button>
-          )}
+          <div className="flex items-center gap-2 ml-auto">
+            <Badge variant="secondary" className="h-7 px-2.5 text-xs font-medium">
+              {filtered.length} {filtered.length === 1 ? "cliente" : "clientes"}
+            </Badge>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground h-9" onClick={clearFilters}>
+                <X className="h-3 w-3" />Limpar
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
