@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { LogIn, Eye, EyeOff, Search, UserPlus } from "lucide-react";
+import { LogIn, Eye, EyeOff, Search, UserPlus, AlertTriangle, CreditCard, Headphones } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
@@ -16,6 +16,11 @@ interface LoginProps {
   onLogin: (userId: string, primeiroLogin: boolean) => void;
 }
 
+interface PlanBlockInfo {
+  reason: string;
+  tenantId: string;
+}
+
 export default function Login({ onLogin }: LoginProps) {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
@@ -25,6 +30,7 @@ export default function Login({ onLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showTracking, setShowTracking] = useState(false);
+  const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,19 +40,41 @@ export default function Login({ onLogin }: LoginProps) {
     }
 
     setLoading(true);
+    setPlanBlocked(null);
 
-    // Verify store code
-    const { data: companyData } = await supabase
-      .from("company_settings")
-      .select("codigo_loja")
-      .limit(1)
-      .single();
+    // Verify store code — find company_settings by codigo_loja
+    const trimmedCode = codigoLoja.trim();
+    let tenantId: string | null = null;
 
-    const storedCode = (companyData as any)?.codigo_loja;
-    if (storedCode && storedCode.trim() !== "" && storedCode !== codigoLoja.trim()) {
-      toast.error("Código da loja inválido");
-      setLoading(false);
-      return;
+    if (trimmedCode) {
+      const { data: companyData } = await supabase
+        .from("company_settings")
+        .select("codigo_loja, tenant_id")
+        .eq("codigo_loja", trimmedCode)
+        .limit(1)
+        .single();
+
+      if (!companyData) {
+        toast.error("Código da loja inválido");
+        setLoading(false);
+        return;
+      }
+      tenantId = (companyData as any)?.tenant_id;
+    } else {
+      // Fallback: single-tenant check
+      const { data: companyData } = await supabase
+        .from("company_settings")
+        .select("codigo_loja, tenant_id")
+        .limit(1)
+        .single();
+
+      const storedCode = (companyData as any)?.codigo_loja;
+      if (storedCode && storedCode.trim() !== "") {
+        toast.error("Informe o código da loja");
+        setLoading(false);
+        return;
+      }
+      tenantId = (companyData as any)?.tenant_id;
     }
 
     // Find user by name, apelido or email
@@ -81,6 +109,53 @@ export default function Login({ onLogin }: LoginProps) {
       return;
     }
 
+    // === CHECK TENANT PLAN VALIDITY ===
+    if (tenantId) {
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("*")
+        .eq("id", tenantId)
+        .single();
+
+      if (tenant) {
+        const t = tenant as any;
+        const now = new Date();
+
+        // Check if tenant is inactive/banned
+        if (!t.ativo) {
+          setPlanBlocked({
+            reason: "Sua conta foi suspensa ou banida. Entre em contato com o suporte técnico da plataforma para mais informações.",
+            tenantId,
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Check plan expiration
+        if (t.plano === "trial") {
+          const trialFim = new Date(t.trial_fim);
+          if (now > trialFim) {
+            setPlanBlocked({
+              reason: "Seu período de teste gratuito expirou. Escolha um plano para continuar usando a plataforma.",
+              tenantId,
+            });
+            setLoading(false);
+            return;
+          }
+        } else if (t.assinatura_fim) {
+          const assFim = new Date(t.assinatura_fim);
+          if (now > assFim) {
+            setPlanBlocked({
+              reason: "Sua assinatura expirou. Renove seu plano para continuar tendo acesso à plataforma.",
+              tenantId,
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      }
+    }
+
     setLoading(false);
     toast.success(`Bem-vindo, ${user.apelido || user.nome_completo}!`);
 
@@ -95,6 +170,50 @@ export default function Login({ onLogin }: LoginProps) {
 
     onLogin(user.id, user.primeiro_login ?? true);
   };
+
+  const handleRenewPlan = () => {
+    if (planBlocked?.tenantId) {
+      localStorage.setItem("renew_tenant_id", planBlocked.tenantId);
+      navigate("/renew-plan");
+    }
+  };
+
+  // === BLOCKED SCREEN ===
+  if (planBlocked) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-sm shadow-lg border-destructive/30">
+          <CardHeader className="text-center space-y-3 pb-2">
+            <div className="mx-auto h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Acesso Bloqueado</h1>
+              <p className="text-sm text-muted-foreground mt-2">{planBlocked.reason}</p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button className="w-full gap-2" onClick={handleRenewPlan}>
+              <CreditCard className="h-4 w-4" />
+              Escolher novo plano
+            </Button>
+            <Button variant="outline" className="w-full gap-2" asChild>
+              <a href="mailto:suporte@orcamovel.com.br">
+                <Headphones className="h-4 w-4" />
+                Contatar suporte técnico
+              </a>
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => setPlanBlocked(null)}>
+              Voltar ao login
+            </Button>
+          </CardContent>
+        </Card>
+        <p className="mt-6 text-xs text-muted-foreground text-center">
+          Todos os direitos reservados - 2026 - CNPJ: 58.847.751/0001-28
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
@@ -182,7 +301,6 @@ export default function Login({ onLogin }: LoginProps) {
         </CardContent>
       </Card>
 
-      {/* Footer */}
       <p className="mt-6 text-xs text-muted-foreground text-center">
         Todos os direitos reservados - 2026 - CNPJ: 58.847.751/0001-28
       </p>
