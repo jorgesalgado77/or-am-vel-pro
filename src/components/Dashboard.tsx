@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { addDays, isPast, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -59,9 +60,11 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     indicador: false,
   });
 
-  const toggleChart = (key: ChartKey) => {
+  const toggleChart = useCallback((key: ChartKey) => {
     setVisibleCharts(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  }, []);
+
+  const budgetValidityDays = settings.budget_validity_days;
 
   const stats = useMemo(() => {
     const totalClients = clients.length;
@@ -71,7 +74,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     const expired = clients.filter(c => {
       const sim = lastSims[c.id];
       if (!sim) return false;
-      return isPast(addDays(new Date(sim.created_at), settings.budget_validity_days));
+      return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
     const totalValue = Object.values(lastSims).reduce((sum, s) => sum + s.valor_final, 0);
@@ -84,7 +87,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
       const sim = lastSims[c.id];
       if (sim) {
         byProjetista[name].total += sim.valor_final;
-        if (isPast(addDays(new Date(sim.created_at), settings.budget_validity_days))) {
+        if (isPast(addDays(new Date(sim.created_at), budgetValidityDays))) {
           byProjetista[name].expired++;
         }
       }
@@ -111,7 +114,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
     };
-  }, [clients, lastSims, settings.budget_validity_days, indicadores]);
+  }, [clients, lastSims, budgetValidityDays, indicadores]);
 
   // Line chart data: aggregate simulations by month
   const lineData = useMemo(() => {
@@ -132,11 +135,14 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
       }));
   }, [allSimulations]);
 
-  const barData = stats.byProjetista.map(([name, data]) => ({
-    name,
-    valor: data.total,
-    clientes: data.count,
-  }));
+  const barData = useMemo(() =>
+    stats.byProjetista.map(([name, data]) => ({
+      name,
+      valor: data.total,
+      clientes: data.count,
+    })),
+    [stats.byProjetista]
+  );
 
   const pieData = useMemo(() => {
     if (stats.byIndicador.length > 0) {
@@ -152,11 +158,11 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
     ].filter(d => d.value > 0);
   }, [stats]);
 
-  const chartToggles: { key: ChartKey; label: string }[] = [
+  const chartToggles: { key: ChartKey; label: string }[] = useMemo(() => [
     { key: "evolucao", label: "Evolução" },
     { key: "projetista", label: "Projetista" },
     { key: "indicador", label: "Indicador" },
-  ];
+  ], []);
 
   return (
     <div className="space-y-6">
@@ -385,7 +391,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
   );
 }
 
-function KpiCard({ icon: Icon, label, value, accent, destructive }: {
+const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent, destructive }: {
   icon: React.ElementType; label: string; value: string; accent?: boolean; destructive?: boolean;
 }) {
   return (
@@ -401,7 +407,7 @@ function KpiCard({ icon: Icon, label, value, accent, destructive }: {
       </CardContent>
     </Card>
   );
-}
+});
 
 const STATUS_OPTIONS = [
   { value: "medicao", label: "Medição" },
@@ -444,7 +450,7 @@ function ContractTrackingList() {
   });
   const [saving, setSaving] = useState(false);
 
-  const fetchTrackings = async () => {
+  const fetchTrackings = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from("client_tracking")
@@ -452,11 +458,11 @@ function ContractTrackingList() {
       .order("created_at", { ascending: false });
     if (data) setTrackings(data as any);
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchTrackings(); }, []);
+  useEffect(() => { fetchTrackings(); }, [fetchTrackings]);
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  const handleStatusChange = useCallback(async (id: string, newStatus: string) => {
     const { error } = await supabase
       .from("client_tracking")
       .update({ status: newStatus, updated_at: new Date().toISOString() } as any)
@@ -465,10 +471,20 @@ function ContractTrackingList() {
     else {
       toast.success("Status atualizado!");
       setTrackings((prev) => prev.map((t) => t.id === id ? { ...t, status: newStatus } : t));
-    }
-  };
 
-  const handleAdd = async () => {
+      // Audit log
+      const userInfo = getAuditUserInfo();
+      logAudit({
+        acao: "status_tracking_alterado",
+        entidade: "tracking",
+        entidade_id: id,
+        detalhes: { novo_status: newStatus },
+        ...userInfo,
+      });
+    }
+  }, []);
+
+  const handleAdd = useCallback(async () => {
     if (!form.numero_contrato.trim() || !form.nome_cliente.trim()) {
       toast.error("Preencha número do contrato e nome do cliente"); return;
     }
@@ -495,15 +511,21 @@ function ContractTrackingList() {
       setForm({ numero_contrato: "", nome_cliente: "", cpf_cnpj: "", quantidade_ambientes: 0, valor_contrato: 0, data_fechamento: "", projetista: "" });
       fetchTrackings();
     }
-  };
+  }, [form, fetchTrackings]);
 
-  const filtered = trackings.filter((t) =>
-    t.numero_contrato.toLowerCase().includes(search.toLowerCase()) ||
-    t.nome_cliente.toLowerCase().includes(search.toLowerCase()) ||
-    (t.projetista || "").toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(() =>
+    trackings.filter((t) =>
+      t.numero_contrato.toLowerCase().includes(search.toLowerCase()) ||
+      t.nome_cliente.toLowerCase().includes(search.toLowerCase()) ||
+      (t.projetista || "").toLowerCase().includes(search.toLowerCase())
+    ),
+    [trackings, search]
   );
 
-  const getStatusLabel = (val: string) => STATUS_OPTIONS.find((s) => s.value === val)?.label || val;
+  const getStatusLabel = useCallback((val: string) =>
+    STATUS_OPTIONS.find((s) => s.value === val)?.label || val,
+    []
+  );
 
   return (
     <Card>
