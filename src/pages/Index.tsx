@@ -37,6 +37,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   plans: { title: "Planos de Assinatura", subtitle: "Gerencie seu plano e pagamentos" },
   simulator: { title: "Negociação e Simulação de Financiamentos", subtitle: "Calcule descontos e condições de pagamento" },
   vendazap: { title: "VendaZap AI", subtitle: "Assistente inteligente de vendas para WhatsApp" },
+  dealroom: { title: "Deal Room", subtitle: "Sala de negociação com apresentação e pagamento integrado" },
 };
 
 export default function Index() {
