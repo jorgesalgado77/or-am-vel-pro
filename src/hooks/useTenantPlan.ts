@@ -26,10 +26,10 @@ const DEFAULT_PLAN: TenantPlan = {
 };
 
 // Features blocked per plan
-const PLAN_FEATURES: Record<string, { configuracoes: boolean; desconto3: boolean; plus: boolean; contratos: boolean }> = {
-  trial: { configuracoes: true, desconto3: true, plus: true, contratos: true },
-  basico: { configuracoes: true, desconto3: false, plus: false, contratos: false },
-  premium: { configuracoes: true, desconto3: true, plus: true, contratos: true },
+const PLAN_FEATURES: Record<string, { configuracoes: boolean; desconto3: boolean; plus: boolean; contratos: boolean; ocultar_indicador: boolean }> = {
+  trial: { configuracoes: true, desconto3: true, plus: true, contratos: true, ocultar_indicador: false },
+  basico: { configuracoes: true, desconto3: false, plus: false, contratos: false, ocultar_indicador: false },
+  premium: { configuracoes: true, desconto3: true, plus: true, contratos: true, ocultar_indicador: false },
 };
 
 export function useTenantPlan() {
