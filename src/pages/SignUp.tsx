@@ -111,29 +111,42 @@ export default function SignUp() {
         return;
       }
 
-      // Create cargo "Administrador" with full permissions
-      const { data: cargo, error: cargoError } = await supabase
+      // Find or create cargo "Administrador" with full permissions
+      let cargoId: string;
+      const { data: existingCargo } = await supabase
         .from("cargos")
-        .insert({
-          nome: "Administrador",
-          comissao_percentual: 0,
-          permissoes: {
-            clientes: true,
-            simulador: true,
-            configuracoes: true,
-            desconto1: true,
-            desconto2: true,
-            desconto3: true,
-            plus: true,
-          },
-        })
-        .select()
+        .select("id")
+        .eq("nome", "Administrador")
+        .limit(1)
         .single();
 
-      if (cargoError || !cargo) {
-        toast.error("Erro ao criar cargo: " + (cargoError?.message || ""));
-        setLoading(false);
-        return;
+      if (existingCargo) {
+        cargoId = existingCargo.id;
+      } else {
+        const { data: newCargo, error: cargoError } = await supabase
+          .from("cargos")
+          .insert({
+            nome: "Administrador",
+            comissao_percentual: 0,
+            permissoes: {
+              clientes: true,
+              simulador: true,
+              configuracoes: true,
+              desconto1: true,
+              desconto2: true,
+              desconto3: true,
+              plus: true,
+            },
+          })
+          .select()
+          .single();
+
+        if (cargoError || !newCargo) {
+          toast.error("Erro ao criar cargo: " + (cargoError?.message || ""));
+          setLoading(false);
+          return;
+        }
+        cargoId = newCargo.id;
       }
 
       // Create the user as admin
@@ -144,7 +157,7 @@ export default function SignUp() {
           email: trimmedEmail,
           senha: trimmedSenha,
           apelido: "Admin",
-          cargo_id: cargo.id,
+          cargo_id: cargoId,
           ativo: true,
           primeiro_login: false,
         })
