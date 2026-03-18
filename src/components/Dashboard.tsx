@@ -378,6 +378,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
           </CardContent>
         </Card>
       </div>
+
+      {/* Contratos Fechados - Acompanhamento */}
+      <ContractTrackingList />
     </div>
   );
 }
