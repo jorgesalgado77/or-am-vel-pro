@@ -10,6 +10,7 @@ import { Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircl
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { playNotificationSound } from "@/lib/notificationSound";
 
 const TRACKING_STEPS = [
   { key: "medicao", label: "Medição", icon: Ruler, color: "text-blue-500", bgActive: "bg-blue-500", bgInactive: "bg-muted" },

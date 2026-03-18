@@ -35,6 +35,7 @@ export function useRealtimeMessages(onNewMessage?: (payload: any) => void) {
           const newMsg = payload.new as any;
           // Only notify for client messages (loja receives)
           if (newMsg.remetente_tipo === "cliente") {
+            playNotificationSound();
             toast.info("Nova mensagem de cliente recebida!", {
               description: newMsg.mensagem?.substring(0, 60),
               duration: 5000,
