@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ClientsTable } from "@/components/ClientsTable";
 import { ClientDrawer } from "@/components/ClientDrawer";
@@ -18,6 +18,8 @@ import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
 import { useClientManager } from "@/hooks/useClientManager";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -38,6 +40,18 @@ export default function Index() {
   const userCtx = useCurrentUserLoader();
   const tenantPlan = useTenantPlan();
   const { currentUser, selectUser, logout } = userCtx;
+  const { settings } = useCompanySettings();
+
+  const presenceInfo = useMemo(() => {
+    if (!currentUser) return undefined;
+    return {
+      nome: currentUser.apelido || currentUser.nome_completo,
+      cargo: currentUser.cargo_nome,
+      fotoUrl: currentUser.foto_url,
+    };
+  }, [currentUser?.id, currentUser?.apelido, currentUser?.nome_completo, currentUser?.cargo_nome, currentUser?.foto_url]);
+
+  const { onlineUsers } = useOnlinePresence(currentUser?.id ?? null, presenceInfo);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
@@ -107,7 +121,10 @@ export default function Index() {
   const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); };
 
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
-  const currentTitle = viewMeta.title;
+  const storeName = settings.company_name || "OrçaMóvel PRO";
+  const currentTitle = activeView === "dashboard"
+    ? `${storeName} - Dashboard`
+    : viewMeta.title;
   const currentSubtitle = activeView === "clients"
     ? `${clients.length} clientes cadastrados`
     : viewMeta.subtitle;
@@ -136,6 +153,7 @@ export default function Index() {
             onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
             onSupport={() => setShowSupport(true)}
             unreadMessages={unreadMessages}
+            onlineUsers={onlineUsers}
           />
 
           <main className="flex-1 ml-60 p-6">

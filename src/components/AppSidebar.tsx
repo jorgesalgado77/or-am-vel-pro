@@ -1,9 +1,12 @@
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle, Receipt, CreditCard } from "lucide-react";
+import { useState } from "react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { OnlineUser } from "@/hooks/useOnlinePresence";
 
 interface AppSidebarProps {
   activeView: string;
@@ -11,15 +14,14 @@ interface AppSidebarProps {
   onChangePassword?: () => void;
   onSupport?: () => void;
   unreadMessages?: number;
+  onlineUsers?: OnlineUser[];
 }
-
-
 
 function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }
 
-export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, unreadMessages = 0 }: AppSidebarProps) {
+export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, unreadMessages = 0, onlineUsers = [] }: AppSidebarProps) {
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
 
@@ -36,17 +38,16 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
 
   return (
     <aside className="w-60 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0">
+      {/* App branding - always OrçaMóvel PRO */}
       <div className="p-4 border-b border-border flex items-center gap-3">
         {settings.logo_url && (
           <img src={settings.logo_url} alt="Logo" className="h-8 w-auto object-contain" />
         )}
         <div>
           <h1 className="text-lg font-semibold text-foreground tracking-tight">
-            {settings.company_name}
+            OrçaMóvel PRO
           </h1>
-          {settings.company_subtitle && (
-            <p className="text-xs text-muted-foreground mt-0.5">{settings.company_subtitle}</p>
-          )}
+          <p className="text-xs text-muted-foreground mt-0.5">Orce. Venda. Simplifique</p>
         </div>
       </div>
       <nav className="flex-1 p-2 space-y-0.5">
@@ -113,6 +114,46 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               {currentUser.cargo_nome && (
                 <p className="text-xs text-muted-foreground truncate">{currentUser.cargo_nome}</p>
               )}
+              {/* Online status with popover */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-1.5 mt-1 text-xs text-green-600 hover:text-green-700 transition-colors cursor-pointer">
+                    <Circle className="h-2.5 w-2.5 fill-green-500 text-green-500" />
+                    Online {onlineUsers.length > 0 && `(${onlineUsers.length})`}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="right" align="end" className="w-64 p-0">
+                  <div className="p-3 border-b border-border">
+                    <h4 className="text-sm font-semibold text-foreground">Usuários Online</h4>
+                    <p className="text-xs text-muted-foreground">{onlineUsers.length} conectado(s) agora</p>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto p-2 space-y-1">
+                    {onlineUsers.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-2">Nenhum usuário online</p>
+                    ) : (
+                      onlineUsers.map((user) => (
+                        <div key={user.userId} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-secondary/50">
+                          <Avatar className="h-7 w-7 shrink-0">
+                            {user.fotoUrl ? (
+                              <AvatarImage src={user.fotoUrl} alt={user.nome} />
+                            ) : null}
+                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">
+                              {getInitials(user.nome)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-foreground truncate">{user.nome}</p>
+                            {user.cargo && (
+                              <p className="text-[10px] text-muted-foreground truncate">{user.cargo}</p>
+                            )}
+                          </div>
+                          <Circle className="h-2 w-2 fill-green-500 text-green-500 shrink-0" />
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
               {currentUser.telefone && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                   <Phone className="h-3 w-3 shrink-0" />
