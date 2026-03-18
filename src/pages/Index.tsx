@@ -9,6 +9,7 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { Dashboard } from "@/components/Dashboard";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { SupportDialog } from "@/components/SupportDialog";
+import { MessagesPanel } from "@/components/MessagesPanel";
 import { PlanBanner } from "@/components/PlanBanner";
 import Login from "@/pages/Login";
 import { supabase } from "@/integrations/supabase/client";
