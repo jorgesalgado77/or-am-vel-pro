@@ -391,6 +391,44 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
         </Card>
       )}
 
+      {/* Contracts Evolution Chart */}
+      {visibleCharts.contratos && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Evolução Mensal de Contratos Fechados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {contractsLineData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum contrato registrado no período</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={contractsLineData} margin={{ top: 8, right: 20, left: 8, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis yAxisId="valor" orientation="left" tickFormatter={currencyFormatter} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={95} />
+                  <YAxis yAxisId="count" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} width={40} />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      name === "valor" ? currencyFormatter(value) : value,
+                      name === "valor" ? "Valor Total" : "Qtd. Contratos",
+                    ]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: 13,
+                    }}
+                    labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                  />
+                  <Line yAxisId="valor" type="monotone" dataKey="valor" stroke="hsl(140, 60%, 40%)" strokeWidth={2.5} dot={{ r: 4, fill: "hsl(140, 60%, 40%)" }} name="valor" />
+                  <Line yAxisId="count" type="monotone" dataKey="contratos" stroke="hsl(200, 70%, 50%)" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3, fill: "hsl(200, 70%, 50%)" }} name="contratos" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bar + Pie Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {visibleCharts.projetista && (
