@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye,
+  Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
@@ -98,6 +98,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [pKeySecret, setPKeySecret] = useState("");
   const [pWebhook, setPWebhook] = useState("");
   const [pAtivo, setPAtivo] = useState(false);
+  const [tOcultarIndicador, setTOcultarIndicador] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -128,6 +129,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setEditingTenant(null);
     setTNome(""); setTCodigo(""); setTEmail(""); setTTelefone("");
     setTPlano("trial"); setTPeriodo("mensal"); setTAtivo(true);
+    setTOcultarIndicador(false);
     setShowTenantDialog(true);
   };
 
@@ -136,6 +138,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTNome(t.nome_loja); setTCodigo(t.codigo_loja || ""); setTEmail(t.email_contato || "");
     setTTelefone(t.telefone_contato || ""); setTPlano(t.plano); setTPeriodo(t.plano_periodo);
     setTAtivo(t.ativo);
+    const vip = (t as any).recursos_vip || {};
+    setTOcultarIndicador(vip.ocultar_indicador || false);
     setShowTenantDialog(true);
   };
 
@@ -151,6 +155,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       plano_periodo: tPeriodo,
       max_usuarios: maxUsers,
       ativo: tAtivo,
+      recursos_vip: { ocultar_indicador: tOcultarIndicador },
     };
 
     if (editingTenant) {
@@ -518,6 +523,21 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <div className="flex items-center gap-3">
               <Switch checked={tAtivo} onCheckedChange={setTAtivo} />
               <Label>Loja ativa</Label>
+            </div>
+            <div className="border rounded-lg p-3 space-y-3">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Crown className="h-4 w-4 text-primary" /> Recursos VIP
+              </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Ocultar Indicador</p>
+                    <p className="text-xs text-muted-foreground">Permite ocultar informações do indicador no simulador</p>
+                  </div>
+                </div>
+                <Switch checked={tOcultarIndicador} onCheckedChange={setTOcultarIndicador} />
+              </div>
             </div>
           </div>
           <DialogFooter>

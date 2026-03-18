@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TenantPlan {
-  plano: string; // trial, basico, premium
+  plano: string;
   plano_periodo: string;
   max_usuarios: number;
   ativo: boolean;
@@ -10,6 +10,7 @@ export interface TenantPlan {
   dias_restantes: number;
   trial_fim: string | null;
   assinatura_fim: string | null;
+  recursos_vip: Record<string, boolean>;
 }
 
 const DEFAULT_PLAN: TenantPlan = {
@@ -21,13 +22,14 @@ const DEFAULT_PLAN: TenantPlan = {
   dias_restantes: 7,
   trial_fim: null,
   assinatura_fim: null,
+  recursos_vip: { ocultar_indicador: false },
 };
 
 // Features blocked per plan
-const PLAN_FEATURES: Record<string, { configuracoes: boolean; desconto3: boolean; plus: boolean; contratos: boolean }> = {
-  trial: { configuracoes: true, desconto3: true, plus: true, contratos: true },
-  basico: { configuracoes: true, desconto3: false, plus: false, contratos: false },
-  premium: { configuracoes: true, desconto3: true, plus: true, contratos: true },
+const PLAN_FEATURES: Record<string, { configuracoes: boolean; desconto3: boolean; plus: boolean; contratos: boolean; ocultar_indicador: boolean }> = {
+  trial: { configuracoes: true, desconto3: true, plus: true, contratos: true, ocultar_indicador: false },
+  basico: { configuracoes: true, desconto3: false, plus: false, contratos: false, ocultar_indicador: false },
+  premium: { configuracoes: true, desconto3: true, plus: true, contratos: true, ocultar_indicador: false },
 };
 
 export function useTenantPlan() {
@@ -84,6 +86,7 @@ export function useTenantPlan() {
       dias_restantes: diasRestantes,
       trial_fim: t.trial_fim,
       assinatura_fim: t.assinatura_fim,
+      recursos_vip: (t.recursos_vip as Record<string, boolean>) || { ocultar_indicador: false },
     });
     setLoading(false);
   };
@@ -92,6 +95,10 @@ export function useTenantPlan() {
 
   const isFeatureAllowed = (feature: keyof typeof PLAN_FEATURES["trial"]): boolean => {
     if (plan.expirado) return false;
+    // Check tenant-level VIP overrides first
+    if (plan.recursos_vip && plan.recursos_vip[feature] !== undefined) {
+      return plan.recursos_vip[feature];
+    }
     const features = PLAN_FEATURES[plan.plano] || PLAN_FEATURES.trial;
     return features[feature] ?? false;
   };

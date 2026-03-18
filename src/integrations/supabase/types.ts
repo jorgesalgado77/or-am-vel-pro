@@ -606,6 +606,7 @@ export type Database = {
           nome_loja: string
           plano: string
           plano_periodo: string
+          recursos_vip: Json
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           telefone_contato: string | null
@@ -625,6 +626,7 @@ export type Database = {
           nome_loja: string
           plano?: string
           plano_periodo?: string
+          recursos_vip?: Json
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           telefone_contato?: string | null
@@ -644,6 +646,7 @@ export type Database = {
           nome_loja?: string
           plano?: string
           plano_periodo?: string
+          recursos_vip?: Json
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           telefone_contato?: string | null
