@@ -103,6 +103,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [pAtivo, setPAtivo] = useState(false);
   const [tOcultarIndicador, setTOcultarIndicador] = useState(false);
   const [tDealRoom, setTDealRoom] = useState(false);
+  const [tVendaZap, setTVendaZap] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
