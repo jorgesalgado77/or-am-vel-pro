@@ -107,7 +107,7 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
                 </button>
 
                 <div className="flex justify-center gap-2 mt-4">
-                  {images.map((_, i) => (
+                  {displayImages.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => {
