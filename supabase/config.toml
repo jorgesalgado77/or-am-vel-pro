@@ -1,1 +1,4 @@
 project_id = "rgvofhhcrwzpcuamhyzl"
+
+[functions.contract-ocr]
+verify_jwt = false
