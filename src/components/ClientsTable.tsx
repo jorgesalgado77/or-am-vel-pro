@@ -313,7 +313,7 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((client) => {
+              paginated.map((client) => {
                 const sim = lastSims[client.id];
                 const expired = sim ? isExpired(sim.created_at) : false;
                 return (
