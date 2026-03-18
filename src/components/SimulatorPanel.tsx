@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake, Trash2, RotateCcw } from "lucide-react";
+import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake, Trash2, RotateCcw, EyeOff, Eye } from "lucide-react";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData } from "@/lib/financing";
 import { format } from "date-fns";
@@ -116,6 +116,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? "");
+  const [hideIndicador, setHideIndicador] = useState(false);
 
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
     return (stored.environments || []).map((e) => ({
@@ -685,19 +686,35 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             </div>
 
             <div>
-              <Label>Indicador do Cliente</Label>
-              <Select value={selectedIndicadorId || "_none"} onValueChange={(v) => setSelectedIndicadorId(v === "_none" ? "" : v)}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">Nenhum (0%)</SelectItem>
-                  {activeIndicadores.map((ind) => (
-                    <SelectItem key={ind.id} value={ind.id}>
-                      {ind.nome} ({ind.comissao_percentual}%)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {comissaoPercentual > 0 && (
+              <div className="flex items-center justify-between">
+                <Label>Indicador do Cliente</Label>
+                {selectedIndicadorId && comissaoPercentual > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs gap-1 text-muted-foreground"
+                    onClick={() => setHideIndicador(!hideIndicador)}
+                    title={hideIndicador ? "Mostrar indicador" : "Ocultar indicador da tela"}
+                  >
+                    {hideIndicador ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                    {hideIndicador ? "Mostrar" : "Ocultar"}
+                  </Button>
+                )}
+              </div>
+              {!hideIndicador && (
+                <Select value={selectedIndicadorId || "_none"} onValueChange={(v) => setSelectedIndicadorId(v === "_none" ? "" : v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Nenhum (0%)</SelectItem>
+                    {activeIndicadores.map((ind) => (
+                      <SelectItem key={ind.id} value={ind.id}>
+                        {ind.nome} ({ind.comissao_percentual}%)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {!hideIndicador && comissaoPercentual > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Acréscimo de {comissaoPercentual}%: {formatCurrency(valorTela)} → {formatCurrency(valorTelaComComissao)}
                 </p>
@@ -866,10 +883,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <ResultRow label="Valor de Tela" value={formatCurrency(valorTela)} />
-              {comissaoPercentual > 0 && (
+              {!hideIndicador && comissaoPercentual > 0 && (
                 <ResultRow label={`Indicador (${comissaoPercentual}%)`} value={`+ ${formatCurrency(valorTelaComComissao - valorTela)}`} muted />
               )}
-              {comissaoPercentual > 0 && (
+              {!hideIndicador && comissaoPercentual > 0 && (
                 <ResultRow label="Valor com Indicador" value={formatCurrency(valorTelaComComissao)} />
               )}
               <ResultRow label="Desconto Total" value={formatCurrency(valorTelaComComissao - result.valorComDesconto)} muted />
@@ -925,7 +942,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full gap-2 text-muted-foreground"
+                  className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
                   onClick={() => {
                     setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
                     setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
