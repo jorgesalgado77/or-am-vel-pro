@@ -250,6 +250,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       else if (pendingUnlock === "plus") setPlusUnlocked(true);
       setPasswordDialogOpen(false);
       toast.success("Acesso liberado!");
+
+      // Audit: field unlocked
+      const userInfo = getAuditUserInfo();
+      logAudit({
+        acao: pendingUnlock === "desconto3" ? "desconto_desbloqueado" : "plus_desbloqueado",
+        entidade: "security",
+        detalhes: { campo: pendingUnlock, cliente: client?.nome },
+        ...userInfo,
+      });
     } else {
       toast.error("Senha incorreta");
     }
