@@ -21,6 +21,8 @@ import { ContratosTab } from "@/components/settings/ContratosTab";
 import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
 import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
 import { UserCheck, FileSignature, MessageSquare, ClipboardList } from "lucide-react";
+import { isNotificationSoundEnabled, setNotificationSoundEnabled } from "@/lib/notificationSound";
+import { Switch } from "@/components/ui/switch";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
@@ -177,6 +179,8 @@ function CompanySettingsTab() {
           </div>
         </div>
         <Separator />
+        <NotificationSoundToggle />
+        <Separator />
         <div>
           <Label>Logo da Empresa</Label>
           <div className="flex items-center gap-4 mt-2">
@@ -192,6 +196,26 @@ function CompanySettingsTab() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function NotificationSoundToggle() {
+  const [enabled, setEnabled] = useState(isNotificationSoundEnabled());
+
+  const handleToggle = (val: boolean) => {
+    setEnabled(val);
+    setNotificationSoundEnabled(val);
+    toast.success(val ? "Som de notificação ativado" : "Som de notificação desativado");
+  };
+
+  return (
+    <div className="flex items-center justify-between max-w-[600px]">
+      <div>
+        <Label>Som de Notificação</Label>
+        <p className="text-xs text-muted-foreground">Toca um som ao receber novas mensagens em tempo real</p>
+      </div>
+      <Switch checked={enabled} onCheckedChange={handleToggle} />
+    </div>
   );
 }
 

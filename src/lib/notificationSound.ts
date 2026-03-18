@@ -1,10 +1,21 @@
 const BEEP_FREQUENCY = 830;
 const BEEP_DURATION = 150;
 const BEEP_VOLUME = 0.3;
+const STORAGE_KEY = "notification_sound_enabled";
 
 let audioCtx: AudioContext | null = null;
 
+export function isNotificationSoundEnabled(): boolean {
+  const val = localStorage.getItem(STORAGE_KEY);
+  return val === null ? true : val === "true";
+}
+
+export function setNotificationSoundEnabled(enabled: boolean) {
+  localStorage.setItem(STORAGE_KEY, String(enabled));
+}
+
 export function playNotificationSound() {
+  if (!isNotificationSoundEnabled()) return;
   try {
     if (!audioCtx) {
       audioCtx = new AudioContext();
