@@ -10,6 +10,7 @@ export interface CompanySettings {
   manager_password: string | null;
   admin_password: string | null;
   orcamento_numero_inicial: number;
+  codigo_loja: string | null;
 }
 
 const DEFAULT_SETTINGS: CompanySettings = {
