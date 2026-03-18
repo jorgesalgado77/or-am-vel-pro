@@ -184,36 +184,54 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const showPlus = ["A vista", "Pix"].includes(formaPagamento);
   const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
 
-  const currentBoletoRates = boletoRates.filter((r) => r.provider_name === selectedBoletoProvider);
-  const currentCreditoRates = creditoRates.filter((r) => r.provider_name === selectedCreditoProvider);
+  const currentBoletoRates = useMemo(() =>
+    boletoRates.filter((r) => r.provider_name === selectedBoletoProvider),
+    [boletoRates, selectedBoletoProvider]
+  );
+  const currentCreditoRates = useMemo(() =>
+    creditoRates.filter((r) => r.provider_name === selectedCreditoProvider),
+    [creditoRates, selectedCreditoProvider]
+  );
 
-  const maxBoletoInstallments = currentBoletoRates.length > 0 ? Math.max(...currentBoletoRates.map((r) => r.installments)) : 12;
-  const maxCreditoInstallments = currentCreditoRates.length > 0 ? Math.max(...currentCreditoRates.map((r) => r.installments)) : 12;
+  const maxBoletoInstallments = useMemo(() =>
+    currentBoletoRates.length > 0 ? Math.max(...currentBoletoRates.map((r) => r.installments)) : 12,
+    [currentBoletoRates]
+  );
+  const maxCreditoInstallments = useMemo(() =>
+    currentCreditoRates.length > 0 ? Math.max(...currentCreditoRates.map((r) => r.installments)) : 12,
+    [currentCreditoRates]
+  );
 
   const maxParcelas = formaPagamento === "Boleto" ? maxBoletoInstallments
     : formaPagamento === "Credito" || formaPagamento === "Credito / Boleto" ? maxCreditoInstallments : 12;
 
-  const boletoCoeffMap: Record<number, number> = {};
-  const boletoRatesFullMap: Record<number, BoletoRateData> = {};
-  currentBoletoRates.forEach((r) => {
-    boletoCoeffMap[r.installments] = Number(r.coefficient);
-    boletoRatesFullMap[r.installments] = {
-      coefficient: Number(r.coefficient),
-      taxa_fixa: Number(r.taxa_fixa),
-      coeficiente_60: Number(r.coeficiente_60),
-      coeficiente_90: Number(r.coeficiente_90),
-    };
-  });
+  const { boletoCoeffMap, boletoRatesFullMap } = useMemo(() => {
+    const coeffMap: Record<number, number> = {};
+    const fullMap: Record<number, BoletoRateData> = {};
+    currentBoletoRates.forEach((r) => {
+      coeffMap[r.installments] = Number(r.coefficient);
+      fullMap[r.installments] = {
+        coefficient: Number(r.coefficient),
+        taxa_fixa: Number(r.taxa_fixa),
+        coeficiente_60: Number(r.coeficiente_60),
+        coeficiente_90: Number(r.coeficiente_90),
+      };
+    });
+    return { boletoCoeffMap: coeffMap, boletoRatesFullMap: fullMap };
+  }, [currentBoletoRates]);
 
-  const creditoCoeffMap: Record<number, number> = {};
-  const creditoRatesFullMap: Record<number, { coefficient: number; taxa_fixa: number }> = {};
-  currentCreditoRates.forEach((r) => {
-    creditoCoeffMap[r.installments] = Number(r.coefficient);
-    creditoRatesFullMap[r.installments] = {
-      coefficient: Number(r.coefficient),
-      taxa_fixa: Number(r.taxa_fixa),
-    };
-  });
+  const { creditoCoeffMap, creditoRatesFullMap } = useMemo(() => {
+    const coeffMap: Record<number, number> = {};
+    const fullMap: Record<number, { coefficient: number; taxa_fixa: number }> = {};
+    currentCreditoRates.forEach((r) => {
+      coeffMap[r.installments] = Number(r.coefficient);
+      fullMap[r.installments] = {
+        coefficient: Number(r.coefficient),
+        taxa_fixa: Number(r.taxa_fixa),
+      };
+    });
+    return { creditoCoeffMap: coeffMap, creditoRatesFullMap: fullMap };
+  }, [currentCreditoRates]);
 
   const result = useMemo(() => {
     const input: SimulationInput = {
