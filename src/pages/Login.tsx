@@ -169,8 +169,12 @@ export default function Login({ onLogin }: LoginProps) {
               {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-3 pt-3 border-t border-border">
-            <Button variant="outline" className="w-full gap-2" onClick={() => setShowTracking(true)}>
+          <div className="mt-3 pt-3 border-t border-border space-y-2">
+            <Button variant="outline" className="w-full gap-2" onClick={() => navigate("/signup")}>
+              <UserPlus className="h-4 w-4" />
+              Criar minha conta
+            </Button>
+            <Button variant="ghost" className="w-full gap-2" onClick={() => setShowTracking(true)}>
               <Search className="h-4 w-4" />
               Acompanhe seu Projeto
             </Button>
