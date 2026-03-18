@@ -9,6 +9,7 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { Dashboard } from "@/components/Dashboard";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { SupportDialog } from "@/components/SupportDialog";
+import { MessagesPanel } from "@/components/MessagesPanel";
 import { PlanBanner } from "@/components/PlanBanner";
 import Login from "@/pages/Login";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,7 @@ export default function Index() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const hasPermission = (perm: keyof import("@/hooks/useCargos").CargoPermissoes) => {
     if (!currentUser) return true;
@@ -166,6 +168,7 @@ export default function Index() {
     : activeView === "history" ? "Histórico de Simulações"
     : activeView === "contracts" ? "Contratos do Cliente"
     : activeView === "settings" ? "Configurações"
+    : activeView === "messages" ? "Mensagens"
     : "Simulador de Financiamento";
 
   const currentSubtitle = activeView === "dashboard" ? "Visão geral do sistema"
@@ -173,6 +176,7 @@ export default function Index() {
     : activeView === "history" ? "Compare diferentes cenários de financiamento"
     : activeView === "contracts" ? "Visualize e edite contratos gerados"
     : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
+    : activeView === "messages" ? "Comunicação com clientes"
     : "Calcule descontos e condições de pagamento";
 
   // Show login if no user is logged in
@@ -198,6 +202,7 @@ export default function Index() {
             onViewChange={handleViewChange}
             onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
             onSupport={() => setShowSupport(true)}
+            unreadMessages={unreadMessages}
           />
 
           <main className="flex-1 ml-60 p-6">
@@ -232,6 +237,10 @@ export default function Index() {
             )}
 
             {activeView === "settings" && <SettingsPanel />}
+
+            {activeView === "messages" && (
+              <MessagesPanel onUnreadChange={setUnreadMessages} />
+            )}
 
             <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={handleSaveClient} client={editingClient} saving={saving} />
           </main>

@@ -1,4 +1,4 @@
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy } from "lucide-react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -10,6 +10,7 @@ interface AppSidebarProps {
   onViewChange: (view: string) => void;
   onChangePassword?: () => void;
   onSupport?: () => void;
+  unreadMessages?: number;
 }
 
 const navItems = [
@@ -23,7 +24,7 @@ function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }
 
-export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport }: AppSidebarProps) {
+export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, unreadMessages = 0 }: AppSidebarProps) {
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
 
@@ -60,8 +61,25 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               {item.label}
             </button>
           ))}
-        {/* Suporte button - visible to all */}
-        <div className="mt-auto pt-2 border-t border-border mx-1">
+        {/* Mensagens button */}
+        <div className="mt-auto pt-2 border-t border-border mx-1 space-y-0.5">
+          <button
+            onClick={() => onViewChange("messages")}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150",
+              activeView === "messages"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Mensagens
+            {unreadMessages > 0 && (
+              <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
+                {unreadMessages}
+              </span>
+            )}
+          </button>
           <button
             onClick={onSupport}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors duration-150"
