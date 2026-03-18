@@ -16,6 +16,7 @@ interface DealRoomStoreWidgetProps {
 
 export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
   const { getMetrics } = useDealRoom();
+  const { showOnboarding, setShowOnboarding } = useOnboarding("dealroom");
   const [metrics, setMetrics] = useState<{
     totalVendas: number;
     totalTransacionado: number;
