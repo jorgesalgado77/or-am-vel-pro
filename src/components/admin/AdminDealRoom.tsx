@@ -189,6 +189,17 @@ export function AdminDealRoom() {
           </Select>
         </div>
         <div>
+          <Label className="text-xs">Plano</Label>
+          <Select value={filterPlan} onValueChange={setFilterPlan}>
+            <SelectTrigger className="w-40 mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os planos</SelectItem>
+              <SelectItem value="trial">Trial</SelectItem>
+              <SelectItem value="basico">Básico</SelectItem>
+              <SelectItem value="premium">Premium</SelectItem>
+            </SelectContent>
+          </Select>
+        <div>
           <Label className="text-xs">De</Label>
           <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="mt-1 w-40" />
         </div>
