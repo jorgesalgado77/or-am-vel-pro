@@ -48,38 +48,96 @@ interface SimulatorPanelProps {
   onClientCreated?: () => void;
 }
 
+// Keys for sessionStorage persistence
+const SIM_STORAGE_KEY = "simulator_state";
+
+interface StoredEnvironment {
+  id: string;
+  fileName: string;
+  environmentName: string;
+  pieceCount: number;
+  totalValue: number;
+  importedAt: string;
+}
+
+interface ImportedEnvironment {
+  id: string;
+  fileName: string;
+  environmentName: string;
+  pieceCount: number;
+  totalValue: number;
+  importedAt: Date;
+  file: File;
+}
+
+interface SimulatorStoredState {
+  valorTela: number;
+  desconto1: number;
+  desconto2: number;
+  desconto3: number;
+  formaPagamento: FormaPagamento;
+  parcelas: number;
+  valorEntrada: number;
+  plusPercentual: number;
+  carenciaDias: 30 | 60 | 90;
+  selectedIndicadorId: string;
+  desconto3Unlocked: boolean;
+  plusUnlocked: boolean;
+  environments: StoredEnvironment[];
+}
+
+function loadStoredState(): Partial<SimulatorStoredState> {
+  try {
+    const raw = sessionStorage.getItem(SIM_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
+
 export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPanelProps) {
-  const [valorTela, setValorTela] = useState(10000);
-  const [desconto1, setDesconto1] = useState(0);
-  const [desconto2, setDesconto2] = useState(0);
-  const [desconto3, setDesconto3] = useState(0);
-  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>("A vista");
-  const [parcelas, setParcelas] = useState(1);
-  const [valorEntrada, setValorEntrada] = useState(0);
-  const [plusPercentual, setPlusPercentual] = useState(0);
-  const [carenciaDias, setCarenciaDias] = useState<30 | 60 | 90>(30);
+  const stored = useMemo(() => loadStoredState(), []);
+
+  const [valorTela, setValorTela] = useState(stored.valorTela ?? 10000);
+  const [desconto1, setDesconto1] = useState(stored.desconto1 ?? 0);
+  const [desconto2, setDesconto2] = useState(stored.desconto2 ?? 0);
+  const [desconto3, setDesconto3] = useState(stored.desconto3 ?? 0);
+  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>(stored.formaPagamento ?? "A vista");
+  const [parcelas, setParcelas] = useState(stored.parcelas ?? 1);
+  const [valorEntrada, setValorEntrada] = useState(stored.valorEntrada ?? 0);
+  const [plusPercentual, setPlusPercentual] = useState(stored.plusPercentual ?? 0);
+  const [carenciaDias, setCarenciaDias] = useState<30 | 60 | 90>(stored.carenciaDias ?? 30);
   const [saving, setSaving] = useState(false);
-  const [desconto3Unlocked, setDesconto3Unlocked] = useState(false);
-  const [plusUnlocked, setPlusUnlocked] = useState(false);
+  const [desconto3Unlocked, setDesconto3Unlocked] = useState(stored.desconto3Unlocked ?? false);
+  const [plusUnlocked, setPlusUnlocked] = useState(stored.plusUnlocked ?? false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
-  const [selectedIndicadorId, setSelectedIndicadorId] = useState("");
+  const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? "");
 
-  // Environment list from imported files
-  interface ImportedEnvironment {
-    id: string;
-    fileName: string;
-    environmentName: string;
-    pieceCount: number;
-    totalValue: number;
-    importedAt: Date;
-    file: File;
-  }
-  const [environments, setEnvironments] = useState<ImportedEnvironment[]>([]);
+  const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
+    return (stored.environments || []).map((e) => ({
+      ...e,
+      importedAt: new Date(e.importedAt),
+      file: new File([], e.fileName), // placeholder — original file can't be restored
+    }));
+  });
+
+  // Persist state to sessionStorage on changes
+  useEffect(() => {
+    const state: SimulatorStoredState = {
+      valorTela, desconto1, desconto2, desconto3,
+      formaPagamento, parcelas, valorEntrada, plusPercentual,
+      carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked,
+      environments: environments.map(({ file, importedAt, ...rest }) => ({
+        ...rest,
+        importedAt: importedAt.toISOString(),
+      })),
+    };
+    sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
+  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, environments]);
 
   // New client form state (when no client is provided)
   const [showClientForm, setShowClientForm] = useState(false);
