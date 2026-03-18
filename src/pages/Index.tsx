@@ -14,6 +14,7 @@ import { MessagesPanel } from "@/components/MessagesPanel";
 import { PlanBanner } from "@/components/PlanBanner";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { VendaZapPanel } from "@/components/VendaZapPanel";
+import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
 import Login from "@/pages/Login";
 import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
