@@ -266,6 +266,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <TabsTrigger value="suporte" className="gap-2"><MessageSquare className="h-4 w-4" />Suporte</TabsTrigger>
             <TabsTrigger value="pagamentos" className="gap-2"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
             <TabsTrigger value="planos" className="gap-2"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
+            <TabsTrigger value="landing" className="gap-2"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
           </TabsList>
 
           {/* TAB: Lojas */}
