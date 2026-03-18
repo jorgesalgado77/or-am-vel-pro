@@ -40,6 +40,18 @@ export default function Index() {
   const userCtx = useCurrentUserLoader();
   const tenantPlan = useTenantPlan();
   const { currentUser, selectUser, logout } = userCtx;
+  const { settings } = useCompanySettings();
+
+  const presenceInfo = useMemo(() => {
+    if (!currentUser) return undefined;
+    return {
+      nome: currentUser.apelido || currentUser.nome_completo,
+      cargo: currentUser.cargo_nome,
+      fotoUrl: currentUser.foto_url,
+    };
+  }, [currentUser?.id, currentUser?.apelido, currentUser?.nome_completo, currentUser?.cargo_nome, currentUser?.foto_url]);
+
+  const { onlineUsers } = useOnlinePresence(currentUser?.id ?? null, presenceInfo);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
