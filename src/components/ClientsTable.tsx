@@ -80,11 +80,52 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
     fetchLastSims();
   }, [clients]);
 
+  // Compute effective date range from period filter
+  const effectiveDates = useMemo(() => {
+    const now = new Date();
+    let start: Date | undefined;
+    let end: Date | undefined;
+
+    switch (periodFilter) {
+      case "mes_atual":
+        start = startOfMonth(now);
+        end = now;
+        break;
+      case "mes_anterior": {
+        const prev = subMonths(now, 1);
+        start = startOfMonth(prev);
+        end = endOfDay(new Date(prev.getFullYear(), prev.getMonth() + 1, 0));
+        break;
+      }
+      case "60_dias":
+        start = subDays(now, 60);
+        end = now;
+        break;
+      case "90_dias":
+        start = subDays(now, 90);
+        end = now;
+        break;
+      case "6_meses":
+        start = subMonths(now, 6);
+        end = now;
+        break;
+      case "personalizado":
+        start = dateStart;
+        end = dateEnd;
+        break;
+      case "todos":
+      default:
+        start = undefined;
+        end = undefined;
+        break;
+    }
+    return { start, end };
+  }, [periodFilter, dateStart, dateEnd]);
+
   const filtered = useMemo(() => {
     return clients.filter((c) => {
       const q = search.toLowerCase().trim();
 
-      // Text search across multiple fields
       if (q) {
         const matchesText =
           c.nome.toLowerCase().includes(q) ||
@@ -95,22 +136,20 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
         if (!matchesText) return false;
       }
 
-      // Filter by projetista
       if (filterProjetista && c.vendedor !== filterProjetista) return false;
-
-      // Filter by indicador
       if (filterIndicador && c.indicador_id !== filterIndicador) return false;
 
-      // Filter by date range
-      if (dateStart || dateEnd) {
+      // Date filtering
+      const { start, end } = effectiveDates;
+      if (start || end) {
         const clientDate = new Date(c.created_at);
-        if (dateStart && isBefore(clientDate, startOfDay(dateStart))) return false;
-        if (dateEnd && isAfter(clientDate, endOfDay(dateEnd))) return false;
+        if (start && isBefore(clientDate, startOfDay(start))) return false;
+        if (end && isAfter(clientDate, endOfDay(end))) return false;
       }
 
       return true;
     });
-  }, [clients, search, filterProjetista, filterIndicador, dateStart, dateEnd]);
+  }, [clients, search, filterProjetista, filterIndicador, effectiveDates]);
 
   const isExpired = (createdAt: string) => {
     const expiryDate = addDays(new Date(createdAt), settings.budget_validity_days);
