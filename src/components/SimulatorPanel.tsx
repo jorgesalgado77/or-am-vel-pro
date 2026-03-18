@@ -1158,6 +1158,23 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         </DialogContent>
       </Dialog>
 
+      <CloseSaleModal
+        open={closeSaleModalOpen}
+        onClose={() => setCloseSaleModalOpen(false)}
+        onConfirm={handleCloseSaleConfirm}
+        client={client}
+        simulationData={{
+          valorFinal: result.valorFinal,
+          valorEntrada,
+          parcelas,
+          valorParcela: result.valorParcela,
+          formaPagamento,
+          vendedor: client?.vendedor || "",
+          numeroOrcamento: client?.numero_orcamento || "",
+        }}
+        saving={closingSale}
+      />
+
       {client && (
         <ContractEditorDialog
           open={contractEditorOpen}
