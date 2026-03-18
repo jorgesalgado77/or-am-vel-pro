@@ -35,6 +35,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
     { id: "settings", label: "Configurações", icon: Settings, perm: "configuracoes" as const, show: true },
     { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "configuracoes" as const, show: isAdmin },
     { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "simulador" as const, show: true },
+    { id: "dealroom", label: "Deal Room", icon: Video, perm: "simulador" as const, show: true },
   ];
 
   return (

@@ -212,6 +212,10 @@ export default function Index() {
               />
             )}
 
+            {activeView === "dealroom" && (
+              <DealRoomView tenantId={(settings as any)?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
+            )}
+
             <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
           </main>
 
