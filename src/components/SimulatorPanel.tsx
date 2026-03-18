@@ -69,6 +69,18 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [selectedIndicadorId, setSelectedIndicadorId] = useState("");
 
+  // Environment list from imported files
+  interface ImportedEnvironment {
+    id: string;
+    fileName: string;
+    environmentName: string;
+    pieceCount: number;
+    totalValue: number;
+    importedAt: Date;
+    file: File;
+  }
+  const [environments, setEnvironments] = useState<ImportedEnvironment[]>([]);
+
   // New client form state (when no client is provided)
   const [showClientForm, setShowClientForm] = useState(false);
   const [newClient, setNewClient] = useState({
