@@ -883,10 +883,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <ResultRow label="Valor de Tela" value={formatCurrency(valorTela)} />
-              {comissaoPercentual > 0 && (
+              {!hideIndicador && comissaoPercentual > 0 && (
                 <ResultRow label={`Indicador (${comissaoPercentual}%)`} value={`+ ${formatCurrency(valorTelaComComissao - valorTela)}`} muted />
               )}
-              {comissaoPercentual > 0 && (
+              {!hideIndicador && comissaoPercentual > 0 && (
                 <ResultRow label="Valor com Indicador" value={formatCurrency(valorTelaComComissao)} />
               )}
               <ResultRow label="Desconto Total" value={formatCurrency(valorTelaComComissao - result.valorComDesconto)} muted />
