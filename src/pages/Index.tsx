@@ -21,6 +21,7 @@ type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 export default function Index() {
   const userCtx = useCurrentUserLoader();
+  const tenantPlan = useTenantPlan();
   const { currentUser, selectUser, logout } = userCtx;
 
   const [showChangePassword, setShowChangePassword] = useState(false);
