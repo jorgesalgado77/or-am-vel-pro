@@ -133,6 +133,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTNome(""); setTCodigo(""); setTEmail(""); setTTelefone("");
     setTPlano("trial"); setTPeriodo("mensal"); setTAtivo(true);
     setTOcultarIndicador(false);
+    setTDealRoom(false);
     setShowTenantDialog(true);
   };
 
