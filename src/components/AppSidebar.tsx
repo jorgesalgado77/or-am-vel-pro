@@ -1,4 +1,4 @@
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle, Receipt } from "lucide-react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle, Receipt, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
