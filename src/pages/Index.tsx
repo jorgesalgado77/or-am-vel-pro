@@ -23,6 +23,7 @@ export default function Index() {
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
 
   const hasPermission = (perm: keyof import("@/hooks/useCargos").CargoPermissoes) => {
     if (!currentUser) return true;
