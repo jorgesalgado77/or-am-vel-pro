@@ -527,7 +527,19 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             <div>
               <Label>Valor de Tela</Label>
               <div className="flex gap-2 mt-1">
-                <Input type="number" value={valorTela} onChange={(e) => setValorTela(Number(e.target.value))} min={0} step={100} className="flex-1" />
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={valorTela ? valorTela.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "");
+                      setValorTela(parseInt(raw || "0") / 100);
+                    }}
+                    className="pl-10"
+                  />
+                </div>
                 <Button
                   variant="outline"
                   size="icon"
