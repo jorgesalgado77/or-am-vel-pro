@@ -151,9 +151,10 @@ export default function Index() {
 
   const handleEdit = (client: Client) => { setEditingClient(client); setDrawerOpen(true); };
   const handleAdd = () => { setEditingClient(null); setDrawerOpen(true); };
-  const handleSimulate = (client: Client) => { setSimulatingClient(client); setHistoryClient(null); setActiveView("simulator"); };
-  const handleHistory = (client: Client) => { setHistoryClient(client); setSimulatingClient(null); setActiveView("history"); };
-  const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); };
+  const handleSimulate = (client: Client) => { setSimulatingClient(client); setHistoryClient(null); setContractsClient(null); setActiveView("simulator"); };
+  const handleHistory = (client: Client) => { setHistoryClient(client); setSimulatingClient(null); setContractsClient(null); setActiveView("history"); };
+  const handleContracts = (client: Client) => { setContractsClient(client); setSimulatingClient(null); setHistoryClient(null); setActiveView("contracts"); };
+  const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); };
 
   const currentTitle = activeView === "dashboard" ? "Dashboard"
     : activeView === "clients" ? "Clientes"
