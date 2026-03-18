@@ -328,8 +328,8 @@ export function ClientsKanban({
                         ref={provided.innerRef}
                         {...provided.droppableProps}
                         className={cn(
-                          "space-y-2 min-h-[180px] rounded-md transition-colors p-1",
-                          snapshot.isDraggingOver && "bg-primary/5"
+                          "space-y-2 min-h-[180px] rounded-md transition-all duration-300 p-1",
+                          snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20 shadow-[0_0_15px_hsl(var(--primary)/0.15)]"
                         )}
                       >
                         {(columnData[col.id] || []).map((client, index) => {
