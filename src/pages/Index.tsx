@@ -37,6 +37,7 @@ export default function Index() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
+  const [contractsClient, setContractsClient] = useState<Client | null>(null);
   const [saving, setSaving] = useState(false);
 
   const fetchClients = async () => {
