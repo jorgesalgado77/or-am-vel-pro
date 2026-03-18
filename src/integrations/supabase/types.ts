@@ -43,6 +43,7 @@ export type Database = {
       }
       cargos: {
         Row: {
+          comissao_percentual: number
           created_at: string
           id: string
           nome: string
@@ -50,6 +51,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          comissao_percentual?: number
           created_at?: string
           id?: string
           nome: string
@@ -57,6 +59,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          comissao_percentual?: number
           created_at?: string
           id?: string
           nome?: string
@@ -514,36 +517,58 @@ export type Database = {
       }
       payroll_commissions: {
         Row: {
+          cargo_referencia: string | null
+          client_name: string | null
+          contrato_numero: string | null
           created_at: string
           id: string
+          indicador_id: string | null
           mes_referencia: string
           observacao: string | null
           status: string
           updated_at: string
-          usuario_id: string
+          usuario_id: string | null
+          valor_base: number
           valor_comissao: number
         }
         Insert: {
+          cargo_referencia?: string | null
+          client_name?: string | null
+          contrato_numero?: string | null
           created_at?: string
           id?: string
+          indicador_id?: string | null
           mes_referencia: string
           observacao?: string | null
           status?: string
           updated_at?: string
-          usuario_id: string
+          usuario_id?: string | null
+          valor_base?: number
           valor_comissao?: number
         }
         Update: {
+          cargo_referencia?: string | null
+          client_name?: string | null
+          contrato_numero?: string | null
           created_at?: string
           id?: string
+          indicador_id?: string | null
           mes_referencia?: string
           observacao?: string | null
           status?: string
           updated_at?: string
-          usuario_id?: string
+          usuario_id?: string | null
+          valor_base?: number
           valor_comissao?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "payroll_commissions_indicador_id_fkey"
+            columns: ["indicador_id"]
+            isOneToOne: false
+            referencedRelation: "indicadores"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payroll_commissions_usuario_id_fkey"
             columns: ["usuario_id"]
