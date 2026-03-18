@@ -45,14 +45,27 @@ export default function SignUp() {
 
     try {
       // Check if email already exists in usuarios
-      const { data: existingUsers } = await supabase
+      const { data: existingByEmail } = await supabase
         .from("usuarios")
         .select("id")
         .eq("email", trimmedEmail)
         .limit(1);
 
-      if (existingUsers && existingUsers.length > 0) {
-        toast.error("Este email já está cadastrado");
+      if (existingByEmail && existingByEmail.length > 0) {
+        toast.error("Este email já está cadastrado. Escolha outro email ou faça login.");
+        setLoading(false);
+        return;
+      }
+
+      // Check if email exists as tenant contact
+      const { data: existingTenant } = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("email_contato", trimmedEmail)
+        .limit(1);
+
+      if (existingTenant && existingTenant.length > 0) {
+        toast.error("Este email já está vinculado a uma loja. Use outro email ou faça login.");
         setLoading(false);
         return;
       }
