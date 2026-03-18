@@ -589,6 +589,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         "{{bairro_loja}}": (settings as any).bairro_loja || "",
         "{{cidade_loja}}": (settings as any).cidade_loja || "",
         "{{uf_loja}}": (settings as any).uf_loja || "",
+        "{{cep_loja}}": (settings as any).cep_loja || "",
+        "{{telefone_loja}}": (settings as any).telefone_loja || "",
+        "{{email_loja}}": (settings as any).email_loja || "",
         "{{indicador_nome}}": selectedIndicador?.nome || "",
         "{{indicador_comissao}}": String(comissaoPercentual),
         "{{itens_tabela}}": itensHtml,
@@ -600,7 +603,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         html = html.split(key).join(val);
       });
 
-      // Open editor dialog for review/edit before saving
       setPendingSimId(simData.id);
       setPendingTemplateId((template as any).id);
       setContractHtml(html);
@@ -625,17 +627,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
     if (contractError) { toast.error("Erro ao salvar contrato"); setClosingSale(false); return; }
 
-    // Print
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client.nome}</title>
-        <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
-        @media print{@page{margin:15mm;size:A4;}}</style></head>
-        <body>${finalHtml}</body></html>`;
-      printWindow.document.write(fullHtml);
-      printWindow.document.close();
-      printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
-    }
+    openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
 
     toast.success("Venda fechada! Contrato gerado e salvo.");
     setContractEditorOpen(false);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
+import { buildContractDocumentHtml } from "@/lib/contractDocument";
 
 interface ContractTemplate {
   id: string;
@@ -81,6 +82,11 @@ export function ContratosTab() {
   const [editorKey, setEditorKey] = useState(0);
   const [showHighlights, setShowHighlights] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
+
+  const previewDocument = useMemo(
+    () => buildContractDocumentHtml(removeHighlights(htmlContent), nome || "Preview do contrato"),
+    [htmlContent, nome],
+  );
 
   const fetchTemplates = async () => {
     const { data } = await supabase
@@ -192,7 +198,6 @@ export function ContratosTab() {
     const newVal = !showHighlights;
     setShowHighlights(newVal);
 
-    // Sync editor content
     let currentHtml = htmlContent;
     if (viewMode === "editor" && editorRef.current) {
       currentHtml = editorRef.current.innerHTML;
@@ -341,7 +346,6 @@ export function ContratosTab() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Variables panel */}
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <div className="mb-2 flex items-center gap-2">
                 <Info className="h-4 w-4 text-muted-foreground" />
@@ -362,7 +366,6 @@ export function ContratosTab() {
               </div>
             </div>
 
-            {/* Highlight toggle */}
             <div className="flex items-center justify-between rounded-lg border border-border bg-accent/10 p-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-500" />
@@ -378,7 +381,6 @@ export function ContratosTab() {
 
             <Separator />
 
-            {/* Editor / Preview */}
             {viewMode === "editor" ? (
               <div
                 key={editorKey}
@@ -389,29 +391,13 @@ export function ContratosTab() {
                 dangerouslySetInnerHTML={{ __html: htmlContent }}
               />
             ) : (
-              <div className="rounded-lg border border-border bg-muted/30 p-4 flex justify-center overflow-auto">
-                <div
-                  className="bg-white text-black shadow-lg"
-                  style={{
-                    width: "210mm",
-                    minHeight: "297mm",
-                    padding: "15mm",
-                    fontFamily: "'Segoe UI', 'Arial', sans-serif",
-                    fontSize: "12pt",
-                    lineHeight: "1.6",
-                    boxSizing: "border-box" as const,
-                  }}
-                >
-                  <div
-                    className="prose prose-sm max-w-none"
-                    style={{ fontSize: "inherit", lineHeight: "inherit" }}
-                    dangerouslySetInnerHTML={{ __html: htmlContent }}
-                  />
-                </div>
-              </div>
+              <iframe
+                title="Preview fiel do contrato"
+                className="h-[75vh] w-full rounded-lg border border-border bg-muted/20"
+                srcDoc={previewDocument}
+              />
             )}
 
-            {/* Legend */}
             {showHighlights && (
               <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">Legenda:</span>
@@ -430,7 +416,7 @@ export function ContratosTab() {
 
             <p className="text-xs text-muted-foreground">
               Formatos aceitos: <strong>PDF</strong> (com OCR para escaneados), <strong>Word (.docx)</strong>,{" "}
-              <strong>Excel (.xlsx/.xls)</strong>. O conteúdo é carregado para edição e inserção de variáveis.
+              <strong>Excel (.xlsx/.xls)</strong>. O preview agora replica a paginação e a estrutura do documento salvo.
             </p>
           </CardContent>
         </Card>
@@ -440,50 +426,54 @@ export function ContratosTab() {
 }
 
 const DEFAULT_CONTRACT_HTML = `
-<h1 style="text-align: center;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h1>
-<p style="text-align: center;"><strong>Contrato nº {{numero_contrato}}</strong></p>
-<p style="text-align: center;"><strong>{{empresa_nome}}</strong><br/>CNPJ: {{cnpj_loja}}<br/>{{endereco_loja}}, {{bairro_loja}} — {{cidade_loja}}/{{uf_loja}}</p>
-<hr/>
-<p>Pelo presente instrumento particular, de um lado:</p>
-<p><strong>CONTRATANTE:</strong> {{nome_cliente}}, nascido(a) em {{data_nascimento}}, profissão {{profissao}}, inscrito(a) no CPF/CNPJ sob nº {{cpf_cliente}}, RG/Insc. Estadual {{rg_insc_estadual}}, telefone {{telefone_cliente}}, e-mail {{email_cliente}}.</p>
-<p><strong>Endereço:</strong> {{endereco}}, {{bairro}} — {{cidade}}/{{uf}}, CEP {{cep}}.</p>
-<p><strong>CONTRATADA:</strong> {{empresa_nome}}, CNPJ {{cnpj_loja}}, com sede em {{endereco_loja}}, {{bairro_loja}} — {{cidade_loja}}/{{uf_loja}}, CEP {{cep_loja}}.</p>
+<section class="contract-page" data-contract-page="true">
+  <div class="contract-page__content">
+    <h1 style="text-align: center;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h1>
+    <p style="text-align: center;"><strong>Contrato nº {{numero_contrato}}</strong></p>
+    <p style="text-align: center;"><strong>{{empresa_nome}}</strong><br/>CNPJ: {{cnpj_loja}}<br/>{{endereco_loja}}, {{bairro_loja}} — {{cidade_loja}}/{{uf_loja}}</p>
+    <hr/>
+    <p>Pelo presente instrumento particular, de um lado:</p>
+    <p><strong>CONTRATANTE:</strong> {{nome_cliente}}, nascido(a) em {{data_nascimento}}, profissão {{profissao}}, inscrito(a) no CPF/CNPJ sob nº {{cpf_cliente}}, RG/Insc. Estadual {{rg_insc_estadual}}, telefone {{telefone_cliente}}, e-mail {{email_cliente}}.</p>
+    <p><strong>Endereço:</strong> {{endereco}}, {{bairro}} — {{cidade}}/{{uf}}, CEP {{cep}}.</p>
+    <p><strong>CONTRATADA:</strong> {{empresa_nome}}, CNPJ {{cnpj_loja}}, com sede em {{endereco_loja}}, {{bairro_loja}} — {{cidade_loja}}/{{uf_loja}}, CEP {{cep_loja}}.</p>
 
-<h2>CLÁUSULA 1ª — DO OBJETO</h2>
-<p>O presente contrato tem por objeto a prestação de serviços conforme orçamento nº <strong>{{numero_orcamento}}</strong>, elaborado pelo(a) projetista <strong>{{projetista}}</strong>, responsável pela venda: <strong>{{responsavel_venda}}</strong>.</p>
+    <h2>CLÁUSULA 1ª — DO OBJETO</h2>
+    <p>O presente contrato tem por objeto a prestação de serviços conforme orçamento nº <strong>{{numero_orcamento}}</strong>, elaborado pelo(a) projetista <strong>{{projetista}}</strong>, responsável pela venda: <strong>{{responsavel_venda}}</strong>.</p>
 
-<h2>CLÁUSULA 2ª — DOS ITENS CONTRATADOS</h2>
-{{itens_tabela}}
-<p><strong>Total dos ambientes: {{total_ambientes}}</strong></p>
+    <h2>CLÁUSULA 2ª — DOS ITENS CONTRATADOS</h2>
+    {{itens_tabela}}
+    <p><strong>Total dos ambientes: {{total_ambientes}}</strong></p>
 
-<h3>Detalhamento dos materiais</h3>
-{{itens_detalhes}}
+    <h3>Detalhamento dos materiais</h3>
+    {{itens_detalhes}}
 
-<h2>CLÁUSULA 3ª — DO VALOR E PAGAMENTO</h2>
-<p>O valor total dos serviços é de <strong>{{valor_final}}</strong>, conforme detalhamento abaixo:</p>
-<ul>
-  <li>Valor de tela: {{valor_tela}}</li>
-  <li>Forma de pagamento: {{forma_pagamento}}</li>
-  <li>Entrada: {{valor_entrada}}</li>
-  <li>Parcelas: {{parcelas}}x de {{valor_parcela}}</li>
-</ul>
+    <h2>CLÁUSULA 3ª — DO VALOR E PAGAMENTO</h2>
+    <p>O valor total dos serviços é de <strong>{{valor_final}}</strong>, conforme detalhamento abaixo:</p>
+    <ul>
+      <li>Valor de tela: {{valor_tela}}</li>
+      <li>Forma de pagamento: {{forma_pagamento}}</li>
+      <li>Entrada: {{valor_entrada}}</li>
+      <li>Parcelas: {{parcelas}}x de {{valor_parcela}}</li>
+    </ul>
 
-<h2>CLÁUSULA 4ª — DA ENTREGA</h2>
-<p><strong>Endereço de entrega:</strong> {{endereco_entrega}}, {{bairro_entrega}} — {{cidade_entrega}}/{{uf_entrega}}, CEP {{cep_entrega}}.</p>
-<p><strong>Prazo de entrega:</strong> {{prazo_entrega}}</p>
+    <h2>CLÁUSULA 4ª — DA ENTREGA</h2>
+    <p><strong>Endereço de entrega:</strong> {{endereco_entrega}}, {{bairro_entrega}} — {{cidade_entrega}}/{{uf_entrega}}, CEP {{cep_entrega}}.</p>
+    <p><strong>Prazo de entrega:</strong> {{prazo_entrega}}</p>
 
-<h2>CLÁUSULA 5ª — DO INDICADOR</h2>
-<p>Indicador: {{indicador_nome}} — Comissão: {{indicador_comissao}}%</p>
+    <h2>CLÁUSULA 5ª — DO INDICADOR</h2>
+    <p>Indicador: {{indicador_nome}} — Comissão: {{indicador_comissao}}%</p>
 
-<h2>CLÁUSULA 6ª — OBSERVAÇÕES</h2>
-<p>{{observacoes}}</p>
+    <h2>CLÁUSULA 6ª — OBSERVAÇÕES</h2>
+    <p>{{observacoes}}</p>
 
-<h2>CLÁUSULA 7ª — DAS DISPOSIÇÕES GERAIS</h2>
-<p>As partes elegem o foro da comarca de {{cidade_loja}}/{{uf_loja}} para dirimir quaisquer dúvidas oriundas do presente contrato.</p>
-<br/>
-<p>{{cidade_loja}}, {{data_atual}}</p>
-<br/><br/>
-<p>_________________________________<br/>{{nome_cliente}}<br/>CPF/CNPJ: {{cpf_cliente}}<br/>CONTRATANTE</p>
-<br/>
-<p>_________________________________<br/>{{empresa_nome}}<br/>CNPJ: {{cnpj_loja}}<br/>CONTRATADA</p>
+    <h2>CLÁUSULA 7ª — DAS DISPOSIÇÕES GERAIS</h2>
+    <p>As partes elegem o foro da comarca de {{cidade_loja}}/{{uf_loja}} para dirimir quaisquer dúvidas oriundas do presente contrato.</p>
+    <br/>
+    <p>{{cidade_loja}}, {{data_atual}}</p>
+    <br/><br/>
+    <p>_________________________________<br/>{{nome_cliente}}<br/>CPF/CNPJ: {{cpf_cliente}}<br/>CONTRATANTE</p>
+    <br/>
+    <p>_________________________________<br/>{{empresa_nome}}<br/>CNPJ: {{cnpj_loja}}<br/>CONTRATADA</p>
+  </div>
+</section>
 `;
