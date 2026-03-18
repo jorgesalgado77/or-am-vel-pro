@@ -41,6 +41,7 @@ export function AdminDealRoom() {
   const [transactions, setTransactions] = useState<DealRoomTransaction[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [filterTenant, setFilterTenant] = useState("all");
+  const [filterPlan, setFilterPlan] = useState("all");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
 
@@ -48,8 +49,10 @@ export function AdminDealRoom() {
   const [usageData, setUsageData] = useState<{ tenant_id: string; nome_loja: string; plano: string; daily: number; total_reunioes: number; vendas: number; valor: number; receita_plataforma: number }[]>([]);
 
   const fetchAll = async () => {
-    // Fetch tenants
-    const { data: tData } = await supabase.from("tenants").select("id, nome_loja, plano, ativo").eq("ativo", true);
+    // Fetch tenants (with optional plan filter)
+    const tenantQuery = supabase.from("tenants").select("id, nome_loja, plano, ativo").eq("ativo", true);
+    if (filterPlan !== "all") tenantQuery.eq("plano", filterPlan);
+    const { data: tData } = await tenantQuery;
     if (tData) setTenants(tData as any);
 
     // Fetch metrics
@@ -167,7 +170,7 @@ export function AdminDealRoom() {
     vendas: { label: "Vendas", color: "hsl(var(--secondary))" },
   };
 
-  useEffect(() => { fetchAll(); }, [filterTenant, filterDateFrom, filterDateTo]);
+  useEffect(() => { fetchAll(); }, [filterTenant, filterPlan, filterDateFrom, filterDateTo]);
 
   return (
     <div className="space-y-6">
@@ -182,6 +185,18 @@ export function AdminDealRoom() {
               {tenants.map(t => (
                 <SelectItem key={t.id} value={t.id}>{t.nome_loja}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Plano</Label>
+          <Select value={filterPlan} onValueChange={setFilterPlan}>
+            <SelectTrigger className="w-40 mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os planos</SelectItem>
+              <SelectItem value="trial">Trial</SelectItem>
+              <SelectItem value="basico">Básico</SelectItem>
+              <SelectItem value="premium">Premium</SelectItem>
             </SelectContent>
           </Select>
         </div>
