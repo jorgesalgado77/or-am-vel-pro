@@ -85,6 +85,8 @@ export default function LandingPage() {
           />
         )}
 
+        <LandingAddons primaryColor={config.primary_color} />
+
         {s.lead_form && (
           <LandingLeadForm primaryColor={config.primary_color} />
         )}
