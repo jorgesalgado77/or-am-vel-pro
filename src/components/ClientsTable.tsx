@@ -37,7 +37,7 @@ interface ClientsTableProps {
   onContracts: (client: Client) => void;
 }
 
-export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory }: ClientsTableProps) {
+export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory, onContracts }: ClientsTableProps) {
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
