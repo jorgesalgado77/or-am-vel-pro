@@ -19,7 +19,8 @@ import { DescontosTab } from "@/components/settings/DescontosTab";
 import { IndicadoresTab } from "@/components/settings/IndicadoresTab";
 import { ContratosTab } from "@/components/settings/ContratosTab";
 import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
-import { UserCheck, FileSignature, MessageSquare } from "lucide-react";
+import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
+import { UserCheck, FileSignature, MessageSquare, ClipboardList } from "lucide-react";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
