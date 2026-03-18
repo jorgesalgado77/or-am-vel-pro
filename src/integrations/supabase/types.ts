@@ -748,42 +748,51 @@ export type Database = {
           apelido: string | null
           ativo: boolean
           cargo_id: string | null
+          comissao_percentual: number | null
           created_at: string
           email: string | null
           foto_url: string | null
           id: string
           nome_completo: string
           primeiro_login: boolean
+          salario_fixo: number | null
           senha: string | null
           telefone: string | null
+          tipo_regime: string | null
           updated_at: string
         }
         Insert: {
           apelido?: string | null
           ativo?: boolean
           cargo_id?: string | null
+          comissao_percentual?: number | null
           created_at?: string
           email?: string | null
           foto_url?: string | null
           id?: string
           nome_completo: string
           primeiro_login?: boolean
+          salario_fixo?: number | null
           senha?: string | null
           telefone?: string | null
+          tipo_regime?: string | null
           updated_at?: string
         }
         Update: {
           apelido?: string | null
           ativo?: boolean
           cargo_id?: string | null
+          comissao_percentual?: number | null
           created_at?: string
           email?: string | null
           foto_url?: string | null
           id?: string
           nome_completo?: string
           primeiro_login?: boolean
+          salario_fixo?: number | null
           senha?: string | null
           telefone?: string | null
+          tipo_regime?: string | null
           updated_at?: string
         }
         Relationships: [
