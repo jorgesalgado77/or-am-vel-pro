@@ -14,6 +14,8 @@ import { MessagesPanel } from "@/components/MessagesPanel";
 import { PlanBanner } from "@/components/PlanBanner";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { VendaZapPanel } from "@/components/VendaZapPanel";
+import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
+import { DealRoomView } from "@/components/DealRoomView";
 import Login from "@/pages/Login";
 import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
@@ -36,6 +38,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   plans: { title: "Planos de Assinatura", subtitle: "Gerencie seu plano e pagamentos" },
   simulator: { title: "Negociação e Simulação de Financiamentos", subtitle: "Calcule descontos e condições de pagamento" },
   vendazap: { title: "VendaZap AI", subtitle: "Assistente inteligente de vendas para WhatsApp" },
+  dealroom: { title: "Deal Room", subtitle: "Sala de negociação com apresentação e pagamento integrado" },
 };
 
 export default function Index() {
@@ -208,6 +211,10 @@ export default function Index() {
                 tenantId={(settings as any)?.tenant_id || null}
                 onBack={() => setActiveView("clients")}
               />
+            )}
+
+            {activeView === "dealroom" && (
+              <DealRoomView tenantId={(settings as any)?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
             )}
 
             <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
