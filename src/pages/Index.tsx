@@ -5,8 +5,9 @@ import { ClientDrawer } from "@/components/ClientDrawer";
 import { SimulatorPanel } from "@/components/SimulatorPanel";
 import { SimulationHistory } from "@/components/SimulationHistory";
 import { SettingsPanel } from "@/components/SettingsPanel";
-import { UserSelector } from "@/components/UserSelector";
 import { Dashboard } from "@/components/Dashboard";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import Login from "@/pages/Login";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -17,6 +18,9 @@ type Client = Database["public"]["Tables"]["clients"]["Row"];
 export default function Index() {
   const userCtx = useCurrentUserLoader();
   const { currentUser, selectUser, logout } = userCtx;
+
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
 
   const hasPermission = (perm: keyof import("@/hooks/useCargos").CargoPermissoes) => {
     if (!currentUser) return true;
@@ -83,8 +87,20 @@ export default function Index() {
     }
   }, [currentUser]);
 
+  const handleLogin = (userId: string, primeiroLogin: boolean) => {
+    selectUser(userId);
+    if (primeiroLogin) {
+      setForcedPasswordChange(true);
+      setShowChangePassword(true);
+    }
+  };
+
+  const handlePasswordChanged = () => {
+    setShowChangePassword(false);
+    setForcedPasswordChange(false);
+  };
+
   const generateOrcamentoNumber = async (): Promise<{ numero_orcamento: string; numero_orcamento_seq: number }> => {
-    // Get max sequence used
     const { data: maxData } = await supabase
       .from("clients")
       .select("numero_orcamento_seq")
@@ -94,7 +110,6 @@ export default function Index() {
 
     let nextSeq: number;
     if (!maxData?.numero_orcamento_seq) {
-      // Use configured start number
       const { data: settingsData } = await supabase.from("company_settings").select("orcamento_numero_inicial").limit(1).single() as any;
       nextSeq = settingsData?.orcamento_numero_inicial || 1;
     } else {
@@ -150,12 +165,28 @@ export default function Index() {
     : activeView === "settings" ? "Gerencie empresa, financeiras e operadoras"
     : "Calcule descontos e condições de pagamento";
 
-  const showUserSelector = !currentUser && !userCtx.loading;
+  // Show login if no user is logged in
+  if (!currentUser && !userCtx.loading) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  // Loading state
+  if (userCtx.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <CurrentUserContext.Provider value={{ currentUser, selectUser, logout, hasPermission }}>
       <div className="flex min-h-screen bg-background">
-        <AppSidebar activeView={activeView} onViewChange={handleViewChange} />
+        <AppSidebar
+          activeView={activeView}
+          onViewChange={handleViewChange}
+          onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
+        />
 
         <main className="flex-1 ml-60 p-6">
           <div className="mb-6">
@@ -188,7 +219,14 @@ export default function Index() {
           <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={handleSaveClient} client={editingClient} saving={saving} />
         </main>
 
-        <UserSelector open={showUserSelector} onSelect={selectUser} />
+        {currentUser && (
+          <ChangePasswordDialog
+            open={showChangePassword}
+            userId={currentUser.id}
+            forced={forcedPasswordChange}
+            onClose={handlePasswordChanged}
+          />
+        )}
       </div>
     </CurrentUserContext.Provider>
   );
