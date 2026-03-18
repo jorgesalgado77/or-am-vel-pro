@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS: CompanySettings = {
   manager_password: null,
   admin_password: null,
   orcamento_numero_inicial: 1,
+  codigo_loja: null,
 };
 
 let cachedSettings: CompanySettings | null = null;
