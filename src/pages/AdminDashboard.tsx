@@ -144,6 +144,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTAtivo(t.ativo);
     const vip = (t as any).recursos_vip || {};
     setTOcultarIndicador(vip.ocultar_indicador || false);
+    setTDealRoom(vip.deal_room || false);
     setShowTenantDialog(true);
   };
 
