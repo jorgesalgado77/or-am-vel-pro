@@ -204,7 +204,7 @@ export default function Index() {
           )}
 
           {activeView === "clients" && (
-            <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} />
+            <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
           )}
 
           {activeView === "simulator" && (
