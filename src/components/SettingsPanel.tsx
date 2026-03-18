@@ -68,6 +68,8 @@ function CompanySettingsTab() {
   const [cidadeLoja, setCidadeLoja] = useState("");
   const [ufLoja, setUfLoja] = useState("");
   const [cepLoja, setCepLoja] = useState("");
+  const [telefoneLoja, setTelefoneLoja] = useState("");
+  const [emailLoja, setEmailLoja] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [managerPassword, setManagerPassword] = useState("");
   const [confirmManagerPassword, setConfirmManagerPassword] = useState("");
@@ -78,6 +80,7 @@ function CompanySettingsTab() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [orcamentoInicial, setOrcamentoInicial] = useState(1);
+  const [buscandoCep, setBuscandoCep] = useState(false);
 
   useEffect(() => {
     setName(settings.company_name);
@@ -89,6 +92,8 @@ function CompanySettingsTab() {
     setCidadeLoja(settings.cidade_loja || "");
     setUfLoja(settings.uf_loja || "");
     setCepLoja(settings.cep_loja || "");
+    setTelefoneLoja(settings.telefone_loja || "");
+    setEmailLoja(settings.email_loja || "");
     setValidityDays(settings.budget_validity_days);
     setManagerPassword(settings.manager_password || "");
     setConfirmManagerPassword(settings.manager_password || "");
@@ -96,6 +101,23 @@ function CompanySettingsTab() {
     setConfirmAdminPassword(settings.admin_password || "");
     setOrcamentoInicial(settings.orcamento_numero_inicial || 1);
   }, [settings]);
+
+  const buscarCepLoja = async () => {
+    const cepClean = cepLoja.replace(/\D/g, "");
+    if (cepClean.length !== 8) { toast.error("CEP inválido"); return; }
+    setBuscandoCep(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepClean}/json/`);
+      const data = await res.json();
+      if (data.erro) { toast.error("CEP não encontrado"); return; }
+      setEnderecoLoja(data.logradouro || "");
+      setBairroLoja(data.bairro || "");
+      setCidadeLoja(data.localidade || "");
+      setUfLoja(data.uf || "");
+      toast.success("Endereço preenchido!");
+    } catch { toast.error("Erro ao buscar CEP"); }
+    finally { setBuscandoCep(false); }
+  };
 
   const handleSave = async () => {
     if (managerPassword && managerPassword !== confirmManagerPassword) {
@@ -115,6 +137,8 @@ function CompanySettingsTab() {
       cidade_loja: cidadeLoja.trim() || null,
       uf_loja: ufLoja.trim() || null,
       cep_loja: cepLoja.trim() || null,
+      telefone_loja: telefoneLoja.trim() || null,
+      email_loja: emailLoja.trim() || null,
       budget_validity_days: validityDays,
       manager_password: managerPassword,
       admin_password: adminPassword,
@@ -157,7 +181,19 @@ function CompanySettingsTab() {
           <div><Label>Bairro</Label><Input value={bairroLoja} onChange={(e) => setBairroLoja(e.target.value)} className="mt-1" /></div>
           <div><Label>Cidade</Label><Input value={cidadeLoja} onChange={(e) => setCidadeLoja(e.target.value)} className="mt-1" /></div>
           <div><Label>UF</Label><Input value={ufLoja} onChange={(e) => setUfLoja(e.target.value)} placeholder="SP" maxLength={2} className="mt-1" /></div>
-          <div><Label>CEP</Label><Input value={cepLoja} onChange={(e) => setCepLoja(e.target.value)} placeholder="00000-000" className="mt-1" /></div>
+          <div>
+            <Label>CEP</Label>
+            <div className="flex gap-1 mt-1">
+              <Input value={cepLoja} onChange={(e) => setCepLoja(e.target.value)} placeholder="00000-000" />
+              <Button variant="outline" size="icon" className="shrink-0" onClick={buscarCepLoja} disabled={buscandoCep} title="Buscar CEP">
+                {buscandoCep ? <span className="animate-spin text-xs">⏳</span> : <span className="text-xs">🔍</span>}
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><Label>Telefone da Loja</Label><Input value={telefoneLoja} onChange={(e) => setTelefoneLoja(e.target.value)} placeholder="(00) 00000-0000" className="mt-1" /></div>
+          <div><Label>Email da Loja</Label><Input type="email" value={emailLoja} onChange={(e) => setEmailLoja(e.target.value)} placeholder="contato@loja.com" className="mt-1" /></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

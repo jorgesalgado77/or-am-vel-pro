@@ -320,9 +320,14 @@ export function ContratosTab() {
                   className="gap-1"
                   onClick={() => {
                     if (viewMode === "editor" && editorRef.current) {
-                      setHtmlContent(editorRef.current.innerHTML);
+                      const captured = editorRef.current.innerHTML;
+                      setHtmlContent(captured);
+                      setViewMode("preview");
+                      setEditorKey((k) => k + 1);
+                    } else {
+                      setViewMode("editor");
+                      setEditorKey((k) => k + 1);
                     }
-                    setViewMode(viewMode === "editor" ? "preview" : "editor");
                   }}
                 >
                   {viewMode === "editor" ? <Eye className="h-4 w-4" /> : <Code className="h-4 w-4" />}
