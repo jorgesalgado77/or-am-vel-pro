@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake } from "lucide-react";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData } from "@/lib/financing";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
