@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play, CheckCircle2 } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
-import heroImg from "@/assets/carousel-1.jpg";
+import heroImg from "@/assets/screen-kanban.jpg";
 
 interface LandingHeroProps {
   title: string;

@@ -2,32 +2,32 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
 import { motion, AnimatePresence } from "framer-motion";
-import carousel1 from "@/assets/carousel-1.jpg";
-import carousel2 from "@/assets/carousel-2.jpg";
-import carousel3 from "@/assets/carousel-3.jpg";
-
-interface LandingCarouselProps {
-  images: string[];
-  primaryColor: string;
-}
-
-interface CarouselSlide {
-  src: string;
-  label: string;
-}
+import screenKanban from "@/assets/screen-kanban.jpg";
+import screenDashboard from "@/assets/screen-dashboard.jpg";
+import screenSimulator from "@/assets/screen-simulator.jpg";
+import screenVendazap from "@/assets/screen-vendazap.jpg";
+import screenContratos from "@/assets/screen-contratos.jpg";
 
 const REAL_SLIDES: CarouselSlide[] = [
   {
-    src: carousel1,
-    label: "Kanban comercial atualizado com etapas reais do funil de clientes",
+    src: screenKanban,
+    label: "Kanban comercial com funil completo: Novo Lead → Em Negociação → Proposta Enviada → Fechado",
   },
   {
-    src: carousel2,
-    label: "Tela operacional do OrçaMovel Pro com gestão real da negociação",
+    src: screenDashboard,
+    label: "Dashboard com KPIs em tempo real: vendas, clientes ativos, taxa de conversão e ticket médio",
   },
   {
-    src: carousel3,
-    label: "Fluxo real de orçamento e acompanhamento comercial do sistema",
+    src: screenSimulator,
+    label: "Simulador de financiamento com comparativo entre bandeiras e formas de pagamento",
+  },
+  {
+    src: screenVendazap,
+    label: "VendaZap AI: assistente inteligente que gera mensagens persuasivas para WhatsApp",
+  },
+  {
+    src: screenContratos,
+    label: "Gerador de contratos com editor visual, templates e envio direto por WhatsApp",
   },
 ];
 
