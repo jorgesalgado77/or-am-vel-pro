@@ -681,6 +681,21 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
     openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
 
+    // Audit: sale closed
+    const userInfo = getAuditUserInfo();
+    logAudit({
+      acao: "venda_fechada",
+      entidade: "contract",
+      entidade_id: pendingSimId,
+      detalhes: {
+        cliente: client.nome,
+        cliente_id: client.id,
+        valor_final: result.valorFinal,
+        forma_pagamento: formaPagamento,
+      },
+      ...userInfo,
+    });
+
     toast.success("Venda fechada! Contrato gerado, comissões criadas e salvo.");
     setContractEditorOpen(false);
     setPendingSimId(null);
