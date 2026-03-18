@@ -238,6 +238,10 @@ export default function Index() {
 
             {activeView === "settings" && <SettingsPanel />}
 
+            {activeView === "messages" && (
+              <MessagesPanel onUnreadChange={setUnreadMessages} />
+            )}
+
             <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={handleSaveClient} client={editingClient} saving={saving} />
           </main>
 
