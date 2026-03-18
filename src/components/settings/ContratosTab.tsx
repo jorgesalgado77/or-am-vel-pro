@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info } from "lucide-react";
-import { importContractFile } from "@/lib/contractImport";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles } from "lucide-react";
+import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 
 interface ContractTemplate {
   id: string;
@@ -49,6 +50,7 @@ export function ContratosTab() {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
+  const [showHighlights, setShowHighlights] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const fetchTemplates = async () => {
@@ -69,7 +71,7 @@ export function ContratosTab() {
     setNome("Novo Contrato");
     setHtmlContent(DEFAULT_CONTRACT_HTML);
     setViewMode("editor");
-    setEditorKey((key) => key + 1);
+    setEditorKey((k) => k + 1);
   };
 
   const handleEdit = (t: ContractTemplate) => {
@@ -77,7 +79,15 @@ export function ContratosTab() {
     setNome(t.nome);
     setHtmlContent(t.conteudo_html);
     setViewMode("editor");
-    setEditorKey((key) => key + 1);
+    setEditorKey((k) => k + 1);
+  };
+
+  const getCleanHtml = () => {
+    let raw = htmlContent;
+    if (viewMode === "editor" && editorRef.current) {
+      raw = editorRef.current.innerHTML;
+    }
+    return removeHighlights(raw);
   };
 
   const handleSave = async () => {
@@ -87,11 +97,8 @@ export function ContratosTab() {
     }
     setSaving(true);
 
-    let finalHtml = htmlContent;
-    if (viewMode === "editor" && editorRef.current) {
-      finalHtml = editorRef.current.innerHTML;
-      setHtmlContent(finalHtml);
-    }
+    const finalHtml = getCleanHtml();
+    setHtmlContent(finalHtml);
 
     if (editingTemplate) {
       const { error } = await supabase
@@ -131,9 +138,11 @@ export function ContratosTab() {
 
     try {
       const imported = await importContractFile(file);
-      setHtmlContent(imported.html);
+      const highlighted = showHighlights ? highlightSuggestedFields(imported.html) : imported.html;
+
+      setHtmlContent(highlighted);
       setViewMode("editor");
-      setEditorKey((key) => key + 1);
+      setEditorKey((k) => k + 1);
 
       if (!nome || nome === "Novo Contrato") {
         setNome(imported.suggestedName);
@@ -148,6 +157,26 @@ export function ContratosTab() {
       setImporting(false);
       e.target.value = "";
     }
+  };
+
+  const toggleHighlights = () => {
+    const newVal = !showHighlights;
+    setShowHighlights(newVal);
+
+    // Sync editor content
+    let currentHtml = htmlContent;
+    if (viewMode === "editor" && editorRef.current) {
+      currentHtml = editorRef.current.innerHTML;
+    }
+
+    if (newVal) {
+      const clean = removeHighlights(currentHtml);
+      const highlighted = highlightSuggestedFields(clean);
+      setHtmlContent(highlighted);
+    } else {
+      setHtmlContent(removeHighlights(currentHtml));
+    }
+    setEditorKey((k) => k + 1);
   };
 
   const insertVariable = (varName: string) => {
@@ -181,7 +210,8 @@ export function ContratosTab() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Modelos de Contrato</CardTitle>
             <Button size="sm" className="gap-2" onClick={handleNew}>
-              <Plus className="h-4 w-4" />Novo Modelo
+              <Plus className="h-4 w-4" />
+              Novo Modelo
             </Button>
           </div>
         </CardHeader>
@@ -201,7 +231,9 @@ export function ContratosTab() {
                     <FileText className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium text-foreground">{t.nome}</p>
-                      <p className="text-xs text-muted-foreground">{t.arquivo_original_nome || "Criado manualmente"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t.arquivo_original_nome || "Criado manualmente"}
+                      </p>
                     </div>
                     {t.ativo && (
                       <Badge variant="secondary" className="text-xs">
@@ -238,9 +270,14 @@ export function ContratosTab() {
                 <Label className="mb-1 block text-xs">Nome do Modelo</Label>
                 <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do contrato" />
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <label className="cursor-pointer">
-                  <input type="file" accept=".pdf,.docx,.xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={handleImportFile}
+                  />
                   <Button variant="outline" size="sm" className="gap-2" asChild disabled={importing}>
                     <span>
                       <Upload className="h-4 w-4" />
@@ -270,6 +307,7 @@ export function ContratosTab() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Variables panel */}
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <div className="mb-2 flex items-center gap-2">
                 <Info className="h-4 w-4 text-muted-foreground" />
@@ -290,8 +328,23 @@ export function ContratosTab() {
               </div>
             </div>
 
+            {/* Highlight toggle */}
+            <div className="flex items-center justify-between rounded-lg border border-border bg-accent/10 p-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">Marcação de campos sugeridos</p>
+                  <p className="text-xs text-muted-foreground">
+                    Destaca CPF, valores, datas e telefones encontrados no contrato
+                  </p>
+                </div>
+              </div>
+              <Switch checked={showHighlights} onCheckedChange={toggleHighlights} />
+            </div>
+
             <Separator />
 
+            {/* Editor / Preview */}
             {viewMode === "editor" ? (
               <div
                 key={editorKey}
@@ -307,9 +360,26 @@ export function ContratosTab() {
               </div>
             )}
 
+            {/* Legend */}
+            {showHighlights && (
+              <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Legenda:</span>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-3 w-6 rounded-sm"
+                    style={{
+                      background: "linear-gradient(135deg, hsl(45 93% 80% / 0.6), hsl(45 93% 70% / 0.4))",
+                      borderBottom: "2px solid hsl(45 93% 47%)",
+                    }}
+                  />
+                  Campos detectados automaticamente — substitua pelas variáveis correspondentes
+                </span>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground">
-              Formatos aceitos para importação: <strong>PDF</strong>, <strong>Word (.docx)</strong>, <strong>Excel (.xlsx/.xls)</strong>.
-              O conteúdo importado é carregado no editor para ajuste completo e inserção das variáveis automáticas.
+              Formatos aceitos: <strong>PDF</strong> (com OCR para escaneados), <strong>Word (.docx)</strong>,{" "}
+              <strong>Excel (.xlsx/.xls)</strong>. O conteúdo é carregado para edição e inserção de variáveis.
             </p>
           </CardContent>
         </Card>
