@@ -153,6 +153,15 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
     });
   }, [clients, search, filterProjetista, filterIndicador, effectiveDates]);
 
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1); }, [search, filterProjetista, filterIndicador, periodFilter, dateStart, dateEnd]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
+
   const isExpired = (createdAt: string) => {
     const expiryDate = addDays(new Date(createdAt), settings.budget_validity_days);
     return isPast(expiryDate);
@@ -168,8 +177,6 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
     setDateEnd(undefined);
     setSearch("");
   };
-
-  return (
     <div className="flex flex-col h-full">
       {/* Search bar + action buttons */}
       <div className="flex items-center justify-between gap-4 mb-3">
