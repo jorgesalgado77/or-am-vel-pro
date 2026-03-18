@@ -299,6 +299,109 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     }
   };
 
+  const [closingSale, setClosingSale] = useState(false);
+
+  const handleCloseSale = async () => {
+    if (!client) {
+      toast.error("Selecione um cliente para fechar a venda");
+      return;
+    }
+
+    setClosingSale(true);
+    try {
+      // First save the simulation
+      let arquivoUrl: string | null = null;
+      let arquivoNome: string | null = null;
+      if (importedFile) {
+        const uploaded = await uploadFile(importedFile, client.id);
+        if (uploaded) { arquivoUrl = uploaded.url; arquivoNome = uploaded.nome; }
+      }
+
+      const { data: simData, error: simError } = await supabase.from("simulations").insert({
+        client_id: client.id, valor_tela: valorTela, desconto1, desconto2, desconto3,
+        forma_pagamento: formaPagamento, parcelas, valor_entrada: valorEntrada,
+        plus_percentual: plusPercentual, valor_final: result.valorFinal,
+        valor_parcela: result.valorParcela, arquivo_url: arquivoUrl, arquivo_nome: arquivoNome,
+      } as any).select("id").single();
+
+      if (simError || !simData) { toast.error("Erro ao salvar simulação"); setClosingSale(false); return; }
+
+      // Fetch active contract template
+      const { data: template } = await supabase
+        .from("contract_templates")
+        .select("*")
+        .eq("ativo", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!template) {
+        toast.error("Nenhum modelo de contrato ativo encontrado. Cadastre um em Configurações > Contratos.");
+        setClosingSale(false);
+        return;
+      }
+
+      // Fill template variables
+      const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      const formaLabel: Record<string, string> = {
+        "A vista": "À Vista", Pix: "Pix", Credito: "Cartão de Crédito",
+        Boleto: "Boleto", "Credito / Boleto": "Crédito + Boleto", "Entrada e Entrega": "Entrada e Entrega",
+      };
+
+      let html = (template as any).conteudo_html as string;
+      const replacements: Record<string, string> = {
+        "{{nome_cliente}}": client.nome || "",
+        "{{cpf_cliente}}": client.cpf || "",
+        "{{telefone_cliente}}": client.telefone1 || "",
+        "{{email_cliente}}": client.email || "",
+        "{{numero_orcamento}}": client.numero_orcamento || "",
+        "{{projetista}}": client.vendedor || "",
+        "{{valor_tela}}": formatCurrency(valorTela),
+        "{{valor_final}}": formatCurrency(result.valorFinal),
+        "{{forma_pagamento}}": formaLabel[formaPagamento] || formaPagamento,
+        "{{parcelas}}": String(parcelas),
+        "{{valor_parcela}}": formatCurrency(result.valorParcela),
+        "{{valor_entrada}}": formatCurrency(valorEntrada),
+        "{{data_atual}}": dataAtual,
+        "{{empresa_nome}}": settings.company_name || "INOVAMAD",
+        "{{indicador_nome}}": selectedIndicador?.nome || "",
+        "{{indicador_comissao}}": String(comissaoPercentual),
+      };
+
+      Object.entries(replacements).forEach(([key, val]) => {
+        html = html.replaceAll(key, val);
+      });
+
+      // Save contract linked to client and simulation
+      const { error: contractError } = await supabase.from("client_contracts").insert({
+        client_id: client.id,
+        simulation_id: simData.id,
+        template_id: (template as any).id,
+        conteudo_html: html,
+      } as any);
+
+      if (contractError) { toast.error("Erro ao salvar contrato"); setClosingSale(false); return; }
+
+      // Generate PDF in new window
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Contrato - ${client.nome}</title>
+          <style>body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1e293b;}
+          @media print{@page{margin:15mm;size:A4;}}</style></head>
+          <body>${html}</body></html>`;
+        printWindow.document.write(fullHtml);
+        printWindow.document.close();
+        printWindow.onload = () => setTimeout(() => printWindow.print(), 300);
+      }
+
+      toast.success("Venda fechada! Contrato gerado e salvo.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao fechar venda");
+    }
+    setClosingSale(false);
+  };
+
   const passwordDialogTitle = pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
 
   return (
