@@ -74,7 +74,8 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
     return cargos.find((c) => c.id === cargoId)?.nome || "—";
   };
 
-  const getUserName = (userId: string) => {
+  const getUserName = (userId: string | null) => {
+    if (!userId) return "—";
     const u = usuarios.find((u) => u.id === userId);
     return u?.apelido || u?.nome_completo || "—";
   };
