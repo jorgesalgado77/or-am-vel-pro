@@ -244,7 +244,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       carenciaDias,
     };
     return calculateSimulation(input);
-  }, [valorTelaComComissao, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, selectedBoletoProvider, selectedCreditoProvider, boletoRates, creditoRates, carenciaDias]);
+  }, [valorTelaComComissao, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, boletoCoeffMap, boletoRatesFullMap, creditoCoeffMap, creditoRatesFullMap, carenciaDias]);
 
   const requestUnlock = (field: "desconto3" | "plus") => {
     if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
