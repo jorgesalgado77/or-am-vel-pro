@@ -8,8 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info } from "lucide-react";
-import mammoth from "mammoth";
-import * as XLSX from "xlsx";
+import { importContractFile } from "@/lib/contractImport";
 
 interface ContractTemplate {
   id: string;
@@ -61,14 +60,16 @@ export function ContratosTab() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchTemplates(); }, []);
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
   const handleNew = () => {
     setEditingTemplate(null);
     setNome("Novo Contrato");
     setHtmlContent(DEFAULT_CONTRACT_HTML);
     setViewMode("editor");
-    setEditorKey(k => k + 1);
+    setEditorKey((key) => key + 1);
   };
 
   const handleEdit = (t: ContractTemplate) => {
@@ -76,14 +77,16 @@ export function ContratosTab() {
     setNome(t.nome);
     setHtmlContent(t.conteudo_html);
     setViewMode("editor");
-    setEditorKey(k => k + 1);
+    setEditorKey((key) => key + 1);
   };
 
   const handleSave = async () => {
-    if (!nome.trim()) { toast.error("Informe o nome do contrato"); return; }
+    if (!nome.trim()) {
+      toast.error("Informe o nome do contrato");
+      return;
+    }
     setSaving(true);
 
-    // Get content from contentEditable if in editor mode
     let finalHtml = htmlContent;
     if (viewMode === "editor" && editorRef.current) {
       finalHtml = editorRef.current.innerHTML;
@@ -93,14 +96,14 @@ export function ContratosTab() {
     if (editingTemplate) {
       const { error } = await supabase
         .from("contract_templates")
-        .update({ nome, conteudo_html: finalHtml } as any)
+        .update({ nome, conteudo_html: finalHtml } as never)
         .eq("id", editingTemplate.id);
       if (error) toast.error("Erro ao salvar");
       else toast.success("Contrato atualizado!");
     } else {
       const { error } = await supabase
         .from("contract_templates")
-        .insert({ nome, conteudo_html: finalHtml } as any);
+        .insert({ nome, conteudo_html: finalHtml } as never);
       if (error) toast.error("Erro ao criar");
       else toast.success("Contrato criado!");
     }
@@ -123,48 +126,28 @@ export function ContratosTab() {
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setImporting(true);
 
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase();
+      const imported = await importContractFile(file);
+      setHtmlContent(imported.html);
+      setViewMode("editor");
+      setEditorKey((key) => key + 1);
 
-      if (ext === "docx") {
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        setHtmlContent(result.value);
-        setEditorKey(k => k + 1);
-        if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.docx$/i, ""));
-        toast.success("Documento Word importado!");
-      } else if (ext === "xlsx" || ext === "xls") {
-        const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const html = XLSX.utils.sheet_to_html(sheet);
-        setHtmlContent(html);
-        setEditorKey(k => k + 1);
-        if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.(xlsx?|csv)$/i, ""));
-        toast.success("Planilha Excel importada!");
-      } else if (ext === "pdf") {
-        // Upload PDF to storage and store URL
-        const path = `contracts/${Date.now()}_${file.name}`;
-        const { error: upErr } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true });
-        if (upErr) { toast.error("Erro ao enviar PDF"); setImporting(false); return; }
-        const { data: { publicUrl } } = supabase.storage.from("company-assets").getPublicUrl(path);
-
-        setHtmlContent(`<p><em>PDF importado: ${file.name}</em></p><p>O conteúdo do PDF foi armazenado. Você pode editar o texto do contrato abaixo ou substituir pelo conteúdo desejado.</p><hr/><p>Arquivo original: <a href="${publicUrl}" target="_blank">${file.name}</a></p>`);
-        setEditorKey(k => k + 1);
-        if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.pdf$/i, ""));
-        toast.success("PDF importado! Edite o conteúdo do contrato manualmente.");
-      } else {
-        toast.error("Formato não suportado. Use PDF, Word (.docx) ou Excel (.xlsx).");
+      if (!nome || nome === "Novo Contrato") {
+        setNome(imported.suggestedName);
       }
-    } catch (err) {
-      toast.error("Erro ao importar arquivo");
-      console.error(err);
-    }
 
-    setImporting(false);
-    e.target.value = "";
+      toast.success(`${imported.sourceLabel} importado e carregado para edição!`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao importar arquivo";
+      toast.error(message);
+      console.error(err);
+    } finally {
+      setImporting(false);
+      e.target.value = "";
+    }
   };
 
   const insertVariable = (varName: string) => {
@@ -185,7 +168,7 @@ export function ContratosTab() {
       }
       editorRef.current.innerHTML += varName;
     } else {
-      setHtmlContent(prev => prev + varName);
+      setHtmlContent((prev) => prev + varName);
     }
   };
 
@@ -193,7 +176,6 @@ export function ContratosTab() {
 
   return (
     <div className="space-y-6">
-      {/* Template list */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -205,28 +187,39 @@ export function ContratosTab() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">Carregando...</p>
           ) : templates.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Nenhum modelo cadastrado</p>
+            <p className="py-4 text-center text-sm text-muted-foreground">Nenhum modelo cadastrado</p>
           ) : (
             <div className="space-y-2">
-              {templates.map(t => (
-                <div key={t.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-secondary/30 transition-colors">
+              {templates.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-secondary/30"
+                >
                   <div className="flex items-center gap-3">
                     <FileText className="h-5 w-5 text-muted-foreground" />
                     <div>
-                      <p className="font-medium text-sm text-foreground">{t.nome}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {t.arquivo_original_nome || "Criado manualmente"}
-                      </p>
+                      <p className="text-sm font-medium text-foreground">{t.nome}</p>
+                      <p className="text-xs text-muted-foreground">{t.arquivo_original_nome || "Criado manualmente"}</p>
                     </div>
-                    {t.ativo && <Badge variant="secondary" className="text-xs">Ativo</Badge>}
+                    {t.ativo && (
+                      <Badge variant="secondary" className="text-xs">
+                        Ativo
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(t)} title="Editar">
                       <FileText className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(t.id)} title="Excluir">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => handleDelete(t.id)}
+                      title="Excluir"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -237,20 +230,22 @@ export function ContratosTab() {
         </CardContent>
       </Card>
 
-      {/* Editor */}
       {isEditing && (
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex-1 min-w-[200px]">
-                <Label className="text-xs mb-1 block">Nome do Modelo</Label>
-                <Input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome do contrato" />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-[200px] flex-1">
+                <Label className="mb-1 block text-xs">Nome do Modelo</Label>
+                <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do contrato" />
               </div>
               <div className="flex gap-2">
                 <label className="cursor-pointer">
-                  <input type="file" accept=".pdf,.docx,.xlsx,.xls" className="hidden" onChange={handleImportFile} />
+                  <input type="file" accept=".pdf,.docx,.xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
                   <Button variant="outline" size="sm" className="gap-2" asChild disabled={importing}>
-                    <span><Upload className="h-4 w-4" />{importing ? "Importando..." : "Importar Arquivo"}</span>
+                    <span>
+                      <Upload className="h-4 w-4" />
+                      {importing ? "Importando..." : "Importar Arquivo"}
+                    </span>
                   </Button>
                 </label>
                 <Button
@@ -268,25 +263,25 @@ export function ContratosTab() {
                   {viewMode === "editor" ? "Visualizar" : "Editar"}
                 </Button>
                 <Button size="sm" className="gap-2" onClick={handleSave} disabled={saving}>
-                  <Save className="h-4 w-4" />{saving ? "Salvando..." : "Salvar"}
+                  <Save className="h-4 w-4" />
+                  {saving ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Variables panel */}
-            <div className="p-3 bg-muted/30 rounded-lg border border-border">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <div className="mb-2 flex items-center gap-2">
                 <Info className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-medium text-foreground">Variáveis disponíveis</span>
                 <span className="text-xs text-muted-foreground">(clique para inserir)</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {AVAILABLE_VARIABLES.map(v => (
+                {AVAILABLE_VARIABLES.map((v) => (
                   <button
                     key={v.var}
                     onClick={() => insertVariable(v.var)}
-                    className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-md hover:bg-primary/20 transition-colors font-mono"
+                    className="rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary transition-colors hover:bg-primary/20"
                     title={v.desc}
                   >
                     {v.var}
@@ -297,28 +292,24 @@ export function ContratosTab() {
 
             <Separator />
 
-            {/* Editor / Preview */}
             {viewMode === "editor" ? (
               <div
                 key={editorKey}
                 ref={editorRef}
                 contentEditable
                 suppressContentEditableWarning
-                className="min-h-[400px] p-4 border border-border rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 prose prose-sm max-w-none"
+                className="prose prose-sm min-h-[400px] max-w-none rounded-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                 dangerouslySetInnerHTML={{ __html: htmlContent }}
               />
             ) : (
-              <div className="min-h-[400px] p-6 border border-border rounded-lg bg-white text-black">
-                <div
-                  className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: htmlContent }}
-                />
+              <div className="min-h-[400px] rounded-lg border border-border bg-background p-6 text-foreground">
+                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: htmlContent }} />
               </div>
             )}
 
             <p className="text-xs text-muted-foreground">
-              Formatos aceitos para importação: <strong>PDF</strong>, <strong>Word (.docx)</strong>, <strong>Excel (.xlsx)</strong>.
-              O conteúdo importado pode ser editado livremente acima.
+              Formatos aceitos para importação: <strong>PDF</strong>, <strong>Word (.docx)</strong>, <strong>Excel (.xlsx/.xls)</strong>.
+              O conteúdo importado é carregado no editor para ajuste completo e inserção das variáveis automáticas.
             </p>
           </CardContent>
         </Card>
