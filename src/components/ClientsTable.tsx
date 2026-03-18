@@ -34,6 +34,7 @@ interface ClientsTableProps {
   onAdd: () => void;
   onSimulate: (client: Client) => void;
   onHistory: (client: Client) => void;
+  onContracts: (client: Client) => void;
 }
 
 export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory }: ClientsTableProps) {
