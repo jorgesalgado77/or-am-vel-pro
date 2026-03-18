@@ -67,6 +67,7 @@ function CompanySettingsTab() {
   useEffect(() => {
     setName(settings.company_name);
     setSubtitle(settings.company_subtitle || "");
+    setCodigoLoja((settings as any).codigo_loja || "");
     setValidityDays(settings.budget_validity_days);
     setManagerPassword(settings.manager_password || "");
     setConfirmManagerPassword(settings.manager_password || "");
