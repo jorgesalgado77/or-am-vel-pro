@@ -1,0 +1,2 @@
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'novo';
+COMMENT ON COLUMN public.clients.status IS 'Kanban status: novo, em_negociacao, proposta_enviada, fechado, perdido';

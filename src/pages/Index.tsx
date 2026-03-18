@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { ClientsTable } from "@/components/ClientsTable";
+import { ClientsKanban } from "@/components/ClientsKanban";
 import { ClientDrawer } from "@/components/ClientDrawer";
 import { SimulatorPanel } from "@/components/SimulatorPanel";
 import { SimulationHistory } from "@/components/SimulationHistory";
@@ -168,7 +168,7 @@ export default function Index() {
             )}
 
             {activeView === "clients" && (
-              <ClientsTable clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClient} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
+              <ClientsKanban clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClient} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
             )}
 
             {activeView === "simulator" && (

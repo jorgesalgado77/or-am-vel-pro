@@ -259,6 +259,7 @@ export type Database = {
           numero_orcamento: string | null
           numero_orcamento_seq: number | null
           quantidade_ambientes: number | null
+          status: string
           telefone1: string | null
           telefone2: string | null
           updated_at: string
@@ -275,6 +276,7 @@ export type Database = {
           numero_orcamento?: string | null
           numero_orcamento_seq?: number | null
           quantidade_ambientes?: number | null
+          status?: string
           telefone1?: string | null
           telefone2?: string | null
           updated_at?: string
@@ -291,6 +293,7 @@ export type Database = {
           numero_orcamento?: string | null
           numero_orcamento_seq?: number | null
           quantidade_ambientes?: number | null
+          status?: string
           telefone1?: string | null
           telefone2?: string | null
           updated_at?: string
