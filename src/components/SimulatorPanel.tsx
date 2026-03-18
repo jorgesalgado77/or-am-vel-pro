@@ -23,6 +23,7 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useDiscountOptions } from "@/hooks/useDiscountOptions";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
+import { useTenantPlanContext } from "@/hooks/useTenantPlan";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
