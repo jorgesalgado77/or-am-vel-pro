@@ -16,6 +16,7 @@ import {
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
+import { AdminVendaZap } from "@/components/admin/AdminVendaZap";
 import { AdminLandingPage } from "@/components/admin/AdminLandingPage";
 import { AdminDealRoom } from "@/components/admin/AdminDealRoom";
 import { format, isAfter, isBefore, addDays } from "date-fns";
