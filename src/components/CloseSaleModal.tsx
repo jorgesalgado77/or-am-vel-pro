@@ -202,10 +202,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
   const totalAmbientes = useMemo(() => items.reduce((acc, item) => acc + item.valor_ambiente, 0), [items]);
 
-  const formaLabel: Record<string, string> = {
-    "A vista": "À Vista", Pix: "Pix", Credito: "Cartão de Crédito",
-    Boleto: "Boleto", "Credito / Boleto": "Crédito + Boleto", "Entrada e Entrega": "Entrada e Entrega",
-  };
+  const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
   const handleSubmit = () => {
     if (!form.nome_completo.trim()) {
