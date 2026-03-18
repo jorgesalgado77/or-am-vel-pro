@@ -1134,6 +1134,159 @@ export type Database = {
           },
         ]
       }
+      vendazap_addon: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          max_mensagens_dia: number
+          max_tokens_mensagem: number
+          prompt_sistema: string
+          tenant_id: string
+          tom_padrao: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          max_mensagens_dia?: number
+          max_tokens_mensagem?: number
+          prompt_sistema?: string
+          tenant_id: string
+          tom_padrao?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          max_mensagens_dia?: number
+          max_tokens_mensagem?: number
+          prompt_sistema?: string
+          tenant_id?: string
+          tom_padrao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendazap_addon_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendazap_messages: {
+        Row: {
+          client_id: string | null
+          contexto: Json
+          created_at: string
+          id: string
+          mensagem_cliente: string | null
+          mensagem_gerada: string
+          tenant_id: string
+          tipo_copy: string
+          tokens_usados: number
+          tom: string
+          usuario_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          contexto?: Json
+          created_at?: string
+          id?: string
+          mensagem_cliente?: string | null
+          mensagem_gerada: string
+          tenant_id: string
+          tipo_copy?: string
+          tokens_usados?: number
+          tom?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          contexto?: Json
+          created_at?: string
+          id?: string
+          mensagem_cliente?: string | null
+          mensagem_gerada?: string
+          tenant_id?: string
+          tipo_copy?: string
+          tokens_usados?: number
+          tom?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendazap_messages_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendazap_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendazap_messages_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendazap_usage: {
+        Row: {
+          created_at: string
+          id: string
+          mensagens_geradas: number
+          tenant_id: string
+          tokens_consumidos: number
+          usage_date: string
+          usuario_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mensagens_geradas?: number
+          tenant_id: string
+          tokens_consumidos?: number
+          usage_date?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mensagens_geradas?: number
+          tenant_id?: string
+          tokens_consumidos?: number
+          usage_date?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendazap_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendazap_usage_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_settings: {
         Row: {
           ativo: boolean
