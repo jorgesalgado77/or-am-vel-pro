@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, Save, Eye, Code } from "lucide-react";
@@ -16,6 +16,13 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   const [html, setHtml] = useState(initialHtml);
   const [viewMode, setViewMode] = useState<"editor" | "preview">("preview");
   const editorRef = useRef<HTMLDivElement>(null);
+
+  // Reset html when initialHtml changes (opening a different contract)
+  useEffect(() => {
+    setHtml(initialHtml);
+    setViewMode("preview");
+  }, [initialHtml]);
+
 
   const getCurrentHtml = () => {
     if (viewMode === "editor" && editorRef.current) {
