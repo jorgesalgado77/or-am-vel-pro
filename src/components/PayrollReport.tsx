@@ -337,29 +337,39 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-secondary/50">
-                  <TableHead>Funcionário</TableHead>
-                  <TableHead>Mês Ref.</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Funcionário / Indicador</TableHead>
+                  <TableHead>Cargo/Função</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Contrato</TableHead>
+                  <TableHead className="text-right">Valor Base</TableHead>
+                  <TableHead className="text-right">Comissão</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Observação</TableHead>
                   <TableHead className="print:hidden">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {commissions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       Nenhuma comissão no período
                     </TableCell>
                   </TableRow>
                 )}
                 {commissions.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-medium">{getUserName(c.usuario_id)}</TableCell>
-                    <TableCell>{c.mes_referencia}</TableCell>
+                    <TableCell className="font-medium">
+                      {c.usuario_id ? getUserName(c.usuario_id) : c.observacao?.split(":")[0] || "Indicador"}
+                    </TableCell>
+                    <TableCell>
+                      {c.cargo_referencia ? (
+                        <Badge variant="outline" className="text-[10px]">{c.cargo_referencia}</Badge>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">{c.client_name || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{c.contrato_numero || "—"}</TableCell>
+                    <TableCell className="text-right text-sm">{c.valor_base ? formatCurrency(Number(c.valor_base)) : "—"}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(Number(c.valor_comissao))}</TableCell>
                     <TableCell>{statusBadge(c.status)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{c.observacao || "—"}</TableCell>
                     <TableCell className="print:hidden">
                       <div className="flex gap-1">
                         {c.status !== "paga" && (
