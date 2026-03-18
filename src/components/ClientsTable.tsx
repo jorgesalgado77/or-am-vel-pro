@@ -283,6 +283,9 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onHistory(client)} title="Histórico">
                           <History className="h-4 w-4" />
                         </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onContracts(client)} title="Contratos">
+                          <FileText className="h-4 w-4" />
+                        </Button>
                         {canEdit && (
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(client)} title="Editar">
                             <Pencil className="h-4 w-4" />
