@@ -89,7 +89,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   });
 
   const { settings } = useCompanySettings();
-  const { hasPermission } = useCurrentUser();
+  const { hasPermission, currentUser } = useCurrentUser();
   const { getOptionsForField } = useDiscountOptions();
   const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();
