@@ -62,6 +62,12 @@ function CompanySettingsTab() {
   const [name, setName] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [codigoLoja, setCodigoLoja] = useState("");
+  const [cnpjLoja, setCnpjLoja] = useState("");
+  const [enderecoLoja, setEnderecoLoja] = useState("");
+  const [bairroLoja, setBairroLoja] = useState("");
+  const [cidadeLoja, setCidadeLoja] = useState("");
+  const [ufLoja, setUfLoja] = useState("");
+  const [cepLoja, setCepLoja] = useState("");
   const [validityDays, setValidityDays] = useState(30);
   const [managerPassword, setManagerPassword] = useState("");
   const [confirmManagerPassword, setConfirmManagerPassword] = useState("");
@@ -76,7 +82,13 @@ function CompanySettingsTab() {
   useEffect(() => {
     setName(settings.company_name);
     setSubtitle(settings.company_subtitle || "");
-    setCodigoLoja((settings as any).codigo_loja || "");
+    setCodigoLoja(settings.codigo_loja || "");
+    setCnpjLoja(settings.cnpj_loja || "");
+    setEnderecoLoja(settings.endereco_loja || "");
+    setBairroLoja(settings.bairro_loja || "");
+    setCidadeLoja(settings.cidade_loja || "");
+    setUfLoja(settings.uf_loja || "");
+    setCepLoja(settings.cep_loja || "");
     setValidityDays(settings.budget_validity_days);
     setManagerPassword(settings.manager_password || "");
     setConfirmManagerPassword(settings.manager_password || "");
