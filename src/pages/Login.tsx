@@ -97,7 +97,7 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm shadow-lg border-border/50">
         <CardHeader className="text-center space-y-3 pb-2">
           {settings.logo_url && (
@@ -181,6 +181,12 @@ export default function Login({ onLogin }: LoginProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Footer */}
+      <p className="mt-6 text-xs text-muted-foreground text-center">
+        Todos os direitos reservados - 2026 - CNPJ: 58.847.751/0001-28
+      </p>
+
       <ClientTrackingModal open={showTracking} onClose={() => setShowTracking(false)} />
     </div>
   );
