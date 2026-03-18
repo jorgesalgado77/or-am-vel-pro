@@ -20,6 +20,7 @@ import { ContractEditorDialog } from "@/components/ContractEditorDialog";
 import { CloseSaleModal } from "@/components/CloseSaleModal";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useDealRoom } from "@/hooks/useDealRoom";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
