@@ -512,6 +512,47 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_commissions: {
+        Row: {
+          created_at: string
+          id: string
+          mes_referencia: string
+          observacao: string | null
+          status: string
+          updated_at: string
+          usuario_id: string
+          valor_comissao: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mes_referencia: string
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+          usuario_id: string
+          valor_comissao?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mes_referencia?: string
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+          usuario_id?: string
+          valor_comissao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_commissions_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       simulations: {
         Row: {
           arquivo_nome: string | null

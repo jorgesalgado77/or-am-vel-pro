@@ -13,13 +13,7 @@ interface AppSidebarProps {
   unreadMessages?: number;
 }
 
-const navItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const },
-  { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const },
-  { id: "simulator", label: "Simulador", icon: Calculator, perm: "simulador" as const },
-  { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "configuracoes" as const },
-  { id: "settings", label: "Configurações", icon: Settings, perm: "configuracoes" as const },
-];
+const ADMIN_EMAIL = "admin@inovamad.com.br";
 
 function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -28,6 +22,16 @@ function getInitials(name: string) {
 export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, unreadMessages = 0 }: AppSidebarProps) {
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
+
+  const isAdmin = currentUser?.email?.toLowerCase() === ADMIN_EMAIL;
+
+  const navItems = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true },
+    { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true },
+    { id: "simulator", label: "Simulador", icon: Calculator, perm: "simulador" as const, show: true },
+    { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "configuracoes" as const, show: isAdmin },
+    { id: "settings", label: "Configurações", icon: Settings, perm: "configuracoes" as const, show: true },
+  ];
 
   return (
     <aside className="w-60 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0">
@@ -46,7 +50,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
       </div>
       <nav className="flex-1 p-2 space-y-0.5">
         {navItems
-          .filter((item) => hasPermission(item.perm))
+          .filter((item) => item.show && hasPermission(item.perm))
           .map((item) => (
             <button
               key={item.id}

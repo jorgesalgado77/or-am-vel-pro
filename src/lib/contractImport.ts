@@ -141,6 +141,7 @@ const FIELD_PATTERNS: Array<{ pattern: RegExp; variable: string; label: string }
   { pattern: /R\$\s*[\d.,]+/g, variable: "{{valor_final}}", label: "Valor" },
   { pattern: /\b(\d{1,3})\s*(?:parcelas?|x\s*de|vezes)\b/gi, variable: "{{parcelas}}", label: "Parcelas" },
   { pattern: /\b\d{2}\/\d{2}\/\d{4}\b/g, variable: "{{data_atual}}", label: "Data" },
+  { pattern: /\b\d{4}-\d{2}-\d{2}\b/g, variable: "{{data_atual}}", label: "Data ISO" },
   {
     pattern: /(?:(?:\(\d{2}\)\s?)|(?:\d{2}\s?))?\d{4,5}-?\d{4}\b/g,
     variable: "{{telefone_cliente}}",
@@ -151,6 +152,21 @@ const FIELD_PATTERNS: Array<{ pattern: RegExp; variable: string; label: string }
     variable: "{{email_cliente}}",
     label: "E-mail",
   },
+  // Contextual field patterns - detect labels followed by values
+  { pattern: /(?:nome[:\s]*(?:do\s+)?(?:cliente|contratante|comprador))[:\s]+[A-ZÀ-Ú][a-zà-ú]+(?: [A-ZÀ-Ú][a-zà-ú]+){1,5}/gi, variable: "{{nome_cliente}}", label: "Nome do cliente" },
+  { pattern: /(?:RG|identidade)[:\s]*[\d.\-\/]+/gi, variable: "{{rg_insc_estadual}}", label: "RG" },
+  { pattern: /(?:inscri[çc][ãa]o\s*estadual)[:\s]*[\d.\-\/]+/gi, variable: "{{rg_insc_estadual}}", label: "Insc. Estadual" },
+  { pattern: /(?:CEP|cep)[:\s]*\d{5}-?\d{3}/gi, variable: "{{cep}}", label: "CEP" },
+  { pattern: /(?:endere[çc]o|rua|avenida|av\.)[:\s]+[A-ZÀ-Ú].{5,60}(?=,|\n|<)/gi, variable: "{{endereco}}", label: "Endereço" },
+  { pattern: /(?:bairro)[:\s]+[A-ZÀ-Ú][a-zà-ú]+(?: [A-ZÀ-Ú]?[a-zà-ú]+){0,3}/gi, variable: "{{bairro}}", label: "Bairro" },
+  { pattern: /(?:cidade|munic[ií]pio)[:\s]+[A-ZÀ-Ú][a-zà-ú]+(?: [a-zà-ú]*)*/gi, variable: "{{cidade}}", label: "Cidade" },
+  { pattern: /(?:prazo\s*(?:de\s*)?entrega)[:\s]+\d+\s*(?:dias|meses|d\.u\.)/gi, variable: "{{prazo_entrega}}", label: "Prazo" },
+  { pattern: /(?:projetista|designer|resp(?:onsável)?(?:\s*t[eé]cnico)?)[:\s]+[A-ZÀ-Ú][a-zà-ú]+(?: [A-ZÀ-Ú]?[a-zà-ú]+){0,4}/gi, variable: "{{projetista}}", label: "Projetista" },
+  { pattern: /(?:contrato\s*n[ºo°]?|n[ºo°]\s*(?:do\s*)?contrato)[:\s]*[\d.\-\/]+/gi, variable: "{{numero_contrato}}", label: "Nº Contrato" },
+  { pattern: /(?:profiss[ãa]o|ocupa[çc][ãa]o)[:\s]+[A-ZÀ-Ú][a-zà-ú]+(?: [a-zà-ú]*)*/gi, variable: "{{profissao}}", label: "Profissão" },
+  { pattern: /(?:data\s*(?:de\s*)?nascimento)[:\s]*\d{2}\/\d{2}\/\d{4}/gi, variable: "{{data_nascimento}}", label: "Dt. Nascimento" },
+  { pattern: /(?:forma\s*(?:de\s*)?pagamento)[:\s]+[^\n<]{3,40}/gi, variable: "{{forma_pagamento}}", label: "Forma Pgto" },
+  { pattern: /(?:entrada|sinal)[:\s]*R\$\s*[\d.,]+/gi, variable: "{{valor_entrada}}", label: "Entrada" },
 ];
 
 const isSafeTextContainer = (element: Element | null) => {

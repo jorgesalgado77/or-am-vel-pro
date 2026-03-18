@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Save, Eye, Code } from "lucide-react";
+import { Printer, Save, Eye, Code, Lock, LockOpen } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 
 interface ContractEditorDialogProps {
@@ -16,12 +17,21 @@ interface ContractEditorDialogProps {
 export function ContractEditorDialog({ open, onClose, initialHtml, clientName, onConfirm, saving }: ContractEditorDialogProps) {
   const [html, setHtml] = useState(initialHtml);
   const [viewMode, setViewMode] = useState<"editor" | "preview">("preview");
+  const [layoutLocked, setLayoutLocked] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setHtml(initialHtml);
     setViewMode("preview");
+    setLayoutLocked(true);
   }, [initialHtml]);
+
+  // Apply layout lock: make structural elements non-editable
+  useEffect(() => {
+    if (viewMode === "editor" && editorRef.current && layoutLocked) {
+      applyLayoutLock(editorRef.current);
+    }
+  }, [viewMode, layoutLocked]);
 
   const getCurrentHtml = () => {
     if (viewMode === "editor" && editorRef.current) {
@@ -63,9 +73,32 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             {viewMode === "preview" ? <Code className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             {viewMode === "preview" ? "Editar" : "Visualizar"}
           </Button>
+
+          {viewMode === "editor" && (
+            <Button
+              variant={layoutLocked ? "secondary" : "outline"}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setLayoutLocked(!layoutLocked)}
+            >
+              {layoutLocked ? <Lock className="h-3.5 w-3.5" /> : <LockOpen className="h-3.5 w-3.5" />}
+              {layoutLocked ? "Layout Bloqueado" : "Layout Livre"}
+            </Button>
+          )}
+
           <span className="text-xs text-muted-foreground">
-            {viewMode === "editor" ? "Edite o HTML livremente" : "Preview fiel ao documento impresso"}
+            {viewMode === "editor"
+              ? layoutLocked
+                ? "Apenas textos editáveis — estrutura protegida"
+                : "Edição livre do HTML (cuidado com a estrutura)"
+              : "Preview fiel ao documento impresso"}
           </span>
+
+          {layoutLocked && viewMode === "editor" && (
+            <Badge variant="outline" className="ml-auto text-[10px] border-amber-500/50 text-amber-700">
+              <Lock className="h-3 w-3 mr-1" /> Estrutura protegida
+            </Badge>
+          )}
         </div>
 
         <div className="flex-1 overflow-hidden rounded-lg border border-border">
@@ -76,6 +109,21 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
               suppressContentEditableWarning
               className="prose prose-sm min-h-[400px] max-w-none overflow-y-auto bg-background p-6 text-sm text-foreground focus:outline-none"
               dangerouslySetInnerHTML={{ __html: html }}
+              onKeyDown={(e) => {
+                if (layoutLocked) {
+                  // Prevent structural keys when layout is locked
+                  if (e.key === "Enter" && (e.ctrlKey || e.shiftKey)) {
+                    e.preventDefault();
+                  }
+                  // Block paste of HTML that might break structure
+                  if (e.key === "v" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    navigator.clipboard.readText().then((text) => {
+                      document.execCommand("insertText", false, text);
+                    });
+                  }
+                }
+              }}
             />
           ) : (
             <iframe
@@ -96,4 +144,36 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * Makes structural elements (tables, sections, divs with positioning) non-editable
+ * while keeping text content editable.
+ */
+function applyLayoutLock(container: HTMLElement) {
+  // Structural elements that should be locked
+  const structuralSelectors = [
+    "table", "thead", "tbody", "tfoot", "tr",
+    "section.contract-page",
+    "[data-contract-page]",
+    ".contract-page__content",
+  ];
+
+  structuralSelectors.forEach((selector) => {
+    container.querySelectorAll(selector).forEach((el) => {
+      (el as HTMLElement).setAttribute("contenteditable", "false");
+    });
+  });
+
+  // But keep text containers editable
+  const textSelectors = ["td", "th", "p", "span", "strong", "em", "h1", "h2", "h3", "h4", "h5", "h6", "li", "a", "div:not(.contract-page__content):not([data-contract-page])"];
+  textSelectors.forEach((selector) => {
+    container.querySelectorAll(selector).forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      // Only make leaf-level divs/spans editable (those with text)
+      if (selector.startsWith("div") && el.querySelector("table, section, [data-contract-page]")) return;
+      if (htmlEl.closest("table") && !["td", "th"].includes(el.tagName.toLowerCase())) return;
+      htmlEl.setAttribute("contenteditable", "true");
+    });
+  });
 }
