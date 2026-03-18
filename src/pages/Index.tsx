@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { ClientsTable } from "@/components/ClientsTable";
+import { ClientsKanban } from "@/components/ClientsKanban";
 import { ClientDrawer } from "@/components/ClientDrawer";
 import { SimulatorPanel } from "@/components/SimulatorPanel";
 import { SimulationHistory } from "@/components/SimulationHistory";
