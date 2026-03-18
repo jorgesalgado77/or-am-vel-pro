@@ -149,6 +149,16 @@ function CompanySettingsTab() {
           <div><Label>Subtítulo</Label><Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" /></div>
           <div><Label>Código da Loja</Label><Input value={codigoLoja} onChange={(e) => setCodigoLoja(e.target.value)} placeholder="Ex: 001" className="mt-1" /></div>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><Label>CNPJ da Loja</Label><Input value={cnpjLoja} onChange={(e) => setCnpjLoja(e.target.value)} placeholder="00.000.000/0000-00" className="mt-1" /></div>
+          <div className="md:col-span-2"><Label>Endereço da Loja</Label><Input value={enderecoLoja} onChange={(e) => setEnderecoLoja(e.target.value)} placeholder="Rua, número" className="mt-1" /></div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div><Label>Bairro</Label><Input value={bairroLoja} onChange={(e) => setBairroLoja(e.target.value)} className="mt-1" /></div>
+          <div><Label>Cidade</Label><Input value={cidadeLoja} onChange={(e) => setCidadeLoja(e.target.value)} className="mt-1" /></div>
+          <div><Label>UF</Label><Input value={ufLoja} onChange={(e) => setUfLoja(e.target.value)} placeholder="SP" maxLength={2} className="mt-1" /></div>
+          <div><Label>CEP</Label><Input value={cepLoja} onChange={(e) => setCepLoja(e.target.value)} placeholder="00000-000" className="mt-1" /></div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label>Validade do Orçamento (dias)</Label>
