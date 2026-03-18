@@ -575,6 +575,16 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 </div>
                 <Switch checked={tDealRoom} onCheckedChange={setTDealRoom} />
               </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">VendaZap AI</p>
+                    <p className="text-xs text-muted-foreground">Libera assistente de vendas IA para WhatsApp</p>
+                  </div>
+                </div>
+                <Switch checked={tVendaZap} onCheckedChange={setTVendaZap} />
+              </div>
             </div>
           </div>
           <DialogFooter>
