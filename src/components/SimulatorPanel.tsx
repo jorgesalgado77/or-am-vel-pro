@@ -627,13 +627,127 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
     if (contractError) { toast.error("Erro ao salvar contrato"); setClosingSale(false); return; }
 
+    // === AUTO-GENERATE COMMISSIONS ===
+    try {
+      await generateSaleCommissions();
+    } catch (err) {
+      console.error("Erro ao gerar comissões:", err);
+    }
+
     openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
 
-    toast.success("Venda fechada! Contrato gerado e salvo.");
+    toast.success("Venda fechada! Contrato gerado, comissões criadas e salvo.");
     setContractEditorOpen(false);
     setPendingSimId(null);
     setPendingTemplateId(null);
     setClosingSale(false);
+  };
+
+  const generateSaleCommissions = async () => {
+    if (!client) return;
+
+    // Calculate "valor à vista" = after all discounts, before financing
+    const valorBase = valorTelaComComissao;
+    const afterD1 = valorBase * (1 - desconto1 / 100);
+    const afterD2 = afterD1 * (1 - desconto2 / 100);
+    const valorAVista = afterD2 * (1 - desconto3 / 100);
+
+    const mesRef = format(new Date(), "yyyy-MM");
+    const contratoNum = closeSaleFormData?.numero_contrato || client.numero_orcamento || "";
+    const commissions: any[] = [];
+
+    // 1. Indicador commission
+    if (selectedIndicador && comissaoPercentual > 0) {
+      commissions.push({
+        usuario_id: null,
+        indicador_id: selectedIndicador.id,
+        mes_referencia: mesRef,
+        valor_comissao: (valorAVista * comissaoPercentual) / 100,
+        valor_base: valorAVista,
+        cargo_referencia: "Indicador",
+        contrato_numero: contratoNum,
+        client_name: client.nome,
+        observacao: `Indicador: ${selectedIndicador.nome} (${comissaoPercentual}%)`,
+        status: "pendente",
+      });
+    }
+
+    // 2. Fetch all cargos with commission > 0
+    const { data: cargosData } = await supabase.from("cargos").select("id, nome, comissao_percentual");
+    const cargosComComissao = (cargosData || []).filter((c: any) => Number(c.comissao_percentual) > 0);
+
+    if (cargosComComissao.length > 0) {
+      // Fetch all active users with their cargos
+      const { data: usersData } = await supabase.from("usuarios").select("id, nome_completo, apelido, cargo_id, ativo").eq("ativo", true);
+      const activeUsers = usersData || [];
+
+      for (const cargo of cargosComComissao) {
+        const cargoPercent = Number(cargo.comissao_percentual);
+        const usersWithCargo = activeUsers.filter((u: any) => u.cargo_id === cargo.id);
+
+        // Match vendedor specifically
+        const vendedorName = (closeSaleFormData?.responsavel_venda || client.vendedor || "").toLowerCase().trim();
+        const matchedVendedor = usersWithCargo.find((u: any) =>
+          u.nome_completo.toLowerCase().includes(vendedorName) ||
+          (u.apelido && u.apelido.toLowerCase().includes(vendedorName))
+        );
+
+        if (matchedVendedor) {
+          // Specific user matched as vendedor for this cargo
+          commissions.push({
+            usuario_id: matchedVendedor.id,
+            mes_referencia: mesRef,
+            valor_comissao: (valorAVista * cargoPercent) / 100,
+            valor_base: valorAVista,
+            cargo_referencia: cargo.nome,
+            contrato_numero: contratoNum,
+            client_name: client.nome,
+            observacao: `${cargo.nome}: ${matchedVendedor.apelido || matchedVendedor.nome_completo} (${cargoPercent}%)`,
+            status: "pendente",
+          });
+        } else if (usersWithCargo.length === 1) {
+          // Only one user with this cargo — auto-assign
+          const u = usersWithCargo[0];
+          commissions.push({
+            usuario_id: u.id,
+            mes_referencia: mesRef,
+            valor_comissao: (valorAVista * cargoPercent) / 100,
+            valor_base: valorAVista,
+            cargo_referencia: cargo.nome,
+            contrato_numero: contratoNum,
+            client_name: client.nome,
+            observacao: `${cargo.nome}: ${u.apelido || u.nome_completo} (${cargoPercent}%)`,
+            status: "pendente",
+          });
+        } else if (usersWithCargo.length > 1) {
+          // Multiple users — create one entry per user
+          for (const u of usersWithCargo) {
+            commissions.push({
+              usuario_id: u.id,
+              mes_referencia: mesRef,
+              valor_comissao: (valorAVista * cargoPercent) / 100,
+              valor_base: valorAVista,
+              cargo_referencia: cargo.nome,
+              contrato_numero: contratoNum,
+              client_name: client.nome,
+              observacao: `${cargo.nome}: ${u.apelido || u.nome_completo} (${cargoPercent}%)`,
+              status: "pendente",
+            });
+          }
+        }
+      }
+    }
+
+    // Insert all commissions
+    if (commissions.length > 0) {
+      const { error } = await supabase.from("payroll_commissions").insert(commissions as any);
+      if (error) {
+        console.error("Erro ao inserir comissões:", error);
+        toast.error("Erro ao gerar comissões automáticas");
+      } else {
+        toast.success(`${commissions.length} comissão(ões) gerada(s) automaticamente`);
+      }
+    }
   };
 
   const passwordDialogTitle = pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
