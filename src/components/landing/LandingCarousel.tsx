@@ -91,7 +91,7 @@ export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) 
               </motion.div>
             </AnimatePresence>
 
-            {images.length > 1 && (
+            {displayImages.length > 1 && (
               <>
                 <button
                   onClick={prev}
