@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Pencil, Trash2, Plus, Search, Calculator, History, AlertTriangle, CalendarIcon, Filter, X } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Calculator, History, AlertTriangle, CalendarIcon, Filter, X, FileText } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/financing";
