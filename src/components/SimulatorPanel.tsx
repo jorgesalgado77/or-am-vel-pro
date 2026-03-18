@@ -684,15 +684,18 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                     </Button>
                   )}
                 </div>
-                {client && (
-                  <Button
-                    onClick={handleCloseSale}
-                    disabled={closingSale}
-                    className="w-full gap-2 bg-primary hover:bg-primary/90"
-                  >
-                    <Handshake className="h-4 w-4" />
-                    {closingSale ? "Gerando contrato..." : "Fechar Venda"}
-                  </Button>
+                <Button
+                  onClick={handleCloseSale}
+                  disabled={closingSale}
+                  className="w-full gap-2 bg-primary hover:bg-primary/90"
+                >
+                  <Handshake className="h-4 w-4" />
+                  {closingSale ? "Gerando contrato..." : "Fechar Venda"}
+                </Button>
+                {!client && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Selecione um cliente para concluir a venda e gerar contrato.
+                  </p>
                 )}
               </div>
             </CardContent>
