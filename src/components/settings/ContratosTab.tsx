@@ -141,6 +141,7 @@ export function ContratosTab() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const html = XLSX.utils.sheet_to_html(sheet);
         setHtmlContent(html);
+        setEditorKey(k => k + 1);
         if (!nome || nome === "Novo Contrato") setNome(file.name.replace(/\.(xlsx?|csv)$/i, ""));
         toast.success("Planilha Excel importada!");
       } else if (ext === "pdf") {
