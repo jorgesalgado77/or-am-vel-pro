@@ -26,18 +26,18 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `Você é um assistente especializado em extrair texto de documentos PDF de contratos.
-Extraia TODO o texto do documento PDF fornecido, preservando a estrutura original:
-- Títulos e subtítulos como <h1>, <h2>, <h3>
-- Parágrafos como <p>
-- Listas como <ul><li>
-- Tabelas como <table><tr><td>
-- Negrito como <strong>, itálico como <em>
-- Linhas horizontais como <hr/>
-- Quebras de linha como <br/>
+    const systemPrompt = `Você é um assistente especializado em reconstrução fiel de contratos em PDF para visualização e impressão.
+Extraia e reconstrua o documento preservando o layout original o máximo possível:
+- mantenha a ordem visual exata dos blocos
+- preserve tabelas, colunas, cabeçalhos, divisórias, alinhamentos e espaçamentos
+- preserve tamanhos relativos e posição dos textos
+- quando houver múltiplas páginas, retorne cada página em um bloco separado com <section class="contract-page" data-contract-page="true"><div class="contract-page__content">...</div></section>
+- preserve estilos inline úteis como width, text-align, border, padding, margin, font-size e line-height
+- use HTML válido com <table>, <tr>, <td>, <p>, <div>, <strong>, <em>, <br/>, <hr/>
+- não invente conteúdo nem resuma
 
-Retorne APENAS o HTML extraído, sem markdown, sem explicações, sem blocos de código.
-Se houver campos que parecem ser preenchíveis (como nomes, CPF, valores, datas, endereços), mantenha-os como estão no texto original.`;
+Retorne APENAS o HTML final, sem markdown, sem explicações e sem blocos de código.
+Se houver campos preenchíveis, mantenha o texto original exatamente como está para que depois ele possa ser substituído por variáveis.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
