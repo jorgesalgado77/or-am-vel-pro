@@ -416,14 +416,25 @@ export function ContratosTab() {
 
 const DEFAULT_CONTRACT_HTML = `
 <h1 style="text-align: center;">CONTRATO DE PRESTAÇÃO DE SERVIÇOS</h1>
-<p style="text-align: center;"><strong>{{empresa_nome}}</strong></p>
+<p style="text-align: center;"><strong>Contrato nº {{numero_contrato}}</strong></p>
+<p style="text-align: center;"><strong>{{empresa_nome}}</strong><br/>CNPJ: {{cnpj_loja}}<br/>{{endereco_loja}}, {{bairro_loja}} — {{cidade_loja}}/{{uf_loja}}</p>
 <hr/>
 <p>Pelo presente instrumento particular, de um lado:</p>
-<p><strong>CONTRATANTE:</strong> {{nome_cliente}}, inscrito(a) no CPF/CNPJ sob nº {{cpf_cliente}}, telefone {{telefone_cliente}}, e-mail {{email_cliente}}.</p>
-<p><strong>CONTRATADA:</strong> {{empresa_nome}}.</p>
-<h2>CLÁUSULA 1ª - DO OBJETO</h2>
-<p>O presente contrato tem por objeto a prestação de serviços conforme orçamento nº <strong>{{numero_orcamento}}</strong>, elaborado pelo(a) projetista <strong>{{projetista}}</strong>.</p>
-<h2>CLÁUSULA 2ª - DO VALOR</h2>
+<p><strong>CONTRATANTE:</strong> {{nome_cliente}}, nascido(a) em {{data_nascimento}}, profissão {{profissao}}, inscrito(a) no CPF/CNPJ sob nº {{cpf_cliente}}, RG/Insc. Estadual {{rg_insc_estadual}}, telefone {{telefone_cliente}}, e-mail {{email_cliente}}.</p>
+<p><strong>Endereço:</strong> {{endereco}}, {{bairro}} — {{cidade}}/{{uf}}, CEP {{cep}}.</p>
+<p><strong>CONTRATADA:</strong> {{empresa_nome}}, CNPJ {{cnpj_loja}}, com sede em {{endereco_loja}}, {{bairro_loja}} — {{cidade_loja}}/{{uf_loja}}, CEP {{cep_loja}}.</p>
+
+<h2>CLÁUSULA 1ª — DO OBJETO</h2>
+<p>O presente contrato tem por objeto a prestação de serviços conforme orçamento nº <strong>{{numero_orcamento}}</strong>, elaborado pelo(a) projetista <strong>{{projetista}}</strong>, responsável pela venda: <strong>{{responsavel_venda}}</strong>.</p>
+
+<h2>CLÁUSULA 2ª — DOS ITENS CONTRATADOS</h2>
+{{itens_tabela}}
+<p><strong>Total dos ambientes: {{total_ambientes}}</strong></p>
+
+<h3>Detalhamento dos materiais</h3>
+{{itens_detalhes}}
+
+<h2>CLÁUSULA 3ª — DO VALOR E PAGAMENTO</h2>
 <p>O valor total dos serviços é de <strong>{{valor_final}}</strong>, conforme detalhamento abaixo:</p>
 <ul>
   <li>Valor de tela: {{valor_tela}}</li>
@@ -431,14 +442,23 @@ const DEFAULT_CONTRACT_HTML = `
   <li>Entrada: {{valor_entrada}}</li>
   <li>Parcelas: {{parcelas}}x de {{valor_parcela}}</li>
 </ul>
-<h2>CLÁUSULA 3ª - DO PRAZO</h2>
-<p>O prazo para execução dos serviços será acordado entre as partes após a assinatura deste contrato.</p>
-<h2>CLÁUSULA 4ª - DAS DISPOSIÇÕES GERAIS</h2>
-<p>As partes elegem o foro da comarca de ______________ para dirimir quaisquer dúvidas oriundas do presente contrato.</p>
+
+<h2>CLÁUSULA 4ª — DA ENTREGA</h2>
+<p><strong>Endereço de entrega:</strong> {{endereco_entrega}}, {{bairro_entrega}} — {{cidade_entrega}}/{{uf_entrega}}, CEP {{cep_entrega}}.</p>
+<p><strong>Prazo de entrega:</strong> {{prazo_entrega}}</p>
+
+<h2>CLÁUSULA 5ª — DO INDICADOR</h2>
+<p>Indicador: {{indicador_nome}} — Comissão: {{indicador_comissao}}%</p>
+
+<h2>CLÁUSULA 6ª — OBSERVAÇÕES</h2>
+<p>{{observacoes}}</p>
+
+<h2>CLÁUSULA 7ª — DAS DISPOSIÇÕES GERAIS</h2>
+<p>As partes elegem o foro da comarca de {{cidade_loja}}/{{uf_loja}} para dirimir quaisquer dúvidas oriundas do presente contrato.</p>
 <br/>
-<p>______________, {{data_atual}}</p>
+<p>{{cidade_loja}}, {{data_atual}}</p>
 <br/><br/>
-<p>_________________________________<br/>{{nome_cliente}}<br/>CONTRATANTE</p>
+<p>_________________________________<br/>{{nome_cliente}}<br/>CPF/CNPJ: {{cpf_cliente}}<br/>CONTRATANTE</p>
 <br/>
-<p>_________________________________<br/>{{empresa_nome}}<br/>CONTRATADA</p>
+<p>_________________________________<br/>{{empresa_nome}}<br/>CNPJ: {{cnpj_loja}}<br/>CONTRATADA</p>
 `;
