@@ -46,6 +46,8 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(true);
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
   const { settings } = useCompanySettings();
   const { projetistas } = useUsuarios();
   const { indicadores } = useIndicadores();
