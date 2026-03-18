@@ -36,6 +36,19 @@ export function maskCodigoLoja(value: string): string {
   return digits.replace(/(\d{3})(\d)/, "$1.$2");
 }
 
+export function maskCurrency(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  const num = parseInt(digits, 10) / 100;
+  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function unmaskCurrency(value: string): number {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return 0;
+  return parseInt(digits, 10) / 100;
+}
+
 export function unmask(value: string): string {
   return value.replace(/\D/g, "");
 }
