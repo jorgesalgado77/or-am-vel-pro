@@ -535,7 +535,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                     <TableBody>
                       {environments.map((env) => (
                         <TableRow key={env.id} className="text-xs">
-                          <TableCell className="py-1.5 font-medium">{env.environmentName}</TableCell>
+                          <TableCell className="py-1.5 font-medium">
+                            <Input
+                              value={env.environmentName}
+                              onChange={(e) => setEnvironments((prev) => prev.map((item) => item.id === env.id ? { ...item, environmentName: e.target.value } : item))}
+                              className="h-6 text-xs border-none bg-transparent p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                            />
+                          </TableCell>
                           <TableCell className="py-1.5 text-center">{env.pieceCount || "—"}</TableCell>
                           <TableCell className="py-1.5 text-right tabular-nums">{formatCurrency(env.totalValue)}</TableCell>
                           <TableCell className="py-1.5 text-center text-muted-foreground">
