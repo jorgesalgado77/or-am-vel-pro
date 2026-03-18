@@ -747,7 +747,19 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
             <div>
               <Label>Valor de Entrada</Label>
-              <Input type="number" value={valorEntrada} onChange={(e) => setValorEntrada(Number(e.target.value))} min={0} step={100} className="mt-1" />
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={valorEntrada ? valorEntrada.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "");
+                    setValorEntrada(parseInt(raw || "0") / 100);
+                  }}
+                  className="pl-10"
+                />
+              </div>
             </div>
 
             {showPlus && (
