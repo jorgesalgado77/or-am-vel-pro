@@ -41,9 +41,10 @@ export function ClientsTable({ clients, loading, onEdit, onDelete, onAdd, onSimu
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
-  const [dateStart, setDateStart] = useState<Date | undefined>();
-  const [dateEnd, setDateEnd] = useState<Date | undefined>();
-  const [showFilters, setShowFilters] = useState(false);
+  const [periodFilter, setPeriodFilter] = useState("mes_atual");
+  const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
+  const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState(true);
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const { settings } = useCompanySettings();
   const { projetistas } = useUsuarios();
