@@ -38,7 +38,7 @@ export const saleFormSchema = z.object({
   cep: z.string().max(10),
   profissao: z.string().max(100),
   telefone: z.string().max(20),
-  email: z.string().email("Email inválido").or(z.literal("")).max(255),
+  email: z.string().max(255).email("Email inválido").or(z.literal("")),
   endereco_entrega: z.string().max(300),
   prazo_entrega: z.string().max(50),
   bairro_entrega: z.string().max(100),
