@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TenantPlan {
-  plano: string; // trial, basico, premium
+  plano: string;
   plano_periodo: string;
   max_usuarios: number;
   ativo: boolean;
@@ -10,6 +10,7 @@ export interface TenantPlan {
   dias_restantes: number;
   trial_fim: string | null;
   assinatura_fim: string | null;
+  recursos_vip: Record<string, boolean>;
 }
 
 const DEFAULT_PLAN: TenantPlan = {
