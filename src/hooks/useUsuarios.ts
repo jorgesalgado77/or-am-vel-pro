@@ -11,6 +11,9 @@ export interface Usuario {
   cargo_nome?: string;
   foto_url: string | null;
   ativo: boolean;
+  tipo_regime: string | null;
+  comissao_percentual: number;
+  salario_fixo: number;
   created_at: string;
 }
 
