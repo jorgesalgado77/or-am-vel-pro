@@ -64,9 +64,25 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
       break;
     }
     case 'Credito': {
-      taxaCredito = creditRates[parcelas] || 0;
-      valorFinal = saldo * (1 + taxaCredito);
-      valorParcela = parcelas > 0 ? valorFinal / parcelas : valorFinal;
+      const creditData = creditRatesFull[parcelas];
+      let creditCoeff = creditRates[parcelas] || 0;
+      let creditTaxaFixa = 0;
+
+      if (creditData) {
+        creditCoeff = Number(creditData.coefficient) || creditCoeff;
+        creditTaxaFixa = Number(creditData.taxa_fixa) || 0;
+      }
+
+      taxaCredito = creditCoeff;
+      // Taxa fixa é somada ao saldo antes de aplicar o coeficiente
+      const saldoComTaxaCredito = saldo + creditTaxaFixa;
+      if (creditCoeff > 0) {
+        valorFinal = saldoComTaxaCredito * (1 + creditCoeff);
+        valorParcela = parcelas > 0 ? valorFinal / parcelas : valorFinal;
+      } else {
+        valorFinal = saldoComTaxaCredito;
+        valorParcela = parcelas > 0 ? saldoComTaxaCredito / parcelas : saldoComTaxaCredito;
+      }
       break;
     }
     case 'Boleto': {
@@ -88,9 +104,10 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
       taxaBoleto = coeff;
       taxaFixaBoleto = tFixa;
 
+      // Taxa fixa é somada ao saldo antes de aplicar o coeficiente
+      const saldoComTaxaBoleto = saldo + tFixa;
       if (coeff > 0) {
-        // parcela = saldo * coeficiente + taxa fixa
-        valorParcela = saldo * coeff + tFixa;
+        valorParcela = saldoComTaxaBoleto * coeff;
         valorFinal = valorParcela * parcelas;
       } else {
         valorFinal = saldo;
@@ -101,9 +118,20 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
     case 'Credito / Boleto': {
       const halfCredit = saldo * 0.5;
       const halfBoleto = saldo * 0.5;
-      taxaCredito = creditRates[parcelas] || 0;
-      const creditTotal = halfCredit * (1 + taxaCredito);
 
+      // Credit part
+      const creditData = creditRatesFull[parcelas];
+      let cCoeff = creditRates[parcelas] || 0;
+      let cTaxaFixa = 0;
+      if (creditData) {
+        cCoeff = Number(creditData.coefficient) || cCoeff;
+        cTaxaFixa = Number(creditData.taxa_fixa) || 0;
+      }
+      taxaCredito = cCoeff;
+      const creditBase = halfCredit + cTaxaFixa;
+      const creditTotal = creditBase * (1 + cCoeff);
+
+      // Boleto part
       const rateData = boletoRatesFull[parcelas];
       let bCoeff = boletoRates[parcelas] || 0;
       let tFixa = 0;
@@ -116,7 +144,8 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
       taxaBoleto = bCoeff;
       taxaFixaBoleto = tFixa;
 
-      const boletoTotal = bCoeff > 0 ? (halfBoleto * bCoeff + tFixa) * parcelas : halfBoleto;
+      const boletoBase = halfBoleto + tFixa;
+      const boletoTotal = bCoeff > 0 ? (boletoBase * bCoeff) * parcelas : halfBoleto;
       valorFinal = creditTotal + boletoTotal;
       valorParcela = parcelas > 0 ? valorFinal / parcelas : valorFinal;
       break;
