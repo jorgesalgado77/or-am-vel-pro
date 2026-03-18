@@ -515,6 +515,111 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_page_config: {
+        Row: {
+          benefits: Json
+          carousel_images: Json
+          created_at: string
+          cta_final_text: string
+          footer_contact_email: string | null
+          footer_contact_phone: string | null
+          footer_text: string
+          hero_image_url: string | null
+          hero_subtitle: string
+          hero_title: string
+          hero_video_url: string | null
+          how_it_works: Json
+          id: string
+          plans: Json
+          primary_color: string
+          proof_text: string
+          secondary_color: string
+          sections_visible: Json
+          updated_at: string
+        }
+        Insert: {
+          benefits?: Json
+          carousel_images?: Json
+          created_at?: string
+          cta_final_text?: string
+          footer_contact_email?: string | null
+          footer_contact_phone?: string | null
+          footer_text?: string
+          hero_image_url?: string | null
+          hero_subtitle?: string
+          hero_title?: string
+          hero_video_url?: string | null
+          how_it_works?: Json
+          id?: string
+          plans?: Json
+          primary_color?: string
+          proof_text?: string
+          secondary_color?: string
+          sections_visible?: Json
+          updated_at?: string
+        }
+        Update: {
+          benefits?: Json
+          carousel_images?: Json
+          created_at?: string
+          cta_final_text?: string
+          footer_contact_email?: string | null
+          footer_contact_phone?: string | null
+          footer_text?: string
+          hero_image_url?: string | null
+          hero_subtitle?: string
+          hero_title?: string
+          hero_video_url?: string | null
+          how_it_works?: Json
+          id?: string
+          plans?: Json
+          primary_color?: string
+          proof_text?: string
+          secondary_color?: string
+          sections_visible?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          area_atuacao: string
+          cargo: string
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          notas: string | null
+          status: string
+          telefone: string
+          updated_at: string
+        }
+        Insert: {
+          area_atuacao: string
+          cargo: string
+          created_at?: string
+          email: string
+          id?: string
+          nome: string
+          notas?: string | null
+          status?: string
+          telefone: string
+          updated_at?: string
+        }
+        Update: {
+          area_atuacao?: string
+          cargo?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          notas?: string | null
+          status?: string
+          telefone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_settings: {
         Row: {
           api_key_public: string | null
