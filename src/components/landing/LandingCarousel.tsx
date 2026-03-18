@@ -15,7 +15,7 @@ interface LandingCarouselProps {
 
 const LABELS = ["Dashboard com KPIs e gráficos", "Gestão completa de clientes", "Simulador de financiamento"];
 
-export function LandingCarousel({ images, primaryColor }: LandingCarouselProps) {
+const displayImages = images.length > 0 ? images : FALLBACK_IMAGES;
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(0);
 
