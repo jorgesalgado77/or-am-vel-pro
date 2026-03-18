@@ -823,6 +823,17 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {client && (
+        <ContractEditorDialog
+          open={contractEditorOpen}
+          onClose={() => { setContractEditorOpen(false); setPendingSimId(null); setPendingTemplateId(null); }}
+          initialHtml={contractHtml}
+          clientName={client.nome}
+          onConfirm={handleContractConfirm}
+          saving={closingSale}
+        />
+      )}
     </div>
   );
 }
