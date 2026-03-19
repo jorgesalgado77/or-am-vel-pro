@@ -103,12 +103,14 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Pr
   for (const strategy of lookupStrategies) {
     if (!strategy.value) continue;
 
-    const { data: userRow, error } = await supabase
+    const query = (supabase as any)
       .from("usuarios")
       .select("*")
       .eq(strategy.column, strategy.value)
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+
+    const { data, error } = await query;
+    const userRow = Array.isArray(data) ? data[0] : data;
 
     if (error) {
       console.warn(`[Auth] Failed to load user by ${strategy.column}:`, error.message);
