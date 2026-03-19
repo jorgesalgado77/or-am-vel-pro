@@ -118,7 +118,7 @@ export default function Onboarding() {
 
   // Auto-fill email from stored user
   useEffect(() => {
-    const userId = localStorage.getItem("current_user_id");
+    const userId = getUserId();
     if (userId) {
       supabase.from("usuarios").select("email").eq("id", userId).single().then(({ data }) => {
         if (data?.email) setEmailContato(data.email);
