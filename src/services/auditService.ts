@@ -68,3 +68,16 @@ export function logAudit(input: AuditLogInput): void {
       }
     });
 }
+
+/**
+ * Helper to get current user info for audit logs.
+ * Uses localStorage as fallback for non-React contexts.
+ */
+export function getAuditUserInfo(): { usuario_id?: string; usuario_nome?: string } {
+  try {
+    const userId = localStorage.getItem("current_user_id");
+    return { usuario_id: userId || undefined };
+  } catch {
+    return {};
+  }
+}
