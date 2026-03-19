@@ -97,6 +97,21 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         timestamp: Date.now(),
       };
 
+      // Calculate and persist lead temperature
+      const temperature = calcLeadTemperature({
+        status: client.status,
+        diasSemResposta: days,
+        temSimulacao: !!lastSim,
+      });
+
+      await supabase
+        .from("clients")
+        .update({
+          lead_temperature: temperature,
+          last_ai_analysis: new Date().toISOString(),
+        } as any)
+        .eq("id", client.id);
+
       // Persist to vendazap_suggestions
       const { data: inserted } = await supabase
         .from("vendazap_suggestions" as any)
