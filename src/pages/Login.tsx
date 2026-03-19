@@ -60,6 +60,25 @@ export default function Login() {
       return;
     }
 
+    // Validate store code matches user's tenant
+    if (user.tenant_id) {
+      const { data: tenantCheck } = await supabase
+        .from("tenants")
+        .select("codigo_loja")
+        .eq("id", user.tenant_id)
+        .single();
+
+      if (!tenantCheck || unmask(tenantCheck.codigo_loja || "") !== codigoDigits) {
+        toast.error("Código da loja não corresponde ao seu cadastro");
+        setLoading(false);
+        return;
+      }
+    } else {
+      toast.error("Usuário sem loja vinculada");
+      setLoading(false);
+      return;
+    }
+
     // Check tenant plan validity
     if (user.tenant_id) {
       const { data: tenant } = await supabase
