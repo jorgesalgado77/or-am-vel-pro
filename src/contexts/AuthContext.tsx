@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from "@/integrations/supabase/client";
 import { setTenantState } from "@/lib/tenantState";
 import type { CargoPermissoes } from "@/hooks/useCargos";
-import type { Session } from "@supabase/supabase-js";
+import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 
 export interface AppUser {
   id: string;
@@ -50,43 +50,110 @@ const AuthContext = createContext<AuthContextType>({
   refreshUser: async () => {},
 });
 
-async function loadAppUser(authUserId: string): Promise<AppUser | null> {
-  const { data: u } = await supabase
-    .from("usuarios")
-    .select("*")
-    .eq("auth_user_id", authUserId)
-    .single();
+async function resolveCargo(cargoId: string | null): Promise<{ cargo_nome: string | null; permissoes: CargoPermissoes }> {
+  if (!cargoId) {
+    return { cargo_nome: null, permissoes: DEFAULT_PERMS };
+  }
 
-  if (!u) return null;
+  const { data: cargo } = await supabase
+    .from("cargos")
+    .select("nome, permissoes")
+    .eq("id", cargoId)
+    .maybeSingle();
 
-  let permissoes = DEFAULT_PERMS;
-  let cargo_nome: string | null = null;
-
-  if (u.cargo_id) {
-    const { data: cargo } = await supabase
-      .from("cargos")
-      .select("nome, permissoes")
-      .eq("id", u.cargo_id)
-      .single();
-    if (cargo) {
-      permissoes = cargo.permissoes as unknown as CargoPermissoes;
-      cargo_nome = cargo.nome;
-    }
+  if (!cargo) {
+    return { cargo_nome: null, permissoes: DEFAULT_PERMS };
   }
 
   return {
-    id: u.id,
-    nome_completo: u.nome_completo,
-    apelido: u.apelido,
-    email: u.email,
-    telefone: u.telefone,
-    cargo_id: u.cargo_id,
+    cargo_nome: cargo.nome,
+    permissoes: cargo.permissoes as unknown as CargoPermissoes,
+  };
+}
+
+async function mapAppUser(userRow: any, authUserId?: string | null): Promise<AppUser> {
+  const { cargo_nome, permissoes } = await resolveCargo(userRow.cargo_id ?? null);
+
+  return {
+    id: userRow.id,
+    nome_completo: userRow.nome_completo,
+    apelido: userRow.apelido,
+    email: userRow.email,
+    telefone: userRow.telefone,
+    cargo_id: userRow.cargo_id,
     cargo_nome,
-    foto_url: u.foto_url,
-    tenant_id: (u as any).tenant_id ?? null,
-    auth_user_id: (u as any).auth_user_id ?? null,
+    foto_url: userRow.foto_url,
+    tenant_id: userRow.tenant_id ?? null,
+    auth_user_id: authUserId ?? userRow.id ?? null,
     permissoes,
   };
+}
+
+/**
+ * Compat layer for external databases:
+ * - prefers usuarios.id = auth.uid()
+ * - falls back to usuarios.email when the schema does not store auth_user_id
+ */
+async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Promise<AppUser | null> {
+  const lookupStrategies: Array<{ column: string; value: string | null | undefined }> = [
+    { column: "id", value: authUser.id },
+    { column: "email", value: authUser.email?.trim().toLowerCase() },
+  ];
+
+  for (const strategy of lookupStrategies) {
+    if (!strategy.value) continue;
+
+    const query = (supabase as any)
+      .from("usuarios")
+      .select("*")
+      .eq(strategy.column, strategy.value)
+      .limit(1);
+
+    const { data, error } = await query;
+    const userRow = Array.isArray(data) ? data[0] : data;
+
+    if (error) {
+      console.warn(`[Auth] Failed to load user by ${strategy.column}:`, error.message);
+      continue;
+    }
+
+    if (userRow) {
+      return mapAppUser(userRow, authUser.id);
+    }
+  }
+
+  return null;
+}
+
+async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: Record<string, unknown>) {
+  if (!authUser || !metadata?.tenant_id) return;
+
+  const { data } = await (supabase as any)
+    .from("usuarios")
+    .select("id")
+    .eq("id", authUser.id)
+    .limit(1);
+
+  const existingUser = Array.isArray(data) ? data[0] : data;
+
+  if (existingUser) return;
+
+  const payload = {
+    id: authUser.id,
+    nome_completo: (metadata.nome_completo as string) || authUser.email?.split("@")[0] || "Usuário",
+    apelido: (metadata.apelido as string) || null,
+    email: authUser.email || null,
+    cargo_id: (metadata.cargo_id as string) || null,
+    tenant_id: metadata.tenant_id as string,
+    primeiro_login: true,
+    ativo: true,
+  };
+
+  const { error } = await supabase.from("usuarios").insert(payload as any);
+
+  if (error) {
+    console.warn("[Auth] Failed to create user profile after sign up:", error.message);
+  }
 }
 
 /** Sync in-memory state for non-React consumers (auditService) */
@@ -109,11 +176,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSession(sess);
-    const appUser = await loadAppUser(sess.user.id);
+    const appUser = await loadAppUser(sess.user);
+
     if (appUser) {
       setUser(appUser);
       syncGlobalState(appUser);
+    } else {
+      setUser(null);
+      syncGlobalState(null);
     }
+
     setLoading(false);
   }, []);
 
@@ -132,29 +204,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadFromSession]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
     if (error) return { user: null, error: error.message };
-    
-    const appUser = await loadAppUser(data.user.id);
-    if (!appUser) return { user: null, error: "Usuário não encontrado no sistema" };
-    
+
+    const appUser = await loadAppUser(data.user);
+    if (!appUser) {
+      return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
+    }
+
     setUser(appUser);
     setSession(data.session);
     syncGlobalState(appUser);
-    
+
     return { user: appUser, error: null };
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, metadata?: Record<string, unknown>) => {
-    const { error } = await supabase.auth.signUp({
-      email,
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
       password,
       options: {
         data: metadata,
         emailRedirectTo: window.location.origin,
       },
     });
+
     if (error) return { error: error.message };
+
+    await ensureUserProfile(data.user ?? null, metadata);
+
     return { error: null, tenantId: metadata?.tenant_id as string | undefined };
   }, []);
 
@@ -172,7 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     if (session?.user) {
-      const appUser = await loadAppUser(session.user.id);
+      const appUser = await loadAppUser(session.user);
       if (appUser) {
         setUser(appUser);
         syncGlobalState(appUser);

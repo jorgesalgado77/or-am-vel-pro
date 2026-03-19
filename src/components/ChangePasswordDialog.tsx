@@ -29,10 +29,21 @@ export function ChangePasswordDialog({ open, userId, forced, onClose }: ChangePa
       toast.error("As senhas não coincidem");
       return;
     }
+
     setSaving(true);
 
-    // Update via Supabase Auth
-    const { error } = await supabase.auth.updateUser({ password: novaSenha });
+    const { data: hashedSenha, error: hashError } = await supabase.rpc("hash_password", { plain_text: novaSenha }) as any;
+
+    if (hashError || !hashedSenha) {
+      setSaving(false);
+      toast.error("Erro ao preparar a nova senha");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ senha: hashedSenha, primeiro_login: false } as any)
+      .eq("id", userId);
 
     setSaving(false);
     if (error) {
