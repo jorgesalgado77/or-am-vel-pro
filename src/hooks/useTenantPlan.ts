@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useTenant } from "@/contexts/TenantContext";
 
 export interface TenantPlan {
   plano: string;
