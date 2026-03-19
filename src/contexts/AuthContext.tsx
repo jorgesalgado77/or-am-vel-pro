@@ -128,12 +128,13 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Pr
 async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: Record<string, unknown>) {
   if (!authUser || !metadata?.tenant_id) return;
 
-  const { data: existingUser } = await supabase
+  const { data } = await (supabase as any)
     .from("usuarios")
     .select("id")
     .eq("id", authUser.id)
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+
+  const existingUser = Array.isArray(data) ? data[0] : data;
 
   if (existingUser) return;
 
