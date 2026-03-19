@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
 
 export interface VendaZapTrigger {
@@ -60,9 +61,55 @@ export function useVendaZapTriggers(tenantId: string | null) {
     setLoading(false);
   }, [tenantId]);
 
+  const initialLoadDone = useRef(false);
+
   useEffect(() => {
-    fetchTriggers();
+    fetchTriggers().then(() => { initialLoadDone.current = true; });
   }, [fetchTriggers]);
+
+  // Realtime: listen for new triggers and show toast
+  useEffect(() => {
+    if (!tenantId) return;
+
+    const channel = supabase
+      .channel(`vendazap-triggers-${tenantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vendazap_triggers",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        async (payload) => {
+          const newTrigger = payload.new as any;
+          // Enrich with client name
+          const { data: client } = await supabase
+            .from("clients")
+            .select("nome")
+            .eq("id", newTrigger.client_id)
+            .maybeSingle();
+
+          const enriched: VendaZapTrigger = {
+            ...newTrigger,
+            client_nome: client?.nome || "Cliente",
+          };
+
+          setTriggers((prev) => [enriched, ...prev]);
+
+          const info = TRIGGER_LABELS[newTrigger.trigger_type] || { emoji: "📌", label: newTrigger.trigger_type };
+          toast.info(`${info.emoji} Novo gatilho: ${info.label}`, {
+            description: `Cliente: ${enriched.client_nome}`,
+            duration: 8000,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId]);
 
   const markSent = useCallback(
     async (triggerId: string, userId?: string) => {
