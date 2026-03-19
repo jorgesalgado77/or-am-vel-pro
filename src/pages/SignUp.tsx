@@ -149,7 +149,7 @@ export default function SignUp() {
         cargoId = newCargo.id;
       }
 
-      // Create the user as admin
+      // Create the user as admin, linked to tenant
       const { data: usuario, error: userError } = await supabase
         .from("usuarios")
         .insert({
@@ -160,7 +160,8 @@ export default function SignUp() {
           cargo_id: cargoId,
           ativo: true,
           primeiro_login: false,
-        })
+          tenant_id: tenant.id,
+        } as any)
         .select()
         .single();
 

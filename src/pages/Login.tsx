@@ -162,13 +162,18 @@ export default function Login({ onLogin }: LoginProps) {
     setLoading(false);
     toast.success(`Bem-vindo, ${user.apelido || user.nome_completo}!`);
 
+    // Save tenant context
+    if (tenantId) {
+      localStorage.setItem("current_tenant_id", tenantId);
+    }
+
     logAudit({
       acao: "usuario_login",
       entidade: "user",
       entidade_id: user.id,
       usuario_id: user.id,
       usuario_nome: user.apelido || user.nome_completo,
-      detalhes: { nome: user.nome_completo },
+      detalhes: { nome: user.nome_completo, tenant_id: tenantId },
     });
 
     onLogin(user.id, user.primeiro_login ?? true);
