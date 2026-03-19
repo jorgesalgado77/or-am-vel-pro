@@ -81,6 +81,7 @@ function getPlanStatus(tenant: Tenant) {
 export default function AdminDashboard({ adminName, onLogout }: AdminDashboardProps) {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
+  const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
   const [loading, setLoading] = useState(true);
   const [addonInterestCount, setAddonInterestCount] = useState(0);
   const [showTenantDialog, setShowTenantDialog] = useState(false);
