@@ -265,7 +265,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
                             </Badge>
                           )}
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); setAutoSuggestion(""); setMensagemGerada(""); }} className="h-6 text-xs">
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); autoSugg.clear(); setMensagemGerada(""); }} className="h-6 text-xs">
                           Trocar
                         </Button>
                       </div>
