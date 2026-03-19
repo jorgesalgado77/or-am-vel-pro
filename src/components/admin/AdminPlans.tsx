@@ -14,6 +14,7 @@ import {
   Plus, Edit, Trash2, RefreshCw, Crown, Users, Zap, Star, GripVertical,
   Check, X, Save,
 } from "lucide-react";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 
 interface SubscriptionPlan {
   id: string;
@@ -128,7 +129,6 @@ export function AdminPlans() {
     setFAtivo(plan.ativo);
     setFOrdem(String(plan.ordem));
     setFTrialDias(String(plan.trial_dias));
-    // Merge existing funcs with all features
     const funcs: Record<string, boolean> = {};
     ALL_FEATURES.forEach(f => {
       funcs[f.key] = plan.funcionalidades?.[f.key] ?? false;
@@ -209,7 +209,6 @@ export function AdminPlans() {
     setFFeatures(prev => prev.map((f, i) => i === index ? { ...f, included: !f.included } : f));
   };
 
-  // Quick toggle a feature directly from the table
   const quickToggleFeature = async (plan: SubscriptionPlan, featureKey: string) => {
     const newFuncs = { ...plan.funcionalidades, [featureKey]: !plan.funcionalidades[featureKey] };
     const { error } = await supabase
@@ -223,12 +222,31 @@ export function AdminPlans() {
 
   const enabledCount = (funcs: Record<string, boolean>) => Object.values(funcs).filter(Boolean).length;
 
+  const onDragEnd = async (result: DropResult) => {
+    if (!result.destination || result.source.index === result.destination.index) return;
+    const reordered = Array.from(plans);
+    const [moved] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, moved);
+    const updated = reordered.map((p, i) => ({ ...p, ordem: i }));
+    setPlans(updated);
+    const promises = updated.map(p =>
+      supabase.from("subscription_plans" as any).update({ ordem: p.ordem } as any).eq("id", p.id)
+    );
+    const results = await Promise.all(promises);
+    if (results.some(r => r.error)) {
+      toast.error("Erro ao reordenar planos");
+      fetchPlans();
+    } else {
+      toast.success("Ordem dos planos atualizada!");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Gestão de Planos de Assinatura</h3>
-          <p className="text-sm text-muted-foreground">Crie e edite planos com funcionalidades granulares. Alterações refletem em tempo real.</p>
+          <p className="text-sm text-muted-foreground">Crie e edite planos com funcionalidades granulares. Arraste para reordenar. Alterações refletem em tempo real.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchPlans} className="gap-2">
@@ -240,91 +258,121 @@ export function AdminPlans() {
         </div>
       </div>
 
-      {/* Plans cards */}
-      <div className="grid md:grid-cols-3 gap-4">
-        {plans.map(plan => {
-          const Icon = ICON_MAP[plan.slug] || Crown;
-          return (
-            <Card key={plan.id} className={`relative ${plan.destaque ? "border-primary shadow-lg" : "border-border"} ${!plan.ativo ? "opacity-60" : ""}`}>
-              {plan.destaque && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="gap-1 bg-primary text-primary-foreground">
-                    <Star className="h-3 w-3 fill-current" /> Destaque
-                  </Badge>
-                </div>
-              )}
-              <CardHeader className="text-center pb-2 pt-6">
-                <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-                  <Icon className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="text-lg">{plan.nome}</CardTitle>
-                <p className="text-xs text-muted-foreground">{plan.descricao}</p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  {plan.preco_mensal === 0 ? (
-                    <p className="text-2xl font-bold text-foreground">Grátis</p>
-                  ) : (
-                    <>
-                      <p className="text-2xl font-bold text-foreground">
-                        R$ {plan.preco_mensal.toFixed(2).replace(".", ",")}
-                        <span className="text-sm font-normal text-muted-foreground">/mês</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Anual: R$ {plan.preco_anual_mensal.toFixed(2).replace(".", ",")}/mês
-                      </p>
-                    </>
-                  )}
-                </div>
-
-                <div className="text-center">
-                  <Badge variant="outline" className="text-xs">
-                    {plan.max_usuarios >= 999 ? "Usuários ilimitados" : `Até ${plan.max_usuarios} usuários`}
-                  </Badge>
-                </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Funcionalidades ({enabledCount(plan.funcionalidades)}/{ALL_FEATURES.length})
-                  </p>
-                  <div className="grid grid-cols-2 gap-1">
-                    {ALL_FEATURES.map(feat => (
-                      <button
-                        key={feat.key}
-                        onClick={() => quickToggleFeature(plan, feat.key)}
-                        className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors ${
-                          plan.funcionalidades[feat.key]
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted/50 text-muted-foreground line-through"
-                        }`}
-                        title={`Clique para ${plan.funcionalidades[feat.key] ? "desativar" : "ativar"} ${feat.label}`}
+      {/* Plans cards with drag-and-drop */}
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="plans-grid" direction="horizontal">
+          {(provided) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className="grid md:grid-cols-3 gap-4"
+            >
+              {plans.map((plan, index) => {
+                const Icon = ICON_MAP[plan.slug] || Crown;
+                return (
+                  <Draggable key={plan.id} draggableId={plan.id} index={index}>
+                    {(dragProvided, snapshot) => (
+                      <div
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        className={snapshot.isDragging ? "opacity-80 z-50" : ""}
                       >
-                        {plan.funcionalidades[feat.key] ? (
-                          <Check className="h-3 w-3 shrink-0" />
-                        ) : (
-                          <X className="h-3 w-3 shrink-0" />
-                        )}
-                        <span className="truncate">{feat.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        <Card className={`relative ${plan.destaque ? "border-primary shadow-lg" : "border-border"} ${!plan.ativo ? "opacity-60" : ""}`}>
+                          {/* Drag handle */}
+                          <div
+                            {...dragProvided.dragHandleProps}
+                            className="absolute top-2 right-2 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted z-10"
+                            title="Arraste para reordenar"
+                          >
+                            <GripVertical className="h-4 w-4 text-muted-foreground" />
+                          </div>
 
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => openEdit(plan)}>
-                    <Edit className="h-3 w-3" /> Editar
-                  </Button>
-                  {!["trial", "basico", "premium"].includes(plan.slug) && (
-                    <Button variant="outline" size="sm" className="text-destructive gap-1" onClick={() => deletePlan(plan.id, plan.slug)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                          {plan.destaque && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                              <Badge className="gap-1 bg-primary text-primary-foreground">
+                                <Star className="h-3 w-3 fill-current" /> Destaque
+                              </Badge>
+                            </div>
+                          )}
+                          <CardHeader className="text-center pb-2 pt-6">
+                            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                              <Icon className="h-6 w-6 text-primary" />
+                            </div>
+                            <CardTitle className="text-lg">{plan.nome}</CardTitle>
+                            <p className="text-xs text-muted-foreground">{plan.descricao}</p>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="text-center">
+                              {plan.preco_mensal === 0 ? (
+                                <p className="text-2xl font-bold text-foreground">Grátis</p>
+                              ) : (
+                                <>
+                                  <p className="text-2xl font-bold text-foreground">
+                                    R$ {plan.preco_mensal.toFixed(2).replace(".", ",")}
+                                    <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Anual: R$ {plan.preco_anual_mensal.toFixed(2).replace(".", ",")}/mês
+                                  </p>
+                                </>
+                              )}
+                            </div>
+
+                            <div className="text-center">
+                              <Badge variant="outline" className="text-xs">
+                                {plan.max_usuarios >= 999 ? "Usuários ilimitados" : `Até ${plan.max_usuarios} usuários`}
+                              </Badge>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                Funcionalidades ({enabledCount(plan.funcionalidades)}/{ALL_FEATURES.length})
+                              </p>
+                              <div className="grid grid-cols-2 gap-1">
+                                {ALL_FEATURES.map(feat => (
+                                  <button
+                                    key={feat.key}
+                                    onClick={() => quickToggleFeature(plan, feat.key)}
+                                    className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors ${
+                                      plan.funcionalidades[feat.key]
+                                        ? "bg-primary/10 text-primary"
+                                        : "bg-muted/50 text-muted-foreground line-through"
+                                    }`}
+                                    title={`Clique para ${plan.funcionalidades[feat.key] ? "desativar" : "ativar"} ${feat.label}`}
+                                  >
+                                    {plan.funcionalidades[feat.key] ? (
+                                      <Check className="h-3 w-3 shrink-0" />
+                                    ) : (
+                                      <X className="h-3 w-3 shrink-0" />
+                                    )}
+                                    <span className="truncate">{feat.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                              <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => openEdit(plan)}>
+                                <Edit className="h-3 w-3" /> Editar
+                              </Button>
+                              {!["trial", "basico", "premium"].includes(plan.slug) && (
+                                <Button variant="outline" size="sm" className="text-destructive gap-1" onClick={() => deletePlan(plan.id, plan.slug)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </Draggable>
+                );
+              })}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
 
       {/* Feature Matrix */}
       <Card>
