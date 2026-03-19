@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
 
 export interface VendaZapTrigger {
