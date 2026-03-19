@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   MessageSquare, RefreshCw, Eye, Send, Clock, CheckCircle2, XCircle,
-  AlertTriangle, Lightbulb, Bug, ChevronLeft, Paperclip,
+  AlertTriangle, Lightbulb, Bug, ChevronLeft, Paperclip, Sparkles, ShoppingBag,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -44,6 +44,7 @@ const TIPO_CONFIG: Record<string, { label: string; icon: typeof Bug }> = {
   erro: { label: "Erro", icon: Bug },
   sugestao: { label: "Sugestão", icon: Lightbulb },
   reclamacao: { label: "Reclamação", icon: AlertTriangle },
+  addon_interesse: { label: "Interesse Add-on", icon: ShoppingBag },
 };
 
 interface AdminTicketsProps {
@@ -58,6 +59,7 @@ export function AdminTickets({ adminName }: AdminTicketsProps) {
   const [novoStatus, setNovoStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [filterStatus, setFilterStatus] = useState("todos");
+  const [filterCategory, setFilterCategory] = useState<"todos" | "suporte" | "addon">("todos");
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -72,9 +74,19 @@ export function AdminTickets({ adminName }: AdminTicketsProps) {
 
   useEffect(() => { fetchTickets(); }, []);
 
-  const filteredTickets = filterStatus === "todos"
+  const categoryFiltered = filterCategory === "todos"
     ? tickets
-    : tickets.filter(t => t.status === filterStatus);
+    : filterCategory === "addon"
+      ? tickets.filter(t => t.tipo === "addon_interesse")
+      : tickets.filter(t => t.tipo !== "addon_interesse");
+
+  const filteredTickets = filterStatus === "todos"
+    ? categoryFiltered
+    : categoryFiltered.filter(t => t.status === filterStatus);
+
+  const countByStatus = (status: string) => categoryFiltered.filter(t => t.status === status).length;
+  const countAddon = tickets.filter(t => t.tipo === "addon_interesse").length;
+  const countSuporte = tickets.filter(t => t.tipo !== "addon_interesse").length;
 
   const openTicket = (ticket: SupportTicket) => {
     setSelectedTicket(ticket);
@@ -111,7 +123,7 @@ export function AdminTickets({ adminName }: AdminTicketsProps) {
     setSaving(false);
   };
 
-  const countByStatus = (status: string) => tickets.filter(t => t.status === status).length;
+  
 
   // Detail view
   if (selectedTicket) {
@@ -259,15 +271,42 @@ export function AdminTickets({ adminName }: AdminTicketsProps) {
   // List view
   return (
     <div className="space-y-4">
+      {/* Category tabs */}
+      <div className="flex items-center gap-2">
+        {[
+          { key: "todos" as const, label: "Todos", count: tickets.length, icon: MessageSquare },
+          { key: "suporte" as const, label: "Suporte", count: countSuporte, icon: Bug },
+          { key: "addon" as const, label: "Interesse em Add-ons", count: countAddon, icon: ShoppingBag },
+        ].map((cat) => (
+          <Button
+            key={cat.key}
+            variant={filterCategory === cat.key ? "default" : "outline"}
+            size="sm"
+            className="gap-2"
+            onClick={() => { setFilterCategory(cat.key); setFilterStatus("todos"); }}
+          >
+            <cat.icon className="h-3.5 w-3.5" />
+            {cat.label}
+            {cat.count > 0 && (
+              <Badge variant={filterCategory === cat.key ? "secondary" : "outline"} className="ml-0.5 h-5 min-w-[20px] px-1 text-[10px] rounded-full">
+                {cat.count}
+              </Badge>
+            )}
+          </Button>
+        ))}
+      </div>
+
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Tickets de Suporte</h3>
+        <h3 className="text-lg font-semibold text-foreground">
+          {filterCategory === "addon" ? "Interesse em Add-ons" : filterCategory === "suporte" ? "Tickets de Suporte" : "Todos os Tickets"}
+        </h3>
         <div className="flex gap-2">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos ({tickets.length})</SelectItem>
+              <SelectItem value="todos">Todos ({categoryFiltered.length})</SelectItem>
               <SelectItem value="aberto">Abertos ({countByStatus("aberto")})</SelectItem>
               <SelectItem value="em_andamento">Em Andamento ({countByStatus("em_andamento")})</SelectItem>
               <SelectItem value="resolvido">Resolvidos ({countByStatus("resolvido")})</SelectItem>
@@ -281,12 +320,13 @@ export function AdminTickets({ adminName }: AdminTicketsProps) {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         {[
           { label: "Abertos", count: countByStatus("aberto"), color: "text-destructive" },
           { label: "Em Andamento", count: countByStatus("em_andamento"), color: "text-primary" },
           { label: "Resolvidos", count: countByStatus("resolvido"), color: "text-muted-foreground" },
-          { label: "Total", count: tickets.length, color: "text-foreground" },
+          { label: "Add-ons", count: countAddon, color: "text-amber-500" },
+          { label: "Total", count: categoryFiltered.length, color: "text-foreground" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-3 text-center">
