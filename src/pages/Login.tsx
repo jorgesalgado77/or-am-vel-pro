@@ -103,7 +103,10 @@ export default function Login({ onLogin }: LoginProps) {
       return;
     }
 
-    if (user.senha !== senha) {
+    // Hash input password using same SHA256 function as admin_master
+    const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: senha }) as any;
+
+    if (user.senha !== hashResult) {
       toast.error("Senha incorreta");
       setLoading(false);
       return;

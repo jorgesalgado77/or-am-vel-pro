@@ -61,10 +61,10 @@ const PLAN_CONFIG = {
   premium: { label: "Premium", color: "destructive" as const, icon: Crown },
 };
 
-const PLAN_PRICES = {
-  basico: { mensal: 59.9, anual: 59.9 * 12 * 0.85 },
-  premium: { mensal: 149.9, anual: 149.9 * 12 * 0.85 },
-};
+// Plan prices loaded dynamically from subscription_plans table
+interface PlanPriceMap {
+  [slug: string]: { mensal: number; anual: number };
+}
 
 function getPlanStatus(tenant: Tenant) {
   const now = new Date();
