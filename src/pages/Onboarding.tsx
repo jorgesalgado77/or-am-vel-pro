@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Crown, Zap, Users, Building2, User, ArrowLeft, ArrowRight } from "lucide-react";
+import { Check, X, Crown, Zap, Users, Building2, User, ArrowLeft, ArrowRight, Store, Mail, KeyRound, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -109,6 +109,8 @@ export default function Onboarding() {
 
   const tenantId = sessionStorage.getItem("onboarding_tenant_id");
   const codigoLoja = sessionStorage.getItem("onboarding_codigo_loja");
+  const storedEmail = sessionStorage.getItem("onboarding_email");
+  const storedPassword = sessionStorage.getItem("onboarding_password");
 
   useEffect(() => {
     if (!tenantId) {
@@ -238,6 +240,8 @@ export default function Onboarding() {
       // Clean up onboarding state
       sessionStorage.removeItem("onboarding_tenant_id");
       sessionStorage.removeItem("onboarding_codigo_loja");
+      sessionStorage.removeItem("onboarding_email");
+      sessionStorage.removeItem("onboarding_password");
 
       toast.success("Configuração concluída! Bem-vindo ao OrçaMóvel PRO!");
       navigate("/");
@@ -255,12 +259,51 @@ export default function Onboarding() {
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-bold text-foreground">OrçaMóvel PRO</h1>
             <p className="text-muted-foreground">Escolha seu plano para começar</p>
-            {codigoLoja && (
-              <p className="text-xs text-muted-foreground">
-                Código da loja: <span className="font-mono font-semibold text-foreground">{codigoLoja}</span>
-              </p>
-            )}
           </div>
+
+          {/* Credentials reminder banner */}
+          {codigoLoja && (
+            <Card className="border-primary/30 bg-primary/5 shadow-sm">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="rounded-lg bg-primary/10 p-2 text-primary shrink-0">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Seus dados de acesso — guarde com atenção!</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Estes dados serão exigidos em todos os acessos à sua loja.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-lg border border-border bg-background p-3 space-y-1">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
+                      <Store className="h-3.5 w-3.5" />
+                      Código da Loja
+                    </div>
+                    <p className="font-mono text-lg font-bold text-foreground">{codigoLoja}</p>
+                  </div>
+                  {storedEmail && (
+                    <div className="rounded-lg border border-border bg-background p-3 space-y-1">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
+                        <Mail className="h-3.5 w-3.5" />
+                        Login
+                      </div>
+                      <p className="text-sm font-semibold text-foreground truncate">{storedEmail}</p>
+                    </div>
+                  )}
+                  {storedPassword && (
+                    <div className="rounded-lg border border-border bg-background p-3 space-y-1">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
+                        <KeyRound className="h-3.5 w-3.5" />
+                        Senha
+                      </div>
+                      <p className="text-sm font-semibold text-foreground font-mono">{storedPassword}</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Annual toggle */}
           <div className="flex items-center justify-center gap-3">
