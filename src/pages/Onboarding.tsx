@@ -227,7 +227,7 @@ export default function Onboarding() {
       }).eq("id", tenantId!);
 
       // Update usuario nome
-      const userId = localStorage.getItem("current_user_id");
+      const userId = getUserId();
       if (userId) {
         await supabase.from("usuarios").update({
           nome_completo: nomeEmpresa.trim(),
