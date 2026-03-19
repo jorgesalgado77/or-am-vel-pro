@@ -32,8 +32,14 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !senha.trim()) {
+    const codigoDigits = unmask(codigoLoja);
+    if (!codigoDigits || !email.trim() || !senha.trim()) {
       toast.error("Preencha todos os campos");
+      return;
+    }
+
+    if (codigoDigits.length < 6) {
+      toast.error("Código da loja deve ter 6 dígitos (ex: 123.456)");
       return;
     }
 
