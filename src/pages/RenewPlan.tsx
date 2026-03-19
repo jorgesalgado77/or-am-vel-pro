@@ -38,7 +38,7 @@ export default function RenewPlan() {
   const [loading, setLoading] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const tenantId = localStorage.getItem("renew_tenant_id");
+  const tenantId = sessionStorage.getItem("renew_tenant_id");
 
   useEffect(() => {
     if (!tenantId) navigate("/");
