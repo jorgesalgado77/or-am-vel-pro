@@ -119,12 +119,20 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
   const fetchData = async () => {
     setLoading(true);
-    const [tenantsRes, paymentsRes] = await Promise.all([
+    const [tenantsRes, paymentsRes, plansRes] = await Promise.all([
       supabase.from("tenants").select("*").order("created_at", { ascending: false }),
       supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
+      supabase.from("subscription_plans" as any).select("slug, preco_mensal, preco_anual_mensal").eq("ativo", true),
     ]);
     if (tenantsRes.data) setTenants(tenantsRes.data as any);
     if (paymentsRes.data) setPayments(paymentsRes.data as any);
+    if (plansRes.data) {
+      const prices: PlanPriceMap = {};
+      (plansRes.data as any[]).forEach(p => {
+        prices[p.slug] = { mensal: p.preco_mensal, anual: p.preco_anual_mensal * 12 };
+      });
+      setPlanPrices(prices);
+    }
     setLoading(false);
   };
 
