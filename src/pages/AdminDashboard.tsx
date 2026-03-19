@@ -311,7 +311,14 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsList>
             <TabsTrigger value="lojas" className="gap-2"><Store className="h-4 w-4" />Lojas</TabsTrigger>
             <TabsTrigger value="dealroom" className="gap-2"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
-            <TabsTrigger value="suporte" className="gap-2"><MessageSquare className="h-4 w-4" />Suporte</TabsTrigger>
+            <TabsTrigger value="suporte" className="gap-2 relative">
+              <MessageSquare className="h-4 w-4" />Suporte
+              {addonInterestCount > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px] rounded-full">
+                  {addonInterestCount}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="pagamentos" className="gap-2"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
             <TabsTrigger value="planos" className="gap-2"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
             <TabsTrigger value="landing" className="gap-2"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
