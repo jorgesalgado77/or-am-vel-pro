@@ -68,6 +68,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const { addon, messages, loading, generating, dailyUsage, generateMessage, fetchMessages } = useVendaZap(tenantId);
   const { showOnboarding, setShowOnboarding } = useOnboarding("vendazap");
   const autoSugg = useAutoSuggestion({ tenantId, addon, userId: currentUser?.id });
+  const { pendingTriggers, loading: triggersLoading, markSent, dismiss } = useVendaZapTriggers(tenantId);
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
