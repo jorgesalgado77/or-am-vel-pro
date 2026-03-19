@@ -21,7 +21,9 @@ export type AuditAction =
   | "status_tracking_alterado"
   | "comissao_status_alterado"
   | "usuario_login"
-  | "senha_alterada";
+  | "senha_alterada"
+  | "vendazap_auto_suggestion"
+  | "vendazap_suggestion_used";
 
 export type AuditEntity =
   | "client"
