@@ -15,7 +15,6 @@ import { useUsuarios } from "@/hooks/useUsuarios";
 import { useCargos } from "@/hooks/useCargos";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { maskPhone, maskCurrency, unmaskCurrency } from "@/lib/masks";
-import { createTenantUser } from "@/lib/accountProvisioning";
 
 const EMPTY_FORM = {
   nome_completo: "",
