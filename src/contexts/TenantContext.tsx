@@ -23,27 +23,22 @@ interface TenantContextType {
   tenant: Tenant | null;
   tenantId: string | null;
   loading: boolean;
-  setTenantId: (id: string) => void;
   refreshTenant: () => Promise<void>;
-  clearTenant: () => void;
 }
 
 const TenantContext = createContext<TenantContextType>({
   tenant: null,
   tenantId: null,
   loading: true,
-  setTenantId: () => {},
   refreshTenant: async () => {},
-  clearTenant: () => {},
 });
 
 export function TenantProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [tenantId, setTenantIdState] = useState<string | null>(
-    () => localStorage.getItem("current_tenant_id")
-  );
   const [loading, setLoading] = useState(true);
+
+  const tenantId = user?.tenant_id ?? null;
 
   const fetchTenant = useCallback(async (id: string) => {
     const { data } = await supabase
@@ -73,36 +68,21 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const setTenantId = useCallback((id: string) => {
-    setTenantIdState(id);
-    localStorage.setItem("current_tenant_id", id);
-  }, []);
-
-  const clearTenant = useCallback(() => {
-    setTenant(null);
-    setTenantIdState(null);
-    localStorage.removeItem("current_tenant_id");
-  }, []);
-
   const refreshTenant = useCallback(async () => {
     if (tenantId) await fetchTenant(tenantId);
   }, [tenantId, fetchTenant]);
 
-  // Auto-sync tenant from auth user
   useEffect(() => {
-    if (user?.tenant_id) {
-      setTenantIdState(user.tenant_id);
-      localStorage.setItem("current_tenant_id", user.tenant_id);
-      fetchTenant(user.tenant_id);
-    } else if (tenantId) {
+    if (tenantId) {
       fetchTenant(tenantId);
     } else {
+      setTenant(null);
       setLoading(false);
     }
-  }, [user?.tenant_id, tenantId, fetchTenant]);
+  }, [tenantId, fetchTenant]);
 
   return (
-    <TenantContext.Provider value={{ tenant, tenantId, loading, setTenantId, refreshTenant, clearTenant }}>
+    <TenantContext.Provider value={{ tenant, tenantId, loading, refreshTenant }}>
       {children}
     </TenantContext.Provider>
   );
@@ -112,6 +92,13 @@ export function useTenant() {
   return useContext(TenantContext);
 }
 
+/**
+ * @deprecated Use useTenant().tenantId instead. This exists only for
+ * fire-and-forget functions (like audit logging) that cannot use hooks.
+ * The value is synced from AuthContext, never manually set.
+ */
 export function getCurrentTenantId(): string | null {
+  // Kept for backward compat in non-React contexts (auditService).
+  // The value is set by AuthContext on login and cleared on logout.
   return localStorage.getItem("current_tenant_id");
 }

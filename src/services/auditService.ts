@@ -37,17 +37,20 @@ interface AuditLogInput {
   entidade_id?: string;
   usuario_id?: string;
   usuario_nome?: string;
+  tenant_id?: string | null;
   detalhes?: Record<string, unknown>;
 }
 
 /**
  * Logs an audit event. Fire-and-forget — never blocks the UI.
+ * tenant_id should be passed explicitly from context rather than read from localStorage.
  */
 export function logAudit(input: AuditLogInput): void {
-  const { acao, entidade, entidade_id, usuario_id, usuario_nome, detalhes } = input;
-  const tenant_id = localStorage.getItem("current_tenant_id") || null;
+  const { acao, entidade, entidade_id, usuario_id, usuario_nome, tenant_id, detalhes } = input;
 
-  // Fire and forget — don't await
+  // Fallback: only use localStorage if tenant_id wasn't provided explicitly
+  const resolvedTenantId = tenant_id ?? localStorage.getItem("current_tenant_id") ?? null;
+
   supabase
     .from("audit_logs")
     .insert({
@@ -57,7 +60,7 @@ export function logAudit(input: AuditLogInput): void {
       usuario_id: usuario_id || null,
       usuario_nome: usuario_nome || null,
       detalhes: detalhes || {},
-      tenant_id,
+      tenant_id: resolvedTenantId,
     } as any)
     .then(({ error }) => {
       if (error) {
@@ -68,6 +71,7 @@ export function logAudit(input: AuditLogInput): void {
 
 /**
  * Helper to get current user info for audit logs.
+ * Uses localStorage as fallback for non-React contexts.
  */
 export function getAuditUserInfo(): { usuario_id?: string; usuario_nome?: string } {
   try {

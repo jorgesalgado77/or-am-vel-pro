@@ -4,21 +4,29 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS")
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
 
   try {
     const { tenant_id, plan_slug, periodo, return_url } = await req.json();
 
+    if (!tenant_id || !plan_slug) {
+      return new Response(
+        JSON.stringify({ error: "tenant_id e plan_slug são obrigatórios" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     if (!STRIPE_SECRET_KEY) {
       return new Response(
-        JSON.stringify({ error: "Stripe não configurado" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "STRIPE_SECRET_KEY não configurada. Configure nos secrets do Supabase." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -55,8 +63,8 @@ serve(async (req) => {
     }
 
     const priceAmount = periodo === "anual"
-      ? Math.round(plan.preco_anual_mensal * 12 * 100) // Annual total in cents
-      : Math.round(plan.preco_mensal * 100); // Monthly in cents
+      ? Math.round(plan.preco_anual_mensal * 12 * 100)
+      : Math.round(plan.preco_mensal * 100);
 
     // Create Stripe Checkout Session
     const params = new URLSearchParams();
@@ -92,7 +100,7 @@ serve(async (req) => {
       console.error("Stripe error:", stripeRes.status, errText);
       return new Response(
         JSON.stringify({ error: "Erro ao criar sessão de pagamento" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
