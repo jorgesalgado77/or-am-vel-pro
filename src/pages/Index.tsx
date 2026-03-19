@@ -17,19 +17,20 @@ import { VendaZapPanel } from "@/components/VendaZapPanel";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
 import { DealRoomView } from "@/components/DealRoomView";
 import Login from "@/pages/Login";
-import { CurrentUserContext, useCurrentUserLoader } from "@/hooks/useCurrentUser";
+import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
 import { useClientManager } from "@/hooks/useClientManager";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "Dashboard", subtitle: "Visão geral do sistema" },
-  clients: { title: "Clientes", subtitle: "" }, // dynamic subtitle
+  clients: { title: "Clientes", subtitle: "" },
   history: { title: "Histórico de Simulações", subtitle: "Compare diferentes cenários de financiamento" },
   contracts: { title: "Contratos do Cliente", subtitle: "Visualize e edite contratos gerados" },
   payroll: { title: "Folha de Pagamento", subtitle: "Relatório com dados de regime, salário e comissão" },
@@ -42,31 +43,24 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
 };
 
 export default function Index() {
-  const userCtx = useCurrentUserLoader();
+  const { user: authUser, loading: authLoading, hasPermission, logout } = useAuth();
   const tenantPlan = useTenantPlan();
-  const { currentUser, selectUser, logout } = userCtx;
   const { settings } = useCompanySettings();
 
   const presenceInfo = useMemo(() => {
-    if (!currentUser) return undefined;
+    if (!authUser) return undefined;
     return {
-      nome: currentUser.apelido || currentUser.nome_completo,
-      cargo: currentUser.cargo_nome,
-      fotoUrl: currentUser.foto_url,
+      nome: authUser.apelido || authUser.nome_completo,
+      cargo: authUser.cargo_nome,
+      fotoUrl: authUser.foto_url,
     };
-  }, [currentUser?.id, currentUser?.apelido, currentUser?.nome_completo, currentUser?.cargo_nome, currentUser?.foto_url]);
+  }, [authUser?.id, authUser?.apelido, authUser?.nome_completo, authUser?.cargo_nome, authUser?.foto_url]);
 
-  const { onlineUsers } = useOnlinePresence(currentUser?.id ?? null, presenceInfo);
+  const { onlineUsers } = useOnlinePresence(authUser?.id ?? null, presenceInfo);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const { unreadCount: unreadMessages } = useRealtimeMessages();
-
-  const hasPermission = (perm: keyof import("@/hooks/useCargos").CargoPermissoes) => {
-    if (!currentUser) return true;
-    return currentUser.permissoes[perm];
-  };
 
   const [activeView, setActiveView] = useState("dashboard");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -80,9 +74,9 @@ export default function Index() {
     fetchClients, handleSaveClient, handleDeleteClient,
   } = useClientManager();
 
-  // Redirect to allowed view when user changes
+  // Redirect to allowed view
   useEffect(() => {
-    if (currentUser) {
+    if (authUser) {
       if (activeView === "clients" && !hasPermission("clientes")) {
         if (hasPermission("simulador")) setActiveView("simulator");
         else if (hasPermission("configuracoes")) setActiveView("settings");
@@ -96,20 +90,7 @@ export default function Index() {
         else if (hasPermission("simulador")) setActiveView("simulator");
       }
     }
-  }, [currentUser]);
-
-  const handleLogin = (userId: string, primeiroLogin: boolean) => {
-    selectUser(userId);
-    if (primeiroLogin) {
-      setForcedPasswordChange(true);
-      setShowChangePassword(true);
-    }
-  };
-
-  const handlePasswordChanged = () => {
-    setShowChangePassword(false);
-    setForcedPasswordChange(false);
-  };
+  }, [authUser]);
 
   const onSaveClient = async (data: Record<string, unknown>) => {
     handleSaveClient(data, editingClient, () => {
@@ -127,20 +108,15 @@ export default function Index() {
 
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
   const storeName = settings.company_name || "OrçaMóvel PRO";
-  const currentTitle = activeView === "dashboard"
-    ? `${storeName} - Dashboard`
-    : viewMeta.title;
-  const currentSubtitle = activeView === "clients"
-    ? `${clients.length} clientes cadastrados`
-    : viewMeta.subtitle;
+  const currentTitle = activeView === "dashboard" ? `${storeName} - Dashboard` : viewMeta.title;
+  const currentSubtitle = activeView === "clients" ? `${clients.length} clientes cadastrados` : viewMeta.subtitle;
 
-  // Show login if no user is logged in
-  if (!currentUser && !userCtx.loading) {
-    return <Login onLogin={handleLogin} />;
+  // Show login if no auth session
+  if (!authUser && !authLoading) {
+    return <Login />;
   }
 
-  // Loading state
-  if (userCtx.loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground">Carregando...</p>
@@ -148,14 +124,32 @@ export default function Index() {
     );
   }
 
+  // Bridge for legacy CurrentUserContext
+  const currentUserCompat = authUser ? {
+    id: authUser.id,
+    nome_completo: authUser.nome_completo,
+    apelido: authUser.apelido,
+    cargo_id: authUser.cargo_id,
+    foto_url: authUser.foto_url,
+    cargo_nome: authUser.cargo_nome,
+    telefone: authUser.telefone,
+    email: authUser.email,
+    permissoes: authUser.permissoes,
+  } : null;
+
   return (
-    <CurrentUserContext.Provider value={{ currentUser, selectUser, logout, hasPermission }}>
+    <CurrentUserContext.Provider value={{
+      currentUser: currentUserCompat,
+      selectUser: async () => {},
+      logout,
+      hasPermission,
+    }}>
       <TenantPlanContext.Provider value={tenantPlan}>
         <div className="flex min-h-screen bg-background">
           <AppSidebar
             activeView={activeView}
             onViewChange={handleViewChange}
-            onChangePassword={() => { setForcedPasswordChange(false); setShowChangePassword(true); }}
+            onChangePassword={() => setShowChangePassword(true)}
             onSupport={() => setShowSupport(true)}
             unreadMessages={unreadMessages}
             onlineUsers={onlineUsers}
@@ -202,30 +196,27 @@ export default function Index() {
               <SubscriptionPlans onBack={() => setActiveView("dashboard")} />
             )}
 
-            {activeView === "messages" && (
-              <MessagesPanel />
-            )}
+            {activeView === "messages" && <MessagesPanel />}
 
             {activeView === "vendazap" && (
               <VendaZapPanel
-                tenantId={(settings as any)?.tenant_id || null}
+                tenantId={authUser?.tenant_id || null}
                 onBack={() => setActiveView("clients")}
               />
             )}
 
             {activeView === "dealroom" && (
-              <DealRoomView tenantId={(settings as any)?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
+              <DealRoomView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
             )}
 
             <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
           </main>
 
-          {currentUser && (
+          {authUser && (
             <ChangePasswordDialog
               open={showChangePassword}
-              userId={currentUser.id}
-              forced={forcedPasswordChange}
-              onClose={handlePasswordChanged}
+              userId={authUser.id}
+              onClose={() => setShowChangePassword(false)}
             />
           )}
           <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />

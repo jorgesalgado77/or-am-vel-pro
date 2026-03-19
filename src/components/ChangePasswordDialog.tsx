@@ -21,8 +21,8 @@ export function ChangePasswordDialog({ open, userId, forced, onClose }: ChangePa
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (novaSenha.length < 4) {
-      toast.error("A senha deve ter pelo menos 4 caracteres");
+    if (novaSenha.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
       return;
     }
     if (novaSenha !== confirmar) {
@@ -30,15 +30,13 @@ export function ChangePasswordDialog({ open, userId, forced, onClose }: ChangePa
       return;
     }
     setSaving(true);
-    // Hash password before storing
-    const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: novaSenha }) as any;
-    const { error } = await supabase
-      .from("usuarios")
-      .update({ senha: hashedSenha, primeiro_login: false } as any)
-      .eq("id", userId);
+
+    // Update via Supabase Auth
+    const { error } = await supabase.auth.updateUser({ password: novaSenha });
+
     setSaving(false);
     if (error) {
-      toast.error("Erro ao alterar senha");
+      toast.error("Erro ao alterar senha: " + error.message);
     } else {
       toast.success("Senha alterada com sucesso!");
       setNovaSenha("");
@@ -72,7 +70,7 @@ export function ChangePasswordDialog({ open, userId, forced, onClose }: ChangePa
                 type={showPwd ? "text" : "password"}
                 value={novaSenha}
                 onChange={(e) => setNovaSenha(e.target.value)}
-                placeholder="Mínimo 4 caracteres"
+                placeholder="Mínimo 6 caracteres"
                 className="pr-10"
               />
               <button

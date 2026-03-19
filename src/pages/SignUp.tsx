@@ -7,9 +7,11 @@ import { UserPlus, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SignUp() {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
@@ -52,28 +54,15 @@ export default function SignUp() {
         .limit(1);
 
       if (existingByEmail && existingByEmail.length > 0) {
-        toast.error("Este email já está cadastrado. Escolha outro email ou faça login.");
+        toast.error("Este email já está cadastrado.");
         setLoading(false);
         return;
       }
 
-      // Check if email exists as tenant contact
-      const { data: existingTenant } = await supabase
-        .from("tenants")
-        .select("id")
-        .eq("email_contato", trimmedEmail)
-        .limit(1);
-
-      if (existingTenant && existingTenant.length > 0) {
-        toast.error("Este email já está vinculado a uma loja. Use outro email ou faça login.");
-        setLoading(false);
-        return;
-      }
-
-      // Generate unique codigo_loja (999.999)
+      // Generate unique codigo_loja
       const codigoLoja = await generateCodigoLoja();
 
-      // Create tenant
+      // Create tenant first
       const { data: tenant, error: tenantError } = await supabase
         .from("tenants")
         .insert({
@@ -94,40 +83,34 @@ export default function SignUp() {
         return;
       }
 
-      // Create company_settings linked to tenant
-      const { error: settingsError } = await supabase
-        .from("company_settings")
-        .insert({
-          company_name: "Minha Loja",
-          company_subtitle: "Orce. Venda. Simplifique",
-          tenant_id: tenant.id,
-          codigo_loja: codigoLoja,
-          email_loja: trimmedEmail,
-        });
+      // Create company_settings
+      await supabase.from("company_settings").insert({
+        company_name: "Minha Loja",
+        company_subtitle: "Orce. Venda. Simplifique",
+        tenant_id: tenant.id,
+        codigo_loja: codigoLoja,
+        email_loja: trimmedEmail,
+      });
 
-      if (settingsError) {
-        toast.error("Erro ao configurar loja: " + settingsError.message);
-        setLoading(false);
-        return;
-      }
-
-      // Find or create cargo "Administrador" with full permissions
-      let cargoId: string;
+      // Create or find admin cargo
+      let cargoId: string | undefined;
       const { data: existingCargo } = await supabase
         .from("cargos")
         .select("id")
         .eq("nome", "Administrador")
+        .eq("tenant_id", tenant.id)
         .limit(1)
         .single();
 
       if (existingCargo) {
         cargoId = existingCargo.id;
       } else {
-        const { data: newCargo, error: cargoError } = await supabase
+        const { data: newCargo } = await supabase
           .from("cargos")
           .insert({
             nome: "Administrador",
             comissao_percentual: 0,
+            tenant_id: tenant.id,
             permissoes: {
               clientes: true,
               simulador: true,
@@ -140,45 +123,29 @@ export default function SignUp() {
           })
           .select()
           .single();
-
-        if (cargoError || !newCargo) {
-          toast.error("Erro ao criar cargo: " + (cargoError?.message || ""));
-          setLoading(false);
-          return;
-        }
-        cargoId = newCargo.id;
+        cargoId = newCargo?.id;
       }
 
-      // Create the user as admin, linked to tenant
-      const { data: usuario, error: userError } = await supabase
-        .from("usuarios")
-        .insert({
-          nome_completo: trimmedEmail.split("@")[0],
-          email: trimmedEmail,
-          senha: trimmedSenha,
-          apelido: "Admin",
-          cargo_id: cargoId,
-          ativo: true,
-          primeiro_login: false,
-          tenant_id: tenant.id,
-        } as any)
-        .select()
-        .single();
+      // Sign up with Supabase Auth — trigger will auto-create usuario
+      const { error: authError } = await signUp(trimmedEmail, trimmedSenha, {
+        tenant_id: tenant.id,
+        nome_completo: trimmedEmail.split("@")[0],
+        apelido: "Admin",
+        cargo_id: cargoId,
+      });
 
-      if (userError || !usuario) {
-        toast.error("Erro ao criar usuário: " + (userError?.message || ""));
+      if (authError) {
+        toast.error("Erro ao criar conta: " + authError);
         setLoading(false);
         return;
       }
 
       toast.success("Conta criada com sucesso!");
 
-      // Store user and redirect to onboarding
-      localStorage.setItem("current_user_id", usuario.id);
       localStorage.setItem("onboarding_tenant_id", tenant.id);
       localStorage.setItem("onboarding_codigo_loja", codigoLoja);
       navigate("/onboarding");
-    } catch (err) {
+    } catch {
       toast.error("Erro inesperado ao criar conta");
     }
 
@@ -249,7 +216,7 @@ export default function SignUp() {
             </Button>
           </form>
           <div className="mt-3 pt-3 border-t border-border">
-            <Button variant="ghost" className="w-full gap-2" onClick={() => navigate("/")}>
+            <Button variant="ghost" className="w-full gap-2" onClick={() => navigate("/app")}>
               <ArrowLeft className="h-4 w-4" />
               Já tenho uma conta
             </Button>
@@ -261,23 +228,19 @@ export default function SignUp() {
 }
 
 async function generateCodigoLoja(): Promise<string> {
-  // Generate random 6-digit code in format 999.999
+  const { supabase } = await import("@/lib/supabaseClient");
   let attempts = 0;
   while (attempts < 10) {
     const num = Math.floor(100000 + Math.random() * 900000);
     const code = `${String(num).slice(0, 3)}.${String(num).slice(3, 6)}`;
-
-    // Check if code already exists
     const { data } = await supabase
       .from("tenants")
       .select("id")
       .eq("codigo_loja", code)
       .limit(1);
-
     if (!data || data.length === 0) return code;
     attempts++;
   }
-  // Fallback
   const ts = Date.now().toString().slice(-6);
   return `${ts.slice(0, 3)}.${ts.slice(3, 6)}`;
 }

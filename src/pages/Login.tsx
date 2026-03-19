@@ -4,28 +4,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LogIn, Eye, EyeOff, Search, UserPlus, AlertTriangle, CreditCard, Headphones } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { maskCodigoLoja } from "@/lib/masks";
 import { ClientTrackingModal } from "@/components/ClientTrackingModal";
 import { useNavigate } from "react-router-dom";
-
-interface LoginProps {
-  onLogin: (userId: string, primeiroLogin: boolean) => void;
-}
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
 
 interface PlanBlockInfo {
   reason: string;
   tenantId: string;
 }
 
-export default function Login({ onLogin }: LoginProps) {
+export default function Login() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
-  const [codigoLoja, setCodigoLoja] = useState("");
-  const [nomeUsuario, setNomeUsuario] = useState("");
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,7 +30,7 @@ export default function Login({ onLogin }: LoginProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nomeUsuario.trim() || !senha.trim()) {
+    if (!email.trim() || !senha.trim()) {
       toast.error("Preencha todos os campos");
       return;
     }
@@ -42,105 +38,47 @@ export default function Login({ onLogin }: LoginProps) {
     setLoading(true);
     setPlanBlocked(null);
 
-    // Verify store code — find company_settings by codigo_loja
-    const trimmedCode = codigoLoja.trim();
-    let tenantId: string | null = null;
+    const { user, error } = await login(email.trim().toLowerCase(), senha);
 
-    if (trimmedCode) {
-      const { data: companyData } = await supabase
-        .from("company_settings")
-        .select("codigo_loja, tenant_id")
-        .eq("codigo_loja", trimmedCode)
-        .limit(1)
-        .single();
-
-      if (!companyData) {
-        toast.error("Código da loja inválido");
-        setLoading(false);
-        return;
-      }
-      tenantId = (companyData as any)?.tenant_id;
-    } else {
-      // Fallback: single-tenant check
-      const { data: companyData } = await supabase
-        .from("company_settings")
-        .select("codigo_loja, tenant_id")
-        .limit(1)
-        .single();
-
-      const storedCode = (companyData as any)?.codigo_loja;
-      if (storedCode && storedCode.trim() !== "") {
-        toast.error("Informe o código da loja");
-        setLoading(false);
-        return;
-      }
-      tenantId = (companyData as any)?.tenant_id;
+    if (error) {
+      toast.error(error === "Invalid login credentials" ? "Email ou senha incorretos" : error);
+      setLoading(false);
+      return;
     }
-
-    // Find user by name, apelido or email
-    const { data: users } = await supabase
-      .from("usuarios")
-      .select("id, nome_completo, apelido, email, ativo, senha, primeiro_login")
-      .eq("ativo", true);
-
-    const input = nomeUsuario.trim().toLowerCase();
-    const user = (users as any[])?.find(
-      (u) =>
-        u.apelido?.toLowerCase() === input ||
-        u.nome_completo.toLowerCase() === input ||
-        u.email?.toLowerCase() === input
-    );
 
     if (!user) {
-      toast.error("Usuário não encontrado");
+      toast.error("Usuário não encontrado no sistema");
       setLoading(false);
       return;
     }
 
-    if (!user.senha) {
-      toast.error("Senha não configurada. Contate o administrador.");
-      setLoading(false);
-      return;
-    }
-
-    // Hash input password using same SHA256 function as admin_master
-    const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: senha }) as any;
-
-    if (user.senha !== hashResult) {
-      toast.error("Senha incorreta");
-      setLoading(false);
-      return;
-    }
-
-    // === CHECK TENANT PLAN VALIDITY ===
-    if (tenantId) {
+    // Check tenant plan validity
+    if (user.tenant_id) {
       const { data: tenant } = await supabase
         .from("tenants")
         .select("*")
-        .eq("id", tenantId)
+        .eq("id", user.tenant_id)
         .single();
 
       if (tenant) {
         const t = tenant as any;
         const now = new Date();
 
-        // Check if tenant is inactive/banned
         if (!t.ativo) {
           setPlanBlocked({
-            reason: "Sua conta foi suspensa ou banida. Entre em contato com o suporte técnico da plataforma para mais informações.",
-            tenantId,
+            reason: "Sua conta foi suspensa ou banida. Entre em contato com o suporte técnico.",
+            tenantId: user.tenant_id,
           });
           setLoading(false);
           return;
         }
 
-        // Check plan expiration
         if (t.plano === "trial") {
           const trialFim = new Date(t.trial_fim);
           if (now > trialFim) {
             setPlanBlocked({
-              reason: "Seu período de teste gratuito expirou. Escolha um plano para continuar usando a plataforma.",
-              tenantId,
+              reason: "Seu período de teste gratuito expirou. Escolha um plano para continuar.",
+              tenantId: user.tenant_id,
             });
             setLoading(false);
             return;
@@ -149,8 +87,8 @@ export default function Login({ onLogin }: LoginProps) {
           const assFim = new Date(t.assinatura_fim);
           if (now > assFim) {
             setPlanBlocked({
-              reason: "Sua assinatura expirou. Renove seu plano para continuar tendo acesso à plataforma.",
-              tenantId,
+              reason: "Sua assinatura expirou. Renove seu plano para continuar.",
+              tenantId: user.tenant_id,
             });
             setLoading(false);
             return;
@@ -162,21 +100,14 @@ export default function Login({ onLogin }: LoginProps) {
     setLoading(false);
     toast.success(`Bem-vindo, ${user.apelido || user.nome_completo}!`);
 
-    // Save tenant context
-    if (tenantId) {
-      localStorage.setItem("current_tenant_id", tenantId);
-    }
-
     logAudit({
       acao: "usuario_login",
       entidade: "user",
       entidade_id: user.id,
       usuario_id: user.id,
       usuario_nome: user.apelido || user.nome_completo,
-      detalhes: { nome: user.nome_completo, tenant_id: tenantId },
+      detalhes: { nome: user.nome_completo, tenant_id: user.tenant_id },
     });
-
-    onLogin(user.id, user.primeiro_login ?? true);
   };
 
   const handleRenewPlan = () => {
@@ -186,7 +117,6 @@ export default function Login({ onLogin }: LoginProps) {
     }
   };
 
-  // === BLOCKED SCREEN ===
   if (planBlocked) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
@@ -228,11 +158,7 @@ export default function Login({ onLogin }: LoginProps) {
       <Card className="w-full max-w-sm shadow-lg border-border/50">
         <CardHeader className="text-center space-y-3 pb-2">
           {settings.logo_url && (
-            <img
-              src={settings.logo_url}
-              alt="Logo"
-              className="h-20 w-auto object-contain mx-auto mb-2"
-            />
+            <img src={settings.logo_url} alt="Logo" className="h-20 w-auto object-contain mx-auto mb-2" />
           )}
           <div>
             <h1 className="text-xl font-bold text-foreground">
@@ -248,25 +174,15 @@ export default function Login({ onLogin }: LoginProps) {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <Label htmlFor="codigoLoja">Código da Loja</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="codigoLoja"
-                value={codigoLoja}
-                onChange={(e) => setCodigoLoja(maskCodigoLoja(e.target.value))}
-                placeholder="000.000"
-                maxLength={7}
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu@email.com"
                 className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="nomeUsuario">Nome do Usuário</Label>
-              <Input
-                id="nomeUsuario"
-                value={nomeUsuario}
-                onChange={(e) => setNomeUsuario(e.target.value)}
-                placeholder="Nome, apelido ou email"
-                className="mt-1"
-                autoComplete="username"
+                autoComplete="email"
               />
             </div>
             <div>

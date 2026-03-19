@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface Tenant {
   id: string;
@@ -37,6 +38,7 @@ const TenantContext = createContext<TenantContextType>({
 });
 
 export function TenantProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [tenantId, setTenantIdState] = useState<string | null>(
     () => localStorage.getItem("current_tenant_id")
@@ -86,13 +88,18 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     if (tenantId) await fetchTenant(tenantId);
   }, [tenantId, fetchTenant]);
 
+  // Auto-sync tenant from auth user
   useEffect(() => {
-    if (tenantId) {
+    if (user?.tenant_id) {
+      setTenantIdState(user.tenant_id);
+      localStorage.setItem("current_tenant_id", user.tenant_id);
+      fetchTenant(user.tenant_id);
+    } else if (tenantId) {
       fetchTenant(tenantId);
     } else {
       setLoading(false);
     }
-  }, [tenantId, fetchTenant]);
+  }, [user?.tenant_id, tenantId, fetchTenant]);
 
   return (
     <TenantContext.Provider value={{ tenant, tenantId, loading, setTenantId, refreshTenant, clearTenant }}>
