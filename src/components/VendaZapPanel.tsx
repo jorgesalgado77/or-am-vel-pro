@@ -106,43 +106,13 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
           setLastSim(data);
           // Auto-suggestion when opening client
           if (addon?.ativo) {
-            generateAutoSuggestion(selectedClient, data);
+            autoSugg.generate(selectedClient, data);
           }
         });
     } else {
-      setAutoSuggestion("");
+      autoSugg.clear();
     }
   }, [selectedClient?.id]);
-
-  const diasSemResposta = selectedClient
-    ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
-
-  const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
-
-  const generateAutoSuggestion = async (client: Client, sim: any) => {
-    setAutoSuggestionLoading(true);
-    const days = Math.floor((Date.now() - new Date(client.updated_at).getTime()) / (1000 * 60 * 60 * 24));
-    // Determine best copy type based on context
-    let autoCopyType = "geral";
-    if (days > 7) autoCopyType = "reativacao";
-    else if (client.status === "proposta_enviada") autoCopyType = "fechamento";
-    else if (client.status === "em_negociacao") autoCopyType = "reuniao";
-    else if (days > 3) autoCopyType = "urgencia";
-
-    const result = await generateMessage({
-      nome_cliente: client.nome,
-      valor_orcamento: sim?.valor_final || sim?.valor_tela,
-      status_negociacao: client.status || "novo",
-      dias_sem_resposta: days,
-      tipo_copy: autoCopyType,
-      tom: "amigavel",
-      client_id: client.id,
-      usuario_id: currentUser?.id,
-    });
-    if (result) setAutoSuggestion(result);
-    setAutoSuggestionLoading(false);
-  };
 
   const handleGenerate = async () => {
     const result = await generateMessage({
