@@ -13,6 +13,7 @@ import {
   RefreshCw, Zap, History, Send, ArrowLeft, Handshake,
   Flame, Snowflake, ExternalLink, BookOpen, Lightbulb,
 } from "lucide-react";
+import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useVendaZap } from "@/hooks/useVendaZap";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
