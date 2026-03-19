@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { LogIn, Eye, EyeOff, Search, UserPlus, AlertTriangle, CreditCard, Headphones } from "lucide-react";
+import { LogIn, Eye, EyeOff, Search, UserPlus, AlertTriangle, CreditCard, Headphones, Store } from "lucide-react";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -11,6 +11,7 @@ import { ClientTrackingModal } from "@/components/ClientTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { maskCodigoLoja, unmask } from "@/lib/masks";
 
 interface PlanBlockInfo {
   reason: string;
