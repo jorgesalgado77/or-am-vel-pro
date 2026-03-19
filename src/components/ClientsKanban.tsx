@@ -28,6 +28,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
