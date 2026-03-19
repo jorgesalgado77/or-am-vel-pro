@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, X, Crown, Zap, Users, Building2, User, ArrowLeft, ArrowRight, Store, Mail, KeyRound, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { validateCpfCnpj } from "@/lib/validation";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { maskCpfCnpj, maskPhone, unmask } from "@/lib/masks";
@@ -188,6 +189,8 @@ export default function Onboarding() {
     // Validate all required fields
     if (!nomeEmpresa.trim()) { toast.error(tipoPessoa === "pj" ? "Nome da empresa é obrigatório" : "Nome completo é obrigatório"); return; }
     if (!cnpjCpf.trim()) { toast.error(tipoPessoa === "pj" ? "CNPJ é obrigatório" : "CPF é obrigatório"); return; }
+    const cpfCnpjValidation = validateCpfCnpj(cnpjCpf, tipoPessoa);
+    if (!cpfCnpjValidation.valid) { toast.error(cpfCnpjValidation.message!); return; }
     if (!endereco.trim()) { toast.error("Endereço é obrigatório"); return; }
     if (!bairro.trim()) { toast.error("Bairro é obrigatório"); return; }
     if (!cidade.trim()) { toast.error("Cidade é obrigatória"); return; }
