@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { maskCpfCnpj, maskPhone, unmask } from "@/lib/masks";
 import { cn } from "@/lib/utils";
+import { getUserId } from "@/lib/tenantState";
 
 const UF_OPTIONS = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA",
