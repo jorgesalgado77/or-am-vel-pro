@@ -472,6 +472,75 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
           </div>
         </TabsContent>
 
+        {/* Gatilhos Tab */}
+        <TabsContent value="gatilhos" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Zap className="h-4 w-4 text-primary" />
+                Gatilhos Automáticos
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Mensagens geradas automaticamente com base no comportamento dos clientes
+              </p>
+            </CardHeader>
+            <CardContent>
+              {triggersLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Carregando gatilhos...
+                </div>
+              ) : pendingTriggers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Nenhum gatilho pendente. Os gatilhos são gerados automaticamente quando clientes ficam sem resposta, orçamentos estão expirando ou propostas são visualizadas sem retorno.
+                </p>
+              ) : (
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-3">
+                    {pendingTriggers.map(trigger => {
+                      const triggerInfo = TRIGGER_LABELS[trigger.trigger_type] || { label: trigger.trigger_type, emoji: "📌" };
+                      return (
+                        <div key={trigger.id} className="border rounded-lg p-3 space-y-2 hover:border-primary/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">{triggerInfo.emoji}</span>
+                              <Badge variant="secondary" className="text-[10px]">{triggerInfo.label}</Badge>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">
+                              {format(new Date(trigger.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground font-medium">{trigger.client_nome}</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{trigger.generated_message}</p>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => {
+                                const phone = clients.find(c => c.id === trigger.client_id)?.telefone1;
+                                handleCopyAndOpenWhatsApp(trigger.generated_message, phone);
+                                markSent(trigger.id, currentUser?.id);
+                              }}
+                            >
+                              <Send className="h-3 w-3" />Enviar via WhatsApp
+                            </Button>
+                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handleCopy(trigger.generated_message)}>
+                              <Copy className="h-3 w-3" />Copiar
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => dismiss(trigger.id)}>
+                              <X className="h-3 w-3" />Ignorar
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Copys Prontas Tab */}
         <TabsContent value="prontas" className="space-y-4">
           <Card>
