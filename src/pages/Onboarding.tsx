@@ -106,8 +106,8 @@ export default function Onboarding() {
   const [emailContato, setEmailContato] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const tenantId = localStorage.getItem("onboarding_tenant_id");
-  const codigoLoja = localStorage.getItem("onboarding_codigo_loja");
+  const tenantId = sessionStorage.getItem("onboarding_tenant_id");
+  const codigoLoja = sessionStorage.getItem("onboarding_codigo_loja");
 
   useEffect(() => {
     if (!tenantId) {
