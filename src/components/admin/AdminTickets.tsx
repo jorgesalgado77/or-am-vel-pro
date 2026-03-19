@@ -59,6 +59,7 @@ export function AdminTickets({ adminName }: AdminTicketsProps) {
   const [novoStatus, setNovoStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [filterStatus, setFilterStatus] = useState("todos");
+  const [filterCategory, setFilterCategory] = useState<"todos" | "suporte" | "addon">("todos");
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -73,9 +74,19 @@ export function AdminTickets({ adminName }: AdminTicketsProps) {
 
   useEffect(() => { fetchTickets(); }, []);
 
-  const filteredTickets = filterStatus === "todos"
+  const categoryFiltered = filterCategory === "todos"
     ? tickets
-    : tickets.filter(t => t.status === filterStatus);
+    : filterCategory === "addon"
+      ? tickets.filter(t => t.tipo === "addon_interesse")
+      : tickets.filter(t => t.tipo !== "addon_interesse");
+
+  const filteredTickets = filterStatus === "todos"
+    ? categoryFiltered
+    : categoryFiltered.filter(t => t.status === filterStatus);
+
+  const countByStatus = (status: string) => categoryFiltered.filter(t => t.status === status).length;
+  const countAddon = tickets.filter(t => t.tipo === "addon_interesse").length;
+  const countSuporte = tickets.filter(t => t.tipo !== "addon_interesse").length;
 
   const openTicket = (ticket: SupportTicket) => {
     setSelectedTicket(ticket);
