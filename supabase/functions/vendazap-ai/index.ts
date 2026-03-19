@@ -89,79 +89,47 @@ ${deal_room_link ? "IMPORTANTE: Inclua o link da Deal Room de forma natural na m
 
 Retorne APENAS a mensagem final pronta para enviar no WhatsApp.`;
 
-    // Use Lovable AI by default (no API key needed)
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
-    let mensagem: string;
-    let tokensUsados = 0;
-
-    if (LOVABLE_API_KEY) {
-      // Use Lovable AI (preferred - no external API key needed)
-      const model = "google/gemini-2.5-flash-lite";
-      const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          max_tokens: Math.min(Number(max_tokens) || 300, 600),
-          temperature: 0.8,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Lovable AI error:", response.status, errorText);
-        throw new Error(`AI API error [${response.status}]`);
-      }
-
-      const data = await response.json();
-      mensagem = data.choices?.[0]?.message?.content?.trim() || "";
-      tokensUsados = data.usage?.total_tokens || 0;
-    } else if (OPENAI_API_KEY) {
-      // Fallback to OpenAI if configured
-      const model = openai_model || "gpt-4o-mini";
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          max_tokens: Math.min(Number(max_tokens) || 300, 600),
-          temperature: 0.8,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("OpenAI error:", response.status, errorText);
-        if (response.status === 429) throw new Error("Limite de requisições atingido. Tente novamente.");
-        if (response.status === 401) throw new Error("Chave da OpenAI inválida ou expirada.");
-        throw new Error(`OpenAI error [${response.status}]`);
-      }
-
-      const data = await response.json();
-      mensagem = data.choices?.[0]?.message?.content?.trim() || "";
-      tokensUsados = data.usage?.total_tokens || 0;
-    } else {
-      return new Response(JSON.stringify({ error: "Nenhum provedor de IA configurado." }), {
+    if (!OPENAI_API_KEY) {
+      return new Response(JSON.stringify({ error: "OPENAI_API_KEY não configurada. Adicione a chave nas configurações." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    let mensagem: string;
+    let tokensUsados = 0;
+
+    const model = openai_model || "gpt-4o-mini";
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: Math.min(Number(max_tokens) || 300, 600),
+        temperature: 0.8,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenAI error:", response.status, errorText);
+      if (response.status === 429) throw new Error("Limite de requisições da OpenAI atingido. Tente novamente.");
+      if (response.status === 401) throw new Error("Chave da OpenAI inválida ou expirada.");
+      throw new Error(`OpenAI error [${response.status}]`);
+    }
+
+    const data = await response.json();
+    mensagem = data.choices?.[0]?.message?.content?.trim() || "";
+    tokensUsados = data.usage?.total_tokens || 0;
 
     return new Response(JSON.stringify({ mensagem, tokens_usados: tokensUsados }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
