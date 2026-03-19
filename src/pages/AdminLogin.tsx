@@ -23,29 +23,32 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
       toast.error("Preencha todos os campos");
       return;
     }
+
     setLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
 
-    const { data, error } = await supabase
-      .from("admin_master")
-      .select("id, nome, email, senha")
-      .eq("email", email.trim().toLowerCase())
-      .maybeSingle();
+    const { data, error } = await (supabase as any).rpc("admin_login", {
+      p_email: normalizedEmail,
+      p_senha: senha,
+    });
 
-    if (error || !data) {
+    if (error) {
+      toast.error("O login admin precisa da função admin_login configurada no banco");
+      setLoading(false);
+      return;
+    }
+
+    const admin = Array.isArray(data) ? data[0] : data;
+
+    if (!admin) {
       toast.error("Credenciais inválidas");
       setLoading(false);
       return;
     }
 
-    if ((data as any).senha !== senha) {
-      toast.error("Senha incorreta");
-      setLoading(false);
-      return;
-    }
-
     setLoading(false);
-    toast.success(`Bem-vindo, ${(data as any).nome}!`);
-    onLogin((data as any).id, (data as any).nome);
+    toast.success(`Bem-vindo, ${admin.nome}!`);
+    onLogin(admin.id, admin.nome);
   };
 
   return (
