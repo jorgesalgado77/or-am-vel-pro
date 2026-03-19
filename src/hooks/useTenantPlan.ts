@@ -25,18 +25,53 @@ const DEFAULT_PLAN: TenantPlan = {
   recursos_vip: { ocultar_indicador: false },
 };
 
-// Features blocked per plan
-const PLAN_FEATURES: Record<string, { configuracoes: boolean; desconto3: boolean; plus: boolean; contratos: boolean; ocultar_indicador: boolean; deal_room: boolean }> = {
+// Fallback features if DB fetch fails
+const FALLBACK_FEATURES: Record<string, Record<string, boolean>> = {
   trial: { configuracoes: true, desconto3: true, plus: true, contratos: true, ocultar_indicador: false, deal_room: false },
   basico: { configuracoes: true, desconto3: false, plus: false, contratos: false, ocultar_indicador: false, deal_room: true },
   premium: { configuracoes: true, desconto3: true, plus: true, contratos: true, ocultar_indicador: false, deal_room: true },
 };
 
+// Cache for plan features fetched from DB
+let planFeaturesCache: Record<string, Record<string, boolean>> | null = null;
+
+async function fetchPlanFeatures(): Promise<Record<string, Record<string, boolean>>> {
+  if (planFeaturesCache) return planFeaturesCache;
+  
+  const { data } = await supabase
+    .from("subscription_plans" as any)
+    .select("slug, funcionalidades")
+    .eq("ativo", true);
+  
+  if (data && data.length > 0) {
+    const map: Record<string, Record<string, boolean>> = {};
+    (data as any[]).forEach(p => {
+      map[p.slug] = p.funcionalidades || {};
+    });
+    planFeaturesCache = map;
+    return map;
+  }
+  return FALLBACK_FEATURES;
+}
+
+// Subscribe to realtime changes to invalidate cache
+const realtimeChannel = supabase
+  .channel("plan-features-cache")
+  .on("postgres_changes", { event: "*", schema: "public", table: "subscription_plans" }, () => {
+    planFeaturesCache = null; // Invalidate cache
+  })
+  .subscribe();
+
 export function useTenantPlan() {
   const [plan, setPlan] = useState<TenantPlan>(DEFAULT_PLAN);
   const [loading, setLoading] = useState(true);
+  const [planFeatures, setPlanFeatures] = useState<Record<string, Record<string, boolean>>>(FALLBACK_FEATURES);
 
   const fetchPlan = async () => {
+    // Fetch plan features from DB
+    const features = await fetchPlanFeatures();
+    setPlanFeatures(features);
+
     // Get tenant linked to current company_settings
     const { data: settings } = await supabase
       .from("company_settings")
@@ -46,7 +81,6 @@ export function useTenantPlan() {
 
     const tenantId = (settings as any)?.tenant_id;
     if (!tenantId) {
-      // No tenant linked, assume trial/full access
       setLoading(false);
       return;
     }
@@ -93,13 +127,13 @@ export function useTenantPlan() {
 
   useEffect(() => { fetchPlan(); }, []);
 
-  const isFeatureAllowed = (feature: keyof typeof PLAN_FEATURES["trial"]): boolean => {
+  const isFeatureAllowed = (feature: string): boolean => {
     if (plan.expirado) return false;
     // Check tenant-level VIP overrides first
     if (plan.recursos_vip && plan.recursos_vip[feature] !== undefined) {
       return plan.recursos_vip[feature];
     }
-    const features = PLAN_FEATURES[plan.plano] || PLAN_FEATURES.trial;
+    const features = planFeatures[plan.plano] || FALLBACK_FEATURES[plan.plano] || FALLBACK_FEATURES.trial;
     return features[feature] ?? false;
   };
 
