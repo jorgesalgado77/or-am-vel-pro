@@ -551,21 +551,26 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
                   <TableRow className="bg-secondary/50">
                     <TableHead className="font-medium">Projetista</TableHead>
                     <TableHead className="font-medium text-center">Clientes</TableHead>
-                    <TableHead className="font-medium text-center">Expirados</TableHead>
+                    <TableHead className="font-medium text-center">Fechados</TableHead>
+                    <TableHead className="font-medium text-center">Conversão</TableHead>
                     <TableHead className="font-medium text-right">Valor Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stats.byProjetista.map(([name, data]) => (
+                  {stats.byProjetista.map(([name, data]) => {
+                    const conv = data.count > 0 ? ((data.closed / data.count) * 100).toFixed(0) : "0";
+                    return (
                     <TableRow key={name}>
                       <TableCell className="font-medium text-foreground">{name}</TableCell>
                       <TableCell className="text-center"><Badge variant="secondary">{data.count}</Badge></TableCell>
+                      <TableCell className="text-center"><Badge variant="default" className="bg-emerald-600">{data.closed}</Badge></TableCell>
                       <TableCell className="text-center">
-                        {data.expired > 0 ? <Badge variant="destructive" className="text-xs">{data.expired}</Badge> : <span className="text-muted-foreground">0</span>}
+                        <Badge variant="outline" className={Number(conv) >= 30 ? "border-emerald-500 text-emerald-600" : ""}>{conv}%</Badge>
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
