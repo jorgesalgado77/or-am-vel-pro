@@ -15,7 +15,6 @@ import { useUsuarios } from "@/hooks/useUsuarios";
 import { useCargos } from "@/hooks/useCargos";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { maskPhone, maskCurrency, unmaskCurrency } from "@/lib/masks";
-import { createTenantUser } from "@/lib/accountProvisioning";
 
 const EMPTY_FORM = {
   nome_completo: "",
@@ -98,32 +97,35 @@ export function UsuariosTab() {
       return;
     }
 
-    if (form.senha.trim().length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres");
+    if (form.senha.trim().length < 4) {
+      toast.error("A senha deve ter pelo menos 4 caracteres");
       return;
     }
 
-    try {
-      const result = await createTenantUser({
-        nomeCompleto: form.nome_completo.trim(),
-        email: normalizedEmail,
-        password: form.senha.trim(),
-        apelido: form.apelido.trim() || undefined,
-        telefone: form.telefone.trim() || undefined,
-        cargoId: form.cargo_id || null,
-        fotoUrl: form.foto_url || null,
-        tipoRegime: form.tipo_regime || null,
-        comissaoPercentual: form.comissao_percentual ? parseFloat(form.comissao_percentual) : 0,
-        salarioFixo: form.salario_fixo ? unmaskCurrency(form.salario_fixo) : 0,
-      });
+    // Hash password before storing
+    const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: form.senha }) as any;
+    const { error } = await supabase.from("usuarios").insert({
+      nome_completo: form.nome_completo.trim(),
+      apelido: form.apelido.trim() || null,
+      telefone: form.telefone.trim() || null,
+      email: normalizedEmail || null,
+      cargo_id: form.cargo_id || null,
+      foto_url: form.foto_url || null,
+      senha: hashedSenha,
+      primeiro_login: true,
+      tipo_regime: form.tipo_regime || null,
+      comissao_percentual: form.comissao_percentual ? parseFloat(form.comissao_percentual) : 0,
+      salario_fixo: form.salario_fixo ? unmaskCurrency(form.salario_fixo) : 0,
+    } as any);
 
+    if (error) {
+      toast.error("Erro ao adicionar usuário: " + error.message);
+    } else {
       toast.success(
-        `Usuário adicionado! O acesso será com o código da loja ${result.codigoLoja || settings.codigo_loja || "vinculado à loja atual"}.`
+        `Usuário adicionado! Vinculado ao código da loja ${settings.codigo_loja || "atual"}.`
       );
       setForm(EMPTY_FORM);
       refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao adicionar usuário");
     }
   };
 
