@@ -126,8 +126,14 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
         .eq("email", normalizedEmail)
         .maybeSingle();
 
-      if (error || !data) {
-        toast.error("Credenciais inválidas");
+      if (error) {
+        toast.error("Erro ao validar administrador");
+        setLoading(false);
+        return;
+      }
+
+      if (!data) {
+        toast.error("Administrador master ainda não foi configurado no banco");
         setLoading(false);
         return;
       }
