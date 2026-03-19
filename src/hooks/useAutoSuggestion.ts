@@ -9,8 +9,8 @@ interface SuggestionCache {
   timestamp: number;
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const TIMEOUT_MS = 15_000; // 15s safety timeout
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const TIMEOUT_MS = 15_000;
 
 interface UseAutoSuggestionParams {
   tenantId: string | null;
@@ -22,6 +22,7 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
   const [suggestion, setSuggestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [tipoCopy, setTipoCopy] = useState("");
+  const [suggestionId, setSuggestionId] = useState<string | null>(null);
   const cacheRef = useRef<SuggestionCache | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -31,7 +32,6 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
   ) => {
     if (!tenantId || !addon?.ativo) return;
 
-    // Check cache — avoid duplicate calls
     const cached = cacheRef.current;
     if (cached && cached.clientId === client.id && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       setSuggestion(cached.suggestion);
@@ -39,17 +39,16 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
       return;
     }
 
-    // Abort any in-flight request
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     setLoading(true);
     setSuggestion("");
+    setSuggestionId(null);
 
     const days = Math.floor((Date.now() - new Date(client.updated_at).getTime()) / (1000 * 60 * 60 * 24));
 
-    // Determine best copy type based on context
     let autoCopyType = "geral";
     if (days > 7) autoCopyType = "reativacao";
     else if (client.status === "proposta_enviada") autoCopyType = "fechamento";
@@ -86,10 +85,10 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
       }
 
       const msg = data?.mensagem || "";
+      const tokens = data?.tokens_usados || 0;
       setSuggestion(msg);
       setTipoCopy(autoCopyType);
 
-      // Update cache
       cacheRef.current = {
         clientId: client.id,
         suggestion: msg,
@@ -97,7 +96,23 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         timestamp: Date.now(),
       };
 
-      // Log usage audit
+      // Persist to vendazap_suggestions
+      const { data: inserted } = await supabase
+        .from("vendazap_suggestions" as any)
+        .insert({
+          tenant_id: tenantId,
+          client_id: client.id,
+          usuario_id: userId || null,
+          original_message: `${client.nome} - ${client.status} - ${days}d`,
+          suggested_reply: msg,
+          tokens_usados: tokens,
+          used: false,
+        } as any)
+        .select("id")
+        .single();
+
+      if (inserted) setSuggestionId((inserted as any).id);
+
       logAudit({
         acao: "vendazap_auto_suggestion",
         entidade: "client",
@@ -122,10 +137,19 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
     abortRef.current?.abort();
     setSuggestion("");
     setTipoCopy("");
+    setSuggestionId(null);
     setLoading(false);
   }, []);
 
-  const markUsed = useCallback((clientId: string) => {
+  const markUsed = useCallback(async (clientId: string) => {
+    // Mark as used in DB
+    if (suggestionId) {
+      await supabase
+        .from("vendazap_suggestions" as any)
+        .update({ used: true } as any)
+        .eq("id", suggestionId);
+    }
+
     logAudit({
       acao: "vendazap_suggestion_used",
       entidade: "client",
@@ -133,9 +157,9 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
       usuario_id: userId || null,
       usuario_nome: null,
       tenant_id: tenantId,
-      detalhes: { suggestion: suggestion.substring(0, 100) },
+      detalhes: { suggestion: suggestion.substring(0, 100), suggestion_id: suggestionId },
     });
-  }, [suggestion, userId, tenantId]);
+  }, [suggestion, userId, tenantId, suggestionId]);
 
   return { suggestion, loading, tipoCopy, generate, clear, markUsed };
 }
