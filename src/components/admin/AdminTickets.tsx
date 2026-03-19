@@ -123,7 +123,7 @@ export function AdminTickets({ adminName }: AdminTicketsProps) {
     setSaving(false);
   };
 
-  const countByStatus = (status: string) => tickets.filter(t => t.status === status).length;
+  
 
   // Detail view
   if (selectedTicket) {
