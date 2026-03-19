@@ -203,6 +203,23 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
+              <Label htmlFor="codigoLoja">Código da Loja</Label>
+              <div className="relative mt-1">
+                <Input
+                  id="codigoLoja"
+                  type="text"
+                  inputMode="numeric"
+                  value={codigoLoja}
+                  onChange={(e) => setCodigoLoja(maskCodigoLoja(e.target.value))}
+                  placeholder="000.000"
+                  maxLength={7}
+                  className="pl-10"
+                  autoComplete="off"
+                />
+                <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+            <div>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
