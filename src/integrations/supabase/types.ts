@@ -906,6 +906,60 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string
+          destaque: boolean
+          features_display: Json
+          funcionalidades: Json
+          id: string
+          max_usuarios: number
+          nome: string
+          ordem: number
+          preco_anual_mensal: number
+          preco_mensal: number
+          slug: string
+          trial_dias: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          destaque?: boolean
+          features_display?: Json
+          funcionalidades?: Json
+          id?: string
+          max_usuarios?: number
+          nome: string
+          ordem?: number
+          preco_anual_mensal?: number
+          preco_mensal?: number
+          slug: string
+          trial_dias?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          destaque?: boolean
+          features_display?: Json
+          funcionalidades?: Json
+          id?: string
+          max_usuarios?: number
+          nome?: string
+          ordem?: number
+          preco_anual_mensal?: number
+          preco_mensal?: number
+          slug?: string
+          trial_dias?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           anexos_urls: string[] | null
