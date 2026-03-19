@@ -177,11 +177,18 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
 
     const totalValue = Object.values(filteredLastSims).reduce((sum, s) => sum + s.valor_final, 0);
 
-    const byProjetista: Record<string, { count: number; total: number; expired: number }> = {};
+    // New KPIs
+    const ticketMedio = clientsWithSim > 0 ? totalValue / clientsWithSim : 0;
+    const closedClients = filteredClients.filter(c => (c as any).status === "fechado").length;
+    const taxaConversao = totalClients > 0 ? (closedClients / totalClients) * 100 : 0;
+    const faturamentoContratos = trackingData.total;
+
+    const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number }> = {};
     filteredClients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
-      if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0 };
+      if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0 };
       byProjetista[name].count++;
+      if ((c as any).status === "fechado") byProjetista[name].closed++;
       const sim = filteredLastSims[c.id];
       if (sim) {
         byProjetista[name].total += sim.valor_final;
@@ -207,12 +214,21 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
       }
     });
 
+    // Pipeline by status
+    const byStatus: Record<string, number> = {};
+    filteredClients.forEach(c => {
+      const status = (c as any).status || "novo";
+      byStatus[status] = (byStatus[status] || 0) + 1;
+    });
+
     return {
       totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue,
+      ticketMedio, taxaConversao, closedClients, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
+      byStatus,
     };
-  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores]);
+  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, trackingData]);
 
   // Line chart data: aggregate filtered simulations by month
   const lineData = useMemo(() => {
