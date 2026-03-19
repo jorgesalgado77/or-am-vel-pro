@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 interface Plan {
   id: string;
+  slug: string;
   nome: string;
   descricao: string;
   preco_mensal: number;
@@ -23,71 +24,11 @@ interface Plan {
   features: { label: string; included: boolean }[];
 }
 
-const PLANS: Plan[] = [
-  {
-    id: "trial",
-    nome: "Teste Grátis",
-    descricao: "Experimente todas as funcionalidades por 7 dias",
-    preco_mensal: 0,
-    preco_anual_mensal: 0,
-    max_usuarios: 999,
-    icon: Zap,
-    destaque: false,
-    features: [
-      { label: "Acesso completo por 7 dias", included: true },
-      { label: "Clientes ilimitados", included: true },
-      { label: "Simulador de financiamento", included: true },
-      { label: "Desconto 1 e 2", included: true },
-      { label: "Desconto 3 (especial)", included: true },
-      { label: "Plus percentual", included: true },
-      { label: "Contratos digitais", included: true },
-      { label: "Configurações avançadas", included: true },
-      { label: "Suporte prioritário", included: false },
-    ],
-  },
-  {
-    id: "basico",
-    nome: "Básico",
-    descricao: "Ideal para lojas pequenas com até 3 colaboradores",
-    preco_mensal: 59.90,
-    preco_anual_mensal: 50.92,
-    max_usuarios: 3,
-    icon: Users,
-    destaque: false,
-    features: [
-      { label: "Até 3 usuários", included: true },
-      { label: "Clientes ilimitados", included: true },
-      { label: "Simulador de financiamento", included: true },
-      { label: "Desconto 1 e 2", included: true },
-      { label: "Desconto 3 (especial)", included: false },
-      { label: "Plus percentual", included: false },
-      { label: "Contratos digitais", included: false },
-      { label: "Configurações avançadas", included: true },
-      { label: "Suporte por ticket", included: true },
-    ],
-  },
-  {
-    id: "premium",
-    nome: "Premium",
-    descricao: "Para lojas que precisam de tudo, sem limites",
-    preco_mensal: 149.90,
-    preco_anual_mensal: 127.42,
-    max_usuarios: null,
-    icon: Crown,
-    destaque: true,
-    features: [
-      { label: "Usuários ilimitados", included: true },
-      { label: "Clientes ilimitados", included: true },
-      { label: "Simulador de financiamento", included: true },
-      { label: "Desconto 1 e 2", included: true },
-      { label: "Desconto 3 (especial)", included: true },
-      { label: "Plus percentual", included: true },
-      { label: "Contratos digitais", included: true },
-      { label: "Configurações avançadas", included: true },
-      { label: "Suporte prioritário", included: true },
-    ],
-  },
-];
+const ICON_MAP: Record<string, React.ElementType> = {
+  trial: Zap,
+  basico: Users,
+  premium: Crown,
+};
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -102,6 +43,41 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
   const [annual, setAnnual] = useState(currentPlan.plano_periodo === "anual");
   const [loading, setLoading] = useState<string | null>(null);
   const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      const { data } = await supabase
+        .from("subscription_plans" as any)
+        .select("*")
+        .eq("ativo", true)
+        .order("ordem", { ascending: true });
+      if (data) {
+        setPlans((data as any[]).map(p => ({
+          id: p.slug,
+          slug: p.slug,
+          nome: p.nome,
+          descricao: p.descricao,
+          preco_mensal: p.preco_mensal,
+          preco_anual_mensal: p.preco_anual_mensal,
+          max_usuarios: p.max_usuarios >= 999 ? null : p.max_usuarios,
+          icon: ICON_MAP[p.slug] || Crown,
+          destaque: p.destaque,
+          features: p.features_display || [],
+        })));
+      }
+    };
+    fetchPlans();
+
+    const channel = supabase
+      .channel("subscription-plans-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscription_plans" }, () => {
+        fetchPlans();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const getStartDate = () => {
     const d = new Date();
