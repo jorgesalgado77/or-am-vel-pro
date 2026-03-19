@@ -1565,6 +1565,7 @@ export type Database = {
         Returns: number
       }
       get_next_orcamento_number: { Args: never; Returns: string }
+      get_user_tenant_id: { Args: { p_auth_user_id: string }; Returns: string }
       hash_password: { Args: { plain_text: string }; Returns: string }
       validate_dealroom_access: {
         Args: { p_tenant_id: string; p_usuario_id?: string }
