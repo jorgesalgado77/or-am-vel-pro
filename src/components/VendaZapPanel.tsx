@@ -205,9 +205,17 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
       </div>
 
       <Tabs defaultValue="gerar" className="space-y-4">
-        <TabsList className="grid grid-cols-3 w-full">
+        <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="gerar" className="gap-2"><Sparkles className="h-4 w-4" />Gerar</TabsTrigger>
-          <TabsTrigger value="prontas" className="gap-2"><BookOpen className="h-4 w-4" />Copys Prontas</TabsTrigger>
+          <TabsTrigger value="gatilhos" className="gap-2 relative">
+            <Zap className="h-4 w-4" />Gatilhos
+            {pendingTriggers.length > 0 && (
+              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[9px]">
+                {pendingTriggers.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="prontas" className="gap-2"><BookOpen className="h-4 w-4" />Copys</TabsTrigger>
           <TabsTrigger value="historico" className="gap-2"><History className="h-4 w-4" />Histórico</TabsTrigger>
         </TabsList>
 
