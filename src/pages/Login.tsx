@@ -22,6 +22,7 @@ export default function Login() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const { login } = useAuth();
+  const [codigoLoja, setCodigoLoja] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
