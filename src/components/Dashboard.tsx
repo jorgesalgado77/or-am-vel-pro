@@ -343,14 +343,20 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
       </Card>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         <KpiCard icon={Users} label="Total de Clientes" value={String(stats.totalClients)} />
         <KpiCard icon={Calculator} label="Com Orçamento" value={String(stats.clientsWithSim)} accent />
-        <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
-        <KpiCard icon={AlertTriangle} label="Expirados" value={String(stats.expired)} destructive={stats.expired > 0} />
-        <KpiCard icon={TrendingUp} label="Valor Total" value={formatCurrency(stats.totalValue)} accent />
+        <KpiCard icon={TrendingUp} label="Valor Total Orçamentos" value={formatCurrency(stats.totalValue)} accent />
         <KpiCard icon={FileCheck} label="Contratos Fechados" value={String(trackingData.count)} success />
-        <KpiCard icon={DollarSign} label="Valor Contratos" value={formatCurrency(trackingData.total)} success />
+        <KpiCard icon={DollarSign} label="Faturamento Contratos" value={formatCurrency(trackingData.total)} success />
+      </div>
+
+      {/* Secondary KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard icon={DollarSign} label="Ticket Médio" value={formatCurrency(stats.ticketMedio)} accent />
+        <KpiCard icon={TrendingUp} label="Taxa de Conversão" value={`${stats.taxaConversao.toFixed(1)}%`} accent={stats.taxaConversao > 0} />
+        <KpiCard icon={AlertTriangle} label="Orç. Expirados" value={String(stats.expired)} destructive={stats.expired > 0} />
+        <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
       </div>
 
       {/* Chart visibility toggles */}
