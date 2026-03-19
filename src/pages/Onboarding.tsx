@@ -109,6 +109,8 @@ export default function Onboarding() {
 
   const tenantId = sessionStorage.getItem("onboarding_tenant_id");
   const codigoLoja = sessionStorage.getItem("onboarding_codigo_loja");
+  const storedEmail = sessionStorage.getItem("onboarding_email");
+  const storedPassword = sessionStorage.getItem("onboarding_password");
 
   useEffect(() => {
     if (!tenantId) {
