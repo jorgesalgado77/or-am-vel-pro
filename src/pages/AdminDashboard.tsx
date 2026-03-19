@@ -81,6 +81,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addonInterestCount, setAddonInterestCount] = useState(0);
   const [showTenantDialog, setShowTenantDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
@@ -105,6 +106,15 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tDealRoom, setTDealRoom] = useState(false);
   const [tVendaZap, setTVendaZap] = useState(false);
 
+  const fetchAddonInterestCount = async () => {
+    const { count } = await supabase
+      .from("support_tickets")
+      .select("*", { count: "exact", head: true })
+      .eq("tipo", "addon_interesse")
+      .eq("status", "aberto");
+    setAddonInterestCount(count || 0);
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const [tenantsRes, paymentsRes] = await Promise.all([
@@ -116,7 +126,36 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    fetchAddonInterestCount();
+
+    // Realtime: notify on new addon interest tickets
+    const channel = supabase
+      .channel("admin-addon-interest")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "support_tickets",
+          filter: "tipo=eq.addon_interesse",
+        },
+        (payload) => {
+          const ticket = payload.new as any;
+          toast.info("🔔 Novo interesse em add-on!", {
+            description: `${ticket.usuario_nome} demonstrou interesse. Telefone: ${ticket.usuario_telefone || "N/A"}`,
+            duration: 10000,
+          });
+          setAddonInterestCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Stats
   const totalLojas = tenants.length;
@@ -272,7 +311,14 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsList>
             <TabsTrigger value="lojas" className="gap-2"><Store className="h-4 w-4" />Lojas</TabsTrigger>
             <TabsTrigger value="dealroom" className="gap-2"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
-            <TabsTrigger value="suporte" className="gap-2"><MessageSquare className="h-4 w-4" />Suporte</TabsTrigger>
+            <TabsTrigger value="suporte" className="gap-2 relative">
+              <MessageSquare className="h-4 w-4" />Suporte
+              {addonInterestCount > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px] rounded-full">
+                  {addonInterestCount}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="pagamentos" className="gap-2"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
             <TabsTrigger value="planos" className="gap-2"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
             <TabsTrigger value="landing" className="gap-2"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
