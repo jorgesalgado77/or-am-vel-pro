@@ -191,6 +191,51 @@ export type Database = {
           },
         ]
       }
+      client_status_history: {
+        Row: {
+          alterado_por: string | null
+          client_id: string
+          created_at: string
+          id: string
+          status_anterior: string | null
+          status_novo: string
+          tenant_id: string | null
+        }
+        Insert: {
+          alterado_por?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          status_anterior?: string | null
+          status_novo: string
+          tenant_id?: string | null
+        }
+        Update: {
+          alterado_por?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          status_anterior?: string | null
+          status_novo?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_status_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_status_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_tracking: {
         Row: {
           client_id: string

@@ -177,11 +177,18 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
 
     const totalValue = Object.values(filteredLastSims).reduce((sum, s) => sum + s.valor_final, 0);
 
-    const byProjetista: Record<string, { count: number; total: number; expired: number }> = {};
+    // New KPIs
+    const ticketMedio = clientsWithSim > 0 ? totalValue / clientsWithSim : 0;
+    const closedClients = filteredClients.filter(c => (c as any).status === "fechado").length;
+    const taxaConversao = totalClients > 0 ? (closedClients / totalClients) * 100 : 0;
+    const faturamentoContratos = trackingData.total;
+
+    const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number }> = {};
     filteredClients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
-      if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0 };
+      if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0 };
       byProjetista[name].count++;
+      if ((c as any).status === "fechado") byProjetista[name].closed++;
       const sim = filteredLastSims[c.id];
       if (sim) {
         byProjetista[name].total += sim.valor_final;
@@ -207,12 +214,21 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
       }
     });
 
+    // Pipeline by status
+    const byStatus: Record<string, number> = {};
+    filteredClients.forEach(c => {
+      const status = (c as any).status || "novo";
+      byStatus[status] = (byStatus[status] || 0) + 1;
+    });
+
     return {
       totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue,
+      ticketMedio, taxaConversao, closedClients, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
+      byStatus,
     };
-  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores]);
+  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, trackingData]);
 
   // Line chart data: aggregate filtered simulations by month
   const lineData = useMemo(() => {
@@ -327,14 +343,20 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
       </Card>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         <KpiCard icon={Users} label="Total de Clientes" value={String(stats.totalClients)} />
         <KpiCard icon={Calculator} label="Com Orçamento" value={String(stats.clientsWithSim)} accent />
-        <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
-        <KpiCard icon={AlertTriangle} label="Expirados" value={String(stats.expired)} destructive={stats.expired > 0} />
-        <KpiCard icon={TrendingUp} label="Valor Total" value={formatCurrency(stats.totalValue)} accent />
+        <KpiCard icon={TrendingUp} label="Valor Total Orçamentos" value={formatCurrency(stats.totalValue)} accent />
         <KpiCard icon={FileCheck} label="Contratos Fechados" value={String(trackingData.count)} success />
-        <KpiCard icon={DollarSign} label="Valor Contratos" value={formatCurrency(trackingData.total)} success />
+        <KpiCard icon={DollarSign} label="Faturamento Contratos" value={formatCurrency(trackingData.total)} success />
+      </div>
+
+      {/* Secondary KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard icon={DollarSign} label="Ticket Médio" value={formatCurrency(stats.ticketMedio)} accent />
+        <KpiCard icon={TrendingUp} label="Taxa de Conversão" value={`${stats.taxaConversao.toFixed(1)}%`} accent={stats.taxaConversao > 0} />
+        <KpiCard icon={AlertTriangle} label="Orç. Expirados" value={String(stats.expired)} destructive={stats.expired > 0} />
+        <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
       </div>
 
       {/* Chart visibility toggles */}
@@ -529,21 +551,26 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
                   <TableRow className="bg-secondary/50">
                     <TableHead className="font-medium">Projetista</TableHead>
                     <TableHead className="font-medium text-center">Clientes</TableHead>
-                    <TableHead className="font-medium text-center">Expirados</TableHead>
+                    <TableHead className="font-medium text-center">Fechados</TableHead>
+                    <TableHead className="font-medium text-center">Conversão</TableHead>
                     <TableHead className="font-medium text-right">Valor Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stats.byProjetista.map(([name, data]) => (
+                  {stats.byProjetista.map(([name, data]) => {
+                    const conv = data.count > 0 ? ((data.closed / data.count) * 100).toFixed(0) : "0";
+                    return (
                     <TableRow key={name}>
                       <TableCell className="font-medium text-foreground">{name}</TableCell>
                       <TableCell className="text-center"><Badge variant="secondary">{data.count}</Badge></TableCell>
+                      <TableCell className="text-center"><Badge variant="default" className="bg-emerald-600">{data.closed}</Badge></TableCell>
                       <TableCell className="text-center">
-                        {data.expired > 0 ? <Badge variant="destructive" className="text-xs">{data.expired}</Badge> : <span className="text-muted-foreground">0</span>}
+                        <Badge variant="outline" className={Number(conv) >= 30 ? "border-emerald-500 text-emerald-600" : ""}>{conv}%</Badge>
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

@@ -123,6 +123,29 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
       }
 
       const periodo = annual ? "anual" : "mensal";
+
+      // Try Stripe checkout first
+      try {
+        const { data: stripeData, error: stripeError } = await supabase.functions.invoke("stripe-checkout", {
+          body: {
+            tenant_id: tenantId,
+            plan_slug: confirmPlan.id,
+            periodo,
+            success_url: `${window.location.origin}/app?checkout=success`,
+            cancel_url: `${window.location.origin}/app?checkout=cancel`,
+          },
+        });
+
+        if (!stripeError && stripeData?.url) {
+          window.location.href = stripeData.url;
+          return;
+        }
+      } catch {
+        // Stripe not configured, fallback to direct update
+        console.log("Stripe não configurado, usando atualização direta");
+      }
+
+      // Fallback: direct plan update (when Stripe is not configured)
       const now = new Date();
       const endDate = new Date(now);
       if (annual) endDate.setFullYear(endDate.getFullYear() + 1);
