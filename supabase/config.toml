@@ -1,0 +1,14 @@
+[project]
+id = "bdhfzjuwtkiexyeusnqq"
+
+[functions.vendazap-ai]
+verify_jwt = false
+
+[functions.dealroom]
+verify_jwt = false
+
+[functions.contract-ocr]
+verify_jwt = false
+
+[functions.stripe-checkout]
+verify_jwt = false
