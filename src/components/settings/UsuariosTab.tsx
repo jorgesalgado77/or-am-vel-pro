@@ -125,9 +125,10 @@ export function UsuariosTab() {
 
   const handleResetPassword = async () => {
     if (resetSenha.length < 4) { toast.error("A senha deve ter pelo menos 4 caracteres"); return; }
+    const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: resetSenha }) as any;
     const { error } = await supabase
       .from("usuarios")
-      .update({ senha: resetSenha, primeiro_login: true } as any)
+      .update({ senha: hashedSenha, primeiro_login: true } as any)
       .eq("id", resetPasswordDialog.userId);
     if (error) toast.error("Erro ao resetar senha");
     else {

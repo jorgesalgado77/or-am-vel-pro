@@ -30,9 +30,11 @@ export function ChangePasswordDialog({ open, userId, forced, onClose }: ChangePa
       return;
     }
     setSaving(true);
+    // Hash password before storing
+    const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: novaSenha }) as any;
     const { error } = await supabase
       .from("usuarios")
-      .update({ senha: novaSenha, primeiro_login: false } as any)
+      .update({ senha: hashedSenha, primeiro_login: false } as any)
       .eq("id", userId);
     setSaving(false);
     if (error) {
