@@ -44,6 +44,7 @@ const TIPO_CONFIG: Record<string, { label: string; icon: typeof Bug }> = {
   erro: { label: "Erro", icon: Bug },
   sugestao: { label: "Sugestão", icon: Lightbulb },
   reclamacao: { label: "Reclamação", icon: AlertTriangle },
+  addon_interesse: { label: "Interesse Add-on", icon: ShoppingBag },
 };
 
 interface AdminTicketsProps {
