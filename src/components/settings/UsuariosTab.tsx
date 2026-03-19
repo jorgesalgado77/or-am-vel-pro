@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,18 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useCargos } from "@/hooks/useCargos";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { maskPhone, maskCurrency, unmaskCurrency } from "@/lib/masks";
+import { createTenantUser } from "@/lib/accountProvisioning";
 
 const EMPTY_FORM = {
-  nome_completo: "", apelido: "", telefone: "", email: "", cargo_id: "",
-  foto_url: "", senha: "", tipo_regime: "", comissao_percentual: "", salario_fixo: "",
+  nome_completo: "",
+  apelido: "",
+  telefone: "",
+  email: "",
+  cargo_id: "",
+  foto_url: "",
+  senha: "",
+  tipo_regime: "",
+  comissao_percentual: "",
+  salario_fixo: "",
 };
 
 const REGIME_OPTIONS = [
@@ -27,7 +37,7 @@ const REGIME_OPTIONS = [
 ];
 
 function getInitials(name: string) {
-  return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+  return name.split(" ").map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }
 
 function formatCurrencyDisplay(value: number): string {
@@ -37,12 +47,13 @@ function formatCurrencyDisplay(value: number): string {
 export function UsuariosTab() {
   const { usuarios, refresh } = useUsuarios();
   const { cargos } = useCargos();
+  const { settings } = useCompanySettings();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [resetPasswordDialog, setResetPasswordDialog] = useState<{ open: boolean; userId: string; userName: string }>({ open: false, userId: "", userName: "" });
+  const [resetPasswordDialog, setResetPasswordDialog] = useState({ open: false, userId: "", userName: "" });
   const [resetSenha, setResetSenha] = useState("");
   const [showResetPwd, setShowResetPwd] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +65,10 @@ export function UsuariosTab() {
     const path = `usuarios/${userId || crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true });
     setUploading(false);
-    if (error) { toast.error("Erro ao enviar foto"); return null; }
+    if (error) {
+      toast.error("Erro ao enviar foto");
+      return null;
+    }
     const { data: { publicUrl } } = supabase.storage.from("company-assets").getPublicUrl(path);
     return publicUrl;
   };
@@ -63,29 +77,54 @@ export function UsuariosTab() {
     const file = e.target.files?.[0];
     if (!file) return;
     const url = await uploadPhoto(file, isEdit ? editingId || undefined : undefined);
-    if (url) setForm(f => ({ ...f, foto_url: url }));
+    if (url) setForm((f) => ({ ...f, foto_url: url }));
   };
 
   const handleAdd = async () => {
-    if (!form.nome_completo.trim()) { toast.error("Nome completo é obrigatório"); return; }
-    if (!form.senha.trim()) { toast.error("Senha é obrigatória para novos usuários"); return; }
-    // Hash password before storing
-    const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: form.senha }) as any;
-    const { error } = await supabase.from("usuarios").insert({
-      nome_completo: form.nome_completo.trim(),
-      apelido: form.apelido.trim() || null,
-      telefone: form.telefone.trim() || null,
-      email: form.email.trim() || null,
-      cargo_id: form.cargo_id || null,
-      foto_url: form.foto_url || null,
-      senha: hashedSenha,
-      primeiro_login: true,
-      tipo_regime: form.tipo_regime || null,
-      comissao_percentual: form.comissao_percentual ? parseFloat(form.comissao_percentual) : 0,
-      salario_fixo: form.salario_fixo ? unmaskCurrency(form.salario_fixo) : 0,
-    } as any);
-    if (error) toast.error("Erro ao adicionar usuário");
-    else { toast.success("Usuário adicionado!"); setForm(EMPTY_FORM); refresh(); }
+    const normalizedEmail = form.email.trim().toLowerCase();
+
+    if (!form.nome_completo.trim()) {
+      toast.error("Nome completo é obrigatório");
+      return;
+    }
+
+    if (!normalizedEmail) {
+      toast.error("Email é obrigatório para novos usuários");
+      return;
+    }
+
+    if (!form.senha.trim()) {
+      toast.error("Senha é obrigatória para novos usuários");
+      return;
+    }
+
+    if (form.senha.trim().length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+
+    try {
+      const result = await createTenantUser({
+        nomeCompleto: form.nome_completo.trim(),
+        email: normalizedEmail,
+        password: form.senha.trim(),
+        apelido: form.apelido.trim() || undefined,
+        telefone: form.telefone.trim() || undefined,
+        cargoId: form.cargo_id || null,
+        fotoUrl: form.foto_url || null,
+        tipoRegime: form.tipo_regime || null,
+        comissaoPercentual: form.comissao_percentual ? parseFloat(form.comissao_percentual) : 0,
+        salarioFixo: form.salario_fixo ? unmaskCurrency(form.salario_fixo) : 0,
+      });
+
+      toast.success(
+        `Usuário adicionado! O acesso será com o código da loja ${result.codigoLoja || settings.codigo_loja || "vinculado à loja atual"}.`
+      );
+      setForm(EMPTY_FORM);
+      refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao adicionar usuário");
+    }
   };
 
   const handleEdit = (u: typeof usuarios[0]) => {
@@ -106,12 +145,15 @@ export function UsuariosTab() {
   };
 
   const handleEditSave = async () => {
-    if (!editingId || !form.nome_completo.trim()) { toast.error("Nome completo é obrigatório"); return; }
+    if (!editingId || !form.nome_completo.trim()) {
+      toast.error("Nome completo é obrigatório");
+      return;
+    }
     const updateData: any = {
       nome_completo: form.nome_completo.trim(),
       apelido: form.apelido.trim() || null,
       telefone: form.telefone.trim() || null,
-      email: form.email.trim() || null,
+      email: form.email.trim().toLowerCase() || null,
       cargo_id: form.cargo_id || null,
       foto_url: form.foto_url || null,
       tipo_regime: form.tipo_regime || null,
@@ -120,11 +162,20 @@ export function UsuariosTab() {
     };
     const { error } = await supabase.from("usuarios").update(updateData).eq("id", editingId);
     if (error) toast.error("Erro ao atualizar");
-    else { toast.success("Usuário atualizado!"); setEditDialogOpen(false); setEditingId(null); setForm(EMPTY_FORM); refresh(); }
+    else {
+      toast.success("Usuário atualizado!");
+      setEditDialogOpen(false);
+      setEditingId(null);
+      setForm(EMPTY_FORM);
+      refresh();
+    }
   };
 
   const handleResetPassword = async () => {
-    if (resetSenha.length < 4) { toast.error("A senha deve ter pelo menos 4 caracteres"); return; }
+    if (resetSenha.length < 4) {
+      toast.error("A senha deve ter pelo menos 4 caracteres");
+      return;
+    }
     const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: resetSenha }) as any;
     const { error } = await supabase
       .from("usuarios")
@@ -148,12 +199,15 @@ export function UsuariosTab() {
     if (!confirm(`Excluir usuário "${nome}"?`)) return;
     const { error } = await supabase.from("usuarios").delete().eq("id", id);
     if (error) toast.error("Erro ao excluir");
-    else { toast.success("Excluído!"); refresh(); }
+    else {
+      toast.success("Excluído!");
+      refresh();
+    }
   };
 
   const getCargoNome = (cargoId: string | null) => {
     if (!cargoId) return "—";
-    return cargos.find(c => c.id === cargoId)?.nome || "—";
+    return cargos.find((c) => c.id === cargoId)?.nome || "—";
   };
 
   const renderPhotoUpload = (inputRef: React.RefObject<HTMLInputElement | null>, isEdit = false) => (
@@ -174,7 +228,7 @@ export function UsuariosTab() {
           {uploading ? "Enviando..." : "Escolher Foto"}
         </Button>
         {form.foto_url && (
-          <Button type="button" variant="ghost" size="sm" className="ml-1 text-destructive" onClick={() => setForm(f => ({ ...f, foto_url: "" }))}>
+          <Button type="button" variant="ghost" size="sm" className="ml-1 text-destructive" onClick={() => setForm((f) => ({ ...f, foto_url: "" }))}>
             Remover
           </Button>
         )}
@@ -189,35 +243,35 @@ export function UsuariosTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label>Nome Completo *</Label>
-          <Input value={form.nome_completo} onChange={e => setForm(f => ({ ...f, nome_completo: e.target.value }))} className="mt-1" />
+          <Input value={form.nome_completo} onChange={(e) => setForm((f) => ({ ...f, nome_completo: e.target.value }))} className="mt-1" />
         </div>
         <div>
           <Label>Apelido</Label>
-          <Input value={form.apelido} onChange={e => setForm(f => ({ ...f, apelido: e.target.value }))} className="mt-1" />
+          <Input value={form.apelido} onChange={(e) => setForm((f) => ({ ...f, apelido: e.target.value }))} className="mt-1" />
         </div>
         <div>
           <Label>Telefone</Label>
-          <Input value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: maskPhone(e.target.value) }))} className="mt-1" placeholder="(00) 00000-0000" />
+          <Input value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: maskPhone(e.target.value) }))} className="mt-1" placeholder="(00) 00000-0000" />
         </div>
         <div>
-          <Label>Email</Label>
-          <Input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="mt-1" />
+          <Label>Email{!isDialog ? " *" : ""}</Label>
+          <Input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="mt-1" />
         </div>
         <div>
           <Label>Cargo</Label>
-          <Select value={form.cargo_id} onValueChange={v => setForm(f => ({ ...f, cargo_id: v }))}>
+          <Select value={form.cargo_id} onValueChange={(v) => setForm((f) => ({ ...f, cargo_id: v }))}>
             <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione um cargo" /></SelectTrigger>
             <SelectContent>
-              {cargos.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+              {cargos.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div>
           <Label>Tipo de Regime</Label>
-          <Select value={form.tipo_regime} onValueChange={v => setForm(f => ({ ...f, tipo_regime: v }))}>
+          <Select value={form.tipo_regime} onValueChange={(v) => setForm((f) => ({ ...f, tipo_regime: v }))}>
             <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione o regime" /></SelectTrigger>
             <SelectContent>
-              {REGIME_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+              {REGIME_OPTIONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -225,9 +279,9 @@ export function UsuariosTab() {
           <Label>Comissão (%)</Label>
           <Input
             value={form.comissao_percentual}
-            onChange={e => {
+            onChange={(e) => {
               const val = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
-              setForm(f => ({ ...f, comissao_percentual: val }));
+              setForm((f) => ({ ...f, comissao_percentual: val }));
             }}
             className="mt-1"
             placeholder="Ex: 5.00"
@@ -237,7 +291,7 @@ export function UsuariosTab() {
           <Label>Salário Fixo</Label>
           <Input
             value={form.salario_fixo}
-            onChange={e => setForm(f => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
+            onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
             className="mt-1"
             placeholder="R$ 0,00"
           />
@@ -249,8 +303,8 @@ export function UsuariosTab() {
               <Input
                 type={showPassword ? "text" : "password"}
                 value={form.senha}
-                onChange={e => setForm(f => ({ ...f, senha: e.target.value }))}
-                placeholder="Mínimo 4 caracteres"
+                onChange={(e) => setForm((f) => ({ ...f, senha: e.target.value }))}
+                placeholder="Mínimo 6 caracteres"
                 className="pr-10"
               />
               <button
@@ -270,6 +324,23 @@ export function UsuariosTab() {
 
   return (
     <div className="space-y-6">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-foreground">Usuários vinculados automaticamente à loja</p>
+              <p className="text-sm text-muted-foreground">
+                Novos usuários criados aqui entram sempre vinculados ao código da loja <strong>{settings.codigo_loja || "atual"}</strong>.
+                As configurações do sistema ficam reservadas ao usuário administrador.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle className="text-base">Cadastrar Usuário</CardTitle></CardHeader>
         <CardContent className="space-y-4">
@@ -304,7 +375,7 @@ export function UsuariosTab() {
                 {usuarios.length === 0 && (
                   <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado</TableCell></TableRow>
                 )}
-                {usuarios.map(u => (
+                {usuarios.map((u) => (
                   <TableRow key={u.id} className={!u.ativo ? "opacity-50" : ""}>
                     <TableCell>
                       <Avatar className="h-8 w-8">
@@ -346,7 +417,6 @@ export function UsuariosTab() {
         </CardContent>
       </Card>
 
-      {/* Edit User Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Editar Usuário</DialogTitle></DialogHeader>
@@ -358,7 +428,6 @@ export function UsuariosTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Reset Password Dialog */}
       <Dialog open={resetPasswordDialog.open} onOpenChange={(o) => { if (!o) setResetPasswordDialog({ open: false, userId: "", userName: "" }); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
