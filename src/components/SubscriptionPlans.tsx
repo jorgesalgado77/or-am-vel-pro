@@ -197,7 +197,7 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
 
       {/* Plan cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {PLANS.map((p) => {
+        {plans.map((p) => {
           const isCurrent = p.id === currentPlan.plano;
           const price = annual ? p.preco_anual_mensal : p.preco_mensal;
 
