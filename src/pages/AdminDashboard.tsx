@@ -81,6 +81,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addonInterestCount, setAddonInterestCount] = useState(0);
   const [showTenantDialog, setShowTenantDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
@@ -105,6 +106,15 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tDealRoom, setTDealRoom] = useState(false);
   const [tVendaZap, setTVendaZap] = useState(false);
 
+  const fetchAddonInterestCount = async () => {
+    const { count } = await supabase
+      .from("support_tickets")
+      .select("*", { count: "exact", head: true })
+      .eq("tipo", "addon_interesse")
+      .eq("status", "aberto");
+    setAddonInterestCount(count || 0);
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const [tenantsRes, paymentsRes] = await Promise.all([
@@ -116,7 +126,36 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    fetchAddonInterestCount();
+
+    // Realtime: notify on new addon interest tickets
+    const channel = supabase
+      .channel("admin-addon-interest")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "support_tickets",
+          filter: "tipo=eq.addon_interesse",
+        },
+        (payload) => {
+          const ticket = payload.new as any;
+          toast.info("🔔 Novo interesse em add-on!", {
+            description: `${ticket.usuario_nome} demonstrou interesse. Telefone: ${ticket.usuario_telefone || "N/A"}`,
+            duration: 10000,
+          });
+          setAddonInterestCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Stats
   const totalLojas = tenants.length;
