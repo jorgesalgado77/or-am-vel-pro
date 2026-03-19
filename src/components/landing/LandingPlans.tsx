@@ -1,95 +1,68 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, X, Star, Zap, Users, Crown } from "lucide-react";
 import { AnimatedSection, StaggerContainer, StaggerItem } from "./AnimatedSection";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LandingPlansProps {
   plans: any[];
   primaryColor: string;
 }
 
-interface SystemPlan {
+interface DynamicPlan {
   id: string;
-  name: string;
-  description: string;
-  price_monthly: number;
-  price_yearly: number;
-  max_users: number | null;
-  recommended: boolean;
-  icon: React.ElementType;
-  features: { label: string; included: boolean }[];
+  slug: string;
+  nome: string;
+  descricao: string;
+  preco_mensal: number;
+  preco_anual_mensal: number;
+  max_usuarios: number;
+  destaque: boolean;
+  ativo: boolean;
+  ordem: number;
+  trial_dias: number;
+  features_display: { label: string; included: boolean }[];
 }
 
-const SYSTEM_PLANS: SystemPlan[] = [
-  {
-    id: "trial",
-    name: "Teste Grátis",
-    description: "Experimente tudo por 7 dias",
-    price_monthly: 0,
-    price_yearly: 0,
-    max_users: 999,
-    recommended: false,
-    icon: Zap,
-    features: [
-      { label: "Acesso completo por 7 dias", included: true },
-      { label: "Clientes ilimitados", included: true },
-      { label: "Simulador de financiamento", included: true },
-      { label: "Desconto 1 e 2", included: true },
-      { label: "Contratos digitais", included: true },
-      { label: "Suporte por ticket", included: true },
-      { label: "Desconto 3 (especial)", included: false },
-      { label: "Plus percentual", included: false },
-    ],
-  },
-  {
-    id: "basico",
-    name: "Básico",
-    description: "Ideal para lojas pequenas com até 3 colaboradores",
-    price_monthly: 59.90,
-    price_yearly: 50.92,
-    max_users: 3,
-    recommended: false,
-    icon: Users,
-    features: [
-      { label: "Até 3 usuários", included: true },
-      { label: "Clientes ilimitados", included: true },
-      { label: "Simulador de financiamento", included: true },
-      { label: "Desconto 1 e 2", included: true },
-      { label: "Configurações avançadas", included: true },
-      { label: "Suporte por ticket", included: true },
-      { label: "Desconto 3 (especial)", included: false },
-      { label: "Plus percentual", included: false },
-      { label: "Contratos digitais", included: false },
-    ],
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    description: "Para lojas que precisam de tudo, sem limites",
-    price_monthly: 149.90,
-    price_yearly: 127.42,
-    max_users: null,
-    recommended: true,
-    icon: Crown,
-    features: [
-      { label: "Usuários ilimitados", included: true },
-      { label: "Clientes ilimitados", included: true },
-      { label: "Simulador de financiamento", included: true },
-      { label: "Desconto 1, 2 e 3 (especial)", included: true },
-      { label: "Plus percentual", included: true },
-      { label: "Contratos digitais", included: true },
-      { label: "Configurações avançadas", included: true },
-      { label: "Suporte prioritário", included: true },
-    ],
-  },
-];
+const ICON_MAP: Record<string, React.ElementType> = {
+  trial: Zap,
+  basico: Users,
+  premium: Crown,
+};
 
 export function LandingPlans({ primaryColor }: LandingPlansProps) {
   const [annual, setAnnual] = useState(false);
+  const [dynamicPlans, setDynamicPlans] = useState<DynamicPlan[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const fetchPlans = async () => {
+    const { data } = await supabase
+      .from("subscription_plans" as any)
+      .select("*")
+      .eq("ativo", true)
+      .order("ordem", { ascending: true });
+    if (data) setDynamicPlans(data as any);
+    setLoaded(true);
+  };
+
+  useEffect(() => {
+    fetchPlans();
+
+    const channel = supabase
+      .channel("landing-plans-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscription_plans" }, () => {
+        fetchPlans();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
+
+  if (!loaded) return null;
 
   return (
     <section id="plans" className="py-20 bg-gray-50">
@@ -122,20 +95,21 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
           </div>
         </AnimatedSection>
 
-        <StaggerContainer className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {SYSTEM_PLANS.map((plan) => {
-            const price = annual ? plan.price_yearly : plan.price_monthly;
+        <StaggerContainer className={`grid gap-8 max-w-5xl mx-auto ${dynamicPlans.length <= 3 ? "md:grid-cols-3" : `md:grid-cols-${Math.min(dynamicPlans.length, 4)}`}`}>
+          {dynamicPlans.map((plan) => {
+            const price = annual ? plan.preco_anual_mensal : plan.preco_mensal;
+            const Icon = ICON_MAP[plan.slug] || Crown;
             return (
               <StaggerItem key={plan.id}>
                 <div
                   className={`bg-white rounded-2xl p-8 border-2 relative transition-all duration-300 h-full flex flex-col ${
-                    plan.recommended
+                    plan.destaque
                       ? "shadow-xl scale-105"
                       : "shadow-sm hover:shadow-lg border-gray-100"
                   }`}
-                  style={plan.recommended ? { borderColor: primaryColor } : {}}
+                  style={plan.destaque ? { borderColor: primaryColor } : {}}
                 >
-                  {plan.recommended && (
+                  {plan.destaque && (
                     <div
                       className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-lg"
                       style={{ backgroundColor: primaryColor }}
@@ -150,10 +124,10 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
                       className="h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-3"
                       style={{ backgroundColor: `${primaryColor}12` }}
                     >
-                      <plan.icon className="h-6 w-6" style={{ color: primaryColor }} />
+                      <Icon className="h-6 w-6" style={{ color: primaryColor }} />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h3>
-                    <p className="text-xs text-gray-500 mb-4">{plan.description}</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.nome}</h3>
+                    <p className="text-xs text-gray-500 mb-4">{plan.descricao}</p>
                     <div className="flex items-baseline justify-center gap-1">
                       {price === 0 ? (
                         <span className="text-4xl font-extrabold text-gray-900">Grátis</span>
@@ -167,19 +141,19 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
                         </>
                       )}
                     </div>
-                    {plan.max_users && plan.max_users < 999 && (
-                      <p className="text-xs text-gray-500 mt-1">até {plan.max_users} usuários</p>
+                    {plan.max_usuarios < 999 && (
+                      <p className="text-xs text-gray-500 mt-1">até {plan.max_usuarios} usuários</p>
                     )}
-                    {(!plan.max_users || plan.max_users >= 999) && plan.id !== "trial" && (
+                    {plan.max_usuarios >= 999 && plan.slug !== "trial" && (
                       <p className="text-xs text-gray-500 mt-1">usuários ilimitados</p>
                     )}
-                    {plan.id === "trial" && (
-                      <p className="text-xs text-green-600 font-medium mt-1">7 dias sem compromisso</p>
+                    {plan.trial_dias > 0 && (
+                      <p className="text-xs text-green-600 font-medium mt-1">{plan.trial_dias} dias sem compromisso</p>
                     )}
                   </div>
 
                   <ul className="space-y-2.5 mb-8 flex-1">
-                    {plan.features.map((f, j) => (
+                    {(plan.features_display || []).map((f: any, j: number) => (
                       <li key={j} className="flex items-start gap-3 text-sm">
                         {f.included ? (
                           <Check className="h-4 w-4 shrink-0 mt-0.5" style={{ color: primaryColor }} />
@@ -195,13 +169,13 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
                     className="w-full text-base py-5 rounded-xl"
                     onClick={() => scrollTo("lead-form")}
                     style={
-                      plan.recommended
+                      plan.destaque
                         ? { backgroundColor: primaryColor, color: "white" }
                         : { borderColor: primaryColor, color: primaryColor }
                     }
-                    variant={plan.recommended ? "default" : "outline"}
+                    variant={plan.destaque ? "default" : "outline"}
                   >
-                    {plan.id === "trial" ? "Começar grátis" : "Começar teste grátis"}
+                    {plan.slug === "trial" ? "Começar grátis" : "Começar teste grátis"}
                   </Button>
                 </div>
               </StaggerItem>
