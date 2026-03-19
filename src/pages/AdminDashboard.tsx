@@ -61,10 +61,10 @@ const PLAN_CONFIG = {
   premium: { label: "Premium", color: "destructive" as const, icon: Crown },
 };
 
-const PLAN_PRICES = {
-  basico: { mensal: 59.9, anual: 59.9 * 12 * 0.85 },
-  premium: { mensal: 149.9, anual: 149.9 * 12 * 0.85 },
-};
+// Plan prices loaded dynamically from subscription_plans table
+interface PlanPriceMap {
+  [slug: string]: { mensal: number; anual: number };
+}
 
 function getPlanStatus(tenant: Tenant) {
   const now = new Date();
@@ -81,6 +81,7 @@ function getPlanStatus(tenant: Tenant) {
 export default function AdminDashboard({ adminName, onLogout }: AdminDashboardProps) {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
+  const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
   const [loading, setLoading] = useState(true);
   const [addonInterestCount, setAddonInterestCount] = useState(0);
   const [showTenantDialog, setShowTenantDialog] = useState(false);
@@ -118,12 +119,20 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
   const fetchData = async () => {
     setLoading(true);
-    const [tenantsRes, paymentsRes] = await Promise.all([
+    const [tenantsRes, paymentsRes, plansRes] = await Promise.all([
       supabase.from("tenants").select("*").order("created_at", { ascending: false }),
       supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
+      supabase.from("subscription_plans" as any).select("slug, preco_mensal, preco_anual_mensal").eq("ativo", true),
     ]);
     if (tenantsRes.data) setTenants(tenantsRes.data as any);
     if (paymentsRes.data) setPayments(paymentsRes.data as any);
+    if (plansRes.data) {
+      const prices: PlanPriceMap = {};
+      (plansRes.data as any[]).forEach(p => {
+        prices[p.slug] = { mensal: p.preco_mensal, anual: p.preco_anual_mensal * 12 };
+      });
+      setPlanPrices(prices);
+    }
     setLoading(false);
   };
 
@@ -165,9 +174,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const lojasPremium = tenants.filter(t => t.plano === "premium").length;
   const lojasTrial = tenants.filter(t => t.plano === "trial").length;
 
-  const receitaMensal =
-    lojasBasico * PLAN_PRICES.basico.mensal +
-    lojasPremium * PLAN_PRICES.premium.mensal;
+  const receitaMensal = tenants.reduce((acc, t) => {
+    if (t.plano === "trial" || !t.ativo) return acc;
+    const price = planPrices[t.plano]?.mensal || 0;
+    return acc + price;
+  }, 0);
 
   // Tenant CRUD
   const openNewTenant = () => {

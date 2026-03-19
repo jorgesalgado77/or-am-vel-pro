@@ -69,6 +69,8 @@ export function UsuariosTab() {
   const handleAdd = async () => {
     if (!form.nome_completo.trim()) { toast.error("Nome completo é obrigatório"); return; }
     if (!form.senha.trim()) { toast.error("Senha é obrigatória para novos usuários"); return; }
+    // Hash password before storing
+    const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: form.senha }) as any;
     const { error } = await supabase.from("usuarios").insert({
       nome_completo: form.nome_completo.trim(),
       apelido: form.apelido.trim() || null,
@@ -76,7 +78,7 @@ export function UsuariosTab() {
       email: form.email.trim() || null,
       cargo_id: form.cargo_id || null,
       foto_url: form.foto_url || null,
-      senha: form.senha,
+      senha: hashedSenha,
       primeiro_login: true,
       tipo_regime: form.tipo_regime || null,
       comissao_percentual: form.comissao_percentual ? parseFloat(form.comissao_percentual) : 0,
@@ -123,9 +125,10 @@ export function UsuariosTab() {
 
   const handleResetPassword = async () => {
     if (resetSenha.length < 4) { toast.error("A senha deve ter pelo menos 4 caracteres"); return; }
+    const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: resetSenha }) as any;
     const { error } = await supabase
       .from("usuarios")
-      .update({ senha: resetSenha, primeiro_login: true } as any)
+      .update({ senha: hashedSenha, primeiro_login: true } as any)
       .eq("id", resetPasswordDialog.userId);
     if (error) toast.error("Erro ao resetar senha");
     else {
