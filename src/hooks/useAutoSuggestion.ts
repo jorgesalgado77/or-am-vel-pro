@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit } from "@/services/auditService";
+import { calcLeadTemperature } from "@/lib/leadTemperature";
 
 interface SuggestionCache {
   clientId: string;
