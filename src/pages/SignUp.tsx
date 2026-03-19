@@ -171,6 +171,8 @@ export default function SignUp() {
     if (!createdAccount) return;
     sessionStorage.setItem("onboarding_tenant_id", createdAccount.tenantId);
     sessionStorage.setItem("onboarding_codigo_loja", createdAccount.codigoLoja);
+    sessionStorage.setItem("onboarding_email", createdAccount.email);
+    sessionStorage.setItem("onboarding_password", createdAccount.password);
     navigate("/onboarding");
   };
 
