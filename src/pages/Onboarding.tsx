@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, X, Crown, Zap, Users, Building2, User, ArrowLeft, ArrowRight, Store, Mail, KeyRound, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { validateCpfCnpj } from "@/lib/validation";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { maskCpfCnpj, maskPhone, unmask } from "@/lib/masks";
