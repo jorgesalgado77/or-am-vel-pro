@@ -28,6 +28,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -61,6 +62,7 @@ export function ClientsKanban({
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
+  const [filterTemperature, setFilterTemperature] = useState("");
   const [periodFilter, setPeriodFilter] = useState("mes_atual");
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
@@ -131,6 +133,7 @@ export function ClientsKanban({
       }
       if (filterProjetista && c.vendedor !== filterProjetista) return false;
       if (filterIndicador && c.indicador_id !== filterIndicador) return false;
+      if (filterTemperature && (c as any).lead_temperature !== filterTemperature) return false;
       const { start, end } = effectiveDates;
       if (start || end) {
         const clientDate = new Date(c.created_at);
@@ -139,7 +142,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [clients, search, filterProjetista, filterIndicador, effectiveDates]);
+  }, [clients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates]);
 
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
@@ -185,11 +188,12 @@ export function ClientsKanban({
     return isPast(expiryDate);
   };
 
-  const hasActiveFilters = filterProjetista || filterIndicador || periodFilter !== "mes_atual";
+  const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || periodFilter !== "mes_atual";
 
   const clearFilters = () => {
     setFilterProjetista("");
     setFilterIndicador("");
+    setFilterTemperature("");
     setPeriodFilter("mes_atual");
     setDateStart(undefined);
     setDateEnd(undefined);
@@ -291,6 +295,18 @@ export function ClientsKanban({
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[140px]">
+            <Label className="text-xs mb-1 block">Temperatura</Label>
+            <Select value={filterTemperature || "_all"} onValueChange={(v) => setFilterTemperature(v === "_all" ? "" : v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Todas" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">Todas</SelectItem>
+                <SelectItem value="quente">🔥 Quente</SelectItem>
+                <SelectItem value="morno">🟡 Morno</SelectItem>
+                <SelectItem value="frio">❄️ Frio</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-2 ml-auto">
             <Badge variant="secondary" className="h-7 px-2.5 text-xs font-medium">
               {filtered.length} {filtered.length === 1 ? "cliente" : "clientes"}
@@ -360,9 +376,21 @@ export function ClientsKanban({
                                     <div className="flex items-start justify-between gap-1">
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold text-foreground truncate">{client.nome}</p>
-                                        <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                                          {(client as any).numero_orcamento || "Sem orçamento"}
-                                        </p>
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                          <p className="text-[11px] text-muted-foreground font-mono">
+                                            {(client as any).numero_orcamento || "Sem orçamento"}
+                                          </p>
+                                          {(() => {
+                                            const temp = (client as any).lead_temperature as LeadTemperature | null;
+                                            if (!temp || !TEMPERATURE_CONFIG[temp]) return null;
+                                            const cfg = TEMPERATURE_CONFIG[temp];
+                                            return (
+                                              <Badge variant="outline" className={cn("text-[9px] h-4 px-1 font-medium", cfg.color)}>
+                                                {cfg.emoji} {cfg.label}
+                                              </Badge>
+                                            );
+                                          })()}
+                                        </div>
                                       </div>
                                       <div {...provided.dragHandleProps} className="opacity-0 group-hover:opacity-60 transition-opacity pt-0.5">
                                         <GripVertical className="h-4 w-4 text-muted-foreground" />

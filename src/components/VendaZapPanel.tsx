@@ -13,6 +13,7 @@ import {
   RefreshCw, Zap, History, Send, ArrowLeft, Handshake,
   Flame, Snowflake, ExternalLink, BookOpen, Lightbulb,
 } from "lucide-react";
+import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useVendaZap } from "@/hooks/useVendaZap";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
@@ -51,17 +52,9 @@ const READY_COPIES: { label: string; tipo: string; mensagem: string }[] = [
 
 function getClientScore(client: Client, diasSemResposta: number): { label: string; emoji: string; color: string } {
   if (client.status === "fechado") return { label: "Fechado", emoji: "✅", color: "text-green-600" };
-
-  // Hot: recent activity, in negotiation
-  if (diasSemResposta <= 3 && ["em_negociacao", "proposta_enviada"].includes(client.status)) {
-    return { label: "Quente", emoji: "🔥", color: "text-red-500" };
-  }
-  // Warm: some days, or new lead
-  if (diasSemResposta <= 7 || client.status === "novo") {
-    return { label: "Morno", emoji: "🟡", color: "text-yellow-500" };
-  }
-  // Cold
-  return { label: "Frio", emoji: "❄️", color: "text-blue-400" };
+  const temp = calcLeadTemperature({ status: client.status, diasSemResposta, temSimulacao: true });
+  const cfg = TEMPERATURE_CONFIG[temp];
+  return { label: cfg.label, emoji: cfg.emoji, color: cfg.color };
 }
 
 interface VendaZapPanelProps {
