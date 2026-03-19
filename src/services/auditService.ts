@@ -5,7 +5,7 @@
  * Logs are stored in the audit_logs table for traceability.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 export type AuditAction =
   | "cliente_criado"

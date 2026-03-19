@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Lightbulb, MessageSquareWarning, Paperclip, X, Send, Clock, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { toast } from "sonner";

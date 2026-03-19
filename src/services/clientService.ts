@@ -4,7 +4,7 @@
  * Consolidates all client-related Supabase operations.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { generateOrcamentoNumber } from "@/services/financialService";
 import type { Database } from "@/integrations/supabase/types";
 

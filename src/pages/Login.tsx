@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LogIn, Eye, EyeOff, Search, UserPlus, AlertTriangle, CreditCard, Headphones } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
 import { useCompanySettings } from "@/hooks/useCompanySettings";

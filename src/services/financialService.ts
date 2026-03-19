@@ -5,7 +5,7 @@
  * and budget number generation. Single source of truth.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { calculateSimulation, formatCurrency, type SimulationInput, type SimulationResult } from "@/lib/financing";
 import { z } from "zod";
 

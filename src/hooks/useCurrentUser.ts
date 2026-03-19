@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 
 export interface CurrentUser {

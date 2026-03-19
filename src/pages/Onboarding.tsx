@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, X, Crown, Zap, Users, Building2, User, ArrowLeft, ArrowRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { maskCpfCnpj, maskPhone, unmask } from "@/lib/masks";

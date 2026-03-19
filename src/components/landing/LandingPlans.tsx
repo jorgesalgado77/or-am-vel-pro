@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, X, Star, Zap, Users, Crown } from "lucide-react";
 import { AnimatedSection, StaggerContainer, StaggerItem } from "./AnimatedSection";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 interface LandingPlansProps {
   plans: any[];
