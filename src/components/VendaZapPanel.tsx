@@ -11,9 +11,10 @@ import { toast } from "sonner";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
   RefreshCw, Zap, History, Send, ArrowLeft, Handshake,
-  Flame, Snowflake, ExternalLink, BookOpen,
+  Flame, Snowflake, ExternalLink, BookOpen, Lightbulb,
 } from "lucide-react";
 import { useVendaZap } from "@/hooks/useVendaZap";
+import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabaseClient";
@@ -72,6 +73,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const { currentUser } = useCurrentUser();
   const { addon, messages, loading, generating, dailyUsage, generateMessage, fetchMessages } = useVendaZap(tenantId);
   const { showOnboarding, setShowOnboarding } = useOnboarding("vendazap");
+  const autoSugg = useAutoSuggestion({ tenantId, addon, userId: currentUser?.id });
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
@@ -81,8 +83,6 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const [mensagemCliente, setMensagemCliente] = useState("");
   const [mensagemGerada, setMensagemGerada] = useState("");
   const [lastSim, setLastSim] = useState<any>(null);
-  const [autoSuggestion, setAutoSuggestion] = useState("");
-  const [autoSuggestionLoading, setAutoSuggestionLoading] = useState(false);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -106,11 +106,11 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
           setLastSim(data);
           // Auto-suggestion when opening client
           if (addon?.ativo) {
-            generateAutoSuggestion(selectedClient, data);
+            autoSugg.generate(selectedClient, data);
           }
         });
     } else {
-      setAutoSuggestion("");
+      autoSugg.clear();
     }
   }, [selectedClient?.id]);
 
@@ -119,30 +119,6 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
     : 0;
 
   const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
-
-  const generateAutoSuggestion = async (client: Client, sim: any) => {
-    setAutoSuggestionLoading(true);
-    const days = Math.floor((Date.now() - new Date(client.updated_at).getTime()) / (1000 * 60 * 60 * 24));
-    // Determine best copy type based on context
-    let autoCopyType = "geral";
-    if (days > 7) autoCopyType = "reativacao";
-    else if (client.status === "proposta_enviada") autoCopyType = "fechamento";
-    else if (client.status === "em_negociacao") autoCopyType = "reuniao";
-    else if (days > 3) autoCopyType = "urgencia";
-
-    const result = await generateMessage({
-      nome_cliente: client.nome,
-      valor_orcamento: sim?.valor_final || sim?.valor_tela,
-      status_negociacao: client.status || "novo",
-      dias_sem_resposta: days,
-      tipo_copy: autoCopyType,
-      tom: "amigavel",
-      client_id: client.id,
-      usuario_id: currentUser?.id,
-    });
-    if (result) setAutoSuggestion(result);
-    setAutoSuggestionLoading(false);
-  };
 
   const handleGenerate = async () => {
     const result = await generateMessage({
@@ -289,7 +265,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
                             </Badge>
                           )}
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); setAutoSuggestion(""); setMensagemGerada(""); }} className="h-6 text-xs">
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); autoSugg.clear(); setMensagemGerada(""); }} className="h-6 text-xs">
                           Trocar
                         </Button>
                       </div>
@@ -311,32 +287,41 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
               </Card>
 
               {/* Auto Suggestion */}
-              {selectedClient && (autoSuggestion || autoSuggestionLoading) && (
-                <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/10 dark:border-amber-900">
+              {selectedClient && (autoSugg.suggestion || autoSugg.loading) && (
+                <Card className="border-primary/30 bg-primary/5 dark:bg-primary/10">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                      <Sparkles className="h-4 w-4" />
-                      Sugestão automática para este cliente
+                    <CardTitle className="text-sm flex items-center gap-2 text-primary">
+                      <Lightbulb className="h-4 w-4" />
+                      💡 Sugestão da IA
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {autoSuggestionLoading ? (
+                    {autoSugg.loading ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <RefreshCw className="h-3 w-3 animate-spin" />
                         Analisando contexto do cliente...
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{autoSuggestion}</p>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handleCopy(autoSuggestion)}>
+                      <div className="space-y-3">
+                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{autoSugg.suggestion}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={() => {
+                              setMensagemGerada(autoSugg.suggestion);
+                              if (selectedClient) autoSugg.markUsed(selectedClient.id);
+                              toast.success("Sugestão aplicada!");
+                            }}
+                          >
+                            <Sparkles className="h-3 w-3" />
+                            Usar resposta
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handleCopy(autoSugg.suggestion)}>
                             <Copy className="h-3 w-3" />Copiar
                           </Button>
-                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => handleCopyAndOpenWhatsApp(autoSuggestion, selectedClient?.telefone1)}>
-                            <ExternalLink className="h-3 w-3" />Copiar + WhatsApp
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setMensagemGerada(autoSuggestion)}>
-                            Usar esta
+                          <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handleCopyAndOpenWhatsApp(autoSugg.suggestion, selectedClient?.telefone1)}>
+                            <ExternalLink className="h-3 w-3" />WhatsApp
                           </Button>
                         </div>
                       </div>
