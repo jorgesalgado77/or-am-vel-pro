@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";

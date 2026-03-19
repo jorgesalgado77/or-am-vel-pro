@@ -17,7 +17,7 @@ import {
   History, FileText, Phone, Mail, User, Hash, Clock, AlertTriangle,
   Calculator, ChevronRight, GripVertical,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUsuarios } from "@/hooks/useUsuarios";

@@ -18,7 +18,7 @@ import { ptBR } from "date-fns/locale";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import { ContractEditorDialog } from "@/components/ContractEditorDialog";
 import { CloseSaleModal } from "@/components/CloseSaleModal";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useDealRoom } from "@/hooks/useDealRoom";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";

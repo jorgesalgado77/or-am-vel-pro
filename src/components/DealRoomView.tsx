@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Video, Lock, ArrowLeft, Sparkles, CreditCard, FileText, CheckCircle, Send } from "lucide-react";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
 import { useDealRoom } from "@/hooks/useDealRoom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
 interface DealRoomViewProps {
