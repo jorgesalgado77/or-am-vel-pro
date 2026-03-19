@@ -167,7 +167,7 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
           <Star className="h-6 w-6 text-primary shrink-0" />
           <div className="flex-1">
             <p className="text-sm font-semibold text-foreground">
-              Seu plano atual: <span className="text-primary">{PLANS.find(p => p.id === currentPlan.plano)?.nome || currentPlan.plano}</span>
+              Seu plano atual: <span className="text-primary">{plans.find(p => p.id === currentPlan.plano)?.nome || currentPlan.plano}</span>
             </p>
             <p className="text-xs text-muted-foreground">
               Período: {currentPlan.plano_periodo === "anual" ? "Anual" : "Mensal"}
