@@ -19,6 +19,7 @@ import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminVendaZap } from "@/components/admin/AdminVendaZap";
 import { AdminLandingPage } from "@/components/admin/AdminLandingPage";
 import { AdminDealRoom } from "@/components/admin/AdminDealRoom";
+import { AdminPlans } from "@/components/admin/AdminPlans";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
