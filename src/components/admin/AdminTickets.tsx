@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   MessageSquare, RefreshCw, Eye, Send, Clock, CheckCircle2, XCircle,
-  AlertTriangle, Lightbulb, Bug, ChevronLeft, Paperclip,
+  AlertTriangle, Lightbulb, Bug, ChevronLeft, Paperclip, Sparkles, ShoppingBag,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
