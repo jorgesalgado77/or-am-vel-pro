@@ -188,11 +188,12 @@ export function ClientsKanban({
     return isPast(expiryDate);
   };
 
-  const hasActiveFilters = filterProjetista || filterIndicador || periodFilter !== "mes_atual";
+  const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || periodFilter !== "mes_atual";
 
   const clearFilters = () => {
     setFilterProjetista("");
     setFilterIndicador("");
+    setFilterTemperature("");
     setPeriodFilter("mes_atual");
     setDateStart(undefined);
     setDateEnd(undefined);
