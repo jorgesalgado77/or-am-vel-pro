@@ -11,6 +11,8 @@ const COPY_TYPES: Record<string, string> = {
   objecao: "Analise a objeção do cliente e gere uma resposta que quebre essa objeção com argumentos convincentes. Use dados e benefícios concretos.",
   reuniao: "Gere um convite persuasivo para uma reunião/apresentação do projeto. Destaque o valor da conversa e o que o cliente vai ganhar.",
   fechamento: "Gere uma mensagem de fechamento de venda. Seja direto, confiante e facilite a decisão. Mostre segurança e profissionalismo.",
+  follow_up: "Gere um follow-up inteligente baseado na fase do funil. Mantenha engajamento e avance a negociação.",
+  recuperacao: "Gere uma mensagem para recuperar um lead perdido. Ofereça valor e novidade para reengajar.",
   geral: "Gere uma mensagem de follow-up profissional e amigável para WhatsApp. Mantenha o relacionamento e gere engajamento.",
 };
 
@@ -25,14 +27,6 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      return new Response(JSON.stringify({ error: "OPENAI_API_KEY ainda não foi configurada. Configure a chave no painel de administração." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const {
       nome_cliente,
       valor_orcamento,
@@ -43,8 +37,9 @@ serve(async (req) => {
       tom = "persuasivo",
       prompt_sistema,
       deal_room_link,
-      openai_model = "gpt-4o-mini",
+      openai_model,
       max_tokens = 300,
+      api_provider = "lovable",
     } = await req.json();
 
     const copyInstruction = COPY_TYPES[tipo_copy] || COPY_TYPES.geral;
@@ -94,49 +89,79 @@ ${deal_room_link ? "IMPORTANTE: Inclua o link da Deal Room de forma natural na m
 
 Retorne APENAS a mensagem final pronta para enviar no WhatsApp.`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: openai_model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: Math.min(Number(max_tokens) || 300, 600),
-        temperature: 0.8,
-      }),
-    });
+    // Use Lovable AI by default (no API key needed)
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições da OpenAI atingido. Tente novamente em alguns segundos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    let mensagem: string;
+    let tokensUsados = 0;
+
+    if (LOVABLE_API_KEY) {
+      // Use Lovable AI (preferred - no external API key needed)
+      const model = "google/gemini-2.5-flash-lite";
+      const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          max_tokens: Math.min(Number(max_tokens) || 300, 600),
+          temperature: 0.8,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Lovable AI error:", response.status, errorText);
+        throw new Error(`AI API error [${response.status}]`);
       }
-      if (response.status === 401) {
-        return new Response(JSON.stringify({ error: "Chave da OpenAI inválida ou expirada. Verifique a configuração." }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+
+      const data = await response.json();
+      mensagem = data.choices?.[0]?.message?.content?.trim() || "";
+      tokensUsados = data.usage?.total_tokens || 0;
+    } else if (OPENAI_API_KEY) {
+      // Fallback to OpenAI if configured
+      const model = openai_model || "gpt-4o-mini";
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          max_tokens: Math.min(Number(max_tokens) || 300, 600),
+          temperature: 0.8,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("OpenAI error:", response.status, errorText);
+        if (response.status === 429) throw new Error("Limite de requisições atingido. Tente novamente.");
+        if (response.status === 401) throw new Error("Chave da OpenAI inválida ou expirada.");
+        throw new Error(`OpenAI error [${response.status}]`);
       }
-      
-      return new Response(JSON.stringify({ error: `Erro na API OpenAI [${response.status}]` }), {
-        status: response.status,
+
+      const data = await response.json();
+      mensagem = data.choices?.[0]?.message?.content?.trim() || "";
+      tokensUsados = data.usage?.total_tokens || 0;
+    } else {
+      return new Response(JSON.stringify({ error: "Nenhum provedor de IA configurado." }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const data = await response.json();
-    const mensagem = data.choices?.[0]?.message?.content?.trim() || "";
-    const tokensUsados = data.usage?.total_tokens || 0;
 
     return new Response(JSON.stringify({ mensagem, tokens_usados: tokensUsados }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
