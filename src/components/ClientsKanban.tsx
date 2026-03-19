@@ -295,6 +295,18 @@ export function ClientsKanban({
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[140px]">
+            <Label className="text-xs mb-1 block">Temperatura</Label>
+            <Select value={filterTemperature || "_all"} onValueChange={(v) => setFilterTemperature(v === "_all" ? "" : v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Todas" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">Todas</SelectItem>
+                <SelectItem value="quente">🔥 Quente</SelectItem>
+                <SelectItem value="morno">🟡 Morno</SelectItem>
+                <SelectItem value="frio">❄️ Frio</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-2 ml-auto">
             <Badge variant="secondary" className="h-7 px-2.5 text-xs font-medium">
               {filtered.length} {filtered.length === 1 ? "cliente" : "clientes"}
