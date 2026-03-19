@@ -45,10 +45,11 @@ interface AuditLogInput {
  */
 export function logAudit(input: AuditLogInput): void {
   const { acao, entidade, entidade_id, usuario_id, usuario_nome, detalhes } = input;
+  const tenant_id = localStorage.getItem("current_tenant_id") || null;
 
   // Fire and forget — don't await
   supabase
-    .from("audit_logs" as any)
+    .from("audit_logs")
     .insert({
       acao,
       entidade,
@@ -56,6 +57,7 @@ export function logAudit(input: AuditLogInput): void {
       usuario_id: usuario_id || null,
       usuario_nome: usuario_nome || null,
       detalhes: detalhes || {},
+      tenant_id,
     } as any)
     .then(({ error }) => {
       if (error) {

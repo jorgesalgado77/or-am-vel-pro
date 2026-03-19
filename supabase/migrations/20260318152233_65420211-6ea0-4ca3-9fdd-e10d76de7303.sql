@@ -1,1 +1,0 @@
-ALTER TABLE public.tenants ADD COLUMN recursos_vip jsonb NOT NULL DEFAULT '{"ocultar_indicador": false}'::jsonb;

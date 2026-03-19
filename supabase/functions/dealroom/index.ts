@@ -1,162 +1,153 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type",
 };
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+serve(async (req) => {
+  if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
-  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
-
     const { action, tenant_id, usuario_id, transaction_data } = await req.json();
 
-    // ACTION: validate - Check if tenant can use Deal Room
     if (action === "validate") {
-      const { data, error } = await supabase.rpc("validate_dealroom_access", {
-        p_tenant_id: tenant_id,
-        p_usuario_id: usuario_id || null,
-      });
+      // Check tenant plan for Deal Room access
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("*")
+        .eq("id", tenant_id)
+        .single();
 
-      if (error) {
-        return new Response(JSON.stringify({ allowed: false, reason: error.message }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!tenant || !tenant.ativo) {
+        return respond({ allowed: false, reason: "Tenant inativo" });
       }
 
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const recursos = (tenant.recursos_vip as Record<string, boolean>) || {};
+      if (!recursos.deal_room) {
+        return respond({ allowed: false, reason: "Deal Room não habilitada no seu plano" });
+      }
+
+      // Check daily usage
+      const today = new Date().toISOString().split("T")[0];
+      const { count } = await supabase
+        .from("dealroom_usage")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id)
+        .eq("usage_date", today);
+
+      const limit = recursos.deal_room_limit || 999;
+      return respond({ allowed: true, usage: count || 0, limit, plano: tenant.plano });
     }
 
-    // ACTION: record_sale - Record a Deal Room transaction with platform fee
     if (action === "record_sale") {
-      if (!transaction_data?.valor_venda || !tenant_id) {
-        return new Response(JSON.stringify({ error: "Missing required fields" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      const td = transaction_data;
+      const taxa_percentual = 2.5;
+      const taxa_valor = (td.valor_venda || 0) * (taxa_percentual / 100);
+
+      const { data, error } = await supabase
+        .from("dealroom_transactions")
+        .insert({
+          tenant_id,
+          valor_venda: td.valor_venda,
+          taxa_plataforma_percentual: taxa_percentual,
+          taxa_plataforma_valor: taxa_valor,
+          client_id: td.client_id || null,
+          usuario_id: td.usuario_id || null,
+          simulation_id: td.simulation_id || null,
+          forma_pagamento: td.forma_pagamento || null,
+          numero_contrato: td.numero_contrato || null,
+          nome_cliente: td.nome_cliente || null,
+          nome_vendedor: td.nome_vendedor || null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Record sale error:", error);
+        return respond({ error: "Erro ao registrar venda" }, 500);
       }
 
-      const taxaPercentual = 2;
-      const taxaValor = (transaction_data.valor_venda * taxaPercentual) / 100;
-
-      const { data, error } = await supabase.from("dealroom_transactions").insert({
+      // Record usage
+      const today = new Date().toISOString().split("T")[0];
+      await supabase.from("dealroom_usage").insert({
         tenant_id,
-        client_id: transaction_data.client_id || null,
-        usuario_id: transaction_data.usuario_id || null,
-        simulation_id: transaction_data.simulation_id || null,
-        valor_venda: transaction_data.valor_venda,
-        taxa_plataforma_percentual: taxaPercentual,
-        taxa_plataforma_valor: taxaValor,
-        forma_pagamento: transaction_data.forma_pagamento || null,
-        numero_contrato: transaction_data.numero_contrato || null,
-        nome_cliente: transaction_data.nome_cliente || null,
-        nome_vendedor: transaction_data.nome_vendedor || null,
-      }).select().single();
-
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ success: true, transaction: data, taxa_plataforma: taxaValor }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        usuario_id: td.usuario_id || null,
+        usage_date: today,
       });
+
+      return respond({ success: true, transaction: data });
     }
 
-    // ACTION: daily_usage - Get current daily usage for tenant
     if (action === "daily_usage") {
-      const { data, error } = await supabase.rpc("get_dealroom_daily_usage", {
-        p_tenant_id: tenant_id,
-      });
+      const today = new Date().toISOString().split("T")[0];
+      const { count } = await supabase
+        .from("dealroom_usage")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id)
+        .eq("usage_date", today);
 
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ usage: data }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return respond({ usage: count || 0 });
     }
 
-    // ACTION: metrics - Get metrics for admin dashboard
     if (action === "metrics") {
-      const filters = transaction_data || {};
-      let query = supabase.from("dealroom_transactions").select("*");
+      const { data: transactions } = await supabase
+        .from("dealroom_transactions")
+        .select("*")
+        .eq("tenant_id", tenant_id || transaction_data?.tenant_id)
+        .order("created_at", { ascending: false });
 
-      if (filters.tenant_id) query = query.eq("tenant_id", filters.tenant_id);
-      if (filters.date_from) query = query.gte("created_at", filters.date_from);
-      if (filters.date_to) query = query.lte("created_at", filters.date_to);
-
-      const { data: transactions, error } = await query.order("created_at", { ascending: false });
-
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Get usage counts
-      let usageQuery = supabase.from("dealroom_usage").select("*", { count: "exact", head: false });
-      if (filters.tenant_id) usageQuery = usageQuery.eq("tenant_id", filters.tenant_id);
-      if (filters.date_from) usageQuery = usageQuery.gte("created_at", filters.date_from);
-      if (filters.date_to) usageQuery = usageQuery.lte("created_at", filters.date_to);
-
-      const { count: totalUsage } = await usageQuery;
-
-      const totalVendas = transactions?.length || 0;
-      const totalTransacionado = transactions?.reduce((s, t) => s + Number(t.valor_venda), 0) || 0;
-      const totalTaxas = transactions?.reduce((s, t) => s + Number(t.taxa_plataforma_valor), 0) || 0;
+      const txns = transactions || [];
+      const totalVendas = txns.length;
+      const totalTransacionado = txns.reduce((s: number, t: any) => s + (t.valor_venda || 0), 0);
+      const totalTaxas = txns.reduce((s: number, t: any) => s + (t.taxa_plataforma_valor || 0), 0);
       const ticketMedio = totalVendas > 0 ? totalTransacionado / totalVendas : 0;
-      const totalReunioes = totalUsage || 0;
-      const taxaConversao = totalReunioes > 0 ? (totalVendas / totalReunioes) * 100 : 0;
 
-      // Vendor ranking
-      const vendorMap: Record<string, { nome: string; usuario_id: string; total_vendido: number; vendas: number; reunioes: number }> = {};
-      transactions?.forEach((t) => {
-        const key = t.usuario_id || "unknown";
-        if (!vendorMap[key]) {
-          vendorMap[key] = { nome: t.nome_vendedor || "Desconhecido", usuario_id: key, total_vendido: 0, vendas: 0, reunioes: 0 };
-        }
-        vendorMap[key].total_vendido += Number(t.valor_venda);
+      // Ranking by vendor
+      const vendorMap: Record<string, { nome: string; total: number; vendas: number }> = {};
+      txns.forEach((t: any) => {
+        const key = t.usuario_id || "desconhecido";
+        if (!vendorMap[key]) vendorMap[key] = { nome: t.nome_vendedor || "Desconhecido", total: 0, vendas: 0 };
+        vendorMap[key].total += t.valor_venda || 0;
         vendorMap[key].vendas += 1;
       });
 
-      const ranking = Object.values(vendorMap)
+      const ranking = Object.entries(vendorMap)
+        .map(([usuario_id, v], i) => ({
+          posicao: i + 1,
+          nome: v.nome,
+          usuario_id,
+          total_vendido: v.total,
+          vendas: v.vendas,
+          taxa_conversao: 0,
+        }))
         .sort((a, b) => b.total_vendido - a.total_vendido)
-        .map((v, i) => ({ ...v, posicao: i + 1, taxa_conversao: v.reunioes > 0 ? (v.vendas / v.reunioes) * 100 : 0 }));
+        .map((r, i) => ({ ...r, posicao: i + 1 }));
 
-      return new Response(JSON.stringify({
-        metrics: { totalVendas, totalTransacionado, totalTaxas, ticketMedio, totalReunioes, taxaConversao },
+      return respond({
+        metrics: { totalVendas, totalTransacionado, totalTaxas, ticketMedio, totalReunioes: 0, taxaConversao: 0 },
         ranking,
-        transactions: transactions?.slice(0, 50),
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        transactions: txns,
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
+    return respond({ error: "Ação não reconhecida" }, 400);
+  } catch (e) {
+    console.error("dealroom error:", e);
+    return respond({ error: "Erro interno" }, 500);
+  }
+
+  function respond(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

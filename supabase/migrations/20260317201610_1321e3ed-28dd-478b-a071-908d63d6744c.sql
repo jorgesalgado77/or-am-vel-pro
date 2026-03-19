@@ -1,1 +1,0 @@
-ALTER TABLE public.usuarios ADD COLUMN foto_url text DEFAULT NULL;
