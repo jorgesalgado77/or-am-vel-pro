@@ -376,9 +376,21 @@ export function ClientsKanban({
                                     <div className="flex items-start justify-between gap-1">
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold text-foreground truncate">{client.nome}</p>
-                                        <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                                          {(client as any).numero_orcamento || "Sem orçamento"}
-                                        </p>
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                          <p className="text-[11px] text-muted-foreground font-mono">
+                                            {(client as any).numero_orcamento || "Sem orçamento"}
+                                          </p>
+                                          {(() => {
+                                            const temp = (client as any).lead_temperature as LeadTemperature | null;
+                                            if (!temp || !TEMPERATURE_CONFIG[temp]) return null;
+                                            const cfg = TEMPERATURE_CONFIG[temp];
+                                            return (
+                                              <Badge variant="outline" className={cn("text-[9px] h-4 px-1 font-medium", cfg.color)}>
+                                                {cfg.emoji} {cfg.label}
+                                              </Badge>
+                                            );
+                                          })()}
+                                        </div>
                                       </div>
                                       <div {...provided.dragHandleProps} className="opacity-0 group-hover:opacity-60 transition-opacity pt-0.5">
                                         <GripVertical className="h-4 w-4 text-muted-foreground" />
