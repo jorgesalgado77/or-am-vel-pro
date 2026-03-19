@@ -163,6 +163,7 @@ export function ClientsKanban({
     if (!client || (client as any).status === newStatus) return;
 
     // Optimistic update
+    const oldStatus = (client as any).status;
     (client as any).status = newStatus;
 
     const { error } = await supabase
@@ -171,6 +172,7 @@ export function ClientsKanban({
       .eq("id", draggableId);
 
     if (error) {
+      (client as any).status = oldStatus;
       toast.error("Erro ao mover cliente");
     } else {
       const colLabel = KANBAN_COLUMNS.find(c => c.id === newStatus)?.label;
