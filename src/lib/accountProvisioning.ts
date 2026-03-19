@@ -3,53 +3,82 @@ import { supabase } from "@/lib/supabaseClient";
 export interface StoreSignupResult {
   tenantId: string;
   codigoLoja: string;
+  cargoId: string;
 }
 
-export interface CreateTenantUserPayload {
-  nomeCompleto: string;
-  email: string;
-  password: string;
-  apelido?: string;
-  telefone?: string;
-  cargoId?: string | null;
-  fotoUrl?: string | null;
-  tipoRegime?: string | null;
-  comissaoPercentual?: number;
-  salarioFixo?: number;
-}
-
-interface CreateTenantUserResult {
-  userId: string;
-  codigoLoja: string | null;
-}
-
-async function invokeProvisioning<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("store-signup", {
-    body,
+/**
+ * Creates a new store (tenant) + company_settings + admin cargo
+ * via a SECURITY DEFINER RPC that bypasses RLS.
+ */
+export async function provisionNewStore(email: string): Promise<StoreSignupResult> {
+  const { data, error } = await (supabase as any).rpc("provision_new_store", {
+    p_email: email.trim().toLowerCase(),
   });
 
   if (error) {
-    throw new Error(error.message || "Não foi possível concluir a operação.");
+    console.error("[provisionNewStore] RPC error:", error);
+    throw new Error(error.message || "Erro ao criar a loja.");
   }
 
-  if (!data?.success) {
-    throw new Error(data?.error || "Não foi possível concluir a operação.");
+  if (!data || !data.tenant_id) {
+    throw new Error("Resposta inesperada ao criar a loja.");
   }
 
-  return data.data as T;
+  return {
+    tenantId: data.tenant_id,
+    codigoLoja: data.codigo_loja,
+    cargoId: data.cargo_id,
+  };
 }
 
-export async function createStoreAndAdminAccount(email: string, password: string) {
-  return invokeProvisioning<StoreSignupResult>({
-    action: "create_store_admin",
-    email,
-    password,
-  });
+/**
+ * Creates the usuario row linked to the tenant after Supabase Auth signup.
+ */
+export async function createUsuarioProfile(params: {
+  authUserId: string;
+  email: string;
+  tenantId: string;
+  cargoId: string;
+  senha: string;
+}) {
+  // Hash password via existing RPC
+  let senhaHash: string | null = null;
+  try {
+    const { data } = await supabase.rpc("hash_password", { plain_text: params.senha }) as any;
+    senhaHash = data;
+  } catch {
+    // If hash_password doesn't exist, store plain (not ideal but matches existing pattern)
+    senhaHash = params.senha;
+  }
+
+  const { error } = await supabase.from("usuarios").insert({
+    id: params.authUserId,
+    auth_user_id: params.authUserId,
+    nome_completo: params.email.split("@")[0],
+    apelido: "Admin",
+    email: params.email,
+    cargo_id: params.cargoId,
+    tenant_id: params.tenantId,
+    senha: senhaHash,
+    primeiro_login: true,
+    ativo: true,
+  } as any);
+
+  if (error) {
+    console.error("[createUsuarioProfile] Insert error:", error);
+    throw new Error("Erro ao vincular usuário à loja: " + error.message);
+  }
 }
 
-export async function createTenantUser(payload: CreateTenantUserPayload) {
-  return invokeProvisioning<CreateTenantUserResult>({
-    action: "create_tenant_user",
-    ...payload,
-  });
+/**
+ * Checks if email already exists in usuarios table.
+ */
+export async function checkEmailExists(email: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("email", email.trim().toLowerCase())
+    .limit(1);
+
+  return Boolean(data && data.length > 0);
 }

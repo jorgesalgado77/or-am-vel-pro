@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
-import { createStoreAndAdminAccount } from "@/lib/accountProvisioning";
+import { provisionNewStore, createUsuarioProfile, checkEmailExists } from "@/lib/accountProvisioning";
 import { FirstAccessCredentialsCard } from "@/components/auth/FirstAccessCredentialsCard";
 
 interface CreatedAccountState {
@@ -19,7 +19,7 @@ interface CreatedAccountState {
 
 export default function SignUp() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
@@ -28,6 +28,7 @@ export default function SignUp() {
   const [createdAccount, setCreatedAccount] = useState<CreatedAccountState | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Particle animation
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -62,7 +63,6 @@ export default function SignUp() {
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;
       ctx.clearRect(0, 0, w, h);
-
       for (const p of particles) {
         p.x += p.vx;
         p.y += p.vy;
@@ -75,7 +75,6 @@ export default function SignUp() {
         ctx.fillStyle = `hsla(199,89%,70%,${p.o})`;
         ctx.fill();
       }
-
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x;
@@ -91,7 +90,6 @@ export default function SignUp() {
           }
         }
       }
-
       animId = requestAnimationFrame(draw);
     };
     draw();
@@ -112,17 +110,14 @@ export default function SignUp() {
       toast.error("Preencha todos os campos");
       return;
     }
-
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       toast.error("Email inválido");
       return;
     }
-
     if (trimmedSenha.length < 6) {
       toast.error("A senha deve ter pelo menos 6 caracteres");
       return;
     }
-
     if (trimmedSenha !== trimmedConfirmacao) {
       toast.error("As senhas não conferem");
       return;
@@ -131,21 +126,39 @@ export default function SignUp() {
     setLoading(true);
 
     try {
-      const account = await createStoreAndAdminAccount(trimmedEmail, trimmedSenha);
-      const { user, error } = await login(trimmedEmail, trimmedSenha);
-
-      if (error || !user) {
-        throw new Error(error || "Conta criada, mas não foi possível iniciar a sessão.");
+      // 1. Check if email already exists
+      const exists = await checkEmailExists(trimmedEmail);
+      if (exists) {
+        toast.error("Este email já está cadastrado.");
+        setLoading(false);
+        return;
       }
 
+      // 2. Provision store via SECURITY DEFINER RPC (bypasses RLS)
+      const store = await provisionNewStore(trimmedEmail);
+
+      // 3. Create auth user via Supabase Auth
+      const { error: authError } = await signUp(trimmedEmail, trimmedSenha, {
+        tenant_id: store.tenantId,
+        cargo_id: store.cargoId,
+        nome_completo: trimmedEmail.split("@")[0],
+        apelido: "Admin",
+      });
+
+      if (authError) {
+        toast.error("Erro ao criar acesso: " + authError);
+        setLoading(false);
+        return;
+      }
+
+      // 4. Show credentials card
       setCreatedAccount({
-        tenantId: account.tenantId,
-        codigoLoja: account.codigoLoja,
+        tenantId: store.tenantId,
+        codigoLoja: store.codigoLoja,
         email: trimmedEmail,
         password: trimmedSenha,
       });
-      setSenha("");
-      setConfirmarSenha("");
+
       toast.success("Conta criada com sucesso!");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro inesperado ao criar conta");
@@ -156,7 +169,6 @@ export default function SignUp() {
 
   const handleContinueToOnboarding = () => {
     if (!createdAccount) return;
-
     sessionStorage.setItem("onboarding_tenant_id", createdAccount.tenantId);
     sessionStorage.setItem("onboarding_codigo_loja", createdAccount.codigoLoja);
     navigate("/onboarding");
@@ -185,6 +197,7 @@ export default function SignUp() {
         />
       </div>
 
+      {/* Left decorative panel */}
       <div className="hidden lg:flex lg:w-1/2 relative z-10 items-center justify-center p-12">
         <motion.div
           initial={{ opacity: 0, x: -40 }}
@@ -198,18 +211,16 @@ export default function SignUp() {
               <UserPlus className="h-14 w-14 text-white" />
             </div>
           </div>
-
           <div className="space-y-4">
             <h2 className="text-4xl font-bold text-white tracking-tight">
-              {createdAccount ? "Anote seus dados de acesso" : "Comece agora mesmo"}
+              {createdAccount ? "Anote seus dados" : "Comece agora mesmo"}
             </h2>
             <p className="text-lg text-white/60 max-w-sm mx-auto leading-relaxed">
               {createdAccount
-                ? "O código da loja, o login e a senha serão exigidos no próximo acesso do administrador."
-                : "Crie sua conta gratuita e receba automaticamente o código da sua loja no formato 999.999."}
+                ? "Código da loja, login e senha serão exigidos em todos os acessos."
+                : "Crie sua conta e receba automaticamente o código da sua loja."}
             </p>
           </div>
-
           <div className="flex items-center justify-center gap-6 text-white/40">
             <div className="flex items-center gap-2 text-sm">
               <div className="w-2 h-2 rounded-full bg-[hsl(var(--accent))]" />
@@ -217,16 +228,17 @@ export default function SignUp() {
             </div>
             <div className="flex items-center gap-2 text-sm">
               <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))]" />
-              Primeiro usuário administrador
+              Administrador da loja
             </div>
             <div className="flex items-center gap-2 text-sm">
               <div className="w-2 h-2 rounded-full bg-[hsl(160,84%,60%)]" />
-              Loja pronta para equipe
+              Equipe vinculada
             </div>
           </div>
         </motion.div>
       </div>
 
+      {/* Right panel */}
       <div className="flex-1 flex items-center justify-center relative z-10 p-6">
         <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
