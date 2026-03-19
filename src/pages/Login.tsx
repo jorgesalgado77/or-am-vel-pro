@@ -195,7 +195,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Left decorative panel — hidden on mobile */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-accent items-center justify-center">
+      <div className="hidden md:flex md:w-[45%] relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-accent items-center justify-center">
         {/* Decorative circles */}
         <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute bottom-10 right-10 h-56 w-56 rounded-full bg-accent/30 blur-2xl" />
