@@ -240,6 +240,8 @@ export default function Onboarding() {
       // Clean up onboarding state
       sessionStorage.removeItem("onboarding_tenant_id");
       sessionStorage.removeItem("onboarding_codigo_loja");
+      sessionStorage.removeItem("onboarding_email");
+      sessionStorage.removeItem("onboarding_password");
 
       toast.success("Configuração concluída! Bem-vindo ao OrçaMóvel PRO!");
       navigate("/");
