@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getTenantId } from "@/lib/tenantState";
 
 export interface Tenant {
   id: string;
@@ -93,12 +94,9 @@ export function useTenant() {
 }
 
 /**
- * @deprecated Use useTenant().tenantId instead. This exists only for
- * fire-and-forget functions (like audit logging) that cannot use hooks.
- * The value is synced from AuthContext, never manually set.
+ * For non-React contexts only (e.g. auditService).
+ * Reads from in-memory state set by AuthContext — never localStorage.
  */
 export function getCurrentTenantId(): string | null {
-  // Kept for backward compat in non-React contexts (auditService).
-  // The value is set by AuthContext on login and cleared on logout.
-  return localStorage.getItem("current_tenant_id");
+  return getTenantId();
 }

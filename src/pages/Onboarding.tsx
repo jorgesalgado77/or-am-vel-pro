@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { maskCpfCnpj, maskPhone, unmask } from "@/lib/masks";
 import { cn } from "@/lib/utils";
+import { getUserId } from "@/lib/tenantState";
 
 const UF_OPTIONS = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA",
@@ -106,8 +107,8 @@ export default function Onboarding() {
   const [emailContato, setEmailContato] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const tenantId = localStorage.getItem("onboarding_tenant_id");
-  const codigoLoja = localStorage.getItem("onboarding_codigo_loja");
+  const tenantId = sessionStorage.getItem("onboarding_tenant_id");
+  const codigoLoja = sessionStorage.getItem("onboarding_codigo_loja");
 
   useEffect(() => {
     if (!tenantId) {
@@ -117,7 +118,7 @@ export default function Onboarding() {
 
   // Auto-fill email from stored user
   useEffect(() => {
-    const userId = localStorage.getItem("current_user_id");
+    const userId = getUserId();
     if (userId) {
       supabase.from("usuarios").select("email").eq("id", userId).single().then(({ data }) => {
         if (data?.email) setEmailContato(data.email);
@@ -226,7 +227,7 @@ export default function Onboarding() {
       }).eq("id", tenantId!);
 
       // Update usuario nome
-      const userId = localStorage.getItem("current_user_id");
+      const userId = getUserId();
       if (userId) {
         await supabase.from("usuarios").update({
           nome_completo: nomeEmpresa.trim(),
@@ -235,8 +236,8 @@ export default function Onboarding() {
       }
 
       // Clean up onboarding state
-      localStorage.removeItem("onboarding_tenant_id");
-      localStorage.removeItem("onboarding_codigo_loja");
+      sessionStorage.removeItem("onboarding_tenant_id");
+      sessionStorage.removeItem("onboarding_codigo_loja");
 
       toast.success("Configuração concluída! Bem-vindo ao OrçaMóvel PRO!");
       navigate("/");

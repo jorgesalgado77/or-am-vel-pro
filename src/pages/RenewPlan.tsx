@@ -38,7 +38,7 @@ export default function RenewPlan() {
   const [loading, setLoading] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanFromDB[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const tenantId = localStorage.getItem("renew_tenant_id");
+  const tenantId = sessionStorage.getItem("renew_tenant_id");
 
   useEffect(() => {
     if (!tenantId) navigate("/");
@@ -98,7 +98,7 @@ export default function RenewPlan() {
       return;
     }
 
-    localStorage.removeItem("renew_tenant_id");
+    sessionStorage.removeItem("renew_tenant_id");
     toast.success(`Plano ${plan.nome} ativado com sucesso! Faça login novamente.`);
     navigate("/");
     setLoading(null);

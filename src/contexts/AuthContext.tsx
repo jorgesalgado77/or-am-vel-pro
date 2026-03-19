@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { setTenantState } from "@/lib/tenantState";
 import type { CargoPermissoes } from "@/hooks/useCargos";
-import type { Session, User } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 
 export interface AppUser {
   id: string;
@@ -88,18 +89,21 @@ async function loadAppUser(authUserId: string): Promise<AppUser | null> {
   };
 }
 
+/** Sync in-memory state for non-React consumers (auditService) */
+function syncGlobalState(appUser: AppUser | null) {
+  setTenantState(appUser?.tenant_id ?? null, appUser?.id ?? null);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user from auth session
   const loadFromSession = useCallback(async (sess: Session | null) => {
     if (!sess?.user) {
       setUser(null);
       setSession(null);
-      localStorage.removeItem("current_user_id");
-      localStorage.removeItem("current_tenant_id");
+      syncGlobalState(null);
       setLoading(false);
       return;
     }
@@ -108,15 +112,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const appUser = await loadAppUser(sess.user.id);
     if (appUser) {
       setUser(appUser);
-      localStorage.setItem("current_user_id", appUser.id);
-      if (appUser.tenant_id) {
-        localStorage.setItem("current_tenant_id", appUser.tenant_id);
-      }
+      syncGlobalState(appUser);
     }
     setLoading(false);
   }, []);
 
-  // Setup auth listener BEFORE getSession
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, sess) => {
@@ -124,7 +124,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Then check existing session
     supabase.auth.getSession().then(({ data: { session: sess } }) => {
       loadFromSession(sess);
     });
@@ -141,10 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setUser(appUser);
     setSession(data.session);
-    localStorage.setItem("current_user_id", appUser.id);
-    if (appUser.tenant_id) {
-      localStorage.setItem("current_tenant_id", appUser.tenant_id);
-    }
+    syncGlobalState(appUser);
     
     return { user: appUser, error: null };
   }, []);
@@ -166,8 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    localStorage.removeItem("current_user_id");
-    localStorage.removeItem("current_tenant_id");
+    syncGlobalState(null);
   }, []);
 
   const hasPermission = useCallback((perm: keyof CargoPermissoes) => {
@@ -178,7 +173,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     if (session?.user) {
       const appUser = await loadAppUser(session.user.id);
-      if (appUser) setUser(appUser);
+      if (appUser) {
+        setUser(appUser);
+        syncGlobalState(appUser);
+      }
     }
   }, [session]);
 

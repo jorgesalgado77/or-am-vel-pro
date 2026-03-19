@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useTenant } from "@/contexts/TenantContext";
 
 export interface TenantPlan {
   plano: string;
@@ -63,6 +64,7 @@ const realtimeChannel = supabase
   .subscribe();
 
 export function useTenantPlan() {
+  const { tenantId } = useTenant();
   const [plan, setPlan] = useState<TenantPlan>(DEFAULT_PLAN);
   const [loading, setLoading] = useState(true);
   const [planFeatures, setPlanFeatures] = useState<Record<string, Record<string, boolean>>>(FALLBACK_FEATURES);
@@ -72,14 +74,6 @@ export function useTenantPlan() {
     const features = await fetchPlanFeatures();
     setPlanFeatures(features);
 
-    // Get tenant linked to current company_settings
-    const { data: settings } = await supabase
-      .from("company_settings")
-      .select("tenant_id")
-      .limit(1)
-      .single();
-
-    const tenantId = (settings as any)?.tenant_id;
     if (!tenantId) {
       setLoading(false);
       return;
@@ -125,7 +119,7 @@ export function useTenantPlan() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchPlan(); }, []);
+  useEffect(() => { fetchPlan(); }, [tenantId]);
 
   const isFeatureAllowed = (feature: string): boolean => {
     if (plan.expirado) return false;

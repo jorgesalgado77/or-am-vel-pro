@@ -142,8 +142,8 @@ export default function SignUp() {
 
       toast.success("Conta criada com sucesso!");
 
-      localStorage.setItem("onboarding_tenant_id", tenant.id);
-      localStorage.setItem("onboarding_codigo_loja", codigoLoja);
+      sessionStorage.setItem("onboarding_tenant_id", tenant.id);
+      sessionStorage.setItem("onboarding_codigo_loja", codigoLoja);
       navigate("/onboarding");
     } catch {
       toast.error("Erro inesperado ao criar conta");
