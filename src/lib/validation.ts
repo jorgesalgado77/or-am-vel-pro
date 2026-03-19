@@ -112,3 +112,52 @@ export function validateMonetaryValue(value: number, max = 999_999_999): boolean
 export function validateDiscount(value: number): boolean {
   return value >= 0 && value <= 100 && isFinite(value);
 }
+
+// ==================== CPF / CNPJ VALIDATION ====================
+
+export function isValidCPF(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, "");
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += Number(digits[i]) * (10 - i);
+  let rest = (sum * 10) % 11;
+  if (rest === 10) rest = 0;
+  if (rest !== Number(digits[9])) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += Number(digits[i]) * (11 - i);
+  rest = (sum * 10) % 11;
+  if (rest === 10) rest = 0;
+  return rest === Number(digits[10]);
+}
+
+export function isValidCNPJ(cnpj: string): boolean {
+  const digits = cnpj.replace(/\D/g, "");
+  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) return false;
+
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += Number(digits[i]) * weights1[i];
+  let rest = sum % 11;
+  if (Number(digits[12]) !== (rest < 2 ? 0 : 11 - rest)) return false;
+
+  sum = 0;
+  for (let i = 0; i < 13; i++) sum += Number(digits[i]) * weights2[i];
+  rest = sum % 11;
+  return Number(digits[13]) === (rest < 2 ? 0 : 11 - rest);
+}
+
+export function validateCpfCnpj(value: string, tipo: "pf" | "pj"): { valid: boolean; message?: string } {
+  const digits = value.replace(/\D/g, "");
+  if (tipo === "pf") {
+    if (digits.length !== 11) return { valid: false, message: "CPF deve ter 11 dígitos" };
+    if (!isValidCPF(digits)) return { valid: false, message: "CPF inválido" };
+  } else {
+    if (digits.length !== 14) return { valid: false, message: "CNPJ deve ter 14 dígitos" };
+    if (!isValidCNPJ(digits)) return { valid: false, message: "CNPJ inválido" };
+  }
+  return { valid: true };
+}
