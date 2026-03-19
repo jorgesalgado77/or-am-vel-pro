@@ -100,7 +100,7 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
       toast.error("Não é possível voltar ao plano de teste.");
       return;
     }
-    const selected = PLANS.find((p) => p.id === planId);
+    const selected = plans.find((p) => p.id === planId);
     if (selected) setConfirmPlan(selected);
   };
 
