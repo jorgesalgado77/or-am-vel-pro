@@ -16,6 +16,7 @@ import {
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useVendaZap } from "@/hooks/useVendaZap";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
+import { useVendaZapTriggers, TRIGGER_LABELS } from "@/hooks/useVendaZapTriggers";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabaseClient";
