@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { LogIn, Eye, EyeOff, Search, UserPlus, AlertTriangle, CreditCard, Headphones } from "lucide-react";
+import { LogIn, Eye, EyeOff, Search, UserPlus, AlertTriangle, CreditCard, Headphones, Store } from "lucide-react";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -11,6 +11,7 @@ import { ClientTrackingModal } from "@/components/ClientTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { maskCodigoLoja, unmask } from "@/lib/masks";
 
 interface PlanBlockInfo {
   reason: string;
@@ -21,6 +22,7 @@ export default function Login() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const { login } = useAuth();
+  const [codigoLoja, setCodigoLoja] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,8 +32,14 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !senha.trim()) {
+    const codigoDigits = unmask(codigoLoja);
+    if (!codigoDigits || !email.trim() || !senha.trim()) {
       toast.error("Preencha todos os campos");
+      return;
+    }
+
+    if (codigoDigits.length < 6) {
+      toast.error("Código da loja deve ter 6 dígitos (ex: 123.456)");
       return;
     }
 
@@ -48,6 +56,25 @@ export default function Login() {
 
     if (!user) {
       toast.error("Usuário não encontrado no sistema");
+      setLoading(false);
+      return;
+    }
+
+    // Validate store code matches user's tenant
+    if (user.tenant_id) {
+      const { data: tenantCheck } = await supabase
+        .from("tenants")
+        .select("codigo_loja")
+        .eq("id", user.tenant_id)
+        .single();
+
+      if (!tenantCheck || unmask(tenantCheck.codigo_loja || "") !== codigoDigits) {
+        toast.error("Código da loja não corresponde ao seu cadastro");
+        setLoading(false);
+        return;
+      }
+    } else {
+      toast.error("Usuário sem loja vinculada");
       setLoading(false);
       return;
     }
@@ -175,6 +202,23 @@ export default function Login() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <Label htmlFor="codigoLoja">Código da Loja</Label>
+              <div className="relative mt-1">
+                <Input
+                  id="codigoLoja"
+                  type="text"
+                  inputMode="numeric"
+                  value={codigoLoja}
+                  onChange={(e) => setCodigoLoja(maskCodigoLoja(e.target.value))}
+                  placeholder="000.000"
+                  maxLength={7}
+                  className="pl-10"
+                  autoComplete="off"
+                />
+                <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
             <div>
               <Label htmlFor="email">Email</Label>
               <Input
