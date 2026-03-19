@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.vendazap-triggers]
 verify_jwt = false
+
+[functions.store-signup]
+verify_jwt = false
