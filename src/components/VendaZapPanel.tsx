@@ -11,9 +11,10 @@ import { toast } from "sonner";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
   RefreshCw, Zap, History, Send, ArrowLeft, Handshake,
-  Flame, Snowflake, ExternalLink, BookOpen,
+  Flame, Snowflake, ExternalLink, BookOpen, Lightbulb,
 } from "lucide-react";
 import { useVendaZap } from "@/hooks/useVendaZap";
+import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabaseClient";
