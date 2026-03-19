@@ -462,76 +462,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
           {/* TAB: Planos */}
           <TabsContent value="planos" className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">Planos de Assinatura</h3>
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Trial */}
-              <Card className="border-border">
-                <CardHeader className="text-center pb-2">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-2">
-                    <Zap className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <CardTitle>Teste Grátis</CardTitle>
-                  <p className="text-sm text-muted-foreground">7 dias com todas as funções</p>
-                </CardHeader>
-                <CardContent className="text-center space-y-3">
-                  <p className="text-3xl font-bold text-foreground">R$ 0</p>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>✓ Todas as funções liberadas</li>
-                    <li>✓ Usuários ilimitados</li>
-                    <li>✓ 7 dias de teste</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {/* Básico */}
-              <Card className="border-primary/50 shadow-md">
-                <CardHeader className="text-center pb-2">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-                    <Users className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>Básico</CardTitle>
-                  <p className="text-sm text-muted-foreground">Até 3 usuários</p>
-                </CardHeader>
-                <CardContent className="text-center space-y-3">
-                  <div>
-                    <p className="text-3xl font-bold text-foreground">R$ 59,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
-                    <p className="text-xs text-accent">Anual: R$ {(PLAN_PRICES.basico.anual / 12).toFixed(2)}/mês (15% off)</p>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>✓ Até 3 usuários</li>
-                    <li>✓ Simulador completo</li>
-                    <li>✓ Gestão de clientes</li>
-                    <li>✗ Funções avançadas limitadas</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {/* Premium */}
-              <Card className="border-accent/50 shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-accent text-accent-foreground text-xs px-3 py-1 rounded-bl-lg font-semibold">
-                  Recomendado
-                </div>
-                <CardHeader className="text-center pb-2">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-2">
-                    <Crown className="h-6 w-6 text-accent" />
-                  </div>
-                  <CardTitle>Premium</CardTitle>
-                  <p className="text-sm text-muted-foreground">Usuários ilimitados</p>
-                </CardHeader>
-                <CardContent className="text-center space-y-3">
-                  <div>
-                    <p className="text-3xl font-bold text-foreground">R$ 149,90<span className="text-sm font-normal text-muted-foreground">/mês</span></p>
-                    <p className="text-xs text-accent">Anual: R$ {(PLAN_PRICES.premium.anual / 12).toFixed(2)}/mês (15% off)</p>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>✓ Usuários ilimitados</li>
-                    <li>✓ Todas as funções</li>
-                    <li>✓ Suporte prioritário</li>
-                    <li>✓ Contratos e relatórios</li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
+            <AdminPlans />
           </TabsContent>
 
           {/* TAB: Landing Page */}
