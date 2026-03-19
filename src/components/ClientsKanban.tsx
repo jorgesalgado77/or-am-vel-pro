@@ -142,7 +142,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [clients, search, filterProjetista, filterIndicador, effectiveDates]);
+  }, [clients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates]);
 
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
