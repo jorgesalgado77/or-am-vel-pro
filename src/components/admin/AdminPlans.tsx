@@ -14,6 +14,7 @@ import {
   Plus, Edit, Trash2, RefreshCw, Crown, Users, Zap, Star, GripVertical,
   Check, X, Save,
 } from "lucide-react";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 
 interface SubscriptionPlan {
   id: string;
