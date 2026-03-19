@@ -244,7 +244,7 @@ export default function Onboarding() {
       sessionStorage.removeItem("onboarding_password");
 
       toast.success("Configuração concluída! Bem-vindo ao OrçaMóvel PRO!");
-      navigate("/");
+      navigate("/app");
     } catch {
       toast.error("Erro inesperado ao salvar dados");
     }
