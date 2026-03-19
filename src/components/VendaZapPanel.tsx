@@ -114,6 +114,12 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
     }
   }, [selectedClient?.id]);
 
+  const diasSemResposta = selectedClient
+    ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
+
   const handleGenerate = async () => {
     const result = await generateMessage({
       nome_cliente: selectedClient?.nome,
