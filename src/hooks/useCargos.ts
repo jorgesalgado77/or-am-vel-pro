@@ -1,32 +1,49 @@
-import { useState, useEffect } from 'react';
-import { getCargos } from '../services/cargosService';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
-interface Cargo {
-  id: number;
-  nome: string;
+export interface CargoPermissoes {
+  clientes: boolean;
+  simulador: boolean;
+  configuracoes: boolean;
+  desconto1: boolean;
+  desconto2: boolean;
+  desconto3: boolean;
+  plus: boolean;
 }
 
-const useCargos = () => {
-  const [cargos, setCargos] = useState<Cargo[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+export interface Cargo {
+  id: string;
+  nome: string;
+  permissoes: CargoPermissoes;
+  comissao_percentual: number;
+  created_at: string;
+}
 
-  useEffect(() => {
-    const fetchCargos = async () => {
-      try {
-        const data = await getCargos();
-        setCargos(data);
-      } catch (err: any) {
-        setError(err.message || 'Erro ao carregar cargos');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCargos();
-  }, []);
-
-  return { cargos, loading, error };
+const DEFAULT_PERMISSOES: CargoPermissoes = {
+  clientes: true,
+  simulador: true,
+  configuracoes: false,
+  desconto1: true,
+  desconto2: true,
+  desconto3: false,
+  plus: false,
 };
 
-export default useCargos;
+export function useCargos() {
+  const [cargos, setCargos] = useState<Cargo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    const { data } = await supabase.from("cargos").select("*").order("nome");
+    if (data) setCargos(data.map(c => ({
+      ...c,
+      permissoes: c.permissoes as unknown as CargoPermissoes,
+      comissao_percentual: Number((c as any).comissao_percentual) || 0,
+    })));
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { cargos, loading, refresh, DEFAULT_PERMISSOES };
+}
