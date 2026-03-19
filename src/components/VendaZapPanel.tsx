@@ -73,6 +73,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const { currentUser } = useCurrentUser();
   const { addon, messages, loading, generating, dailyUsage, generateMessage, fetchMessages } = useVendaZap(tenantId);
   const { showOnboarding, setShowOnboarding } = useOnboarding("vendazap");
+  const autoSugg = useAutoSuggestion({ tenantId, addon, userId: currentUser?.id });
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
@@ -82,8 +83,6 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const [mensagemCliente, setMensagemCliente] = useState("");
   const [mensagemGerada, setMensagemGerada] = useState("");
   const [lastSim, setLastSim] = useState<any>(null);
-  const [autoSuggestion, setAutoSuggestion] = useState("");
-  const [autoSuggestionLoading, setAutoSuggestionLoading] = useState(false);
 
   useEffect(() => {
     const fetchClients = async () => {
