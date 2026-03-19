@@ -174,9 +174,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const lojasPremium = tenants.filter(t => t.plano === "premium").length;
   const lojasTrial = tenants.filter(t => t.plano === "trial").length;
 
-  const receitaMensal =
-    lojasBasico * PLAN_PRICES.basico.mensal +
-    lojasPremium * PLAN_PRICES.premium.mensal;
+  const receitaMensal = tenants.reduce((acc, t) => {
+    if (t.plano === "trial" || !t.ativo) return acc;
+    const price = planPrices[t.plano]?.mensal || 0;
+    return acc + price;
+  }, 0);
 
   // Tenant CRUD
   const openNewTenant = () => {
