@@ -10,7 +10,7 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { ClientTrackingModal } from "@/components/ClientTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PlanBlockInfo {
   reason: string;
@@ -106,13 +106,15 @@ export default function Login() {
       entidade_id: user.id,
       usuario_id: user.id,
       usuario_nome: user.apelido || user.nome_completo,
-      detalhes: { nome: user.nome_completo, tenant_id: user.tenant_id },
+      tenant_id: user.tenant_id,
+      detalhes: { nome: user.nome_completo },
     });
   };
 
   const handleRenewPlan = () => {
     if (planBlocked?.tenantId) {
-      localStorage.setItem("renew_tenant_id", planBlocked.tenantId);
+      // Use sessionStorage for ephemeral cross-page state (not auth-sensitive)
+      sessionStorage.setItem("renew_tenant_id", planBlocked.tenantId);
       navigate("/renew-plan");
     }
   };

@@ -2,10 +2,11 @@
  * Audit Log Service
  * 
  * Centralized logging for critical business actions.
- * Logs are stored in the audit_logs table for traceability.
+ * Uses in-memory tenantState — never reads from localStorage.
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId, getUserId } from "@/lib/tenantState";
 
 export type AuditAction =
   | "cliente_criado"
@@ -43,13 +44,12 @@ interface AuditLogInput {
 
 /**
  * Logs an audit event. Fire-and-forget — never blocks the UI.
- * tenant_id should be passed explicitly from context rather than read from localStorage.
+ * tenant_id is resolved from in-memory state if not provided explicitly.
  */
 export function logAudit(input: AuditLogInput): void {
   const { acao, entidade, entidade_id, usuario_id, usuario_nome, tenant_id, detalhes } = input;
 
-  // Fallback: only use localStorage if tenant_id wasn't provided explicitly
-  const resolvedTenantId = tenant_id ?? localStorage.getItem("current_tenant_id") ?? null;
+  const resolvedTenantId = tenant_id ?? getTenantId();
 
   supabase
     .from("audit_logs")
@@ -71,13 +71,9 @@ export function logAudit(input: AuditLogInput): void {
 
 /**
  * Helper to get current user info for audit logs.
- * Uses localStorage as fallback for non-React contexts.
+ * Uses in-memory state from AuthContext.
  */
 export function getAuditUserInfo(): { usuario_id?: string; usuario_nome?: string } {
-  try {
-    const userId = localStorage.getItem("current_user_id");
-    return { usuario_id: userId || undefined };
-  } catch {
-    return {};
-  }
+  const userId = getUserId();
+  return { usuario_id: userId || undefined };
 }
