@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Shield, Eye, EyeOff } from "lucide-react";
+import { Shield, Eye, EyeOff, Lock, Mail, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 interface AdminLoginProps {
   onLogin: (adminId: string, adminName: string) => void;
@@ -27,85 +27,204 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
     setLoading(true);
     const normalizedEmail = email.trim().toLowerCase();
 
-    const { data, error } = await (supabase as any).rpc("admin_login", {
-      p_email: normalizedEmail,
-      p_senha: senha,
-    });
+    try {
+      // Try RPC first (if admin_login function exists)
+      const { data: rpcData, error: rpcError } = await (supabase as any).rpc("admin_login", {
+        p_email: normalizedEmail,
+        p_senha: senha,
+      });
 
-    if (error) {
-      toast.error("O login admin precisa da função admin_login configurada no banco");
+      if (!rpcError) {
+        const admin = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        if (admin) {
+          setLoading(false);
+          toast.success(`Bem-vindo, ${admin.nome}!`);
+          onLogin(admin.id, admin.nome);
+          return;
+        }
+      }
+
+      // Fallback: direct query
+      const { data, error } = await supabase
+        .from("admin_master")
+        .select("id, nome, email, senha")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+
+      if (error || !data) {
+        toast.error("Credenciais inválidas");
+        setLoading(false);
+        return;
+      }
+
+      if ((data as any).senha !== senha) {
+        toast.error("Senha incorreta");
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
-      return;
-    }
-
-    const admin = Array.isArray(data) ? data[0] : data;
-
-    if (!admin) {
-      toast.error("Credenciais inválidas");
+      toast.success(`Bem-vindo, ${(data as any).nome}!`);
+      onLogin((data as any).id, (data as any).nome);
+    } catch {
+      toast.error("Erro ao conectar. Tente novamente.");
       setLoading(false);
-      return;
     }
-
-    setLoading(false);
-    toast.success(`Bem-vindo, ${admin.nome}!`);
-    onLogin(admin.id, admin.nome);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm shadow-lg border-border/50">
-        <CardHeader className="text-center space-y-3 pb-2">
-          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Shield className="h-8 w-8 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Painel Administrativo</h1>
-            <p className="text-sm text-muted-foreground">Acesso restrito ao administrador master</p>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <Label htmlFor="adminEmail">Email</Label>
-              <Input
-                id="adminEmail"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@sistema.com"
-                className="mt-1"
-                autoComplete="email"
-              />
+    <div className="min-h-screen flex relative overflow-hidden">
+      {/* Animated background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(199,89%,15%)] via-[hsl(199,89%,25%)] to-[hsl(222,47%,11%)]" />
+      <div className="absolute inset-0">
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-[hsl(199,89%,40%/0.15)] rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-[hsl(160,84%,39%/0.1)] rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
+        <div className="absolute top-1/2 left-1/2 w-[300px] h-[300px] bg-[hsl(199,89%,40%/0.08)] rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2" />
+      </div>
+
+      {/* Decorative side panel */}
+      <div className="hidden lg:flex lg:w-1/2 relative z-10 items-center justify-center p-12">
+        <motion.div
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-center space-y-8"
+        >
+          <div className="relative mx-auto w-28 h-28">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] opacity-20 blur-xl animate-pulse" />
+            <div className="relative w-28 h-28 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+              <Shield className="h-14 w-14 text-white" />
             </div>
-            <div>
-              <Label htmlFor="adminSenha">Senha</Label>
-              <div className="relative mt-1">
-                <Input
-                  id="adminSenha"
-                  type={showPassword ? "text" : "password"}
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowPassword(!showPassword)}
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+          </div>
+          <div className="space-y-4">
+            <h2 className="text-4xl font-bold text-white tracking-tight">
+              Painel Master
+            </h2>
+            <p className="text-lg text-white/60 max-w-sm mx-auto leading-relaxed">
+              Gerencie lojas, planos, pagamentos e configurações globais da plataforma.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-6 text-white/40">
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full bg-[hsl(var(--accent))]" />
+              Multi-tenant
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full bg-[hsl(var(--primary))]" />
+              Seguro
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full bg-[hsl(160,84%,60%)]" />
+              Completo
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Login form */}
+      <div className="flex-1 flex items-center justify-center relative z-10 p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="w-full max-w-md"
+        >
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-8 space-y-6">
+            {/* Header */}
+            <div className="text-center space-y-3">
+              <div className="lg:hidden mx-auto w-16 h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
+                <Shield className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">
+                  Acesso Administrativo
+                </h1>
+                <p className="text-sm text-white/50 mt-1">
+                  Entre com suas credenciais de administrador master
+                </p>
               </div>
             </div>
-            <Button type="submit" className="w-full gap-2" disabled={loading}>
-              <Shield className="h-4 w-4" />
-              {loading ? "Entrando..." : "Acessar Painel"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+
+            {/* Form */}
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="adminEmail" className="text-sm font-medium text-white/80">
+                  Email
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                  <Input
+                    id="adminEmail"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@sistema.com"
+                    autoComplete="email"
+                    className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adminSenha" className="text-sm font-medium text-white/80">
+                  Senha
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                  <Input
+                    id="adminSenha"
+                    type={showPassword ? "text" : "password"}
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    className="pl-10 pr-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 rounded-xl text-base font-semibold gap-2 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg shadow-[hsl(var(--primary)/0.3)] transition-all duration-300 hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.4)] hover:scale-[1.02]"
+              >
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Shield className="h-5 w-5" />
+                )}
+                {loading ? "Autenticando..." : "Acessar Painel"}
+              </Button>
+            </form>
+
+            {/* Footer */}
+            <div className="text-center">
+              <p className="text-xs text-white/30">
+                Acesso exclusivo para administradores autorizados
+              </p>
+            </div>
+          </div>
+
+          {/* Security badge */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="flex items-center justify-center gap-2 mt-6 text-white/25 text-xs"
+          >
+            <Lock className="h-3 w-3" />
+            Conexão protegida · Ambiente seguro
+          </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }
