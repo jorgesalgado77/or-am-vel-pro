@@ -133,6 +133,7 @@ export function ClientsKanban({
       }
       if (filterProjetista && c.vendedor !== filterProjetista) return false;
       if (filterIndicador && c.indicador_id !== filterIndicador) return false;
+      if (filterTemperature && (c as any).lead_temperature !== filterTemperature) return false;
       const { start, end } = effectiveDates;
       if (start || end) {
         const clientDate = new Date(c.created_at);
