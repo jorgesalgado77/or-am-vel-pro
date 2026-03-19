@@ -314,7 +314,7 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
               <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Plano atual:</span>
-                  <span className="font-medium">{PLANS.find(p => p.id === currentPlan.plano)?.nome || currentPlan.plano}</span>
+                  <span className="font-medium">{plans.find(p => p.id === currentPlan.plano)?.nome || currentPlan.plano}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Novo plano:</span>
