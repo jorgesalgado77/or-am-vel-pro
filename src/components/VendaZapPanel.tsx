@@ -624,6 +624,12 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="analytics">
+          <Suspense fallback={<div className="text-center py-8 text-sm text-muted-foreground">Carregando...</div>}>
+            <AutoPilotAnalyticsLazy tenantId={tenantId} />
+          </Suspense>
+        </TabsContent>
       </Tabs>
       <OnboardingDialog featureKey="vendazap" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
