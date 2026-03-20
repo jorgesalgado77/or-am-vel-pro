@@ -57,15 +57,6 @@ export function ClientTrackingModal({ open, onClose }: Props) {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) {
-      setStep("lookup");
-      setContractNumber("");
-      setTracking(null);
-      setMessages([]);
-    }
-  }, [open]);
-
   // Realtime: auto-load new messages from loja
   useEffect(() => {
     if (!tracking) return;

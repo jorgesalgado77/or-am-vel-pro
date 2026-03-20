@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { usePersistedValue } from "@/hooks/usePersistedFormState";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,8 +57,8 @@ export function SupportDialog({ open, onClose }: SupportDialogProps) {
   const { settings } = useCompanySettings();
   const { currentUser } = useCurrentUser();
   const [tab, setTab] = useState<"novo" | "historico">("novo");
-  const [selectedTipo, setSelectedTipo] = useState<TicketTipo | null>(null);
-  const [mensagem, setMensagem] = useState("");
+  const [selectedTipo, setSelectedTipo, clearTipo] = usePersistedValue<TicketTipo | null>("support-tipo", null);
+  const [mensagem, setMensagem, clearMensagem] = usePersistedValue("support-mensagem", "");
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -67,14 +68,6 @@ export function SupportDialog({ open, onClose }: SupportDialogProps) {
   useEffect(() => {
     if (open && tab === "historico") fetchTickets();
   }, [open, tab]);
-
-  useEffect(() => {
-    if (!open) {
-      setSelectedTipo(null);
-      setMensagem("");
-      setFiles([]);
-    }
-  }, [open]);
 
   const fetchTickets = async () => {
     if (!currentUser) return;
@@ -136,8 +129,8 @@ export function SupportDialog({ open, onClose }: SupportDialogProps) {
         toast.error("Erro ao enviar ticket de suporte");
       } else {
         toast.success("Ticket enviado com sucesso!");
-        setSelectedTipo(null);
-        setMensagem("");
+        clearTipo();
+        clearMensagem();
         setFiles([]);
       }
     } catch {
