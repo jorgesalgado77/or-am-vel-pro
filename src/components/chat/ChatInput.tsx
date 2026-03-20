@@ -114,6 +114,17 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
       />
 
       <div className="flex items-end gap-1.5">
+        {/* Quick Replies */}
+        {quickReplies && onAddQuickReply && onRemoveQuickReply && (
+          <QuickRepliesPopover
+            replies={quickReplies}
+            onSelect={(msg) => onChange(msg)}
+            onAdd={onAddQuickReply}
+            onRemove={onRemoveQuickReply}
+            loading={quickRepliesLoading}
+          />
+        )}
+
         {/* Attach */}
         <Button
           variant="ghost"
