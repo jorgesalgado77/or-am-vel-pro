@@ -11,7 +11,7 @@ interface FieldCheck {
   category: "usuario" | "loja";
 }
 
-export function ProfileCompletenessCard() {
+export function ProfileCompletenessCard({ onOpenProfile }: { onOpenProfile?: () => void }) {
   const { user } = useAuth();
   const { settings } = useCompanySettings();
 
@@ -54,7 +54,10 @@ export function ProfileCompletenessCard() {
   const storeMissing = missingFields.filter((f) => f.category === "loja");
 
   return (
-    <Card className="border-primary/20 bg-primary/5 mb-4">
+    <Card
+      className="border-primary/20 bg-primary/5 mb-4 cursor-pointer hover:shadow-md transition-shadow"
+      onClick={onOpenProfile}
+    >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
