@@ -79,14 +79,19 @@ async function mapAppUser(userRow: any, authUserId?: string | null): Promise<App
     nome_completo: userRow.nome_completo,
     apelido: userRow.apelido,
     email: userRow.email,
-    telefone: userRow.telefone,
+    telefone: userRow.telefone ?? userRow.telefone_whatsapp ?? null,
     cargo_id: userRow.cargo_id,
     cargo_nome,
     foto_url: userRow.foto_url,
     tenant_id: userRow.tenant_id ?? null,
-    auth_user_id: authUserId ?? userRow.id ?? null,
+    auth_user_id: userRow.auth_user_id ?? authUserId ?? null,
     permissoes,
   };
+}
+
+function normalizeEmail(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase();
+  return normalized || null;
 }
 
 /**
@@ -95,44 +100,69 @@ async function mapAppUser(userRow: any, authUserId?: string | null): Promise<App
  * - falls back to usuarios.email when the schema does not store auth_user_id
  */
 async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Promise<AppUser | null> {
-  const lookupStrategies: Array<{ column: string; value: string | null | undefined }> = [
-    { column: "id", value: authUser.id },
-    { column: "email", value: authUser.email?.trim().toLowerCase() },
+  const normalizedEmail = normalizeEmail(authUser.email);
+  const lookupStrategies: Array<{ label: string; query: (() => Promise<{ data: any; error: any }>) | null }> = [
+    {
+      label: "id",
+      query: () => (supabase as any)
+        .from("usuarios")
+        .select("*")
+        .eq("id", authUser.id)
+        .limit(1),
+    },
+    {
+      label: "auth_user_id",
+      query: () => (supabase as any)
+        .from("usuarios")
+        .select("*")
+        .eq("auth_user_id", authUser.id)
+        .limit(1),
+    },
+    normalizedEmail ? {
+      label: "email",
+      query: () => (supabase as any)
+        .from("usuarios")
+        .select("*")
+        .ilike("email", normalizedEmail)
+        .limit(10),
+    } : null,
   ];
 
   for (const strategy of lookupStrategies) {
-    if (!strategy.value) continue;
+    if (!strategy?.query) continue;
 
-    const query = (supabase as any)
-      .from("usuarios")
-      .select("*")
-      .eq(strategy.column, strategy.value)
-      .limit(1);
-
-    const { data, error } = await query;
-    const userRow = Array.isArray(data) ? data[0] : data;
+    const { data, error } = await strategy.query();
+    const userList = Array.isArray(data) ? data : data ? [data] : [];
+    const userRow = strategy.label === "email"
+      ? userList.find((candidate) => normalizeEmail(candidate?.email) === normalizedEmail) ?? userList[0]
+      : userList[0];
 
     if (error) {
-      console.warn(`[Auth] Failed to load user by ${strategy.column}:`, error.message);
+      console.warn(`[Auth] Failed to load user by ${strategy.label}:`, error.message);
       continue;
     }
 
     if (userRow) {
-      // If found by email but ID doesn't match auth UID, try to update the ID
-      if (strategy.column === "email" && userRow.id !== authUser.id) {
-        console.log("[Auth] 🔄 Atualizando usuarios.id para corresponder ao auth UID:", authUser.id);
+      const needsAuthLink = userRow.auth_user_id !== authUser.id;
+      const needsEmailNormalization = normalizedEmail && normalizeEmail(userRow.email) !== normalizedEmail;
+
+      if (needsAuthLink || needsEmailNormalization) {
         const { error: updateError } = await (supabase as any)
           .from("usuarios")
-          .update({ id: authUser.id } as any)
+          .update({
+            ...(needsAuthLink ? { auth_user_id: authUser.id } : {}),
+            ...(needsEmailNormalization ? { email: normalizedEmail } : {}),
+          } as any)
           .eq("id", userRow.id);
 
         if (updateError) {
-          console.warn("[Auth] ⚠️ Não foi possível atualizar ID do usuário:", updateError.message);
-          // Still return the user with old ID — better than failing completely
+          console.warn("[Auth] ⚠️ Não foi possível sincronizar vínculo do usuário:", updateError.message);
         } else {
-          userRow.id = authUser.id;
+          if (needsAuthLink) userRow.auth_user_id = authUser.id;
+          if (needsEmailNormalization) userRow.email = normalizedEmail;
         }
       }
+
       return mapAppUser(userRow, authUser.id);
     }
   }
@@ -197,24 +227,32 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
 async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: Record<string, unknown>, password?: string) {
   if (!authUser || !metadata?.tenant_id) return;
 
-  const normalizedEmail = authUser.email?.trim().toLowerCase() ?? null;
+  const normalizedEmail = normalizeEmail(authUser.email);
+  let existingUser: any = null;
 
-  const { data: byId } = await (supabase as any)
-    .from("usuarios")
-    .select("id, email, senha")
-    .eq("id", authUser.id)
-    .limit(1);
-
-  let existingUser = Array.isArray(byId) ? byId[0] : byId;
-
-  if (!existingUser && normalizedEmail) {
-    const { data: byEmail } = await (supabase as any)
+  const existingLookups: Array<(() => Promise<{ data: any; error: any }>) | null> = [
+    () => (supabase as any)
       .from("usuarios")
-      .select("id, email, senha")
-      .eq("email", normalizedEmail)
-      .limit(1);
+      .select("id, auth_user_id, email, senha")
+      .eq("id", authUser.id)
+      .limit(1),
+    () => (supabase as any)
+      .from("usuarios")
+      .select("id, auth_user_id, email, senha")
+      .eq("auth_user_id", authUser.id)
+      .limit(1),
+    normalizedEmail ? () => (supabase as any)
+      .from("usuarios")
+      .select("id, auth_user_id, email, senha")
+      .ilike("email", normalizedEmail)
+      .limit(10) : null,
+  ];
 
-    existingUser = Array.isArray(byEmail) ? byEmail[0] : byEmail;
+  for (const lookup of existingLookups) {
+    if (!lookup || existingUser) continue;
+    const { data } = await lookup();
+    const resultList = Array.isArray(data) ? data : data ? [data] : [];
+    existingUser = resultList.find((candidate) => normalizeEmail(candidate?.email) === normalizedEmail) ?? resultList[0] ?? null;
   }
 
   const senhaHash = password ? await hashLegacyPassword(password) : null;
@@ -225,6 +263,7 @@ async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: R
     email: authUser.email?.trim().toLowerCase() || null,
     cargo_id: (metadata.cargo_id as string) || null,
     tenant_id: metadata.tenant_id as string,
+    telefone: (metadata.telefone as string) || null,
     primeiro_login: true,
     ativo: true,
     ...(senhaHash ? { senha: senhaHash } : {}),
@@ -233,23 +272,13 @@ async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: R
   if (existingUser) {
     const updatePayload: Record<string, unknown> = {
       ...basePayload,
-      ...(existingUser.id !== authUser.id ? { id: authUser.id } : {}),
+      auth_user_id: authUser.id,
     };
 
-    let { error } = await supabase
+    const { error } = await supabase
       .from("usuarios")
       .update(updatePayload as any)
       .eq("id", existingUser.id);
-
-    if (error && existingUser.id !== authUser.id) {
-      const { id: _ignored, ...fallbackPayload } = updatePayload;
-      const retry = await supabase
-        .from("usuarios")
-        .update(fallbackPayload as any)
-        .eq("id", existingUser.id);
-
-      error = retry.error;
-    }
 
     if (error) {
       console.warn("[Auth] Failed to update existing user profile after sign up:", error.message);
@@ -260,6 +289,7 @@ async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: R
 
   const payload = {
     id: authUser.id,
+    auth_user_id: authUser.id,
     ...basePayload,
   };
 
@@ -298,6 +328,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loadAppUser(sess.user),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
       ]);
+
+      if (!appUser) {
+        console.log("[Auth] 🛠️ Usuário não encontrado na sessão, tentando recriar/sincronizar perfil...");
+        await ensureUserProfile(sess.user, (sess.user.user_metadata as Record<string, unknown>) ?? undefined);
+        appUser = await loadAppUser(sess.user);
+      }
     } catch (e) {
       console.warn("[Auth] ⚠️ loadAppUser falhou:", e);
     }
@@ -341,7 +377,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
       }
 
-      const appUser = await loadAppUser(authData.user);
+      let appUser = await loadAppUser(authData.user);
+      if (!appUser) {
+        console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
+        await ensureUserProfile(authData.user, (authData.user.user_metadata as Record<string, unknown>) ?? undefined);
+        appUser = await loadAppUser(authData.user);
+      }
+
       if (!appUser) {
         return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
       }
@@ -643,6 +685,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
       if (!loginError && loginData.user) {
+        await ensureUserProfile(loginData.user, metadata, password);
         const appUser = await loadAppUser(loginData.user);
         if (appUser) {
           setUser(appUser);
@@ -652,6 +695,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (isEmailNotConfirmedError(loginError)) {
         const confirmedLogin = await attemptConfirmedLogin(data.user.id, normalizedEmail, password);
         if (confirmedLogin) {
+          await ensureUserProfile(confirmedLogin.user, metadata, password);
           const appUser = await loadAppUser(confirmedLogin.user);
           if (appUser) {
             setUser(appUser);
