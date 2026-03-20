@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.vendazap-triggers]
 verify_jwt = false
+
+[functions.lead-capture]
+verify_jwt = false

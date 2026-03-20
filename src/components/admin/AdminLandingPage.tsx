@@ -8,10 +8,12 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Save, Loader2, Trash2, Plus, ExternalLink, Users, Eye } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Save, Loader2, Trash2, Plus, ExternalLink, Users, Eye, Filter } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import type { LandingConfig, BenefitItem, HowItWorksStep, PlanItem } from "@/hooks/useLandingConfig";
 
 interface Lead {
@@ -23,6 +25,10 @@ interface Lead {
   email: string;
   status: string;
   created_at: string;
+  origem?: string;
+  interesse?: string;
+  lead_temperature?: string;
+  whatsapp_enviado?: boolean;
 }
 
 export function AdminLandingPage() {
@@ -30,6 +36,14 @@ export function AdminLandingPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [leadTempFilter, setLeadTempFilter] = useState("all");
+  const [leadOrigemFilter, setLeadOrigemFilter] = useState("all");
+
+  const filteredLeads = leads.filter((l) => {
+    if (leadTempFilter !== "all" && (l.lead_temperature || "morno") !== leadTempFilter) return false;
+    if (leadOrigemFilter !== "all" && (l.origem || "site") !== leadOrigemFilter) return false;
+    return true;
+  });
 
   const fetchData = useCallback(async () => {
     const [configRes, leadsRes] = await Promise.all([
@@ -371,42 +385,80 @@ export function AdminLandingPage() {
         <TabsContent value="leads">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-4">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Leads Captados ({leads.length})
                 </CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Select value={leadTempFilter} onValueChange={setLeadTempFilter}>
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
+                      <SelectValue placeholder="Temperatura" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="quente">🔥 Quente</SelectItem>
+                      <SelectItem value="morno">🟡 Morno</SelectItem>
+                      <SelectItem value="frio">❄️ Frio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={leadOrigemFilter} onValueChange={setLeadOrigemFilter}>
+                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                      <SelectValue placeholder="Origem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="site">Site</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
+                      <SelectItem value="api">API</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              {leads.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum lead captado ainda.</p>
+              {filteredLeads.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum lead encontrado.</p>
               ) : (
                 <div className="rounded-md border overflow-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Temp.</TableHead>
                         <TableHead>Nome</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Telefone</TableHead>
-                        <TableHead>Área</TableHead>
-                        <TableHead>Cargo</TableHead>
+                        <TableHead>Interesse</TableHead>
+                        <TableHead>Origem</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>WhatsApp</TableHead>
                         <TableHead>Data</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {leads.map((lead) => (
-                        <TableRow key={lead.id}>
-                          <TableCell className="font-medium">{lead.nome}</TableCell>
-                          <TableCell>{lead.email}</TableCell>
-                          <TableCell>{lead.telefone}</TableCell>
-                          <TableCell>{lead.area_atuacao}</TableCell>
-                          <TableCell>{lead.cargo}</TableCell>
-                          <TableCell><Badge variant="secondary">{lead.status}</Badge></TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{format(new Date(lead.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredLeads.map((lead) => {
+                        const temp = (lead.lead_temperature || "morno") as LeadTemperature;
+                        const tempCfg = TEMPERATURE_CONFIG[temp] || TEMPERATURE_CONFIG.morno;
+                        return (
+                          <TableRow key={lead.id}>
+                            <TableCell>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${tempCfg.bgColor} ${tempCfg.color}`}>
+                                {tempCfg.emoji} {tempCfg.label}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-medium">{lead.nome}</TableCell>
+                            <TableCell>{lead.email}</TableCell>
+                            <TableCell>{lead.telefone}</TableCell>
+                            <TableCell className="text-xs">{lead.interesse || "-"}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{lead.origem || "site"}</Badge></TableCell>
+                            <TableCell><Badge variant="secondary">{lead.status}</Badge></TableCell>
+                            <TableCell>{lead.whatsapp_enviado ? "✅" : "—"}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{format(new Date(lead.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

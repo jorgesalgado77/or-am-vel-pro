@@ -15,6 +15,7 @@ const leadSchema = z.object({
   cargo: z.string().trim().min(1, "Selecione o cargo"),
   telefone: z.string().trim().min(10, "Telefone inválido").max(20),
   email: z.string().trim().email("Email inválido").max(255),
+  interesse: z.string().trim().min(1, "Selecione o interesse"),
 });
 
 interface LandingLeadFormProps {
@@ -22,7 +23,7 @@ interface LandingLeadFormProps {
 }
 
 export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
-  const [form, setForm] = useState({ nome: "", area_atuacao: "", cargo: "", telefone: "", email: "" });
+  const [form, setForm] = useState({ nome: "", area_atuacao: "", cargo: "", telefone: "", email: "", interesse: "" });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -42,15 +43,44 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
     }
 
     setLoading(true);
-    const { error } = await supabase.from("leads").insert(result.data as any);
-    setLoading(false);
 
-    if (error) {
-      toast.error("Erro ao enviar. Tente novamente.");
-    } else {
+    try {
+      // Usar Edge Function para captura com dedup + classificação + VendaZap
+      const { data, error } = await supabase.functions.invoke("lead-capture", {
+        body: {
+          ...result.data,
+          origem: "site",
+          telefone: result.data.telefone.replace(/\D/g, ""),
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.duplicado) {
+        toast.info("Seus dados já foram registrados. Atualizamos suas informações!");
+      } else {
+        toast.success("Cadastro realizado com sucesso!");
+      }
       setSubmitted(true);
-      toast.success("Cadastro realizado com sucesso!");
+    } catch (err) {
+      console.error("Lead capture error:", err);
+      // Fallback: insert direto se a Edge Function falhar
+      const { error: insertError } = await supabase.from("leads").insert({
+        ...result.data,
+        origem: "site",
+        telefone: result.data.telefone.replace(/\D/g, ""),
+        status: "novo",
+      } as any);
+
+      if (insertError) {
+        toast.error("Erro ao enviar. Tente novamente.");
+      } else {
+        setSubmitted(true);
+        toast.success("Cadastro realizado com sucesso!");
+      }
     }
+
+    setLoading(false);
   };
 
   if (submitted) {
@@ -137,6 +167,22 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
                     </Select>
                     {errors.cargo && <p className="text-xs text-red-500 mt-1">{errors.cargo}</p>}
                   </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">Qual seu interesse? *</Label>
+                  <Select value={form.interesse} onValueChange={(v) => setForm({ ...form, interesse: v })}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="comprar_agora">Quero contratar agora</SelectItem>
+                      <SelectItem value="orcamento_urgente">Preciso de orçamento urgente</SelectItem>
+                      <SelectItem value="pesquisando">Estou pesquisando soluções</SelectItem>
+                      <SelectItem value="comparando_precos">Comparando preços</SelectItem>
+                      <SelectItem value="apenas_curioso">Apenas curioso</SelectItem>
+                      <SelectItem value="futuro">Para o futuro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.interesse && <p className="text-xs text-red-500 mt-1">{errors.interesse}</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
