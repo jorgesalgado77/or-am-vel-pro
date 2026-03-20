@@ -46,7 +46,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
   ];
 
   return (
-    <aside className="w-60 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0">
+    <aside className="w-60 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0 overflow-hidden">
       {/* App branding - always OrçaMóvel PRO */}
       <div className="p-4 border-b border-border flex items-center gap-3">
         {settings.logo_url && (
@@ -59,7 +59,8 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
           <p className="text-xs text-muted-foreground mt-0.5">Orce. Venda. Simplifique</p>
         </div>
       </div>
-      <nav className="flex-1 p-2 space-y-0.5">
+      <nav className="flex-1 min-h-0 overflow-y-auto p-2 space-y-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <style>{`.sidebar-scroll::-webkit-scrollbar{display:none}`}</style>
         {navItems
           .filter((item) => item.show && hasPermission(item.perm))
           .map((item) => (
@@ -83,7 +84,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
             </button>
           ))}
         {/* Bottom section */}
-        <div className="mt-auto pt-2 border-t border-border mx-1 space-y-0.5">
+        <div className="pt-2 border-t border-border mx-1 space-y-0.5 mt-4">
           <button
             onClick={() => onViewChange("messages")}
             className={cn(

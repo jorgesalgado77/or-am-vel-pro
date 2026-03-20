@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield, Palette } from "lucide-react";
@@ -32,6 +32,8 @@ const DEFAULT_BENEFITS = [
 
 export default function TenantLanding() {
   const { codigo } = useParams<{ codigo: string }>();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get("ref") || "";
   const [tenant, setTenant] = useState<TenantData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -82,7 +84,8 @@ export default function TenantLanding() {
           telefone: cleanPhone,
           email: email.trim() || undefined,
           interesse: "Projeto 3D gratuito",
-          origem: "funil_loja",
+          origem: refCode ? "indicacao" : "funil_loja",
+          referral_code: refCode || undefined,
           tenant_id: tenant?.id,
         },
       });

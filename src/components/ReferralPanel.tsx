@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,6 +66,17 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 };
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
+
+// Gamification tiers
+const GAMIFICATION_TIERS = [
+  { name: "Bronze", min: 1, max: 4, color: "bg-amber-700/10 text-amber-800 border-amber-300", icon: "🥉", bgGradient: "from-amber-100 to-amber-50" },
+  { name: "Prata", min: 5, max: 14, color: "bg-slate-200/50 text-slate-700 border-slate-300", icon: "🥈", bgGradient: "from-slate-100 to-slate-50" },
+  { name: "Ouro", min: 15, max: Infinity, color: "bg-yellow-400/20 text-yellow-700 border-yellow-400", icon: "🥇", bgGradient: "from-yellow-100 to-yellow-50" },
+];
+
+function getTier(convertedCount: number) {
+  return GAMIFICATION_TIERS.find(t => convertedCount >= t.min && convertedCount <= t.max) || null;
+}
 
 function generateReferralCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -349,6 +361,7 @@ export function ReferralPanel() {
                     <TableHead>Código</TableHead>
                     <TableHead className="text-center">Indicações</TableHead>
                     <TableHead className="text-center">Convertidas</TableHead>
+                    <TableHead className="text-center">Nível</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
@@ -356,7 +369,7 @@ export function ReferralPanel() {
                 <TableBody>
                   {filteredLinks.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         <Gift className="h-8 w-8 mx-auto mb-2 opacity-30" />
                         <p>Nenhum link de indicação criado.</p>
                         <p className="text-xs mt-1">Crie links para seus melhores clientes indicarem novos leads.</p>
@@ -375,6 +388,18 @@ export function ReferralPanel() {
                       </TableCell>
                       <TableCell className="text-center font-medium">{link.total_referrals}</TableCell>
                       <TableCell className="text-center font-medium text-green-600">{link.converted_referrals}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const tier = getTier(link.converted_referrals);
+                          return tier ? (
+                            <Badge variant="outline" className={cn("text-xs gap-1", tier.color)}>
+                              {tier.icon} {tier.name}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {format(new Date(link.created_at), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
@@ -512,6 +537,32 @@ export function ReferralPanel() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Gamification Tiers */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Award className="h-4 w-4" /> Níveis de Gamificação
+              </CardTitle>
+              <CardDescription className="text-xs">Indicadores são promovidos automaticamente com base nas conversões</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3">
+                {GAMIFICATION_TIERS.map(tier => {
+                  const count = links.filter(l => getTier(l.converted_referrals)?.name === tier.name).length;
+                  return (
+                    <div key={tier.name} className={cn("rounded-xl p-4 text-center border bg-gradient-to-b", tier.bgGradient, tier.color.split(" ")[2])}>
+                      <span className="text-2xl">{tier.icon}</span>
+                      <p className="font-bold mt-1">{tier.name}</p>
+                      <p className="text-xs mt-0.5">{tier.min}–{tier.max === Infinity ? "∞" : tier.max} conversões</p>
+                      <p className="text-lg font-bold mt-2">{count}</p>
+                      <p className="text-[10px] opacity-70">indicadores</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Top referrers */}
           <Card>
