@@ -121,7 +121,7 @@ function CompanySettingsTab() {
     setConfirmManagerPassword(settings.manager_password || "");
     setAdminPassword(settings.admin_password || "");
     setConfirmAdminPassword(settings.admin_password || "");
-    setOrcamentoInicial(settings.orcamento_numero_inicial || 1);
+    setOrcamentoInicial(Math.round(settings.orcamento_numero_inicial) || 1);
   }, [settings]);
 
   const buscarCepLoja = async () => {
