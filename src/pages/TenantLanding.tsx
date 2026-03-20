@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield, Palette } from "lucide-react";
+import { CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield, Palette, Paperclip, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { maskPhone, unmask } from "@/lib/masks";
 import { toast } from "sonner";
 
@@ -42,6 +43,8 @@ export default function TenantLanding() {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [arquivos, setArquivos] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -157,11 +160,36 @@ export default function TenantLanding() {
   return (
     <div className="min-h-[100dvh]" style={{ background: `linear-gradient(180deg, ${color}08 0%, white 40%)` }}>
       {/* Header */}
-      <header className="py-4 px-4 sm:px-6 flex items-center justify-center gap-3">
-        {tenant.logo_url && (
-          <img src={tenant.logo_url} alt={tenant.nome_loja} className="h-10 w-auto object-contain" />
-        )}
-        <span className="text-xl font-bold text-gray-900">{tenant.nome_loja}</span>
+      <header className="py-6 px-4 sm:px-6">
+        <div className="flex flex-col items-center gap-3">
+          {tenant.logo_url && (
+            <motion.img
+              src={tenant.logo_url}
+              alt={tenant.nome_loja}
+              className="h-16 sm:h-20 w-auto object-contain drop-shadow-lg"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            />
+          )}
+          <motion.h1
+            className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            {tenant.nome_loja}
+          </motion.h1>
+          <motion.p
+            className="text-sm sm:text-base font-semibold tracking-wide uppercase"
+            style={{ color }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+          >
+            Somos especialistas em Móveis Planejados
+          </motion.p>
+        </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
@@ -283,6 +311,52 @@ export default function TenantLanding() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label htmlFor="lead-descricao" className="text-sm font-medium text-gray-700">
+                    Descreva sua necessidade <span className="text-gray-400">(opcional)</span>
+                  </Label>
+                  <Textarea
+                    id="lead-descricao"
+                    value={descricao}
+                    onChange={(e) => setDescricao(e.target.value)}
+                    placeholder="Ex: Cozinha planejada para apartamento de 60m², preciso de projeto que aproveite bem o espaço..."
+                    className="rounded-xl border-gray-200 focus:border-primary min-h-[80px]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Anexar planta ou fotos <span className="text-gray-400">(opcional)</span>
+                  </Label>
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-gray-300 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById("lead-files")?.click()}>
+                    <input
+                      id="lead-files"
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.dwg"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setArquivos(prev => [...prev, ...files]);
+                      }}
+                    />
+                    <Paperclip className="h-5 w-5 mx-auto text-gray-400 mb-1" />
+                    <p className="text-sm text-gray-500">Clique para enviar planta, fotos ou documentos</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">JPG, PNG, PDF • Até 10MB</p>
+                  </div>
+                  {arquivos.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      {arquivos.map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-1.5">
+                          <FileText className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate flex-1">{f.name}</span>
+                          <button type="button" onClick={() => setArquivos(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-400 hover:text-red-500">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <Button
                   type="submit"
                   disabled={sending}
