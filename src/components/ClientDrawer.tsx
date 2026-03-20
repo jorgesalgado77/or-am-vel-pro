@@ -127,6 +127,20 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
     };
 
     fetchContracts();
+
+    // Fetch follow-ups
+    const fetchFollowUps = async () => {
+      setLoadingFollowUps(true);
+      const { data } = await supabase
+        .from("followup_schedules")
+        .select("id, stage, status, message, scheduled_for, sent_at, created_at")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setFollowUps((data as FollowUpRecord[]) || []);
+      setLoadingFollowUps(false);
+    };
+    fetchFollowUps();
   }, [open, client]);
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
