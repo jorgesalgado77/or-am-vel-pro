@@ -49,6 +49,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   "vendazap-chat": { title: "Chat de Vendas", subtitle: "Converse com clientes com sugestões de IA em tempo real" },
   funnel: { title: "Funil de Captação", subtitle: "Sua máquina de captação de leads pronta para usar" },
   campaigns: { title: "Biblioteca de Campanhas", subtitle: "Anúncios prontos para copiar e ativar em minutos" },
+  referrals: { title: "Programa de Indicações", subtitle: "Gere links, acompanhe indicações e recompense seus clientes" },
 };
 
 export default function Index() {
