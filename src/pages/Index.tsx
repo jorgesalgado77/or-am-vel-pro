@@ -255,6 +255,8 @@ export default function Index() {
                 <DealRoomView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
               )}
 
+              {activeView === "funnel" && <FunnelPanel />}
+
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>
           </main>
