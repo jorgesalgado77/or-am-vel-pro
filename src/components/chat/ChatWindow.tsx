@@ -15,6 +15,7 @@ import type { ChatConversation, ChatMessage } from "./types";
 interface Props {
   conversation: ChatConversation;
   userId?: string;
+  tenantId?: string | null;
   onBack: () => void;
   onStartDealRoom?: () => void;
   aiSuggestion: string;
