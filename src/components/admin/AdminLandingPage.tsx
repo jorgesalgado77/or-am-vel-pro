@@ -36,6 +36,14 @@ export function AdminLandingPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [leadTempFilter, setLeadTempFilter] = useState("all");
+  const [leadOrigemFilter, setLeadOrigemFilter] = useState("all");
+
+  const filteredLeads = leads.filter((l) => {
+    if (leadTempFilter !== "all" && (l.lead_temperature || "morno") !== leadTempFilter) return false;
+    if (leadOrigemFilter !== "all" && (l.origem || "site") !== leadOrigemFilter) return false;
+    return true;
+  });
 
   const fetchData = useCallback(async () => {
     const [configRes, leadsRes] = await Promise.all([
