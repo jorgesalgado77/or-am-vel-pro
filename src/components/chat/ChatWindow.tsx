@@ -38,7 +38,7 @@ export function ChatWindow({
 
   const { typingUsers, onKeystroke, stopTyping } = useTypingIndicator(
     conversation.id,
-    conversation.userId || undefined,
+    userId,
     "Loja"
   );
   const scrollRef = useRef<HTMLDivElement>(null);

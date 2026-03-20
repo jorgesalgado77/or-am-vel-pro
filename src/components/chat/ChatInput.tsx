@@ -15,7 +15,7 @@ interface Props {
   onKeystroke?: () => void;
 }
 
-export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId }: Props) {
+export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke }: Props) {
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
