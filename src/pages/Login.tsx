@@ -269,15 +269,23 @@ export default function Login() {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase
+        const { data: tenant } = await supabase
           .from("tenants")
-          .select("nome, subtitulo")
+          .select("id, nome_loja")
           .eq("codigo_loja", digits)
           .maybeSingle();
-        if (!cancelled && data) {
-          setTenantInfo({ nome: data.nome || "", subtitulo: (data as any).subtitulo || "" });
-        } else if (!cancelled) {
-          setTenantInfo(null);
+        if (!tenant || cancelled) { if (!cancelled) setTenantInfo(null); return; }
+
+        const { data: cs } = await supabase
+          .from("company_settings")
+          .select("company_name, company_subtitle")
+          .eq("tenant_id", tenant.id)
+          .maybeSingle();
+
+        if (!cancelled) {
+          const nome = cs?.company_name || tenant.nome_loja || "";
+          const sub = cs?.company_subtitle || "";
+          setTenantInfo(nome ? { nome, subtitulo: sub } : null);
         }
       } catch {
         if (!cancelled) setTenantInfo(null);
