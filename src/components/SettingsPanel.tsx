@@ -87,13 +87,15 @@ function CompanySettingsTab() {
   const [uploading, setUploading] = useState(false);
   const [orcamentoInicial, setOrcamentoInicial] = useState(1);
 
-  // Mask: 999.999.999.99
+  // Mask: 999.999.999.99 (11 digits, 3 dots = 14 chars)
   const formatOrcamento = (value: number): string => {
     const str = String(value).replace(/\D/g, "").slice(0, 11);
-    if (str.length <= 2) return str;
-    if (str.length <= 5) return str.replace(/(\d+)(\d{2})$/, "$1.$2");
-    if (str.length <= 8) return str.replace(/(\d+)(\d{3})(\d{2})$/, "$1.$2.$3");
-    return str.replace(/(\d+)(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3.$4");
+    let result = "";
+    for (let i = 0; i < str.length; i++) {
+      if (i === 3 || i === 6 || i === 9) result += ".";
+      result += str[i];
+    }
+    return result;
   };
 
   const handleOrcamentoChange = (masked: string) => {
