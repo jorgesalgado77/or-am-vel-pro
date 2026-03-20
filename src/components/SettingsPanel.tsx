@@ -100,7 +100,7 @@ function CompanySettingsTab() {
 
   const handleOrcamentoChange = (masked: string) => {
     const raw = masked.replace(/\D/g, "").slice(0, 11);
-    setOrcamentoInicial(Number(raw) || 0);
+    setOrcamentoInicial(parseInt(raw, 10) || 0);
   };
   const [buscandoCep, setBuscandoCep] = useState(false);
 
@@ -121,7 +121,7 @@ function CompanySettingsTab() {
     setConfirmManagerPassword(settings.manager_password || "");
     setAdminPassword(settings.admin_password || "");
     setConfirmAdminPassword(settings.admin_password || "");
-    setOrcamentoInicial(settings.orcamento_numero_inicial || 1);
+    setOrcamentoInicial(Math.round(settings.orcamento_numero_inicial) || 1);
   }, [settings]);
 
   const buscarCepLoja = async () => {
@@ -164,7 +164,7 @@ function CompanySettingsTab() {
       budget_validity_days: validityDays,
       manager_password: managerPassword,
       admin_password: adminPassword,
-      orcamento_numero_inicial: orcamentoInicial,
+      orcamento_numero_inicial: Math.round(orcamentoInicial),
     } as any).eq("id", settings.id);
     setSaving(false);
     if (error) toast.error("Erro ao salvar");
