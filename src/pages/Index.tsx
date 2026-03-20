@@ -64,6 +64,7 @@ export default function Index() {
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const { unreadCount: unreadMessages } = useRealtimeMessages();
 
   const [activeView, setActiveView] = useState("dashboard");
