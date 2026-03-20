@@ -356,9 +356,10 @@ export function FinancialPanel() {
       </Card>
 
       <Tabs defaultValue="contas">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="contas">Contas a Pagar</TabsTrigger>
           <TabsTrigger value="folha">Folha de Pagamento</TabsTrigger>
+          <TabsTrigger value="previsao">📊 Previsão de Caixa</TabsTrigger>
           <TabsTrigger value="analise">Análise</TabsTrigger>
         </TabsList>
 
