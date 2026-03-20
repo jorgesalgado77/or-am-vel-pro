@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.followup-scheduler]
 verify_jwt = false
+
+[functions.followup-weekly-report]
+verify_jwt = false
