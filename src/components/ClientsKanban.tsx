@@ -415,6 +415,29 @@ export function ClientsKanban({
                                               </Badge>
                                             );
                                           })()}
+                                          {followUpStatus[client.id] && (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Badge
+                                                  variant="outline"
+                                                  className={cn(
+                                                    "text-[9px] h-4 px-1 font-medium gap-0.5",
+                                                    followUpStatus[client.id] === "active" && "border-emerald-400 text-emerald-600 bg-emerald-50",
+                                                    followUpStatus[client.id] === "paused" && "border-amber-400 text-amber-600 bg-amber-50",
+                                                    followUpStatus[client.id] === "completed" && "border-sky-400 text-sky-600 bg-sky-50",
+                                                  )}
+                                                >
+                                                  <Repeat className="h-2.5 w-2.5" />
+                                                  {followUpStatus[client.id] === "active" ? "FU" : followUpStatus[client.id] === "paused" ? "⏸" : "✓"}
+                                                </Badge>
+                                              </TooltipTrigger>
+                                              <TooltipContent side="top" className="text-xs">
+                                                {followUpStatus[client.id] === "active" && "Follow-up ativo"}
+                                                {followUpStatus[client.id] === "paused" && "Follow-up pausado"}
+                                                {followUpStatus[client.id] === "completed" && "Follow-up concluído"}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
                                         </div>
                                       </div>
                                       <div {...provided.dragHandleProps} className="opacity-0 group-hover:opacity-60 transition-opacity pt-0.5">
