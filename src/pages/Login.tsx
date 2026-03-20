@@ -284,7 +284,7 @@ export default function Login() {
               <p className="text-sm text-white/60 mt-3 leading-relaxed">{planBlocked.reason}</p>
             </div>
             <div className="space-y-3">
-              <Button className="w-full gap-2 h-11 sm:h-12 text-sm sm:text-base bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg" onClick={handleRenewPlan}>
+              <Button className="w-full gap-2 h-11 sm:h-12 text-sm sm:text-base bg-gradient-to-r from-primary to-[hsl(var(--primary)/0.85)] hover:from-[hsl(var(--primary)/0.9)] hover:to-primary shadow-lg" onClick={handleRenewPlan}>
                 <CreditCard className="h-5 w-5" />
                 Escolher novo plano
               </Button>
