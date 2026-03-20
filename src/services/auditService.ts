@@ -27,7 +27,10 @@ export type AuditAction =
   | "vendazap_trigger_sent"
   | "autopilot_ativado"
   | "autopilot_desativado"
-  | "autopilot_resposta_enviada";
+  | "autopilot_resposta_enviada"
+  | "followup_config_update"
+  | "followup_paused"
+  | "followup_resumed";
 
 export type AuditEntity =
   | "client"
@@ -39,7 +42,9 @@ export type AuditEntity =
   | "security"
   | "vendazap_trigger"
   | "vendazap"
-  | "tracking_messages";
+  | "tracking_messages"
+  | "followup_config"
+  | "followup_schedule";
 
 interface AuditLogInput {
   acao: AuditAction;

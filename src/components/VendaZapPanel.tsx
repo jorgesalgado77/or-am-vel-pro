@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
   RefreshCw, Zap, History, Send, ArrowLeft, Handshake,
-  Flame, Snowflake, ExternalLink, BookOpen, Lightbulb, X, Brain,
+  Flame, Snowflake, ExternalLink, BookOpen, Lightbulb, X, Brain, Calendar,
 } from "lucide-react";
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useVendaZap } from "@/hooks/useVendaZap";
@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const AutoPilotAnalyticsLazy = lazy(() => import("@/components/chat/AutoPilotAnalytics").then(m => ({ default: m.AutoPilotAnalytics })));
+const FollowUpPanelLazy = lazy(() => import("@/components/chat/FollowUpPanel").then(m => ({ default: m.FollowUpPanel })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -207,7 +208,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
       </div>
 
       <Tabs defaultValue="gerar" className="space-y-4">
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-6 w-full">
           <TabsTrigger value="gerar" className="gap-2"><Sparkles className="h-4 w-4" />Gerar</TabsTrigger>
           <TabsTrigger value="gatilhos" className="gap-2 relative">
             <Zap className="h-4 w-4" />Gatilhos
@@ -217,6 +218,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="followup" className="gap-2"><Calendar className="h-4 w-4" />Follow-Up</TabsTrigger>
           <TabsTrigger value="prontas" className="gap-2"><BookOpen className="h-4 w-4" />Copys</TabsTrigger>
           <TabsTrigger value="historico" className="gap-2"><History className="h-4 w-4" />Histórico</TabsTrigger>
           <TabsTrigger value="analytics" className="gap-2"><Brain className="h-4 w-4" />Analytics IA</TabsTrigger>
@@ -542,6 +544,12 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="followup">
+          <Suspense fallback={<div className="text-center py-8 text-sm text-muted-foreground">Carregando...</div>}>
+            <FollowUpPanelLazy tenantId={tenantId} userId={currentUser?.id} />
+          </Suspense>
         </TabsContent>
 
         {/* Copys Prontas Tab */}
