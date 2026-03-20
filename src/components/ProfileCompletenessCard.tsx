@@ -11,7 +11,7 @@ interface FieldCheck {
   category: "usuario" | "loja";
 }
 
-export function ProfileCompletenessCard() {
+export function ProfileCompletenessCard({ onOpenProfile }: { onOpenProfile?: () => void }) {
   const { user } = useAuth();
   const { settings } = useCompanySettings();
 
