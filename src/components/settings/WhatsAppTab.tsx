@@ -6,9 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle } from "lucide-react";
+import { Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle, Plus, Trash2, Edit } from "lucide-react";
+import { getTenantId } from "@/lib/tenantState";
 
 type WhatsAppProvider = "evolution" | "twilio";
 
@@ -26,6 +31,24 @@ interface WhatsAppSettings {
   enviar_notificacoes: boolean;
 }
 
+interface MessageTemplate {
+  id: string;
+  nome: string;
+  tipo: string;
+  conteudo: string;
+  ativo: boolean;
+  created_at: string;
+}
+
+const TEMPLATE_TYPES = [
+  { value: "orcamento", label: "Orçamento" },
+  { value: "contrato", label: "Contrato" },
+  { value: "cobranca", label: "Cobrança" },
+  { value: "acompanhamento", label: "Acompanhamento" },
+  { value: "boas_vindas", label: "Boas-vindas ao Cliente" },
+  { value: "outro", label: "Outro" },
+];
+
 export function WhatsAppTab() {
   const [settings, setSettings] = useState<WhatsAppSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +57,6 @@ export function WhatsAppTab() {
   const [showEvolutionKey, setShowEvolutionKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
 
-  // Form state
   const [provider, setProvider] = useState<WhatsAppProvider>("evolution");
   const [evolutionUrl, setEvolutionUrl] = useState("");
   const [evolutionKey, setEvolutionKey] = useState("");
@@ -46,13 +68,24 @@ export function WhatsAppTab() {
   const [enviarContrato, setEnviarContrato] = useState(true);
   const [enviarNotificacoes, setEnviarNotificacoes] = useState(true);
 
+  // Templates
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
+  const [tNome, setTNome] = useState("");
+  const [tTipo, setTTipo] = useState("orcamento");
+  const [tConteudo, setTConteudo] = useState("");
+  const [tAtivo, setTAtivo] = useState(true);
+
+  const tenantId = getTenantId();
+
   const fetchSettings = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("whatsapp_settings")
       .select("*")
       .limit(1)
       .maybeSingle();
-    
+
     if (data) {
       const s = data as unknown as WhatsAppSettings;
       setSettings(s);
@@ -66,22 +99,31 @@ export function WhatsAppTab() {
       setAtivo(s.ativo);
       setEnviarContrato(s.enviar_contrato);
       setEnviarNotificacoes(s.enviar_notificacoes);
-    } else if (!error) {
-      // Create default record if none exists
+    } else {
       const { data: created } = await supabase
         .from("whatsapp_settings")
         .insert({} as any)
         .select("*")
         .single();
-      if (created) {
-        const s = created as unknown as WhatsAppSettings;
-        setSettings(s);
-      }
+      if (created) setSettings(created as unknown as WhatsAppSettings);
     }
     setLoading(false);
   };
 
-  useEffect(() => { fetchSettings(); }, []);
+  const fetchTemplates = async () => {
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("tenant_message_templates" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false });
+    if (data) setTemplates(data as unknown as MessageTemplate[]);
+  };
+
+  useEffect(() => {
+    fetchSettings();
+    fetchTemplates();
+  }, []);
 
   const handleSave = async () => {
     if (!settings) return;
@@ -116,14 +158,9 @@ export function WhatsAppTab() {
           return;
         }
         const url = `${evolutionUrl.replace(/\/$/, "")}/instance/fetchInstances`;
-        const res = await fetch(url, {
-          headers: { apikey: evolutionKey },
-        });
-        if (res.ok) {
-          toast.success("Conexão com Evolution API estabelecida!");
-        } else {
-          toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
-        }
+        const res = await fetch(url, { headers: { apikey: evolutionKey } });
+        if (res.ok) toast.success("Conexão com Evolution API estabelecida!");
+        else toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
       } else {
         if (!twilioSid || !twilioToken) {
           toast.error("Preencha o Account SID e Auth Token do Twilio");
@@ -132,10 +169,47 @@ export function WhatsAppTab() {
         }
         toast.info("Para testar o Twilio, salve as configurações e envie uma mensagem de teste.");
       }
-    } catch (err) {
+    } catch {
       toast.error("Erro ao testar conexão. Verifique a URL e credenciais.");
     }
     setTesting(false);
+  };
+
+  // Template CRUD
+  const openNewTemplate = () => {
+    setEditingTemplate(null);
+    setTNome(""); setTTipo("orcamento"); setTConteudo(""); setTAtivo(true);
+    setShowTemplateDialog(true);
+  };
+
+  const openEditTemplate = (t: MessageTemplate) => {
+    setEditingTemplate(t);
+    setTNome(t.nome); setTTipo(t.tipo); setTConteudo(t.conteudo); setTAtivo(t.ativo);
+    setShowTemplateDialog(true);
+  };
+
+  const saveTemplate = async () => {
+    if (!tNome.trim() || !tConteudo.trim()) {
+      toast.error("Nome e conteúdo são obrigatórios");
+      return;
+    }
+    const payload = { nome: tNome.trim(), tipo: tTipo, conteudo: tConteudo.trim(), ativo: tAtivo, tenant_id: tenantId };
+    if (editingTemplate) {
+      const { error } = await supabase.from("tenant_message_templates" as any).update(payload as any).eq("id", editingTemplate.id);
+      if (error) toast.error("Erro ao atualizar"); else toast.success("Modelo atualizado!");
+    } else {
+      const { error } = await supabase.from("tenant_message_templates" as any).insert(payload as any);
+      if (error) toast.error("Erro ao criar"); else toast.success("Modelo criado!");
+    }
+    setShowTemplateDialog(false);
+    fetchTemplates();
+  };
+
+  const deleteTemplate = async (id: string) => {
+    if (!confirm("Excluir este modelo?")) return;
+    await supabase.from("tenant_message_templates" as any).delete().eq("id", id);
+    toast.success("Modelo excluído");
+    fetchTemplates();
   };
 
   if (loading) {
@@ -152,17 +226,9 @@ export function WhatsAppTab() {
               <MessageSquare className="h-5 w-5 text-primary" />
               Configuração do WhatsApp
             </CardTitle>
-            <div className="flex items-center gap-2">
-              {ativo ? (
-                <Badge variant="default" className="gap-1 bg-success text-success-foreground">
-                  <CheckCircle2 className="h-3 w-3" />Ativo
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="gap-1">
-                  <XCircle className="h-3 w-3" />Inativo
-                </Badge>
-              )}
-            </div>
+            <Badge variant={ativo ? "default" : "secondary"} className={`gap-1 ${ativo ? "bg-green-600 text-white" : ""}`}>
+              {ativo ? <><CheckCircle2 className="h-3 w-3" />Ativo</> : <><XCircle className="h-3 w-3" />Inativo</>}
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -179,31 +245,13 @@ export function WhatsAppTab() {
           <div>
             <Label className="text-sm font-medium mb-3 block">Provedor da API</Label>
             <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setProvider("evolution")}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  provider === "evolution"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/30"
-                }`}
-              >
+              <button onClick={() => setProvider("evolution")} className={`p-4 rounded-lg border-2 transition-all text-left ${provider === "evolution" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
                 <p className="font-semibold text-sm text-foreground">Evolution API</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  API gratuita e open-source para WhatsApp
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">API gratuita e open-source para WhatsApp</p>
               </button>
-              <button
-                onClick={() => setProvider("twilio")}
-                className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  provider === "twilio"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/30"
-                }`}
-              >
+              <button onClick={() => setProvider("twilio")} className={`p-4 rounded-lg border-2 transition-all text-left ${provider === "twilio" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
                 <p className="font-semibold text-sm text-foreground">Twilio</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Plataforma de comunicação em nuvem
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Plataforma de comunicação em nuvem</p>
               </button>
             </div>
           </div>
@@ -211,109 +259,54 @@ export function WhatsAppTab() {
       </Card>
 
       {/* Provider-specific settings */}
-      {provider === "evolution" ? (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Evolution API — Credenciais</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>URL da API</Label>
-              <Input
-                value={evolutionUrl}
-                onChange={(e) => setEvolutionUrl(e.target.value)}
-                placeholder="https://sua-evolution-api.com"
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                URL base do seu servidor Evolution API
-              </p>
-            </div>
-            <div>
-              <Label>API Key</Label>
-              <div className="relative mt-1">
-                <Input
-                  type={showEvolutionKey ? "text" : "password"}
-                  value={evolutionKey}
-                  onChange={(e) => setEvolutionKey(e.target.value)}
-                  placeholder="Sua chave de API"
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowEvolutionKey(!showEvolutionKey)}
-                >
-                  {showEvolutionKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">{provider === "evolution" ? "Evolution API — Credenciais" : "Twilio — Credenciais"}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {provider === "evolution" ? (
+            <>
+              <div>
+                <Label>URL da API</Label>
+                <Input value={evolutionUrl} onChange={(e) => setEvolutionUrl(e.target.value)} placeholder="https://sua-evolution-api.com" className="mt-1" />
               </div>
-            </div>
-            <div>
-              <Label>Nome da Instância</Label>
-              <Input
-                value={evolutionInstance}
-                onChange={(e) => setEvolutionInstance(e.target.value)}
-                placeholder="Ex: minha-instancia"
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Nome da instância configurada no Evolution API
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Twilio — Credenciais</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Account SID</Label>
-              <Input
-                value={twilioSid}
-                onChange={(e) => setTwilioSid(e.target.value)}
-                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Encontre no painel do Twilio em Account Info
-              </p>
-            </div>
-            <div>
-              <Label>Auth Token</Label>
-              <div className="relative mt-1">
-                <Input
-                  type={showTwilioToken ? "text" : "password"}
-                  value={twilioToken}
-                  onChange={(e) => setTwilioToken(e.target.value)}
-                  placeholder="Token de autenticação"
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowTwilioToken(!showTwilioToken)}
-                >
-                  {showTwilioToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+              <div>
+                <Label>API Key</Label>
+                <div className="relative mt-1">
+                  <Input type={showEvolutionKey ? "text" : "password"} value={evolutionKey} onChange={(e) => setEvolutionKey(e.target.value)} placeholder="Sua chave de API" className="pr-10" />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowEvolutionKey(!showEvolutionKey)}>
+                    {showEvolutionKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div>
-              <Label>Número de Telefone</Label>
-              <Input
-                value={twilioPhone}
-                onChange={(e) => setTwilioPhone(e.target.value)}
-                placeholder="+5511999999999"
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Número do WhatsApp Business cadastrado no Twilio (formato E.164)
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              <div>
+                <Label>Nome da Instância</Label>
+                <Input value={evolutionInstance} onChange={(e) => setEvolutionInstance(e.target.value)} placeholder="Ex: minha-instancia" className="mt-1" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <Label>Account SID</Label>
+                <Input value={twilioSid} onChange={(e) => setTwilioSid(e.target.value)} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" className="mt-1" />
+              </div>
+              <div>
+                <Label>Auth Token</Label>
+                <div className="relative mt-1">
+                  <Input type={showTwilioToken ? "text" : "password"} value={twilioToken} onChange={(e) => setTwilioToken(e.target.value)} placeholder="Token de autenticação" className="pr-10" />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowTwilioToken(!showTwilioToken)}>
+                    {showTwilioToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label>Número de Telefone</Label>
+                <Input value={twilioPhone} onChange={(e) => setTwilioPhone(e.target.value)} placeholder="+5511999999999" className="mt-1" />
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Features toggle */}
       <Card>
@@ -324,9 +317,7 @@ export function WhatsAppTab() {
           <div className="flex items-center justify-between">
             <div>
               <Label>Enviar Contrato por WhatsApp</Label>
-              <p className="text-xs text-muted-foreground">
-                Após fechar venda, oferecer opção de enviar o contrato PDF ao cliente
-              </p>
+              <p className="text-xs text-muted-foreground">Após fechar venda, oferecer opção de enviar o contrato PDF ao cliente</p>
             </div>
             <Switch checked={enviarContrato} onCheckedChange={setEnviarContrato} />
           </div>
@@ -334,9 +325,7 @@ export function WhatsAppTab() {
           <div className="flex items-center justify-between">
             <div>
               <Label>Notificações Automáticas</Label>
-              <p className="text-xs text-muted-foreground">
-                Enviar alertas de orçamento criado, vencimento próximo, etc.
-              </p>
+              <p className="text-xs text-muted-foreground">Enviar alertas de orçamento criado, vencimento próximo, etc.</p>
             </div>
             <Switch checked={enviarNotificacoes} onCheckedChange={setEnviarNotificacoes} />
           </div>
@@ -353,6 +342,115 @@ export function WhatsAppTab() {
           {saving ? "Salvando..." : "Salvar Configurações"}
         </Button>
       </div>
+
+      <Separator className="my-8" />
+
+      {/* Message Templates */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Modelos de Mensagens para Clientes
+            </CardTitle>
+            <Button size="sm" onClick={openNewTemplate} className="gap-2">
+              <Plus className="h-3 w-3" /> Novo Modelo
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Crie modelos de mensagens para orçamentos, contratos e comunicações com clientes.
+            Variáveis: {"{nome_cliente}"}, {"{valor}"}, {"{data}"}, {"{numero_orcamento}"}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-24">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {templates.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                    Nenhum modelo criado. Crie modelos para agilizar o envio de mensagens.
+                  </TableCell>
+                </TableRow>
+              ) : templates.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">{t.nome}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{TEMPLATE_TYPES.find((tt) => tt.value === t.tipo)?.label || t.tipo}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={t.ativo ? "default" : "secondary"}>{t.ativo ? "Ativo" : "Inativo"}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTemplate(t)}>
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteTemplate(t.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Template Dialog */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingTemplate ? "Editar Modelo" : "Novo Modelo de Mensagem"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome do Modelo</Label>
+              <Input value={tNome} onChange={(e) => setTNome(e.target.value)} placeholder="Ex: Envio de Orçamento" className="mt-1" />
+            </div>
+            <div>
+              <Label>Tipo</Label>
+              <Select value={tTipo} onValueChange={setTTipo}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_TYPES.map((tt) => (
+                    <SelectItem key={tt.value} value={tt.value}>{tt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Conteúdo da Mensagem</Label>
+              <p className="text-xs text-muted-foreground mb-1">
+                Use variáveis: {"{nome_cliente}"}, {"{valor}"}, {"{data}"}, {"{numero_orcamento}"}
+              </p>
+              <Textarea
+                value={tConteudo}
+                onChange={(e) => setTConteudo(e.target.value)}
+                placeholder={`Olá {nome_cliente}! 👋\n\nSegue seu orçamento nº {numero_orcamento}:\n💰 Valor: {valor}\n📅 Validade: {data}\n\nDúvidas? Estamos à disposição!`}
+                rows={8}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch checked={tAtivo} onCheckedChange={setTAtivo} />
+              <Label>Modelo ativo</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>Cancelar</Button>
+            <Button onClick={saveTemplate}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
