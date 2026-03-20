@@ -118,8 +118,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     valor_parcelas: 0,
   };
 
-  const [form, setFormState, clearForm] = usePersistedFormState<CloseSaleFormData>("close-sale-form", defaultForm);
-  const setForm = setFormState as unknown as React.Dispatch<React.SetStateAction<CloseSaleFormData>>;
+  const [form, updateForm, clearForm] = usePersistedFormState<CloseSaleFormData>("close-sale-form", defaultForm);
 
   const [items, setItems] = useState<SaleItem[]>([]);
   const [itemDetails, setItemDetails] = useState<SaleItemDetail[]>([]);
@@ -127,8 +126,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   // Prefill from client and simulation data
   useEffect(() => {
     if (!open) return;
-    setForm(prev => ({
-      ...prev,
+    updateForm({
       nome_completo: client?.nome || "",
       cpf_cnpj: client?.cpf ? maskCpfCnpj(client.cpf) : "",
       telefone: client?.telefone1 ? maskPhone(client.telefone1) : "",
@@ -139,11 +137,11 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       qtd_parcelas: simulationData?.parcelas || 1,
       valor_parcelas: simulationData?.valorParcela || 0,
       data_fechamento: format(new Date(), "yyyy-MM-dd"),
-    }));
+    });
   }, [open, client, simulationData]);
 
   const updateField = (field: keyof CloseSaleFormData, value: string | number) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+    updateForm({ [field]: value } as Partial<CloseSaleFormData>);
   };
 
   const fetchCep = async (cep: string, prefix: "" | "_entrega") => {
