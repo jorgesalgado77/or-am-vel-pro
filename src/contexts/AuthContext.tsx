@@ -290,14 +290,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSession(sess);
-    const appUser = await loadAppUser(sess.user);
+    console.log("[Auth] 🔄 loadFromSession: carregando usuário para auth UID:", sess.user.id, "email:", sess.user.email);
+
+    let appUser: AppUser | null = null;
+    try {
+      appUser = await Promise.race([
+        loadAppUser(sess.user),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+    } catch (e) {
+      console.warn("[Auth] ⚠️ loadAppUser falhou:", e);
+    }
 
     if (appUser) {
+      console.log("[Auth] ✅ Usuário carregado da sessão:", appUser.nome_completo);
       setUser(appUser);
       syncGlobalState(appUser);
     } else {
+      console.log("[Auth] ⚠️ Usuário não encontrado para sessão, fazendo signout...");
       setUser(null);
       syncGlobalState(null);
+      // Sign out invalid session to avoid infinite loading
+      await supabase.auth.signOut();
+      setSession(null);
     }
 
     setLoading(false);
