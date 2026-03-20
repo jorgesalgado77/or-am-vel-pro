@@ -253,6 +253,7 @@ export default function Index() {
             />
           )}
           <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
+          <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
         </div>
       </TenantPlanContext.Provider>
     </CurrentUserContext.Provider>
