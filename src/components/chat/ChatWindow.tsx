@@ -258,6 +258,9 @@ export function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
+      {/* Typing indicator */}
+      <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
+
       {/* AI Suggestion */}
       <ChatAISuggestion
         suggestion={aiSuggestion}
@@ -274,6 +277,7 @@ export function ChatWindow({
         onAttachmentSent={handleAttachmentSent}
         sending={sending}
         trackingId={conversation.id}
+        onKeystroke={onKeystroke}
       />
     </div>
   );
