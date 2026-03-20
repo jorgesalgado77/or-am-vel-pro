@@ -193,6 +193,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
             inputValue={inputValue}
             onInputChange={setInputValue}
             userId={userId}
+            tenantId={tenantId}
           />
         ) : (
           <div className="text-center p-8 text-muted-foreground">
