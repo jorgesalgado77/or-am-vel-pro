@@ -178,14 +178,17 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               )}
             </div>
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-col gap-0.5">
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onProfile}>
+              <UserCircle className="h-3.5 w-3.5" />Meu Perfil
+            </Button>
             {onChangePassword && (
-              <Button variant="ghost" size="sm" className="flex-1 gap-2 text-muted-foreground" onClick={onChangePassword}>
-                <KeyRound className="h-3 w-3" />Alterar Senha
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onChangePassword}>
+                <KeyRound className="h-3.5 w-3.5" />Alterar Senha
               </Button>
             )}
-            <Button variant="ghost" size="sm" className="flex-1 gap-2 text-muted-foreground" onClick={logout}>
-              <LogOut className="h-3 w-3" />Sair
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={logout}>
+              <LogOut className="h-3.5 w-3.5" />Sair
             </Button>
           </div>
         </div>
