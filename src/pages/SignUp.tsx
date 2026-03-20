@@ -155,6 +155,7 @@ export default function SignUp() {
         cargo_id: store.cargoId,
         nome_completo: trimmedEmail.split("@")[0],
         apelido: "Admin",
+        telefone: phoneDigits,
       });
 
       if (authError) {
