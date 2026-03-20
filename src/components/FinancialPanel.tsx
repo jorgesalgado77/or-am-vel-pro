@@ -573,11 +573,23 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
       </Card>
 
       <Tabs defaultValue="contas">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="contas">Contas a Pagar</TabsTrigger>
-          <TabsTrigger value="folha">Folha de Pagamento</TabsTrigger>
-          <TabsTrigger value="previsao">📊 Previsão de Caixa</TabsTrigger>
-          <TabsTrigger value="analise">Análise</TabsTrigger>
+        <TabsList className="flex-wrap gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="contas" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive data-[state=active]:shadow-sm gap-1.5">
+            <Wallet className="h-4 w-4" />
+            Contas a Pagar
+          </TabsTrigger>
+          <TabsTrigger value="folha" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm gap-1.5">
+            <Users className="h-4 w-4" />
+            Folha de Pagamento
+          </TabsTrigger>
+          <TabsTrigger value="previsao" className="data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-700 data-[state=active]:shadow-sm gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            Previsão de Caixa
+          </TabsTrigger>
+          <TabsTrigger value="analise" className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm gap-1.5">
+            <Brain className="h-4 w-4" />
+            Análise
+          </TabsTrigger>
         </TabsList>
 
         {/* === CONTAS === */}
