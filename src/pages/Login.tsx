@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { maskCodigoLoja, unmask } from "@/lib/masks";
 import { motion } from "framer-motion";
 import bannerOrcamovel from "@/assets/banner-orcamovel.png";
+import logoBranco from "@/assets/logo-banner-branco.png";
 
 interface PlanBlockInfo {
   reason: string;
@@ -339,8 +340,30 @@ export default function Login() {
           initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="w-full max-w-2xl space-y-8"
+          className="w-full max-w-2xl space-y-6"
         >
+          {/* Logo above the banner */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="flex justify-center"
+          >
+            <motion.img
+              src={logoBranco}
+              alt="OrçaMóvel PRO"
+              className="h-14 xl:h-16 w-auto drop-shadow-[0_0_25px_hsla(199,89%,60%,0.4)]"
+              animate={{ 
+                filter: [
+                  "drop-shadow(0 0 20px hsla(199,89%,60%,0.3))",
+                  "drop-shadow(0 0 35px hsla(199,89%,60%,0.5))",
+                  "drop-shadow(0 0 20px hsla(199,89%,60%,0.3))",
+                ]
+              }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </motion.div>
+
           {/* Banner image with glow and hover effects */}
           <motion.div
             className="relative group"
