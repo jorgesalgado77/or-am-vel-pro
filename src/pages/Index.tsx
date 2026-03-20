@@ -194,8 +194,13 @@ export default function Index() {
           <main className="flex-1 ml-60 p-6">
             <PlanBanner />
             <div className="mb-6">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+                {settings.codigo_loja && (
+                  <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-md font-mono tabular-nums">
+                    Cód. {settings.codigo_loja}
+                  </span>
+                )}
                 {activeView === "dashboard" && (
                   <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">{cargoLabel}</span>
                 )}
