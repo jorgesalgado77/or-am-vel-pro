@@ -43,6 +43,8 @@ export default function TenantLanding() {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [arquivos, setArquivos] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
