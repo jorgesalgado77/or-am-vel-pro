@@ -214,6 +214,13 @@ export function ChatWindow({
           </p>
         </div>
 
+        <CloseDealButton
+          trackingId={conversation.id}
+          clientName={conversation.nome_cliente}
+          tenantId={tenantId ?? null}
+          userId={userId}
+        />
+
         {onStartDealRoom && (
           <Button
             variant="outline"
