@@ -281,6 +281,10 @@ export function ChatWindow({
         sending={sending}
         trackingId={conversation.id}
         onKeystroke={onKeystroke}
+        quickReplies={quickReplies}
+        quickRepliesLoading={qrLoading}
+        onAddQuickReply={addQR}
+        onRemoveQuickReply={removeQR}
       />
     </div>
   );
