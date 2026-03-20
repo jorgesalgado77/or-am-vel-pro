@@ -476,16 +476,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 3. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
     if (error && shouldTryLegacyFallback(error)) {
       try {
-        const tenantIdFromCode = normalizedStoreCode.length === 6
-          ? await resolveTenantIdByStoreCode(normalizedStoreCode)
-          : null;
+        const tenantIdFromCode = resolvedTenantId;
 
         console.log("[Auth] 🔍 Código da loja resolvido para tenant_id:", tenantIdFromCode);
-
-        if (normalizedStoreCode.length === 6 && !tenantIdFromCode) {
-          console.log("[Auth] ❌ Código da loja não encontrado no banco");
-          return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
-        }
 
         const { data: legacyUsers } = await (supabase as any)
           .from("usuarios")
