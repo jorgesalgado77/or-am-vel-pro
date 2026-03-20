@@ -36,7 +36,6 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
     { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true, badge: null },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
     { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "configuracoes" as const, show: isAdmin, badge: null },
-    { id: "settings", label: "Configurações", icon: Settings, perm: "configuracoes" as const, show: isAdmin, badge: null },
     { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "configuracoes" as const, show: isAdmin, badge: null },
     { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "simulador" as const, show: true, badge: "ADD-ON" },
     { id: "vendazap-chat", label: "Chat Vendas", icon: MessageCircle, perm: "clientes" as const, show: true, badge: "ADD-ON" },
@@ -80,7 +79,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               )}
             </button>
           ))}
-        {/* Mensagens button */}
+        {/* Bottom section */}
         <div className="mt-auto pt-2 border-t border-border mx-1 space-y-0.5">
           <button
             onClick={() => onViewChange("messages")}
@@ -99,12 +98,33 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               </span>
             )}
           </button>
+          {isAdmin && hasPermission("configuracoes") && (
+            <button
+              onClick={() => onViewChange("settings")}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150",
+                activeView === "settings"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              )}
+            >
+              <Settings className="h-4 w-4" />
+              Configurações
+            </button>
+          )}
           <button
             onClick={onSupport}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors duration-150"
           >
             <LifeBuoy className="h-4 w-4" />
             Suporte
+          </button>
+          <button
+            onClick={async () => { await logout(); navigate("/"); }}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors duration-150"
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
           </button>
         </div>
       </nav>
@@ -183,9 +203,6 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
           <div className="flex flex-col gap-0.5">
             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onProfile}>
               <UserCircle className="h-3.5 w-3.5" />Meu Perfil
-            </Button>
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={async () => { await logout(); navigate("/"); }}>
-              <LogOut className="h-3.5 w-3.5" />Sair
             </Button>
           </div>
         </div>
