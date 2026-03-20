@@ -22,6 +22,7 @@ const UserProfileModal = lazy(() => import("@/components/UserProfileModal").then
 const DealRoomView = lazy(() => import("@/components/DealRoomView").then(m => ({ default: m.DealRoomView })));
 const FunnelPanel = lazy(() => import("@/components/FunnelPanel").then(m => ({ default: m.FunnelPanel })));
 const CampaignLibrary = lazy(() => import("@/components/CampaignLibrary").then(m => ({ default: m.CampaignLibrary })));
+const ReferralPanel = lazy(() => import("@/components/ReferralPanel").then(m => ({ default: m.ReferralPanel })));
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
