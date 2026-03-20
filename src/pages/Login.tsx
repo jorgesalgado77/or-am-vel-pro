@@ -267,7 +267,7 @@ export default function Login() {
   if (planBlocked) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(199,89%,15%)] via-[hsl(199,89%,25%)] to-[hsl(222,47%,11%)]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.6)] via-[hsl(var(--primary)/0.4)] to-foreground" />
         <canvas ref={canvasRef} className="absolute inset-0 z-[1] w-full h-full" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
