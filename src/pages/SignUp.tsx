@@ -281,8 +281,23 @@ export default function SignUp() {
                     <h1 className="text-xl sm:text-2xl font-bold text-white">Criar sua conta</h1>
                     <p className="text-xs sm:text-sm text-white/50 mt-1">Preencha os dados para começar</p>
                   </div>
-                </div>
+                  </div>
 
+                  <div className="space-y-1.5">
+                    <Label htmlFor="telefoneWhatsApp" className="text-xs sm:text-sm font-medium text-white/80">WhatsApp *</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                      <Input
+                        id="telefoneWhatsApp"
+                        type="tel"
+                        value={telefoneWhatsApp}
+                        onChange={(e) => setTelefoneWhatsApp(maskPhone(e.target.value))}
+                        placeholder="(99) 99999-9999"
+                        autoComplete="tel"
+                        className="pl-10 h-11 sm:h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all text-base"
+                      />
+                    </div>
+                  </div>
                 <form onSubmit={handleSignUp} className="space-y-3 sm:space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="email" className="text-xs sm:text-sm font-medium text-white/80">Email</Label>
