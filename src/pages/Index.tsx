@@ -114,7 +114,7 @@ export default function Index() {
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
   const storeName = settings.company_name || "OrçaMóvel PRO";
   const cargoLabel = authUser?.cargo_nome || "Usuário";
-  const currentTitle = activeView === "dashboard" ? `OrçaMóvel PRO - Dashboard` : viewMeta.title;
+  const currentTitle = activeView === "dashboard" ? `${storeName} - Dashboard` : viewMeta.title;
 
   // Greeting based on time of day
   const now = new Date();
