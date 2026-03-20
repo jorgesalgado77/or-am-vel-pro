@@ -22,6 +22,7 @@ import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
 import { ResendTab } from "@/components/settings/ResendTab";
 import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
 import { AuditLogsTab } from "@/components/settings/AuditLogsTab";
+import { CanvaIntegrationTab } from "@/components/settings/CanvaIntegrationTab";
 import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail } from "lucide-react";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 import { Switch } from "@/components/ui/switch";
