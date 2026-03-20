@@ -25,6 +25,7 @@ function getInitials(name: string) {
 }
 
 export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, onProfile, unreadMessages = 0, onlineUsers = [] }: AppSidebarProps) {
+  const navigate = useNavigate();
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
 
