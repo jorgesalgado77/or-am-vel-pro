@@ -257,11 +257,24 @@ async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: R
 
   const senhaHash = password ? await hashLegacyPassword(password) : null;
 
+  // If no cargo_id provided, try to find an admin cargo for this tenant
+  let cargoId = (metadata.cargo_id as string) || null;
+  if (!cargoId && metadata.tenant_id) {
+    const { data: adminCargo } = await supabase
+      .from("cargos")
+      .select("id")
+      .eq("tenant_id", metadata.tenant_id as string)
+      .ilike("nome", "%admin%")
+      .limit(1)
+      .maybeSingle();
+    if (adminCargo) cargoId = adminCargo.id;
+  }
+
   const basePayload = {
     nome_completo: (metadata.nome_completo as string) || authUser.email?.split("@")[0] || "Usuário",
     apelido: (metadata.apelido as string) || null,
     email: authUser.email?.trim().toLowerCase() || null,
-    cargo_id: (metadata.cargo_id as string) || null,
+    cargo_id: cargoId,
     tenant_id: metadata.tenant_id as string,
     telefone: (metadata.telefone as string) || null,
     primeiro_login: true,
