@@ -12,9 +12,10 @@ interface Props {
   onAttachmentSent: (url: string, name: string, tipo: string) => void;
   sending: boolean;
   trackingId: string;
+  onKeystroke?: () => void;
 }
 
-export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId }: Props) {
+export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke }: Props) {
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -132,7 +133,7 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
         {/* Text input */}
         <Textarea
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => { onChange(e.target.value); onKeystroke?.(); }}
           onKeyDown={handleKeyDown}
           placeholder="Digite uma mensagem..."
           className="min-h-[36px] max-h-[120px] resize-none text-sm flex-1"

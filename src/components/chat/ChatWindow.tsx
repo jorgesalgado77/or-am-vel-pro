@@ -6,11 +6,14 @@ import { toast } from "sonner";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { ChatAISuggestion } from "./ChatAISuggestion";
 import { ChatInput } from "./ChatInput";
+import { TypingIndicator } from "./TypingIndicator";
 import { TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
   conversation: ChatConversation;
+  userId?: string;
   onBack: () => void;
   onStartDealRoom?: () => void;
   aiSuggestion: string;
@@ -26,12 +29,18 @@ const PAGE_SIZE = 40;
 export function ChatWindow({
   conversation, onBack, onStartDealRoom,
   aiSuggestion, aiLoading, aiTipoCopy, onUseSuggestion,
-  inputValue, onInputChange,
+  inputValue, onInputChange, userId,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+
+  const { typingUsers, onKeystroke, stopTyping } = useTypingIndicator(
+    conversation.id,
+    userId,
+    "Loja"
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
@@ -120,6 +129,7 @@ export function ChatWindow({
   const handleSend = async () => {
     if (!inputValue.trim()) return;
     setSending(true);
+    stopTyping();
 
     const { error } = await supabase.from("tracking_messages").insert({
       tracking_id: conversation.id,
@@ -248,6 +258,9 @@ export function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
+      {/* Typing indicator */}
+      <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
+
       {/* AI Suggestion */}
       <ChatAISuggestion
         suggestion={aiSuggestion}
@@ -264,6 +277,7 @@ export function ChatWindow({
         onAttachmentSent={handleAttachmentSent}
         sending={sending}
         trackingId={conversation.id}
+        onKeystroke={onKeystroke}
       />
     </div>
   );
