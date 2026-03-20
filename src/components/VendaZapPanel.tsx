@@ -546,6 +546,12 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
           </Card>
         </TabsContent>
 
+        <TabsContent value="followup">
+          <Suspense fallback={<div className="text-center py-8 text-sm text-muted-foreground">Carregando...</div>}>
+            <FollowUpPanelLazy tenantId={tenantId} userId={currentUser?.id} />
+          </Suspense>
+        </TabsContent>
+
         {/* Copys Prontas Tab */}
         <TabsContent value="prontas" className="space-y-4">
           <Card>
