@@ -4,6 +4,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Send, Paperclip, Mic, Square, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { QuickRepliesPopover } from "./QuickRepliesPopover";
+import type { QuickReply } from "@/hooks/useQuickReplies";
 
 interface Props {
   value: string;
@@ -13,9 +15,13 @@ interface Props {
   sending: boolean;
   trackingId: string;
   onKeystroke?: () => void;
+  quickReplies?: QuickReply[];
+  quickRepliesLoading?: boolean;
+  onAddQuickReply?: (titulo: string, mensagem: string) => void;
+  onRemoveQuickReply?: (id: string) => void;
 }
 
-export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke }: Props) {
+export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke, quickReplies, quickRepliesLoading, onAddQuickReply, onRemoveQuickReply }: Props) {
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
