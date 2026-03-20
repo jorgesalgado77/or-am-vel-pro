@@ -178,10 +178,11 @@ export function CampaignLibrary() {
   return (
     <div className="space-y-6 max-w-5xl">
       <Tabs defaultValue="campanhas">
-        <TabsList className="h-auto gap-1">
+        <TabsList className="h-auto gap-1 flex-wrap">
           <TabsTrigger value="campanhas">📋 Campanhas Prontas</TabsTrigger>
           <TabsTrigger value="imagens">🖼️ Gerador de Imagens</TabsTrigger>
           <TabsTrigger value="ia">🤖 Criar com IA</TabsTrigger>
+          <TabsTrigger value="agenda">📅 Agendamento</TabsTrigger>
         </TabsList>
 
         <TabsContent value="campanhas" className="mt-4 space-y-4">
