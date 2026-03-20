@@ -56,11 +56,15 @@ async function resolveCargo(cargoId: string | null): Promise<{ cargo_nome: strin
     return { cargo_nome: null, permissoes: DEFAULT_PERMS };
   }
 
-  const { data: cargo } = await supabase
-    .from("cargos")
-    .select("nome, permissoes")
-    .eq("id", cargoId)
-    .maybeSingle();
+  const { data: cargo } = await withTimeout(
+    supabase
+      .from("cargos")
+      .select("nome, permissoes")
+      .eq("id", cargoId)
+      .maybeSingle(),
+    1200,
+    { data: null, error: null } as any,
+  );
 
   if (!cargo) {
     return { cargo_nome: null, permissoes: DEFAULT_PERMS };
@@ -93,6 +97,13 @@ async function mapAppUser(userRow: any, authUserId?: string | null): Promise<App
 function normalizeEmail(value: string | null | undefined): string | null {
   const normalized = value?.trim().toLowerCase();
   return normalized || null;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
 }
 
 function mapRpcAppUser(userRow: any, authUserId?: string | null): AppUser {
@@ -195,7 +206,11 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email" | "us
   for (const strategy of lookupStrategies) {
     if (!strategy?.query) continue;
 
-    const { data, error } = await strategy.query();
+    const { data, error } = await withTimeout(
+      strategy.query(),
+      1800,
+      { data: null, error: { message: `timeout_${strategy.label}` } } as any,
+    );
     const userList = Array.isArray(data) ? data : data ? [data] : [];
     const userRow = strategy.label === "email"
       ? userList.find((candidate) => normalizeEmail(candidate?.email) === normalizedEmail) ?? userList[0]
@@ -211,13 +226,17 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email" | "us
       const needsEmailNormalization = normalizedEmail && normalizeEmail(userRow.email) !== normalizedEmail;
 
       if (needsAuthLink || needsEmailNormalization) {
-        const { error: updateError } = await (supabase as any)
-          .from("usuarios")
-          .update({
-            ...(needsAuthLink ? { auth_user_id: authUser.id } : {}),
-            ...(needsEmailNormalization ? { email: normalizedEmail } : {}),
-          } as any)
-          .eq("id", userRow.id);
+        const { error: updateError } = await withTimeout(
+          (supabase as any)
+            .from("usuarios")
+            .update({
+              ...(needsAuthLink ? { auth_user_id: authUser.id } : {}),
+              ...(needsEmailNormalization ? { email: normalizedEmail } : {}),
+            } as any)
+            .eq("id", userRow.id),
+          1200,
+          { error: { message: "timeout_update_usuario" } } as any,
+        );
 
         if (updateError) {
           console.warn("[Auth] ⚠️ Não foi possível sincronizar vínculo do usuário:", updateError.message);
@@ -282,11 +301,15 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
   const candidates = Array.from(new Set([digits, maskedCode]));
 
   // Try direct query first
-  const { data, error } = await supabase
-    .from("tenants")
-    .select("id, codigo_loja")
-    .in("codigo_loja", candidates)
-    .limit(candidates.length);
+  const { data, error } = await withTimeout(
+    supabase
+      .from("tenants")
+      .select("id, codigo_loja")
+      .in("codigo_loja", candidates)
+      .limit(candidates.length),
+    1500,
+    { data: null, error: null } as any,
+  );
 
   if (error) {
     console.warn("[Auth] Tenant lookup error:", error.message);
@@ -297,7 +320,11 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
 
   // Fallback: try RPC if direct query returned nothing (RLS may block unauthenticated reads)
   try {
-    const { data: rpcData } = await (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode });
+    const { data: rpcData } = await withTimeout(
+      (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode }),
+      1200,
+      { data: null, error: null } as any,
+    );
     if (rpcData) return rpcData;
   } catch {
     // RPC may not exist yet
@@ -427,8 +454,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!appUser) {
         console.log("[Auth] 🛠️ Usuário não encontrado na sessão, tentando recriar/sincronizar perfil...");
-        await ensureUserProfile(sess.user, (sess.user.user_metadata as Record<string, unknown>) ?? undefined);
-        appUser = await loadAppUser(sess.user);
+        await withTimeout(
+          ensureUserProfile(sess.user, (sess.user.user_metadata as Record<string, unknown>) ?? undefined),
+          1200,
+          undefined,
+        );
+        appUser = await withTimeout(loadAppUser(sess.user), 1500, null);
       }
     } catch (e) {
       console.warn("[Auth] ⚠️ loadAppUser falhou:", e);
@@ -442,7 +473,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("[Auth] ⚠️ Usuário não encontrado para sessão, fazendo signout...");
       setUser(null);
       syncGlobalState(null);
-      await supabase.auth.signOut();
+      await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
       setSession(null);
     }
 
@@ -506,7 +537,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Retry tenant resolution after auth (RLS now allows authenticated reads)
       if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
-        resolvedTenantId = await resolveTenantIdByStoreCode(normalizedStoreCode);
+        resolvedTenantId = await withTimeout(resolveTenantIdByStoreCode(normalizedStoreCode), 1500, null);
         if (!resolvedTenantId) {
           console.log("[Auth] ❌ Tenant não encontrado mesmo após autenticação");
           return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
@@ -514,15 +545,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("[Auth] ✅ Tenant resolvido após autenticação:", resolvedTenantId);
       }
 
-      let appUser = await loadAppUser(authData.user);
+      let appUser = await withTimeout(loadAppUser(authData.user), 1500, null);
       if (!appUser) {
         console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
         const metadata = {
           ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
           ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
         };
-        await ensureUserProfile(authData.user, metadata, password);
-        appUser = await loadAppUser(authData.user);
+        await withTimeout(ensureUserProfile(authData.user, metadata, password), 1200, undefined);
+        appUser = await withTimeout(loadAppUser(authData.user), 1200, null);
 
         if (!appUser) {
           appUser = await buildFallbackUserFromAuth({
@@ -552,7 +583,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     // 1. Try Supabase Auth first
-    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    const { data, error } = await withTimeout(
+      supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
+      3500,
+      {
+        data: { user: null, session: null },
+        error: { message: "Tempo de login excedido. Tente novamente." },
+      } as any,
+    );
 
     if (!error && data.user) {
       console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail);
