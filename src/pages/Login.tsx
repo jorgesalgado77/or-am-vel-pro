@@ -12,8 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { maskCodigoLoja, unmask } from "@/lib/masks";
 import { motion } from "framer-motion";
-import bannerOrcamovel from "@/assets/banner-orcamovel.png";
-import logoBranco from "@/assets/logo-banner-branco.png";
+import bannerCompleto from "@/assets/banner-completo-orcamovel.png";
 
 interface PlanBlockInfo {
   reason: string;
@@ -342,49 +341,35 @@ export default function Login() {
           transition={{ duration: 0.8 }}
           className="w-full max-w-2xl space-y-6"
         >
-          {/* Logo above the banner */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex justify-center"
-          >
-            <motion.img
-              src={logoBranco}
-              alt="OrçaMóvel PRO"
-              className="h-14 xl:h-16 w-auto drop-shadow-[0_0_25px_hsla(199,89%,60%,0.4)]"
-              animate={{ 
-                filter: [
-                  "drop-shadow(0 0 20px hsla(199,89%,60%,0.3))",
-                  "drop-shadow(0 0 35px hsla(199,89%,60%,0.5))",
-                  "drop-shadow(0 0 20px hsla(199,89%,60%,0.3))",
-                ]
-              }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            />
-          </motion.div>
-
-          {/* Banner image with glow and hover effects */}
+          {/* Banner completo with glow and hover effects */}
           <motion.div
             className="relative group"
             whileHover={{ scale: 1.015 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
           >
-            {/* Glow behind image */}
-            <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-[hsl(199,89%,50%/0.25)] via-[hsl(160,84%,45%/0.2)] to-[hsl(199,89%,50%/0.25)] blur-2xl opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-[hsl(199,89%,50%/0.3)] via-[hsl(160,84%,45%/0.2)] to-[hsl(199,89%,50%/0.3)] blur-2xl opacity-50 group-hover:opacity-80 transition-opacity duration-700" />
 
-            <div className="relative overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/30">
+            <motion.div
+              className="relative overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/30"
+              animate={{
+                boxShadow: [
+                  "0 25px 50px -12px rgba(0,0,0,0.3), 0 0 30px hsla(199,89%,50%,0.1)",
+                  "0 25px 50px -12px rgba(0,0,0,0.3), 0 0 50px hsla(199,89%,50%,0.2)",
+                  "0 25px 50px -12px rgba(0,0,0,0.3), 0 0 30px hsla(199,89%,50%,0.1)",
+                ],
+              }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            >
               <img
-                src={bannerOrcamovel}
-                alt="OrçaMóvel PRO — Revolucione as vendas de móveis planejados"
+                src={bannerCompleto}
+                alt="OrçaMóvel PRO — Sistema de Vendas com I.A."
                 className="w-full h-auto object-contain"
               />
-              {/* Subtle shine sweep on hover */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
-            </div>
+            </motion.div>
           </motion.div>
 
-          {/* Stats row below the banner */}
+          {/* Stats row */}
           <div className="flex items-center justify-center gap-6 text-white/40 pt-2">
             {[
               { value: "+500", label: "Lojas ativas", color: "bg-[hsl(var(--accent))]" },
@@ -415,11 +400,7 @@ export default function Login() {
             {/* Header */}
             <div className="text-center space-y-2">
               <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
-                {settings.logo_url ? (
-                  <img src={settings.logo_url} alt="Logo" className="h-7 w-7 sm:h-8 sm:w-8 object-contain" />
-                ) : (
-                  <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
-                )}
+                <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{companyName}</h1>
