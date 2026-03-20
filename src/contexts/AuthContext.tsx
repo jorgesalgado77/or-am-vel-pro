@@ -205,19 +205,112 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const normalizedEmail = email.trim().toLowerCase();
-    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
-    if (error) return { user: null, error: error.message };
 
-    const appUser = await loadAppUser(data.user);
-    if (!appUser) {
-      return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
+    // 1. Try Supabase Auth first
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+
+    if (!error && data.user) {
+      const appUser = await loadAppUser(data.user);
+      if (!appUser) {
+        return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
+      }
+      setUser(appUser);
+      setSession(data.session);
+      syncGlobalState(appUser);
+      return { user: appUser, error: null };
     }
 
-    setUser(appUser);
-    setSession(data.session);
-    syncGlobalState(appUser);
+    // 2. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
+    if (error && error.message.toLowerCase().includes("invalid login credentials")) {
+      try {
+        const { data: legacyUsers } = await (supabase as any)
+          .from("usuarios")
+          .select("*")
+          .eq("email", normalizedEmail)
+          .limit(1);
 
-    return { user: appUser, error: null };
+        const legacyUser = Array.isArray(legacyUsers) ? legacyUsers[0] : null;
+
+        if (!legacyUser) {
+          return { user: null, error: "Invalid login credentials" };
+        }
+
+        // Verify password against stored hash via RPC
+        let passwordValid = false;
+        try {
+          const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: password }) as any;
+          if (hashResult && legacyUser.senha === hashResult) {
+            passwordValid = true;
+          }
+        } catch {
+          // If hash_password RPC doesn't exist, compare plain text
+          if (legacyUser.senha === password) {
+            passwordValid = true;
+          }
+        }
+
+        if (!passwordValid) {
+          return { user: null, error: "Invalid login credentials" };
+        }
+
+        // Password matches — migrate user to Supabase Auth
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: { data: { tenant_id: legacyUser.tenant_id } },
+        });
+
+        if (signUpError) {
+          console.warn("[Auth] Legacy migration signUp failed:", signUpError.message);
+          // Even if signup fails, build AppUser from legacy data
+          const appUser = await mapAppUser(legacyUser);
+          setUser(appUser);
+          syncGlobalState(appUser);
+          return { user: appUser, error: null };
+        }
+
+        // Confirm email automatically
+        if (signUpData.user) {
+          try {
+            await (supabase as any).rpc("confirm_user_email", { p_user_id: signUpData.user.id });
+          } catch { /* RPC may not exist */ }
+
+          // Update usuarios row with new auth_user_id
+          try {
+            await (supabase as any)
+              .from("usuarios")
+              .update({ id: signUpData.user.id, auth_user_id: signUpData.user.id })
+              .eq("email", normalizedEmail);
+          } catch { /* best effort */ }
+        }
+
+        // Try login again after migration
+        const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+
+        if (!retryError && retryData.user) {
+          const appUser = await loadAppUser(retryData.user);
+          if (appUser) {
+            setUser(appUser);
+            setSession(retryData.session);
+            syncGlobalState(appUser);
+            return { user: appUser, error: null };
+          }
+        }
+
+        // Final fallback: return legacy user without session
+        const appUser = await mapAppUser(legacyUser);
+        setUser(appUser);
+        syncGlobalState(appUser);
+        return { user: appUser, error: null };
+      } catch (fallbackErr) {
+        console.error("[Auth] Legacy fallback failed:", fallbackErr);
+      }
+    }
+
+    return { user: null, error: error?.message || "Erro desconhecido" };
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, metadata?: Record<string, unknown>) => {
