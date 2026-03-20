@@ -366,7 +366,7 @@ export default function Login() {
             {[
               { value: "+500", label: "Lojas ativas", color: "bg-[hsl(var(--accent))]" },
               { value: "98%", label: "Satisfação", color: "bg-[hsl(var(--primary))]" },
-              { value: "24/7", label: "Suporte", color: "bg-accent" },
+              { value: "24/7", label: "Suporte", color: "bg-[hsl(160,84%,60%)]" },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <p className="text-2xl font-bold text-white">{stat.value}</p>
