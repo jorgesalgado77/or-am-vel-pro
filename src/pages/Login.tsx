@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { maskCodigoLoja, unmask } from "@/lib/masks";
 import { motion } from "framer-motion";
+import bannerOrcamovel from "@/assets/banner-orcamovel.png";
 
 interface PlanBlockInfo {
   reason: string;
@@ -333,32 +334,35 @@ export default function Login() {
       )}
 
       {/* Left decorative panel — desktop only */}
-      <div className="hidden lg:flex lg:w-1/2 relative z-10 items-center justify-center p-12">
+      <div className="hidden lg:flex lg:w-[55%] relative z-10 items-center justify-center p-8 xl:p-12">
         <motion.div
           initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-center space-y-8"
+          className="w-full max-w-2xl space-y-8"
         >
-          <div className="relative mx-auto w-28 h-28">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] opacity-20 blur-xl animate-pulse" />
-            <div className="relative w-28 h-28 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-              {settings.logo_url ? (
-                <img src={settings.logo_url} alt="Logo" className="h-14 w-14 object-contain" />
-              ) : (
-                <Store className="h-14 w-14 text-white" />
-              )}
+          {/* Banner image with glow and hover effects */}
+          <motion.div
+            className="relative group"
+            whileHover={{ scale: 1.015 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          >
+            {/* Glow behind image */}
+            <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-[hsl(199,89%,50%/0.25)] via-[hsl(160,84%,45%/0.2)] to-[hsl(199,89%,50%/0.25)] blur-2xl opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+
+            <div className="relative overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/30">
+              <img
+                src={bannerOrcamovel}
+                alt="OrçaMóvel PRO — Revolucione as vendas de móveis planejados"
+                className="w-full h-auto object-contain"
+              />
+              {/* Subtle shine sweep on hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
             </div>
-          </div>
-          <div className="space-y-4">
-            <h2 className="text-4xl font-bold text-white tracking-tight">
-              Gerencie suas vendas com inteligência
-            </h2>
-            <p className="text-lg text-white/60 max-w-sm mx-auto leading-relaxed">
-              Simulações, contratos e acompanhamento — tudo em um só lugar.
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-6 text-white/40">
+          </motion.div>
+
+          {/* Stats row below the banner */}
+          <div className="flex items-center justify-center gap-6 text-white/40 pt-2">
             {[
               { value: "+500", label: "Lojas ativas", color: "bg-[hsl(var(--accent))]" },
               { value: "98%", label: "Satisfação", color: "bg-[hsl(var(--primary))]" },
@@ -377,7 +381,7 @@ export default function Login() {
       </div>
 
       {/* Right login panel — scrollable on all screens */}
-      <div className="flex-1 relative z-10 flex items-start lg:items-center justify-center overflow-y-auto py-6 px-4 sm:px-6">
+      <div className="flex-1 lg:w-[45%] relative z-10 flex items-start lg:items-center justify-center overflow-y-auto py-6 px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
