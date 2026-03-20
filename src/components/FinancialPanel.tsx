@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -13,17 +13,18 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { toast } from "sonner";
-import { format, addDays, isPast, isAfter, isBefore } from "date-fns";
+import { format, addDays, isPast, isAfter, isBefore, eachDayOfInterval, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/financing";
 import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2,
   Save, Pencil, X, Search, RefreshCw, Receipt, Users, Target,
-  ArrowUpRight, ArrowDownRight, CalendarDays, Bell, CheckCircle2
+  ArrowUpRight, ArrowDownRight, CalendarDays, Bell, CheckCircle2,
+  Brain, Sparkles, Loader2
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
+  PieChart, Pie, Cell, LineChart, Line, Area, AreaChart, ReferenceLine, Legend
 } from "recharts";
 
 interface FinancialAccount {
@@ -81,6 +82,11 @@ export function FinancialPanel() {
   const [payrollFixed, setPayrollFixed] = useState<PayrollFixed[]>([]);
   const [commissions, setCommissions] = useState<PayrollCommission[]>([]);
   const [faturamento, setFaturamento] = useState(0);
+
+  // AI Forecast state
+  const [aiAnalysis, setAiAnalysis] = useState<string>("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [forecastCache, setForecastCache] = useState<{ data: any[]; timestamp: number } | null>(null);
 
   const fetchData = async () => {
     if (!tenantId) return;
@@ -189,6 +195,68 @@ export function FinancialPanel() {
     return Object.entries(cats).map(([name, value]) => ({ name, value }));
   }, [accounts]);
 
+  // === CASH FLOW FORECAST ===
+  const forecastData = useMemo(() => {
+    if (forecastCache && Date.now() - forecastCache.timestamp < 300000) return forecastCache.data;
+
+    const today = new Date();
+    const days = eachDayOfInterval({ start: today, end: addDays(today, 30) });
+    let saldoAcumulado = faturamento - totalContasPagar;
+
+    const dailyRevenue = faturamento / 30;
+    const dailyCosts = (contasFixas + totalFolha) / 30;
+
+    const data = days.map(day => {
+      const dayStr = format(day, "yyyy-MM-dd");
+      const dayAccounts = accounts.filter(a => a.due_date === dayStr && a.status !== "pago");
+      const dayCost = dayAccounts.reduce((sum, a) => sum + a.amount, 0) || dailyCosts;
+      
+      saldoAcumulado += dailyRevenue - dayCost;
+      
+      return {
+        dia: format(day, "dd/MM"),
+        entradas: Math.round(dailyRevenue),
+        saidas: Math.round(dayCost),
+        saldo: Math.round(saldoAcumulado),
+      };
+    });
+
+    setForecastCache({ data, timestamp: Date.now() });
+    return data;
+  }, [accounts, faturamento, contasFixas, totalFolha, totalContasPagar]);
+
+  const saldoFinal30d = forecastData.length > 0 ? forecastData[forecastData.length - 1].saldo : 0;
+  const diasNegativo = forecastData.filter(d => d.saldo < 0).length;
+
+  const handleAIAnalysis = useCallback(async () => {
+    setAiLoading(true);
+    try {
+      const resumo = `
+Faturamento mensal: ${formatCurrency(faturamento)}
+Custos fixos: ${formatCurrency(contasFixas)}
+Folha total: ${formatCurrency(totalFolha)}
+Ponto de equilíbrio: ${formatCurrency(breakEven)}
+Resultado atual: ${formatCurrency(lucroEstimado)}
+Contas vencidas: ${contasVencidas.length}
+Contas a vencer (7 dias): ${contasAVencer7d.length}
+Total a pagar: ${formatCurrency(totalContasPagar)}
+Saldo projetado 30 dias: ${formatCurrency(saldoFinal30d)}
+Dias com saldo negativo projetado: ${diasNegativo}
+Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.value)}`).join(", ")}
+      `.trim();
+
+      const { data, error } = await supabase.functions.invoke("cashflow-ai", {
+        body: { resumo_financeiro: resumo },
+      });
+      if (error) throw error;
+      setAiAnalysis(data.analise || "Sem análise disponível.");
+    } catch (err: any) {
+      console.error("AI analysis error:", err);
+      toast.error("Erro ao gerar análise de IA");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [faturamento, contasFixas, totalFolha, breakEven, lucroEstimado, contasVencidas, contasAVencer7d, totalContasPagar, saldoFinal30d, diasNegativo, categoryData]);
   // CRUD
   const handleSave = async () => {
     if (!form.name.trim() || form.amount <= 0) {
@@ -355,9 +423,10 @@ export function FinancialPanel() {
       </Card>
 
       <Tabs defaultValue="contas">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="contas">Contas a Pagar</TabsTrigger>
           <TabsTrigger value="folha">Folha de Pagamento</TabsTrigger>
+          <TabsTrigger value="previsao">📊 Previsão de Caixa</TabsTrigger>
           <TabsTrigger value="analise">Análise</TabsTrigger>
         </TabsList>
 
@@ -529,6 +598,129 @@ export function FinancialPanel() {
                   })}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        {/* === PREVISÃO DE CAIXA === */}
+        <TabsContent value="previsao" className="mt-4 space-y-4">
+          {/* KPI row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${saldoFinal30d >= 0 ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                  {saldoFinal30d >= 0 ? <TrendingUp className="h-5 w-5 text-green-600" /> : <TrendingDown className="h-5 w-5 text-red-600" />}
+                </div>
+                <div>
+                  <p className={`text-lg font-bold ${saldoFinal30d >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(saldoFinal30d)}</p>
+                  <p className="text-xs text-muted-foreground">Saldo em 30 dias</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${diasNegativo > 0 ? "bg-red-500/10" : "bg-green-500/10"}`}>
+                  <AlertTriangle className={`h-5 w-5 ${diasNegativo > 0 ? "text-red-600" : "text-green-600"}`} />
+                </div>
+                <div>
+                  <p className={`text-lg font-bold ${diasNegativo > 0 ? "text-red-600" : "text-green-600"}`}>{diasNegativo}</p>
+                  <p className="text-xs text-muted-foreground">Dias no Vermelho</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <ArrowUpRight className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{formatCurrency(faturamento / 30)}</p>
+                  <p className="text-xs text-muted-foreground">Entrada Diária Média</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <ArrowDownRight className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{formatCurrency((contasFixas + totalFolha) / 30)}</p>
+                  <p className="text-xs text-muted-foreground">Saída Diária Média</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Alert banner */}
+          {diasNegativo > 0 && (
+            <Card className="border-red-300 bg-red-50 dark:bg-red-950/30">
+              <CardContent className="p-4 flex items-center gap-3">
+                <Bell className="h-5 w-5 text-red-600 animate-pulse" />
+                <div>
+                  <p className="font-semibold text-red-800 dark:text-red-300 text-sm">⚠️ Alerta de Caixa Negativo</p>
+                  <p className="text-xs text-red-600/80">Seu saldo ficará negativo em {diasNegativo} dos próximos 30 dias. Revise suas contas ou aumente o faturamento.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Forecast chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Previsão de Saldo — Próximos 30 Dias</CardTitle>
+              <CardDescription className="text-xs">Baseado em receitas e despesas projetadas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={forecastData}>
+                    <defs>
+                      <linearGradient id="saldoGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="dia" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Legend />
+                    <ReferenceLine y={0} stroke="hsl(0, 70%, 50%)" strokeDasharray="3 3" label="Zero" />
+                    <Area type="monotone" dataKey="saldo" name="Saldo Projetado" stroke="hsl(var(--primary))" fill="url(#saldoGrad)" strokeWidth={2} />
+                    <Line type="monotone" dataKey="entradas" name="Entradas" stroke="hsl(142, 71%, 45%)" strokeWidth={1.5} dot={false} />
+                    <Line type="monotone" dataKey="saidas" name="Saídas" stroke="hsl(0, 70%, 50%)" strokeWidth={1.5} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Analysis */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-sm">Análise Inteligente (IA)</CardTitle>
+                </div>
+                <Button size="sm" onClick={handleAIAnalysis} disabled={aiLoading} className="gap-1.5">
+                  {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {aiLoading ? "Analisando..." : "Gerar Análise"}
+                </Button>
+              </div>
+              <CardDescription className="text-xs">Diagnóstico, alertas e sugestões com inteligência artificial</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {aiAnalysis ? (
+                <div className="prose prose-sm max-w-none dark:prose-invert text-sm whitespace-pre-wrap leading-relaxed">
+                  {aiAnalysis}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Brain className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                  <p className="text-sm">Clique em "Gerar Análise" para obter um diagnóstico financeiro completo com IA</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

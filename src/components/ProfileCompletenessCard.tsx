@@ -71,30 +71,30 @@ export function ProfileCompletenessCard({ onOpenProfile, onOpenSettings }: Props
 
   return (
     <Card
-      className="border-primary/20 bg-primary/5 mb-4 cursor-pointer hover:shadow-md transition-shadow"
+      className="border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800/50 mb-4 cursor-pointer hover:shadow-lg hover:shadow-red-200/40 transition-all duration-200"
       onClick={handleClick}
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <div className="h-9 w-9 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0">
             {percentage >= 70 ? (
-              <CheckCircle2 className="h-5 w-5 text-primary" />
+              <CheckCircle2 className="h-5 w-5 text-red-600" />
             ) : (
-              <AlertTriangle className="h-5 w-5 text-primary" />
+              <AlertTriangle className="h-5 w-5 text-red-600 animate-pulse" />
             )}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="text-sm font-semibold text-foreground">
+              <span className="text-sm font-semibold text-red-800 dark:text-red-300">
                 Perfil {percentage}% completo
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-red-600/70 dark:text-red-400/70">
                 {filledCount}/{totalCount} campos
               </span>
             </div>
 
-            <Progress value={percentage} className="h-2 mb-2" />
+            <Progress value={percentage} className="h-2 mb-2 bg-red-200 dark:bg-red-900 [&>div]:bg-red-500" />
 
             {missingFields.length > 0 && (
               <div className="space-y-1.5">
