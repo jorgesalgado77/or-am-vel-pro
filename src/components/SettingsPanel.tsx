@@ -152,7 +152,6 @@ function CompanySettingsTab() {
     const { error } = await supabase.from("company_settings").update({
       company_name: name,
       company_subtitle: subtitle,
-      codigo_loja: codigoLoja.trim() || null,
       cnpj_loja: cnpjLoja.trim() || null,
       endereco_loja: enderecoLoja.trim() || null,
       bairro_loja: bairroLoja.trim() || null,
