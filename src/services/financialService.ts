@@ -66,8 +66,8 @@ export async function generateOrcamentoNumber(): Promise<{
     nextSeq = (maxData.numero_orcamento_seq as number) + 1;
   }
 
-  const padded = String(nextSeq).padStart(9, "0");
-  const formatted = `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}`;
+  const padded = String(nextSeq).padStart(11, "0");
+  const formatted = `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}.${padded.slice(9, 11)}`;
   return { numero_orcamento: formatted, numero_orcamento_seq: nextSeq };
 }
 
