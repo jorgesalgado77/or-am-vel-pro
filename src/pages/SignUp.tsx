@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { provisionNewStore, createUsuarioProfile, checkEmailExists } from "@/lib/accountProvisioning";
+import { sendWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 import { FirstAccessCredentialsCard } from "@/components/auth/FirstAccessCredentialsCard";
 
 interface CreatedAccountState {
