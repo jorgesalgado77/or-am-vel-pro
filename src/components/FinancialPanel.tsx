@@ -236,7 +236,7 @@ export function FinancialPanel() {
 
   const resetForm = () => setForm({
     name: "", description: "", amount: 0, due_date: format(new Date(), "yyyy-MM-dd"),
-    status: "pendente", is_fixed: false, recurrence_type: "", category: ""
+    status: "pendente" as "pendente" | "pago" | "atrasado", is_fixed: false, recurrence_type: "", category: ""
   });
 
   const startEdit = (acc: FinancialAccount) => {
