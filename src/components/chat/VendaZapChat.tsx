@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
+import { useAutoPilot } from "@/hooks/useAutoPilot";
 import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
+import { AutoPilotPanel } from "./AutoPilotPanel";
 import type { ChatConversation } from "./types";
 
 interface Props {
@@ -20,24 +22,37 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const conversationsRef = useRef<ChatConversation[]>([]);
 
   const { addon } = useVendaZap(tenantId);
+  const addonConfig = addon ? {
+    ativo: addon.ativo,
+    prompt_sistema: addon.prompt_sistema,
+    api_provider: addon.api_provider,
+    openai_model: addon.openai_model,
+    max_tokens_mensagem: addon.max_tokens_mensagem,
+  } : null;
+
   const { suggestion, loading: aiLoading, tipoCopy, generate, clear, markUsed } = useAutoSuggestion({
     tenantId,
-    addon: addon ? {
-      ativo: addon.ativo,
-      prompt_sistema: addon.prompt_sistema,
-      api_provider: addon.api_provider,
-      openai_model: addon.openai_model,
-      max_tokens_mensagem: addon.max_tokens_mensagem,
-    } : null,
+    addon: addonConfig,
     userId,
   });
+
+  const {
+    settings: autoPilotSettings,
+    isActive: autoPilotActive,
+    toggle: toggleAutoPilot,
+    updateSettings: updateAutoPilotSettings,
+    processMessage: autoPilotProcess,
+  } = useAutoPilot({ tenantId, userId, addon: addonConfig });
+
+  // Keep ref updated for use in realtime callback
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
 
-    // Get all trackings with messages
     const { data: trackings } = await supabase
       .from("client_tracking")
       .select("id, numero_contrato, nome_cliente")
@@ -45,7 +60,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     if (!trackings) { setLoading(false); return; }
 
-    // Unread counts
     const { data: unreadData } = await supabase
       .from("tracking_messages")
       .select("tracking_id")
@@ -57,7 +71,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       unreadMap[m.tracking_id] = (unreadMap[m.tracking_id] || 0) + 1;
     });
 
-    // Get last messages
     const { data: lastMsgs } = await supabase
       .from("tracking_messages")
       .select("tracking_id, mensagem, created_at")
@@ -83,7 +96,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         last_message_at: lastMsgMap[t.id]?.at,
       }))
       .sort((a, b) => {
-        // Unread first, then by last message
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
         if (b.unread_count > 0 && a.unread_count === 0) return 1;
         return (b.last_message_at || "").localeCompare(a.last_message_at || "");
@@ -93,22 +105,19 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     setLoading(false);
   }, [tenantId]);
 
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+  useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
-  // Realtime: refresh list on new client messages
+  // Realtime: new client messages → notify + auto-pilot
   useEffect(() => {
     const channel = supabase
       .channel("vendazap-chat-list")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "tracking_messages" },
-        (payload) => {
+        async (payload) => {
           const msg = payload.new as any;
           if (msg.remetente_tipo === "cliente") {
-            // Find conversation to get temperature for differentiated sound
-            const conv = conversations.find((c) => c.id === msg.tracking_id);
+            const conv = conversationsRef.current.find((c) => c.id === msg.tracking_id);
             playLeadNotificationSound(conv?.lead_temperature);
 
             if (!selected || selected.id !== msg.tracking_id) {
@@ -118,6 +127,33 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 duration: conv?.lead_temperature === "quente" ? 8000 : 4000,
               });
             }
+
+            // AUTO-PILOT: process the message automatically
+            if (autoPilotActive && conv) {
+              // Get recent messages for context
+              const { data: recentMsgs } = await supabase
+                .from("tracking_messages")
+                .select("mensagem, remetente_tipo")
+                .eq("tracking_id", msg.tracking_id)
+                .order("created_at", { ascending: false })
+                .limit(8);
+
+              const result = await autoPilotProcess(
+                msg.tracking_id,
+                msg.mensagem || "",
+                conv.nome_cliente,
+                conv.lead_temperature,
+                ((recentMsgs as any[]) || []).reverse()
+              );
+
+              if (result) {
+                toast.success(`🤖 Auto-Pilot respondeu ${conv.nome_cliente}`, {
+                  description: `Intenção: ${result.intencao} | ${result.tokensUsed} tokens`,
+                  duration: 5000,
+                });
+              }
+            }
+
             fetchConversations();
           }
         }
@@ -125,9 +161,9 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selected, fetchConversations, conversations]);
+  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess]);
 
-  // AI auto-suggestion with debounce when conversation is selected
+  // AI auto-suggestion with debounce
   const triggerAI = useCallback((conv: ChatConversation) => {
     if (!addon?.ativo) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -149,8 +185,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     setInputValue("");
     clear();
     triggerAI(conv);
-
-    // Mark as read locally
     setConversations((prev) =>
       prev.map((c) => (c.id === conv.id ? { ...c, unread_count: 0 } : c))
     );
@@ -169,7 +203,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
   return (
     <div className="flex h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
-      {/* Conversation list - hidden on mobile when chat is open */}
+      {/* Conversation list */}
       <div className={`w-72 shrink-0 ${selected ? "hidden md:flex md:flex-col" : "flex flex-col w-full md:w-72"}`}>
         <ChatConversationList
           conversations={conversations}
@@ -182,19 +216,27 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       {/* Chat window */}
       <div className={`flex-1 ${selected ? "flex flex-col" : "hidden md:flex md:flex-col md:items-center md:justify-center"}`}>
         {selected ? (
-          <ChatWindow
-            conversation={selected}
-            onBack={() => { setSelected(null); clear(); fetchConversations(); }}
-            onStartDealRoom={onDealRoom ? handleDealRoom : undefined}
-            aiSuggestion={suggestion}
-            aiLoading={aiLoading}
-            aiTipoCopy={tipoCopy}
-            onUseSuggestion={handleUseSuggestion}
-            inputValue={inputValue}
-            onInputChange={setInputValue}
-            userId={userId}
-            tenantId={tenantId}
-          />
+          <>
+            <AutoPilotPanel
+              settings={autoPilotSettings}
+              isActive={autoPilotActive}
+              onToggle={toggleAutoPilot}
+              onUpdateSettings={updateAutoPilotSettings}
+            />
+            <ChatWindow
+              conversation={selected}
+              onBack={() => { setSelected(null); clear(); fetchConversations(); }}
+              onStartDealRoom={onDealRoom ? handleDealRoom : undefined}
+              aiSuggestion={suggestion}
+              aiLoading={aiLoading}
+              aiTipoCopy={tipoCopy}
+              onUseSuggestion={handleUseSuggestion}
+              inputValue={inputValue}
+              onInputChange={setInputValue}
+              userId={userId}
+              tenantId={tenantId}
+            />
+          </>
         ) : (
           <div className="text-center p-8 text-muted-foreground">
             <p className="text-lg font-medium mb-1">VendaZap AI Chat</p>
