@@ -346,6 +346,82 @@ export function WhatsAppTab() {
 
       <Separator className="my-8" />
 
+      {/* Webhook Bot Configuration */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bot className="h-5 w-5 text-primary" />
+            Webhook do Bot de Captação
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Configure o webhook para receber mensagens do WhatsApp automaticamente e qualificar leads.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground">URL do Webhook (copie e cole no seu provedor)</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                readOnly
+                value={`${window.location.origin.replace('localhost:8080', 'bdhfzjuwtkiexyeusnqq.supabase.co')}/functions/v1/whatsapp-bot`}
+                className="font-mono text-xs bg-muted"
+              />
+              <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin.replace('localhost:8080', 'bdhfzjuwtkiexyeusnqq.supabase.co')}/functions/v1/whatsapp-bot`);
+                toast.success("URL copiada!");
+              }}>
+                <Copy className="h-3.5 w-3.5" /> Copiar
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <h4 className="text-sm font-medium flex items-center gap-1.5"><Info className="h-4 w-4 text-primary" /> Como integrar</h4>
+            <ol className="space-y-2 text-xs text-muted-foreground">
+              <li className="flex gap-2">
+                <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-bold">1</span>
+                <span><strong>Evolution API:</strong> Vá em Configurações da Instância → Webhook → Cole a URL acima → Ative eventos de mensagem recebida</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-bold">2</span>
+                <span><strong>Twilio:</strong> Vá no Console Twilio → Messaging → Settings → Webhook URL → Cole a URL acima como "When a message comes in"</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-bold">3</span>
+                <span>Adicione o parâmetro <code className="bg-muted px-1 rounded">tenant_id</code> no body ou configure no painel do provedor para identificar sua loja</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="flex-shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] flex items-center justify-center font-bold">4</span>
+                <span>O bot irá automaticamente: perguntar nome → ambiente → orçamento → salvar como lead qualificado</span>
+              </li>
+            </ol>
+          </div>
+
+          <div className="bg-primary/5 rounded-lg p-3">
+            <p className="text-xs text-muted-foreground">
+              <strong>Payload esperado (JSON):</strong>
+            </p>
+            <pre className="text-[10px] font-mono mt-1 text-muted-foreground overflow-x-auto">{`{
+  "phone": "5511999999999",
+  "message": "Olá, quero um orçamento",
+  "tenant_id": "${tenantId || 'SEU_TENANT_ID'}"
+}`}</pre>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator className="my-8" />
+
+      {/* Bot Monitor */}
+      <div>
+        <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+          <Bot className="h-5 w-5 text-primary" /> Monitoramento do Bot
+        </h3>
+        <WhatsAppBotMonitor />
+      </div>
+
+      <Separator className="my-8" />
+
       {/* Message Templates */}
       <Card>
         <CardHeader className="pb-3">
