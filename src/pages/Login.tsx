@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,12 @@ export default function Login() {
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Particle animation effect
+  // Detect low-end device for reduced effects
+  const isMobile = useMemo(() => typeof window !== "undefined" && window.innerWidth < 768, []);
+  const particleCount = isMobile ? 20 : 60;
+  const connectionDistance = isMobile ? 80 : 120;
+
+  // Particle animation — lightweight for mobile
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -43,10 +48,9 @@ export default function Login() {
 
     let animId: number;
     const particles: { x: number; y: number; vx: number; vy: number; r: number; o: number }[] = [];
-    const count = 60;
 
     const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap DPR for perf
       canvas.width = canvas.offsetWidth * dpr;
       canvas.height = canvas.offsetHeight * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -54,7 +58,7 @@ export default function Login() {
     resize();
     window.addEventListener("resize", resize);
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < particleCount; i++) {
       particles.push({
         x: Math.random() * canvas.offsetWidth,
         y: Math.random() * canvas.offsetHeight,
@@ -84,18 +88,21 @@ export default function Login() {
         ctx.fill();
       }
 
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `hsla(199,89%,60%,${0.08 * (1 - dist / 120)})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
+      // Connection lines — skip on very small screens for perf
+      if (!isMobile || particleCount <= 25) {
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < connectionDistance) {
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `hsla(199,89%,60%,${0.08 * (1 - dist / connectionDistance)})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
           }
         }
       }
@@ -108,7 +115,7 @@ export default function Login() {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [particleCount, connectionDistance, isMobile]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,29 +238,29 @@ export default function Login() {
 
   if (planBlocked) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(199,89%,15%)] via-[hsl(199,89%,25%)] to-[hsl(222,47%,11%)]" />
-        <canvas ref={canvasRef} className="absolute inset-0 z-[1]" />
+        <canvas ref={canvasRef} className="absolute inset-0 z-[1] w-full h-full" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4 }}
           className="w-full max-w-md relative z-10 p-4"
         >
-          <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl shadow-black/20 p-8 text-center space-y-6">
-            <div className="mx-auto h-20 w-20 rounded-full bg-destructive/20 flex items-center justify-center">
-              <AlertTriangle className="h-10 w-10 text-red-400" />
+          <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl shadow-black/20 p-6 sm:p-8 text-center space-y-5">
+            <div className="mx-auto h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-destructive/20 flex items-center justify-center">
+              <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 text-red-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Acesso Bloqueado</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-white">Acesso Bloqueado</h1>
               <p className="text-sm text-white/60 mt-3 leading-relaxed">{planBlocked.reason}</p>
             </div>
             <div className="space-y-3">
-              <Button className="w-full gap-2 h-12 text-base bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg" onClick={handleRenewPlan}>
+              <Button className="w-full gap-2 h-11 sm:h-12 text-sm sm:text-base bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg" onClick={handleRenewPlan}>
                 <CreditCard className="h-5 w-5" />
                 Escolher novo plano
               </Button>
-              <Button variant="outline" className="w-full gap-2 h-11 border-white/20 text-white hover:bg-white/10" asChild>
+              <Button variant="outline" className="w-full gap-2 h-10 sm:h-11 border-white/20 text-white hover:bg-white/10" asChild>
                 <a href="mailto:suporte@orcamovel.com.br">
                   <Headphones className="h-4 w-4" />
                   Contatar suporte técnico
@@ -270,38 +277,35 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden">
+    <div className="min-h-[100dvh] flex flex-col lg:flex-row relative overflow-hidden">
       {/* Dark gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[hsl(199,89%,15%)] via-[hsl(199,89%,25%)] to-[hsl(222,47%,11%)]" />
 
       {/* Particle canvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 z-[1]" />
+      <canvas ref={canvasRef} className="absolute inset-0 z-[1] w-full h-full" />
 
-      {/* Mesh gradient blobs */}
-      <div className="absolute inset-0 z-[2] pointer-events-none">
-        <motion.div
-          animate={{ x: [0, 60, -40, 0], y: [0, -50, 30, 0], scale: [1, 1.2, 0.9, 1] }}
-          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[hsl(199,89%,40%/0.18)] rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ x: [0, -70, 50, 0], y: [0, 40, -60, 0], scale: [1, 0.85, 1.15, 1] }}
-          transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[hsl(160,84%,39%/0.12)] rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ x: [0, 40, -30, 0], y: [0, -30, 50, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[40%] left-[30%] w-[350px] h-[350px] bg-[hsl(260,70%,50%/0.08)] rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ x: [0, -50, 30, 0], y: [0, 60, -40, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[20%] right-[20%] w-[250px] h-[250px] bg-[hsl(199,89%,60%/0.1)] rounded-full blur-2xl"
-        />
-      </div>
+      {/* Mesh gradient blobs — hidden on mobile for perf */}
+      {!isMobile && (
+        <div className="absolute inset-0 z-[2] pointer-events-none">
+          <motion.div
+            animate={{ x: [0, 60, -40, 0], y: [0, -50, 30, 0], scale: [1, 1.2, 0.9, 1] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[hsl(199,89%,40%/0.18)] rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{ x: [0, -70, 50, 0], y: [0, 40, -60, 0], scale: [1, 0.85, 1.15, 1] }}
+            transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[hsl(160,84%,39%/0.12)] rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{ x: [0, 40, -30, 0], y: [0, -30, 50, 0] }}
+            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[40%] left-[30%] w-[350px] h-[350px] bg-[hsl(260,70%,50%/0.08)] rounded-full blur-3xl"
+          />
+        </div>
+      )}
 
-      {/* Left decorative panel */}
+      {/* Left decorative panel — desktop only */}
       <div className="hidden lg:flex lg:w-1/2 relative z-10 items-center justify-center p-12">
         <motion.div
           initial={{ opacity: 0, x: -40 }}
@@ -345,34 +349,34 @@ export default function Login() {
         </motion.div>
       </div>
 
-      {/* Right login panel */}
-      <div className="flex-1 flex items-center justify-center relative z-10 p-6">
+      {/* Right login panel — scrollable on all screens */}
+      <div className="flex-1 relative z-10 flex items-start lg:items-center justify-center overflow-y-auto py-6 px-4 sm:px-6">
         <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="w-full max-w-md"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="w-full max-w-md my-auto"
         >
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-8 space-y-6">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-5 sm:p-8 space-y-5">
             {/* Header */}
-            <div className="text-center space-y-3">
-              <div className="lg:hidden mx-auto w-16 h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
+            <div className="text-center space-y-2">
+              <div className="lg:hidden mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
                 {settings.logo_url ? (
-                  <img src={settings.logo_url} alt="Logo" className="h-8 w-8 object-contain" />
+                  <img src={settings.logo_url} alt="Logo" className="h-7 w-7 sm:h-8 sm:w-8 object-contain" />
                 ) : (
-                  <Store className="h-8 w-8 text-white" />
+                  <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
                 )}
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">{companyName}</h1>
-                <p className="text-sm text-white/50 mt-1">{companySubtitle}</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-white">{companyName}</h1>
+                <p className="text-xs sm:text-sm text-white/50 mt-1">{companySubtitle}</p>
               </div>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="codigoLoja" className="text-sm font-medium text-white/80">
+            <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="codigoLoja" className="text-xs sm:text-sm font-medium text-white/80">
                   Código da Loja
                 </Label>
                 <div className="relative">
@@ -385,14 +389,14 @@ export default function Login() {
                     onChange={(e) => setCodigoLoja(maskCodigoLoja(e.target.value))}
                     placeholder="000.000"
                     maxLength={7}
-                    className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all"
+                    className="pl-10 h-11 sm:h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all text-base"
                     autoComplete="off"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium text-white/80">
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs sm:text-sm font-medium text-white/80">
                   Email
                 </Label>
                 <div className="relative">
@@ -403,14 +407,14 @@ export default function Login() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu@email.com"
-                    className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all"
+                    className="pl-10 h-11 sm:h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all text-base"
                     autoComplete="email"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="senha" className="text-sm font-medium text-white/80">
+              <div className="space-y-1.5">
+                <Label htmlFor="senha" className="text-xs sm:text-sm font-medium text-white/80">
                   Senha
                 </Label>
                 <div className="relative">
@@ -422,7 +426,7 @@ export default function Login() {
                     onChange={(e) => setSenha(e.target.value)}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    className="pl-10 pr-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all"
+                    className="pl-10 pr-10 h-11 sm:h-12 bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-[hsl(var(--primary))] focus:ring-[hsl(var(--primary)/0.3)] rounded-xl transition-all text-base"
                   />
                   <button
                     type="button"
@@ -448,7 +452,7 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 rounded-xl text-base font-semibold gap-2 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg shadow-[hsl(var(--primary)/0.3)] transition-all duration-300 hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.4)] hover:scale-[1.02]"
+                className="w-full h-11 sm:h-12 rounded-xl text-sm sm:text-base font-semibold gap-2 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg shadow-[hsl(var(--primary)/0.3)] transition-all duration-300 hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.4)] active:scale-[0.97]"
               >
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -473,7 +477,7 @@ export default function Login() {
             <div className="space-y-2">
               <Button
                 variant="outline"
-                className="w-full gap-2 h-11 rounded-xl border-white/15 text-white/80 hover:bg-white/10 hover:text-white bg-transparent transition-colors"
+                className="w-full gap-2 h-10 sm:h-11 rounded-xl border-white/15 text-white/80 hover:bg-white/10 hover:text-white bg-transparent transition-colors text-sm"
                 onClick={() => navigate("/signup")}
               >
                 <UserPlus className="h-4 w-4" />
@@ -481,7 +485,7 @@ export default function Login() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full gap-2 border-emerald-400/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 hover:border-emerald-400/70 transition-all duration-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                className="w-full gap-2 h-10 sm:h-11 rounded-xl border-emerald-400/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 hover:border-emerald-400/70 transition-all duration-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.15)] text-sm"
                 onClick={() => setShowTracking(true)}
               >
                 <Search className="h-4 w-4" />
@@ -491,15 +495,10 @@ export default function Login() {
           </div>
 
           {/* Security badge */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="flex items-center justify-center gap-2 mt-6 text-white/25 text-xs"
-          >
+          <div className="flex items-center justify-center gap-2 mt-4 sm:mt-6 text-white/25 text-xs pb-2">
             <Lock className="h-3 w-3" />
             Conexão protegida · {companyName} © 2026
-          </motion.div>
+          </div>
         </motion.div>
       </div>
 
@@ -507,38 +506,38 @@ export default function Login() {
 
       {/* Forgot Password Dialog */}
       {showForgotPassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm mx-4 backdrop-blur-xl bg-[#0f1d32]/95 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4"
+            className="w-full max-w-sm backdrop-blur-xl bg-[#0f1d32]/95 border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="text-center space-y-1">
-              <Mail className="h-10 w-10 text-[hsl(var(--primary))] mx-auto" />
-              <h3 className="text-lg font-bold text-white">Recuperar Senha</h3>
+              <Mail className="h-8 w-8 sm:h-10 sm:w-10 text-[hsl(var(--primary))] mx-auto" />
+              <h3 className="text-base sm:text-lg font-bold text-white">Recuperar Senha</h3>
               <p className="text-white/40 text-xs">Informe seu email para receber o link de redefinição</p>
             </div>
             <div className="space-y-2">
-              <Label className="text-white/70 text-sm">Email</Label>
+              <Label className="text-white/70 text-xs sm:text-sm">Email</Label>
               <Input
                 type="email"
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
                 placeholder="seu@email.com"
-                className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/25 rounded-xl focus:border-[hsl(var(--primary))]"
+                className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/25 rounded-xl focus:border-[hsl(var(--primary))] text-base"
               />
             </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                className="flex-1 border-white/15 text-white/60 hover:bg-white/10 bg-transparent rounded-xl"
+                className="flex-1 h-10 sm:h-11 border-white/15 text-white/60 hover:bg-white/10 bg-transparent rounded-xl text-sm"
                 onClick={() => { setShowForgotPassword(false); setForgotEmail(""); }}
               >
                 Cancelar
               </Button>
               <Button
                 disabled={forgotLoading || !forgotEmail}
-                className="flex-1 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] font-semibold"
+                className="flex-1 h-10 sm:h-11 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] font-semibold text-sm"
                 onClick={async () => {
                   setForgotLoading(true);
                   try {
