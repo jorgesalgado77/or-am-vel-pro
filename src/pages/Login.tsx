@@ -414,9 +414,7 @@ export default function Login() {
             {/* Header */}
             <div className="text-center space-y-2">
               <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
-                {settings.logo_url ? (
-                  <img src={settings.logo_url} alt="Logo" className="h-7 w-7 sm:h-8 sm:w-8 object-contain" />
-                ) : (
+                <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
                   <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
                 )}
               </div>
