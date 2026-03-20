@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle, Bot, Video } from "lucide-react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -14,6 +14,7 @@ interface AppSidebarProps {
   onViewChange: (view: string) => void;
   onChangePassword?: () => void;
   onSupport?: () => void;
+  onProfile?: () => void;
   unreadMessages?: number;
   onlineUsers?: OnlineUser[];
 }
@@ -22,7 +23,7 @@ function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }
 
-export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, unreadMessages = 0, onlineUsers = [] }: AppSidebarProps) {
+export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, onProfile, unreadMessages = 0, onlineUsers = [] }: AppSidebarProps) {
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
 
@@ -177,14 +178,17 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
               )}
             </div>
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-col gap-0.5">
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onProfile}>
+              <UserCircle className="h-3.5 w-3.5" />Meu Perfil
+            </Button>
             {onChangePassword && (
-              <Button variant="ghost" size="sm" className="flex-1 gap-2 text-muted-foreground" onClick={onChangePassword}>
-                <KeyRound className="h-3 w-3" />Alterar Senha
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onChangePassword}>
+                <KeyRound className="h-3.5 w-3.5" />Alterar Senha
               </Button>
             )}
-            <Button variant="ghost" size="sm" className="flex-1 gap-2 text-muted-foreground" onClick={logout}>
-              <LogOut className="h-3 w-3" />Sair
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={logout}>
+              <LogOut className="h-3.5 w-3.5" />Sair
             </Button>
           </div>
         </div>

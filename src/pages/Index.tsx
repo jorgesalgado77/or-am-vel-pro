@@ -16,6 +16,7 @@ import { PlanBanner } from "@/components/PlanBanner";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { VendaZapPanel } from "@/components/VendaZapPanel";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
+import { UserProfileModal } from "@/components/UserProfileModal";
 import { DealRoomView } from "@/components/DealRoomView";
 import Login from "@/pages/Login";
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
@@ -63,6 +64,7 @@ export default function Index() {
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const { unreadCount: unreadMessages } = useRealtimeMessages();
 
   const [activeView, setActiveView] = useState("dashboard");
@@ -166,6 +168,7 @@ export default function Index() {
             onViewChange={handleViewChange}
             onChangePassword={() => setShowChangePassword(true)}
             onSupport={() => setShowSupport(true)}
+            onProfile={() => setShowProfile(true)}
             unreadMessages={unreadMessages}
             onlineUsers={onlineUsers}
           />
@@ -250,6 +253,7 @@ export default function Index() {
             />
           )}
           <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
+          <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
         </div>
       </TenantPlanContext.Provider>
     </CurrentUserContext.Provider>

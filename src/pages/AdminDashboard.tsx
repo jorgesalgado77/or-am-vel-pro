@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminVendaZap } from "@/components/admin/AdminVendaZap";
@@ -22,6 +22,7 @@ import { AdminDealRoom } from "@/components/admin/AdminDealRoom";
 import { AdminPlans } from "@/components/admin/AdminPlans";
 import { AdminWhatsAppConfig } from "@/components/admin/AdminWhatsAppConfig";
 import { AdminResendConfig } from "@/components/admin/AdminResendConfig";
+import { AdminLoginDiagnostics } from "@/components/admin/AdminLoginDiagnostics";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -339,6 +340,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <TabsTrigger value="vendazap" className="gap-2"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
             <TabsTrigger value="whatsapp" className="gap-2"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
             <TabsTrigger value="resend" className="gap-2"><Mail className="h-4 w-4" />Resend</TabsTrigger>
+            <TabsTrigger value="diagnostics" className="gap-2"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
           </TabsList>
 
           {/* TAB: Lojas */}
@@ -498,6 +500,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           {/* TAB: Resend Admin */}
           <TabsContent value="resend">
             <AdminResendConfig />
+          </TabsContent>
+
+          {/* TAB: Login Diagnostics */}
+          <TabsContent value="diagnostics">
+            <AdminLoginDiagnostics />
           </TabsContent>
         </Tabs>
       </main>
