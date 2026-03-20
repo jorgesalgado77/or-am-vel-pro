@@ -74,7 +74,7 @@ export function FinancialPanel() {
   // Form state
   const [form, setForm] = useState({
     name: "", description: "", amount: 0, due_date: format(new Date(), "yyyy-MM-dd"),
-    status: "pendente" as const, is_fixed: false, recurrence_type: "", category: ""
+    status: "pendente" as "pendente" | "pago" | "atrasado", is_fixed: false, recurrence_type: "", category: ""
   });
 
   // Payroll data
