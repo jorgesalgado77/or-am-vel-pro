@@ -118,6 +118,21 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Pr
     }
 
     if (userRow) {
+      // If found by email but ID doesn't match auth UID, try to update the ID
+      if (strategy.column === "email" && userRow.id !== authUser.id) {
+        console.log("[Auth] 🔄 Atualizando usuarios.id para corresponder ao auth UID:", authUser.id);
+        const { error: updateError } = await (supabase as any)
+          .from("usuarios")
+          .update({ id: authUser.id } as any)
+          .eq("id", userRow.id);
+
+        if (updateError) {
+          console.warn("[Auth] ⚠️ Não foi possível atualizar ID do usuário:", updateError.message);
+          // Still return the user with old ID — better than failing completely
+        } else {
+          userRow.id = authUser.id;
+        }
+      }
       return mapAppUser(userRow, authUser.id);
     }
   }
@@ -275,14 +290,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSession(sess);
-    const appUser = await loadAppUser(sess.user);
+    console.log("[Auth] 🔄 loadFromSession: carregando usuário para auth UID:", sess.user.id, "email:", sess.user.email);
+
+    let appUser: AppUser | null = null;
+    try {
+      appUser = await Promise.race([
+        loadAppUser(sess.user),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+    } catch (e) {
+      console.warn("[Auth] ⚠️ loadAppUser falhou:", e);
+    }
 
     if (appUser) {
+      console.log("[Auth] ✅ Usuário carregado da sessão:", appUser.nome_completo);
       setUser(appUser);
       syncGlobalState(appUser);
     } else {
+      console.log("[Auth] ⚠️ Usuário não encontrado para sessão, fazendo signout...");
       setUser(null);
       syncGlobalState(null);
+      // Sign out invalid session to avoid infinite loading
+      await supabase.auth.signOut();
+      setSession(null);
     }
 
     setLoading(false);
@@ -326,15 +356,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     if (!error && data.user) {
+      console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail);
       return finalizeLogin(data);
     }
 
-    // 2. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
+    console.log("[Auth] ⚠️ Login direto falhou:", error?.code, error?.message, "| Tentando fallback legado...");
+
+    // 2. If email_not_confirmed, try to confirm and retry BEFORE legacy fallback
+    if (error && isEmailNotConfirmedError(error)) {
+      console.log("[Auth] 📧 Email não confirmado — tentando buscar usuário e confirmar...");
+
+      // Look up user by email in usuarios to get their ID for confirm RPC
+      const { data: emailUsers } = await (supabase as any)
+        .from("usuarios")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .limit(5);
+
+      const emailUserList = Array.isArray(emailUsers) ? emailUsers : emailUsers ? [emailUsers] : [];
+
+      for (const eu of emailUserList) {
+        console.log("[Auth] 📧 Tentando confirmar email para user id:", eu.id);
+        const result = await attemptConfirmedLogin(eu.id, normalizedEmail, password);
+        if (result) {
+          console.log("[Auth] ✅ Login após confirmação de email bem-sucedido para:", normalizedEmail);
+          return finalizeLogin(result);
+        }
+      }
+
+      // Also try with the email itself as user ID (some schemas use auth UUID directly)
+      try {
+        // Try to get auth user ID from admin API or just attempt confirm with a direct signUp approach
+        const { data: signUpRetry, error: signUpRetryErr } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+
+        if (signUpRetryErr && isAlreadyRegisteredError(signUpRetryErr)) {
+          console.log("[Auth] 📧 Usuário já registrado, tentando confirmar via lista de IDs conhecidos...");
+        }
+
+        if (signUpRetry?.user) {
+          console.log("[Auth] 📧 Confirmando email do auth user:", signUpRetry.user.id);
+          const result = await attemptConfirmedLogin(signUpRetry.user.id, normalizedEmail, password);
+          if (result) {
+            console.log("[Auth] ✅ Login após re-signup e confirmação bem-sucedido");
+            return finalizeLogin(result);
+          }
+        }
+      } catch (e) {
+        console.warn("[Auth] ⚠️ Tentativa de re-signup falhou:", e);
+      }
+
+      console.log("[Auth] ⚠️ Não foi possível confirmar email automaticamente");
+    }
+
+    // 3. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
     if (error && shouldTryLegacyFallback(error)) {
       try {
         const tenantIdFromCode = normalizedStoreCode.length === 6
           ? await resolveTenantIdByStoreCode(normalizedStoreCode)
           : null;
+
+        console.log("[Auth] 🔍 Código da loja resolvido para tenant_id:", tenantIdFromCode);
+
+        if (normalizedStoreCode.length === 6 && !tenantIdFromCode) {
+          console.log("[Auth] ❌ Código da loja não encontrado no banco");
+          return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
+        }
 
         const { data: legacyUsers } = await (supabase as any)
           .from("usuarios")
@@ -343,23 +433,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .limit(10);
 
         const legacyList = Array.isArray(legacyUsers) ? legacyUsers : legacyUsers ? [legacyUsers] : [];
+
+        console.log("[Auth] 🔍 Usuários encontrados com email", normalizedEmail, ":", legacyList.length);
+
+        if (legacyList.length === 0) {
+          return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
+        }
+
         const legacyUser = legacyList.find((candidate) => {
           if (!tenantIdFromCode) return true;
           return candidate.tenant_id === tenantIdFromCode;
         }) ?? legacyList[0] ?? null;
 
         if (!legacyUser) {
-          return { user: null, error: "Invalid login credentials" };
+          return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
         }
 
+        if (tenantIdFromCode && legacyUser.tenant_id !== tenantIdFromCode) {
+          console.log("[Auth] ❌ Usuário existe mas não pertence à loja informada. tenant esperado:", tenantIdFromCode, "| tenant do usuário:", legacyUser.tenant_id);
+          return { user: null, error: "Este email não está vinculado ao código da loja informado." };
+        }
+
+        console.log("[Auth] 👤 Usuário legado encontrado:", legacyUser.id, legacyUser.nome_completo, "| tenant:", legacyUser.tenant_id);
+
         if (isEmailNotConfirmedError(error)) {
+          console.log("[Auth] 📧 Tentando confirmar email e relogar...");
           const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
           if (confirmedLogin) {
+            console.log("[Auth] ✅ Login após confirmação de email bem-sucedido");
             return finalizeLogin(confirmedLogin);
           }
+          console.log("[Auth] ⚠️ Confirmação de email falhou, continuando fluxo legado...");
         }
 
         if (legacyUser.ativo === false) {
+          console.log("[Auth] ❌ Usuário inativo:", legacyUser.id);
           return { user: null, error: "Usuário inativo" };
         }
 
@@ -439,10 +547,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!passwordValid) {
-          return { user: null, error: "Invalid login credentials" };
+          console.log("[Auth] ❌ Senha inválida para usuário legado:", legacyUser.id);
+          return { user: null, error: "Senha incorreta. Verifique sua senha e tente novamente." };
         }
 
         // Password matches — migrate user to Supabase Auth
+        console.log("[Auth] 🔄 Senha válida, migrando usuário para Supabase Auth...");
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
