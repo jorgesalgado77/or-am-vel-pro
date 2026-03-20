@@ -1,0 +1,257 @@
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Copy, ExternalLink, Eye, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks } from "lucide-react";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface FunnelConfig {
+  headline: string;
+  sub_headline: string;
+  cta_text: string;
+  primary_color: string;
+  benefits: string[];
+}
+
+const DEFAULT_CONFIG: FunnelConfig = {
+  headline: "Ganhe seu Projeto 3D Gratuito",
+  sub_headline: "",
+  cta_text: "Solicite seu Projeto 3D Grátis",
+  primary_color: "hsl(199,89%,48%)",
+  benefits: [
+    "Projeto 3D gratuito e sem compromisso",
+    "Atendimento personalizado por especialista",
+    "Orçamento detalhado em até 24h",
+    "Melhores condições de pagamento",
+  ],
+};
+
+export function FunnelPanel() {
+  const { settings } = useCompanySettings();
+  const { user } = useAuth();
+  const [config, setConfig] = useState<FunnelConfig>(DEFAULT_CONFIG);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [newBenefit, setNewBenefit] = useState("");
+
+  const codigoLoja = settings.codigo_loja || "";
+  const publicUrl = codigoLoja
+    ? `${window.location.origin}/loja/${codigoLoja}`
+    : null;
+
+  useEffect(() => {
+    if (!user?.tenant_id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("tenant_funnel_config" as any)
+        .select("*")
+        .eq("tenant_id", user.tenant_id)
+        .maybeSingle();
+      if (data) {
+        setConfig({
+          headline: (data as any).headline || DEFAULT_CONFIG.headline,
+          sub_headline: (data as any).sub_headline || "",
+          cta_text: (data as any).cta_text || DEFAULT_CONFIG.cta_text,
+          primary_color: (data as any).primary_color || DEFAULT_CONFIG.primary_color,
+          benefits: (data as any).benefits || DEFAULT_CONFIG.benefits,
+        });
+      }
+      setLoading(false);
+    })();
+  }, [user?.tenant_id]);
+
+  const handleSave = async () => {
+    if (!user?.tenant_id) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("tenant_funnel_config")
+        .upsert({
+          tenant_id: user.tenant_id,
+          ...config,
+        }, { onConflict: "tenant_id" });
+
+      if (error) throw error;
+      toast.success("Configurações do funil salvas!");
+    } catch {
+      toast.error("Erro ao salvar configurações");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyLink = () => {
+    if (!publicUrl) return;
+    navigator.clipboard.writeText(publicUrl);
+    toast.success("Link copiado!");
+  };
+
+  const addBenefit = () => {
+    if (!newBenefit.trim()) return;
+    setConfig((p) => ({ ...p, benefits: [...p.benefits, newBenefit.trim()] }));
+    setNewBenefit("");
+  };
+
+  const removeBenefit = (i: number) => {
+    setConfig((p) => ({ ...p, benefits: p.benefits.filter((_, idx) => idx !== i) }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      {/* Link público */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Link2 className="h-5 w-5 text-primary" />
+            Link Público da Sua Loja
+          </CardTitle>
+          <CardDescription>
+            Compartilhe este link nas redes sociais, WhatsApp e anúncios para capturar leads automaticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {publicUrl ? (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex-1 bg-muted rounded-xl px-4 py-3 text-sm font-mono text-foreground truncate border border-border">
+                {publicUrl}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={copyLink} className="gap-2">
+                  <Copy className="h-4 w-4" />
+                  Copiar
+                </Button>
+                <Button variant="outline" size="sm" asChild className="gap-2">
+                  <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Abrir
+                  </a>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Configure o código da loja em <strong>Configurações → Empresa</strong> para gerar seu link.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Personalização */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Type className="h-5 w-5 text-primary" />
+            Textos da Página
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Título Principal</Label>
+            <Input
+              value={config.headline}
+              onChange={(e) => setConfig((p) => ({ ...p, headline: e.target.value }))}
+              placeholder="Ganhe seu Projeto 3D Gratuito"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Subtítulo</Label>
+            <Textarea
+              value={config.sub_headline}
+              onChange={(e) => setConfig((p) => ({ ...p, sub_headline: e.target.value }))}
+              placeholder="Deixe vazio para usar o texto padrão"
+              rows={2}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Texto do Botão</Label>
+            <Input
+              value={config.cta_text}
+              onChange={(e) => setConfig((p) => ({ ...p, cta_text: e.target.value }))}
+              placeholder="Solicite seu Projeto 3D Grátis"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Cor primária */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Palette className="h-5 w-5 text-primary" />
+            Cor Principal
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <input
+              type="color"
+              value={config.primary_color.startsWith("#") ? config.primary_color : "#2196F3"}
+              onChange={(e) => setConfig((p) => ({ ...p, primary_color: e.target.value }))}
+              className="h-10 w-14 rounded-lg border border-border cursor-pointer"
+            />
+            <Input
+              value={config.primary_color}
+              onChange={(e) => setConfig((p) => ({ ...p, primary_color: e.target.value }))}
+              className="max-w-[200px]"
+              placeholder="#2196F3"
+            />
+            <div className="h-10 w-10 rounded-lg shadow-inner" style={{ backgroundColor: config.primary_color }} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Benefícios */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <ListChecks className="h-5 w-5 text-primary" />
+            Benefícios Listados
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {config.benefits.map((b, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm">{b}</div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeBenefit(i)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <Input
+              value={newBenefit}
+              onChange={(e) => setNewBenefit(e.target.value)}
+              placeholder="Novo benefício..."
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addBenefit())}
+            />
+            <Button variant="outline" size="icon" onClick={addBenefit}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Save */}
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saving} className="gap-2 px-8">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Salvar Configurações
+        </Button>
+      </div>
+    </div>
+  );
+}
