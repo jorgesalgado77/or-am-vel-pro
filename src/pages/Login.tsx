@@ -348,7 +348,7 @@ export default function Login() {
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
           >
             {/* Glow behind image */}
-            <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-[hsl(var(--primary)/0.25)] via-[hsl(var(--accent)/0.2)] to-[hsl(var(--primary)/0.25)] blur-2xl opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+            <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-[hsl(199,89%,50%/0.25)] via-[hsl(160,84%,45%/0.2)] to-[hsl(199,89%,50%/0.25)] blur-2xl opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
 
             <div className="relative overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/30">
               <img
