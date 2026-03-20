@@ -182,11 +182,11 @@ export default function Login() {
       }
 
       const { data: tenant } = await withTimeout(
-        supabase
+        (async () => await supabase
           .from("tenants")
           .select("ativo, plano, trial_fim, assinatura_fim")
           .eq("id", user.tenant_id)
-          .maybeSingle(),
+          .maybeSingle())(),
         1200,
         { data: null, error: null },
       );

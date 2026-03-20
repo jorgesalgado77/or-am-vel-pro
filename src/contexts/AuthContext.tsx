@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { setTenantState } from "@/lib/tenantState";
 import type { CargoPermissoes } from "@/hooks/useCargos";
@@ -57,11 +57,11 @@ async function resolveCargo(cargoId: string | null): Promise<{ cargo_nome: strin
   }
 
   const { data: cargo } = await withTimeout(
-    supabase
+    (async () => await supabase
       .from("cargos")
       .select("nome, permissoes")
       .eq("id", cargoId)
-      .maybeSingle(),
+      .maybeSingle())(),
     1200,
     { data: null, error: null } as any,
   );
@@ -302,11 +302,11 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
 
   // Try direct query first
   const { data, error } = await withTimeout(
-    supabase
+    (async () => await supabase
       .from("tenants")
       .select("id, codigo_loja")
       .in("codigo_loja", candidates)
-      .limit(candidates.length),
+      .limit(candidates.length))(),
     1500,
     { data: null, error: null } as any,
   );
@@ -432,6 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const loginInProgressRef = useRef(false);
 
   const loadFromSession = useCallback(async (sess: Session | null) => {
     if (!sess?.user) {
@@ -443,6 +444,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSession(sess);
+
+    if (loginInProgressRef.current) {
+      return;
+    }
+
     console.log("[Auth] 🔄 loadFromSession: carregando usuário para auth UID:", sess.user.id, "email:", sess.user.email);
 
     let appUser: AppUser | null = null;
@@ -470,11 +476,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(appUser);
       syncGlobalState(appUser);
     } else {
-      console.log("[Auth] ⚠️ Usuário não encontrado para sessão, fazendo signout...");
-      setUser(null);
-      syncGlobalState(null);
-      await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
-      setSession(null);
+      const fallbackUser = await buildFallbackUserFromAuth(sess.user);
+
+      if (fallbackUser) {
+        console.log("[Auth] 🛟 Usando fallback do usuário da sessão enquanto sincroniza perfil...");
+        setUser(fallbackUser);
+        syncGlobalState(fallbackUser);
+      } else {
+        console.log("[Auth] ⚠️ Usuário não encontrado para sessão, fazendo signout...");
+        setUser(null);
+        syncGlobalState(null);
+        await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
+        setSession(null);
+      }
     }
 
     setLoading(false);
@@ -517,6 +531,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadFromSession]);
 
   const login = useCallback(async (email: string, password: string, storeCode?: string) => {
+    loginInProgressRef.current = true;
+
+    try {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
 
@@ -535,6 +552,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
       }
 
+      const metadata = {
+        ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
+        ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
+      };
+
       // Retry tenant resolution after auth (RLS now allows authenticated reads)
       if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
         resolvedTenantId = await withTimeout(resolveTenantIdByStoreCode(normalizedStoreCode), 1500, null);
@@ -546,12 +568,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       let appUser = await withTimeout(loadAppUser(authData.user), 1500, null);
+      let usedFallbackUser = false;
+
+      if (!appUser) {
+        appUser = await buildFallbackUserFromAuth({
+          id: authData.user.id,
+          email: authData.user.email,
+          user_metadata: metadata,
+        });
+        usedFallbackUser = Boolean(appUser);
+      }
+
       if (!appUser) {
         console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
-        const metadata = {
-          ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
-          ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
-        };
         await withTimeout(ensureUserProfile(authData.user, metadata, password), 1200, undefined);
         appUser = await withTimeout(loadAppUser(authData.user), 1200, null);
 
@@ -561,6 +590,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: authData.user.email,
             user_metadata: metadata,
           });
+          usedFallbackUser = Boolean(appUser);
         }
       }
 
@@ -579,18 +609,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(appUser);
       setSession(authData.session);
       syncGlobalState(appUser);
+
+      if (usedFallbackUser) {
+        void (async () => {
+          await withTimeout(ensureUserProfile(authData.user, metadata, password), 1500, undefined);
+          const refreshedUser = await withTimeout(loadAppUser(authData.user), 1500, null);
+
+          if (refreshedUser) {
+            setUser(refreshedUser);
+            syncGlobalState(refreshedUser);
+          }
+        })();
+      }
+
       return { user: appUser, error: null };
     };
 
     // 1. Try Supabase Auth first
-    const { data, error } = await withTimeout(
-      supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
-      3500,
-      {
-        data: { user: null, session: null },
-        error: { message: "Tempo de login excedido. Tente novamente." },
-      } as any,
-    );
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     if (!error && data.user) {
       console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail);
@@ -845,6 +881,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return { user: null, error: error?.message || "Erro desconhecido" };
+    } finally {
+      loginInProgressRef.current = false;
+    }
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, metadata?: Record<string, unknown>) => {
