@@ -372,6 +372,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
 
+    // Resolve tenant from store code early so finalizeLogin can use it
+    const resolvedTenantId = normalizedStoreCode.length === 6
+      ? await resolveTenantIdByStoreCode(normalizedStoreCode)
+      : null;
+
+    if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
+      return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
+    }
+
     const finalizeLogin = async (authData: { user: SupabaseAuthUser | null; session: Session | null }) => {
       if (!authData.user) {
         return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
@@ -380,12 +389,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let appUser = await loadAppUser(authData.user);
       if (!appUser) {
         console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
-        await ensureUserProfile(authData.user, (authData.user.user_metadata as Record<string, unknown>) ?? undefined);
+        // Merge resolved tenant_id into metadata for profile creation
+        const metadata = {
+          ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
+          ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
+        };
+        await ensureUserProfile(authData.user, metadata, password);
         appUser = await loadAppUser(authData.user);
       }
 
       if (!appUser) {
         return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
+      }
+
+      // Validate tenant match if store code was provided
+      if (resolvedTenantId && appUser.tenant_id && appUser.tenant_id !== resolvedTenantId) {
+        return { user: null, error: "Este email não está vinculado ao código da loja informado." };
       }
 
       setUser(appUser);
