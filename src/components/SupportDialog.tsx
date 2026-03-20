@@ -129,8 +129,8 @@ export function SupportDialog({ open, onClose }: SupportDialogProps) {
         toast.error("Erro ao enviar ticket de suporte");
       } else {
         toast.success("Ticket enviado com sucesso!");
-        setSelectedTipo(null);
-        setMensagem("");
+        clearTipo();
+        clearMensagem();
         setFiles([]);
       }
     } catch {
