@@ -15,11 +15,12 @@ import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { FileText, Eye, Pencil, Printer } from "lucide-react";
+import { FileText, Eye, Pencil, Printer, Clock, MessageSquare, Pause, Play, CheckCircle2, Send } from "lucide-react";
 import { ContractEditorDialog } from "@/components/ContractEditorDialog";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { openContractPrintWindow } from "@/lib/contractDocument";
+import { Badge } from "@/components/ui/badge";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
