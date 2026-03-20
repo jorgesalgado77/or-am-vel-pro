@@ -195,75 +195,79 @@ export default function Index() {
               <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
             </div>
 
-            {activeView === "dashboard" && (
-              <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} onOpenProfile={() => setShowProfile(true)} />
-            )}
+            <Suspense fallback={<ViewLoader />}>
+              {activeView === "dashboard" && (
+                <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} onOpenProfile={() => setShowProfile(true)} />
+              )}
 
-            {activeView === "clients" && (
-              <ClientsKanban clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClient} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
-            )}
+              {activeView === "clients" && (
+                <ClientsKanban clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClient} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
+              )}
 
-            {activeView === "simulator" && (
-              <SimulatorPanel
-                client={simulatingClient}
-                onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
-                onClientCreated={fetchClients}
-              />
-            )}
+              {activeView === "simulator" && (
+                <SimulatorPanel
+                  client={simulatingClient}
+                  onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
+                  onClientCreated={fetchClients}
+                />
+              )}
 
-            {activeView === "history" && historyClient && (
-              <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
-            )}
+              {activeView === "history" && historyClient && (
+                <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
+              )}
 
-            {activeView === "contracts" && contractsClient && (
-              <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
-            )}
+              {activeView === "contracts" && contractsClient && (
+                <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
+              )}
 
-            {activeView === "payroll" && (
-              <PayrollReport onBack={() => setActiveView("dashboard")} />
-            )}
+              {activeView === "payroll" && (
+                <PayrollReport onBack={() => setActiveView("dashboard")} />
+              )}
 
-            {activeView === "settings" && <SettingsPanel />}
+              {activeView === "settings" && <SettingsPanel />}
 
-            {activeView === "plans" && (
-              <SubscriptionPlans onBack={() => setActiveView("dashboard")} />
-            )}
+              {activeView === "plans" && (
+                <SubscriptionPlans onBack={() => setActiveView("dashboard")} />
+              )}
 
-            {activeView === "messages" && <MessagesPanel />}
+              {activeView === "messages" && <MessagesPanel />}
 
-            {activeView === "vendazap-chat" && (
-              <VendaZapChat
-                tenantId={authUser?.tenant_id || null}
-                userId={authUser?.id}
-                onDealRoom={(clientName, contractId) => {
-                  setActiveView("dealroom");
-                }}
-              />
-            )}
+              {activeView === "vendazap-chat" && (
+                <VendaZapChat
+                  tenantId={authUser?.tenant_id || null}
+                  userId={authUser?.id}
+                  onDealRoom={(clientName, contractId) => {
+                    setActiveView("dealroom");
+                  }}
+                />
+              )}
 
-            {activeView === "vendazap" && (
-              <VendaZapPanel
-                tenantId={authUser?.tenant_id || null}
-                onBack={() => setActiveView("clients")}
-              />
-            )}
+              {activeView === "vendazap" && (
+                <VendaZapPanel
+                  tenantId={authUser?.tenant_id || null}
+                  onBack={() => setActiveView("clients")}
+                />
+              )}
 
-            {activeView === "dealroom" && (
-              <DealRoomView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
-            )}
+              {activeView === "dealroom" && (
+                <DealRoomView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
+              )}
 
-            <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
+              <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
+            </Suspense>
           </main>
 
-          {authUser && (
-            <ChangePasswordDialog
-              open={showChangePassword}
-              userId={authUser.id}
-              onClose={() => setShowChangePassword(false)}
-            />
-          )}
-          <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
-          <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
+          <Suspense fallback={null}>
+            {authUser && (
+              <ChangePasswordDialog
+                open={showChangePassword}
+                userId={authUser.id}
+                onClose={() => setShowChangePassword(false)}
+              />
+            )}
+            <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
+            <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
+          </Suspense>
         </div>
       </TenantPlanContext.Provider>
     </CurrentUserContext.Provider>
