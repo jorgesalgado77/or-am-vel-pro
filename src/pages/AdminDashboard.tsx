@@ -489,6 +489,16 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsContent value="vendazap">
             <AdminVendaZap />
           </TabsContent>
+
+          {/* TAB: WhatsApp Admin */}
+          <TabsContent value="whatsapp">
+            <AdminWhatsAppConfig />
+          </TabsContent>
+
+          {/* TAB: Resend Admin */}
+          <TabsContent value="resend">
+            <AdminResendConfig />
+          </TabsContent>
         </Tabs>
       </main>
 

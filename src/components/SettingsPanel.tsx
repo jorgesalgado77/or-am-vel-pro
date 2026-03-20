@@ -55,6 +55,7 @@ export function SettingsPanel() {
         <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
         <TabsContent value="contratos"><ContratosTab /></TabsContent>
         <TabsContent value="whatsapp"><WhatsAppTab /></TabsContent>
+        <TabsContent value="resend"><ResendTab /></TabsContent>
         <TabsContent value="acompanhamento"><AcompanhamentoTab /></TabsContent>
         <TabsContent value="auditoria"><AuditLogsTab /></TabsContent>
       </Tabs>
