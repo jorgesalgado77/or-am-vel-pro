@@ -32,7 +32,7 @@ interface AuthContextType {
   user: AppUser | null;
   session: Session | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ user: AppUser | null; error: string | null }>;
+  login: (email: string, password: string, storeCode?: string) => Promise<{ user: AppUser | null; error: string | null }>;
   signUp: (email: string, password: string, metadata?: Record<string, unknown>) => Promise<{ error: string | null; tenantId?: string }>;
   logout: () => Promise<void>;
   hasPermission: (perm: keyof CargoPermissoes) => boolean;
@@ -125,28 +125,99 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Pr
   return null;
 }
 
-async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: Record<string, unknown>) {
+async function hashLegacyPassword(password: string): Promise<string> {
+  try {
+    const { data } = await supabase.rpc("hash_password", { plain_text: password }) as any;
+    return data || password;
+  } catch {
+    return password;
+  }
+}
+
+async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<string | null> {
+  const digits = storeCode?.replace(/\D/g, "") ?? "";
+  if (digits.length !== 6) return null;
+
+  const maskedCode = `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  const candidates = Array.from(new Set([digits, maskedCode]));
+
+  const { data } = await supabase
+    .from("tenants")
+    .select("id, codigo_loja")
+    .in("codigo_loja", candidates)
+    .limit(candidates.length);
+
+  const tenant = data?.find((row) => (row.codigo_loja ?? "").replace(/\D/g, "") === digits);
+  return tenant?.id ?? null;
+}
+
+async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: Record<string, unknown>, password?: string) {
   if (!authUser || !metadata?.tenant_id) return;
 
-  const { data } = await (supabase as any)
+  const normalizedEmail = authUser.email?.trim().toLowerCase() ?? null;
+
+  const { data: byId } = await (supabase as any)
     .from("usuarios")
-    .select("id")
+    .select("id, email, senha")
     .eq("id", authUser.id)
     .limit(1);
 
-  const existingUser = Array.isArray(data) ? data[0] : data;
+  let existingUser = Array.isArray(byId) ? byId[0] : byId;
 
-  if (existingUser) return;
+  if (!existingUser && normalizedEmail) {
+    const { data: byEmail } = await (supabase as any)
+      .from("usuarios")
+      .select("id, email, senha")
+      .eq("email", normalizedEmail)
+      .limit(1);
 
-  const payload = {
-    id: authUser.id,
+    existingUser = Array.isArray(byEmail) ? byEmail[0] : byEmail;
+  }
+
+  const senhaHash = password ? await hashLegacyPassword(password) : null;
+
+  const basePayload = {
     nome_completo: (metadata.nome_completo as string) || authUser.email?.split("@")[0] || "Usuário",
     apelido: (metadata.apelido as string) || null,
-    email: authUser.email || null,
+    email: authUser.email?.trim().toLowerCase() || null,
     cargo_id: (metadata.cargo_id as string) || null,
     tenant_id: metadata.tenant_id as string,
     primeiro_login: true,
     ativo: true,
+    ...(senhaHash ? { senha: senhaHash } : {}),
+  };
+
+  if (existingUser) {
+    const updatePayload: Record<string, unknown> = {
+      ...basePayload,
+      ...(existingUser.id !== authUser.id ? { id: authUser.id } : {}),
+    };
+
+    let { error } = await supabase
+      .from("usuarios")
+      .update(updatePayload as any)
+      .eq("id", existingUser.id);
+
+    if (error && existingUser.id !== authUser.id) {
+      const { id: _ignored, ...fallbackPayload } = updatePayload;
+      const retry = await supabase
+        .from("usuarios")
+        .update(fallbackPayload as any)
+        .eq("id", existingUser.id);
+
+      error = retry.error;
+    }
+
+    if (error) {
+      console.warn("[Auth] Failed to update existing user profile after sign up:", error.message);
+    }
+
+    return;
+  }
+
+  const payload = {
+    id: authUser.id,
+    ...basePayload,
   };
 
   const { error } = await supabase.from("usuarios").insert(payload as any);
@@ -203,49 +274,118 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [loadFromSession]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, storeCode?: string) => {
     const normalizedEmail = email.trim().toLowerCase();
+    const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
+
+    const finalizeLogin = async (authData: { user: SupabaseAuthUser | null; session: Session | null }) => {
+      if (!authData.user) {
+        return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
+      }
+
+      const appUser = await loadAppUser(authData.user);
+      if (!appUser) {
+        return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
+      }
+
+      setUser(appUser);
+      setSession(authData.session);
+      syncGlobalState(appUser);
+      return { user: appUser, error: null };
+    };
 
     // 1. Try Supabase Auth first
     const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     if (!error && data.user) {
-      const appUser = await loadAppUser(data.user);
-      if (!appUser) {
-        return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
-      }
-      setUser(appUser);
-      setSession(data.session);
-      syncGlobalState(appUser);
-      return { user: appUser, error: null };
+      return finalizeLogin(data);
     }
 
     // 2. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
     if (error && error.message.toLowerCase().includes("invalid login credentials")) {
       try {
+        const tenantIdFromCode = normalizedStoreCode.length === 6
+          ? await resolveTenantIdByStoreCode(normalizedStoreCode)
+          : null;
+
         const { data: legacyUsers } = await (supabase as any)
           .from("usuarios")
           .select("*")
           .eq("email", normalizedEmail)
-          .limit(1);
+          .limit(10);
 
-        const legacyUser = Array.isArray(legacyUsers) ? legacyUsers[0] : null;
+        const legacyList = Array.isArray(legacyUsers) ? legacyUsers : legacyUsers ? [legacyUsers] : [];
+        const legacyUser = legacyList.find((candidate) => {
+          if (!tenantIdFromCode) return true;
+          return candidate.tenant_id === tenantIdFromCode;
+        }) ?? legacyList[0] ?? null;
 
         if (!legacyUser) {
           return { user: null, error: "Invalid login credentials" };
         }
 
+        if (legacyUser.ativo === false) {
+          return { user: null, error: "Usuário inativo" };
+        }
+
         // Verify password against stored hash via RPC
         let passwordValid = false;
-        try {
-          const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: password }) as any;
-          if (hashResult && legacyUser.senha === hashResult) {
-            passwordValid = true;
+        if (legacyUser.senha) {
+          try {
+            const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: password }) as any;
+            if (hashResult && legacyUser.senha === hashResult) {
+              passwordValid = true;
+            }
+          } catch {
+            // If hash_password RPC doesn't exist, compare plain text
+            if (legacyUser.senha === password) {
+              passwordValid = true;
+            }
           }
-        } catch {
-          // If hash_password RPC doesn't exist, compare plain text
-          if (legacyUser.senha === password) {
-            passwordValid = true;
+        }
+
+        if (!passwordValid && !legacyUser.senha) {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: normalizedEmail,
+            password,
+            options: {
+              data: {
+                tenant_id: legacyUser.tenant_id,
+                cargo_id: legacyUser.cargo_id ?? null,
+                nome_completo: legacyUser.nome_completo ?? normalizedEmail.split("@")[0],
+                apelido: legacyUser.apelido ?? null,
+              },
+              emailRedirectTo: window.location.origin,
+            },
+          });
+
+          if (signUpError && !signUpError.message.toLowerCase().includes("already registered")) {
+            console.warn("[Auth] Failed to recreate missing auth account:", signUpError.message);
+          }
+
+          if (signUpData.user) {
+            try {
+              await (supabase as any).rpc("confirm_user_email", { p_user_id: signUpData.user.id });
+            } catch { /* RPC may not exist */ }
+
+            try {
+              const senhaHash = await hashLegacyPassword(password);
+              await (supabase as any)
+                .from("usuarios")
+                .update({ senha: senhaHash, id: signUpData.user.id })
+                .eq("id", legacyUser.id);
+            } catch {
+              /* best effort */
+            }
+          }
+
+          const retryProvision = await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password,
+          });
+
+          if (!retryProvision.error && retryProvision.data.user) {
+            return finalizeLogin(retryProvision.data);
           }
         }
 
@@ -275,12 +415,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await (supabase as any).rpc("confirm_user_email", { p_user_id: signUpData.user.id });
           } catch { /* RPC may not exist */ }
 
-          // Update usuarios row with new auth_user_id
+          // Update usuarios row with the auth user id for JWT-based flows
           try {
+            const senhaHash = await hashLegacyPassword(password);
             await (supabase as any)
               .from("usuarios")
-              .update({ id: signUpData.user.id, auth_user_id: signUpData.user.id })
-              .eq("email", normalizedEmail);
+              .update({ id: signUpData.user.id, senha: senhaHash })
+              .eq("id", legacyUser.id);
           } catch { /* best effort */ }
         }
 
@@ -291,20 +432,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         if (!retryError && retryData.user) {
-          const appUser = await loadAppUser(retryData.user);
-          if (appUser) {
-            setUser(appUser);
-            setSession(retryData.session);
-            syncGlobalState(appUser);
-            return { user: appUser, error: null };
-          }
+          return finalizeLogin(retryData);
         }
 
-        // Final fallback: return legacy user without session
-        const appUser = await mapAppUser(legacyUser);
-        setUser(appUser);
-        syncGlobalState(appUser);
-        return { user: appUser, error: null };
+        return { user: null, error: "Não foi possível concluir o login desta conta." };
       } catch (fallbackErr) {
         console.error("[Auth] Legacy fallback failed:", fallbackErr);
       }
@@ -326,7 +457,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) return { error: error.message };
 
-    await ensureUserProfile(data.user ?? null, metadata);
+    await ensureUserProfile(data.user ?? null, metadata, password);
 
     // Auto-confirm email via RPC (bypasses email verification requirement)
     if (data.user) {
