@@ -11,7 +11,12 @@ interface FieldCheck {
   category: "usuario" | "loja";
 }
 
-export function ProfileCompletenessCard({ onOpenProfile }: { onOpenProfile?: () => void }) {
+interface Props {
+  onOpenProfile?: () => void;
+  onOpenSettings?: () => void;
+}
+
+export function ProfileCompletenessCard({ onOpenProfile, onOpenSettings }: Props) {
   const { user } = useAuth();
   const { settings } = useCompanySettings();
 
@@ -53,10 +58,21 @@ export function ProfileCompletenessCard({ onOpenProfile }: { onOpenProfile?: () 
   const userMissing = missingFields.filter((f) => f.category === "usuario");
   const storeMissing = missingFields.filter((f) => f.category === "loja");
 
+  // Determine which action to take based on what's missing
+  const handleClick = () => {
+    // If only store fields are missing, open settings
+    if (userMissing.length === 0 && storeMissing.length > 0) {
+      onOpenSettings?.();
+      return;
+    }
+    // If only user fields or both are missing, open profile
+    onOpenProfile?.();
+  };
+
   return (
     <Card
       className="border-primary/20 bg-primary/5 mb-4 cursor-pointer hover:shadow-md transition-shadow"
-      onClick={onOpenProfile}
+      onClick={handleClick}
     >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
@@ -83,7 +99,10 @@ export function ProfileCompletenessCard({ onOpenProfile }: { onOpenProfile?: () 
             {missingFields.length > 0 && (
               <div className="space-y-1.5">
                 {userMissing.length > 0 && (
-                  <div className="flex items-start gap-1.5">
+                  <div
+                    className="flex items-start gap-1.5 hover:text-primary transition-colors rounded px-1 -mx-1"
+                    onClick={(e) => { e.stopPropagation(); onOpenProfile?.(); }}
+                  >
                     <User className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                     <p className="text-xs text-muted-foreground">
                       <span className="font-medium">Seu perfil:</span>{" "}
@@ -92,7 +111,10 @@ export function ProfileCompletenessCard({ onOpenProfile }: { onOpenProfile?: () 
                   </div>
                 )}
                 {storeMissing.length > 0 && (
-                  <div className="flex items-start gap-1.5">
+                  <div
+                    className="flex items-start gap-1.5 hover:text-primary transition-colors rounded px-1 -mx-1"
+                    onClick={(e) => { e.stopPropagation(); onOpenSettings?.(); }}
+                  >
                     <Building2 className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                     <p className="text-xs text-muted-foreground">
                       <span className="font-medium">Dados da loja:</span>{" "}
