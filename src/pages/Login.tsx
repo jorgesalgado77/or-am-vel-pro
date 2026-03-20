@@ -133,7 +133,7 @@ export default function Login() {
     setLoading(true);
     setPlanBlocked(null);
 
-    const { user, error } = await login(email.trim().toLowerCase(), senha);
+    const { user, error } = await login(email.trim().toLowerCase(), senha, codigoDigits);
 
     if (error) {
       const msg = error.toLowerCase();
