@@ -230,7 +230,7 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
 
   // Fallback: try RPC if direct query returned nothing (RLS may block unauthenticated reads)
   try {
-    const { data: rpcData } = await supabase.rpc("resolve_tenant_by_code", { p_code: maskedCode }) as any;
+    const { data: rpcData } = await (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode });
     if (rpcData) return rpcData;
   } catch {
     // RPC may not exist yet
