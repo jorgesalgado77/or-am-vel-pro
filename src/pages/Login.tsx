@@ -432,6 +432,16 @@ export default function Login() {
                 </div>
               </div>
 
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="text-xs text-white/40 hover:text-[hsl(var(--primary))] transition-colors"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
+
               <Button
                 type="submit"
                 disabled={loading}
