@@ -12,8 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle, Plus, Trash2, Edit } from "lucide-react";
+import { Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle, Plus, Trash2, Edit, Bot, Copy, ExternalLink, Info } from "lucide-react";
 import { getTenantId } from "@/lib/tenantState";
+import { WhatsAppBotMonitor } from "@/components/campaigns/WhatsAppBotMonitor";
 
 type WhatsAppProvider = "evolution" | "twilio";
 
