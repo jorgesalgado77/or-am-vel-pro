@@ -79,6 +79,8 @@ export function FinancialPanel() {
   });
 
   // Payroll data
+  const [payrollFixed, setPayrollFixed] = useState<PayrollFixed[]>([]);
+  const [commissions, setCommissions] = useState<PayrollCommission[]>([]);
   const [faturamento, setFaturamento] = useState(0);
 
   // AI Forecast state
