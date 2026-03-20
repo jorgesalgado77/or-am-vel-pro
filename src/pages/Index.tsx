@@ -16,6 +16,7 @@ import { PlanBanner } from "@/components/PlanBanner";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { VendaZapPanel } from "@/components/VendaZapPanel";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
+import { UserProfileModal } from "@/components/UserProfileModal";
 import { DealRoomView } from "@/components/DealRoomView";
 import Login from "@/pages/Login";
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
