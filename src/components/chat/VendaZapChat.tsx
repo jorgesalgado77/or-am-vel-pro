@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
-import { playNotificationSound } from "@/lib/notificationSound";
+import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
