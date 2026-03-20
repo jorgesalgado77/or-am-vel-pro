@@ -601,6 +601,129 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
             </CardContent>
           </Card>
         </TabsContent>
+        {/* === PREVISÃO DE CAIXA === */}
+        <TabsContent value="previsao" className="mt-4 space-y-4">
+          {/* KPI row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${saldoFinal30d >= 0 ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                  {saldoFinal30d >= 0 ? <TrendingUp className="h-5 w-5 text-green-600" /> : <TrendingDown className="h-5 w-5 text-red-600" />}
+                </div>
+                <div>
+                  <p className={`text-lg font-bold ${saldoFinal30d >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(saldoFinal30d)}</p>
+                  <p className="text-xs text-muted-foreground">Saldo em 30 dias</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${diasNegativo > 0 ? "bg-red-500/10" : "bg-green-500/10"}`}>
+                  <AlertTriangle className={`h-5 w-5 ${diasNegativo > 0 ? "text-red-600" : "text-green-600"}`} />
+                </div>
+                <div>
+                  <p className={`text-lg font-bold ${diasNegativo > 0 ? "text-red-600" : "text-green-600"}`}>{diasNegativo}</p>
+                  <p className="text-xs text-muted-foreground">Dias no Vermelho</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <ArrowUpRight className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{formatCurrency(faturamento / 30)}</p>
+                  <p className="text-xs text-muted-foreground">Entrada Diária Média</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                  <ArrowDownRight className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{formatCurrency((contasFixas + totalFolha) / 30)}</p>
+                  <p className="text-xs text-muted-foreground">Saída Diária Média</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Alert banner */}
+          {diasNegativo > 0 && (
+            <Card className="border-red-300 bg-red-50 dark:bg-red-950/30">
+              <CardContent className="p-4 flex items-center gap-3">
+                <Bell className="h-5 w-5 text-red-600 animate-pulse" />
+                <div>
+                  <p className="font-semibold text-red-800 dark:text-red-300 text-sm">⚠️ Alerta de Caixa Negativo</p>
+                  <p className="text-xs text-red-600/80">Seu saldo ficará negativo em {diasNegativo} dos próximos 30 dias. Revise suas contas ou aumente o faturamento.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Forecast chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Previsão de Saldo — Próximos 30 Dias</CardTitle>
+              <CardDescription className="text-xs">Baseado em receitas e despesas projetadas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={forecastData}>
+                    <defs>
+                      <linearGradient id="saldoGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="dia" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Legend />
+                    <ReferenceLine y={0} stroke="hsl(0, 70%, 50%)" strokeDasharray="3 3" label="Zero" />
+                    <Area type="monotone" dataKey="saldo" name="Saldo Projetado" stroke="hsl(var(--primary))" fill="url(#saldoGrad)" strokeWidth={2} />
+                    <Line type="monotone" dataKey="entradas" name="Entradas" stroke="hsl(142, 71%, 45%)" strokeWidth={1.5} dot={false} />
+                    <Line type="monotone" dataKey="saidas" name="Saídas" stroke="hsl(0, 70%, 50%)" strokeWidth={1.5} dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Analysis */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-sm">Análise Inteligente (IA)</CardTitle>
+                </div>
+                <Button size="sm" onClick={handleAIAnalysis} disabled={aiLoading} className="gap-1.5">
+                  {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {aiLoading ? "Analisando..." : "Gerar Análise"}
+                </Button>
+              </div>
+              <CardDescription className="text-xs">Diagnóstico, alertas e sugestões com inteligência artificial</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {aiAnalysis ? (
+                <div className="prose prose-sm max-w-none dark:prose-invert text-sm whitespace-pre-wrap leading-relaxed">
+                  {aiAnalysis}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Brain className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                  <p className="text-sm">Clique em "Gerar Análise" para obter um diagnóstico financeiro completo com IA</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* === ANÁLISE === */}
         <TabsContent value="analise" className="mt-4 space-y-4">
