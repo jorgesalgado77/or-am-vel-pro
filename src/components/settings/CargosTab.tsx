@@ -9,6 +9,7 @@ import { Plus, Trash2, Save, Pencil, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCargos, type CargoPermissoes } from "@/hooks/useCargos";
+import { getTenantId } from "@/lib/tenantState";
 
 const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
   clientes: "Clientes",
@@ -29,8 +30,10 @@ export function CargosTab() {
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
-    const { error } = await supabase.from("cargos").insert({ nome: newName.trim(), permissoes: DEFAULT_PERMISSOES as any });
-    if (error) toast.error("Erro ao adicionar cargo");
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Sessão inválida, faça login novamente"); return; }
+    const { error } = await supabase.from("cargos").insert({ nome: newName.trim(), permissoes: DEFAULT_PERMISSOES as any, tenant_id: tenantId });
+    if (error) { toast.error("Erro ao adicionar cargo: " + error.message); console.error(error); }
     else { toast.success("Cargo adicionado!"); setNewName(""); refresh(); }
   };
 
