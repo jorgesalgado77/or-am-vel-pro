@@ -188,7 +188,13 @@ export default function Login() {
           .eq("id", user.tenant_id)
           .maybeSingle())(),
         1200,
-        { data: null, error: null },
+        {
+          data: null,
+          error: null,
+          count: null,
+          status: 200,
+          statusText: "timeout-fallback",
+        },
       );
 
       if (tenant) {
