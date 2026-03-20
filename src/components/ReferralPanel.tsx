@@ -538,6 +538,32 @@ export function ReferralPanel() {
             </Card>
           </div>
 
+          {/* Gamification Tiers */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Award className="h-4 w-4" /> Níveis de Gamificação
+              </CardTitle>
+              <CardDescription className="text-xs">Indicadores são promovidos automaticamente com base nas conversões</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3">
+                {GAMIFICATION_TIERS.map(tier => {
+                  const count = links.filter(l => getTier(l.converted_referrals)?.name === tier.name).length;
+                  return (
+                    <div key={tier.name} className={cn("rounded-xl p-4 text-center border bg-gradient-to-b", tier.bgGradient, tier.color.split(" ")[2])}>
+                      <span className="text-2xl">{tier.icon}</span>
+                      <p className="font-bold mt-1">{tier.name}</p>
+                      <p className="text-xs mt-0.5">{tier.min}–{tier.max === Infinity ? "∞" : tier.max} conversões</p>
+                      <p className="text-lg font-bold mt-2">{count}</p>
+                      <p className="text-[10px] opacity-70">indicadores</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Top referrers */}
           <Card>
             <CardHeader className="pb-2">
