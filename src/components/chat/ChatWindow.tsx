@@ -35,6 +35,12 @@ export function ChatWindow({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+
+  const { typingUsers, onKeystroke, stopTyping } = useTypingIndicator(
+    conversation.id,
+    conversation.userId || undefined,
+    "Loja"
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
