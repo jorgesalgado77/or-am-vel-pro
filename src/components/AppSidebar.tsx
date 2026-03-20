@@ -36,6 +36,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
     { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true, badge: null },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
     { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "configuracoes" as const, show: isAdmin, badge: null },
+    { id: "financial", label: "Financeiro", icon: Wallet, perm: "configuracoes" as const, show: isAdmin, badge: "NOVO" },
     { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "configuracoes" as const, show: isAdmin, badge: null },
     { id: "funnel", label: "Funil de Captação", icon: Megaphone, perm: "configuracoes" as const, show: isAdmin, badge: null },
     { id: "campaigns", label: "Campanhas", icon: BookOpen, perm: "simulador" as const, show: true, badge: "NOVO" },
