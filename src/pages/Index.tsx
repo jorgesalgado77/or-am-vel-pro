@@ -173,7 +173,12 @@ export default function Index() {
           <main className="flex-1 ml-60 p-6">
             <PlanBanner />
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+                {activeView === "dashboard" && (
+                  <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">{cargoLabel}</span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
             </div>
 
