@@ -22,7 +22,8 @@ import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
 import { ResendTab } from "@/components/settings/ResendTab";
 import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
 import { AuditLogsTab } from "@/components/settings/AuditLogsTab";
-import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail } from "lucide-react";
+import { CanvaIntegrationTab } from "@/components/settings/CanvaIntegrationTab";
+import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette } from "lucide-react";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -45,6 +46,7 @@ export function SettingsPanel() {
           <TabsTrigger value="resend" className="gap-2"><Mail className="h-4 w-4" />Resend</TabsTrigger>
           <TabsTrigger value="acompanhamento" className="gap-2"><ClipboardList className="h-4 w-4" />Acompanhamento</TabsTrigger>
           <TabsTrigger value="auditoria" className="gap-2"><ScrollText className="h-4 w-4" />Auditoria</TabsTrigger>
+          <TabsTrigger value="canva" className="gap-2"><Palette className="h-4 w-4" />Canva</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanySettingsTab /></TabsContent>
         <TabsContent value="cargos"><CargosTab /></TabsContent>
@@ -58,6 +60,7 @@ export function SettingsPanel() {
         <TabsContent value="resend"><ResendTab /></TabsContent>
         <TabsContent value="acompanhamento"><AcompanhamentoTab /></TabsContent>
         <TabsContent value="auditoria"><AuditLogsTab /></TabsContent>
+        <TabsContent value="canva"><CanvaIntegrationTab /></TabsContent>
       </Tabs>
     </div>
   );

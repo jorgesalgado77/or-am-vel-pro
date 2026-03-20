@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminVendaZap } from "@/components/admin/AdminVendaZap";
@@ -23,6 +23,7 @@ import { AdminPlans } from "@/components/admin/AdminPlans";
 import { AdminWhatsAppConfig } from "@/components/admin/AdminWhatsAppConfig";
 import { AdminResendConfig } from "@/components/admin/AdminResendConfig";
 import { AdminLoginDiagnostics } from "@/components/admin/AdminLoginDiagnostics";
+import { AdminCanvaConfig } from "@/components/admin/AdminCanvaConfig";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -341,6 +342,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <TabsTrigger value="whatsapp" className="gap-2"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
             <TabsTrigger value="resend" className="gap-2"><Mail className="h-4 w-4" />Resend</TabsTrigger>
             <TabsTrigger value="diagnostics" className="gap-2"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
+            <TabsTrigger value="canva" className="gap-2"><Palette className="h-4 w-4" />Canva</TabsTrigger>
           </TabsList>
 
           {/* TAB: Lojas */}
@@ -505,6 +507,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           {/* TAB: Login Diagnostics */}
           <TabsContent value="diagnostics">
             <AdminLoginDiagnostics />
+          </TabsContent>
+
+          {/* TAB: Canva */}
+          <TabsContent value="canva">
+            <AdminCanvaConfig />
           </TabsContent>
         </Tabs>
       </main>

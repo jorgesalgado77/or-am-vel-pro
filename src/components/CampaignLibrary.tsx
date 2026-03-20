@@ -7,6 +7,7 @@ import { Copy, CheckCircle2, Lightbulb, Target, MessageSquare, ChevronDown, Chev
 import { toast } from "sonner";
 import { CampaignImageGenerator } from "@/components/campaigns/CampaignImageGenerator";
 import { CampaignAIGenerator } from "@/components/campaigns/CampaignAIGenerator";
+import { CampaignScheduler } from "@/components/campaigns/CampaignScheduler";
 import { SEASONAL_CAMPAIGNS, type Campaign } from "@/components/campaigns/SeasonalCampaigns";
 
 const BASE_CAMPAIGNS: Campaign[] = [
@@ -177,10 +178,11 @@ export function CampaignLibrary() {
   return (
     <div className="space-y-6 max-w-5xl">
       <Tabs defaultValue="campanhas">
-        <TabsList className="h-auto gap-1">
+        <TabsList className="h-auto gap-1 flex-wrap">
           <TabsTrigger value="campanhas">📋 Campanhas Prontas</TabsTrigger>
           <TabsTrigger value="imagens">🖼️ Gerador de Imagens</TabsTrigger>
           <TabsTrigger value="ia">🤖 Criar com IA</TabsTrigger>
+          <TabsTrigger value="agenda">📅 Agendamento</TabsTrigger>
         </TabsList>
 
         <TabsContent value="campanhas" className="mt-4 space-y-4">
@@ -219,6 +221,10 @@ export function CampaignLibrary() {
 
         <TabsContent value="ia" className="mt-4">
           <CampaignAIGenerator />
+        </TabsContent>
+
+        <TabsContent value="agenda" className="mt-4">
+          <CampaignScheduler />
         </TabsContent>
       </Tabs>
     </div>
