@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle } from "lucide-react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
