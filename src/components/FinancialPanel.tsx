@@ -20,7 +20,7 @@ import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2,
   Save, Pencil, X, Search, RefreshCw, Receipt, Users, Target,
   ArrowUpRight, ArrowDownRight, CalendarDays, Bell, CheckCircle2,
-  Brain, Sparkles, Loader2
+  Brain, Sparkles, Loader2, FileDown
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -87,6 +87,9 @@ export function FinancialPanel() {
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
   const [forecastCache, setForecastCache] = useState<{ data: any[]; timestamp: number } | null>(null);
+  const [notifications, setNotifications] = useState<{ id: string; message: string; type: string; read: boolean }[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const fetchData = async () => {
     if (!tenantId) return;
@@ -150,6 +153,41 @@ export function FinancialPanel() {
     if (sims) {
       const total = (sims as any[]).reduce((sum, s) => sum + (s.valor_final || 0), 0);
       setFaturamento(total);
+    }
+
+    // Check for alerts and generate notifications
+    const alertsList: { id: string; message: string; type: string; read: boolean }[] = [];
+    const now = new Date();
+    const limit7d = addDays(now, 7);
+
+    (accs as any[] || []).forEach((a: any) => {
+      if (a.status === "pago") return;
+      const due = new Date(a.due_date);
+      if (isPast(due) && a.status !== "pago") {
+        alertsList.push({ id: `atrasado-${a.id}`, message: `⚠️ "${a.name}" venceu em ${format(due, "dd/MM/yyyy")} — ${formatCurrency(a.amount)}`, type: "atrasado", read: false });
+      } else if (isAfter(due, now) && isBefore(due, limit7d)) {
+        alertsList.push({ id: `vencer-${a.id}`, message: `🔔 "${a.name}" vence em ${format(due, "dd/MM/yyyy")} — ${formatCurrency(a.amount)}`, type: "vencer", read: false });
+      }
+    });
+    setNotifications(alertsList);
+
+    // Show toast alerts for overdue
+    const overdue = alertsList.filter(a => a.type === "atrasado");
+    if (overdue.length > 0) {
+      toast.warning(`Você tem ${overdue.length} conta(s) vencida(s)!`, { duration: 6000 });
+    }
+
+    // Save notifications to DB for persistence (fire and forget)
+    if (alertsList.length > 0 && tenantId) {
+      alertsList.forEach(async (alert) => {
+        await supabase.from("financial_notifications" as any).upsert({
+          id: alert.id,
+          tenant_id: tenantId,
+          message: alert.message,
+          type: alert.type,
+          read: false,
+        } as any, { onConflict: "id" }).then(() => {});
+      });
     }
 
     setLoading(false);
@@ -257,6 +295,84 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
       setAiLoading(false);
     }
   }, [faturamento, contasFixas, totalFolha, breakEven, lucroEstimado, contasVencidas, contasAVencer7d, totalContasPagar, saldoFinal30d, diasNegativo, categoryData]);
+
+  // === PDF EXPORT ===
+  const handleExportPDF = useCallback(async () => {
+    setPdfLoading(true);
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      const mesRefLabel = format(new Date(), "MMMM yyyy", { locale: ptBR });
+      
+      doc.setFontSize(18);
+      doc.text("Relatório Financeiro Mensal", 14, 22);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Período: ${mesRefLabel}`, 14, 30);
+      doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 36);
+
+      doc.setFontSize(13);
+      doc.setTextColor(0);
+      doc.text("Resumo Financeiro", 14, 48);
+      doc.setFontSize(10);
+      const kpis = [
+        `Faturamento: ${formatCurrency(faturamento)}`,
+        `Total a Pagar: ${formatCurrency(totalContasPagar)}`,
+        `Contas Vencidas: ${contasVencidas.length}`,
+        `Custos Fixos: ${formatCurrency(contasFixas)}`,
+        `Folha Total: ${formatCurrency(totalFolha)}`,
+        `Ponto de Equilíbrio: ${formatCurrency(breakEven)}`,
+        `Resultado: ${formatCurrency(lucroEstimado)} (${lucroEstimado >= 0 ? "LUCRO" : "PREJUÍZO"})`,
+        `Saldo Projetado 30d: ${formatCurrency(saldoFinal30d)}`,
+      ];
+      kpis.forEach((line, i) => doc.text(line, 14, 56 + i * 7));
+
+      let y = 56 + kpis.length * 7 + 10;
+      doc.setFontSize(13);
+      doc.text("Contas a Pagar", 14, y);
+      y += 8;
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      doc.text("Conta", 14, y);
+      doc.text("Valor", 90, y);
+      doc.text("Vencimento", 130, y);
+      doc.text("Status", 170, y);
+      y += 6;
+      doc.setTextColor(0);
+      accounts.slice(0, 25).forEach(acc => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.text(acc.name.slice(0, 30), 14, y);
+        doc.text(formatCurrency(acc.amount), 90, y);
+        doc.text(format(new Date(acc.due_date), "dd/MM/yyyy"), 130, y);
+        doc.text(acc.status, 170, y);
+        y += 6;
+      });
+
+      if (payrollFixed.length > 0) {
+        y += 8;
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFontSize(13);
+        doc.text("Folha de Pagamento", 14, y);
+        y += 8;
+        doc.setFontSize(9);
+        payrollFixed.forEach(pf => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          const comm = commissions.find(c => c.usuario_id === pf.usuario_id);
+          doc.text(`${pf.usuario_nome} - Sal: ${formatCurrency(pf.salary)} | Com: ${formatCurrency(comm?.total_comissao || 0)} | Total: ${formatCurrency(pf.salary + (comm?.total_comissao || 0))}`, 14, y);
+          y += 6;
+        });
+      }
+
+      doc.save(`relatorio-financeiro-${format(new Date(), "yyyy-MM")}.pdf`);
+      toast.success("Relatório PDF gerado com sucesso!");
+    } catch (err) {
+      console.error("PDF export error:", err);
+      toast.error("Erro ao gerar PDF");
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [accounts, payrollFixed, commissions, faturamento, totalContasPagar, contasVencidas, contasFixas, totalFolha, breakEven, lucroEstimado, saldoFinal30d]);
+
   // CRUD
   const handleSave = async () => {
     if (!form.name.trim() || form.amount <= 0) {
@@ -333,6 +449,40 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
 
   return (
     <div className="space-y-6 max-w-6xl">
+      {/* Action bar */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-lg font-bold">Módulo Financeiro</h2>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowNotifications(!showNotifications)}>
+              <Bell className="h-3.5 w-3.5" />
+              Alertas
+              {notifications.filter(n => !n.read).length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
+                  {notifications.filter(n => !n.read).length}
+                </span>
+              )}
+            </Button>
+            {showNotifications && (
+              <div className="absolute right-0 top-full mt-1 w-80 bg-card border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                <div className="p-3 border-b font-semibold text-sm">Notificações Financeiras</div>
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">Nenhum alerta no momento ✅</div>
+                ) : notifications.map(n => (
+                  <div key={n.id} className={`p-3 border-b text-sm ${n.type === "atrasado" ? "bg-red-50 dark:bg-red-950/20" : "bg-amber-50 dark:bg-amber-950/20"}`}>
+                    {n.message}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportPDF} disabled={pdfLoading}>
+            {pdfLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+            Exportar PDF
+          </Button>
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-4">
