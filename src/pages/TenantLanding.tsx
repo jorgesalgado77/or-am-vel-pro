@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield, Palette } from "lucide-react";
+import { CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield, Palette, Paperclip, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
