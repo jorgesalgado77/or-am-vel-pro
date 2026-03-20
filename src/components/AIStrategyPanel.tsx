@@ -333,6 +333,57 @@ export function AIStrategyPanel({
             ))}
           </div>
 
+          {scenarios.length > 0 && (
+            <Card className="border bg-card/50">
+              <CardHeader className="pb-2 pt-3 px-3">
+                <CardTitle className="text-xs font-medium text-muted-foreground">Margem vs Probabilidade de Fechamento</CardTitle>
+              </CardHeader>
+              <CardContent className="px-1 pb-2">
+                <ResponsiveContainer width="100%" height={160}>
+                  <BarChart
+                    data={scenarios.map(s => ({
+                      name: s.label,
+                      margem: Number(s.margemEstimada.toFixed(1)),
+                      probabilidade: s.probabilidadeFechamento,
+                      type: s.type,
+                    }))}
+                    margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
+                    barGap={4}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} unit="%" />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [`${value}%`, name === "margem" ? "Margem" : "Prob. Fechamento"]}
+                      contentStyle={{ fontSize: 11, borderRadius: 8 }}
+                    />
+                    <Legend
+                      formatter={(value) => value === "margem" ? "Margem" : "Prob. Fechamento"}
+                      wrapperStyle={{ fontSize: 10 }}
+                    />
+                    <Bar dataKey="margem" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                      {scenarios.map((s) => (
+                        <Cell
+                          key={s.type}
+                          fill={s.type === "conservadora" ? "hsl(152, 60%, 40%)" : s.type === "comercial" ? "hsl(40, 90%, 50%)" : "hsl(0, 70%, 50%)"}
+                        />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="probabilidade" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                      {scenarios.map((s) => (
+                        <Cell
+                          key={s.type}
+                          fill={s.type === "conservadora" ? "hsl(152, 60%, 60%)" : s.type === "comercial" ? "hsl(40, 90%, 70%)" : "hsl(0, 70%, 70%)"}
+                          opacity={0.7}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
           <p className="text-[10px] text-muted-foreground text-center">
             Clique em um cenário para aplicar automaticamente os valores no orçamento
           </p>
