@@ -60,6 +60,7 @@ export function SettingsPanel() {
         <TabsContent value="resend"><ResendTab /></TabsContent>
         <TabsContent value="acompanhamento"><AcompanhamentoTab /></TabsContent>
         <TabsContent value="auditoria"><AuditLogsTab /></TabsContent>
+        <TabsContent value="canva"><CanvaIntegrationTab /></TabsContent>
       </Tabs>
     </div>
   );
