@@ -37,7 +37,9 @@ export type AuditEntity =
   | "tracking"
   | "user"
   | "security"
-  | "vendazap_trigger";
+  | "vendazap_trigger"
+  | "vendazap"
+  | "tracking_messages";
 
 interface AuditLogInput {
   acao: AuditAction;
