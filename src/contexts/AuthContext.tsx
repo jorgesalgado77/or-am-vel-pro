@@ -332,7 +332,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     console.log("[Auth] ⚠️ Login direto falhou:", error?.code, error?.message, "| Tentando fallback legado...");
 
-    // 2. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
+    // 2. If email_not_confirmed, try to confirm and retry BEFORE legacy fallback
+    if (error && isEmailNotConfirmedError(error)) {
+      console.log("[Auth] 📧 Email não confirmado — tentando buscar usuário e confirmar...");
+
+      // Look up user by email in usuarios to get their ID for confirm RPC
+      const { data: emailUsers } = await (supabase as any)
+        .from("usuarios")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .limit(5);
+
+      const emailUserList = Array.isArray(emailUsers) ? emailUsers : emailUsers ? [emailUsers] : [];
+
+      for (const eu of emailUserList) {
+        console.log("[Auth] 📧 Tentando confirmar email para user id:", eu.id);
+        const result = await attemptConfirmedLogin(eu.id, normalizedEmail, password);
+        if (result) {
+          console.log("[Auth] ✅ Login após confirmação de email bem-sucedido para:", normalizedEmail);
+          return finalizeLogin(result);
+        }
+      }
+
+      // Also try with the email itself as user ID (some schemas use auth UUID directly)
+      try {
+        // Try to get auth user ID from admin API or just attempt confirm with a direct signUp approach
+        const { data: signUpRetry, error: signUpRetryErr } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+
+        if (signUpRetryErr && isAlreadyRegisteredError(signUpRetryErr)) {
+          console.log("[Auth] 📧 Usuário já registrado, tentando confirmar via lista de IDs conhecidos...");
+        }
+
+        if (signUpRetry?.user) {
+          console.log("[Auth] 📧 Confirmando email do auth user:", signUpRetry.user.id);
+          const result = await attemptConfirmedLogin(signUpRetry.user.id, normalizedEmail, password);
+          if (result) {
+            console.log("[Auth] ✅ Login após re-signup e confirmação bem-sucedido");
+            return finalizeLogin(result);
+          }
+        }
+      } catch (e) {
+        console.warn("[Auth] ⚠️ Tentativa de re-signup falhou:", e);
+      }
+
+      console.log("[Auth] ⚠️ Não foi possível confirmar email automaticamente");
+    }
+
+    // 3. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
     if (error && shouldTryLegacyFallback(error)) {
       try {
         const tenantIdFromCode = normalizedStoreCode.length === 6
