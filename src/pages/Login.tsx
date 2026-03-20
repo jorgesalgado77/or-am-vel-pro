@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { maskCodigoLoja, unmask } from "@/lib/masks";
 import { motion } from "framer-motion";
 import bannerOrcamovel from "@/assets/banner-orcamovel.png";
+import logoBranco from "@/assets/logo-banner-branco.png";
 
 interface PlanBlockInfo {
   reason: string;
