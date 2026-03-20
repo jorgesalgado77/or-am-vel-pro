@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Plus, Search, Filter, X, CalendarIcon, Handshake, Pencil, Trash2,
   History, FileText, Phone, Mail, User, Hash, Clock, AlertTriangle,
-  Calculator, ChevronRight, GripVertical,
+  Calculator, ChevronRight, GripVertical, Repeat,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
