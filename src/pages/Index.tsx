@@ -200,6 +200,16 @@ export default function Index() {
 
             {activeView === "messages" && <MessagesPanel />}
 
+            {activeView === "vendazap-chat" && (
+              <VendaZapChat
+                tenantId={authUser?.tenant_id || null}
+                userId={authUser?.id}
+                onDealRoom={(clientName, contractId) => {
+                  setActiveView("dealroom");
+                }}
+              />
+            )}
+
             {activeView === "vendazap" && (
               <VendaZapPanel
                 tenantId={authUser?.tenant_id || null}
