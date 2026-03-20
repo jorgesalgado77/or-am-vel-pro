@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const AutoPilotAnalyticsLazy = lazy(() => import("@/components/chat/AutoPilotAnalytics").then(m => ({ default: m.AutoPilotAnalytics })));
+const FollowUpPanelLazy = lazy(() => import("@/components/chat/FollowUpPanel").then(m => ({ default: m.FollowUpPanel })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
