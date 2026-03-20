@@ -71,7 +71,7 @@ export function useLandingConfig() {
       .from("landing_page_config")
       .select("*")
       .limit(1)
-      .single();
+      .maybeSingle();
     if (data) {
       const d = data as any;
       setConfig({
