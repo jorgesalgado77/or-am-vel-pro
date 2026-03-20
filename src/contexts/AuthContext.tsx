@@ -416,10 +416,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
       }
 
+      // Retry tenant resolution after auth (RLS now allows authenticated reads)
+      if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
+        resolvedTenantId = await resolveTenantIdByStoreCode(normalizedStoreCode);
+        if (!resolvedTenantId) {
+          console.log("[Auth] ❌ Tenant não encontrado mesmo após autenticação");
+          return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
+        }
+        console.log("[Auth] ✅ Tenant resolvido após autenticação:", resolvedTenantId);
+      }
+
       let appUser = await loadAppUser(authData.user);
       if (!appUser) {
         console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
-        // Merge resolved tenant_id into metadata for profile creation
         const metadata = {
           ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
           ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
