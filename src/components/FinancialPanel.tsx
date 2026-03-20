@@ -449,6 +449,40 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
 
   return (
     <div className="space-y-6 max-w-6xl">
+      {/* Action bar */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-lg font-bold">Módulo Financeiro</h2>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowNotifications(!showNotifications)}>
+              <Bell className="h-3.5 w-3.5" />
+              Alertas
+              {notifications.filter(n => !n.read).length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
+                  {notifications.filter(n => !n.read).length}
+                </span>
+              )}
+            </Button>
+            {showNotifications && (
+              <div className="absolute right-0 top-full mt-1 w-80 bg-card border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                <div className="p-3 border-b font-semibold text-sm">Notificações Financeiras</div>
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">Nenhum alerta no momento ✅</div>
+                ) : notifications.map(n => (
+                  <div key={n.id} className={`p-3 border-b text-sm ${n.type === "atrasado" ? "bg-red-50 dark:bg-red-950/20" : "bg-amber-50 dark:bg-amber-950/20"}`}>
+                    {n.message}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportPDF} disabled={pdfLoading}>
+            {pdfLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+            Exportar PDF
+          </Button>
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-4">
