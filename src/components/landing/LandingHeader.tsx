@@ -3,6 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+let prefetched = false;
+const prefetchApp = () => {
+  if (prefetched) return;
+  prefetched = true;
+  import("@/pages/Index");
+  import("@/components/Dashboard");
+  import("@/components/ClientsKanban");
+};
+
 interface LandingHeaderProps {
   primaryColor: string;
 }
