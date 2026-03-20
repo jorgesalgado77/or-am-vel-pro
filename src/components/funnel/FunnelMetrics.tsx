@@ -48,10 +48,10 @@ export function FunnelMetrics() {
       // Buscar todos os clients do tenant
       const { data: clients } = await supabase
         .from("clients")
-        .select("id, created_at, origem, status")
+        .select("id, created_at, status, origem_lead")
         .eq("tenant_id", user.tenant_id)
         .gte("created_at", subDays(now, 30).toISOString())
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true }) as any;
 
       if (!clients) {
         setMetrics({ total: 0, hoje: 0, semana: 0, convertidos: 0, porDia: [], porOrigem: [] });
