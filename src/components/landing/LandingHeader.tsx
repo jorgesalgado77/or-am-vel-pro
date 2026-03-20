@@ -3,6 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+let prefetched = false;
+const prefetchApp = () => {
+  if (prefetched) return;
+  prefetched = true;
+  import("@/pages/Index");
+  import("@/components/Dashboard");
+  import("@/components/ClientsKanban");
+};
+
 interface LandingHeaderProps {
   primaryColor: string;
 }
@@ -48,6 +57,7 @@ export function LandingHeader({ primaryColor }: LandingHeaderProps) {
             </button>
             <Button
               onClick={() => navigate("/app")}
+              onMouseEnter={prefetchApp}
               style={{ backgroundColor: primaryColor }}
               className="text-white hover:opacity-90 transition-opacity"
             >
@@ -69,7 +79,7 @@ export function LandingHeader({ primaryColor }: LandingHeaderProps) {
           <button onClick={() => scrollTo("benefits")} className="block w-full text-left text-sm font-medium text-gray-600 py-2">Benefícios</button>
           <button onClick={() => scrollTo("plans")} className="block w-full text-left text-sm font-medium text-gray-600 py-2">Planos</button>
           <button onClick={() => scrollTo("addons")} className="block w-full text-left text-sm font-medium text-gray-600 py-2">Add-ons</button>
-          <Button onClick={() => navigate("/app")} style={{ backgroundColor: primaryColor }} className="w-full text-white">
+          <Button onClick={() => navigate("/app")} onMouseEnter={prefetchApp} style={{ backgroundColor: primaryColor }} className="w-full text-white">
             Entrar
           </Button>
         </div>
