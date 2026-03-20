@@ -13,13 +13,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminVendaZap } from "@/components/admin/AdminVendaZap";
 import { AdminLandingPage } from "@/components/admin/AdminLandingPage";
 import { AdminDealRoom } from "@/components/admin/AdminDealRoom";
 import { AdminPlans } from "@/components/admin/AdminPlans";
+import { AdminWhatsAppConfig } from "@/components/admin/AdminWhatsAppConfig";
+import { AdminResendConfig } from "@/components/admin/AdminResendConfig";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
