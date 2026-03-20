@@ -350,7 +350,7 @@ export default function Login() {
             <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-[hsl(199,89%,50%/0.3)] via-[hsl(160,84%,45%/0.2)] to-[hsl(199,89%,50%/0.3)] blur-2xl opacity-50 group-hover:opacity-80 transition-opacity duration-700" />
 
             <motion.div
-              className="relative overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/30"
+              className="relative overflow-hidden rounded-xl border border-white/10 shadow-2xl shadow-black/30"
               animate={{
                 boxShadow: [
                   "0 25px 50px -12px rgba(0,0,0,0.3), 0 0 30px hsla(199,89%,50%,0.1)",
