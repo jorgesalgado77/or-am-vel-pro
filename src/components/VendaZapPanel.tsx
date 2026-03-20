@@ -24,6 +24,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+const AutoPilotAnalyticsLazy = lazy(() => import("@/components/chat/AutoPilotAnalytics").then(m => ({ default: m.AutoPilotAnalytics })));
+
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 const COPY_TYPES = [
