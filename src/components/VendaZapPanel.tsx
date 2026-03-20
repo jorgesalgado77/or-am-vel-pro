@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
   RefreshCw, Zap, History, Send, ArrowLeft, Handshake,
-  Flame, Snowflake, ExternalLink, BookOpen, Lightbulb, X,
+  Flame, Snowflake, ExternalLink, BookOpen, Lightbulb, X, Brain,
 } from "lucide-react";
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useVendaZap } from "@/hooks/useVendaZap";
