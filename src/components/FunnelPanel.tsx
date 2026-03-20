@@ -151,6 +151,22 @@ export function FunnelPanel() {
         </CardContent>
       </Card>
 
+      {/* Métricas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Métricas de Captação
+          </CardTitle>
+          <CardDescription>
+            Acompanhe a performance do seu funil de captação de leads.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FunnelMetrics />
+        </CardContent>
+      </Card>
+
       {/* Personalização */}
       <Card>
         <CardHeader>
