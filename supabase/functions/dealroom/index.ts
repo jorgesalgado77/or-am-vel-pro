@@ -7,19 +7,43 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
 serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !supabaseKey) {
+    return respond({ error: "Configuração do servidor incompleta" }, 500);
+  }
+
+  // Validate auth header
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ") || authHeader.replace("Bearer ", "").length < 20) {
+    return respond({ error: "Não autorizado" }, 401);
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    const { action, tenant_id, usuario_id, transaction_data } = await req.json();
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return respond({ error: "Body inválido" }, 400);
+    }
+
+    const action = typeof body.action === "string" ? body.action : "";
+    const tenant_id = typeof body.tenant_id === "string" ? body.tenant_id : "";
+    const usuario_id = typeof body.usuario_id === "string" ? body.usuario_id : "";
+    const transaction_data = (body.transaction_data as Record<string, unknown>) || {};
+
+    if (!action) {
+      return respond({ error: "Ação é obrigatória" }, 400);
+    }
 
     if (action === "validate") {
+      if (!tenant_id) return respond({ error: "tenant_id é obrigatório" }, 400);
       // Check tenant plan for Deal Room access
       const { data: tenant } = await supabase
         .from("tenants")

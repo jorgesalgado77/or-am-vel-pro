@@ -12,14 +12,34 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  function respond(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
-    const { tenant_id, plan_slug, periodo, return_url } = await req.json();
+    // Validate auth header
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ") || authHeader.replace("Bearer ", "").length < 20) {
+      return respond({ error: "Não autorizado" }, 401);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return respond({ error: "Body inválido" }, 400);
+    }
+
+    const tenant_id = typeof body.tenant_id === "string" ? body.tenant_id : "";
+    const plan_slug = typeof body.plan_slug === "string" ? body.plan_slug : "";
+    const periodo = typeof body.periodo === "string" ? body.periodo : "mensal";
+    const return_url = typeof body.return_url === "string" ? body.return_url : "";
 
     if (!tenant_id || !plan_slug) {
-      return new Response(
-        JSON.stringify({ error: "tenant_id e plan_slug são obrigatórios" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return respond({ error: "tenant_id e plan_slug são obrigatórios" }, 400);
     }
 
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
