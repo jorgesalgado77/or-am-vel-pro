@@ -87,6 +87,9 @@ export function FinancialPanel() {
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
   const [forecastCache, setForecastCache] = useState<{ data: any[]; timestamp: number } | null>(null);
+  const [notifications, setNotifications] = useState<{ id: string; message: string; type: string; read: boolean }[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const fetchData = async () => {
     if (!tenantId) return;
