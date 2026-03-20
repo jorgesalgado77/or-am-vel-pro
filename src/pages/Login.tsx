@@ -136,7 +136,14 @@ export default function Login() {
     const { user, error } = await login(email.trim().toLowerCase(), senha);
 
     if (error) {
-      toast.error(error === "Invalid login credentials" ? "Email ou senha incorretos" : error);
+      const msg = error.toLowerCase();
+      if (msg.includes("email not confirmed")) {
+        toast.error("Email ainda não confirmado. Aguarde alguns segundos e tente novamente.");
+      } else if (msg.includes("invalid login credentials")) {
+        toast.error("Email ou senha incorretos");
+      } else {
+        toast.error(error);
+      }
       setLoading(false);
       return;
     }
