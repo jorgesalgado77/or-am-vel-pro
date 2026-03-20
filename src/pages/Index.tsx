@@ -1,24 +1,25 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { ClientsKanban } from "@/components/ClientsKanban";
-import { ClientDrawer } from "@/components/ClientDrawer";
-import { SimulatorPanel } from "@/components/SimulatorPanel";
-import { SimulationHistory } from "@/components/SimulationHistory";
-import { ClientContracts } from "@/components/ClientContracts";
-import { SettingsPanel } from "@/components/SettingsPanel";
-import { PayrollReport } from "@/components/PayrollReport";
-import { Dashboard } from "@/components/Dashboard";
-import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
-import { SupportDialog } from "@/components/SupportDialog";
-import { MessagesPanel } from "@/components/MessagesPanel";
-import { VendaZapChat } from "@/components/chat/VendaZapChat";
 import { PlanBanner } from "@/components/PlanBanner";
-import { SubscriptionPlans } from "@/components/SubscriptionPlans";
-import { VendaZapPanel } from "@/components/VendaZapPanel";
-import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
-import { UserProfileModal } from "@/components/UserProfileModal";
-import { DealRoomView } from "@/components/DealRoomView";
 import Login from "@/pages/Login";
+
+// Lazy load heavy view components
+const ClientsKanban = lazy(() => import("@/components/ClientsKanban").then(m => ({ default: m.ClientsKanban })));
+const ClientDrawer = lazy(() => import("@/components/ClientDrawer").then(m => ({ default: m.ClientDrawer })));
+const SimulatorPanel = lazy(() => import("@/components/SimulatorPanel").then(m => ({ default: m.SimulatorPanel })));
+const SimulationHistory = lazy(() => import("@/components/SimulationHistory").then(m => ({ default: m.SimulationHistory })));
+const ClientContracts = lazy(() => import("@/components/ClientContracts").then(m => ({ default: m.ClientContracts })));
+const SettingsPanel = lazy(() => import("@/components/SettingsPanel").then(m => ({ default: m.SettingsPanel })));
+const PayrollReport = lazy(() => import("@/components/PayrollReport").then(m => ({ default: m.PayrollReport })));
+const Dashboard = lazy(() => import("@/components/Dashboard").then(m => ({ default: m.Dashboard })));
+const ChangePasswordDialog = lazy(() => import("@/components/ChangePasswordDialog").then(m => ({ default: m.ChangePasswordDialog })));
+const SupportDialog = lazy(() => import("@/components/SupportDialog").then(m => ({ default: m.SupportDialog })));
+const MessagesPanel = lazy(() => import("@/components/MessagesPanel").then(m => ({ default: m.MessagesPanel })));
+const VendaZapChat = lazy(() => import("@/components/chat/VendaZapChat").then(m => ({ default: m.VendaZapChat })));
+const SubscriptionPlans = lazy(() => import("@/components/SubscriptionPlans").then(m => ({ default: m.SubscriptionPlans })));
+const VendaZapPanel = lazy(() => import("@/components/VendaZapPanel").then(m => ({ default: m.VendaZapPanel })));
+const UserProfileModal = lazy(() => import("@/components/UserProfileModal").then(m => ({ default: m.UserProfileModal })));
+const DealRoomView = lazy(() => import("@/components/DealRoomView").then(m => ({ default: m.DealRoomView })));
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
@@ -136,10 +137,19 @@ export default function Index() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Carregando...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm animate-pulse">Carregando sistema...</p>
+        </div>
       </div>
     );
   }
+
+  const ViewLoader = () => (
+    <div className="flex items-center justify-center py-16">
+      <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   // Bridge for legacy CurrentUserContext
   const currentUserCompat = authUser ? {
@@ -185,75 +195,79 @@ export default function Index() {
               <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
             </div>
 
-            {activeView === "dashboard" && (
-              <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} onOpenProfile={() => setShowProfile(true)} />
-            )}
+            <Suspense fallback={<ViewLoader />}>
+              {activeView === "dashboard" && (
+                <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} onOpenProfile={() => setShowProfile(true)} />
+              )}
 
-            {activeView === "clients" && (
-              <ClientsKanban clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClient} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
-            )}
+              {activeView === "clients" && (
+                <ClientsKanban clients={clients} loading={loading} onEdit={handleEdit} onDelete={handleDeleteClient} onAdd={handleAdd} onSimulate={handleSimulate} onHistory={handleHistory} onContracts={handleContracts} />
+              )}
 
-            {activeView === "simulator" && (
-              <SimulatorPanel
-                client={simulatingClient}
-                onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
-                onClientCreated={fetchClients}
-              />
-            )}
+              {activeView === "simulator" && (
+                <SimulatorPanel
+                  client={simulatingClient}
+                  onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
+                  onClientCreated={fetchClients}
+                />
+              )}
 
-            {activeView === "history" && historyClient && (
-              <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
-            )}
+              {activeView === "history" && historyClient && (
+                <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
+              )}
 
-            {activeView === "contracts" && contractsClient && (
-              <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
-            )}
+              {activeView === "contracts" && contractsClient && (
+                <ClientContracts client={contractsClient} onBack={() => { setActiveView("clients"); setContractsClient(null); }} />
+              )}
 
-            {activeView === "payroll" && (
-              <PayrollReport onBack={() => setActiveView("dashboard")} />
-            )}
+              {activeView === "payroll" && (
+                <PayrollReport onBack={() => setActiveView("dashboard")} />
+              )}
 
-            {activeView === "settings" && <SettingsPanel />}
+              {activeView === "settings" && <SettingsPanel />}
 
-            {activeView === "plans" && (
-              <SubscriptionPlans onBack={() => setActiveView("dashboard")} />
-            )}
+              {activeView === "plans" && (
+                <SubscriptionPlans onBack={() => setActiveView("dashboard")} />
+              )}
 
-            {activeView === "messages" && <MessagesPanel />}
+              {activeView === "messages" && <MessagesPanel />}
 
-            {activeView === "vendazap-chat" && (
-              <VendaZapChat
-                tenantId={authUser?.tenant_id || null}
-                userId={authUser?.id}
-                onDealRoom={(clientName, contractId) => {
-                  setActiveView("dealroom");
-                }}
-              />
-            )}
+              {activeView === "vendazap-chat" && (
+                <VendaZapChat
+                  tenantId={authUser?.tenant_id || null}
+                  userId={authUser?.id}
+                  onDealRoom={(clientName, contractId) => {
+                    setActiveView("dealroom");
+                  }}
+                />
+              )}
 
-            {activeView === "vendazap" && (
-              <VendaZapPanel
-                tenantId={authUser?.tenant_id || null}
-                onBack={() => setActiveView("clients")}
-              />
-            )}
+              {activeView === "vendazap" && (
+                <VendaZapPanel
+                  tenantId={authUser?.tenant_id || null}
+                  onBack={() => setActiveView("clients")}
+                />
+              )}
 
-            {activeView === "dealroom" && (
-              <DealRoomView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
-            )}
+              {activeView === "dealroom" && (
+                <DealRoomView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
+              )}
 
-            <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
+              <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
+            </Suspense>
           </main>
 
-          {authUser && (
-            <ChangePasswordDialog
-              open={showChangePassword}
-              userId={authUser.id}
-              onClose={() => setShowChangePassword(false)}
-            />
-          )}
-          <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
-          <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
+          <Suspense fallback={null}>
+            {authUser && (
+              <ChangePasswordDialog
+                open={showChangePassword}
+                userId={authUser.id}
+                onClose={() => setShowChangePassword(false)}
+              />
+            )}
+            <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
+            <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
+          </Suspense>
         </div>
       </TenantPlanContext.Provider>
     </CurrentUserContext.Provider>
