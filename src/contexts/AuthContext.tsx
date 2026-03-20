@@ -257,11 +257,24 @@ async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: R
 
   const senhaHash = password ? await hashLegacyPassword(password) : null;
 
+  // If no cargo_id provided, try to find an admin cargo for this tenant
+  let cargoId = (metadata.cargo_id as string) || null;
+  if (!cargoId && metadata.tenant_id) {
+    const { data: adminCargo } = await supabase
+      .from("cargos")
+      .select("id")
+      .eq("tenant_id", metadata.tenant_id as string)
+      .ilike("nome", "%admin%")
+      .limit(1)
+      .maybeSingle();
+    if (adminCargo) cargoId = adminCargo.id;
+  }
+
   const basePayload = {
     nome_completo: (metadata.nome_completo as string) || authUser.email?.split("@")[0] || "Usuário",
     apelido: (metadata.apelido as string) || null,
     email: authUser.email?.trim().toLowerCase() || null,
-    cargo_id: (metadata.cargo_id as string) || null,
+    cargo_id: cargoId,
     tenant_id: metadata.tenant_id as string,
     telefone: (metadata.telefone as string) || null,
     primeiro_login: true,
@@ -372,6 +385,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
 
+    // Resolve tenant from store code early so finalizeLogin can use it
+    const resolvedTenantId = normalizedStoreCode.length === 6
+      ? await resolveTenantIdByStoreCode(normalizedStoreCode)
+      : null;
+
+    if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
+      return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
+    }
+
     const finalizeLogin = async (authData: { user: SupabaseAuthUser | null; session: Session | null }) => {
       if (!authData.user) {
         return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
@@ -380,12 +402,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let appUser = await loadAppUser(authData.user);
       if (!appUser) {
         console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
-        await ensureUserProfile(authData.user, (authData.user.user_metadata as Record<string, unknown>) ?? undefined);
+        // Merge resolved tenant_id into metadata for profile creation
+        const metadata = {
+          ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
+          ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
+        };
+        await ensureUserProfile(authData.user, metadata, password);
         appUser = await loadAppUser(authData.user);
       }
 
       if (!appUser) {
         return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
+      }
+
+      // Validate tenant match if store code was provided
+      if (resolvedTenantId && appUser.tenant_id && appUser.tenant_id !== resolvedTenantId) {
+        return { user: null, error: "Este email não está vinculado ao código da loja informado." };
       }
 
       setUser(appUser);
@@ -457,16 +489,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 3. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
     if (error && shouldTryLegacyFallback(error)) {
       try {
-        const tenantIdFromCode = normalizedStoreCode.length === 6
-          ? await resolveTenantIdByStoreCode(normalizedStoreCode)
-          : null;
+        const tenantIdFromCode = resolvedTenantId;
 
         console.log("[Auth] 🔍 Código da loja resolvido para tenant_id:", tenantIdFromCode);
-
-        if (normalizedStoreCode.length === 6 && !tenantIdFromCode) {
-          console.log("[Auth] ❌ Código da loja não encontrado no banco");
-          return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
-        }
 
         const { data: legacyUsers } = await (supabase as any)
           .from("usuarios")

@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback, memo } from "react";
+import { ProfileCompletenessCard } from "@/components/ProfileCompletenessCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -300,6 +301,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
 
   return (
     <div className="space-y-6">
+      <ProfileCompletenessCard />
       {/* Date Filter Bar */}
       <Card>
         <CardContent className="p-4">
