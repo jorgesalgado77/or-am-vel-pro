@@ -72,6 +72,19 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   const [editingContract, setEditingContract] = useState<ClientContract | null>(null);
   const [savingContract, setSavingContract] = useState(false);
 
+  // Follow-up history
+  interface FollowUpRecord {
+    id: string;
+    stage: string;
+    status: string;
+    message: string | null;
+    scheduled_for: string;
+    sent_at: string | null;
+    created_at: string;
+  }
+  const [followUps, setFollowUps] = useState<FollowUpRecord[]>([]);
+  const [loadingFollowUps, setLoadingFollowUps] = useState(false);
+
   useEffect(() => {
     if (client) {
       reset({
