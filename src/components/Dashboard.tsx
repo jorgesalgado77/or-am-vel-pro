@@ -36,6 +36,7 @@ interface DashboardProps {
   lastSims: Record<string, LastSimInfo>;
   allSimulations?: { created_at: string; valor_final: number }[];
   onOpenProfile?: () => void;
+  onOpenSettings?: () => void;
 }
 
 const CHART_COLORS = [
