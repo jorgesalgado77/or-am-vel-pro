@@ -20,6 +20,7 @@ const SubscriptionPlans = lazy(() => import("@/components/SubscriptionPlans").th
 const VendaZapPanel = lazy(() => import("@/components/VendaZapPanel").then(m => ({ default: m.VendaZapPanel })));
 const UserProfileModal = lazy(() => import("@/components/UserProfileModal").then(m => ({ default: m.UserProfileModal })));
 const DealRoomView = lazy(() => import("@/components/DealRoomView").then(m => ({ default: m.DealRoomView })));
+const FunnelPanel = lazy(() => import("@/components/FunnelPanel").then(m => ({ default: m.FunnelPanel })));
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
@@ -44,6 +45,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   vendazap: { title: "VendaZap AI", subtitle: "Assistente inteligente de vendas para WhatsApp" },
   dealroom: { title: "Deal Room", subtitle: "Sala de negociação com apresentação e pagamento integrado" },
   "vendazap-chat": { title: "Chat de Vendas", subtitle: "Converse com clientes com sugestões de IA em tempo real" },
+  funnel: { title: "Funil de Captação", subtitle: "Sua máquina de captação de leads pronta para usar" },
 };
 
 export default function Index() {
@@ -252,6 +254,8 @@ export default function Index() {
               {activeView === "dealroom" && (
                 <DealRoomView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
               )}
+
+              {activeView === "funnel" && <FunnelPanel />}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>

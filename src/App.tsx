@@ -13,6 +13,7 @@ const Onboarding = lazy(() => import("./pages/Onboarding.tsx"));
 const RenewPlan = lazy(() => import("./pages/RenewPlan.tsx"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword.tsx"));
 const LandingPage = lazy(() => import("./pages/LandingPage.tsx"));
+const TenantLanding = lazy(() => import("./pages/TenantLanding.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/renew-plan" element={<RenewPlan />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/loja/:codigo" element={<TenantLanding />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
