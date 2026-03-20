@@ -501,6 +501,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
         await ensureUserProfile(authData.user, metadata, password);
         appUser = await loadAppUser(authData.user);
+
+        if (!appUser) {
+          appUser = await buildFallbackUserFromAuth({
+            id: authData.user.id,
+            email: authData.user.email,
+            user_metadata: metadata,
+          });
+        }
       }
 
       if (!appUser) {
