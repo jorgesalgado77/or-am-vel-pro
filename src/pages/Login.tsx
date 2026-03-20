@@ -40,6 +40,7 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
+  const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Detect low-end device for reduced effects
