@@ -99,7 +99,7 @@ export function useTypingIndicator(trackingId: string | null, currentUserId?: st
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (trackingId && currentUserId) {
-        supabase
+        (supabase as any)
           .from("typing_indicators")
           .upsert({
             tracking_id: trackingId,
