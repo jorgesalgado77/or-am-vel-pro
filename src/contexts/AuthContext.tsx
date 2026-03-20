@@ -57,11 +57,11 @@ async function resolveCargo(cargoId: string | null): Promise<{ cargo_nome: strin
   }
 
   const { data: cargo } = await withTimeout(
-    supabase
+    (async () => await supabase
       .from("cargos")
       .select("nome, permissoes")
       .eq("id", cargoId)
-      .maybeSingle(),
+      .maybeSingle())(),
     1200,
     { data: null, error: null } as any,
   );
@@ -302,11 +302,11 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
 
   // Try direct query first
   const { data, error } = await withTimeout(
-    supabase
+    (async () => await supabase
       .from("tenants")
       .select("id, codigo_loja")
       .in("codigo_loja", candidates)
-      .limit(candidates.length),
+      .limit(candidates.length))(),
     1500,
     { data: null, error: null } as any,
   );
