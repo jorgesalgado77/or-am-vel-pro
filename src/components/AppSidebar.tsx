@@ -23,7 +23,7 @@ function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }
 
-export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, unreadMessages = 0, onlineUsers = [] }: AppSidebarProps) {
+export function AppSidebar({ activeView, onViewChange, onChangePassword, onSupport, onProfile, unreadMessages = 0, onlineUsers = [] }: AppSidebarProps) {
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
 
