@@ -340,6 +340,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <TabsTrigger value="vendazap" className="gap-2"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
             <TabsTrigger value="whatsapp" className="gap-2"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
             <TabsTrigger value="resend" className="gap-2"><Mail className="h-4 w-4" />Resend</TabsTrigger>
+            <TabsTrigger value="diagnostics" className="gap-2"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
           </TabsList>
 
           {/* TAB: Lojas */}
