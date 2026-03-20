@@ -20,7 +20,7 @@ import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2,
   Save, Pencil, X, Search, RefreshCw, Receipt, Users, Target,
   ArrowUpRight, ArrowDownRight, CalendarDays, Bell, CheckCircle2,
-  Brain, Sparkles, Loader2
+  Brain, Sparkles, Loader2, FileDown
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
