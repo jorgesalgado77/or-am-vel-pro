@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Copy, ExternalLink, Eye, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks } from "lucide-react";
+import { Copy, ExternalLink, Eye, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3 } from "lucide-react";
+import { FunnelMetrics } from "@/components/funnel/FunnelMetrics";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -147,6 +148,22 @@ export function FunnelPanel() {
               Configure o código da loja em <strong>Configurações → Empresa</strong> para gerar seu link.
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Métricas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Métricas de Captação
+          </CardTitle>
+          <CardDescription>
+            Acompanhe a performance do seu funil de captação de leads.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FunnelMetrics />
         </CardContent>
       </Card>
 
