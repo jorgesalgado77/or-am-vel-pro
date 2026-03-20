@@ -36,6 +36,7 @@ interface DashboardProps {
   lastSims: Record<string, LastSimInfo>;
   allSimulations?: { created_at: string; valor_final: number }[];
   onOpenProfile?: () => void;
+  onOpenSettings?: () => void;
 }
 
 const CHART_COLORS = [
@@ -95,7 +96,7 @@ function isInRange(dateStr: string, start: Date, end: Date): boolean {
   return (isAfter(d, start) || d.getTime() === start.getTime()) && (isBefore(d, end) || d.getTime() === end.getTime());
 }
 
-export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfile }: DashboardProps) {
+export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfile, onOpenSettings }: DashboardProps) {
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
@@ -302,7 +303,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   return (
     <div className="space-y-6">
-      <ProfileCompletenessCard onOpenProfile={onOpenProfile} />
+      <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
       {/* Date Filter Bar */}
       <Card>
         <CardContent className="p-4">

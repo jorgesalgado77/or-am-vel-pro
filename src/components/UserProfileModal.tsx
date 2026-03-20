@@ -85,11 +85,28 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
 
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
-    const { data } = await supabase
+
+    // Try by app user id first
+    let { data } = await supabase
       .from("usuarios")
       .select("*")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
+
+    // Fallback: try by auth_user_id
+    if (!data) {
+      const { data: session } = await supabase.auth.getSession();
+      const authUid = session?.session?.user?.id;
+      if (authUid) {
+        const res = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("auth_user_id", authUid)
+          .maybeSingle();
+        data = res.data;
+      }
+    }
+
     if (data) {
       setForm({
         nome_completo: data.nome_completo || "",

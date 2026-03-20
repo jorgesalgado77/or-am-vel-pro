@@ -197,7 +197,7 @@ export default function Index() {
 
             <Suspense fallback={<ViewLoader />}>
               {activeView === "dashboard" && (
-                <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} onOpenProfile={() => setShowProfile(true)} />
+                <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} onOpenProfile={() => setShowProfile(true)} onOpenSettings={() => handleViewChange("settings")} />
               )}
 
               {activeView === "clients" && (
