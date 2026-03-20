@@ -23,6 +23,7 @@ import { AdminPlans } from "@/components/admin/AdminPlans";
 import { AdminWhatsAppConfig } from "@/components/admin/AdminWhatsAppConfig";
 import { AdminResendConfig } from "@/components/admin/AdminResendConfig";
 import { AdminLoginDiagnostics } from "@/components/admin/AdminLoginDiagnostics";
+import { AdminCanvaConfig } from "@/components/admin/AdminCanvaConfig";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
