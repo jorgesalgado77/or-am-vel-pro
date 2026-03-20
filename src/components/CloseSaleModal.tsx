@@ -90,7 +90,7 @@ const UF_OPTIONS = [
 ];
 
 export function CloseSaleModal({ open, onClose, onConfirm, client, simulationData, saving }: CloseSaleModalProps) {
-  const [form, setForm] = useState<CloseSaleFormData>({
+  const defaultForm: CloseSaleFormData = {
     numero_contrato: "",
     data_fechamento: format(new Date(), "yyyy-MM-dd"),
     responsavel_venda: "",
@@ -116,7 +116,10 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     valor_entrada: 0,
     qtd_parcelas: 1,
     valor_parcelas: 0,
-  });
+  };
+
+  const [form, setFormState, clearForm] = usePersistedFormState<CloseSaleFormData>("close-sale-form", defaultForm);
+  const setForm = setFormState as unknown as React.Dispatch<React.SetStateAction<CloseSaleFormData>>;
 
   const [items, setItems] = useState<SaleItem[]>([]);
   const [itemDetails, setItemDetails] = useState<SaleItemDetail[]>([]);
