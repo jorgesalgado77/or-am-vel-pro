@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Video, RefreshCw } from "lucide-react";
+import { CloseDealButton } from "./CloseDealButton";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { ChatMessageBubble } from "./ChatMessageBubble";
@@ -212,6 +213,13 @@ export function ChatWindow({
             {conversation.numero_contrato}
           </p>
         </div>
+
+        <CloseDealButton
+          trackingId={conversation.id}
+          clientName={conversation.nome_cliente}
+          tenantId={tenantId ?? null}
+          userId={userId}
+        />
 
         {onStartDealRoom && (
           <Button
