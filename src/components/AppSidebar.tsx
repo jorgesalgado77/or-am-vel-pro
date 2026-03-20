@@ -39,6 +39,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
     { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "configuracoes" as const, show: isAdmin, badge: null },
     { id: "funnel", label: "Funil de Captação", icon: Megaphone, perm: "configuracoes" as const, show: isAdmin, badge: null },
     { id: "campaigns", label: "Campanhas", icon: BookOpen, perm: "simulador" as const, show: true, badge: "NOVO" },
+    { id: "referrals", label: "Indicações", icon: Gift, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "simulador" as const, show: true, badge: "ADD-ON" },
     { id: "vendazap-chat", label: "Chat Vendas", icon: MessageCircle, perm: "clientes" as const, show: true, badge: "ADD-ON" },
     { id: "dealroom", label: "Deal Room", icon: Video, perm: "simulador" as const, show: true, badge: "ADD-ON" },
