@@ -721,6 +721,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!passwordValid) {
           console.log("[Auth] ❌ Senha inválida para usuário legado:", legacyUser.id);
+          logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: legacyUser.tenant_id, usuario_id: legacyUser.id, resultado: "falha_credencial", detalhes: { motivo: "Senha incorreta" } });
           return { user: null, error: "Senha incorreta. Verifique sua senha e tente novamente." };
         }
 
