@@ -59,7 +59,8 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
           <p className="text-xs text-muted-foreground mt-0.5">Orce. Venda. Simplifique</p>
         </div>
       </div>
-      <nav className="flex-1 p-2 space-y-0.5">
+      <nav className="flex-1 min-h-0 overflow-y-auto p-2 space-y-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <style>{`.sidebar-scroll::-webkit-scrollbar{display:none}`}</style>
         {navItems
           .filter((item) => item.show && hasPermission(item.perm))
           .map((item) => (
