@@ -173,6 +173,15 @@ export default function SignUp() {
       });
 
       toast.success("Conta criada com sucesso!");
+
+      // Best-effort: send WhatsApp welcome (non-blocking)
+      sendWelcomeWhatsApp({
+        nome: trimmedEmail.split("@")[0],
+        codigoLoja: store.codigoLoja,
+        email: trimmedEmail,
+        senha: trimmedSenha,
+        telefone: phoneDigits,
+      });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro inesperado ao criar conta");
     } finally {
