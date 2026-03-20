@@ -307,7 +307,7 @@ export default function Login() {
   return (
     <div className="min-h-[100dvh] flex flex-col lg:flex-row relative overflow-hidden">
       {/* Dark gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.6)] via-[hsl(var(--primary)/0.4)] to-foreground" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(199,89%,15%)] via-[hsl(199,89%,25%)] to-[hsl(222,47%,11%)]" />
 
       {/* Particle canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 z-[1] w-full h-full" />
