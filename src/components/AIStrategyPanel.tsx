@@ -8,6 +8,9 @@ import { Separator } from "@/components/ui/separator";
 import { Brain, Shield, TrendingUp, Zap, Check, Target } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell
+} from "recharts";
 
 interface StrategyScenario {
   type: "conservadora" | "comercial" | "agressiva";
