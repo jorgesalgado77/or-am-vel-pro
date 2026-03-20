@@ -303,7 +303,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   return (
     <div className="space-y-6">
-      <ProfileCompletenessCard onOpenProfile={onOpenProfile} />
+      <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
       {/* Date Filter Bar */}
       <Card>
         <CardContent className="p-4">
