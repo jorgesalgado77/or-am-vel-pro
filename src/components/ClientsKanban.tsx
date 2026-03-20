@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Plus, Search, Filter, X, CalendarIcon, Handshake, Pencil, Trash2,
   History, FileText, Phone, Mail, User, Hash, Clock, AlertTriangle,
-  Calculator, ChevronRight, GripVertical,
+  Calculator, ChevronRight, GripVertical, Repeat,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -69,6 +70,7 @@ export function ClientsKanban({
   const [showFilters, setShowFilters] = useState(false);
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
+  const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const { settings } = useCompanySettings();
   const { projetistas } = useUsuarios();
   const { indicadores } = useIndicadores();
@@ -101,6 +103,29 @@ export function ClientsKanban({
       setLastSims(map);
     };
     fetchLastSims();
+  }, [clients]);
+
+  // Fetch follow-up statuses for all clients
+  useEffect(() => {
+    if (clients.length === 0) return;
+    const fetchFollowUpStatuses = async () => {
+      const clientIds = clients.map(c => c.id);
+      const { data } = await supabase
+        .from("followup_schedules" as any)
+        .select("client_id, status")
+        .in("client_id", clientIds)
+        .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+      if (!data) return;
+      const statusMap: Record<string, "active" | "paused" | "completed"> = {};
+      (data as any[]).forEach((s: any) => {
+        const current = statusMap[s.client_id];
+        if (s.status === "pending") statusMap[s.client_id] = "active";
+        else if (s.status === "paused" && current !== "active") statusMap[s.client_id] = "paused";
+        else if (s.status === "sent" && !current) statusMap[s.client_id] = "completed";
+      });
+      setFollowUpStatus(statusMap);
+    };
+    fetchFollowUpStatuses();
   }, [clients]);
 
   const effectiveDates = useMemo(() => {
@@ -390,6 +415,29 @@ export function ClientsKanban({
                                               </Badge>
                                             );
                                           })()}
+                                          {followUpStatus[client.id] && (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Badge
+                                                  variant="outline"
+                                                  className={cn(
+                                                    "text-[9px] h-4 px-1 font-medium gap-0.5",
+                                                    followUpStatus[client.id] === "active" && "border-emerald-400 text-emerald-600 bg-emerald-50",
+                                                    followUpStatus[client.id] === "paused" && "border-amber-400 text-amber-600 bg-amber-50",
+                                                    followUpStatus[client.id] === "completed" && "border-sky-400 text-sky-600 bg-sky-50",
+                                                  )}
+                                                >
+                                                  <Repeat className="h-2.5 w-2.5" />
+                                                  {followUpStatus[client.id] === "active" ? "FU" : followUpStatus[client.id] === "paused" ? "⏸" : "✓"}
+                                                </Badge>
+                                              </TooltipTrigger>
+                                              <TooltipContent side="top" className="text-xs">
+                                                {followUpStatus[client.id] === "active" && "Follow-up ativo"}
+                                                {followUpStatus[client.id] === "paused" && "Follow-up pausado"}
+                                                {followUpStatus[client.id] === "completed" && "Follow-up concluído"}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
                                         </div>
                                       </div>
                                       <div {...provided.dragHandleProps} className="opacity-0 group-hover:opacity-60 transition-opacity pt-0.5">
