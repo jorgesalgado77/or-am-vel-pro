@@ -43,6 +43,7 @@ export function ChatWindow({
     userId,
     "Loja"
   );
+  const { replies: quickReplies, loading: qrLoading, add: addQR, remove: removeQR } = useQuickReplies(tenantId ?? null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
