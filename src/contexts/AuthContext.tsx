@@ -89,17 +89,75 @@ async function mapAppUser(userRow: any, authUserId?: string | null): Promise<App
   };
 }
 
-function normalizeEmail(value: string | null | undefined): string | null {
-  const normalized = value?.trim().toLowerCase();
-  return normalized || null;
+function mapRpcAppUser(userRow: any, authUserId?: string | null): AppUser {
+  return {
+    id: userRow.id ?? authUserId ?? "",
+    nome_completo: userRow.nome_completo ?? "Usuário",
+    apelido: userRow.apelido ?? null,
+    email: userRow.email ?? null,
+    telefone: userRow.telefone ?? userRow.telefone_whatsapp ?? null,
+    cargo_id: userRow.cargo_id ?? null,
+    cargo_nome: userRow.cargo_nome ?? null,
+    foto_url: userRow.foto_url ?? null,
+    tenant_id: userRow.tenant_id ?? null,
+    auth_user_id: userRow.auth_user_id ?? authUserId ?? null,
+    permissoes: (userRow.permissoes as CargoPermissoes) ?? DEFAULT_PERMS,
+  };
+}
+
+async function buildFallbackUserFromAuth(
+  authUser: Pick<SupabaseAuthUser, "id" | "email" | "user_metadata">
+): Promise<AppUser | null> {
+  const metadata = (authUser.user_metadata as Record<string, unknown> | undefined) ?? undefined;
+  const tenantId = (metadata?.tenant_id as string | undefined) ?? null;
+
+  if (!tenantId) return null;
+
+  const cargoId = (metadata?.cargo_id as string | undefined) ?? null;
+  const { cargo_nome, permissoes } = await resolveCargo(cargoId);
+
+  return {
+    id: authUser.id,
+    nome_completo: (metadata?.nome_completo as string) || authUser.email?.split("@")[0] || "Usuário",
+    apelido: (metadata?.apelido as string) || null,
+    email: normalizeEmail(authUser.email),
+    telefone: (metadata?.telefone as string) || null,
+    cargo_id: cargoId,
+    cargo_nome: cargo_nome ?? (cargoId ? "Administrador" : null),
+    foto_url: null,
+    tenant_id: tenantId,
+    auth_user_id: authUser.id,
+    permissoes,
+  };
+}
+
+async function loadAppUserViaRpc(
+  authUser: Pick<SupabaseAuthUser, "id" | "email">
+): Promise<AppUser | null> {
+  try {
+    const { data, error } = await (supabase as any).rpc("get_current_app_user");
+    const userRow = Array.isArray(data) ? data[0] : data;
+
+    if (error) {
+      console.warn("[Auth] RPC get_current_app_user falhou:", error.message);
+      return null;
+    }
+
+    if (!userRow) return null;
+    return mapRpcAppUser(userRow, authUser.id);
+  } catch (error) {
+    console.warn("[Auth] RPC get_current_app_user indisponível:", error);
+    return null;
+  }
 }
 
 /**
  * Compat layer for external databases:
  * - prefers usuarios.id = auth.uid()
  * - falls back to usuarios.email when the schema does not store auth_user_id
+ * - falls back to RPC / JWT metadata when RLS blocks direct reads
  */
-async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Promise<AppUser | null> {
+async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email" | "user_metadata">): Promise<AppUser | null> {
   const normalizedEmail = normalizeEmail(authUser.email);
   const lookupStrategies: Array<{ label: string; query: (() => Promise<{ data: any; error: any }>) | null }> = [
     {
@@ -166,6 +224,9 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Pr
       return mapAppUser(userRow, authUser.id);
     }
   }
+
+  const rpcUser = await loadAppUserViaRpc(authUser);
+  if (rpcUser) return rpcUser;
 
   return null;
 }
