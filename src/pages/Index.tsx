@@ -110,8 +110,21 @@ export default function Index() {
 
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
   const storeName = settings.company_name || "OrçaMóvel PRO";
+  const cargoLabel = authUser?.cargo_nome || "Usuário";
   const currentTitle = activeView === "dashboard" ? `${storeName} - Dashboard` : viewMeta.title;
-  const currentSubtitle = activeView === "clients" ? `${clients.length} clientes cadastrados` : viewMeta.subtitle;
+
+  // Greeting based on time of day
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const firstName = (authUser?.apelido || authUser?.nome_completo || "").split(" ")[0];
+  const dateStr = now.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+
+  const currentSubtitle = activeView === "dashboard"
+    ? `${greeting}, ${firstName}! Hoje é ${dateStr}`
+    : activeView === "clients"
+      ? `${clients.length} clientes cadastrados`
+      : viewMeta.subtitle;
 
   // Show login if no auth session
   if (!authUser && !authLoading) {
@@ -160,7 +173,12 @@ export default function Index() {
           <main className="flex-1 ml-60 p-6">
             <PlanBanner />
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+                {activeView === "dashboard" && (
+                  <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">{cargoLabel}</span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
             </div>
 
