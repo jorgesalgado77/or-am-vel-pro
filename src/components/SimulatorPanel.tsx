@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake, Trash2, RotateCcw, EyeOff, Eye } from "lucide-react";
 import { AIStrategyPanel } from "@/components/AIStrategyPanel";
+import { useConversionHistory } from "@/hooks/useConversionHistory";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData, type CreditRateData } from "@/lib/financing";
 import { generateOrcamentoNumber, applyDiscounts, FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
@@ -163,6 +164,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { isFeatureAllowed } = useTenantPlanContext();
   const canHideIndicador = isFeatureAllowed("ocultar_indicador");
   const { validateAccess, recordSale, access: dealRoomAccess, loading: dealRoomLoading } = useDealRoom();
+  const conversionStats = useConversionHistory((settings as any)?.tenant_id || null);
 
   // Get the selected indicador's commission
   const selectedIndicador = activeIndicadores.find(i => i.id === selectedIndicadorId);
@@ -1201,6 +1203,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
               const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
               return cargo.includes("ADMIN") || cargo.includes("GERENTE") || cargo.includes("PROJETISTA");
             })()}
+            historicalConversionRate={conversionStats.conversionRate}
           />
           <Card>
             <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>

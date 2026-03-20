@@ -241,8 +241,16 @@ export function AIStrategyPanel({
 
       {enabled && valorTela > 0 && (
         <CardContent className="space-y-3 pt-0">
+          {historicalConversionRate > 0 && (
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 text-xs">
+              <Target className="h-3.5 w-3.5 text-primary" />
+              <span className="text-muted-foreground">
+                Taxa de conversão histórica: <span className="font-bold text-foreground">{historicalConversionRate.toFixed(1)}%</span>
+              </span>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
-            Baseado nos seus descontos e condições de pagamento configurados, a IA gerou 3 cenários:
+            Baseado nos seus descontos, condições de pagamento e histórico real de vendas:
           </p>
 
           <div className="grid grid-cols-1 gap-3">
