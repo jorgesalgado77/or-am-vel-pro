@@ -193,13 +193,48 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       instagram: form.instagram || null,
       tiktok: form.tiktok || null,
       linkedin: form.linkedin || null,
+      updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("usuarios").update(updateData as any).eq("id", user.id);
+    // Try update with select to confirm rows affected
+    const { data: updatedRows, error } = await supabase
+      .from("usuarios")
+      .update(updateData as any)
+      .eq("id", user.id)
+      .select();
+
     if (error) {
+      console.error("Profile update error:", error);
       toast.error("Erro ao salvar: " + error.message);
       setSaving(false);
       return;
+    }
+
+    // If RLS blocked the update (0 rows returned), try via auth_user_id
+    if (!updatedRows || updatedRows.length === 0) {
+      console.warn("Update by id returned 0 rows, trying auth_user_id...");
+      const { data: session } = await supabase.auth.getSession();
+      const authUid = session?.session?.user?.id;
+      if (authUid) {
+        const { data: retryRows, error: retryErr } = await supabase
+          .from("usuarios")
+          .update(updateData as any)
+          .eq("auth_user_id", authUid)
+          .select();
+
+        if (retryErr) {
+          console.error("Retry update error:", retryErr);
+          toast.error("Erro ao salvar perfil. Verifique suas permissões.");
+          setSaving(false);
+          return;
+        }
+
+        if (!retryRows || retryRows.length === 0) {
+          toast.error("Não foi possível salvar. Permissão negada pela política de segurança.");
+          setSaving(false);
+          return;
+        }
+      }
     }
 
     // Change password if filled
@@ -214,6 +249,8 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     }
 
     toast.success("Perfil atualizado com sucesso!");
+    // Reload profile from DB to confirm saved data
+    await loadProfile();
     await refreshUser();
     setSaving(false);
   };
