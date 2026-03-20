@@ -467,12 +467,12 @@ export default function Login() {
                 Criar minha conta
               </Button>
               <Button
-                variant="ghost"
-                className="w-full gap-2 text-white/40 hover:text-white/70 hover:bg-white/5"
+                variant="outline"
+                className="w-full gap-2 border-emerald-400/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 hover:border-emerald-400/70 transition-all duration-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.15)]"
                 onClick={() => setShowTracking(true)}
               >
                 <Search className="h-4 w-4" />
-                Acompanhe seu Projeto
+                📍 Acompanhe seu Projeto
               </Button>
             </div>
           </div>
