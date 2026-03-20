@@ -133,7 +133,7 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
         {/* Text input */}
         <Textarea
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => { onChange(e.target.value); onKeystroke?.(); }}
           onKeyDown={handleKeyDown}
           placeholder="Digite uma mensagem..."
           className="min-h-[36px] max-h-[120px] resize-none text-sm flex-1"
