@@ -391,7 +391,7 @@ export default function Login() {
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-5 sm:p-8 space-y-5">
             {/* Header */}
             <div className="text-center space-y-2">
-              <div className="lg:hidden mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
+              <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
                 {settings.logo_url ? (
                   <img src={settings.logo_url} alt="Logo" className="h-7 w-7 sm:h-8 sm:w-8 object-contain" />
                 ) : (
@@ -399,7 +399,7 @@ export default function Login() {
                 )}
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white">{companyName}</h1>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{companyName}</h1>
                 <p className="text-xs sm:text-sm text-white/50 mt-1">{companySubtitle}</p>
               </div>
             </div>
