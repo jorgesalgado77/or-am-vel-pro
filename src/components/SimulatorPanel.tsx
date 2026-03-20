@@ -1203,6 +1203,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
               const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
               return cargo.includes("ADMIN") || cargo.includes("GERENTE") || cargo.includes("PROJETISTA");
             })()}
+            historicalConversionRate={conversionStats.conversionRate}
           />
           <Card>
             <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
