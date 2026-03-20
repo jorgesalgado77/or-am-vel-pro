@@ -31,7 +31,7 @@ const PAGE_SIZE = 40;
 export function ChatWindow({
   conversation, onBack, onStartDealRoom,
   aiSuggestion, aiLoading, aiTipoCopy, onUseSuggestion,
-  inputValue, onInputChange, userId,
+  inputValue, onInputChange, userId, tenantId,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
