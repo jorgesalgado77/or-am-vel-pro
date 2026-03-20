@@ -301,6 +301,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardP
 
   return (
     <div className="space-y-6">
+      <ProfileCompletenessCard />
       {/* Date Filter Bar */}
       <Card>
         <CardContent className="p-4">
