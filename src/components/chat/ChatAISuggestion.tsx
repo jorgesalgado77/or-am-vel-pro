@@ -12,10 +12,11 @@ interface Props {
 
 const TIPO_LABELS: Record<string, string> = {
   reativacao: "Reativação",
-  fechamento: "Fechamento",
+  fechamento: "🎯 Fechamento",
   reuniao: "Reunião",
   urgencia: "Urgência",
   geral: "Geral",
+  resposta_automatica: "🤖 Auto-Pilot",
 };
 
 export const ChatAISuggestion = memo(function ChatAISuggestion({ suggestion, loading, tipoCopy, onUse }: Props) {
