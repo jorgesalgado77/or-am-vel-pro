@@ -91,8 +91,8 @@ export function FunnelMetrics() {
 
       // Agrupar por origem
       const origemMap: Record<string, number> = {};
-      clients.forEach((c) => {
-        const o = (c as any).origem || "manual";
+      clients.forEach((c: any) => {
+        const o = c.origem_lead || "manual";
         origemMap[o] = (origemMap[o] || 0) + 1;
       });
       const porOrigem = Object.entries(origemMap)
