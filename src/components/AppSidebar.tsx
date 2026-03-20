@@ -182,11 +182,6 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onProfile}>
               <UserCircle className="h-3.5 w-3.5" />Meu Perfil
             </Button>
-            {onChangePassword && (
-              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onChangePassword}>
-                <KeyRound className="h-3.5 w-3.5" />Alterar Senha
-              </Button>
-            )}
             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={logout}>
               <LogOut className="h-3.5 w-3.5" />Sair
             </Button>
