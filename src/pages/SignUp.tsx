@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { provisionNewStore, createUsuarioProfile, checkEmailExists } from "@/lib/accountProvisioning";
 import { sendWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 import { FirstAccessCredentialsCard } from "@/components/auth/FirstAccessCredentialsCard";
+import { supabase } from "@/lib/supabaseClient";
 
 interface CreatedAccountState {
   tenantId: string;
