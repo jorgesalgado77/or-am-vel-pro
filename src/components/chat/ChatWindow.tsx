@@ -6,7 +6,9 @@ import { toast } from "sonner";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { ChatAISuggestion } from "./ChatAISuggestion";
 import { ChatInput } from "./ChatInput";
+import { TypingIndicator } from "./TypingIndicator";
 import { TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
