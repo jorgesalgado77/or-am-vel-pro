@@ -369,7 +369,7 @@ export function ReferralPanel() {
                 <TableBody>
                   {filteredLinks.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         <Gift className="h-8 w-8 mx-auto mb-2 opacity-30" />
                         <p>Nenhum link de indicação criado.</p>
                         <p className="text-xs mt-1">Crie links para seus melhores clientes indicarem novos leads.</p>
