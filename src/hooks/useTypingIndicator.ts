@@ -66,7 +66,7 @@ export function useTypingIndicator(trackingId: string | null, currentUserId?: st
     if (!trackingId || !currentUserId || isTypingRef.current === typing) return;
     isTypingRef.current = typing;
 
-    await supabase
+    await (supabase as any)
       .from("typing_indicators")
       .upsert({
         tracking_id: trackingId,
