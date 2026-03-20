@@ -608,6 +608,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("[Auth] 🔍 Usuários encontrados com email", normalizedEmail, ":", legacyList.length);
 
         if (legacyList.length === 0) {
+          logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: tenantIdFromCode, resultado: "falha_credencial", detalhes: { motivo: "Email não encontrado" } });
           return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
         }
 
