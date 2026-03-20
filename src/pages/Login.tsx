@@ -258,7 +258,7 @@ export default function Login() {
     }
   };
 
-  const companyName = settings.company_name !== "INOVAMAD" ? settings.company_name : "OrçaMóvel PRO";
+  const companyName = "OrçaMóvel PRO";
   const companySubtitle =
     settings.company_subtitle && settings.company_subtitle !== "Gestão & Financiamento"
       ? settings.company_subtitle
