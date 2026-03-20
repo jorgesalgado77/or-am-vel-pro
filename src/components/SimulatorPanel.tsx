@@ -1175,6 +1175,33 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         </Card>
 
         <div className="space-y-6">
+          <AIStrategyPanel
+            valorTela={valorTela}
+            valorTelaComComissao={valorTelaComComissao}
+            discountOptions={{
+              desconto1: getOptionsForField("desconto1"),
+              desconto2: getOptionsForField("desconto2"),
+              desconto3: getOptionsForField("desconto3"),
+              plus: getOptionsForField("plus"),
+            }}
+            maxParcelas={maxParcelas}
+            currentFormaPagamento={formaPagamento}
+            onApplyStrategy={(s) => {
+              setDesconto1(s.desconto1);
+              setDesconto2(s.desconto2);
+              setDesconto3(s.desconto3);
+              setPlusPercentual(s.plusPercentual);
+              setFormaPagamento(s.formaPagamento as any);
+              setParcelas(s.parcelas);
+              setValorEntrada(s.valorEntrada);
+              if (s.desconto3 > 0) setDesconto3Unlocked(true);
+              if (s.plusPercentual > 0) setPlusUnlocked(true);
+            }}
+            canAccess={(() => {
+              const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
+              return cargo.includes("ADMIN") || cargo.includes("GERENTE") || cargo.includes("PROJETISTA");
+            })()}
+          />
           <Card>
             <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
             <CardContent className="space-y-4">
