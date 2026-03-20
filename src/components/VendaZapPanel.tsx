@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
   RefreshCw, Zap, History, Send, ArrowLeft, Handshake,
-  Flame, Snowflake, ExternalLink, BookOpen, Lightbulb, X,
+  Flame, Snowflake, ExternalLink, BookOpen, Lightbulb, X, Brain,
 } from "lucide-react";
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useVendaZap } from "@/hooks/useVendaZap";
@@ -23,6 +23,8 @@ import { supabase } from "@/lib/supabaseClient";
 import type { Database } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const AutoPilotAnalyticsLazy = lazy(() => import("@/components/chat/AutoPilotAnalytics").then(m => ({ default: m.AutoPilotAnalytics })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -217,6 +219,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
           </TabsTrigger>
           <TabsTrigger value="prontas" className="gap-2"><BookOpen className="h-4 w-4" />Copys</TabsTrigger>
           <TabsTrigger value="historico" className="gap-2"><History className="h-4 w-4" />Histórico</TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-2"><Brain className="h-4 w-4" />Analytics IA</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gerar" className="space-y-4">
@@ -622,6 +625,12 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <Suspense fallback={<div className="text-center py-8 text-sm text-muted-foreground">Carregando...</div>}>
+            <AutoPilotAnalyticsLazy tenantId={tenantId} />
+          </Suspense>
         </TabsContent>
       </Tabs>
       <OnboardingDialog featureKey="vendazap" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
