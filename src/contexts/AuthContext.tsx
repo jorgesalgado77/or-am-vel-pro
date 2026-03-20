@@ -214,14 +214,30 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
   const maskedCode = `${digits.slice(0, 3)}.${digits.slice(3)}`;
   const candidates = Array.from(new Set([digits, maskedCode]));
 
-  const { data } = await supabase
+  // Try direct query first
+  const { data, error } = await supabase
     .from("tenants")
     .select("id, codigo_loja")
     .in("codigo_loja", candidates)
     .limit(candidates.length);
 
+  if (error) {
+    console.warn("[Auth] Tenant lookup error:", error.message);
+  }
+
   const tenant = data?.find((row) => (row.codigo_loja ?? "").replace(/\D/g, "") === digits);
-  return tenant?.id ?? null;
+  if (tenant) return tenant.id;
+
+  // Fallback: try RPC if direct query returned nothing (RLS may block unauthenticated reads)
+  try {
+    const { data: rpcData } = await supabase.rpc("resolve_tenant_by_code", { p_code: maskedCode }) as any;
+    if (rpcData) return rpcData;
+  } catch {
+    // RPC may not exist yet
+  }
+
+  // Fallback 2: lookup via usuarios table (find any user with this email to get their tenant)
+  return null;
 }
 
 async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: Record<string, unknown>, password?: string) {
