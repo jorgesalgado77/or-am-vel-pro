@@ -267,7 +267,7 @@ export default function Login() {
   if (planBlocked) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.6)] via-[hsl(var(--primary)/0.4)] to-foreground" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(199,89%,15%)] via-[hsl(199,89%,25%)] to-[hsl(222,47%,11%)]" />
         <canvas ref={canvasRef} className="absolute inset-0 z-[1] w-full h-full" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -284,7 +284,7 @@ export default function Login() {
               <p className="text-sm text-white/60 mt-3 leading-relaxed">{planBlocked.reason}</p>
             </div>
             <div className="space-y-3">
-              <Button className="w-full gap-2 h-11 sm:h-12 text-sm sm:text-base bg-gradient-to-r from-primary to-[hsl(var(--primary)/0.85)] hover:from-[hsl(var(--primary)/0.9)] hover:to-primary shadow-lg" onClick={handleRenewPlan}>
+              <Button className="w-full gap-2 h-11 sm:h-12 text-sm sm:text-base bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg" onClick={handleRenewPlan}>
                 <CreditCard className="h-5 w-5" />
                 Escolher novo plano
               </Button>
@@ -307,7 +307,7 @@ export default function Login() {
   return (
     <div className="min-h-[100dvh] flex flex-col lg:flex-row relative overflow-hidden">
       {/* Dark gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary)/0.6)] via-[hsl(var(--primary)/0.4)] to-foreground" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(199,89%,15%)] via-[hsl(199,89%,25%)] to-[hsl(222,47%,11%)]" />
 
       {/* Particle canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 z-[1] w-full h-full" />
@@ -318,17 +318,17 @@ export default function Login() {
           <motion.div
             animate={{ x: [0, 60, -40, 0], y: [0, -50, 30, 0], scale: [1, 1.2, 0.9, 1] }}
             transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[hsl(var(--primary)/0.18)] rounded-full blur-3xl"
+            className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[hsl(199,89%,40%/0.18)] rounded-full blur-3xl"
           />
           <motion.div
             animate={{ x: [0, -70, 50, 0], y: [0, 40, -60, 0], scale: [1, 0.85, 1.15, 1] }}
             transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[hsl(var(--accent)/0.12)] rounded-full blur-3xl"
+            className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[hsl(160,84%,39%/0.12)] rounded-full blur-3xl"
           />
           <motion.div
             animate={{ x: [0, 40, -30, 0], y: [0, -30, 50, 0] }}
             transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[40%] left-[30%] w-[350px] h-[350px] bg-[hsl(var(--ring)/0.08)] rounded-full blur-3xl"
+            className="absolute top-[40%] left-[30%] w-[350px] h-[350px] bg-[hsl(260,70%,50%/0.08)] rounded-full blur-3xl"
           />
         </div>
       )}
@@ -348,7 +348,7 @@ export default function Login() {
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
           >
             {/* Glow behind image */}
-            <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-[hsl(var(--primary)/0.25)] via-[hsl(var(--accent)/0.2)] to-[hsl(var(--primary)/0.25)] blur-2xl opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
+            <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-[hsl(199,89%,50%/0.25)] via-[hsl(160,84%,45%/0.2)] to-[hsl(199,89%,50%/0.25)] blur-2xl opacity-60 group-hover:opacity-90 transition-opacity duration-700" />
 
             <div className="relative overflow-hidden rounded-2xl border border-white/15 shadow-2xl shadow-black/30">
               <img
@@ -366,7 +366,7 @@ export default function Login() {
             {[
               { value: "+500", label: "Lojas ativas", color: "bg-[hsl(var(--accent))]" },
               { value: "98%", label: "Satisfação", color: "bg-[hsl(var(--primary))]" },
-              { value: "24/7", label: "Suporte", color: "bg-accent" },
+              { value: "24/7", label: "Suporte", color: "bg-[hsl(160,84%,60%)]" },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <p className="text-2xl font-bold text-white">{stat.value}</p>
@@ -391,7 +391,7 @@ export default function Login() {
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-5 sm:p-8 space-y-5">
             {/* Header */}
             <div className="text-center space-y-2">
-              <div className="lg:hidden mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
+              <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
                 {settings.logo_url ? (
                   <img src={settings.logo_url} alt="Logo" className="h-7 w-7 sm:h-8 sm:w-8 object-contain" />
                 ) : (
@@ -399,7 +399,7 @@ export default function Login() {
                 )}
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white">{companyName}</h1>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{companyName}</h1>
                 <p className="text-xs sm:text-sm text-white/50 mt-1">{companySubtitle}</p>
               </div>
             </div>
@@ -483,7 +483,7 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 sm:h-12 rounded-xl text-sm sm:text-base font-semibold gap-2 bg-gradient-to-r from-primary to-[hsl(var(--primary)/0.85)] hover:from-[hsl(var(--primary)/0.9)] hover:to-primary shadow-lg shadow-[hsl(var(--primary)/0.3)] transition-all duration-300 hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.4)] active:scale-[0.97]"
+                className="w-full h-11 sm:h-12 rounded-xl text-sm sm:text-base font-semibold gap-2 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg shadow-[hsl(var(--primary)/0.3)] transition-all duration-300 hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.4)] active:scale-[0.97]"
               >
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -516,7 +516,7 @@ export default function Login() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full gap-2 h-10 sm:h-11 rounded-xl border-accent/50 bg-accent/10 text-accent hover:bg-accent/20 hover:text-accent hover:border-accent/70 transition-all duration-300 font-semibold shadow-[0_0_15px_hsl(var(--accent)/0.15)] text-sm"
+                className="w-full gap-2 h-10 sm:h-11 rounded-xl border-emerald-400/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 hover:border-emerald-400/70 transition-all duration-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.15)] text-sm"
                 onClick={() => setShowTracking(true)}
               >
                 <Search className="h-4 w-4" />
@@ -547,7 +547,7 @@ export default function Login() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm backdrop-blur-xl bg-foreground/95 border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4"
+            className="w-full max-w-sm backdrop-blur-xl bg-[#0f1d32]/95 border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="text-center space-y-1">
               <Mail className="h-8 w-8 sm:h-10 sm:w-10 text-[hsl(var(--primary))] mx-auto" />
@@ -574,7 +574,7 @@ export default function Login() {
               </Button>
               <Button
                 disabled={forgotLoading || !forgotEmail}
-                className="flex-1 h-10 sm:h-11 rounded-xl bg-gradient-to-r from-primary to-[hsl(var(--primary)/0.85)] font-semibold text-sm"
+                className="flex-1 h-10 sm:h-11 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] font-semibold text-sm"
                 onClick={async () => {
                   setForgotLoading(true);
                   try {
