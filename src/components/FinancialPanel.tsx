@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -13,17 +13,18 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { toast } from "sonner";
-import { format, addDays, isPast, isAfter, isBefore } from "date-fns";
+import { format, addDays, isPast, isAfter, isBefore, eachDayOfInterval, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/financing";
 import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2,
   Save, Pencil, X, Search, RefreshCw, Receipt, Users, Target,
-  ArrowUpRight, ArrowDownRight, CalendarDays, Bell, CheckCircle2
+  ArrowUpRight, ArrowDownRight, CalendarDays, Bell, CheckCircle2,
+  Brain, Sparkles, Loader2
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
+  PieChart, Pie, Cell, LineChart, Line, Area, AreaChart, ReferenceLine, Legend
 } from "recharts";
 
 interface FinancialAccount {
