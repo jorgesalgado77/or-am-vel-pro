@@ -35,6 +35,7 @@ interface DashboardProps {
   clients: Client[];
   lastSims: Record<string, LastSimInfo>;
   allSimulations?: { created_at: string; valor_final: number }[];
+  onOpenProfile?: () => void;
 }
 
 const CHART_COLORS = [
