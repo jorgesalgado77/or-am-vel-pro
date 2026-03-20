@@ -151,13 +151,12 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
       if (data.erro) return;
-      setForm(prev => ({
-        ...prev,
-        [`endereco${prefix}`]: data.logradouro || prev[`endereco${prefix}` as keyof CloseSaleFormData],
-        [`bairro${prefix}`]: data.bairro || prev[`bairro${prefix}` as keyof CloseSaleFormData],
-        [`cidade${prefix}`]: data.localidade || prev[`cidade${prefix}` as keyof CloseSaleFormData],
-        [`uf${prefix}`]: data.uf || prev[`uf${prefix}` as keyof CloseSaleFormData],
-      } as any));
+      updateForm({
+        [`endereco${prefix}`]: data.logradouro || form[`endereco${prefix}` as keyof CloseSaleFormData],
+        [`bairro${prefix}`]: data.bairro || form[`bairro${prefix}` as keyof CloseSaleFormData],
+        [`cidade${prefix}`]: data.localidade || form[`cidade${prefix}` as keyof CloseSaleFormData],
+        [`uf${prefix}`]: data.uf || form[`uf${prefix}` as keyof CloseSaleFormData],
+      } as Partial<CloseSaleFormData>);
     } catch {}
   };
 
