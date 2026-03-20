@@ -36,7 +36,7 @@ export function useConversionHistory(tenantId: string | null): ConversionStats {
         // Closed deals (clients with status 'ganho' or 'fechado')
         const { data: closedClients } = await supabase
           .from("clients")
-          .select("id, valor_final")
+          .select("id")
           .or("status.eq.ganho,status.eq.fechado");
 
         // Get simulations for closed clients to find avg discount
