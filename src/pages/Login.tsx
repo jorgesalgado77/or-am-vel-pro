@@ -574,7 +574,7 @@ export default function Login() {
               </Button>
               <Button
                 disabled={forgotLoading || !forgotEmail}
-                className="flex-1 h-10 sm:h-11 rounded-xl bg-gradient-to-r from-primary to-[hsl(var(--primary)/0.85)] font-semibold text-sm"
+                className="flex-1 h-10 sm:h-11 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] font-semibold text-sm"
                 onClick={async () => {
                   setForgotLoading(true);
                   try {
