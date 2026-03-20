@@ -6,6 +6,7 @@ import { CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield, Pal
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { maskPhone, unmask } from "@/lib/masks";
 import { toast } from "sonner";
 
