@@ -164,7 +164,7 @@ function CompanySettingsTab() {
       budget_validity_days: validityDays,
       manager_password: managerPassword,
       admin_password: adminPassword,
-      orcamento_numero_inicial: orcamentoInicial,
+      orcamento_numero_inicial: Math.round(orcamentoInicial),
     } as any).eq("id", settings.id);
     setSaving(false);
     if (error) toast.error("Erro ao salvar");
