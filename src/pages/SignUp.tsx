@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { provisionNewStore, createUsuarioProfile, checkEmailExists } from "@/lib/accountProvisioning";
 import { sendWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 import { FirstAccessCredentialsCard } from "@/components/auth/FirstAccessCredentialsCard";
+import { supabase } from "@/lib/supabaseClient";
 
 interface CreatedAccountState {
   tenantId: string;
@@ -163,6 +164,27 @@ export default function SignUp() {
         toast.error("Erro ao criar acesso: " + authError);
         setLoading(false);
         return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getUser();
+      const authUserId = sessionData.user?.id;
+
+      if (authUserId) {
+        try {
+          await createUsuarioProfile({
+            authUserId,
+            email: trimmedEmail,
+            tenantId: store.tenantId,
+            cargoId: store.cargoId,
+            senha: trimmedSenha,
+            telefoneWhatsApp: phoneDigits,
+          });
+        } catch (profileError) {
+          const message = profileError instanceof Error ? profileError.message.toLowerCase() : "";
+          if (!message.includes("duplicate") && !message.includes("já existe") && !message.includes("duplicate key")) {
+            throw profileError;
+          }
+        }
       }
 
       setCreatedAccount({
