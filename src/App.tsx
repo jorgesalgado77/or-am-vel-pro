@@ -9,6 +9,7 @@ import Admin from "./pages/Admin.tsx";
 import SignUp from "./pages/SignUp.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
 import RenewPlan from "./pages/RenewPlan.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import LandingPage from "./pages/LandingPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -28,6 +29,7 @@ const App = () => (
               <Route path="/signup" element={<SignUp />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/renew-plan" element={<RenewPlan />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

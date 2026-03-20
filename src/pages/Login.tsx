@@ -28,6 +28,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showTracking, setShowTracking] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -432,6 +435,16 @@ export default function Login() {
                 </div>
               </div>
 
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="text-xs text-white/40 hover:text-[hsl(var(--primary))] transition-colors"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
+
               <Button
                 type="submit"
                 disabled={loading}
@@ -491,6 +504,64 @@ export default function Login() {
       </div>
 
       <ClientTrackingModal open={showTracking} onClose={() => setShowTracking(false)} />
+
+      {/* Forgot Password Dialog */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm mx-4 backdrop-blur-xl bg-[#0f1d32]/95 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4"
+          >
+            <div className="text-center space-y-1">
+              <Mail className="h-10 w-10 text-[hsl(var(--primary))] mx-auto" />
+              <h3 className="text-lg font-bold text-white">Recuperar Senha</h3>
+              <p className="text-white/40 text-xs">Informe seu email para receber o link de redefinição</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-white/70 text-sm">Email</Label>
+              <Input
+                type="email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="seu@email.com"
+                className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/25 rounded-xl focus:border-[hsl(var(--primary))]"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 border-white/15 text-white/60 hover:bg-white/10 bg-transparent rounded-xl"
+                onClick={() => { setShowForgotPassword(false); setForgotEmail(""); }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={forgotLoading || !forgotEmail}
+                className="flex-1 rounded-xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] font-semibold"
+                onClick={async () => {
+                  setForgotLoading(true);
+                  try {
+                    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim().toLowerCase(), {
+                      redirectTo: `${window.location.origin}/reset-password`,
+                    });
+                    if (error) throw error;
+                    toast.success("Email de recuperação enviado! Verifique sua caixa de entrada.");
+                    setShowForgotPassword(false);
+                    setForgotEmail("");
+                  } catch (err: any) {
+                    toast.error(err.message || "Erro ao enviar email de recuperação.");
+                  } finally {
+                    setForgotLoading(false);
+                  }
+                }}
+              >
+                {forgotLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar"}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
