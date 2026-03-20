@@ -40,6 +40,7 @@ export async function createUsuarioProfile(params: {
   tenantId: string;
   cargoId: string;
   senha: string;
+  telefoneWhatsApp?: string;
 }) {
   // Hash password via existing RPC
   let senhaHash: string | null = null;
