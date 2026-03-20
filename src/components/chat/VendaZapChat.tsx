@@ -125,7 +125,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selected, fetchConversations]);
+  }, [selected, fetchConversations, conversations]);
 
   // AI auto-suggestion with debounce when conversation is selected
   const triggerAI = useCallback((conv: ChatConversation) => {
