@@ -46,7 +46,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
   ];
 
   return (
-    <aside className="w-60 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0">
+    <aside className="w-60 border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0 overflow-hidden">
       {/* App branding - always OrçaMóvel PRO */}
       <div className="p-4 border-b border-border flex items-center gap-3">
         {settings.logo_url && (
