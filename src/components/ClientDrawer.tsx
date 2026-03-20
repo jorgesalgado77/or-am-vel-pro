@@ -15,11 +15,12 @@ import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { FileText, Eye, Pencil, Printer } from "lucide-react";
+import { FileText, Eye, Pencil, Printer, Clock, MessageSquare, Pause, Play, CheckCircle2, Send } from "lucide-react";
 import { ContractEditorDialog } from "@/components/ContractEditorDialog";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { openContractPrintWindow } from "@/lib/contractDocument";
+import { Badge } from "@/components/ui/badge";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -71,6 +72,19 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   const [editingContract, setEditingContract] = useState<ClientContract | null>(null);
   const [savingContract, setSavingContract] = useState(false);
 
+  // Follow-up history
+  interface FollowUpRecord {
+    id: string;
+    stage: string;
+    status: string;
+    message: string | null;
+    scheduled_for: string;
+    sent_at: string | null;
+    created_at: string;
+  }
+  const [followUps, setFollowUps] = useState<FollowUpRecord[]>([]);
+  const [loadingFollowUps, setLoadingFollowUps] = useState(false);
+
   useEffect(() => {
     if (client) {
       reset({
@@ -113,6 +127,20 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
     };
 
     fetchContracts();
+
+    // Fetch follow-ups
+    const fetchFollowUps = async () => {
+      setLoadingFollowUps(true);
+      const { data } = await supabase
+        .from("followup_schedules" as any)
+        .select("id, stage, status, message, scheduled_for, sent_at, created_at")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setFollowUps((data as unknown as FollowUpRecord[]) || []);
+      setLoadingFollowUps(false);
+    };
+    fetchFollowUps();
   }, [open, client]);
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,9 +323,10 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
 
         {client ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6 space-y-4">
-            <TabsList className="w-full grid grid-cols-2">
+            <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="dados">Dados</TabsTrigger>
               <TabsTrigger value="contratos">Contratos</TabsTrigger>
+              <TabsTrigger value="followups">Follow-ups</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dados" className="mt-0">
@@ -325,36 +354,86 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setViewingContract(contract)}
-                        title="Visualizar"
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewingContract(contract)} title="Visualizar">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setEditingContract(contract)}
-                        title="Editar"
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingContract(contract)} title="Editar">
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-primary"
-                        onClick={() => handlePrintContract(contract.conteudo_html)}
-                        title="Imprimir"
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handlePrintContract(contract.conteudo_html)} title="Imprimir">
                         <Printer className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 ))
+              )}
+            </TabsContent>
+
+            <TabsContent value="followups" className="mt-0 space-y-3">
+              {loadingFollowUps ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Carregando follow-ups...</p>
+              ) : followUps.length === 0 ? (
+                <div className="text-center py-8 space-y-2">
+                  <Clock className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                  <p className="text-sm text-muted-foreground">Nenhum follow-up registrado</p>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-[15px] top-3 bottom-3 w-px bg-border" />
+                  <div className="space-y-4">
+                    {followUps.map((fu) => {
+                      const stageLabel = fu.stage === "1h" ? "1 hora" : fu.stage === "24h" ? "24 horas" : "3 dias";
+                      const isPending = fu.status === "pending";
+                      const isSent = fu.status === "sent";
+                      const isPaused = fu.status === "paused";
+                      const isCancelled = fu.status === "cancelled";
+
+                      const StatusIcon = isPending ? Clock : isSent ? Send : isPaused ? Pause : CheckCircle2;
+                      const statusColor = isPending
+                        ? "text-amber-500"
+                        : isSent
+                        ? "text-emerald-500"
+                        : isPaused
+                        ? "text-muted-foreground"
+                        : "text-sky-500";
+                      const statusLabel = isPending ? "Pendente" : isSent ? "Enviado" : isPaused ? "Pausado" : "Respondeu";
+                      const badgeVariant = isPending ? "outline" : isSent ? "default" : "secondary";
+
+                      return (
+                        <div key={fu.id} className="relative pl-10">
+                          <div className={`absolute left-[9px] top-1 h-3 w-3 rounded-full border-2 border-background ${
+                            isPending ? "bg-amber-500" : isSent ? "bg-emerald-500" : isPaused ? "bg-muted-foreground" : "bg-sky-500"
+                          }`} />
+                          <div className="p-3 rounded-lg border border-border bg-card space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <StatusIcon className={`h-3.5 w-3.5 ${statusColor}`} />
+                                <span className="text-xs font-medium text-foreground">{statusLabel}</span>
+                              </div>
+                              <Badge variant={badgeVariant as any} className="text-[10px] px-1.5 py-0">
+                                {stageLabel}
+                              </Badge>
+                            </div>
+                            {fu.message && (
+                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                                <MessageSquare className="h-3 w-3 inline mr-1 -mt-0.5" />
+                                {fu.message}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                              <span>Agendado: {format(new Date(fu.scheduled_for), "dd/MM HH:mm")}</span>
+                              {fu.sent_at && <span>Enviado: {format(new Date(fu.sent_at), "dd/MM HH:mm")}</span>}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground/60">
+                              {formatDistanceToNow(new Date(fu.created_at), { addSuffix: true, locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </TabsContent>
           </Tabs>
