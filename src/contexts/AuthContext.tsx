@@ -401,13 +401,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
 
-    // Resolve tenant from store code early so finalizeLogin can use it
-    const resolvedTenantId = normalizedStoreCode.length === 6
+    // Resolve tenant from store code (may fail before auth due to RLS)
+    let resolvedTenantId = normalizedStoreCode.length === 6
       ? await resolveTenantIdByStoreCode(normalizedStoreCode)
       : null;
 
+    // Don't fail yet if resolution returns null - we'll retry after auth succeeds
     if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
-      return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
+      console.log("[Auth] ⚠️ Tenant não encontrado pré-auth (pode ser RLS), continuando login...");
     }
 
     const finalizeLogin = async (authData: { user: SupabaseAuthUser | null; session: Session | null }) => {
