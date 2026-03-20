@@ -160,11 +160,36 @@ export default function TenantLanding() {
   return (
     <div className="min-h-[100dvh]" style={{ background: `linear-gradient(180deg, ${color}08 0%, white 40%)` }}>
       {/* Header */}
-      <header className="py-4 px-4 sm:px-6 flex items-center justify-center gap-3">
-        {tenant.logo_url && (
-          <img src={tenant.logo_url} alt={tenant.nome_loja} className="h-10 w-auto object-contain" />
-        )}
-        <span className="text-xl font-bold text-gray-900">{tenant.nome_loja}</span>
+      <header className="py-6 px-4 sm:px-6">
+        <div className="flex flex-col items-center gap-3">
+          {tenant.logo_url && (
+            <motion.img
+              src={tenant.logo_url}
+              alt={tenant.nome_loja}
+              className="h-16 sm:h-20 w-auto object-contain drop-shadow-lg"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            />
+          )}
+          <motion.h1
+            className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            {tenant.nome_loja}
+          </motion.h1>
+          <motion.p
+            className="text-sm sm:text-base font-semibold tracking-wide uppercase"
+            style={{ color }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+          >
+            Somos especialistas em Móveis Planejados
+          </motion.p>
+        </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
