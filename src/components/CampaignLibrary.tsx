@@ -7,6 +7,7 @@ import { Copy, CheckCircle2, Lightbulb, Target, MessageSquare, ChevronDown, Chev
 import { toast } from "sonner";
 import { CampaignImageGenerator } from "@/components/campaigns/CampaignImageGenerator";
 import { CampaignAIGenerator } from "@/components/campaigns/CampaignAIGenerator";
+import { CampaignScheduler } from "@/components/campaigns/CampaignScheduler";
 import { SEASONAL_CAMPAIGNS, type Campaign } from "@/components/campaigns/SeasonalCampaigns";
 
 const BASE_CAMPAIGNS: Campaign[] = [
