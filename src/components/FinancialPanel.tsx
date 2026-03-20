@@ -79,15 +79,12 @@ export function FinancialPanel() {
   });
 
   // Payroll data
-  const [payrollFixed, setPayrollFixed] = useState<PayrollFixed[]>([]);
-  const [commissions, setCommissions] = useState<PayrollCommission[]>([]);
   const [faturamento, setFaturamento] = useState(0);
 
   // AI Forecast state
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
   const [forecastCache, setForecastCache] = useState<{ data: any[]; timestamp: number } | null>(null);
-  const [faturamento, setFaturamento] = useState(0);
 
   const fetchData = async () => {
     if (!tenantId) return;
