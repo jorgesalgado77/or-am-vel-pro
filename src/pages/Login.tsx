@@ -40,6 +40,7 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
+  const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Detect low-end device for reduced effects
@@ -258,11 +259,43 @@ export default function Login() {
     }
   };
 
-  const companyName = "OrçaMóvel PRO";
-  const companySubtitle =
-    settings.company_subtitle && settings.company_subtitle !== "Gestão & Financiamento"
-      ? settings.company_subtitle
-      : "Orce. Venda. Simplifique";
+  // Fetch tenant info when store code is complete
+  useEffect(() => {
+    const digits = unmask(codigoLoja);
+    if (digits.length < 6) {
+      setTenantInfo(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: tenant } = await supabase
+          .from("tenants")
+          .select("id, nome_loja")
+          .eq("codigo_loja", digits)
+          .maybeSingle();
+        if (!tenant || cancelled) { if (!cancelled) setTenantInfo(null); return; }
+
+        const { data: cs } = await supabase
+          .from("company_settings")
+          .select("company_name, company_subtitle")
+          .eq("tenant_id", tenant.id)
+          .maybeSingle();
+
+        if (!cancelled) {
+          const nome = cs?.company_name || tenant.nome_loja || "";
+          const sub = cs?.company_subtitle || "";
+          setTenantInfo(nome ? { nome, subtitulo: sub } : null);
+        }
+      } catch {
+        if (!cancelled) setTenantInfo(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [codigoLoja]);
+
+  const companyName = tenantInfo?.nome || "OrçaMóvel PRO";
+  const companySubtitle = tenantInfo?.subtitulo || "Orce. Venda. Simplifique";
 
   if (planBlocked) {
     return (
