@@ -155,12 +155,125 @@ export function FinancialPanel() {
       setFaturamento(total);
     }
 
+    // Check for alerts and generate notifications
+    const alertsList: { id: string; message: string; type: string; read: boolean }[] = [];
+    const now = new Date();
+    const limit7d = addDays(now, 7);
+
+    (accs as any[] || []).forEach((a: any) => {
+      if (a.status === "pago") return;
+      const due = new Date(a.due_date);
+      if (isPast(due) && a.status !== "pago") {
+        alertsList.push({ id: `atrasado-${a.id}`, message: `⚠️ "${a.name}" venceu em ${format(due, "dd/MM/yyyy")} — ${formatCurrency(a.amount)}`, type: "atrasado", read: false });
+      } else if (isAfter(due, now) && isBefore(due, limit7d)) {
+        alertsList.push({ id: `vencer-${a.id}`, message: `🔔 "${a.name}" vence em ${format(due, "dd/MM/yyyy")} — ${formatCurrency(a.amount)}`, type: "vencer", read: false });
+      }
+    });
+    setNotifications(alertsList);
+
+    // Show toast alerts for overdue
+    const overdue = alertsList.filter(a => a.type === "atrasado");
+    if (overdue.length > 0) {
+      toast.warning(`Você tem ${overdue.length} conta(s) vencida(s)!`, { duration: 6000 });
+    }
+
+    // Save notifications to DB for persistence (fire and forget)
+    if (alertsList.length > 0 && tenantId) {
+      alertsList.forEach(async (alert) => {
+        await supabase.from("financial_notifications" as any).upsert({
+          id: alert.id,
+          tenant_id: tenantId,
+          message: alert.message,
+          type: alert.type,
+          read: false,
+        } as any, { onConflict: "id" }).then(() => {});
+      });
+    }
+
     setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, [tenantId]);
 
-  // === CALCULATIONS ===
+  // === PDF EXPORT ===
+  const handleExportPDF = useCallback(async () => {
+    setPdfLoading(true);
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const doc = new (jsPDF as any)();
+      const mesRef = format(new Date(), "MMMM yyyy", { locale: ptBR });
+      
+      doc.setFontSize(18);
+      doc.text("Relatório Financeiro Mensal", 14, 22);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Período: ${mesRef}`, 14, 30);
+      doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 36);
+
+      // KPIs
+      doc.setFontSize(13);
+      doc.setTextColor(0);
+      doc.text("Resumo Financeiro", 14, 48);
+      doc.setFontSize(10);
+      const kpis = [
+        `Faturamento: ${formatCurrency(faturamento)}`,
+        `Total a Pagar: ${formatCurrency(totalContasPagar)}`,
+        `Contas Vencidas: ${contasVencidas.length}`,
+        `Custos Fixos: ${formatCurrency(contasFixas)}`,
+        `Folha Total: ${formatCurrency(totalFolha)}`,
+        `Ponto de Equilíbrio: ${formatCurrency(breakEven)}`,
+        `Resultado: ${formatCurrency(lucroEstimado)} (${lucroEstimado >= 0 ? "LUCRO" : "PREJUÍZO"})`,
+        `Saldo Projetado 30d: ${formatCurrency(saldoFinal30d)}`,
+      ];
+      kpis.forEach((line, i) => doc.text(line, 14, 56 + i * 7));
+
+      // Accounts table
+      let y = 56 + kpis.length * 7 + 10;
+      doc.setFontSize(13);
+      doc.text("Contas a Pagar", 14, y);
+      y += 8;
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      doc.text("Conta", 14, y);
+      doc.text("Valor", 90, y);
+      doc.text("Vencimento", 130, y);
+      doc.text("Status", 170, y);
+      y += 6;
+      doc.setTextColor(0);
+      accounts.slice(0, 25).forEach(acc => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.text(acc.name.slice(0, 30), 14, y);
+        doc.text(formatCurrency(acc.amount), 90, y);
+        doc.text(format(new Date(acc.due_date), "dd/MM/yyyy"), 130, y);
+        doc.text(acc.status, 170, y);
+        y += 6;
+      });
+
+      // Payroll
+      if (payrollFixed.length > 0) {
+        y += 8;
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFontSize(13);
+        doc.text("Folha de Pagamento", 14, y);
+        y += 8;
+        doc.setFontSize(9);
+        payrollFixed.forEach(pf => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          const comm = commissions.find(c => c.usuario_id === pf.usuario_id);
+          doc.text(`${pf.usuario_nome} — Salário: ${formatCurrency(pf.salary)} | Comissão: ${formatCurrency(comm?.total_comissao || 0)} | Total: ${formatCurrency(pf.salary + (comm?.total_comissao || 0))}`, 14, y);
+          y += 6;
+        });
+      }
+
+      doc.save(`relatorio-financeiro-${format(new Date(), "yyyy-MM")}.pdf`);
+      toast.success("Relatório PDF gerado com sucesso!");
+    } catch (err) {
+      console.error("PDF export error:", err);
+      toast.error("Erro ao gerar PDF");
+    } finally {
+      setPdfLoading(false);
+    }
+  }, [accounts, payrollFixed, commissions, faturamento, totalContasPagar, contasVencidas, contasFixas, totalFolha, breakEven, lucroEstimado, saldoFinal30d]);
   const totalContasPagar = useMemo(() =>
     accounts.filter(a => a.status !== "pago").reduce((sum, a) => sum + a.amount, 0), [accounts]);
 
