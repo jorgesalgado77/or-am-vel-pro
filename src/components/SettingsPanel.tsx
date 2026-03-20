@@ -86,6 +86,20 @@ function CompanySettingsTab() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [orcamentoInicial, setOrcamentoInicial] = useState(1);
+
+  // Mask: 999.999.999.99
+  const formatOrcamento = (value: number): string => {
+    const str = String(value).replace(/\D/g, "").slice(0, 11);
+    if (str.length <= 2) return str;
+    if (str.length <= 5) return str.replace(/(\d+)(\d{2})$/, "$1.$2");
+    if (str.length <= 8) return str.replace(/(\d+)(\d{3})(\d{2})$/, "$1.$2.$3");
+    return str.replace(/(\d+)(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3.$4");
+  };
+
+  const handleOrcamentoChange = (masked: string) => {
+    const raw = masked.replace(/\D/g, "").slice(0, 11);
+    setOrcamentoInicial(Number(raw) || 0);
+  };
   const [buscandoCep, setBuscandoCep] = useState(false);
 
   useEffect(() => {
