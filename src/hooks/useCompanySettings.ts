@@ -56,15 +56,17 @@ export function useCompanySettings() {
   useEffect(() => {
     listeners.push(setSettings);
     if (!cachedSettings) {
-      supabase
-        .from("company_settings")
-        .select("*")
-        .limit(1)
-        .single()
-        .then(({ data }) => {
-          if (data) notify(data as unknown as CompanySettings);
-          setLoading(false);
-        });
+      Promise.race([
+        supabase
+          .from("company_settings")
+          .select("*")
+          .limit(1)
+          .single(),
+        new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 6000)),
+      ]).then(({ data }) => {
+        if (data) notify(data as unknown as CompanySettings);
+        setLoading(false);
+      }).catch(() => setLoading(false));
     }
     return () => {
       listeners = listeners.filter((fn) => fn !== setSettings);

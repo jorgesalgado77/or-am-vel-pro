@@ -67,32 +67,42 @@ export function useLandingConfig() {
   const [loading, setLoading] = useState(true);
 
   const fetchConfig = useCallback(async () => {
-    const { data } = await supabase
-      .from("landing_page_config")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      const d = data as any;
-      setConfig({
-        id: d.id,
-        hero_title: d.hero_title,
-        hero_subtitle: d.hero_subtitle,
-        hero_image_url: d.hero_image_url,
-        hero_video_url: d.hero_video_url,
-        benefits: (d.benefits as BenefitItem[]) || [],
-        carousel_images: (d.carousel_images as string[]) || [],
-        how_it_works: (d.how_it_works as HowItWorksStep[]) || [],
-        proof_text: d.proof_text,
-        plans: (d.plans as PlanItem[]) || [],
-        cta_final_text: d.cta_final_text,
-        primary_color: d.primary_color,
-        secondary_color: d.secondary_color,
-        sections_visible: (d.sections_visible as Record<string, boolean>) || DEFAULT_CONFIG.sections_visible,
-        footer_text: d.footer_text,
-        footer_contact_email: d.footer_contact_email,
-        footer_contact_phone: d.footer_contact_phone,
-      });
+    try {
+      const result = await Promise.race([
+        supabase
+          .from("landing_page_config")
+          .select("*")
+          .limit(1)
+          .maybeSingle(),
+        new Promise<{ data: null; error: null }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: null }), 6000)
+        ),
+      ]);
+      const { data } = result;
+      if (data) {
+        const d = data as any;
+        setConfig({
+          id: d.id,
+          hero_title: d.hero_title,
+          hero_subtitle: d.hero_subtitle,
+          hero_image_url: d.hero_image_url,
+          hero_video_url: d.hero_video_url,
+          benefits: (d.benefits as BenefitItem[]) || [],
+          carousel_images: (d.carousel_images as string[]) || [],
+          how_it_works: (d.how_it_works as HowItWorksStep[]) || [],
+          proof_text: d.proof_text,
+          plans: (d.plans as PlanItem[]) || [],
+          cta_final_text: d.cta_final_text,
+          primary_color: d.primary_color,
+          secondary_color: d.secondary_color,
+          sections_visible: (d.sections_visible as Record<string, boolean>) || DEFAULT_CONFIG.sections_visible,
+          footer_text: d.footer_text,
+          footer_contact_email: d.footer_contact_email,
+          footer_contact_phone: d.footer_contact_phone,
+        });
+      }
+    } catch (e) {
+      console.warn("[LandingConfig] Erro ao carregar:", e);
     }
     setLoading(false);
   }, []);
