@@ -105,6 +105,29 @@ export function ClientsKanban({
     fetchLastSims();
   }, [clients]);
 
+  // Fetch follow-up statuses for all clients
+  useEffect(() => {
+    if (clients.length === 0) return;
+    const fetchFollowUpStatuses = async () => {
+      const clientIds = clients.map(c => c.id);
+      const { data } = await supabase
+        .from("followup_schedules" as any)
+        .select("client_id, status")
+        .in("client_id", clientIds)
+        .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+      if (!data) return;
+      const statusMap: Record<string, "active" | "paused" | "completed"> = {};
+      (data as any[]).forEach((s: any) => {
+        const current = statusMap[s.client_id];
+        if (s.status === "pending") statusMap[s.client_id] = "active";
+        else if (s.status === "paused" && current !== "active") statusMap[s.client_id] = "paused";
+        else if (s.status === "sent" && !current) statusMap[s.client_id] = "completed";
+      });
+      setFollowUpStatus(statusMap);
+    };
+    fetchFollowUpStatuses();
+  }, [clients]);
+
   const effectiveDates = useMemo(() => {
     const now = new Date();
     let start: Date | undefined;
