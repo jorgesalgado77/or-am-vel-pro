@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity,
 } from "lucide-react";
 import { AdminTickets } from "@/components/admin/AdminTickets";
 import { AdminVendaZap } from "@/components/admin/AdminVendaZap";
