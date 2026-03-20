@@ -9,11 +9,13 @@ import { ChatInput } from "./ChatInput";
 import { TypingIndicator } from "./TypingIndicator";
 import { TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
+import { useQuickReplies } from "@/hooks/useQuickReplies";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
   conversation: ChatConversation;
   userId?: string;
+  tenantId?: string | null;
   onBack: () => void;
   onStartDealRoom?: () => void;
   aiSuggestion: string;
@@ -29,7 +31,7 @@ const PAGE_SIZE = 40;
 export function ChatWindow({
   conversation, onBack, onStartDealRoom,
   aiSuggestion, aiLoading, aiTipoCopy, onUseSuggestion,
-  inputValue, onInputChange, userId,
+  inputValue, onInputChange, userId, tenantId,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +43,7 @@ export function ChatWindow({
     userId,
     "Loja"
   );
+  const { replies: quickReplies, loading: qrLoading, add: addQR, remove: removeQR } = useQuickReplies(tenantId ?? null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
@@ -278,6 +281,10 @@ export function ChatWindow({
         sending={sending}
         trackingId={conversation.id}
         onKeystroke={onKeystroke}
+        quickReplies={quickReplies}
+        quickRepliesLoading={qrLoading}
+        onAddQuickReply={addQR}
+        onRemoveQuickReply={removeQR}
       />
     </div>
   );
