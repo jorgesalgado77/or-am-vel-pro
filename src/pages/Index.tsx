@@ -186,7 +186,7 @@ export default function Index() {
             </div>
 
             {activeView === "dashboard" && (
-              <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} />
+              <Dashboard clients={clients} lastSims={lastSims} allSimulations={allSimulations} onOpenProfile={() => setShowProfile(true)} />
             )}
 
             {activeView === "clients" && (
