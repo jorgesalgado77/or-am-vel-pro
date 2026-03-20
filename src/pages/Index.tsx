@@ -22,6 +22,7 @@ const UserProfileModal = lazy(() => import("@/components/UserProfileModal").then
 const DealRoomView = lazy(() => import("@/components/DealRoomView").then(m => ({ default: m.DealRoomView })));
 const FunnelPanel = lazy(() => import("@/components/FunnelPanel").then(m => ({ default: m.FunnelPanel })));
 const CampaignLibrary = lazy(() => import("@/components/CampaignLibrary").then(m => ({ default: m.CampaignLibrary })));
+const ReferralPanel = lazy(() => import("@/components/ReferralPanel").then(m => ({ default: m.ReferralPanel })));
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
@@ -48,6 +49,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   "vendazap-chat": { title: "Chat de Vendas", subtitle: "Converse com clientes com sugestões de IA em tempo real" },
   funnel: { title: "Funil de Captação", subtitle: "Sua máquina de captação de leads pronta para usar" },
   campaigns: { title: "Biblioteca de Campanhas", subtitle: "Anúncios prontos para copiar e ativar em minutos" },
+  referrals: { title: "Programa de Indicações", subtitle: "Gere links, acompanhe indicações e recompense seus clientes" },
 };
 
 export default function Index() {
@@ -259,6 +261,7 @@ export default function Index() {
 
               {activeView === "funnel" && <FunnelPanel />}
               {activeView === "campaigns" && <CampaignLibrary />}
+              {activeView === "referrals" && <ReferralPanel />}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>

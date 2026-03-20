@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle, Megaphone, BookOpen } from "lucide-react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle, Megaphone, BookOpen, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -39,6 +39,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
     { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "configuracoes" as const, show: isAdmin, badge: null },
     { id: "funnel", label: "Funil de Captação", icon: Megaphone, perm: "configuracoes" as const, show: isAdmin, badge: null },
     { id: "campaigns", label: "Campanhas", icon: BookOpen, perm: "simulador" as const, show: true, badge: "NOVO" },
+    { id: "referrals", label: "Indicações", icon: Gift, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "simulador" as const, show: true, badge: "ADD-ON" },
     { id: "vendazap-chat", label: "Chat Vendas", icon: MessageCircle, perm: "clientes" as const, show: true, badge: "ADD-ON" },
     { id: "dealroom", label: "Deal Room", icon: Video, perm: "simulador" as const, show: true, badge: "ADD-ON" },
