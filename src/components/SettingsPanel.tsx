@@ -19,6 +19,7 @@ import { DescontosTab } from "@/components/settings/DescontosTab";
 import { IndicadoresTab } from "@/components/settings/IndicadoresTab";
 import { ContratosTab } from "@/components/settings/ContratosTab";
 import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
+import { ResendTab } from "@/components/settings/ResendTab";
 import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
 import { AuditLogsTab } from "@/components/settings/AuditLogsTab";
 import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText } from "lucide-react";
