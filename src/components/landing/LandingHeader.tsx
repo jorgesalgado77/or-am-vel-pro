@@ -57,6 +57,7 @@ export function LandingHeader({ primaryColor }: LandingHeaderProps) {
             </button>
             <Button
               onClick={() => navigate("/app")}
+              onMouseEnter={prefetchApp}
               style={{ backgroundColor: primaryColor }}
               className="text-white hover:opacity-90 transition-opacity"
             >
