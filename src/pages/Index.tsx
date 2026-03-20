@@ -20,6 +20,7 @@ const SubscriptionPlans = lazy(() => import("@/components/SubscriptionPlans").th
 const VendaZapPanel = lazy(() => import("@/components/VendaZapPanel").then(m => ({ default: m.VendaZapPanel })));
 const UserProfileModal = lazy(() => import("@/components/UserProfileModal").then(m => ({ default: m.UserProfileModal })));
 const DealRoomView = lazy(() => import("@/components/DealRoomView").then(m => ({ default: m.DealRoomView })));
+const FunnelPanel = lazy(() => import("@/components/FunnelPanel").then(m => ({ default: m.FunnelPanel })));
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
