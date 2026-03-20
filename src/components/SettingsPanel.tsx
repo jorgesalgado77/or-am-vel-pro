@@ -152,7 +152,6 @@ function CompanySettingsTab() {
     const { error } = await supabase.from("company_settings").update({
       company_name: name,
       company_subtitle: subtitle,
-      codigo_loja: codigoLoja.trim() || null,
       cnpj_loja: cnpjLoja.trim() || null,
       endereco_loja: enderecoLoja.trim() || null,
       bairro_loja: bairroLoja.trim() || null,
@@ -193,7 +192,7 @@ function CompanySettingsTab() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div><Label>Nome da Empresa</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
           <div><Label>Subtítulo</Label><Input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="mt-1" /></div>
-          <div><Label>Código da Loja</Label><Input value={codigoLoja} onChange={(e) => setCodigoLoja(e.target.value)} placeholder="Ex: 001" className="mt-1" /></div>
+          <div><Label>Código da Loja</Label><Input value={codigoLoja} readOnly disabled className="mt-1 bg-muted cursor-not-allowed" title="Código gerado automaticamente pelo sistema" /></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div><Label>CNPJ da Loja</Label><Input value={cnpjLoja} onChange={(e) => setCnpjLoja(e.target.value)} placeholder="00.000.000/0000-00" className="mt-1" /></div>
