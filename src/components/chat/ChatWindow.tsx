@@ -129,6 +129,7 @@ export function ChatWindow({
   const handleSend = async () => {
     if (!inputValue.trim()) return;
     setSending(true);
+    stopTyping();
 
     const { error } = await supabase.from("tracking_messages").insert({
       tracking_id: conversation.id,
