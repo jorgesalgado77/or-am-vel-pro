@@ -211,6 +211,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       return;
     }
     onConfirm(form, items, itemDetails);
+    clearForm();
   };
 
   return (
