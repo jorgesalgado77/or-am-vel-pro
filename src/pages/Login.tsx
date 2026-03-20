@@ -502,9 +502,15 @@ export default function Login() {
           </div>
 
           {/* Security badge */}
-          <div className="flex items-center justify-center gap-2 mt-4 sm:mt-6 text-white/25 text-xs pb-2">
-            <Lock className="h-3 w-3" />
-            Conexão protegida · {companyName} © 2026
+          <div className="mt-4 sm:mt-6 space-y-2 pb-2 text-center">
+            <div className="flex items-center justify-center gap-2 text-white/25 text-xs">
+              <Lock className="h-3 w-3" />
+              Conexão protegida · {companyName} © 2026
+            </div>
+            <div className="space-y-1 text-[11px] sm:text-xs text-white/45">
+              <p>Todos os direitos reservados</p>
+              <p>CNPJ 58.847.751/0001-28</p>
+            </div>
           </div>
         </motion.div>
       </div>

@@ -134,6 +134,34 @@ async function hashLegacyPassword(password: string): Promise<string> {
   }
 }
 
+function isEmailNotConfirmedError(error: { message?: string; code?: string } | null | undefined): boolean {
+  const message = error?.message?.toLowerCase() ?? "";
+  const code = error?.code?.toLowerCase() ?? "";
+  return code === "email_not_confirmed" || message.includes("email not confirmed");
+}
+
+function isAlreadyRegisteredError(error: { message?: string; code?: string } | null | undefined): boolean {
+  const message = error?.message?.toLowerCase() ?? "";
+  const code = error?.code?.toLowerCase() ?? "";
+  return code === "user_already_exists" || message.includes("already registered") || message.includes("already been registered");
+}
+
+function shouldTryLegacyFallback(error: { message?: string; code?: string } | null | undefined): boolean {
+  const message = error?.message?.toLowerCase() ?? "";
+  return isEmailNotConfirmedError(error) || message.includes("invalid login credentials");
+}
+
+async function attemptConfirmedLogin(userId: string, email: string, password: string) {
+  try {
+    await (supabase as any).rpc("confirm_user_email", { p_user_id: userId });
+  } catch (confirmError) {
+    console.warn("[Auth] confirm_user_email retry failed:", confirmError);
+  }
+
+  const retry = await supabase.auth.signInWithPassword({ email, password });
+  return !retry.error && retry.data.user ? retry.data : null;
+}
+
 async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<string | null> {
   const digits = storeCode?.replace(/\D/g, "") ?? "";
   if (digits.length !== 6) return null;
@@ -302,7 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // 2. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
-    if (error && error.message.toLowerCase().includes("invalid login credentials")) {
+    if (error && shouldTryLegacyFallback(error)) {
       try {
         const tenantIdFromCode = normalizedStoreCode.length === 6
           ? await resolveTenantIdByStoreCode(normalizedStoreCode)
@@ -322,6 +350,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!legacyUser) {
           return { user: null, error: "Invalid login credentials" };
+        }
+
+        if (isEmailNotConfirmedError(error)) {
+          const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
+          if (confirmedLogin) {
+            return finalizeLogin(confirmedLogin);
+          }
         }
 
         if (legacyUser.ativo === false) {
@@ -359,8 +394,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
           });
 
-          if (signUpError && !signUpError.message.toLowerCase().includes("already registered")) {
+          if (signUpError && !isAlreadyRegisteredError(signUpError)) {
             console.warn("[Auth] Failed to recreate missing auth account:", signUpError.message);
+          }
+
+          if (signUpError && isAlreadyRegisteredError(signUpError)) {
+            const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
+            if (confirmedLogin) {
+              return finalizeLogin(confirmedLogin);
+            }
           }
 
           if (signUpData.user) {
@@ -387,6 +429,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!retryProvision.error && retryProvision.data.user) {
             return finalizeLogin(retryProvision.data);
           }
+
+          if (isEmailNotConfirmedError(retryProvision.error)) {
+            const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
+            if (confirmedLogin) {
+              return finalizeLogin(confirmedLogin);
+            }
+          }
         }
 
         if (!passwordValid) {
@@ -402,11 +451,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (signUpError) {
           console.warn("[Auth] Legacy migration signUp failed:", signUpError.message);
-          // Even if signup fails, build AppUser from legacy data
-          const appUser = await mapAppUser(legacyUser);
-          setUser(appUser);
-          syncGlobalState(appUser);
-          return { user: appUser, error: null };
+
+          if (isAlreadyRegisteredError(signUpError)) {
+            const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
+            if (confirmedLogin) {
+              return finalizeLogin(confirmedLogin);
+            }
+          }
+
+          return { user: null, error: signUpError.message || "Não foi possível concluir o login desta conta." };
         }
 
         // Confirm email automatically
@@ -433,6 +486,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!retryError && retryData.user) {
           return finalizeLogin(retryData);
+        }
+
+        if (isEmailNotConfirmedError(retryError)) {
+          const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
+          if (confirmedLogin) {
+            return finalizeLogin(confirmedLogin);
+          }
         }
 
         return { user: null, error: "Não foi possível concluir o login desta conta." };
@@ -478,6 +538,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(appUser);
           setSession(loginData.session);
           syncGlobalState(appUser);
+        }
+      } else if (isEmailNotConfirmedError(loginError)) {
+        const confirmedLogin = await attemptConfirmedLogin(data.user.id, normalizedEmail, password);
+        if (confirmedLogin) {
+          const appUser = await loadAppUser(confirmedLogin.user);
+          if (appUser) {
+            setUser(appUser);
+            setSession(confirmedLogin.session);
+            syncGlobalState(appUser);
+          }
         }
       }
     }
