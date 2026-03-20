@@ -334,12 +334,12 @@ export default function Login() {
       )}
 
       {/* Left decorative panel — desktop only */}
-      <div className="hidden lg:flex lg:w-[55%] relative z-10 items-center justify-center p-4 xl:p-6">
+      <div className="hidden lg:flex lg:w-[55%] relative z-10 items-center justify-center p-2 xl:p-3">
         <motion.div
           initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="w-full max-w-3xl space-y-5"
+          className="w-full space-y-4"
         >
           {/* Banner completo with glow and hover effects */}
           <motion.div
