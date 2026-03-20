@@ -175,6 +175,11 @@ async function loadAppUserViaRpc(
  * - falls back to RPC / JWT metadata when RLS blocks direct reads
  */
 async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email" | "user_metadata">): Promise<AppUser | null> {
+  // Try RPC first — it bypasses RLS issues and returns cargo_nome directly
+  const rpcUser = await loadAppUserViaRpc(authUser);
+  if (rpcUser) return rpcUser;
+
+  // Fallback: direct queries when RPC is unavailable
   const normalizedEmail = normalizeEmail(authUser.email);
   const lookupStrategies: Array<{ label: string; query: (() => Promise<{ data: any; error: any }>) | null }> = [
     {
@@ -249,9 +254,6 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email" | "us
       return mapAppUser(userRow, authUser.id);
     }
   }
-
-  const rpcUser = await loadAppUserViaRpc(authUser);
-  if (rpcUser) return rpcUser;
 
   return null;
 }
