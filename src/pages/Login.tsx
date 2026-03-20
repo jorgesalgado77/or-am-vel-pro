@@ -415,8 +415,6 @@ export default function Login() {
             <div className="text-center space-y-2">
               <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
                 <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
-                  <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
-                )}
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{companyName}</h1>
