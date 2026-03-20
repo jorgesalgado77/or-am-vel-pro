@@ -483,7 +483,7 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 sm:h-12 rounded-xl text-sm sm:text-base font-semibold gap-2 bg-gradient-to-r from-primary to-[hsl(var(--primary)/0.85)] hover:from-[hsl(var(--primary)/0.9)] hover:to-primary shadow-lg shadow-[hsl(var(--primary)/0.3)] transition-all duration-300 hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.4)] active:scale-[0.97]"
+                className="w-full h-11 sm:h-12 rounded-xl text-sm sm:text-base font-semibold gap-2 bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(199,89%,50%)] hover:from-[hsl(199,89%,45%)] hover:to-[hsl(199,89%,55%)] shadow-lg shadow-[hsl(var(--primary)/0.3)] transition-all duration-300 hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.4)] active:scale-[0.97]"
               >
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
