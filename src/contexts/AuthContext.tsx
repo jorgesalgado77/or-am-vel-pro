@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from "@/integrations/supabase/client";
 import { setTenantState } from "@/lib/tenantState";
 import type { CargoPermissoes } from "@/hooks/useCargos";
+import { logLoginDiagnostic } from "@/services/loginDiagnosticService";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 
 export interface AppUser {
