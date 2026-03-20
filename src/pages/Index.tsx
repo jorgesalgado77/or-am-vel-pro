@@ -11,6 +11,7 @@ import { Dashboard } from "@/components/Dashboard";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { SupportDialog } from "@/components/SupportDialog";
 import { MessagesPanel } from "@/components/MessagesPanel";
+import { VendaZapChat } from "@/components/chat/VendaZapChat";
 import { PlanBanner } from "@/components/PlanBanner";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { VendaZapPanel } from "@/components/VendaZapPanel";
