@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
-import { playNotificationSound } from "@/lib/notificationSound";
+import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
@@ -107,12 +107,15 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         (payload) => {
           const msg = payload.new as any;
           if (msg.remetente_tipo === "cliente") {
-            playNotificationSound();
-            // Only show toast if not viewing this conversation
+            // Find conversation to get temperature for differentiated sound
+            const conv = conversations.find((c) => c.id === msg.tracking_id);
+            playLeadNotificationSound(conv?.lead_temperature);
+
             if (!selected || selected.id !== msg.tracking_id) {
-              toast.info("Nova mensagem de cliente!", {
+              const tempEmoji = conv?.lead_temperature === "quente" ? "🔥" : conv?.lead_temperature === "morno" ? "🟡" : "❄️";
+              toast.info(`${tempEmoji} Nova mensagem de cliente!`, {
                 description: msg.mensagem?.substring(0, 50),
-                duration: 4000,
+                duration: conv?.lead_temperature === "quente" ? 8000 : 4000,
               });
             }
             fetchConversations();
@@ -122,7 +125,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selected, fetchConversations]);
+  }, [selected, fetchConversations, conversations]);
 
   // AI auto-suggestion with debounce when conversation is selected
   const triggerAI = useCallback((conv: ChatConversation) => {
