@@ -12,8 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { maskCodigoLoja, unmask } from "@/lib/masks";
 import { motion } from "framer-motion";
-import bannerOrcamovel from "@/assets/banner-orcamovel.png";
-import logoBranco from "@/assets/logo-banner-branco.png";
+import bannerCompleto from "@/assets/banner-completo-orcamovel.png";
 
 interface PlanBlockInfo {
   reason: string;
