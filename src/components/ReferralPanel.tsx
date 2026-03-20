@@ -361,6 +361,7 @@ export function ReferralPanel() {
                     <TableHead>Código</TableHead>
                     <TableHead className="text-center">Indicações</TableHead>
                     <TableHead className="text-center">Convertidas</TableHead>
+                    <TableHead className="text-center">Nível</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
