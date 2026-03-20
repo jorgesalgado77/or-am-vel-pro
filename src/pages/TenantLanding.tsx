@@ -84,7 +84,8 @@ export default function TenantLanding() {
           telefone: cleanPhone,
           email: email.trim() || undefined,
           interesse: "Projeto 3D gratuito",
-          origem: "funil_loja",
+          origem: refCode ? "indicacao" : "funil_loja",
+          referral_code: refCode || undefined,
           tenant_id: tenant?.id,
         },
       });

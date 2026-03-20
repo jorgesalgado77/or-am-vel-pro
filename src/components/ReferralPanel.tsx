@@ -386,6 +386,18 @@ export function ReferralPanel() {
                       </TableCell>
                       <TableCell className="text-center font-medium">{link.total_referrals}</TableCell>
                       <TableCell className="text-center font-medium text-green-600">{link.converted_referrals}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const tier = getTier(link.converted_referrals);
+                          return tier ? (
+                            <Badge variant="outline" className={cn("text-xs gap-1", tier.color)}>
+                              {tier.icon} {tier.name}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {format(new Date(link.created_at), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
