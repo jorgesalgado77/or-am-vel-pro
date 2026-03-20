@@ -222,8 +222,15 @@ function CompanySettingsTab() {
           </div>
           <div>
             <Label>Número Inicial do Orçamento</Label>
-            <p className="text-xs text-muted-foreground mb-1">Sequência começa a partir deste número (formato: 999.999.999)</p>
-            <Input type="number" value={orcamentoInicial} onChange={(e) => setOrcamentoInicial(Number(e.target.value))} min={1} className="mt-1" />
+            <p className="text-xs text-muted-foreground mb-1">Sequência começa a partir deste número (formato: 999.999.999.99)</p>
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={formatOrcamento(orcamentoInicial)}
+              onChange={(e) => handleOrcamentoChange(e.target.value)}
+              placeholder="000.000.000.00"
+              className="mt-1"
+            />
           </div>
         </div>
         <Separator />
