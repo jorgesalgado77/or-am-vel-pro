@@ -100,7 +100,7 @@ function CompanySettingsTab() {
 
   const handleOrcamentoChange = (masked: string) => {
     const raw = masked.replace(/\D/g, "").slice(0, 11);
-    setOrcamentoInicial(Number(raw) || 0);
+    setOrcamentoInicial(parseInt(raw, 10) || 0);
   };
   const [buscandoCep, setBuscandoCep] = useState(false);
 
