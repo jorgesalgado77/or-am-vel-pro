@@ -12,6 +12,7 @@ interface Props {
   onAttachmentSent: (url: string, name: string, tipo: string) => void;
   sending: boolean;
   trackingId: string;
+  onKeystroke?: () => void;
 }
 
 export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId }: Props) {
