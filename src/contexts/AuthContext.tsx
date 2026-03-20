@@ -235,6 +235,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await ensureUserProfile(data.user ?? null, metadata);
 
+    // Auto-login after signup (bypasses email confirmation requirement)
+    if (data.user && !data.session) {
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+      if (loginError) {
+        console.warn("[Auth] Auto-login after signup failed:", loginError.message);
+      }
+    }
+
     return { error: null, tenantId: metadata?.tenant_id as string | undefined };
   }, []);
 
