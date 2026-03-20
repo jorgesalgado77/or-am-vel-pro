@@ -19,9 +19,10 @@ import { DescontosTab } from "@/components/settings/DescontosTab";
 import { IndicadoresTab } from "@/components/settings/IndicadoresTab";
 import { ContratosTab } from "@/components/settings/ContratosTab";
 import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
+import { ResendTab } from "@/components/settings/ResendTab";
 import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
 import { AuditLogsTab } from "@/components/settings/AuditLogsTab";
-import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText } from "lucide-react";
+import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail } from "lucide-react";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -41,6 +42,7 @@ export function SettingsPanel() {
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
           <TabsTrigger value="contratos" className="gap-2"><FileSignature className="h-4 w-4" />Contratos</TabsTrigger>
           <TabsTrigger value="whatsapp" className="gap-2"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
+          <TabsTrigger value="resend" className="gap-2"><Mail className="h-4 w-4" />Resend</TabsTrigger>
           <TabsTrigger value="acompanhamento" className="gap-2"><ClipboardList className="h-4 w-4" />Acompanhamento</TabsTrigger>
           <TabsTrigger value="auditoria" className="gap-2"><ScrollText className="h-4 w-4" />Auditoria</TabsTrigger>
         </TabsList>
@@ -53,6 +55,7 @@ export function SettingsPanel() {
         <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
         <TabsContent value="contratos"><ContratosTab /></TabsContent>
         <TabsContent value="whatsapp"><WhatsAppTab /></TabsContent>
+        <TabsContent value="resend"><ResendTab /></TabsContent>
         <TabsContent value="acompanhamento"><AcompanhamentoTab /></TabsContent>
         <TabsContent value="auditoria"><AuditLogsTab /></TabsContent>
       </Tabs>
