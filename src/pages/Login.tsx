@@ -547,7 +547,7 @@ export default function Login() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-sm backdrop-blur-xl bg-[#0f1d32]/95 border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4"
+            className="w-full max-w-sm backdrop-blur-xl bg-foreground/95 border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="text-center space-y-1">
               <Mail className="h-8 w-8 sm:h-10 sm:w-10 text-[hsl(var(--primary))] mx-auto" />
