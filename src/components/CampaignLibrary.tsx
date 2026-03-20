@@ -222,6 +222,10 @@ export function CampaignLibrary() {
         <TabsContent value="ia" className="mt-4">
           <CampaignAIGenerator />
         </TabsContent>
+
+        <TabsContent value="agenda" className="mt-4">
+          <CampaignScheduler />
+        </TabsContent>
       </Tabs>
     </div>
   );
