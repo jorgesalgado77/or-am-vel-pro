@@ -13,12 +13,47 @@ function respond(body: unknown, status = 200) {
   });
 }
 
+// Intent detection keywords
+const INTENT_PATTERNS: Record<string, RegExp[]> = {
+  orcamento: [/or[çc]amento/i, /quanto custa/i, /valor/i, /pre[çc]o/i, /tabela/i, /proposta/i],
+  fechamento: [/fechar/i, /quero comprar/i, /vamos fechar/i, /aceito/i, /pode fazer/i, /fechado/i, /vou levar/i],
+  preco: [/desconto/i, /mais barato/i, /negocia/i, /condi[çc][ãa]o/i, /parcel/i, /pagamento/i],
+  duvida: [/como funciona/i, /dúvida/i, /explica/i, /qual a diferen/i, /tem garantia/i, /prazo/i],
+  objecao: [/caro/i, /n[ãa]o sei/i, /vou pensar/i, /depois/i, /outro lugar/i, /concorr/i],
+  saudacao: [/bom dia/i, /boa tarde/i, /boa noite/i, /oi/i, /ol[áa]/i, /tudo bem/i],
+};
+
+function detectIntent(message: string): string {
+  if (!message) return "outro";
+  
+  // Priority order: fechamento > orcamento > preco > objecao > duvida > saudacao
+  const priority = ["fechamento", "orcamento", "preco", "objecao", "duvida", "saudacao"];
+  
+  for (const intent of priority) {
+    const patterns = INTENT_PATTERNS[intent];
+    if (patterns.some((p) => p.test(message))) {
+      return intent;
+    }
+  }
+  
+  return "outro";
+}
+
+const INTENT_PROMPTS: Record<string, string> = {
+  orcamento: "O cliente está pedindo um orçamento. Responda de forma profissional, pergunte detalhes do projeto e demonstre expertise.",
+  fechamento: "O cliente está pronto para fechar! Confirme os detalhes, reforce o valor e facilite o fechamento.",
+  preco: "O cliente está negociando preço. Destaque o valor agregado, ofereça condições e mantenha a margem.",
+  duvida: "O cliente tem dúvidas. Responda de forma clara, didática e aproveite para mostrar diferenciais.",
+  objecao: "O cliente tem objeções. Contorne com empatia, apresente provas sociais e benefícios exclusivos.",
+  saudacao: "O cliente está iniciando contato. Seja caloroso, apresente-se brevemente e pergunte como pode ajudar.",
+  outro: "Responda de forma atenciosa e tente identificar a necessidade do cliente.",
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
   try {
-    // Validate auth header
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ") || authHeader.replace("Bearer ", "").length < 20) {
       return respond({ error: "Não autorizado" }, 401);
@@ -42,25 +77,44 @@ serve(async (req) => {
     const prompt_sistema = typeof body.prompt_sistema === "string" ? body.prompt_sistema.slice(0, 2000) : "";
     const openai_model = typeof body.openai_model === "string" ? body.openai_model.slice(0, 50) : "gpt-4o-mini";
     const max_tokens = typeof body.max_tokens === "number" ? Math.min(body.max_tokens, 2000) : 500;
+    const modo = typeof body.modo === "string" ? body.modo : "sugestao";
+    const historico = Array.isArray(body.historico) ? body.historico.slice(-10) : [];
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) {
       return respond({ error: "OPENAI_API_KEY não configurada" }, 500);
     }
 
+    // Detect intent from client message
+    const intencao = detectIntent(mensagem_cliente);
+    const intentContext = INTENT_PROMPTS[intencao] || INTENT_PROMPTS.outro;
+
     const systemPrompt =
-      prompt_sistema ||
+      (prompt_sistema ||
       `Você é um assistente de vendas especializado em móveis planejados. 
 Gere mensagens persuasivas para WhatsApp em português brasileiro.
-Seja profissional, amigável e direto.`;
+Seja profissional, amigável e direto.`) +
+      `\n\n--- CONTEXTO DA INTENÇÃO ---\n${intentContext}` +
+      (modo === "autopilot"
+        ? "\n\n--- MODO AUTO-PILOT ---\nVocê está respondendo AUTOMATICAMENTE. Seja conciso (máx 3 parágrafos). Inclua uma pergunta para manter a conversa. NÃO use saudações formais excessivas."
+        : "");
 
     let userPrompt = `Gere uma mensagem de ${tipo_copy} com tom ${tom}.`;
     if (nome_cliente) userPrompt += `\nNome do cliente: ${nome_cliente}`;
     if (valor_orcamento) userPrompt += `\nValor do orçamento: R$ ${valor_orcamento}`;
     if (status_negociacao) userPrompt += `\nStatus da negociação: ${status_negociacao}`;
     if (dias_sem_resposta) userPrompt += `\nDias sem resposta: ${dias_sem_resposta}`;
-    if (mensagem_cliente) userPrompt += `\nÚltima mensagem do cliente: "${mensagem_cliente}"`;
+    if (mensagem_cliente) userPrompt += `\nMensagem do cliente: "${mensagem_cliente}"`;
     if (deal_room_link) userPrompt += `\nLink da sala de negociação: ${deal_room_link}`;
+
+    // Add conversation history for context
+    if (historico.length > 0) {
+      userPrompt += "\n\n--- HISTÓRICO RECENTE ---";
+      for (const h of historico) {
+        const role = h.remetente_tipo === "cliente" ? "Cliente" : "Vendedor";
+        userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 200)}`;
+      }
+    }
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -89,7 +143,7 @@ Seja profissional, amigável e direto.`;
     const mensagem = openaiData.choices?.[0]?.message?.content || "";
     const tokens_usados = openaiData.usage?.total_tokens || 0;
 
-    return respond({ mensagem, tokens_usados });
+    return respond({ mensagem, tokens_usados, intencao, modo });
   } catch (e) {
     console.error("vendazap-ai error:", e);
     return respond({ error: "Erro interno" }, 500);

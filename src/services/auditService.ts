@@ -24,7 +24,10 @@ export type AuditAction =
   | "senha_alterada"
   | "vendazap_auto_suggestion"
   | "vendazap_suggestion_used"
-  | "vendazap_trigger_sent";
+  | "vendazap_trigger_sent"
+  | "autopilot_ativado"
+  | "autopilot_desativado"
+  | "autopilot_resposta_enviada";
 
 export type AuditEntity =
   | "client"
@@ -34,7 +37,9 @@ export type AuditEntity =
   | "tracking"
   | "user"
   | "security"
-  | "vendazap_trigger";
+  | "vendazap_trigger"
+  | "vendazap"
+  | "tracking_messages";
 
 interface AuditLogInput {
   acao: AuditAction;
