@@ -88,7 +88,7 @@ export function useFollowUp(tenantId: string | null, userId?: string) {
     fetchSchedules();
   }, [fetchConfig, fetchSchedules]);
 
-  // Realtime for new schedules
+  // Realtime for new schedules and status changes (response notifications)
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
@@ -101,9 +101,41 @@ export function useFollowUp(tenantId: string | null, userId?: string) {
       }, () => {
         fetchSchedules();
       })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "followup_schedules",
+        filter: `tenant_id=eq.${tenantId}`,
+      }, (payload) => {
+        const newRecord = payload.new as any;
+        const oldRecord = payload.old as any;
+        // Client responded — follow-up was cancelled automatically
+        if (newRecord.status === "cancelled" && oldRecord.status === "pending") {
+          const clientName = schedules.find(s => s.id === newRecord.id)?.client_nome || "Cliente";
+          toast.success(`🎉 ${clientName} respondeu! Follow-up cancelado automaticamente.`, {
+            duration: 8000,
+            description: "O cliente interagiu após o follow-up. Aproveite para dar continuidade!",
+          });
+          // Play notification sound for response
+          try {
+            const audio = new Audio("/notification-high.mp3");
+            audio.volume = 0.5;
+            audio.play().catch(() => {});
+          } catch {}
+        }
+        // Follow-up was sent successfully
+        if (newRecord.status === "sent" && oldRecord.status === "pending") {
+          const clientName = schedules.find(s => s.id === newRecord.id)?.client_nome || "Cliente";
+          const stageInfo = STAGE_LABELS[newRecord.stage] || { emoji: "📨", label: newRecord.stage };
+          toast.info(`${stageInfo.emoji} Follow-up ${stageInfo.label} enviado para ${clientName}`, {
+            duration: 5000,
+          });
+        }
+        fetchSchedules();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId, fetchSchedules]);
+  }, [tenantId, fetchSchedules, schedules]);
 
   const updateConfig = useCallback(async (updates: Partial<FollowUpConfig>) => {
     if (!tenantId) return;
