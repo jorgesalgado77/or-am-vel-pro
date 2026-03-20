@@ -157,69 +157,6 @@ export function FinancialPanel() {
 
   useEffect(() => { fetchData(); }, [tenantId]);
 
-  // === CASH FLOW FORECAST ===
-  const forecastData = useMemo(() => {
-    if (forecastCache && Date.now() - forecastCache.timestamp < 300000) return forecastCache.data;
-
-    const today = new Date();
-    const days = eachDayOfInterval({ start: today, end: addDays(today, 30) });
-    let saldoAcumulado = faturamento - totalContasPagar;
-
-    const dailyRevenue = faturamento / 30;
-    const dailyCosts = (contasFixas + totalFolha) / 30;
-
-    const data = days.map(day => {
-      const dayStr = format(day, "yyyy-MM-dd");
-      const dayAccounts = accounts.filter(a => a.due_date === dayStr && a.status !== "pago");
-      const dayCost = dayAccounts.reduce((sum, a) => sum + a.amount, 0) || dailyCosts;
-      
-      saldoAcumulado += dailyRevenue - dayCost;
-      
-      return {
-        dia: format(day, "dd/MM"),
-        entradas: Math.round(dailyRevenue),
-        saidas: Math.round(dayCost),
-        saldo: Math.round(saldoAcumulado),
-      };
-    });
-
-    setForecastCache({ data, timestamp: Date.now() });
-    return data;
-  }, [accounts, faturamento, contasFixas, totalFolha]);
-
-  const saldoFinal30d = forecastData.length > 0 ? forecastData[forecastData.length - 1].saldo : 0;
-  const diasNegativo = forecastData.filter(d => d.saldo < 0).length;
-
-  const handleAIAnalysis = useCallback(async () => {
-    setAiLoading(true);
-    try {
-      const resumo = `
-Faturamento mensal: ${formatCurrency(faturamento)}
-Custos fixos: ${formatCurrency(contasFixas)}
-Folha total: ${formatCurrency(totalFolha)}
-Ponto de equilíbrio: ${formatCurrency(breakEven)}
-Resultado atual: ${formatCurrency(lucroEstimado)}
-Contas vencidas: ${contasVencidas.length}
-Contas a vencer (7 dias): ${contasAVencer7d.length}
-Total a pagar: ${formatCurrency(totalContasPagar)}
-Saldo projetado 30 dias: ${formatCurrency(saldoFinal30d)}
-Dias com saldo negativo projetado: ${diasNegativo}
-Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.value)}`).join(", ")}
-      `.trim();
-
-      const { data, error } = await supabase.functions.invoke("cashflow-ai", {
-        body: { resumo_financeiro: resumo },
-      });
-      if (error) throw error;
-      setAiAnalysis(data.analise || "Sem análise disponível.");
-    } catch (err: any) {
-      console.error("AI analysis error:", err);
-      toast.error("Erro ao gerar análise de IA");
-    } finally {
-      setAiLoading(false);
-    }
-  }, [faturamento, contasFixas, totalFolha, breakEven, lucroEstimado, contasVencidas, contasAVencer7d, totalContasPagar, saldoFinal30d, diasNegativo, categoryData]);
-
   // === CALCULATIONS ===
   const totalContasPagar = useMemo(() =>
     accounts.filter(a => a.status !== "pago").reduce((sum, a) => sum + a.amount, 0), [accounts]);
@@ -258,6 +195,68 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
     return Object.entries(cats).map(([name, value]) => ({ name, value }));
   }, [accounts]);
 
+  // === CASH FLOW FORECAST ===
+  const forecastData = useMemo(() => {
+    if (forecastCache && Date.now() - forecastCache.timestamp < 300000) return forecastCache.data;
+
+    const today = new Date();
+    const days = eachDayOfInterval({ start: today, end: addDays(today, 30) });
+    let saldoAcumulado = faturamento - totalContasPagar;
+
+    const dailyRevenue = faturamento / 30;
+    const dailyCosts = (contasFixas + totalFolha) / 30;
+
+    const data = days.map(day => {
+      const dayStr = format(day, "yyyy-MM-dd");
+      const dayAccounts = accounts.filter(a => a.due_date === dayStr && a.status !== "pago");
+      const dayCost = dayAccounts.reduce((sum, a) => sum + a.amount, 0) || dailyCosts;
+      
+      saldoAcumulado += dailyRevenue - dayCost;
+      
+      return {
+        dia: format(day, "dd/MM"),
+        entradas: Math.round(dailyRevenue),
+        saidas: Math.round(dayCost),
+        saldo: Math.round(saldoAcumulado),
+      };
+    });
+
+    setForecastCache({ data, timestamp: Date.now() });
+    return data;
+  }, [accounts, faturamento, contasFixas, totalFolha, totalContasPagar]);
+
+  const saldoFinal30d = forecastData.length > 0 ? forecastData[forecastData.length - 1].saldo : 0;
+  const diasNegativo = forecastData.filter(d => d.saldo < 0).length;
+
+  const handleAIAnalysis = useCallback(async () => {
+    setAiLoading(true);
+    try {
+      const resumo = `
+Faturamento mensal: ${formatCurrency(faturamento)}
+Custos fixos: ${formatCurrency(contasFixas)}
+Folha total: ${formatCurrency(totalFolha)}
+Ponto de equilíbrio: ${formatCurrency(breakEven)}
+Resultado atual: ${formatCurrency(lucroEstimado)}
+Contas vencidas: ${contasVencidas.length}
+Contas a vencer (7 dias): ${contasAVencer7d.length}
+Total a pagar: ${formatCurrency(totalContasPagar)}
+Saldo projetado 30 dias: ${formatCurrency(saldoFinal30d)}
+Dias com saldo negativo projetado: ${diasNegativo}
+Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.value)}`).join(", ")}
+      `.trim();
+
+      const { data, error } = await supabase.functions.invoke("cashflow-ai", {
+        body: { resumo_financeiro: resumo },
+      });
+      if (error) throw error;
+      setAiAnalysis(data.analise || "Sem análise disponível.");
+    } catch (err: any) {
+      console.error("AI analysis error:", err);
+      toast.error("Erro ao gerar análise de IA");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [faturamento, contasFixas, totalFolha, breakEven, lucroEstimado, contasVencidas, contasAVencer7d, totalContasPagar, saldoFinal30d, diasNegativo, categoryData]);
   // CRUD
   const handleSave = async () => {
     if (!form.name.trim() || form.amount <= 0) {
