@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle, Bot, Video } from "lucide-react";
+import { Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, KeyRound, LifeBuoy, MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -14,6 +14,7 @@ interface AppSidebarProps {
   onViewChange: (view: string) => void;
   onChangePassword?: () => void;
   onSupport?: () => void;
+  onProfile?: () => void;
   unreadMessages?: number;
   onlineUsers?: OnlineUser[];
 }
