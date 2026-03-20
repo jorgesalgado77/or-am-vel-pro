@@ -261,6 +261,7 @@ export default function Index() {
 
               {activeView === "funnel" && <FunnelPanel />}
               {activeView === "campaigns" && <CampaignLibrary />}
+              {activeView === "referrals" && <ReferralPanel />}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>
