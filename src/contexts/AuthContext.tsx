@@ -89,6 +89,11 @@ async function mapAppUser(userRow: any, authUserId?: string | null): Promise<App
   };
 }
 
+function normalizeEmail(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase();
+  return normalized || null;
+}
+
 function mapRpcAppUser(userRow: any, authUserId?: string | null): AppUser {
   return {
     id: userRow.id ?? authUserId ?? "",
