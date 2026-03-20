@@ -318,17 +318,17 @@ export default function Login() {
           <motion.div
             animate={{ x: [0, 60, -40, 0], y: [0, -50, 30, 0], scale: [1, 1.2, 0.9, 1] }}
             transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[hsl(var(--primary)/0.18)] rounded-full blur-3xl"
+            className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[hsl(199,89%,40%/0.18)] rounded-full blur-3xl"
           />
           <motion.div
             animate={{ x: [0, -70, 50, 0], y: [0, 40, -60, 0], scale: [1, 0.85, 1.15, 1] }}
             transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[hsl(var(--accent)/0.12)] rounded-full blur-3xl"
+            className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[hsl(160,84%,39%/0.12)] rounded-full blur-3xl"
           />
           <motion.div
             animate={{ x: [0, 40, -30, 0], y: [0, -30, 50, 0] }}
             transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[40%] left-[30%] w-[350px] h-[350px] bg-[hsl(var(--ring)/0.08)] rounded-full blur-3xl"
+            className="absolute top-[40%] left-[30%] w-[350px] h-[350px] bg-[hsl(260,70%,50%/0.08)] rounded-full blur-3xl"
           />
         </div>
       )}
