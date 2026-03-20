@@ -63,6 +63,7 @@ export async function createUsuarioProfile(params: {
     senha: senhaHash,
     primeiro_login: true,
     ativo: true,
+    telefone_whatsapp: params.telefoneWhatsApp || null,
   } as any);
 
   if (error) {
