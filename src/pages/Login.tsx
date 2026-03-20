@@ -277,7 +277,7 @@ export default function Login() {
         >
           <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl shadow-black/20 p-6 sm:p-8 text-center space-y-5">
             <div className="mx-auto h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-destructive/20 flex items-center justify-center">
-              <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 text-red-400" />
+              <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 text-destructive" />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-white">Acesso Bloqueado</h1>
