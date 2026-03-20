@@ -259,7 +259,7 @@ export default function Login() {
     }
   };
 
-  // Fetch tenant info when store code is complete
+  // Fetch tenant info when store code is complete (uses RPC to bypass RLS)
   useEffect(() => {
     const digits = unmask(codigoLoja);
     if (digits.length < 6) {
@@ -269,23 +269,11 @@ export default function Login() {
     let cancelled = false;
     (async () => {
       try {
-        const { data: tenant } = await supabase
-          .from("tenants")
-          .select("id, nome_loja")
-          .eq("codigo_loja", digits)
-          .maybeSingle();
-        if (!tenant || cancelled) { if (!cancelled) setTenantInfo(null); return; }
-
-        const { data: cs } = await supabase
-          .from("company_settings")
-          .select("company_name, company_subtitle")
-          .eq("tenant_id", tenant.id)
-          .maybeSingle();
-
-        if (!cancelled) {
-          const nome = cs?.company_name || tenant.nome_loja || "";
-          const sub = cs?.company_subtitle || "";
-          setTenantInfo(nome ? { nome, subtitulo: sub } : null);
+        const { data } = await (supabase as any).rpc("resolve_tenant_info_by_code", { p_code: digits });
+        if (!cancelled && data && data.nome) {
+          setTenantInfo({ nome: data.nome, subtitulo: data.subtitulo || "" });
+        } else if (!cancelled) {
+          setTenantInfo(null);
         }
       } catch {
         if (!cancelled) setTenantInfo(null);
