@@ -217,6 +217,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
           </TabsTrigger>
           <TabsTrigger value="prontas" className="gap-2"><BookOpen className="h-4 w-4" />Copys</TabsTrigger>
           <TabsTrigger value="historico" className="gap-2"><History className="h-4 w-4" />Histórico</TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-2"><Brain className="h-4 w-4" />Analytics IA</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gerar" className="space-y-4">
