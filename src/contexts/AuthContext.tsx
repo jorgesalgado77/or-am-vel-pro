@@ -442,26 +442,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("[Auth] ⚠️ Usuário não encontrado para sessão, fazendo signout...");
       setUser(null);
       syncGlobalState(null);
-      // Sign out invalid session to avoid infinite loading
       await supabase.auth.signOut();
       setSession(null);
     }
 
     setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    let initialLoaded = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, sess) => {
+        // Skip if this is the initial session event and getSession already handled it
+        if (_event === "INITIAL_SESSION") {
+          if (initialLoaded) return;
+          initialLoaded = true;
+        }
         await loadFromSession(sess);
       }
     );
 
     supabase.auth.getSession().then(({ data: { session: sess } }) => {
-      loadFromSession(sess);
+      if (!initialLoaded) {
+        initialLoaded = true;
+        loadFromSession(sess);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    // Safety net: if nothing resolves in 5s, stop loading
+    const safetyTimeout = setTimeout(() => {
+      setLoading((prev) => {
+        if (prev) console.warn("[Auth] ⏰ Safety timeout: forçando fim do loading");
+        return false;
+      });
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
   }, [loadFromSession]);
 
   const login = useCallback(async (email: string, password: string, storeCode?: string) => {
