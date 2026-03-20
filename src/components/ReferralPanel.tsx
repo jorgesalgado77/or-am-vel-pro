@@ -66,6 +66,17 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
+// Gamification tiers
+const GAMIFICATION_TIERS = [
+  { name: "Bronze", min: 1, max: 4, color: "bg-amber-700/10 text-amber-800 border-amber-300", icon: "🥉", bgGradient: "from-amber-100 to-amber-50" },
+  { name: "Prata", min: 5, max: 14, color: "bg-slate-200/50 text-slate-700 border-slate-300", icon: "🥈", bgGradient: "from-slate-100 to-slate-50" },
+  { name: "Ouro", min: 15, max: Infinity, color: "bg-yellow-400/20 text-yellow-700 border-yellow-400", icon: "🥇", bgGradient: "from-yellow-100 to-yellow-50" },
+];
+
+function getTier(convertedCount: number) {
+  return GAMIFICATION_TIERS.find(t => convertedCount >= t.min && convertedCount <= t.max) || null;
+}
+
 function generateReferralCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";

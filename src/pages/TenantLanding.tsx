@@ -32,6 +32,8 @@ const DEFAULT_BENEFITS = [
 
 export default function TenantLanding() {
   const { codigo } = useParams<{ codigo: string }>();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get("ref") || "";
   const [tenant, setTenant] = useState<TenantData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
