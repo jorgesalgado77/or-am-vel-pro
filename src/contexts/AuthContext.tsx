@@ -235,14 +235,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await ensureUserProfile(data.user ?? null, metadata);
 
-    // Auto-login after signup (bypasses email confirmation requirement)
-    if (data.user && !data.session) {
-      const { error: loginError } = await supabase.auth.signInWithPassword({
+    // Auto-confirm email via RPC (bypasses email verification requirement)
+    if (data.user) {
+      try {
+        await (supabase as any).rpc("confirm_user_email", { p_user_id: data.user.id });
+      } catch (e) {
+        console.warn("[Auth] confirm_user_email RPC not available:", e);
+      }
+
+      // Auto-login after signup
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
       });
-      if (loginError) {
-        console.warn("[Auth] Auto-login after signup failed:", loginError.message);
+      if (!loginError && loginData.user) {
+        const appUser = await loadAppUser(loginData.user);
+        if (appUser) {
+          setUser(appUser);
+          setSession(loginData.session);
+          syncGlobalState(appUser);
+        }
       }
     }
 
