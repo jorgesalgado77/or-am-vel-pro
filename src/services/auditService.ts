@@ -30,7 +30,8 @@ export type AuditAction =
   | "autopilot_resposta_enviada"
   | "followup_config_update"
   | "followup_paused"
-  | "followup_resumed";
+  | "followup_resumed"
+  | "followup_weekly_report";
 
 export type AuditEntity =
   | "client"
