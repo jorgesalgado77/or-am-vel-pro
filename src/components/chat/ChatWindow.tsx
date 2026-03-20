@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Video, RefreshCw } from "lucide-react";
+import { CloseDealButton } from "./CloseDealButton";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { ChatMessageBubble } from "./ChatMessageBubble";
