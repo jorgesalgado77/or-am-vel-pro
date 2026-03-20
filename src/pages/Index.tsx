@@ -45,6 +45,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   vendazap: { title: "VendaZap AI", subtitle: "Assistente inteligente de vendas para WhatsApp" },
   dealroom: { title: "Deal Room", subtitle: "Sala de negociação com apresentação e pagamento integrado" },
   "vendazap-chat": { title: "Chat de Vendas", subtitle: "Converse com clientes com sugestões de IA em tempo real" },
+  funnel: { title: "Funil de Captação", subtitle: "Sua máquina de captação de leads pronta para usar" },
 };
 
 export default function Index() {
