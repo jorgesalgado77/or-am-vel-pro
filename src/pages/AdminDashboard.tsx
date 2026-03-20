@@ -508,6 +508,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsContent value="diagnostics">
             <AdminLoginDiagnostics />
           </TabsContent>
+
+          {/* TAB: Canva */}
+          <TabsContent value="canva">
+            <AdminCanvaConfig />
+          </TabsContent>
         </Tabs>
       </main>
 
