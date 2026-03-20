@@ -9,6 +9,7 @@ import Admin from "./pages/Admin.tsx";
 import SignUp from "./pages/SignUp.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
 import RenewPlan from "./pages/RenewPlan.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import LandingPage from "./pages/LandingPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
