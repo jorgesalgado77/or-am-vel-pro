@@ -259,11 +259,35 @@ export default function Login() {
     }
   };
 
-  const companyName = "OrçaMóvel PRO";
-  const companySubtitle =
-    settings.company_subtitle && settings.company_subtitle !== "Gestão & Financiamento"
-      ? settings.company_subtitle
-      : "Orce. Venda. Simplifique";
+  // Fetch tenant info when store code is complete
+  useEffect(() => {
+    const digits = unmask(codigoLoja);
+    if (digits.length < 6) {
+      setTenantInfo(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("tenants")
+          .select("nome, subtitulo")
+          .eq("codigo_loja", digits)
+          .maybeSingle();
+        if (!cancelled && data) {
+          setTenantInfo({ nome: data.nome || "", subtitulo: (data as any).subtitulo || "" });
+        } else if (!cancelled) {
+          setTenantInfo(null);
+        }
+      } catch {
+        if (!cancelled) setTenantInfo(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [codigoLoja]);
+
+  const companyName = tenantInfo?.nome || "OrçaMóvel PRO";
+  const companySubtitle = tenantInfo?.subtitulo || "Orce. Venda. Simplifique";
 
   if (planBlocked) {
     return (
