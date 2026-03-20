@@ -17,7 +17,7 @@ export function useTypingIndicator(trackingId: string | null, currentUserId?: st
 
     // Fetch current typing state
     const fetchTyping = async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("typing_indicators")
         .select("user_id, user_name")
         .eq("tracking_id", trackingId)
