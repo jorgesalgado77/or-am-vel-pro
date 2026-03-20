@@ -501,6 +501,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsContent value="resend">
             <AdminResendConfig />
           </TabsContent>
+
+          {/* TAB: Login Diagnostics */}
+          <TabsContent value="diagnostics">
+            <AdminLoginDiagnostics />
+          </TabsContent>
         </Tabs>
       </main>
 
