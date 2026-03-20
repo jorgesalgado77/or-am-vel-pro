@@ -311,6 +311,52 @@ export default function TenantLanding() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label htmlFor="lead-descricao" className="text-sm font-medium text-gray-700">
+                    Descreva sua necessidade <span className="text-gray-400">(opcional)</span>
+                  </Label>
+                  <Textarea
+                    id="lead-descricao"
+                    value={descricao}
+                    onChange={(e) => setDescricao(e.target.value)}
+                    placeholder="Ex: Cozinha planejada para apartamento de 60m², preciso de projeto que aproveite bem o espaço..."
+                    className="rounded-xl border-gray-200 focus:border-primary min-h-[80px]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Anexar planta ou fotos <span className="text-gray-400">(opcional)</span>
+                  </Label>
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-gray-300 transition-colors cursor-pointer"
+                    onClick={() => document.getElementById("lead-files")?.click()}>
+                    <input
+                      id="lead-files"
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.dwg"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setArquivos(prev => [...prev, ...files]);
+                      }}
+                    />
+                    <Paperclip className="h-5 w-5 mx-auto text-gray-400 mb-1" />
+                    <p className="text-sm text-gray-500">Clique para enviar planta, fotos ou documentos</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">JPG, PNG, PDF • Até 10MB</p>
+                  </div>
+                  {arquivos.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      {arquivos.map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-1.5">
+                          <FileText className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate flex-1">{f.name}</span>
+                          <button type="button" onClick={() => setArquivos(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-400 hover:text-red-500">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <Button
                   type="submit"
                   disabled={sending}
