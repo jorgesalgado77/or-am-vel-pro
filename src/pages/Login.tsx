@@ -138,9 +138,19 @@ export default function Login() {
     if (error) {
       const msg = error.toLowerCase();
       if (msg.includes("email not confirmed")) {
-        toast.error("Email ainda não confirmado. Aguarde alguns segundos e tente novamente.");
+        toast.error("Email ainda não confirmado. Tente novamente em alguns instantes.");
       } else if (msg.includes("invalid login credentials")) {
         toast.error("Email ou senha incorretos");
+      } else if (msg.includes("código da loja não encontrado")) {
+        toast.error("Código da loja não encontrado. Verifique o código informado.");
+      } else if (msg.includes("email não encontrado")) {
+        toast.error("Email não encontrado no sistema. Verifique o email digitado.");
+      } else if (msg.includes("não está vinculado")) {
+        toast.error("Este email não pertence à loja informada. Verifique o código da loja.");
+      } else if (msg.includes("senha incorreta")) {
+        toast.error("Senha incorreta. Verifique sua senha e tente novamente.");
+      } else if (msg.includes("usuário inativo")) {
+        toast.error("Sua conta está inativa. Entre em contato com o administrador da loja.");
       } else {
         toast.error(error);
       }

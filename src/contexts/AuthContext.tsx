@@ -326,8 +326,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     if (!error && data.user) {
+      console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail);
       return finalizeLogin(data);
     }
+
+    console.log("[Auth] ⚠️ Login direto falhou:", error?.code, error?.message, "| Tentando fallback legado...");
 
     // 2. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
     if (error && shouldTryLegacyFallback(error)) {
@@ -336,6 +339,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? await resolveTenantIdByStoreCode(normalizedStoreCode)
           : null;
 
+        console.log("[Auth] 🔍 Código da loja resolvido para tenant_id:", tenantIdFromCode);
+
+        if (normalizedStoreCode.length === 6 && !tenantIdFromCode) {
+          console.log("[Auth] ❌ Código da loja não encontrado no banco");
+          return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
+        }
+
         const { data: legacyUsers } = await (supabase as any)
           .from("usuarios")
           .select("*")
@@ -343,23 +353,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .limit(10);
 
         const legacyList = Array.isArray(legacyUsers) ? legacyUsers : legacyUsers ? [legacyUsers] : [];
+
+        console.log("[Auth] 🔍 Usuários encontrados com email", normalizedEmail, ":", legacyList.length);
+
+        if (legacyList.length === 0) {
+          return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
+        }
+
         const legacyUser = legacyList.find((candidate) => {
           if (!tenantIdFromCode) return true;
           return candidate.tenant_id === tenantIdFromCode;
         }) ?? legacyList[0] ?? null;
 
         if (!legacyUser) {
-          return { user: null, error: "Invalid login credentials" };
+          return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
         }
 
+        if (tenantIdFromCode && legacyUser.tenant_id !== tenantIdFromCode) {
+          console.log("[Auth] ❌ Usuário existe mas não pertence à loja informada. tenant esperado:", tenantIdFromCode, "| tenant do usuário:", legacyUser.tenant_id);
+          return { user: null, error: "Este email não está vinculado ao código da loja informado." };
+        }
+
+        console.log("[Auth] 👤 Usuário legado encontrado:", legacyUser.id, legacyUser.nome_completo, "| tenant:", legacyUser.tenant_id);
+
         if (isEmailNotConfirmedError(error)) {
+          console.log("[Auth] 📧 Tentando confirmar email e relogar...");
           const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
           if (confirmedLogin) {
+            console.log("[Auth] ✅ Login após confirmação de email bem-sucedido");
             return finalizeLogin(confirmedLogin);
           }
+          console.log("[Auth] ⚠️ Confirmação de email falhou, continuando fluxo legado...");
         }
 
         if (legacyUser.ativo === false) {
+          console.log("[Auth] ❌ Usuário inativo:", legacyUser.id);
           return { user: null, error: "Usuário inativo" };
         }
 
@@ -439,10 +467,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!passwordValid) {
-          return { user: null, error: "Invalid login credentials" };
+          console.log("[Auth] ❌ Senha inválida para usuário legado:", legacyUser.id);
+          return { user: null, error: "Senha incorreta. Verifique sua senha e tente novamente." };
         }
 
         // Password matches — migrate user to Supabase Auth
+        console.log("[Auth] 🔄 Senha válida, migrando usuário para Supabase Auth...");
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
