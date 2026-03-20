@@ -273,6 +273,9 @@ export function ChatWindow({
       {/* Typing indicator */}
       <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
 
+      {/* Auto-Pilot History */}
+      <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId ?? null} />
+
       {/* AI Suggestion */}
       <ChatAISuggestion
         suggestion={aiSuggestion}
