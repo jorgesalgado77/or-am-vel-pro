@@ -137,10 +137,19 @@ export default function Index() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Carregando...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm animate-pulse">Carregando sistema...</p>
+        </div>
       </div>
     );
   }
+
+  const ViewLoader = () => (
+    <div className="flex items-center justify-center py-16">
+      <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   // Bridge for legacy CurrentUserContext
   const currentUserCompat = authUser ? {
