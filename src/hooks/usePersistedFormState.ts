@@ -7,7 +7,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
  * @param key Unique key per form (e.g. "support-dialog")
  * @param initialState Default values for the form
  */
-export function usePersistedFormState<T extends Record<string, unknown>>(
+export function usePersistedFormState<T extends object>(
   key: string,
   initialState: T,
 ): [T, (updates: Partial<T>) => void, () => void] {
