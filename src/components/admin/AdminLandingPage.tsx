@@ -8,10 +8,12 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Save, Loader2, Trash2, Plus, ExternalLink, Users, Eye } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Save, Loader2, Trash2, Plus, ExternalLink, Users, Eye, Filter } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import type { LandingConfig, BenefitItem, HowItWorksStep, PlanItem } from "@/hooks/useLandingConfig";
 
 interface Lead {
@@ -23,6 +25,10 @@ interface Lead {
   email: string;
   status: string;
   created_at: string;
+  origem?: string;
+  interesse?: string;
+  lead_temperature?: string;
+  whatsapp_enviado?: boolean;
 }
 
 export function AdminLandingPage() {
