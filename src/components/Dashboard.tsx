@@ -95,7 +95,7 @@ function isInRange(dateStr: string, start: Date, end: Date): boolean {
   return (isAfter(d, start) || d.getTime() === start.getTime()) && (isBefore(d, end) || d.getTime() === end.getTime());
 }
 
-export function Dashboard({ clients, lastSims, allSimulations = [] }: DashboardProps) {
+export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfile }: DashboardProps) {
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
