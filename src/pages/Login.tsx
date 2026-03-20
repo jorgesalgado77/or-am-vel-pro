@@ -18,6 +18,13 @@ interface PlanBlockInfo {
   tenantId: string;
 }
 
+async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
@@ -120,7 +127,9 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const codigoDigits = unmask(codigoLoja);
-    if (!codigoDigits || !email.trim() || !senha.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!codigoDigits || !normalizedEmail || !senha.trim()) {
       toast.error("Preencha todos os campos");
       return;
     }
@@ -133,61 +142,54 @@ export default function Login() {
     setLoading(true);
     setPlanBlocked(null);
 
-    const { user, error } = await login(email.trim().toLowerCase(), senha, codigoDigits);
+    try {
+      const { user, error } = await withTimeout(
+        login(normalizedEmail, senha, codigoDigits),
+        5000,
+        { user: null, error: "Tempo de login excedido. Tente novamente." },
+      );
 
-    if (error) {
-      const msg = error.toLowerCase();
-      if (msg.includes("email not confirmed")) {
-        toast.error("Email ainda não confirmado. Tente novamente em alguns instantes.");
-      } else if (msg.includes("invalid login credentials")) {
-        toast.error("Email ou senha incorretos");
-      } else if (msg.includes("código da loja não encontrado")) {
-        toast.error("Código da loja não encontrado. Verifique o código informado.");
-      } else if (msg.includes("email não encontrado")) {
-        toast.error("Email não encontrado no sistema. Verifique o email digitado.");
-      } else if (msg.includes("não está vinculado")) {
-        toast.error("Este email não pertence à loja informada. Verifique o código da loja.");
-      } else if (msg.includes("senha incorreta")) {
-        toast.error("Senha incorreta. Verifique sua senha e tente novamente.");
-      } else if (msg.includes("usuário inativo")) {
-        toast.error("Sua conta está inativa. Entre em contato com o administrador da loja.");
-      } else {
-        toast.error(error);
-      }
-      setLoading(false);
-      return;
-    }
-
-    if (!user) {
-      toast.error("Usuário não encontrado no sistema");
-      setLoading(false);
-      return;
-    }
-
-    if (user.tenant_id) {
-      const { data: tenantCheck } = await supabase
-        .from("tenants")
-        .select("codigo_loja")
-        .eq("id", user.tenant_id)
-        .single();
-
-      if (!tenantCheck || unmask(tenantCheck.codigo_loja || "") !== codigoDigits) {
-        toast.error("Código da loja não corresponde ao seu cadastro");
-        setLoading(false);
+      if (error) {
+        const msg = error.toLowerCase();
+        if (msg.includes("email not confirmed")) {
+          toast.error("Email ainda não confirmado. Tente novamente em alguns instantes.");
+        } else if (msg.includes("invalid login credentials")) {
+          toast.error("Email ou senha incorretos");
+        } else if (msg.includes("código da loja não encontrado")) {
+          toast.error("Código da loja não encontrado. Verifique o código informado.");
+        } else if (msg.includes("email não encontrado")) {
+          toast.error("Email não encontrado no sistema. Verifique o email digitado.");
+        } else if (msg.includes("não está vinculado")) {
+          toast.error("Este email não pertence à loja informada. Verifique o código da loja.");
+        } else if (msg.includes("senha incorreta")) {
+          toast.error("Senha incorreta. Verifique sua senha e tente novamente.");
+        } else if (msg.includes("usuário inativo")) {
+          toast.error("Sua conta está inativa. Entre em contato com o administrador da loja.");
+        } else {
+          toast.error(error);
+        }
         return;
       }
-    } else {
-      toast.error("Usuário sem loja vinculada");
-      setLoading(false);
-      return;
-    }
 
-    if (user.tenant_id) {
-      const { data: tenant } = await supabase
-        .from("tenants")
-        .select("*")
-        .eq("id", user.tenant_id)
-        .single();
+      if (!user) {
+        toast.error("Usuário não encontrado no sistema");
+        return;
+      }
+
+      if (!user.tenant_id) {
+        toast.error("Usuário sem loja vinculada");
+        return;
+      }
+
+      const { data: tenant } = await withTimeout(
+        supabase
+          .from("tenants")
+          .select("ativo, plano, trial_fim, assinatura_fim")
+          .eq("id", user.tenant_id)
+          .maybeSingle(),
+        1200,
+        { data: null, error: null },
+      );
 
       if (tenant) {
         const t = tenant as any;
@@ -198,18 +200,16 @@ export default function Login() {
             reason: "Sua conta foi suspensa ou banida. Entre em contato com o suporte técnico.",
             tenantId: user.tenant_id,
           });
-          setLoading(false);
           return;
         }
 
-        if (t.plano === "trial") {
+        if (t.plano === "trial" && t.trial_fim) {
           const trialFim = new Date(t.trial_fim);
           if (now > trialFim) {
             setPlanBlocked({
               reason: "Seu período de teste gratuito expirou. Escolha um plano para continuar.",
               tenantId: user.tenant_id,
             });
-            setLoading(false);
             return;
           }
         } else if (t.assinatura_fim) {
@@ -219,25 +219,29 @@ export default function Login() {
               reason: "Sua assinatura expirou. Renove seu plano para continuar.",
               tenantId: user.tenant_id,
             });
-            setLoading(false);
             return;
           }
         }
       }
+
+      toast.success(`Bem-vindo, ${user.apelido || user.nome_completo}!`);
+
+      void Promise.resolve(
+        logAudit({
+          acao: "usuario_login",
+          entidade: "user",
+          entidade_id: user.id,
+          usuario_id: user.id,
+          usuario_nome: user.apelido || user.nome_completo,
+          tenant_id: user.tenant_id,
+          detalhes: { nome: user.nome_completo },
+        })
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Não foi possível concluir o login.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-    toast.success(`Bem-vindo, ${user.apelido || user.nome_completo}!`);
-
-    logAudit({
-      acao: "usuario_login",
-      entidade: "user",
-      entidade_id: user.id,
-      usuario_id: user.id,
-      usuario_nome: user.apelido || user.nome_completo,
-      tenant_id: user.tenant_id,
-      detalhes: { nome: user.nome_completo },
-    });
   };
 
   const handleRenewPlan = () => {
