@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { ChatAISuggestion } from "./ChatAISuggestion";
+import { AutoPilotHistory } from "./AutoPilotHistory";
 import { ChatInput } from "./ChatInput";
 import { TypingIndicator } from "./TypingIndicator";
 import { TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
