@@ -118,6 +118,21 @@ async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email">): Pr
     }
 
     if (userRow) {
+      // If found by email but ID doesn't match auth UID, try to update the ID
+      if (strategy.column === "email" && userRow.id !== authUser.id) {
+        console.log("[Auth] 🔄 Atualizando usuarios.id para corresponder ao auth UID:", authUser.id);
+        const { error: updateError } = await (supabase as any)
+          .from("usuarios")
+          .update({ id: authUser.id } as any)
+          .eq("id", userRow.id);
+
+        if (updateError) {
+          console.warn("[Auth] ⚠️ Não foi possível atualizar ID do usuário:", updateError.message);
+          // Still return the user with old ID — better than failing completely
+        } else {
+          userRow.id = authUser.id;
+        }
+      }
       return mapAppUser(userRow, authUser.id);
     }
   }
