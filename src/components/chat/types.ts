@@ -1,0 +1,22 @@
+export interface ChatConversation {
+  id: string;
+  numero_contrato: string;
+  nome_cliente: string;
+  unread_count: number;
+  last_message?: string;
+  last_message_at?: string;
+  lead_temperature?: "quente" | "morno" | "frio";
+}
+
+export interface ChatMessage {
+  id: string;
+  tracking_id: string;
+  mensagem: string;
+  remetente_tipo: "loja" | "cliente";
+  remetente_nome: string | null;
+  created_at: string;
+  lida: boolean;
+  tipo_anexo?: string | null;
+  anexo_url?: string | null;
+  anexo_nome?: string | null;
+}
