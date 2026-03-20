@@ -84,7 +84,7 @@ export function AppSidebar({ activeView, onViewChange, onChangePassword, onSuppo
             </button>
           ))}
         {/* Bottom section */}
-        <div className="mt-auto pt-2 border-t border-border mx-1 space-y-0.5">
+        <div className="pt-2 border-t border-border mx-1 space-y-0.5 mt-4">
           <button
             onClick={() => onViewChange("messages")}
             className={cn(
