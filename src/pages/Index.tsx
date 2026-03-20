@@ -41,6 +41,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   simulator: { title: "Negociação e Simulação de Financiamentos", subtitle: "Calcule descontos e condições de pagamento" },
   vendazap: { title: "VendaZap AI", subtitle: "Assistente inteligente de vendas para WhatsApp" },
   dealroom: { title: "Deal Room", subtitle: "Sala de negociação com apresentação e pagamento integrado" },
+  "vendazap-chat": { title: "Chat de Vendas", subtitle: "Converse com clientes com sugestões de IA em tempo real" },
 };
 
 export default function Index() {
