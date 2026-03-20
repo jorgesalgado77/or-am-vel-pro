@@ -516,7 +516,7 @@ export default function Login() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full gap-2 h-10 sm:h-11 rounded-xl border-emerald-400/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 hover:border-emerald-400/70 transition-all duration-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.15)] text-sm"
+                className="w-full gap-2 h-10 sm:h-11 rounded-xl border-accent/50 bg-accent/10 text-accent hover:bg-accent/20 hover:text-accent hover:border-accent/70 transition-all duration-300 font-semibold shadow-[0_0_15px_hsl(var(--accent)/0.15)] text-sm"
                 onClick={() => setShowTracking(true)}
               >
                 <Search className="h-4 w-4" />
