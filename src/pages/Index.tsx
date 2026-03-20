@@ -168,6 +168,7 @@ export default function Index() {
             onViewChange={handleViewChange}
             onChangePassword={() => setShowChangePassword(true)}
             onSupport={() => setShowSupport(true)}
+            onProfile={() => setShowProfile(true)}
             unreadMessages={unreadMessages}
             onlineUsers={onlineUsers}
           />
