@@ -640,6 +640,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (legacyUser.ativo === false) {
           console.log("[Auth] ❌ Usuário inativo:", legacyUser.id);
+          logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: legacyUser.tenant_id, usuario_id: legacyUser.id, resultado: "falha_inativo" });
           return { user: null, error: "Usuário inativo" };
         }
 
