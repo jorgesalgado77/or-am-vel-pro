@@ -115,8 +115,14 @@ export default function SignUp() {
     const trimmedSenha = senha.trim();
     const trimmedConfirmacao = confirmarSenha.trim();
 
-    if (!trimmedEmail || !trimmedSenha || !trimmedConfirmacao) {
+    const phoneDigits = telefoneWhatsApp.replace(/\D/g, "");
+
+    if (!trimmedEmail || !trimmedSenha || !trimmedConfirmacao || !phoneDigits) {
       toast.error("Preencha todos os campos");
+      return;
+    }
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      toast.error("Telefone WhatsApp inválido");
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
