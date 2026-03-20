@@ -51,6 +51,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   funnel: { title: "Funil de Captação", subtitle: "Sua máquina de captação de leads pronta para usar" },
   campaigns: { title: "Biblioteca de Campanhas", subtitle: "Anúncios prontos para copiar e ativar em minutos" },
   referrals: { title: "Programa de Indicações", subtitle: "Gere links, acompanhe indicações e recompense seus clientes" },
+  financial: { title: "Módulo Financeiro", subtitle: "Contas a pagar, folha de pagamento e ponto de equilíbrio" },
 };
 
 export default function Index() {
