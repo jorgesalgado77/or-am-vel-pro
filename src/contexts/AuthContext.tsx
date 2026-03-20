@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from "@/integrations/supabase/client";
 import { setTenantState } from "@/lib/tenantState";
 import type { CargoPermissoes } from "@/hooks/useCargos";
+import { logLoginDiagnostic } from "@/services/loginDiagnosticService";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 
 export interface AppUser {
@@ -512,14 +513,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!appUser) {
+        logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { motivo: "Perfil não encontrado na tabela usuarios" } });
         return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
       }
 
       // Validate tenant match if store code was provided
       if (resolvedTenantId && appUser.tenant_id && appUser.tenant_id !== resolvedTenantId) {
+        logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, resultado: "falha_tenant", detalhes: { tenant_usuario: appUser.tenant_id, tenant_esperado: resolvedTenantId } });
         return { user: null, error: "Este email não está vinculado ao código da loja informado." };
       }
 
+      logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: appUser.tenant_id, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, auth_user_id: authData.user.id, resultado: "sucesso" });
       setUser(appUser);
       setSession(authData.session);
       syncGlobalState(appUser);
@@ -604,6 +608,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("[Auth] 🔍 Usuários encontrados com email", normalizedEmail, ":", legacyList.length);
 
         if (legacyList.length === 0) {
+          logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: tenantIdFromCode, resultado: "falha_credencial", detalhes: { motivo: "Email não encontrado" } });
           return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
         }
 
@@ -635,6 +640,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (legacyUser.ativo === false) {
           console.log("[Auth] ❌ Usuário inativo:", legacyUser.id);
+          logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: legacyUser.tenant_id, usuario_id: legacyUser.id, resultado: "falha_inativo" });
           return { user: null, error: "Usuário inativo" };
         }
 
@@ -715,6 +721,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!passwordValid) {
           console.log("[Auth] ❌ Senha inválida para usuário legado:", legacyUser.id);
+          logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: legacyUser.tenant_id, usuario_id: legacyUser.id, resultado: "falha_credencial", detalhes: { motivo: "Senha incorreta" } });
           return { user: null, error: "Senha incorreta. Verifique sua senha e tente novamente." };
         }
 
