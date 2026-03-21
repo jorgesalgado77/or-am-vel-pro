@@ -375,8 +375,10 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                         const cargo = cargoId ? cargos.find(cg => cg.id === cargoId) : null;
                         const tipoComissao = (cargo as any)?.tipo_comissao;
                         if (tipoComissao === "mei") return <Badge variant="outline" className="text-[10px] border-teal-500/50 text-teal-700">MEI</Badge>;
+                        if (tipoComissao === "mei_only") return <Badge variant="outline" className="text-[10px] border-cyan-500/50 text-cyan-700">MEI Comissão</Badge>;
                         if (tipoComissao === "clt") return <Badge variant="outline" className="text-[10px] border-purple-500/50 text-purple-700">CLT</Badge>;
                         if (tipoComissao === "clt_only") return <Badge variant="outline" className="text-[10px] border-orange-500/50 text-orange-700">CLT Fixo</Badge>;
+                        if (tipoComissao === "clt_escalonada") return <Badge variant="outline" className="text-[10px] border-indigo-500/50 text-indigo-700">CLT Escalonada</Badge>;
                         const isEscalonada = policy.tipo === "escalonada" && cargoId && policy.cargos_ids.includes(cargoId);
                         return isEscalonada ? (
                           <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-700">Escalonada</Badge>

@@ -28,7 +28,7 @@ const EMPTY_FORM = {
   foto_url: "",
   senha: "",
   tipo_regime: "",
-  tipo_comissao: "fixa" as "fixa" | "escalonada" | "clt" | "clt_only" | "mei",
+  tipo_comissao: "fixa" as "fixa" | "escalonada" | "clt" | "clt_only" | "clt_escalonada" | "mei" | "mei_only",
   comissao_percentual: "",
   salario_fixo: "",
 };
@@ -274,10 +274,9 @@ export function UsuariosTab() {
           <Label>Cargo</Label>
           <Select value={form.cargo_id} onValueChange={(v) => {
             const selectedCargo = cargos.find(c => c.id === v);
+            const tc = (selectedCargo as any)?.tipo_comissao;
             const tipoComissao = selectedCargo
-              ? (selectedCargo as any).tipo_comissao === "clt" ? "clt"
-                : (selectedCargo as any).tipo_comissao === "clt_only" ? "clt_only"
-                : (selectedCargo as any).tipo_comissao === "mei" ? "mei"
+              ? (tc && ["clt", "clt_only", "clt_escalonada", "mei", "mei_only"].includes(tc)) ? tc
                 : policy.cargos_ids.includes(v) ? "escalonada"
                 : "fixa"
               : "fixa";
@@ -344,10 +343,22 @@ export function UsuariosTab() {
                   CLT (Apenas Salário Fixo)
                 </span>
               </SelectItem>
+              <SelectItem value="clt_escalonada">
+                <span className="flex items-center gap-1.5">
+                  <TrendingUp className="h-3 w-3 text-indigo-600" />
+                  CLT (Salário + Comissão Escalonada)
+                </span>
+              </SelectItem>
               <SelectItem value="mei">
                 <span className="flex items-center gap-1.5">
                   <DollarSign className="h-3 w-3 text-teal-600" />
                   MEI (Salário + Comissão)
+                </span>
+              </SelectItem>
+              <SelectItem value="mei_only">
+                <span className="flex items-center gap-1.5">
+                  <DollarSign className="h-3 w-3 text-cyan-600" />
+                  MEI (Só Comissão)
                 </span>
               </SelectItem>
             </SelectContent>
@@ -448,7 +459,20 @@ export function UsuariosTab() {
               Funcionário CLT recebe apenas o salário fixo configurado abaixo, sem comissão sobre vendas.
             </p>
           </div>
-        ) : (
+        ) : form.tipo_comissao === "clt_escalonada" ? (
+          <div className="rounded-md border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 dark:border-indigo-800 p-3 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-indigo-600" />
+              <Label className="text-xs font-medium">CLT — Salário + Comissão Escalonada</Label>
+              <Badge variant="outline" className="text-[9px] ml-auto border-indigo-300 text-indigo-700 dark:text-indigo-400">
+                {policy.faixas.length} faixas
+              </Badge>
+            </div>
+            <p className="text-[10px] text-muted-foreground ml-5">
+              CLT recebe salário fixo + comissão escalonada por metas.
+            </p>
+          </div>
+        ) : form.tipo_comissao === "mei" ? (
           <div className="rounded-md border border-teal-200 bg-teal-50/50 dark:bg-teal-950/20 dark:border-teal-800 p-3 space-y-3">
             <div className="flex items-center gap-1.5">
               <DollarSign className="h-3.5 w-3.5 text-teal-600" />
@@ -456,6 +480,29 @@ export function UsuariosTab() {
             </div>
             <p className="text-[10px] text-muted-foreground ml-5">
               Prestador MEI recebe valor fixo acordado + comissão sobre vendas.
+            </p>
+            <div>
+              <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={form.comissao_percentual}
+                onChange={(e) => setForm((f) => ({ ...f, comissao_percentual: e.target.value }))}
+                className="mt-1 h-8 text-sm text-right w-24"
+                placeholder="0"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-cyan-200 bg-cyan-50/50 dark:bg-cyan-950/20 dark:border-cyan-800 p-3 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <DollarSign className="h-3.5 w-3.5 text-cyan-600" />
+              <Label className="text-xs font-medium">MEI — Só Comissão</Label>
+            </div>
+            <p className="text-[10px] text-muted-foreground ml-5">
+              Prestador MEI recebe apenas comissão sobre vendas, sem valor fixo.
             </p>
             <div>
               <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
