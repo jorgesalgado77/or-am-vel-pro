@@ -45,6 +45,8 @@ interface TrackingRow {
 }
 
 export function AcompanhamentoTab() {
+  const { user } = useAuth();
+  const { policy } = useComissaoPolicy();
   const [trackings, setTrackings] = useState<TrackingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
