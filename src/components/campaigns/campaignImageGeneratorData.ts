@@ -25,14 +25,17 @@ export interface CampaignImageDraft {
   bodyFontFamily: string;
   ctaFontFamily: string;
   badgeFontFamily: string;
+  storeNameFontFamily: string;
   headlineSize: number;
   subtextSize: number;
   ctaSize: number;
   badgeSize: number;
+  storeNameSize: number;
   headlineColor: string;
   subtextColor: string;
   ctaTextColor: string;
   badgeTextColor: string;
+  storeNameColor: string;
 }
 
 export interface SavedCampaignImage {
