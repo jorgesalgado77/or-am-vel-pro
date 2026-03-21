@@ -274,10 +274,9 @@ export function UsuariosTab() {
           <Label>Cargo</Label>
           <Select value={form.cargo_id} onValueChange={(v) => {
             const selectedCargo = cargos.find(c => c.id === v);
+            const tc = (selectedCargo as any)?.tipo_comissao;
             const tipoComissao = selectedCargo
-              ? (selectedCargo as any).tipo_comissao === "clt" ? "clt"
-                : (selectedCargo as any).tipo_comissao === "clt_only" ? "clt_only"
-                : (selectedCargo as any).tipo_comissao === "mei" ? "mei"
+              ? (tc && ["clt", "clt_only", "clt_escalonada", "mei", "mei_only"].includes(tc)) ? tc
                 : policy.cargos_ids.includes(v) ? "escalonada"
                 : "fixa"
               : "fixa";
