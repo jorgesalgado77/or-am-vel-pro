@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { isCargoTotalLoja } from "@/hooks/useComissaoPolicy";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -340,6 +341,7 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                   <TableHead>Funcionário / Indicador</TableHead>
                   <TableHead>Cargo/Função</TableHead>
                   <TableHead>Tipo Comissão</TableHead>
+                  <TableHead>Base Cálculo</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Contrato</TableHead>
                   <TableHead className="text-right">Valor Base</TableHead>
@@ -351,7 +353,7 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
               <TableBody>
                 {commissions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       Nenhuma comissão no período
                     </TableCell>
                   </TableRow>
@@ -376,9 +378,21 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                           <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-700">Escalonada</Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px] border-primary/50 text-primary">Fixa</Badge>
-                        );
-                      })()}
-                    </TableCell>
+                         );
+                       })()}
+                     </TableCell>
+                     <TableCell>
+                       {(() => {
+                         const userRecord = c.usuario_id ? usuarios.find(u => u.id === c.usuario_id) : null;
+                         const cargoNome = userRecord?.cargo_id ? cargos.find(cg => cg.id === userRecord.cargo_id)?.nome : null;
+                         const totalLoja = isCargoTotalLoja(cargoNome);
+                         return totalLoja ? (
+                           <Badge variant="outline" className="text-[10px] border-purple-500/50 text-purple-700">Total Loja</Badge>
+                         ) : (
+                           <Badge variant="outline" className="text-[10px] border-sky-500/50 text-sky-700">Por Cliente</Badge>
+                         );
+                       })()}
+                     </TableCell>
                     <TableCell className="text-sm">{c.client_name || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.contrato_numero || "—"}</TableCell>
                     <TableCell className="text-right text-sm">{c.valor_base ? formatCurrency(Number(c.valor_base)) : "—"}</TableCell>
