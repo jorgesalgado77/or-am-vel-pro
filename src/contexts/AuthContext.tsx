@@ -4,6 +4,7 @@ import { setTenantState } from "@/lib/tenantState";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import { logLoginDiagnostic } from "@/services/loginDiagnosticService";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
+import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 
 export interface AppUser {
   id: string;
