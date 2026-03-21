@@ -286,9 +286,9 @@ export function UsuariosTab() {
             if (tipoComissao.startsWith("clt")) tipoRegime = "CLT";
             else if (tipoComissao.startsWith("mei")) tipoRegime = "MEI";
             
-            // Get salario_base from cargo (stored in centavos)
+            // Get salario_base from cargo (stored in reais)
             const salarioBase = (selectedCargo as any)?.salario_base;
-            const salarioFormatted = salarioBase ? formatCurrencyDisplay(salarioBase / 100) : "";
+            const salarioFormatted = salarioBase ? formatCurrencyDisplay(salarioBase) : "";
 
             setForm((f) => ({
               ...f,
@@ -643,7 +643,7 @@ export function UsuariosTab() {
                     <TableCell>{getCargoNome(u.cargo_id)}</TableCell>
                     <TableCell>{u.tipo_regime || "—"}</TableCell>
                     <TableCell className="text-right">{u.comissao_percentual ? `${u.comissao_percentual}%` : "—"}</TableCell>
-                    <TableCell className="text-right">{u.salario_fixo ? formatCurrencyDisplay(u.salario_fixo / 100) : "—"}</TableCell>
+                    <TableCell className="text-right">{u.salario_fixo ? formatCurrencyDisplay(u.salario_fixo) : "—"}</TableCell>
                     <TableCell className="text-center">
                       <Switch checked={u.ativo} onCheckedChange={() => handleToggleAtivo(u.id, u.ativo)} />
                     </TableCell>
