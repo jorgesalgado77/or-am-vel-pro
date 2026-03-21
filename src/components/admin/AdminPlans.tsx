@@ -503,8 +503,20 @@ export function AdminPlans() {
             </div>
 
             <div>
-              <Label>Descrição</Label>
-              <Textarea value={fDescricao} onChange={e => setFDescricao(e.target.value)} placeholder="Descrição curta do plano" rows={2} className="mt-1" />
+              <div className="flex items-center justify-between mb-1">
+                <Label>Descrição</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+                  onClick={generateDescription}
+                  disabled={generatingDesc}
+                >
+                  {generatingDesc ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {generatingDesc ? "Gerando..." : "Gerar com IA"}
+                </Button>
+              </div>
+              <Textarea value={fDescricao} onChange={e => setFDescricao(e.target.value)} placeholder="Descrição curta do plano" rows={2} />
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
