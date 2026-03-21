@@ -566,12 +566,51 @@ export default function TenantLanding() {
           </div>
         </main>
 
+        {/* ═══ Social Links ═══ */}
+        <div className="py-6 px-4 flex justify-center gap-4" style={fadeInUp(0.7)}>
+          {[
+            { icon: Instagram, label: "Instagram", url: `https://instagram.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
+            { icon: Facebook, label: "Facebook", url: `https://facebook.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
+            { icon: Youtube, label: "YouTube", url: `https://youtube.com/@${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
+            { icon: Twitter, label: "X/Twitter", url: `https://x.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
+            { icon: Globe, label: "Site", url: "#" },
+          ].map(({ icon: Icon, label, url }) => (
+            <a
+              key={label}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={label}
+              className="group w-11 h-11 rounded-full flex items-center justify-center border border-gray-700 hover:border-gray-500 transition-all active:scale-90"
+              style={{ background: "rgba(255,255,255,0.05)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${color}30`; (e.currentTarget as HTMLElement).style.borderColor = color; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = ""; }}
+            >
+              <Icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+            </a>
+          ))}
+        </div>
+
         {/* ═══ Footer ═══ */}
         <footer className="py-6 px-4 text-center border-t border-gray-800/50">
           <p className="text-xs text-gray-500">
             {tenant.nome_loja} · Powered by <span className="font-semibold text-gray-400">OrçaMóvel PRO</span> — Todos os Direitos Reservados — 2026
           </p>
         </footer>
+
+        {/* ═══ WhatsApp Floating Button ═══ */}
+        {tenant.whatsapp_loja && (
+          <a
+            href={`https://wa.me/55${unmask(tenant.whatsapp_loja)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="fixed bottom-5 right-5 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform landing-wa-btn"
+            style={{ backgroundColor: "#25D366" }}
+            title="Fale conosco no WhatsApp"
+          >
+            <MessageCircle className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </a>
+        )}
       </div>
     </>
   );
