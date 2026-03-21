@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Plus, Edit, Trash2, RefreshCw, Crown, Users, Zap, Star, GripVertical,
-  Check, X, Save,
+  Check, X, Save, Sparkles, Loader2, Wand2,
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 
