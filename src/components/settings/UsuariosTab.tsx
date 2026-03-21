@@ -118,6 +118,7 @@ export function UsuariosTab() {
       senha: hashedSenha,
       primeiro_login: true,
       tipo_regime: form.tipo_regime || null,
+      tipo_comissao: form.tipo_comissao || "fixa",
       comissao_percentual: form.comissao_percentual ? parseFloat(form.comissao_percentual) : 0,
       salario_fixo: form.salario_fixo ? unmaskCurrency(form.salario_fixo) : 0,
     } as any);
