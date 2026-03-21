@@ -78,6 +78,69 @@ export function AdminPlans() {
   const [fFeatures, setFFeatures] = useState<{ label: string; included: boolean }[]>([]);
   const [newFeatureLabel, setNewFeatureLabel] = useState("");
   const [saving, setSaving] = useState(false);
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [suggestingFeatures, setSuggestingFeatures] = useState(false);
+
+  const SUGGESTED_FEATURES_MAP: Record<string, string[]> = {
+    trial: [
+      "Acesso ao simulador básico", "Até 3 clientes", "Dashboard simplificado",
+      "Suporte via e-mail", "Válido por 7 dias",
+    ],
+    basico: [
+      "Gestão completa de clientes", "Simulador de financiamento", "Dashboard com KPIs",
+      "Contratos digitais", "Kanban de pipeline", "Suporte prioritário",
+      "Até 3 usuários", "Relatórios básicos",
+    ],
+    premium: [
+      "Tudo do plano Básico", "Usuários ilimitados", "VendaZap AI integrado",
+      "Deal Room premium", "Comissões escalonadas", "Dashboard avançado com IA",
+      "Suporte VIP dedicado", "Relatórios financeiros completos",
+      "Previsão de caixa com IA", "Indicadores de performance",
+    ],
+  };
+
+  const generateDescription = () => {
+    if (!fNome.trim()) { toast.error("Informe o nome do plano primeiro"); return; }
+    setGeneratingDesc(true);
+    
+    const preco = parseFloat(fPrecoMensal) || 0;
+    const enabledFeats = ALL_FEATURES.filter(f => fFuncionalidades[f.key]).map(f => f.label);
+    
+    setTimeout(() => {
+      let desc = "";
+      if (preco === 0) {
+        desc = `Experimente o ${fNome} gratuitamente e descubra como o OrçaMóvel PRO pode transformar suas vendas de móveis planejados.`;
+      } else if (preco <= 80) {
+        desc = `O plano ${fNome} é ideal para lojas que buscam profissionalizar a gestão de vendas com ${enabledFeats.length} funcionalidades essenciais por apenas R$ ${preco.toFixed(2).replace(".", ",")}/mês.`;
+      } else {
+        desc = `O plano ${fNome} oferece a experiência completa do OrçaMóvel PRO com ${enabledFeats.length} funcionalidades avançadas, incluindo ${enabledFeats.slice(0, 3).join(", ")} e muito mais. Maximize seus resultados por R$ ${preco.toFixed(2).replace(".", ",")}/mês.`;
+      }
+      setFDescricao(desc);
+      setGeneratingDesc(false);
+      toast.success("Descrição gerada!");
+    }, 800);
+  };
+
+  const suggestFeatures = () => {
+    if (!fSlug.trim() && !fNome.trim()) { toast.error("Informe o slug ou nome do plano"); return; }
+    setSuggestingFeatures(true);
+    
+    setTimeout(() => {
+      const slug = fSlug.trim().toLowerCase();
+      const suggestions = SUGGESTED_FEATURES_MAP[slug] || SUGGESTED_FEATURES_MAP.basico;
+      const newFeats = suggestions
+        .filter(s => !fFeatures.some(f => f.label === s))
+        .map(label => ({ label, included: true }));
+      
+      if (newFeats.length === 0) {
+        toast.info("Todas as sugestões já estão na lista");
+      } else {
+        setFFeatures(prev => [...prev, ...newFeats]);
+        toast.success(`${newFeats.length} features sugeridas adicionadas!`);
+      }
+      setSuggestingFeatures(false);
+    }, 600);
+  };
 
   const fetchPlans = async () => {
     setLoading(true);
