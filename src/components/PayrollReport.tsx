@@ -18,6 +18,7 @@ import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { formatCurrency } from "@/lib/financing";
+import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 
 interface PayrollCommission {
   id: string;
