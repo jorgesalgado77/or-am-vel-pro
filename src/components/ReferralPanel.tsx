@@ -156,6 +156,18 @@ export function ReferralPanel() {
 
   useEffect(() => { fetchData(); }, [tenantId]);
 
+  // Fetch existing clients for selection
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase
+      .from("clients")
+      .select("id, nome, telefone1, telefone2")
+      .order("nome")
+      .then(({ data }) => {
+        if (data) setExistingClients(data as any);
+      });
+  }, [tenantId]);
+
   // KPIs
   const totalLinks = links.length;
   const totalReferrals = referrals.length;
