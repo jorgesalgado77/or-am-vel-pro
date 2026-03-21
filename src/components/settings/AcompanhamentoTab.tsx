@@ -11,6 +11,8 @@ import { Plus, Search, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useComissaoPolicy, calcularComissao } from "@/hooks/useComissaoPolicy";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STATUS_OPTIONS = [
   { value: "medicao", label: "Medição" },
