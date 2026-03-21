@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign } from "lucide-react";
+import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCargos, type CargoPermissoes } from "@/hooks/useCargos";
