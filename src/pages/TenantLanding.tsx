@@ -161,7 +161,7 @@ function PromoCarousel({ images, color }: { images: string[]; color: string }) {
               key={images[current]}
               src={images[current]}
               alt={`Imagem ${current + 1}`}
-              className="w-full aspect-[16/10] object-cover"
+              className="w-full aspect-square object-cover"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
