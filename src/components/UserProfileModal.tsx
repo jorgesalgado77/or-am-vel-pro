@@ -76,12 +76,28 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [birthDate, setBirthDate] = useState<Date | undefined>();
+  const [triedSave, setTriedSave] = useState(false);
 
   const [form, setForm] = useState<ProfileData>({
     nome_completo: "", apelido: "", email: "", telefone: "", telefone_whatsapp: "",
     data_nascimento: "", cep: "", endereco: "", numero: "", complemento: "",
     bairro: "", cidade: "", uf: "", facebook: "", instagram: "", tiktok: "", linkedin: "",
   });
+
+  const requiredFields: { key: keyof ProfileData | "birthDate"; label: string }[] = [
+    { key: "nome_completo", label: "Nome Completo" },
+    { key: "email", label: "Email" },
+    { key: "telefone_whatsapp", label: "WhatsApp" },
+  ];
+
+  const isFieldInvalid = (key: string) => {
+    if (!triedSave) return false;
+    if (key === "birthDate") return !birthDate;
+    return !form[key as keyof ProfileData]?.trim();
+  };
+
+  const invalidClass = (key: string) =>
+    isFieldInvalid(key) ? "border-destructive ring-1 ring-destructive/30" : "";
 
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
