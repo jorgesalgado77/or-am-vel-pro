@@ -489,21 +489,21 @@ export default function TenantLanding() {
             style={{ backgroundColor: color, opacity: 0.25 }}
           />
           <div className="relative flex flex-col items-center gap-4">
-            {tenant.logo_url && (
-              <div className="landing-float" style={fadeInUp(0)}>
+            <div className="landing-float" style={fadeInUp(0)}>
+              {tenant.logo_url ? (
                 <div className="relative">
-                  <img
-                    src={tenant.logo_url}
-                    alt={tenant.nome_loja}
-                    className="h-20 sm:h-24 w-auto object-contain drop-shadow-2xl"
-                  />
-                  <div
-                    className="absolute -inset-3 rounded-full blur-xl -z-10 landing-glow"
-                    style={{ backgroundColor: color, opacity: 0.2 }}
-                  />
+                  <img src={tenant.logo_url} alt={tenant.nome_loja} className="h-20 sm:h-24 w-auto object-contain drop-shadow-2xl" />
+                  <div className="absolute -inset-3 rounded-full blur-xl -z-10 landing-glow" style={{ backgroundColor: color, opacity: 0.2 }} />
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="relative">
+                  <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-[28px] border text-2xl font-black text-white shadow-2xl" style={{ background: `linear-gradient(135deg, ${color}, ${color}80)`, borderColor: `${color}40`, boxShadow: `0 20px 60px ${color}30` }}>
+                    {tenant.nome_loja.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join("") || "LP"}
+                  </div>
+                  <div className="absolute -inset-3 rounded-full blur-2xl -z-10" style={{ backgroundColor: `${color}28` }} />
+                </div>
+              )}
+            </div>
             <h1
               className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight text-center"
               style={{ ...fadeInUp(0.15), textShadow: `0 0 60px ${color}40` }}
