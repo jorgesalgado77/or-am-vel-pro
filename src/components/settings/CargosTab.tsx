@@ -114,6 +114,7 @@ export function CargosTab() {
     setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
     setEditComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
     setEditTipoComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    setEditSalario(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
     refresh();
   };
 
