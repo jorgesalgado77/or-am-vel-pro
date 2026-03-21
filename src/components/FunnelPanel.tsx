@@ -113,6 +113,19 @@ export function FunnelPanel() {
     setConfig((p) => ({ ...p, carousel_images: p.carousel_images.filter((_, i) => i !== idx) }));
   };
 
+  const onDragEnd = useCallback((result: DropResult) => {
+    if (!result.destination) return;
+    const from = result.source.index;
+    const to = result.destination.index;
+    if (from === to) return;
+    setConfig((p) => {
+      const imgs = [...p.carousel_images];
+      const [moved] = imgs.splice(from, 1);
+      imgs.splice(to, 0, moved);
+      return { ...p, carousel_images: imgs };
+    });
+  }, []);
+
   const handleSave = async () => {
     if (!user?.tenant_id) return;
     setSaving(true);
