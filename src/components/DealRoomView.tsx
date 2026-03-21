@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Video, Lock, ArrowLeft, Sparkles, CreditCard, FileText, CheckCircle, Send, Handshake } from "lucide-react";
+
 import { AddonPurchaseCard } from "@/components/AddonPurchaseCard";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
 import { useDealRoom } from "@/hooks/useDealRoom";
