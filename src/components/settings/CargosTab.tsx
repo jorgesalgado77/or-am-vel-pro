@@ -88,9 +88,9 @@ export function CargosTab() {
         updatedCargosIds = currentCargosIds.filter(id => id !== cargoId);
       }
       const updatedPolicy = { ...policy, cargos_ids: updatedCargosIds };
-      const { error: policyError } = await supabase
-        .from("company_settings")
-        .update({ comissao_policy: updatedPolicy as any })
+      const { error: policyError } = await (supabase
+        .from("company_settings") as any)
+        .update({ comissao_policy: updatedPolicy })
         .eq("id", settingsId);
       if (policyError) {
         toast.error("Erro ao salvar tipo de comissão: " + policyError.message);
