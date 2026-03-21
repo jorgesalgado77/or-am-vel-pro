@@ -28,6 +28,7 @@ import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText, Mai
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { useTenant } from "@/contexts/TenantContext";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
