@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -10,6 +10,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Timer, ShieldAlert } from "lucide-react";
 
+function playAlertBeep() {
+  try {
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+    // Two-tone urgent alert
+    [880, 1100].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = "sine";
+      const start = now + i * 0.25;
+      gain.gain.setValueAtTime(0.4, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.2);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
+  } catch {}
+}
+
 interface Props {
   open: boolean;
   onStayConnected: () => void;
@@ -18,11 +39,16 @@ interface Props {
 export function InactivityWarningDialog({ open, onStayConnected }: Props) {
   const [secondsLeft, setSecondsLeft] = useState(60);
 
+  // Play alert sound when dialog opens and every 15 seconds
   useEffect(() => {
     if (!open) {
       setSecondsLeft(60);
       return;
     }
+
+    playAlertBeep();
+
+    const beepInterval = setInterval(playAlertBeep, 15000);
 
     const interval = setInterval(() => {
       setSecondsLeft((prev) => {
@@ -34,7 +60,10 @@ export function InactivityWarningDialog({ open, onStayConnected }: Props) {
       });
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearInterval(beepInterval);
+    };
   }, [open]);
 
   return (
