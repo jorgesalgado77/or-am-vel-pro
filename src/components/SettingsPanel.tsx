@@ -366,6 +366,7 @@ function BoletoRatesTab() {
       taxa_fixa: 0,
       coeficiente_60: 0,
       coeficiente_90: 0,
+      tenant_id: tenantId,
     }));
     const { error } = await supabase.from("financing_rates").insert(inserts);
     if (error) toast.error("Erro ao adicionar");
