@@ -68,6 +68,7 @@ export function ClientsKanban({
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
+  const [liberadorMonth, setLiberadorMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
