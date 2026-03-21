@@ -62,12 +62,11 @@ export function CargosTab() {
 
   const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined || editSalario[cargoId] !== undefined;
 
-  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" | "clt_only" | "mei" => {
+  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" | "clt_only" | "clt_escalonada" | "mei" | "mei_only" => {
     if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as any;
     const cargo = cargos.find(c => c.id === cargoId);
-    if ((cargo as any)?.tipo_comissao === "clt") return "clt";
-    if ((cargo as any)?.tipo_comissao === "clt_only") return "clt_only";
-    if ((cargo as any)?.tipo_comissao === "mei") return "mei";
+    const tc = (cargo as any)?.tipo_comissao;
+    if (tc && ["clt", "clt_only", "clt_escalonada", "mei", "mei_only"].includes(tc)) return tc;
     if (policy.cargos_ids.includes(cargoId)) return "escalonada";
     return "fixa";
   };
