@@ -57,9 +57,17 @@ const fadeInUp = (delay = 0): React.CSSProperties => ({
 /* ─── Video Player (lightweight, no framer-motion) ─── */
 function PromoVideoPlayer({ url, color }: { url: string; color: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [volume, setVolume] = useState(80);
-  const [muted, setMuted] = useState(false);
+  const [playing, setPlaying] = useState(true);
+  const [volume, setVolume] = useState(0);
+  const [muted, setMuted] = useState(true);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = true;
+      videoRef.current.volume = 0;
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
 
   const toggle = useCallback(() => {
     if (!videoRef.current) return;
@@ -71,14 +79,23 @@ function PromoVideoPlayer({ url, color }: { url: string; color: string }) {
   const handleVolumeChange = useCallback((v: number[]) => {
     const val = v[0];
     setVolume(val);
-    if (videoRef.current) videoRef.current.volume = val / 100;
+    if (videoRef.current) {
+      videoRef.current.volume = val / 100;
+      videoRef.current.muted = val === 0;
+    }
     setMuted(val === 0);
   }, []);
 
   const toggleMute = useCallback(() => {
     if (!videoRef.current) return;
-    setMuted(m => { videoRef.current!.muted = !m; return !m; });
-  }, []);
+    const newMuted = !muted;
+    videoRef.current.muted = newMuted;
+    setMuted(newMuted);
+    if (!newMuted && volume === 0) {
+      setVolume(80);
+      videoRef.current.volume = 0.8;
+    }
+  }, [muted, volume]);
 
   const fullscreen = useCallback(() => {
     videoRef.current?.requestFullscreen?.();
@@ -93,7 +110,10 @@ function PromoVideoPlayer({ url, color }: { url: string; color: string }) {
         onClick={toggle}
         onEnded={() => setPlaying(false)}
         playsInline
-        preload="metadata"
+        autoPlay
+        muted
+        loop
+        preload="auto"
       />
       {!playing && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]" onClick={toggle}>
