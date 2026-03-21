@@ -47,7 +47,33 @@ export function useVendaZap(tenantId: string | null) {
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
-    if (data) setAddon(data as unknown as VendaZapAddon);
+    if (data) {
+      setAddon(data as unknown as VendaZapAddon);
+    } else {
+      // Check if admin granted access via recursos_vip
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("recursos_vip")
+        .eq("id", tenantId)
+        .single();
+      const vip = (tenant as any)?.recursos_vip;
+      if (vip?.vendazap) {
+        // Auto-create addon record when admin granted access
+        const { data: created } = await supabase
+          .from("vendazap_addon")
+          .upsert({
+            tenant_id: tenantId,
+            ativo: true,
+            prompt_sistema: "Você é um assistente de vendas especializado em móveis planejados.",
+            tom_padrao: "consultivo",
+            max_mensagens_dia: 0,
+            max_tokens_mensagem: 2000,
+          } as any, { onConflict: "tenant_id" })
+          .select()
+          .single();
+        if (created) setAddon(created as unknown as VendaZapAddon);
+      }
+    }
     setLoading(false);
   };
 
