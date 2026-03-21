@@ -417,29 +417,18 @@ export function UsuariosTab() {
             <p className="text-[10px] text-muted-foreground ml-5">
               Funcionário com registro CLT recebe salário fixo + comissão fixa sobre vendas.
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-[10px]">Salário Fixo</Label>
-                <Input
-                  value={form.salario_fixo}
-                  onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
-                  className="mt-1 h-8 text-sm"
-                  placeholder="R$ 0,00"
-                />
-              </div>
-              <div>
-                <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.5}
-                  value={form.comissao_percentual}
-                  onChange={(e) => setForm((f) => ({ ...f, comissao_percentual: e.target.value }))}
-                  className="mt-1 h-8 text-sm text-right"
-                  placeholder="0"
-                />
-              </div>
+            <div>
+              <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={form.comissao_percentual}
+                onChange={(e) => setForm((f) => ({ ...f, comissao_percentual: e.target.value }))}
+                className="mt-1 h-8 text-sm text-right"
+                placeholder="0"
+              />
             </div>
           </div>
         ) : (
