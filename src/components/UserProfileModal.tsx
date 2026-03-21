@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -98,6 +99,23 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
 
   const invalidClass = (key: string) =>
     isFieldInvalid(key) ? "border-destructive ring-1 ring-destructive/30" : "";
+
+  // Profile completeness
+  const profileFields = [
+    { filled: !!form.nome_completo.trim() },
+    { filled: !!form.apelido.trim() },
+    { filled: !!form.email.trim() },
+    { filled: !!form.telefone.trim() },
+    { filled: !!form.telefone_whatsapp.trim() },
+    { filled: !!birthDate },
+    { filled: !!fotoUrl },
+    { filled: !!form.cep.trim() },
+    { filled: !!form.endereco.trim() },
+    { filled: !!form.cidade.trim() },
+    { filled: !!form.uf.trim() },
+  ];
+  const filledCount = profileFields.filter(f => f.filled).length;
+  const progressPercent = Math.round((filledCount / profileFields.length) * 100);
 
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -309,6 +327,18 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       <DialogContent className="max-w-2xl max-h-[90vh] p-0">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="text-xl">Meu Perfil</DialogTitle>
+          <div className="flex items-center gap-3 mt-2">
+            <Progress value={progressPercent} className="h-2 flex-1" />
+            <span className={cn(
+              "text-xs font-bold min-w-[3rem] text-right",
+              progressPercent === 100 ? "text-emerald-600" : "text-muted-foreground"
+            )}>
+              {progressPercent}%
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {progressPercent === 100 ? "✅ Perfil completo!" : `${filledCount} de ${profileFields.length} campos preenchidos`}
+          </p>
         </DialogHeader>
         <ScrollArea className="max-h-[calc(90vh-80px)]">
           <div className="p-6 pt-4 space-y-6">
