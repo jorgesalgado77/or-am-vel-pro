@@ -746,6 +746,8 @@ function ContractTrackingList() {
     const { data: clientData } = await supabase
       .from("clients").select("id").ilike("nome", `%${form.nome_cliente.trim()}%`).limit(1).single();
 
+    const comissaoResult = calcularComissao(form.valor_contrato, 0, comissaoPolicy, null);
+
     const { error } = await supabase.from("client_tracking").insert({
       client_id: clientData?.id || "00000000-0000-0000-0000-000000000000",
       numero_contrato: form.numero_contrato.trim(),
@@ -756,6 +758,9 @@ function ContractTrackingList() {
       data_fechamento: form.data_fechamento || null,
       projetista: form.projetista.trim() || null,
       status: "medicao",
+      comissao_percentual: comissaoResult.percentual,
+      comissao_valor: Math.round((form.valor_contrato * comissaoResult.percentual / 100) * 100) / 100,
+      comissao_status: "pendente",
     } as any);
     setSaving(false);
     if (error) toast.error("Erro ao adicionar");
