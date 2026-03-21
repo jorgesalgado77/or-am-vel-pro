@@ -155,13 +155,13 @@ export function ClientsKanban({
       const isLiberador = cargoNome.includes("liberador");
 
       if (isLiberador) {
-        // Liberador técnico: only sees closed contracts in current month
-        const now = new Date();
-        const monthStart = startOfMonth(now);
+        const [lYear, lMonth] = liberadorMonth.split("-").map(Number);
+        const lMonthStart = new Date(lYear, lMonth - 1, 1);
+        const lMonthEnd = endOfDay(new Date(lYear, lMonth, 0));
         baseClients = baseClients.filter(c => {
           if ((c as any).status !== "fechado") return false;
           const updatedAt = new Date(c.updated_at);
-          return !isBefore(updatedAt, monthStart) && !isAfter(updatedAt, endOfDay(now));
+          return !isBefore(updatedAt, lMonthStart) && !isAfter(updatedAt, lMonthEnd);
         });
       } else if (!isAdmin && !isGerente) {
         // Vendedor/Projetista: only sees their own clients
