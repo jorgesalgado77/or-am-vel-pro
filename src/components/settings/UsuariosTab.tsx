@@ -17,6 +17,7 @@ import { useCargos } from "@/hooks/useCargos";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 import { maskPhone, maskCurrency, unmaskCurrency } from "@/lib/masks";
+import { getTenantId } from "@/lib/tenantState";
 
 const EMPTY_FORM = {
   nome_completo: "",
@@ -108,7 +109,10 @@ export function UsuariosTab() {
 
     // Hash password before storing
     const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: form.senha }) as any;
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Sessão inválida, faça login novamente"); return; }
     const { error } = await supabase.from("usuarios").insert({
+      tenant_id: tenantId,
       nome_completo: form.nome_completo.trim(),
       apelido: form.apelido.trim() || null,
       telefone: form.telefone.trim() || null,
