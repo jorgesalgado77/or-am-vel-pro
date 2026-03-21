@@ -218,9 +218,29 @@ export function UsuariosTab() {
     }
   };
 
-  const getCargoNome = (cargoId: string | null) => {
+   const getCargoNome = (cargoId: string | null) => {
     if (!cargoId) return "—";
     return cargos.find((c) => c.id === cargoId)?.nome || "—";
+  };
+
+  const TIPO_COMISSAO_LABELS: Record<string, string> = {
+    fixa: "Fixa",
+    escalonada: "Escalonada",
+    clt: "CLT (Sal+Com)",
+    clt_only: "CLT (Só Salário)",
+    clt_escalonada: "CLT (Escalonada)",
+    mei: "MEI (Sal+Com)",
+    mei_only: "MEI (Só Com)",
+  };
+
+  const getCargoTipoComissaoLabel = (cargoId: string | null) => {
+    if (!cargoId) return "—";
+    const cargo = cargos.find((c) => c.id === cargoId);
+    if (!cargo) return "—";
+    const tc = (cargo as any)?.tipo_comissao;
+    if (tc && TIPO_COMISSAO_LABELS[tc]) return TIPO_COMISSAO_LABELS[tc];
+    if (policy.cargos_ids.includes(cargoId)) return "Escalonada";
+    return "Fixa";
   };
 
   const renderPhotoUpload = (inputRef: React.RefObject<HTMLInputElement | null>, isEdit = false) => (
