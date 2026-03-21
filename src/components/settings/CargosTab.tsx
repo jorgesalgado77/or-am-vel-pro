@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark } from "lucide-react";
+import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCargos, type CargoPermissoes } from "@/hooks/useCargos";
@@ -35,6 +36,7 @@ export function CargosTab() {
   const [editingName, setEditingName] = useState<Record<string, string>>({});
   const [editComissao, setEditComissao] = useState<Record<string, number>>({});
   const [editTipoComissao, setEditTipoComissao] = useState<Record<string, string>>({});
+  const [editSalario, setEditSalario] = useState<Record<string, string>>({});
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
 
   const handleAdd = async () => {
@@ -58,7 +60,7 @@ export function CargosTab() {
     setEditPerms(prev => ({ ...prev, [cargoId]: { ...existing, [key]: !existing[key] } }));
   };
 
-  const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined;
+  const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined || editSalario[cargoId] !== undefined;
 
   const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" | "clt_only" | "mei" => {
     if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as any;
@@ -79,7 +81,8 @@ export function CargosTab() {
     if (perms) updates.permissoes = perms;
     if (newNome !== undefined) updates.nome = newNome.trim();
     if (newComissao !== undefined) updates.comissao_percentual = newComissao;
-
+    const newSalario = editSalario[cargoId];
+    if (newSalario !== undefined) updates.salario_base = Math.round(unmaskCurrency(newSalario));
     // Save commission type: update cargos_ids in company_settings
     if (newTipo !== undefined && settingsId) {
       const currentCargosIds = [...policy.cargos_ids];
@@ -111,6 +114,7 @@ export function CargosTab() {
     setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
     setEditComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
     setEditTipoComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    setEditSalario(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
     refresh();
   };
 
@@ -133,6 +137,7 @@ export function CargosTab() {
         const perms = editPerms[cargo.id] || cargo.permissoes;
         const comissao = editComissao[cargo.id] ?? cargo.comissao_percentual;
         const tipoComissao = getCargoTipoComissao(cargo.id);
+        const salarioVal = editSalario[cargo.id] ?? ((cargo as any).salario_base ? (cargo as any).salario_base.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "");
 
         return (
           <Card key={cargo.id}>
@@ -278,11 +283,18 @@ export function CargosTab() {
                     <p className="text-[10px] text-muted-foreground ml-5">
                       Funcionário com registro CLT recebe salário fixo configurado no cadastro + comissão fixa sobre vendas.
                     </p>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <Label className="text-[10px]">Comissão CLT sobre vendas (%)</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-[10px]">Salário Fixo</Label>
+                        <Input
+                          value={salarioVal}
+                          onChange={e => setEditSalario(prev => ({ ...prev, [cargo.id]: maskCurrency(e.target.value) }))}
+                          className="h-8 text-sm"
+                          placeholder="R$ 0,00"
+                        />
                       </div>
-                      <div className="w-24">
+                      <div>
+                        <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
                         <Input
                           type="number"
                           min={0}
@@ -296,14 +308,23 @@ export function CargosTab() {
                     </div>
                   </div>
                 ) : tipoComissao === "clt_only" ? (
-                  <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-2">
+                  <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-3">
                     <div className="flex items-center gap-1.5">
                       <Landmark className="h-3.5 w-3.5 text-orange-600" />
                       <Label className="text-xs font-medium">CLT — Apenas Salário Fixo</Label>
                     </div>
                     <p className="text-[10px] text-muted-foreground ml-5">
-                      Funcionário CLT recebe apenas o salário fixo configurado no cadastro, sem comissão sobre vendas.
+                      Funcionário CLT recebe apenas o salário fixo, sem comissão sobre vendas.
                     </p>
+                    <div className="w-48">
+                      <Label className="text-[10px]">Salário Fixo</Label>
+                      <Input
+                        value={salarioVal}
+                        onChange={e => setEditSalario(prev => ({ ...prev, [cargo.id]: maskCurrency(e.target.value) }))}
+                        className="h-8 text-sm"
+                        placeholder="R$ 0,00"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-md border border-teal-200 bg-teal-50/50 dark:bg-teal-950/20 dark:border-teal-800 p-3 space-y-3">
@@ -314,11 +335,18 @@ export function CargosTab() {
                     <p className="text-[10px] text-muted-foreground ml-5">
                       Prestador MEI recebe valor fixo acordado + comissão sobre vendas.
                     </p>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <Label className="text-[10px]">Comissão MEI sobre vendas (%)</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-[10px]">Salário / Valor Fixo</Label>
+                        <Input
+                          value={salarioVal}
+                          onChange={e => setEditSalario(prev => ({ ...prev, [cargo.id]: maskCurrency(e.target.value) }))}
+                          className="h-8 text-sm"
+                          placeholder="R$ 0,00"
+                        />
                       </div>
-                      <div className="w-24">
+                      <div>
+                        <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
                         <Input
                           type="number"
                           min={0}
