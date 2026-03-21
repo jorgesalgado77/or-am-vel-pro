@@ -341,23 +341,26 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Nome Completo *</Label>
-                  <Input value={form.nome_completo} onChange={(e) => handleChange("nome_completo", e.target.value)} className="mt-1" />
+                  <Input value={form.nome_completo} onChange={(e) => handleChange("nome_completo", e.target.value)} className={cn("mt-1", invalidClass("nome_completo"))} />
+                  {isFieldInvalid("nome_completo") && <p className="text-xs text-destructive mt-1">Campo obrigatório</p>}
                 </div>
                 <div>
                   <Label>Apelido</Label>
                   <Input value={form.apelido} onChange={(e) => handleChange("apelido", e.target.value)} className="mt-1" />
                 </div>
                 <div>
-                  <Label>Email</Label>
-                  <Input value={form.email} onChange={(e) => handleChange("email", e.target.value)} className="mt-1" type="email" />
+                  <Label>Email *</Label>
+                  <Input value={form.email} onChange={(e) => handleChange("email", e.target.value)} className={cn("mt-1", invalidClass("email"))} type="email" />
+                  {isFieldInvalid("email") && <p className="text-xs text-destructive mt-1">Campo obrigatório</p>}
                 </div>
                 <div>
                   <Label>Telefone</Label>
                   <Input value={form.telefone} onChange={(e) => handleChange("telefone", e.target.value)} className="mt-1" placeholder="(99)99999-9999" />
                 </div>
                 <div>
-                  <Label>WhatsApp</Label>
-                  <Input value={form.telefone_whatsapp} onChange={(e) => handleChange("telefone_whatsapp", e.target.value)} className="mt-1" placeholder="(99)99999-9999" />
+                  <Label>WhatsApp *</Label>
+                  <Input value={form.telefone_whatsapp} onChange={(e) => handleChange("telefone_whatsapp", e.target.value)} className={cn("mt-1", invalidClass("telefone_whatsapp"))} placeholder="(99)99999-9999" />
+                  {isFieldInvalid("telefone_whatsapp") && <p className="text-xs text-destructive mt-1">Campo obrigatório</p>}
                 </div>
                 <div>
                   <Label>Data de Nascimento</Label>
