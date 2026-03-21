@@ -280,11 +280,23 @@ export function UsuariosTab() {
                 : policy.cargos_ids.includes(v) ? "escalonada"
                 : "fixa"
               : "fixa";
+            
+            // Derive tipo_regime from tipo_comissao
+            let tipoRegime = form.tipo_regime;
+            if (tipoComissao.startsWith("clt")) tipoRegime = "CLT";
+            else if (tipoComissao.startsWith("mei")) tipoRegime = "MEI";
+            
+            // Get salario_base from cargo (stored in centavos)
+            const salarioBase = (selectedCargo as any)?.salario_base;
+            const salarioFormatted = salarioBase ? formatCurrencyDisplay(salarioBase / 100) : "";
+
             setForm((f) => ({
               ...f,
               cargo_id: v,
               tipo_comissao: tipoComissao as any,
+              tipo_regime: tipoRegime,
               comissao_percentual: selectedCargo ? String(selectedCargo.comissao_percentual || "") : f.comissao_percentual,
+              salario_fixo: salarioFormatted || f.salario_fixo,
             }));
           }}>
             <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione um cargo" /></SelectTrigger>
