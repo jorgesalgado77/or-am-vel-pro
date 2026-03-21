@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { maskPhone } from "@/lib/masks";
+import { useTenant } from "@/contexts/TenantContext";
 
 export function IndicadoresTab() {
   const { indicadores, refresh } = useIndicadores();
