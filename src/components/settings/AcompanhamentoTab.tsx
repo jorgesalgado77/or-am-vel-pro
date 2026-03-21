@@ -102,11 +102,13 @@ export function AcompanhamentoTab() {
       .single();
 
     // Calculate commission based on policy
+    // GERENTE ganha sobre total de vendas da loja; outros cargos ganham por cliente
     const comissaoResult = calcularComissao(
       form.valor_contrato,
       0, // Will be resolved by cargo if needed
       policy,
-      user?.cargo_id || null
+      user?.cargo_id || null,
+      (user as any)?.cargo_nome || null
     );
 
     const { error } = await supabase.from("client_tracking").insert({
