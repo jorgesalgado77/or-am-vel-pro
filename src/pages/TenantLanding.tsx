@@ -15,6 +15,14 @@ import { Slider } from "@/components/ui/slider";
 import { maskPhone, unmask } from "@/lib/masks";
 import { toast } from "sonner";
 
+interface SocialLinks {
+  instagram_url?: string;
+  facebook_url?: string;
+  youtube_url?: string;
+  twitter_url?: string;
+  website_url?: string;
+}
+
 interface TenantData {
   id: string;
   nome_loja: string;
@@ -29,6 +37,7 @@ interface TenantData {
   benefits: string[];
   promo_video_url: string | null;
   carousel_images: string[];
+  social_links: SocialLinks | null;
 }
 
 const DEFAULT_BENEFITS = [
@@ -567,29 +576,36 @@ export default function TenantLanding() {
         </main>
 
         {/* ═══ Social Links ═══ */}
-        <div className="py-6 px-4 flex justify-center gap-4" style={fadeInUp(0.7)}>
-          {[
-            { icon: Instagram, label: "Instagram", url: `https://instagram.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
-            { icon: Facebook, label: "Facebook", url: `https://facebook.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
-            { icon: Youtube, label: "YouTube", url: `https://youtube.com/@${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
-            { icon: Twitter, label: "X/Twitter", url: `https://x.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
-            { icon: Globe, label: "Site", url: "#" },
-          ].map(({ icon: Icon, label, url }) => (
-            <a
-              key={label}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={label}
-              className="group w-11 h-11 rounded-full flex items-center justify-center border border-gray-700 hover:border-gray-500 transition-all active:scale-90"
-              style={{ background: "rgba(255,255,255,0.05)" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${color}30`; (e.currentTarget as HTMLElement).style.borderColor = color; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = ""; }}
-            >
-              <Icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
-            </a>
-          ))}
-        </div>
+        {(() => {
+          const sl = tenant.social_links || {};
+          const links = [
+            { icon: Instagram, label: "Instagram", url: sl.instagram_url },
+            { icon: Facebook, label: "Facebook", url: sl.facebook_url },
+            { icon: Youtube, label: "YouTube", url: sl.youtube_url },
+            { icon: Twitter, label: "X/Twitter", url: sl.twitter_url },
+            { icon: Globe, label: "Site", url: sl.website_url },
+          ].filter(l => l.url && l.url.trim());
+          if (!links.length) return null;
+          return (
+            <div className="py-6 px-4 flex justify-center gap-4" style={fadeInUp(0.7)}>
+              {links.map(({ icon: Icon, label, url }) => (
+                <a
+                  key={label}
+                  href={url!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={label}
+                  className="group w-11 h-11 rounded-full flex items-center justify-center border border-gray-700 hover:border-gray-500 transition-all active:scale-90"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${color}30`; (e.currentTarget as HTMLElement).style.borderColor = color; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = ""; }}
+                >
+                  <Icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+                </a>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* ═══ Footer ═══ */}
         <footer className="py-6 px-4 text-center border-t border-gray-800/50">

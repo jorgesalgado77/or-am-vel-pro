@@ -5,13 +5,21 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical } from "lucide-react";
+import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical, Instagram, Facebook, Youtube, Globe, Twitter, Share2 } from "lucide-react";
 import { FunnelMetrics } from "@/components/funnel/FunnelMetrics";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+interface SocialLinks {
+  instagram_url: string;
+  facebook_url: string;
+  youtube_url: string;
+  twitter_url: string;
+  website_url: string;
+}
 
 interface FunnelConfig {
   headline: string;
@@ -21,7 +29,16 @@ interface FunnelConfig {
   benefits: string[];
   promo_video_url: string;
   carousel_images: string[];
+  social_links: SocialLinks;
 }
+
+const DEFAULT_SOCIAL: SocialLinks = {
+  instagram_url: "",
+  facebook_url: "",
+  youtube_url: "",
+  twitter_url: "",
+  website_url: "",
+};
 
 const DEFAULT_CONFIG: FunnelConfig = {
   headline: "Ganhe seu Projeto 3D Gratuito",
@@ -36,6 +53,7 @@ const DEFAULT_CONFIG: FunnelConfig = {
   ],
   promo_video_url: "",
   carousel_images: [],
+  social_links: DEFAULT_SOCIAL,
 };
 
 export function FunnelPanel() {
@@ -67,6 +85,7 @@ export function FunnelPanel() {
           benefits: d.benefits || DEFAULT_CONFIG.benefits,
           promo_video_url: d.promo_video_url || "",
           carousel_images: d.carousel_images || [],
+          social_links: d.social_links || DEFAULT_SOCIAL,
         });
       }
       setLoading(false);
@@ -341,6 +360,35 @@ export function FunnelPanel() {
             <Input value={newBenefit} onChange={(e) => setNewBenefit(e.target.value)} placeholder="Novo benefício..." onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addBenefit())} />
             <Button variant="outline" size="icon" onClick={addBenefit}><Plus className="h-4 w-4" /></Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Redes Sociais */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg"><Share2 className="h-5 w-5 text-primary" /> Redes Sociais</CardTitle>
+          <CardDescription>Informe os links das suas redes sociais. Apenas os campos preenchidos serão exibidos na página pública.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {([
+            { key: "instagram_url" as const, icon: Instagram, label: "Instagram", placeholder: "https://instagram.com/sualoja" },
+            { key: "facebook_url" as const, icon: Facebook, label: "Facebook", placeholder: "https://facebook.com/sualoja" },
+            { key: "youtube_url" as const, icon: Youtube, label: "YouTube", placeholder: "https://youtube.com/@sualoja" },
+            { key: "twitter_url" as const, icon: Twitter, label: "X / Twitter", placeholder: "https://x.com/sualoja" },
+            { key: "website_url" as const, icon: Globe, label: "Site / Portfólio", placeholder: "https://www.sualoja.com.br" },
+          ]).map(({ key, icon: Icon, label, placeholder }) => (
+            <div key={key} className="flex items-center gap-3">
+              <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex-1 space-y-1">
+                <Label className="text-sm font-medium">{label}</Label>
+                <Input
+                  value={config.social_links[key]}
+                  onChange={(e) => setConfig(p => ({ ...p, social_links: { ...p.social_links, [key]: e.target.value } }))}
+                  placeholder={placeholder}
+                />
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
 
