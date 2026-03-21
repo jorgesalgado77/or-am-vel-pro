@@ -643,7 +643,7 @@ export function UsuariosTab() {
                     <TableCell>{getCargoNome(u.cargo_id)}</TableCell>
                     <TableCell>{u.tipo_regime || "—"}</TableCell>
                     <TableCell className="text-right">{u.comissao_percentual ? `${u.comissao_percentual}%` : "—"}</TableCell>
-                    <TableCell className="text-right">{u.salario_fixo ? formatCurrencyDisplay(u.salario_fixo) : "—"}</TableCell>
+                    <TableCell className="text-right">{u.salario_fixo ? formatCurrencyDisplay(u.salario_fixo / 100) : "—"}</TableCell>
                     <TableCell className="text-center">
                       <Switch checked={u.ativo} onCheckedChange={() => handleToggleAtivo(u.id, u.ativo)} />
                     </TableCell>
