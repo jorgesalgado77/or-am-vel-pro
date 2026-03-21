@@ -366,6 +366,19 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                         <Badge variant="outline" className="text-[10px]">{c.cargo_referencia}</Badge>
                       ) : "—"}
                     </TableCell>
+                    <TableCell>
+                      {(() => {
+                        // Determine commission type based on policy and user's cargo
+                        const userRecord = c.usuario_id ? usuarios.find(u => u.id === c.usuario_id) : null;
+                        const cargoId = userRecord?.cargo_id || null;
+                        const isEscalonada = policy.tipo === "escalonada" && cargoId && policy.cargos_ids.includes(cargoId);
+                        return isEscalonada ? (
+                          <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-700">Escalonada</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] border-primary/50 text-primary">Fixa</Badge>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell className="text-sm">{c.client_name || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.contrato_numero || "—"}</TableCell>
                     <TableCell className="text-right text-sm">{c.valor_base ? formatCurrency(Number(c.valor_base)) : "—"}</TableCell>
