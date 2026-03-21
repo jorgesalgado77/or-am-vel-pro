@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCargos, type CargoPermissoes } from "@/hooks/useCargos";
 import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { getTenantId } from "@/lib/tenantState";
 
 const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
