@@ -143,6 +143,7 @@ export function UsuariosTab() {
       foto_url: u.foto_url || "",
       senha: "",
       tipo_regime: (u as any).tipo_regime || "",
+      tipo_comissao: (u as any).tipo_comissao || "fixa",
       comissao_percentual: String((u as any).comissao_percentual || ""),
       salario_fixo: (u as any).salario_fixo ? formatCurrencyDisplay((u as any).salario_fixo) : "",
     });
