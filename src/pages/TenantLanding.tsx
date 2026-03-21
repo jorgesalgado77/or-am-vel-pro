@@ -367,6 +367,23 @@ export default function TenantLanding() {
         {/* ═══ Hero Header ═══ */}
         <header className="relative pt-8 pb-6 px-4 sm:px-6 overflow-hidden">
           {/* Glow orb behind logo */}
+          {/* Particles */}
+          {Array.from({ length: 18 }).map((_, i) => (
+            <div
+              key={`p-${i}`}
+              className="landing-particle"
+              style={{
+                width: `${2 + Math.random() * 3}px`,
+                height: `${2 + Math.random() * 3}px`,
+                backgroundColor: i % 3 === 0 ? color : `rgba(255,255,255,${0.2 + Math.random() * 0.3})`,
+                left: `${5 + Math.random() * 90}%`,
+                bottom: `${Math.random() * 40}%`,
+                '--tx': `${-40 + Math.random() * 80}px`,
+                '--dur': `${3 + Math.random() * 4}s`,
+                '--delay': `${Math.random() * 5}s`,
+              } as React.CSSProperties}
+            />
+          ))}
           <div
             className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] sm:w-[500px] sm:h-[400px] rounded-full blur-[100px] landing-glow pointer-events-none"
             style={{ backgroundColor: color, opacity: 0.25 }}
