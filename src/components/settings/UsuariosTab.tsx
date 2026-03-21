@@ -272,7 +272,21 @@ export function UsuariosTab() {
         </div>
         <div>
           <Label>Cargo</Label>
-          <Select value={form.cargo_id} onValueChange={(v) => setForm((f) => ({ ...f, cargo_id: v }))}>
+          <Select value={form.cargo_id} onValueChange={(v) => {
+            const selectedCargo = cargos.find(c => c.id === v);
+            const tipoComissao = selectedCargo
+              ? (selectedCargo as any).tipo_comissao === "clt" ? "clt"
+                : (selectedCargo as any).tipo_comissao === "clt_only" ? "clt_only"
+                : policy.cargos_ids.includes(v) ? "escalonada"
+                : "fixa"
+              : "fixa";
+            setForm((f) => ({
+              ...f,
+              cargo_id: v,
+              tipo_comissao: tipoComissao as any,
+              comissao_percentual: selectedCargo ? String(selectedCargo.comissao_percentual || "") : f.comissao_percentual,
+            }));
+          }}>
             <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione um cargo" /></SelectTrigger>
             <SelectContent>
               {cargos.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
@@ -403,29 +417,18 @@ export function UsuariosTab() {
             <p className="text-[10px] text-muted-foreground ml-5">
               Funcionário com registro CLT recebe salário fixo + comissão fixa sobre vendas.
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-[10px]">Salário Fixo</Label>
-                <Input
-                  value={form.salario_fixo}
-                  onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
-                  className="mt-1 h-8 text-sm"
-                  placeholder="R$ 0,00"
-                />
-              </div>
-              <div>
-                <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.5}
-                  value={form.comissao_percentual}
-                  onChange={(e) => setForm((f) => ({ ...f, comissao_percentual: e.target.value }))}
-                  className="mt-1 h-8 text-sm text-right"
-                  placeholder="0"
-                />
-              </div>
+            <div>
+              <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={form.comissao_percentual}
+                onChange={(e) => setForm((f) => ({ ...f, comissao_percentual: e.target.value }))}
+                className="mt-1 h-8 text-sm text-right"
+                placeholder="0"
+              />
             </div>
           </div>
         ) : (
@@ -435,19 +438,23 @@ export function UsuariosTab() {
               <Label className="text-xs font-medium">CLT — Apenas Salário Fixo</Label>
             </div>
             <p className="text-[10px] text-muted-foreground ml-5">
-              Funcionário CLT recebe apenas o salário fixo, sem comissão sobre vendas.
+              Funcionário CLT recebe apenas o salário fixo configurado abaixo, sem comissão sobre vendas.
             </p>
-            <div className="w-48">
-              <Label className="text-[10px]">Salário Fixo</Label>
-              <Input
-                value={form.salario_fixo}
-                onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
-                className="mt-1 h-8 text-sm"
-                placeholder="R$ 0,00"
-              />
-            </div>
           </div>
         )}
+      </div>
+
+      {/* Salário Fixo - sempre visível */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label>Salário Fixo</Label>
+          <Input
+            value={form.salario_fixo}
+            onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
+            className="mt-1"
+            placeholder="R$ 0,00"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
