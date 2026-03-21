@@ -662,12 +662,28 @@ export function UsuariosTab() {
                     <TableCell>{u.telefone || "—"}</TableCell>
                     <TableCell>{u.email || "—"}</TableCell>
                     <TableCell>{getCargoNome(u.cargo_id)}</TableCell>
-                    <TableCell>{u.tipo_regime || "—"}</TableCell>
+                    <TableCell>{u.tipo_regime || (() => {
+                      const cargo = cargos.find(c => c.id === u.cargo_id);
+                      const tc = (cargo as any)?.tipo_comissao || "";
+                      if (tc.startsWith("clt")) return "CLT";
+                      if (tc.startsWith("mei")) return "MEI";
+                      return "—";
+                    })()}</TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs font-normal">{getCargoTipoComissaoLabel(u.cargo_id)}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">{u.comissao_percentual ? `${u.comissao_percentual}%` : "—"}</TableCell>
-                    <TableCell className="text-right">{u.salario_fixo ? formatCurrencyDisplay(u.salario_fixo) : "—"}</TableCell>
+                    <TableCell className="text-right">{(() => {
+                      if (u.comissao_percentual) return `${u.comissao_percentual}%`;
+                      const cargo = cargos.find(c => c.id === u.cargo_id);
+                      const cp = cargo?.comissao_percentual;
+                      return cp ? `${cp}%` : "—";
+                    })()}</TableCell>
+                    <TableCell className="text-right">{(() => {
+                      if (u.salario_fixo) return formatCurrencyDisplay(u.salario_fixo);
+                      const cargo = cargos.find(c => c.id === u.cargo_id);
+                      const sb = (cargo as any)?.salario_base;
+                      return sb ? formatCurrencyDisplay(sb) : "—";
+                    })()}</TableCell>
                     <TableCell className="text-center">
                       <Switch checked={u.ativo} onCheckedChange={() => handleToggleAtivo(u.id, u.ativo)} />
                     </TableCell>
