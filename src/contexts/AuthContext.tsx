@@ -956,6 +956,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncGlobalState(null);
   }, []);
 
+  // Auto-logout after 5 minutes of inactivity
+  useEffect(() => {
+    if (!user) return;
+
+    const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+    let timer: ReturnType<typeof setTimeout>;
+
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        console.log("[Auth] ⏰ Logout automático por inatividade (5 min)");
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        syncGlobalState(null);
+        window.location.href = "/";
+      }, INACTIVITY_TIMEOUT);
+    };
+
+    const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click"];
+    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, resetTimer));
+    };
+  }, [user]);
+
   const hasPermission = useCallback((perm: keyof CargoPermissoes) => {
     if (!user) return true;
     return user.permissoes[perm] ?? false;
