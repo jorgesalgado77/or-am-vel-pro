@@ -580,8 +580,22 @@ export function AdminPlans() {
 
             {/* Display Features (for landing page) */}
             <div className="space-y-3">
-              <Label className="text-base font-semibold">Lista de Features (Landing Page)</Label>
-              <p className="text-xs text-muted-foreground">Itens exibidos na landing page para este plano.</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base font-semibold">Lista de Features (Landing Page)</Label>
+                  <p className="text-xs text-muted-foreground">Itens exibidos na landing page para este plano.</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+                  onClick={suggestFeatures}
+                  disabled={suggestingFeatures}
+                >
+                  {suggestingFeatures ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+                  {suggestingFeatures ? "Sugerindo..." : "Sugerir Features"}
+                </Button>
+              </div>
 
               <div className="space-y-2">
                 {fFeatures.map((feat, i) => (
