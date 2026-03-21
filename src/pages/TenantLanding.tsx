@@ -236,76 +236,114 @@ export default function TenantLanding() {
 
   useEffect(() => {
     if (!codigo) return;
+
+    let active = true;
+
     (async () => {
+      setLoading(true);
+      setNotFound(false);
+
       try {
-        // Try RPC first
-        let info: any = null;
-        try {
-          const { data } = await (supabase as any).rpc("resolve_tenant_landing", { p_code: codigo });
-          info = data;
-        } catch {
-          // RPC doesn't exist, fallback to direct query
-        }
+        const normalizedCode = codigo.trim();
 
-        // Fallback: query tenants table directly
-        if (!info) {
-          const { data: tenantRow } = await supabase
-            .from("tenants" as any)
-            .select("id, nome_loja, logo_url, telefone_loja, whatsapp_loja, subtitle")
-            .eq("codigo_loja", codigo)
-            .maybeSingle();
-          if (tenantRow) {
-            const t = tenantRow as any;
-            info = {
-              id: t.id,
-              nome_loja: t.nome_loja,
-              logo_url: t.logo_url,
-              primary_color: "hsl(199,89%,48%)",
-              subtitle: t.subtitle || "",
-              telefone_loja: t.telefone_loja,
-              whatsapp_loja: t.whatsapp_loja,
-              headline: "Ganhe seu Projeto 3D Gratuito",
-              sub_headline: "",
-              cta_text: "Solicite seu Projeto 3D Grátis",
-              benefits: [],
-              promo_video_url: null,
-              carousel_images: [],
-              social_links: null,
-            };
-          }
-        }
+        const [landingResult, tenantIdResult, tenantInfoResult] = await Promise.all([
+          (supabase as any)
+            .rpc("resolve_tenant_landing", { p_code: normalizedCode })
+            .catch(() => ({ data: null })),
+          (supabase as any)
+            .rpc("resolve_tenant_by_code", { p_code: normalizedCode })
+            .catch(() => ({ data: null })),
+          (supabase as any)
+            .rpc("resolve_tenant_info_by_code", { p_code: normalizedCode })
+            .catch(() => ({ data: null })),
+        ]);
 
-        if (info) {
-          const tenantData: TenantData = {
-            ...info,
-            promo_video_url: info.promo_video_url || null,
-            carousel_images: Array.isArray(info.carousel_images) ? info.carousel_images.filter(Boolean) : [],
-            social_links: info.social_links || null,
+        const landingData = landingResult?.data ?? null;
+        const tenantId = typeof tenantIdResult?.data === "string"
+          ? tenantIdResult.data
+          : tenantIdResult?.data?.tenant_id ?? tenantIdResult?.data?.id ?? null;
+        const tenantInfo = tenantInfoResult?.data ?? null;
+
+        let tenantData: TenantData | null = landingData
+          ? {
+              ...landingData,
+              logo_url: landingData.logo_url || null,
+              primary_color: landingData.primary_color || "hsl(199,89%,48%)",
+              subtitle: landingData.subtitle || "",
+              telefone_loja: landingData.telefone_loja || null,
+              whatsapp_loja: landingData.whatsapp_loja || null,
+              headline: landingData.headline || "Ganhe seu Projeto 3D Gratuito",
+              sub_headline: landingData.sub_headline || "",
+              cta_text: landingData.cta_text || "Solicite seu Projeto 3D Grátis",
+              benefits: Array.isArray(landingData.benefits) && landingData.benefits.length ? landingData.benefits : DEFAULT_BENEFITS,
+              promo_video_url: landingData.promo_video_url || null,
+              carousel_images: Array.isArray(landingData.carousel_images) ? landingData.carousel_images.filter(Boolean) : [],
+              social_links: landingData.social_links || null,
+            }
+          : null;
+
+        if (!tenantData && tenantId) {
+          tenantData = {
+            id: tenantId,
+            nome_loja: tenantInfo?.nome || "Loja",
+            logo_url: null,
+            primary_color: "hsl(199,89%,48%)",
+            subtitle: tenantInfo?.subtitulo || "",
+            telefone_loja: null,
+            whatsapp_loja: null,
+            headline: "Ganhe seu Projeto 3D Gratuito",
+            sub_headline: "",
+            cta_text: "Solicite seu Projeto 3D Grátis",
+            benefits: DEFAULT_BENEFITS,
+            promo_video_url: null,
+            carousel_images: [],
+            social_links: null,
           };
-          // Fetch funnel config for media
-          if (info.id) {
-            try {
-              const { data: fd } = await supabase.from("tenant_funnel_config" as any)
-                .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links")
-                .eq("tenant_id", info.id).maybeSingle();
-              if (fd) {
-                const d = fd as any;
-                if (d.promo_video_url) tenantData.promo_video_url = d.promo_video_url;
-                if (Array.isArray(d.carousel_images) && d.carousel_images.length) tenantData.carousel_images = d.carousel_images.filter(Boolean);
-                if (d.primary_color) tenantData.primary_color = d.primary_color;
-                if (d.headline) tenantData.headline = d.headline;
-                if (d.sub_headline) tenantData.sub_headline = d.sub_headline;
-                if (d.cta_text) tenantData.cta_text = d.cta_text;
-                if (Array.isArray(d.benefits) && d.benefits.length) tenantData.benefits = d.benefits;
-                if (d.social_links) tenantData.social_links = d.social_links;
-              }
-            } catch { /* ignore */ }
+        }
+
+        if (!tenantData) {
+          if (active) setNotFound(true);
+          return;
+        }
+
+        if (tenantData.id) {
+          try {
+            const { data: fd } = await supabase
+              .from("tenant_funnel_config" as any)
+              .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links")
+              .eq("tenant_id", tenantData.id)
+              .maybeSingle();
+
+            if (fd) {
+              const d = fd as any;
+              if (d.promo_video_url) tenantData.promo_video_url = d.promo_video_url;
+              if (Array.isArray(d.carousel_images) && d.carousel_images.length) tenantData.carousel_images = d.carousel_images.filter(Boolean);
+              if (d.primary_color) tenantData.primary_color = d.primary_color;
+              if (d.headline) tenantData.headline = d.headline;
+              if (d.sub_headline) tenantData.sub_headline = d.sub_headline;
+              if (d.cta_text) tenantData.cta_text = d.cta_text;
+              if (Array.isArray(d.benefits) && d.benefits.length) tenantData.benefits = d.benefits;
+              if (d.social_links) tenantData.social_links = d.social_links;
+            }
+          } catch {
+            // keep lightweight fallback data for public route
           }
+        }
+
+        if (active) {
           setTenant(tenantData);
-        } else { setNotFound(true); }
-      } catch { setNotFound(true); }
-      finally { setLoading(false); }
+          setNotFound(false);
+        }
+      } catch {
+        if (active) setNotFound(true);
+      } finally {
+        if (active) setLoading(false);
+      }
     })();
+
+    return () => {
+      active = false;
+    };
   }, [codigo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
