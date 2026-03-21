@@ -81,7 +81,8 @@ export function CargosTab() {
     if (perms) updates.permissoes = perms;
     if (newNome !== undefined) updates.nome = newNome.trim();
     if (newComissao !== undefined) updates.comissao_percentual = newComissao;
-
+    const newSalario = editSalario[cargoId];
+    if (newSalario !== undefined) updates.salario_base = Math.round(unmaskCurrency(newSalario));
     // Save commission type: update cargos_ids in company_settings
     if (newTipo !== undefined && settingsId) {
       const currentCargosIds = [...policy.cargos_ids];
