@@ -32,6 +32,7 @@ export function IndicadoresTab() {
       comissao_percentual: newComissao,
       telefone: newTelefone || null,
       email: newEmail || null,
+      tenant_id: tenantId,
     } as any);
     if (error) toast.error("Erro ao adicionar");
     else {
