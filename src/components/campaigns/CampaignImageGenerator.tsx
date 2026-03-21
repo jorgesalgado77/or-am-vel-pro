@@ -211,6 +211,7 @@ export function CampaignImageGenerator() {
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium"><Type className="h-4 w-4 text-primary" /> Tipografia</div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {([
+                    { label: "Nome da Loja", fontKey: "storeNameFontFamily" as const, sizeKey: "storeNameSize" as const, colorKey: "storeNameColor" as const },
                     { label: "Headline", fontKey: "headlineFontFamily" as const, sizeKey: "headlineSize" as const, colorKey: "headlineColor" as const },
                     { label: "Subtexto", fontKey: "bodyFontFamily" as const, sizeKey: "subtextSize" as const, colorKey: "subtextColor" as const },
                     { label: "CTA", fontKey: "ctaFontFamily" as const, sizeKey: "ctaSize" as const, colorKey: "ctaTextColor" as const },
