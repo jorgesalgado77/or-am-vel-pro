@@ -272,7 +272,21 @@ export function ClientsKanban({
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Liberador month selector */}
+      {cargoNome.includes("liberador") && (
+        <div className="flex items-center gap-3 mb-3 p-3 bg-muted/30 rounded-lg border border-border">
+          <CalendarIcon className="h-4 w-4 text-primary" />
+          <Label className="text-sm font-medium whitespace-nowrap">Mês de referência:</Label>
+          <Input
+            type="month"
+            value={liberadorMonth}
+            onChange={(e) => setLiberadorMonth(e.target.value)}
+            className="max-w-[200px]"
+          />
+          <span className="text-xs text-muted-foreground">Contratos fechados no período selecionado</span>
+        </div>
+      )}
+
       {showFilters && (
         <div className="flex items-end gap-3 mb-4 p-3 bg-muted/30 rounded-lg border border-border flex-wrap">
           <div className="min-w-[160px]">
