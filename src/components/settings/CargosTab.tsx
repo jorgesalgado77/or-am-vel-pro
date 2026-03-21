@@ -283,11 +283,18 @@ export function CargosTab() {
                     <p className="text-[10px] text-muted-foreground ml-5">
                       Funcionário com registro CLT recebe salário fixo configurado no cadastro + comissão fixa sobre vendas.
                     </p>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <Label className="text-[10px]">Comissão CLT sobre vendas (%)</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-[10px]">Salário Fixo</Label>
+                        <Input
+                          value={salarioVal}
+                          onChange={e => setEditSalario(prev => ({ ...prev, [cargo.id]: maskCurrency(e.target.value) }))}
+                          className="h-8 text-sm"
+                          placeholder="R$ 0,00"
+                        />
                       </div>
-                      <div className="w-24">
+                      <div>
+                        <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
                         <Input
                           type="number"
                           min={0}
