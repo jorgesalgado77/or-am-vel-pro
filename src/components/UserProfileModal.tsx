@@ -208,6 +208,18 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
 
   const handleSave = async () => {
     if (!user?.id) return;
+    setTriedSave(true);
+
+    // Validate required fields
+    const missing = requiredFields.filter(f => {
+      if (f.key === "birthDate") return !birthDate;
+      return !form[f.key as keyof ProfileData]?.trim();
+    });
+    if (missing.length > 0) {
+      toast.error(`Preencha os campos obrigatórios: ${missing.map(m => m.label).join(", ")}`);
+      return;
+    }
+
     setSaving(true);
 
     const updateData: Record<string, unknown> = {
