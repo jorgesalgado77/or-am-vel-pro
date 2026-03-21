@@ -98,6 +98,9 @@ export function ReferralPanel() {
   // Create link form
   const [newClientName, setNewClientName] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedExistingClient, setSelectedExistingClient] = useState<{ id: string; nome: string; telefone1?: string | null; telefone2?: string | null } | null>(null);
+  const [existingClients, setExistingClients] = useState<{ id: string; nome: string; telefone1?: string | null; telefone2?: string | null }[]>([]);
 
   // Reward config
   const [rewardConfig, setRewardConfig] = useState<RewardConfig>({
