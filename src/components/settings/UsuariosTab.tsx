@@ -50,6 +50,7 @@ export function UsuariosTab() {
   const { usuarios, refresh } = useUsuarios();
   const { cargos } = useCargos();
   const { settings } = useCompanySettings();
+  const { policy } = useComissaoPolicy();
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
