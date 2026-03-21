@@ -85,13 +85,16 @@ export function createDraftFromTemplate(t: Template): CampaignImageDraft {
     bodyFontFamily: "'Trebuchet MS', sans-serif",
     ctaFontFamily: "Arial, sans-serif",
     badgeFontFamily: "Arial, sans-serif",
+    storeNameFontFamily: "'Trebuchet MS', sans-serif",
     headlineSize: t.layout === "banner" ? 74 : 72,
     subtextSize: t.layout === "banner" ? 28 : 34,
     ctaSize: t.layout === "banner" ? 28 : 30,
     badgeSize: t.layout === "banner" ? 24 : 28,
+    storeNameSize: t.layout === "banner" ? 18 : 20,
     headlineColor: t.textColor,
     subtextColor: t.textColor,
     ctaTextColor: t.bgColor,
     badgeTextColor: t.bgColor,
+    storeNameColor: t.accentColor,
   };
 }
