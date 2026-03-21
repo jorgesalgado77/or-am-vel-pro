@@ -53,7 +53,25 @@ export function ProfileCompletenessCard({ onOpenProfile, onOpenSettings }: Props
   const percentage = totalCount > 0 ? Math.round((filledCount / totalCount) * 100) : 0;
   const missingFields = fields.filter((f) => !f.filled);
 
-  if (percentage === 100) return null;
+  if (percentage === 100) {
+    return (
+      <Card className="border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800/50 mb-4">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="flex-1">
+              <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                ✅ Perfil 100% completo!
+              </span>
+              <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70">Todos os dados estão preenchidos.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const userMissing = missingFields.filter((f) => f.category === "usuario");
   const storeMissing = missingFields.filter((f) => f.category === "loja");

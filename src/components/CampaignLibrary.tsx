@@ -3,7 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, CheckCircle2, Lightbulb, Target, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Copy, CheckCircle2, Lightbulb, Target, MessageSquare, ChevronDown, ChevronUp, Pencil, Save, X, Plus, HelpCircle, Image, Bot, CalendarDays, Library } from "lucide-react";
 import { toast } from "sonner";
 import { CampaignImageGenerator } from "@/components/campaigns/CampaignImageGenerator";
 import { CampaignAIGenerator } from "@/components/campaigns/CampaignAIGenerator";
@@ -65,13 +70,14 @@ const BASE_CAMPAIGNS: Campaign[] = [
   },
 ];
 
-const ALL_CAMPAIGNS = [...BASE_CAMPAIGNS, ...SEASONAL_CAMPAIGNS];
+const INITIAL_CAMPAIGNS = [...BASE_CAMPAIGNS, ...SEASONAL_CAMPAIGNS];
 
 const CATEGORY_LABELS: Record<string, string> = {
   cozinha: "Cozinha",
   quarto: "Quarto",
   planejados: "Planejados Geral",
   datas: "Datas Comemorativas",
+  manual: "Minhas Campanhas",
 };
 
 const PLATFORM_CONFIG: Record<string, { label: string; color: string }> = {
@@ -80,9 +86,11 @@ const PLATFORM_CONFIG: Record<string, { label: string; color: string }> = {
   google: { label: "Google Ads", color: "bg-emerald-500/10 text-emerald-700 border-emerald-200" },
 };
 
-function CampaignCard({ campaign }: { campaign: Campaign }) {
+function CampaignCard({ campaign, onUpdate }: { campaign: Campaign; onUpdate?: (c: Campaign) => void }) {
   const [showInstrucoes, setShowInstrucoes] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editData, setEditData] = useState({ headline: campaign.headline, copy: campaign.copy, cta: campaign.cta });
 
   const copyText = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -92,11 +100,26 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
   };
 
   const copyFullCampaign = () => {
-    const full = `TÍTULO: ${campaign.headline}\n\nCOPY:\n${campaign.copy}\n\nCTA: ${campaign.cta}${campaign.hashtags ? `\n\nHASHTAGS: ${campaign.hashtags.join(" ")}` : ""}`;
+    const c = editing ? editData : campaign;
+    const full = `TÍTULO: ${c.headline}\n\nCOPY:\n${c.copy}\n\nCTA: ${c.cta}${campaign.hashtags ? `\n\nHASHTAGS: ${campaign.hashtags.join(" ")}` : ""}`;
     copyText(full, "Campanha completa");
   };
 
+  const saveEdit = () => {
+    onUpdate?.({ ...campaign, headline: editData.headline, copy: editData.copy, cta: editData.cta });
+    setEditing(false);
+    toast.success("Campanha atualizada!");
+  };
+
+  const cancelEdit = () => {
+    setEditData({ headline: campaign.headline, copy: campaign.copy, cta: campaign.cta });
+    setEditing(false);
+  };
+
   const plat = PLATFORM_CONFIG[campaign.plataforma];
+  const displayHeadline = editing ? editData.headline : campaign.headline;
+  const displayCopy = editing ? editData.copy : campaign.copy;
+  const displayCta = editing ? editData.cta : campaign.cta;
 
   return (
     <Card className="group hover:shadow-lg transition-shadow duration-300">
@@ -106,35 +129,64 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
             <CardTitle className="text-base leading-snug">{campaign.titulo}</CardTitle>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className={plat.color}>{plat.label}</Badge>
-              <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[campaign.categoria]}</Badge>
+              <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[campaign.categoria] || campaign.categoria}</Badge>
             </div>
           </div>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editing ? cancelEdit() : setEditing(true)}>
+            {editing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Target className="h-3 w-3" /> Headline</span>
-            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => copyText(campaign.headline, "Headline")}>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => copyText(displayHeadline, "Headline")}>
               {copied === "Headline" ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />} Copiar
             </Button>
           </div>
-          <p className="text-sm font-medium bg-muted/50 rounded-lg px-3 py-2">{campaign.headline}</p>
+          {editing ? (
+            <Input value={editData.headline} onChange={e => setEditData(p => ({ ...p, headline: e.target.value }))} className="h-8 text-sm" />
+          ) : (
+            <p className="text-sm font-medium bg-muted/50 rounded-lg px-3 py-2">{displayHeadline}</p>
+          )}
         </div>
 
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Copy do Anúncio</span>
-            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => copyText(campaign.copy, "Copy")}>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => copyText(displayCopy, "Copy")}>
               {copied === "Copy" ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />} Copiar
             </Button>
           </div>
-          <pre className="text-sm whitespace-pre-wrap bg-muted/50 rounded-lg px-3 py-2 font-sans leading-relaxed max-h-48 overflow-y-auto">{campaign.copy}</pre>
+          {editing ? (
+            <Textarea value={editData.copy} onChange={e => setEditData(p => ({ ...p, copy: e.target.value }))} rows={6} className="text-sm" />
+          ) : (
+            <pre className="text-sm whitespace-pre-wrap bg-muted/50 rounded-lg px-3 py-2 font-sans leading-relaxed max-h-48 overflow-y-auto">{displayCopy}</pre>
+          )}
         </div>
 
         <div className="flex items-center justify-between bg-primary/5 rounded-lg px-3 py-2">
-          <span className="text-sm font-medium">CTA: <span className="text-primary">{campaign.cta}</span></span>
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => copyText(campaign.cta, "CTA")}>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 cursor-help">
+                    CTA: <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="text-xs"><strong>Call to Action</strong> — É o botão ou frase que convida o cliente a agir (ex: "Quero meu projeto", "Saiba mais"). Quanto mais direto, melhor a conversão.</p>
+                </TooltipContent>
+              </Tooltip>
+              {editing ? (
+                <Input value={editData.cta} onChange={e => setEditData(p => ({ ...p, cta: e.target.value }))} className="h-7 text-sm inline w-40 ml-1" />
+              ) : (
+                <span className="text-primary">{displayCta}</span>
+              )}
+            </span>
+          </div>
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => copyText(displayCta, "CTA")}>
             {copied === "CTA" ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
           </Button>
         </div>
@@ -145,6 +197,12 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
               <Badge key={h} variant="outline" className="text-xs cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => copyText(h, h)}>{h}</Badge>
             ))}
           </div>
+        )}
+
+        {editing && (
+          <Button onClick={saveEdit} className="w-full gap-2" variant="default">
+            <Save className="h-4 w-4" /> Salvar Alterações
+          </Button>
         )}
 
         <div>
@@ -164,41 +222,80 @@ function CampaignCard({ campaign }: { campaign: Campaign }) {
           )}
         </div>
 
-        <Button onClick={copyFullCampaign} className="w-full gap-2" variant={copied === "Campanha completa" ? "secondary" : "default"}>
-          {copied === "Campanha completa" ? <><CheckCircle2 className="h-4 w-4 text-green-500" /> Copiado!</> : <><Copy className="h-4 w-4" /> Copiar Campanha Completa</>}
-        </Button>
+        {!editing && (
+          <Button onClick={copyFullCampaign} className="w-full gap-2" variant={copied === "Campanha completa" ? "secondary" : "default"}>
+            {copied === "Campanha completa" ? <><CheckCircle2 className="h-4 w-4 text-green-500" /> Copiado!</> : <><Copy className="h-4 w-4" /> Copiar Campanha Completa</>}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
 }
 
 export function CampaignLibrary() {
-  const categories = ["todos", "cozinha", "quarto", "planejados", "datas"];
+  const categories = ["todos", "cozinha", "quarto", "planejados", "datas", "manual"];
+  const [campaigns, setCampaigns] = useState<Campaign[]>(INITIAL_CAMPAIGNS);
+  const [showNewDialog, setShowNewDialog] = useState(false);
+  const [newCampaign, setNewCampaign] = useState({ titulo: "", headline: "", copy: "", cta: "", plataforma: "facebook", categoria: "manual" });
+
+  const updateCampaign = (updated: Campaign) => {
+    setCampaigns(prev => prev.map(c => c.id === updated.id ? updated : c));
+  };
+
+  const createCampaign = () => {
+    if (!newCampaign.titulo || !newCampaign.headline || !newCampaign.copy) {
+      toast.error("Preencha título, headline e copy.");
+      return;
+    }
+    const c: Campaign = {
+      id: `manual-${Date.now()}`,
+      titulo: newCampaign.titulo,
+      headline: newCampaign.headline,
+      copy: newCampaign.copy,
+      cta: newCampaign.cta || "Saiba Mais",
+      plataforma: newCampaign.plataforma as Campaign["plataforma"],
+      categoria: "manual" as any,
+      instrucoes: ["Personalize conforme sua necessidade"],
+    };
+    setCampaigns(prev => [c, ...prev]);
+    setNewCampaign({ titulo: "", headline: "", copy: "", cta: "", plataforma: "facebook", categoria: "manual" });
+    setShowNewDialog(false);
+    toast.success("Campanha criada!");
+  };
 
   return (
     <div className="space-y-6 max-w-5xl">
       <Tabs defaultValue="campanhas">
         <TabsList className="h-auto gap-1 flex-wrap">
-          <TabsTrigger value="campanhas">📋 Campanhas Prontas</TabsTrigger>
-          <TabsTrigger value="imagens">🖼️ Gerador de Imagens</TabsTrigger>
-          <TabsTrigger value="ia">🤖 Criar com IA</TabsTrigger>
-          <TabsTrigger value="agenda">📅 Agendamento</TabsTrigger>
+          <TabsTrigger value="campanhas" className="gap-1.5 data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-700">
+            <Library className="h-3.5 w-3.5" /> Campanhas Prontas
+          </TabsTrigger>
+          <TabsTrigger value="imagens" className="gap-1.5 data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-700">
+            <Image className="h-3.5 w-3.5" /> Gerador de Imagens
+          </TabsTrigger>
+          <TabsTrigger value="ia" className="gap-1.5 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700">
+            <Bot className="h-3.5 w-3.5" /> Criar com IA
+          </TabsTrigger>
+          <TabsTrigger value="agenda" className="gap-1.5 data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-700">
+            <CalendarDays className="h-3.5 w-3.5" /> Agendamento
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="campanhas" className="mt-4 space-y-4">
-          <Card className="border-none shadow-none bg-transparent">
-            <CardHeader className="px-0 pt-0">
-              <CardDescription className="text-base">
-                Campanhas prontas para Facebook, Instagram e Google Ads. Copie o texto, adicione suas fotos e ative em minutos.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <div className="flex items-center justify-between">
+            <CardDescription className="text-base">
+              Campanhas prontas para Facebook, Instagram e Google Ads. Copie, edite e ative em minutos.
+            </CardDescription>
+            <Button onClick={() => setShowNewDialog(true)} className="gap-2 shrink-0">
+              <Plus className="h-4 w-4" /> Nova Campanha
+            </Button>
+          </div>
 
           <Tabs defaultValue="todos">
             <TabsList className="h-auto gap-1 flex-wrap">
               {categories.map(cat => (
                 <TabsTrigger key={cat} value={cat} className="capitalize">
-                  {cat === "todos" ? "Todas" : CATEGORY_LABELS[cat]}
+                  {cat === "todos" ? "Todas" : CATEGORY_LABELS[cat] || cat}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -206,9 +303,12 @@ export function CampaignLibrary() {
             {categories.map(cat => (
               <TabsContent key={cat} value={cat} className="mt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {ALL_CAMPAIGNS.filter(c => cat === "todos" || c.categoria === cat).map(campaign => (
-                    <CampaignCard key={campaign.id} campaign={campaign} />
+                  {campaigns.filter(c => cat === "todos" || c.categoria === cat).map(campaign => (
+                    <CampaignCard key={campaign.id} campaign={campaign} onUpdate={updateCampaign} />
                   ))}
+                  {cat === "manual" && campaigns.filter(c => c.categoria === "manual").length === 0 && (
+                    <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Nenhuma campanha manual criada ainda. Clique em "Nova Campanha" para começar.</p>
+                  )}
                 </div>
               </TabsContent>
             ))}
@@ -227,6 +327,54 @@ export function CampaignLibrary() {
           <CampaignScheduler />
         </TabsContent>
       </Tabs>
+
+      {/* New Campaign Dialog */}
+      <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Criar Nova Campanha</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Título da Campanha *</Label>
+              <Input value={newCampaign.titulo} onChange={e => setNewCampaign(p => ({ ...p, titulo: e.target.value }))} placeholder="Ex: Promoção de Verão" className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Headline *</Label>
+              <Input value={newCampaign.headline} onChange={e => setNewCampaign(p => ({ ...p, headline: e.target.value }))} placeholder="Ex: 🔥 Até 30% OFF em Planejados" className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Copy do Anúncio *</Label>
+              <Textarea value={newCampaign.copy} onChange={e => setNewCampaign(p => ({ ...p, copy: e.target.value }))} rows={5} placeholder="Texto do anúncio..." className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs flex items-center gap-1">
+                  CTA
+                  <Tooltip>
+                    <TooltipTrigger><HelpCircle className="h-3 w-3 text-muted-foreground" /></TooltipTrigger>
+                    <TooltipContent><p className="text-xs max-w-[200px]"><strong>Call to Action</strong> — O botão que convida o cliente a agir.</p></TooltipContent>
+                  </Tooltip>
+                </Label>
+                <Input value={newCampaign.cta} onChange={e => setNewCampaign(p => ({ ...p, cta: e.target.value }))} placeholder="Ex: Saiba Mais" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Plataforma</Label>
+                <select value={newCampaign.plataforma} onChange={e => setNewCampaign(p => ({ ...p, plataforma: e.target.value }))}
+                  className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="facebook">Facebook</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="google">Google Ads</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewDialog(false)}>Cancelar</Button>
+            <Button onClick={createCampaign} className="gap-2"><Plus className="h-4 w-4" /> Criar Campanha</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
