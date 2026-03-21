@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy, CheckCircle2, Lightbulb, Target, MessageSquare, ChevronDown, ChevronUp, Pencil, Save, X, Plus, HelpCircle, Image, Bot, CalendarDays, Library } from "lucide-react";
+import { Copy, CheckCircle2, Lightbulb, Target, MessageSquare, ChevronDown, ChevronUp, Pencil, Save, X, Plus, HelpCircle, Image, Bot, CalendarDays, Library, CopyPlus } from "lucide-react";
 import { toast } from "sonner";
 import { CampaignImageGenerator } from "@/components/campaigns/CampaignImageGenerator";
 import { CampaignAIGenerator } from "@/components/campaigns/CampaignAIGenerator";
