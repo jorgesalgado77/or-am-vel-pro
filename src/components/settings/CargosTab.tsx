@@ -36,6 +36,7 @@ export function CargosTab() {
   const [editingName, setEditingName] = useState<Record<string, string>>({});
   const [editComissao, setEditComissao] = useState<Record<string, number>>({});
   const [editTipoComissao, setEditTipoComissao] = useState<Record<string, string>>({});
+  const [editSalario, setEditSalario] = useState<Record<string, string>>({});
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
 
   const handleAdd = async () => {
