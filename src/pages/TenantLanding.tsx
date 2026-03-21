@@ -238,28 +238,68 @@ export default function TenantLanding() {
     if (!codigo) return;
     (async () => {
       try {
-        const { data: info } = await (supabase as any).rpc("resolve_tenant_landing", { p_code: codigo });
+        // Try RPC first
+        let info: any = null;
+        try {
+          const { data } = await (supabase as any).rpc("resolve_tenant_landing", { p_code: codigo });
+          info = data;
+        } catch {
+          // RPC doesn't exist, fallback to direct query
+        }
+
+        // Fallback: query tenants table directly
+        if (!info) {
+          const { data: tenantRow } = await supabase
+            .from("tenants" as any)
+            .select("id, nome_loja, logo_url, telefone_loja, whatsapp_loja, subtitle")
+            .eq("codigo_loja", codigo)
+            .maybeSingle();
+          if (tenantRow) {
+            const t = tenantRow as any;
+            info = {
+              id: t.id,
+              nome_loja: t.nome_loja,
+              logo_url: t.logo_url,
+              primary_color: "hsl(199,89%,48%)",
+              subtitle: t.subtitle || "",
+              telefone_loja: t.telefone_loja,
+              whatsapp_loja: t.whatsapp_loja,
+              headline: "Ganhe seu Projeto 3D Gratuito",
+              sub_headline: "",
+              cta_text: "Solicite seu Projeto 3D Grátis",
+              benefits: [],
+              promo_video_url: null,
+              carousel_images: [],
+              social_links: null,
+            };
+          }
+        }
+
         if (info) {
           const tenantData: TenantData = {
             ...info,
             promo_video_url: info.promo_video_url || null,
             carousel_images: Array.isArray(info.carousel_images) ? info.carousel_images.filter(Boolean) : [],
+            social_links: info.social_links || null,
           };
+          // Fetch funnel config for media
           if (info.id) {
             try {
-              const { data: media } = await (supabase as any).rpc("get_tenant_funnel_media", { p_tenant_id: info.id });
-              if (media) {
-                tenantData.promo_video_url = media.promo_video_url || tenantData.promo_video_url;
-                tenantData.carousel_images = Array.isArray(media.carousel_images) ? media.carousel_images.filter(Boolean) : tenantData.carousel_images;
-              }
-            } catch {
-              const { data: fd } = await supabase.from("tenant_funnel_config" as any).select("promo_video_url, carousel_images").eq("tenant_id", info.id).maybeSingle();
+              const { data: fd } = await supabase.from("tenant_funnel_config" as any)
+                .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links")
+                .eq("tenant_id", info.id).maybeSingle();
               if (fd) {
                 const d = fd as any;
                 if (d.promo_video_url) tenantData.promo_video_url = d.promo_video_url;
-                if (Array.isArray(d.carousel_images)) tenantData.carousel_images = d.carousel_images.filter(Boolean);
+                if (Array.isArray(d.carousel_images) && d.carousel_images.length) tenantData.carousel_images = d.carousel_images.filter(Boolean);
+                if (d.primary_color) tenantData.primary_color = d.primary_color;
+                if (d.headline) tenantData.headline = d.headline;
+                if (d.sub_headline) tenantData.sub_headline = d.sub_headline;
+                if (d.cta_text) tenantData.cta_text = d.cta_text;
+                if (Array.isArray(d.benefits) && d.benefits.length) tenantData.benefits = d.benefits;
+                if (d.social_links) tenantData.social_links = d.social_links;
               }
-            }
+            } catch { /* ignore */ }
           }
           setTenant(tenantData);
         } else { setNotFound(true); }
