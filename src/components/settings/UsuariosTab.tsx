@@ -17,6 +17,7 @@ import { useCargos } from "@/hooks/useCargos";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 import { maskPhone, maskCurrency, unmaskCurrency } from "@/lib/masks";
+import { getTenantId } from "@/lib/tenantState";
 
 const EMPTY_FORM = {
   nome_completo: "",
