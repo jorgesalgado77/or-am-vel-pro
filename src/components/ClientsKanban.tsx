@@ -274,16 +274,48 @@ export function ClientsKanban({
 
       {/* Liberador month selector */}
       {cargoNome.includes("liberador") && (
-        <div className="flex items-center gap-3 mb-3 p-3 bg-muted/30 rounded-lg border border-border">
-          <CalendarIcon className="h-4 w-4 text-primary" />
-          <Label className="text-sm font-medium whitespace-nowrap">Mês de referência:</Label>
-          <Input
-            type="month"
-            value={liberadorMonth}
-            onChange={(e) => setLiberadorMonth(e.target.value)}
-            className="max-w-[200px]"
-          />
-          <span className="text-xs text-muted-foreground">Contratos fechados no período selecionado</span>
+        <div className="flex flex-col gap-3 mb-3 p-4 bg-muted/30 rounded-lg border border-border">
+          <div className="flex items-center gap-3 flex-wrap">
+            <CalendarIcon className="h-4 w-4 text-primary" />
+            <Label className="text-sm font-medium whitespace-nowrap">Mês de referência:</Label>
+            <Input
+              type="month"
+              value={liberadorMonth}
+              onChange={(e) => setLiberadorMonth(e.target.value)}
+              className="max-w-[200px]"
+            />
+            <span className="text-xs text-muted-foreground">Contratos fechados no período selecionado</span>
+          </div>
+          {(() => {
+            const totalContratos = filtered.length;
+            const valorAcumulado = filtered.reduce((sum, c) => {
+              const sim = lastSims[c.id];
+              return sum + (sim?.valor_final || 0);
+            }, 0);
+            return (
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground leading-none">Contratos</p>
+                    <p className="text-lg font-bold text-foreground">{totalContratos}</p>
+                  </div>
+                </div>
+                <Separator orientation="vertical" className="h-10" />
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Calculator className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground leading-none">Valor Acumulado</p>
+                    <p className="text-lg font-bold text-foreground">{formatCurrency(valorAcumulado)}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
