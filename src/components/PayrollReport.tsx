@@ -42,6 +42,7 @@ interface PayrollReportProps {
 export function PayrollReport({ onBack }: PayrollReportProps) {
   const { usuarios } = useUsuarios();
   const { cargos } = useCargos();
+  const { policy } = useComissaoPolicy();
   const [commissions, setCommissions] = useState<PayrollCommission[]>([]);
   const [filterMode, setFilterMode] = useState<"mes" | "periodo">("mes");
   const [mesReferencia, setMesReferencia] = useState(() => format(new Date(), "yyyy-MM"));
