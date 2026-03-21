@@ -28,7 +28,8 @@ const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
 
 export function CargosTab() {
   const { cargos, refresh, DEFAULT_PERMISSOES } = useCargos();
-  const { policy } = useComissaoPolicy();
+  const { policy, refresh: refreshPolicy, settingsId } = useComissaoPolicy();
+  const { settings } = useCompanySettings();
   const [newName, setNewName] = useState("");
   const [editPerms, setEditPerms] = useState<Record<string, CargoPermissoes>>({});
   const [editingName, setEditingName] = useState<Record<string, string>>({});
