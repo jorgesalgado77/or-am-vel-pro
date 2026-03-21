@@ -297,6 +297,7 @@ export default function TenantLanding() {
         let tenantData: TenantData | null = landingData
           ? {
               ...landingData,
+              nome_loja: (tenantInfo?.nome && tenantInfo.nome !== "Loja" ? tenantInfo.nome : null) || landingData.nome_loja,
               logo_url: landingData.logo_url || null,
               primary_color: landingData.primary_color || "hsl(199,89%,48%)",
               subtitle: landingData.subtitle || "",
