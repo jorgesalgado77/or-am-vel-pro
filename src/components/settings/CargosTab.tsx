@@ -60,9 +60,11 @@ export function CargosTab() {
 
   const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined;
 
-  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" => {
-    if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as "fixa" | "escalonada";
-    if (policy.tipo === "escalonada" && policy.cargos_ids.includes(cargoId)) return "escalonada";
+  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" => {
+    if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as "fixa" | "escalonada" | "clt";
+    const cargo = cargos.find(c => c.id === cargoId);
+    if ((cargo as any)?.tipo_comissao === "clt") return "clt";
+    if (policy.cargos_ids.includes(cargoId)) return "escalonada";
     return "fixa";
   };
 
