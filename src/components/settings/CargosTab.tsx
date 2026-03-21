@@ -359,6 +359,30 @@ export function CargosTab() {
                         placeholder="R$ 0,00"
                       />
                     </div>
+                    <div className="mt-2 max-h-40 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="text-[10px]">
+                            <TableHead className="py-1 text-[10px]">Faixa</TableHead>
+                            <TableHead className="py-1 text-[10px] text-center">Base</TableHead>
+                            <TableHead className="py-1 text-[10px] text-center">Prêmio</TableHead>
+                            <TableHead className="py-1 text-[10px] text-center">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {policy.faixas.map((f, i) => (
+                            <TableRow key={i} className="text-[10px]">
+                              <TableCell className="py-0.5 text-[10px]">
+                                {f.min.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} — {f.max.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                              </TableCell>
+                              <TableCell className="py-0.5 text-center text-[10px]">{f.comissao}%</TableCell>
+                              <TableCell className="py-0.5 text-center text-[10px]">{f.premio}%</TableCell>
+                              <TableCell className="py-0.5 text-center text-[10px] font-semibold text-indigo-700 dark:text-indigo-400">{f.comissao + f.premio}%</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 ) : tipoComissao === "mei" ? (
                   <div className="rounded-md border border-teal-200 bg-teal-50/50 dark:bg-teal-950/20 dark:border-teal-800 p-3 space-y-3">
