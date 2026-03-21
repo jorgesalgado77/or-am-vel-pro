@@ -193,6 +193,12 @@ export function CargosTab() {
                           CLT (Salário + Comissão)
                         </span>
                       </SelectItem>
+                      <SelectItem value="clt_only">
+                        <span className="flex items-center gap-1.5">
+                          <Landmark className="h-3 w-3 text-orange-600" />
+                          CLT (Apenas Salário Fixo)
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
