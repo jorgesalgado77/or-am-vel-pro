@@ -77,18 +77,39 @@ export function CargosTab() {
     if (perms) updates.permissoes = perms;
     if (newNome !== undefined) updates.nome = newNome.trim();
     if (newComissao !== undefined) updates.comissao_percentual = newComissao;
-    if (newTipo !== undefined) updates.tipo_comissao = newTipo;
-    if (Object.keys(updates).length === 0) return;
-    const { error } = await supabase.from("cargos").update(updates).eq("id", cargoId);
-    if (error) toast.error("Erro ao salvar");
-    else {
-      toast.success("Cargo salvo!");
-      setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
-      setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
-      setEditComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
-      setEditTipoComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
-      refresh();
+
+    // Save commission type: update cargos_ids in company_settings
+    if (newTipo !== undefined && settingsId) {
+      const currentCargosIds = [...policy.cargos_ids];
+      let updatedCargosIds: string[];
+      if (newTipo === "escalonada") {
+        updatedCargosIds = currentCargosIds.includes(cargoId) ? currentCargosIds : [...currentCargosIds, cargoId];
+      } else {
+        updatedCargosIds = currentCargosIds.filter(id => id !== cargoId);
+      }
+      const updatedPolicy = { ...policy, cargos_ids: updatedCargosIds };
+      const { error: policyError } = await supabase
+        .from("company_settings")
+        .update({ comissao_policy: updatedPolicy as any })
+        .eq("id", settingsId);
+      if (policyError) {
+        toast.error("Erro ao salvar tipo de comissão: " + policyError.message);
+        return;
+      }
+      refreshPolicy();
     }
+
+    if (Object.keys(updates).length > 0) {
+      const { error } = await supabase.from("cargos").update(updates).eq("id", cargoId);
+      if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+    }
+
+    toast.success("Cargo salvo!");
+    setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    setEditComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    setEditTipoComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    refresh();
   };
 
   return (
