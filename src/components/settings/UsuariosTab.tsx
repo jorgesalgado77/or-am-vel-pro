@@ -616,6 +616,7 @@ export function UsuariosTab() {
                   <TableHead>Email</TableHead>
                   <TableHead>Cargo</TableHead>
                   <TableHead>Regime</TableHead>
+                  <TableHead>Tipo Comissão</TableHead>
                   <TableHead className="text-right">Comissão</TableHead>
                   <TableHead className="text-right">Salário</TableHead>
                   <TableHead className="text-center">Ativo</TableHead>
