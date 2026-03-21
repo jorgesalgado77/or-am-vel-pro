@@ -60,11 +60,12 @@ export function CargosTab() {
 
   const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined;
 
-  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" | "clt_only" => {
+  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" | "clt_only" | "mei" => {
     if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as any;
     const cargo = cargos.find(c => c.id === cargoId);
     if ((cargo as any)?.tipo_comissao === "clt") return "clt";
     if ((cargo as any)?.tipo_comissao === "clt_only") return "clt_only";
+    if ((cargo as any)?.tipo_comissao === "mei") return "mei";
     if (policy.cargos_ids.includes(cargoId)) return "escalonada";
     return "fixa";
   };
@@ -200,6 +201,12 @@ export function CargosTab() {
                           CLT (Apenas Salário Fixo)
                         </span>
                       </SelectItem>
+                      <SelectItem value="mei">
+                        <span className="flex items-center gap-1.5">
+                          <DollarSign className="h-3 w-3 text-teal-600" />
+                          MEI (Salário + Comissão)
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -288,7 +295,7 @@ export function CargosTab() {
                       </div>
                     </div>
                   </div>
-                ) : (
+                ) : tipoComissao === "clt_only" ? (
                   <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-2">
                     <div className="flex items-center gap-1.5">
                       <Landmark className="h-3.5 w-3.5 text-orange-600" />
@@ -297,6 +304,32 @@ export function CargosTab() {
                     <p className="text-[10px] text-muted-foreground ml-5">
                       Funcionário CLT recebe apenas o salário fixo configurado no cadastro, sem comissão sobre vendas.
                     </p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-teal-200 bg-teal-50/50 dark:bg-teal-950/20 dark:border-teal-800 p-3 space-y-3">
+                    <div className="flex items-center gap-1.5">
+                      <DollarSign className="h-3.5 w-3.5 text-teal-600" />
+                      <Label className="text-xs font-medium">MEI — Salário + Comissão</Label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground ml-5">
+                      Prestador MEI recebe valor fixo acordado + comissão sobre vendas.
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <Label className="text-[10px]">Comissão MEI sobre vendas (%)</Label>
+                      </div>
+                      <div className="w-24">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          value={comissao}
+                          onChange={e => setEditComissao(prev => ({ ...prev, [cargo.id]: parseFloat(e.target.value) || 0 }))}
+                          className="h-8 text-sm text-right"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
