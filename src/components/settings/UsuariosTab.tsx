@@ -343,10 +343,22 @@ export function UsuariosTab() {
                   CLT (Apenas Salário Fixo)
                 </span>
               </SelectItem>
+              <SelectItem value="clt_escalonada">
+                <span className="flex items-center gap-1.5">
+                  <TrendingUp className="h-3 w-3 text-indigo-600" />
+                  CLT (Salário + Comissão Escalonada)
+                </span>
+              </SelectItem>
               <SelectItem value="mei">
                 <span className="flex items-center gap-1.5">
                   <DollarSign className="h-3 w-3 text-teal-600" />
                   MEI (Salário + Comissão)
+                </span>
+              </SelectItem>
+              <SelectItem value="mei_only">
+                <span className="flex items-center gap-1.5">
+                  <DollarSign className="h-3 w-3 text-cyan-600" />
+                  MEI (Só Comissão)
                 </span>
               </SelectItem>
             </SelectContent>
