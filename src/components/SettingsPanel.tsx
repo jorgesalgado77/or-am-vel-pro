@@ -563,6 +563,7 @@ function CreditoRatesTab() {
       provider_type: "credito" as const,
       installments: i + 1,
       coefficient: 0,
+      tenant_id: tenantId,
     }));
     const { error } = await supabase.from("financing_rates").insert(inserts);
     if (error) toast.error("Erro ao adicionar");
