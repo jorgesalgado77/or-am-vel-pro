@@ -263,10 +263,36 @@ export default function TenantLanding() {
       try {
         const { data: info } = await (supabase as any).rpc("resolve_tenant_landing", { p_code: codigo });
         if (info) {
-          setTenant({
+          const tenantData: TenantData = {
             ...info,
+            promo_video_url: info.promo_video_url || null,
             carousel_images: Array.isArray(info.carousel_images) ? info.carousel_images.filter(Boolean) : [],
-          });
+          };
+
+          // Fetch media from funnel config via RPC or direct query
+          if (info.id) {
+            try {
+              const { data: media } = await (supabase as any).rpc("get_tenant_funnel_media", { p_tenant_id: info.id });
+              if (media) {
+                tenantData.promo_video_url = media.promo_video_url || tenantData.promo_video_url;
+                tenantData.carousel_images = Array.isArray(media.carousel_images) ? media.carousel_images.filter(Boolean) : tenantData.carousel_images;
+              }
+            } catch {
+              // RPC not available, try direct query
+              const { data: funnelData } = await supabase
+                .from("tenant_funnel_config" as any)
+                .select("promo_video_url, carousel_images")
+                .eq("tenant_id", info.id)
+                .maybeSingle();
+              if (funnelData) {
+                const fd = funnelData as any;
+                if (fd.promo_video_url) tenantData.promo_video_url = fd.promo_video_url;
+                if (Array.isArray(fd.carousel_images)) tenantData.carousel_images = fd.carousel_images.filter(Boolean);
+              }
+            }
+          }
+
+          setTenant(tenantData);
         } else {
           setNotFound(true);
         }
