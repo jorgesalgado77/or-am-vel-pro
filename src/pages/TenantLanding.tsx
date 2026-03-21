@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield,
   Paperclip, FileText, Play, Pause, Volume2, VolumeX, Maximize,
-  X, ChevronLeft, ChevronRight, Sparkles,
+  X, ChevronLeft, ChevronRight, Sparkles, MessageCircle,
+  Instagram, Facebook, Youtube, Globe, Twitter,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
