@@ -28,6 +28,7 @@ export function CargosTab() {
   const [editPerms, setEditPerms] = useState<Record<string, CargoPermissoes>>({});
   const [editingName, setEditingName] = useState<Record<string, string>>({});
   const [editComissao, setEditComissao] = useState<Record<string, number>>({});
+  const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
