@@ -450,7 +450,7 @@ function BoletoRatesTab() {
         if (parsedRates.length === 0) { toast.error("Nenhum dado válido encontrado"); return; }
 
         await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", "boleto");
-        const inserts = parsedRates.map((r) => ({ ...r, provider_name: providerName, provider_type: "boleto" as const }));
+        const inserts = parsedRates.map((r) => ({ ...r, provider_name: providerName, provider_type: "boleto" as const, tenant_id: tenantId }));
         const { error } = await supabase.from("financing_rates").insert(inserts);
         if (error) toast.error("Erro ao importar");
         else { toast.success(`Importado "${providerName}" com ${parsedRates.length} parcelas!`); refresh(); }
