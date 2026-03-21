@@ -150,12 +150,32 @@ export function FunnelPanel() {
     if (!user?.tenant_id) return;
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from("tenant_funnel_config").upsert({
-        tenant_id: user.tenant_id, ...config,
-      }, { onConflict: "tenant_id" });
-      if (error) throw error;
-      toast.success("Configurações do funil salvas!");
-    } catch { toast.error("Erro ao salvar configurações"); }
+      const payload: any = {
+        tenant_id: user.tenant_id,
+        headline: config.headline,
+        sub_headline: config.sub_headline,
+        cta_text: config.cta_text,
+        primary_color: config.primary_color,
+        benefits: config.benefits,
+        promo_video_url: config.promo_video_url,
+        carousel_images: config.carousel_images,
+        social_links: config.social_links,
+      };
+      const { error } = await (supabase as any).from("tenant_funnel_config").upsert(payload, { onConflict: "tenant_id" });
+      if (error) {
+        // If social_links column doesn't exist yet, retry without it
+        if (error.message?.includes("social_links")) {
+          const { social_links, ...rest } = payload;
+          const { error: err2 } = await (supabase as any).from("tenant_funnel_config").upsert(rest, { onConflict: "tenant_id" });
+          if (err2) throw err2;
+          toast.success("Configurações salvas! (Execute o SQL para habilitar redes sociais)");
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success("Configurações do funil salvas!");
+      }
+    } catch (e: any) { toast.error("Erro ao salvar: " + (e?.message || "erro desconhecido")); }
     finally { setSaving(false); }
   };
 
