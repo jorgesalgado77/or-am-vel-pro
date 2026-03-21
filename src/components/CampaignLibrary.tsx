@@ -320,7 +320,7 @@ export function CampaignLibrary() {
               <TabsContent key={cat} value={cat} className="mt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {campaigns.filter(c => cat === "todos" || c.categoria === cat).map(campaign => (
-                    <CampaignCard key={campaign.id} campaign={campaign} onUpdate={updateCampaign} />
+                    <CampaignCard key={campaign.id} campaign={campaign} onUpdate={updateCampaign} onDuplicate={duplicateCampaign} />
                   ))}
                   {cat === "manual" && campaigns.filter(c => c.categoria === "manual").length === 0 && (
                     <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Nenhuma campanha manual criada ainda. Clique em "Nova Campanha" para começar.</p>
