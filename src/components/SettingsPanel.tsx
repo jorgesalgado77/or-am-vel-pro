@@ -54,6 +54,7 @@ export function SettingsPanel() {
         <TabsContent value="cargos"><CargosTab /></TabsContent>
         <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
         <TabsContent value="descontos"><DescontosTab /></TabsContent>
+        <TabsContent value="comissoes"><ComissaoPolicyTab /></TabsContent>
         <TabsContent value="indicadores"><IndicadoresTab /></TabsContent>
         <TabsContent value="boleto"><BoletoRatesTab /></TabsContent>
         <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
