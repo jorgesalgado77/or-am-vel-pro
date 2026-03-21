@@ -262,7 +262,7 @@ export function CargosTab() {
                       </Table>
                     </div>
                   </div>
-                ) : (
+                ) : tipoComissao === "clt" ? (
                   <div className="rounded-md border border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-800 p-3 space-y-3">
                     <div className="flex items-center gap-1.5">
                       <Landmark className="h-3.5 w-3.5 text-purple-600" />
@@ -288,7 +288,7 @@ export function CargosTab() {
                       </div>
                     </div>
                   </div>
-                ) : tipoComissao === "clt_only" ? (
+                ) : (
                   <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-2">
                     <div className="flex items-center gap-1.5">
                       <Landmark className="h-3.5 w-3.5 text-orange-600" />
