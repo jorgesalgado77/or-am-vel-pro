@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield,
   Paperclip, FileText, Play, Pause, Volume2, VolumeX, Maximize,
-  X, ChevronLeft, ChevronRight, Sparkles,
+  X, ChevronLeft, ChevronRight, Sparkles, MessageCircle,
+  Instagram, Facebook, Youtube, Globe, Twitter,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -339,10 +340,26 @@ export default function TenantLanding() {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
+        @keyframes landingParticle {
+          0% { transform: translateY(0) translateX(0) scale(0); opacity: 0; }
+          20% { opacity: 1; transform: scale(1); }
+          100% { transform: translateY(-120px) translateX(var(--tx, 30px)) scale(0); opacity: 0; }
+        }
+        @keyframes landingWaPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+          50% { box-shadow: 0 0 0 14px rgba(37, 211, 102, 0); }
+        }
         .landing-fade-in { animation: landingFadeIn 0.3s ease-out forwards; }
         .landing-scale-in { animation: landingFadeIn 0.4s ease-out forwards; }
         .landing-float { animation: landingFloat 3s ease-in-out infinite; }
         .landing-glow { animation: landingGlow 3s ease-in-out infinite; }
+        .landing-particle {
+          position: absolute;
+          border-radius: 50%;
+          pointer-events: none;
+          animation: landingParticle var(--dur, 4s) ease-out var(--delay, 0s) infinite;
+        }
+        .landing-wa-btn { animation: landingWaPulse 2s ease-in-out infinite; }
       `}</style>
 
       <div className="min-h-[100dvh] flex flex-col" style={{ background: `linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)` }}>
@@ -350,6 +367,23 @@ export default function TenantLanding() {
         {/* ═══ Hero Header ═══ */}
         <header className="relative pt-8 pb-6 px-4 sm:px-6 overflow-hidden">
           {/* Glow orb behind logo */}
+          {/* Particles */}
+          {Array.from({ length: 18 }).map((_, i) => (
+            <div
+              key={`p-${i}`}
+              className="landing-particle"
+              style={{
+                width: `${2 + Math.random() * 3}px`,
+                height: `${2 + Math.random() * 3}px`,
+                backgroundColor: i % 3 === 0 ? color : `rgba(255,255,255,${0.2 + Math.random() * 0.3})`,
+                left: `${5 + Math.random() * 90}%`,
+                bottom: `${Math.random() * 40}%`,
+                '--tx': `${-40 + Math.random() * 80}px`,
+                '--dur': `${3 + Math.random() * 4}s`,
+                '--delay': `${Math.random() * 5}s`,
+              } as React.CSSProperties}
+            />
+          ))}
           <div
             className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] sm:w-[500px] sm:h-[400px] rounded-full blur-[100px] landing-glow pointer-events-none"
             style={{ backgroundColor: color, opacity: 0.25 }}
@@ -532,12 +566,51 @@ export default function TenantLanding() {
           </div>
         </main>
 
+        {/* ═══ Social Links ═══ */}
+        <div className="py-6 px-4 flex justify-center gap-4" style={fadeInUp(0.7)}>
+          {[
+            { icon: Instagram, label: "Instagram", url: `https://instagram.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
+            { icon: Facebook, label: "Facebook", url: `https://facebook.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
+            { icon: Youtube, label: "YouTube", url: `https://youtube.com/@${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
+            { icon: Twitter, label: "X/Twitter", url: `https://x.com/${tenant.nome_loja.toLowerCase().replace(/\s+/g, '')}` },
+            { icon: Globe, label: "Site", url: "#" },
+          ].map(({ icon: Icon, label, url }) => (
+            <a
+              key={label}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={label}
+              className="group w-11 h-11 rounded-full flex items-center justify-center border border-gray-700 hover:border-gray-500 transition-all active:scale-90"
+              style={{ background: "rgba(255,255,255,0.05)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${color}30`; (e.currentTarget as HTMLElement).style.borderColor = color; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = ""; }}
+            >
+              <Icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+            </a>
+          ))}
+        </div>
+
         {/* ═══ Footer ═══ */}
         <footer className="py-6 px-4 text-center border-t border-gray-800/50">
           <p className="text-xs text-gray-500">
             {tenant.nome_loja} · Powered by <span className="font-semibold text-gray-400">OrçaMóvel PRO</span> — Todos os Direitos Reservados — 2026
           </p>
         </footer>
+
+        {/* ═══ WhatsApp Floating Button ═══ */}
+        {tenant.whatsapp_loja && (
+          <a
+            href={`https://wa.me/55${unmask(tenant.whatsapp_loja)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="fixed bottom-5 right-5 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform landing-wa-btn"
+            style={{ backgroundColor: "#25D366" }}
+            title="Fale conosco no WhatsApp"
+          >
+            <MessageCircle className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+          </a>
+        )}
       </div>
     </>
   );
