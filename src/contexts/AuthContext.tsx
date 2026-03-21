@@ -1014,9 +1014,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session]);
 
+  const handleStayConnected = useCallback(() => {
+    setShowInactivityWarning(false);
+    // Dispatch a synthetic event to reset timers
+    window.dispatchEvent(new MouseEvent("mousedown"));
+  }, []);
+
   return (
     <AuthContext.Provider value={{ user, session, loading, login, signUp, logout, hasPermission, refreshUser }}>
       {children}
+      <InactivityWarningDialog open={showInactivityWarning} onStayConnected={handleStayConnected} />
     </AuthContext.Provider>
   );
 }
