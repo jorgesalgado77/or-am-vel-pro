@@ -98,6 +98,9 @@ export function ReferralPanel() {
   // Create link form
   const [newClientName, setNewClientName] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedExistingClient, setSelectedExistingClient] = useState<{ id: string; nome: string; telefone1?: string | null; telefone2?: string | null } | null>(null);
+  const [existingClients, setExistingClients] = useState<{ id: string; nome: string; telefone1?: string | null; telefone2?: string | null }[]>([]);
 
   // Reward config
   const [rewardConfig, setRewardConfig] = useState<RewardConfig>({
@@ -152,6 +155,18 @@ export function ReferralPanel() {
   };
 
   useEffect(() => { fetchData(); }, [tenantId]);
+
+  // Fetch existing clients for selection
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase
+      .from("clients")
+      .select("id, nome, telefone1, telefone2")
+      .order("nome")
+      .then(({ data }) => {
+        if (data) setExistingClients(data as any);
+      });
+  }, [tenantId]);
 
   // KPIs
   const totalLinks = links.length;
@@ -600,6 +615,53 @@ export function ReferralPanel() {
             <DialogTitle className="flex items-center gap-2"><Link2 className="h-5 w-5" /> Novo Link de Indicação</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Client selector */}
+            <div>
+              <Label>Selecionar Cliente Cadastrado</Label>
+              <div className="relative mt-1">
+                <Input
+                  value={clientSearch}
+                  onChange={e => { setClientSearch(e.target.value); setSelectedExistingClient(null); }}
+                  placeholder="Buscar cliente por nome..."
+                  className="pr-8"
+                />
+                <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+              {clientSearch && !selectedExistingClient && (
+                <div className="border rounded-md mt-1 max-h-32 overflow-y-auto">
+                  {existingClients
+                    .filter(c => c.nome.toLowerCase().includes(clientSearch.toLowerCase()))
+                    .slice(0, 6)
+                    .map(c => (
+                      <button
+                        key={c.id}
+                        className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors text-sm"
+                        onClick={() => {
+                          setSelectedExistingClient(c);
+                          setNewClientName(c.nome);
+                          setNewClientPhone(c.telefone1 || c.telefone2 || "");
+                          setClientSearch(c.nome);
+                        }}
+                      >
+                        <span className="font-medium">{c.nome}</span>
+                        {c.telefone1 && <span className="text-xs text-muted-foreground ml-2">{c.telefone1}</span>}
+                      </button>
+                    ))
+                  }
+                  {existingClients.filter(c => c.nome.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                    <p className="text-xs text-muted-foreground p-3">Nenhum cliente encontrado</p>
+                  )}
+                </div>
+              )}
+              {selectedExistingClient && (
+                <Badge variant="secondary" className="mt-1 gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> {selectedExistingClient.nome}
+                </Badge>
+              )}
+            </div>
+
+            <Separator />
+
             <div>
               <Label>Nome do Cliente</Label>
               <Input value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="Ex: Maria Silva" className="mt-1" />

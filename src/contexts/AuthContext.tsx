@@ -395,14 +395,22 @@ async function ensureUserProfile(authUser: SupabaseAuthUser | null, metadata?: R
   };
 
   if (existingUser) {
-    const updatePayload: Record<string, unknown> = {
-      ...basePayload,
+    // Only update auth linkage fields — never overwrite nome_completo or other
+    // user-editable fields that may have been customized after initial creation.
+    const linkPayload: Record<string, unknown> = {
       auth_user_id: authUser.id,
+      email: authUser.email?.trim().toLowerCase() || existingUser.email,
+      tenant_id: metadata.tenant_id as string,
     };
+
+    // Only set nome_completo if the existing one is empty/default
+    if (!existingUser.nome_completo || existingUser.nome_completo === "Usuário") {
+      linkPayload.nome_completo = basePayload.nome_completo;
+    }
 
     const { error } = await supabase
       .from("usuarios")
-      .update(updatePayload as any)
+      .update(linkPayload as any)
       .eq("id", existingUser.id);
 
     if (error) {
