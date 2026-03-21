@@ -297,6 +297,7 @@ export default function TenantLanding() {
         let tenantData: TenantData | null = landingData
           ? {
               ...landingData,
+              nome_loja: (tenantInfo?.nome && tenantInfo.nome !== "Loja" ? tenantInfo.nome : null) || landingData.nome_loja,
               logo_url: landingData.logo_url || null,
               primary_color: landingData.primary_color || "hsl(199,89%,48%)",
               subtitle: landingData.subtitle || "",
@@ -372,20 +373,20 @@ export default function TenantLanding() {
             // keep lightweight fallback data for public route
           }
 
-          // Also try to get logo from company_settings
-          if (!tenantData.logo_url) {
-            try {
-              const { data: cs } = await supabase
-                .from("company_settings" as any)
-                .select("logo_url, whatsapp")
-                .eq("tenant_id", tenantData.id)
-                .maybeSingle();
-              if (cs) {
-                if ((cs as any).logo_url) tenantData.logo_url = (cs as any).logo_url;
-                if ((cs as any).whatsapp && !tenantData.whatsapp_loja) tenantData.whatsapp_loja = (cs as any).whatsapp;
-              }
-            } catch {}
-          }
+          // Also try to get logo and nome_empresa from company_settings
+          try {
+            const { data: cs } = await supabase
+              .from("company_settings" as any)
+              .select("logo_url, whatsapp, nome_empresa")
+              .eq("tenant_id", tenantData.id)
+              .maybeSingle();
+            if (cs) {
+              if ((cs as any).logo_url && !tenantData.logo_url) tenantData.logo_url = (cs as any).logo_url;
+              if ((cs as any).whatsapp && !tenantData.whatsapp_loja) tenantData.whatsapp_loja = (cs as any).whatsapp;
+              const nomeEmpresa = (cs as any).nome_empresa;
+              if (nomeEmpresa && nomeEmpresa.trim()) tenantData.nome_loja = nomeEmpresa.trim();
+            }
+          } catch {}
         }
 
         if (active) {
