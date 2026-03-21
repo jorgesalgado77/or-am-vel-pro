@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck, DollarSign, TrendingUp, Landmark } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useCargos } from "@/hooks/useCargos";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 import { maskPhone, maskCurrency, unmaskCurrency } from "@/lib/masks";
 
 const EMPTY_FORM = {
