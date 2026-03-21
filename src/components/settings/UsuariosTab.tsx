@@ -165,6 +165,7 @@ export function UsuariosTab() {
       cargo_id: form.cargo_id || null,
       foto_url: form.foto_url || null,
       tipo_regime: form.tipo_regime || null,
+      tipo_comissao: form.tipo_comissao || "fixa",
       comissao_percentual: form.comissao_percentual ? parseFloat(form.comissao_percentual) : 0,
       salario_fixo: form.salario_fixo ? unmaskCurrency(form.salario_fixo) : 0,
     };
