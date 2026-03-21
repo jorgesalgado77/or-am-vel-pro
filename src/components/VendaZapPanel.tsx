@@ -168,17 +168,22 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
 
   if (!addon || !addon.ativo) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 space-y-4">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-          <Bot className="h-8 w-8 text-primary" />
-        </div>
-        <h3 className="text-lg font-semibold text-foreground">VendaZap AI</h3>
-        <p className="text-sm text-muted-foreground text-center max-w-md">
-          Assistente inteligente de vendas para WhatsApp. Este add-on não está ativo para sua loja.
-          Entre em contato com o suporte para adquirir — R$ 69/mês.
-        </p>
-        {onBack && <Button variant="outline" onClick={onBack} className="gap-2"><ArrowLeft className="h-4 w-4" />Voltar</Button>}
-      </div>
+      <AddonPurchaseCard
+        addonName="VendaZap AI"
+        addonSlug="vendazap_ai"
+        price="R$ 69"
+        description="Assistente inteligente de vendas para WhatsApp. Gere mensagens persuasivas, receba sugestões da IA e automatize follow-ups."
+        features={[
+          "Geração ilimitada de copys de vendas",
+          "Sugestões automáticas por IA",
+          "Gatilhos inteligentes de reativação",
+          "Auto Pilot — IA responde sozinha",
+          "Follow-up automático com lembretes",
+          "Analytics de conversão por mensagem",
+        ]}
+        icon={<Bot className="h-8 w-8 text-primary" />}
+        onBack={onBack}
+      />
     );
   }
 
