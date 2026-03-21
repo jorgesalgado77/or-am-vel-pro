@@ -16,6 +16,7 @@ import { useTenant } from "@/contexts/TenantContext";
 
 export function IndicadoresTab() {
   const { indicadores, refresh } = useIndicadores();
+  const { tenantId } = useTenant();
   const [newName, setNewName] = useState("");
   const [newComissao, setNewComissao] = useState(0);
   const [newTelefone, setNewTelefone] = useState("");
