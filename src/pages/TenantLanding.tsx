@@ -249,14 +249,24 @@ export default function TenantLanding() {
         const [landingResult, tenantIdResult, tenantInfoResult] = await Promise.all([
           (supabase as any)
             .rpc("resolve_tenant_landing", { p_code: normalizedCode })
-            .catch(() => ({ data: null })),
+            .catch((error: any) => ({ data: null, error })),
           (supabase as any)
             .rpc("resolve_tenant_by_code", { p_code: normalizedCode })
-            .catch(() => ({ data: null })),
+            .catch((error: any) => ({ data: null, error })),
           (supabase as any)
             .rpc("resolve_tenant_info_by_code", { p_code: normalizedCode })
-            .catch(() => ({ data: null })),
+            .catch((error: any) => ({ data: null, error })),
         ]);
+
+        console.info("[TenantLanding] lookup", {
+          normalizedCode,
+          landingData: landingResult?.data ?? null,
+          landingError: landingResult?.error?.message ?? null,
+          tenantIdData: tenantIdResult?.data ?? null,
+          tenantIdError: tenantIdResult?.error?.message ?? null,
+          tenantInfoData: tenantInfoResult?.data ?? null,
+          tenantInfoError: tenantInfoResult?.error?.message ?? null,
+        });
 
         const landingData = landingResult?.data ?? null;
         const tenantId = typeof tenantIdResult?.data === "string"
@@ -302,6 +312,7 @@ export default function TenantLanding() {
         }
 
         if (!tenantData) {
+          console.warn("[TenantLanding] not found branch", { normalizedCode });
           if (active) setNotFound(true);
           return;
         }
@@ -331,10 +342,12 @@ export default function TenantLanding() {
         }
 
         if (active) {
+          console.info("[TenantLanding] resolved tenant", tenantData);
           setTenant(tenantData);
           setNotFound(false);
         }
-      } catch {
+      } catch (error) {
+        console.error("[TenantLanding] fatal error", error);
         if (active) setNotFound(true);
       } finally {
         if (active) setLoading(false);
