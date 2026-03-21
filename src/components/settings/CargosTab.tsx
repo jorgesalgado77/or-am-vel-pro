@@ -4,12 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCargos, type CargoPermissoes } from "@/hooks/useCargos";
+import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 import { getTenantId } from "@/lib/tenantState";
 
 const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
@@ -24,10 +27,12 @@ const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
 
 export function CargosTab() {
   const { cargos, refresh, DEFAULT_PERMISSOES } = useCargos();
+  const { policy } = useComissaoPolicy();
   const [newName, setNewName] = useState("");
   const [editPerms, setEditPerms] = useState<Record<string, CargoPermissoes>>({});
   const [editingName, setEditingName] = useState<Record<string, string>>({});
   const [editComissao, setEditComissao] = useState<Record<string, number>>({});
+  const [editTipoComissao, setEditTipoComissao] = useState<Record<string, string>>({});
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({});
 
   const handleAdd = async () => {
@@ -51,16 +56,24 @@ export function CargosTab() {
     setEditPerms(prev => ({ ...prev, [cargoId]: { ...existing, [key]: !existing[key] } }));
   };
 
-  const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined;
+  const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined;
+
+  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" => {
+    if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as "fixa" | "escalonada";
+    if (policy.tipo === "escalonada" && policy.cargos_ids.includes(cargoId)) return "escalonada";
+    return "fixa";
+  };
 
   const handleSave = async (cargoId: string) => {
     const perms = editPerms[cargoId];
     const newNome = editingName[cargoId];
     const newComissao = editComissao[cargoId];
+    const newTipo = editTipoComissao[cargoId];
     const updates: any = {};
     if (perms) updates.permissoes = perms;
     if (newNome !== undefined) updates.nome = newNome.trim();
     if (newComissao !== undefined) updates.comissao_percentual = newComissao;
+    if (newTipo !== undefined) updates.tipo_comissao = newTipo;
     if (Object.keys(updates).length === 0) return;
     const { error } = await supabase.from("cargos").update(updates).eq("id", cargoId);
     if (error) toast.error("Erro ao salvar");
@@ -69,6 +82,7 @@ export function CargosTab() {
       setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
       setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
       setEditComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+      setEditTipoComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
       refresh();
     }
   };
@@ -91,6 +105,8 @@ export function CargosTab() {
       {cargos.map(cargo => {
         const perms = editPerms[cargo.id] || cargo.permissoes;
         const comissao = editComissao[cargo.id] ?? cargo.comissao_percentual;
+        const tipoComissao = getCargoTipoComissao(cargo.id);
+
         return (
           <Card key={cargo.id}>
             <CardHeader className="pb-3">
@@ -119,23 +135,103 @@ export function CargosTab() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Commission percentage */}
-              <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/30 p-3">
-                <div className="flex-1">
-                  <Label className="text-xs font-medium">Comissão sobre vendas (%)</Label>
-                  <p className="text-[10px] text-muted-foreground">Percentual calculado sobre o valor à vista da venda</p>
+              {/* Commission type selector */}
+              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs font-semibold">Tipo de Comissão</Label>
+                    <p className="text-[10px] text-muted-foreground">Selecione o modelo de comissão para este cargo</p>
+                  </div>
+                  <Select
+                    value={tipoComissao}
+                    onValueChange={(v) => setEditTipoComissao(prev => ({ ...prev, [cargo.id]: v }))}
+                  >
+                    <SelectTrigger className="w-44 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixa">
+                        <span className="flex items-center gap-1.5">
+                          <DollarSign className="h-3 w-3 text-emerald-600" />
+                          Comissão Fixa
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="escalonada">
+                        <span className="flex items-center gap-1.5">
+                          <TrendingUp className="h-3 w-3 text-blue-600" />
+                          Comissão Escalonada
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="w-28">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    value={comissao}
-                    onChange={e => setEditComissao(prev => ({ ...prev, [cargo.id]: parseFloat(e.target.value) || 0 }))}
-                    className="h-8 text-sm text-right"
-                  />
-                </div>
+
+                {tipoComissao === "fixa" ? (
+                  <div className="flex items-center gap-4 rounded-md border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800 p-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                        <Label className="text-xs font-medium">Comissão fixa sobre vendas (%)</Label>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground ml-5">Percentual fixo calculado sobre o valor à vista da venda</p>
+                    </div>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        value={comissao}
+                        onChange={e => setEditComissao(prev => ({ ...prev, [cargo.id]: parseFloat(e.target.value) || 0 }))}
+                        className="h-8 text-sm text-right"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800 p-3 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5 text-blue-600" />
+                      <Label className="text-xs font-medium">Comissão Escalonada por Metas</Label>
+                      <Badge variant="outline" className="text-[9px] ml-auto border-blue-300 text-blue-700 dark:text-blue-400">
+                        {policy.faixas.length} faixas configuradas
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground ml-5">
+                      Comissão calculada automaticamente conforme o valor da venda. Configure as faixas em <strong>Configurações &gt; Comissões</strong>.
+                    </p>
+                    <div className="mt-2 max-h-40 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="text-[10px]">
+                            <TableHead className="py-1 text-[10px]">Faixa</TableHead>
+                            <TableHead className="py-1 text-[10px] text-center">Base</TableHead>
+                            <TableHead className="py-1 text-[10px] text-center">Prêmio</TableHead>
+                            <TableHead className="py-1 text-[10px] text-center">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {policy.faixas.slice(0, 5).map((f, i) => (
+                            <TableRow key={i} className="text-[10px]">
+                              <TableCell className="py-0.5 text-[10px]">
+                                {f.min.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} — {f.max.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                              </TableCell>
+                              <TableCell className="py-0.5 text-center text-[10px]">{f.comissao}%</TableCell>
+                              <TableCell className="py-0.5 text-center text-[10px]">{f.premio}%</TableCell>
+                              <TableCell className="py-0.5 text-center text-[10px] font-semibold text-blue-700 dark:text-blue-400">{f.comissao + f.premio}%</TableCell>
+                            </TableRow>
+                          ))}
+                          {policy.faixas.length > 5 && (
+                            <TableRow>
+                              <TableCell colSpan={4} className="py-0.5 text-[10px] text-center text-muted-foreground">
+                                +{policy.faixas.length - 5} faixas...
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Collapsible open={openCards[cargo.id] || false} onOpenChange={(v) => setOpenCards(prev => ({ ...prev, [cargo.id]: v }))}>
