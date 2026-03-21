@@ -12,9 +12,11 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { maskPhone } from "@/lib/masks";
+import { useTenant } from "@/contexts/TenantContext";
 
 export function IndicadoresTab() {
   const { indicadores, refresh } = useIndicadores();
+  const { tenantId } = useTenant();
   const [newName, setNewName] = useState("");
   const [newComissao, setNewComissao] = useState(0);
   const [newTelefone, setNewTelefone] = useState("");
@@ -30,6 +32,7 @@ export function IndicadoresTab() {
       comissao_percentual: newComissao,
       telefone: newTelefone || null,
       email: newEmail || null,
+      tenant_id: tenantId,
     } as any);
     if (error) toast.error("Erro ao adicionar");
     else {
