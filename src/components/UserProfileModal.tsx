@@ -100,6 +100,23 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const invalidClass = (key: string) =>
     isFieldInvalid(key) ? "border-destructive ring-1 ring-destructive/30" : "";
 
+  // Profile completeness
+  const profileFields = [
+    { filled: !!form.nome_completo.trim() },
+    { filled: !!form.apelido.trim() },
+    { filled: !!form.email.trim() },
+    { filled: !!form.telefone.trim() },
+    { filled: !!form.telefone_whatsapp.trim() },
+    { filled: !!birthDate },
+    { filled: !!fotoUrl },
+    { filled: !!form.cep.trim() },
+    { filled: !!form.endereco.trim() },
+    { filled: !!form.cidade.trim() },
+    { filled: !!form.uf.trim() },
+  ];
+  const filledCount = profileFields.filter(f => f.filled).length;
+  const progressPercent = Math.round((filledCount / profileFields.length) * 100);
+
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
 
