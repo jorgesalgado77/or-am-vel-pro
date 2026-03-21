@@ -645,7 +645,7 @@ export function UsuariosTab() {
               </TableHeader>
               <TableBody>
                 {usuarios.length === 0 && (
-                  <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado</TableCell></TableRow>
                 )}
                 {usuarios.map((u) => (
                   <TableRow key={u.id} className={!u.ativo ? "opacity-50" : ""}>
