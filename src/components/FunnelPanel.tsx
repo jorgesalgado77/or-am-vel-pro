@@ -85,6 +85,7 @@ export function FunnelPanel() {
           benefits: d.benefits || DEFAULT_CONFIG.benefits,
           promo_video_url: d.promo_video_url || "",
           carousel_images: d.carousel_images || [],
+          social_links: d.social_links || DEFAULT_SOCIAL,
         });
       }
       setLoading(false);
