@@ -438,6 +438,14 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                                 onClick={async () => {
                                   const newVip = { ...vip, deal_room: !vip.deal_room };
                                   await supabase.from("tenants").update({ recursos_vip: newVip } as any).eq("id", t.id);
+                                  logAudit({
+                                    acao: !vip.deal_room ? "addon_liberado" : "addon_revogado",
+                                    entidade: "tenant",
+                                    entidade_id: t.id,
+                                    usuario_nome: adminName,
+                                    tenant_id: t.id,
+                                    detalhes: { addon: "deal_room", loja: t.nome_loja },
+                                  });
                                   toast.success(`Deal Room ${!vip.deal_room ? "liberado" : "revogado"} para ${t.nome_loja}`);
                                   fetchData();
                                 }}
