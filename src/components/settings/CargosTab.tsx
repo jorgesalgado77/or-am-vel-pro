@@ -60,10 +60,11 @@ export function CargosTab() {
 
   const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined;
 
-  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" => {
-    if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as "fixa" | "escalonada" | "clt";
+  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" | "clt_only" => {
+    if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as any;
     const cargo = cargos.find(c => c.id === cargoId);
     if ((cargo as any)?.tipo_comissao === "clt") return "clt";
+    if ((cargo as any)?.tipo_comissao === "clt_only") return "clt_only";
     if (policy.cargos_ids.includes(cargoId)) return "escalonada";
     return "fixa";
   };
@@ -193,6 +194,12 @@ export function CargosTab() {
                           CLT (Salário + Comissão)
                         </span>
                       </SelectItem>
+                      <SelectItem value="clt_only">
+                        <span className="flex items-center gap-1.5">
+                          <Landmark className="h-3 w-3 text-orange-600" />
+                          CLT (Apenas Salário Fixo)
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -255,7 +262,7 @@ export function CargosTab() {
                       </Table>
                     </div>
                   </div>
-                ) : (
+                ) : tipoComissao === "clt" ? (
                   <div className="rounded-md border border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-800 p-3 space-y-3">
                     <div className="flex items-center gap-1.5">
                       <Landmark className="h-3.5 w-3.5 text-purple-600" />
@@ -280,6 +287,16 @@ export function CargosTab() {
                         />
                       </div>
                     </div>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Landmark className="h-3.5 w-3.5 text-orange-600" />
+                      <Label className="text-xs font-medium">CLT — Apenas Salário Fixo</Label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground ml-5">
+                      Funcionário CLT recebe apenas o salário fixo configurado no cadastro, sem comissão sobre vendas.
+                    </p>
                   </div>
                 )}
               </div>
