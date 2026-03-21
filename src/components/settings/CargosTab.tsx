@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign } from "lucide-react";
+import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCargos, type CargoPermissoes } from "@/hooks/useCargos";
 import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { getTenantId } from "@/lib/tenantState";
 
 const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
@@ -27,7 +28,8 @@ const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
 
 export function CargosTab() {
   const { cargos, refresh, DEFAULT_PERMISSOES } = useCargos();
-  const { policy } = useComissaoPolicy();
+  const { policy, refresh: refreshPolicy, settingsId } = useComissaoPolicy();
+  const { settings } = useCompanySettings();
   const [newName, setNewName] = useState("");
   const [editPerms, setEditPerms] = useState<Record<string, CargoPermissoes>>({});
   const [editingName, setEditingName] = useState<Record<string, string>>({});
@@ -58,9 +60,11 @@ export function CargosTab() {
 
   const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined;
 
-  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" => {
-    if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as "fixa" | "escalonada";
-    if (policy.tipo === "escalonada" && policy.cargos_ids.includes(cargoId)) return "escalonada";
+  const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" => {
+    if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as "fixa" | "escalonada" | "clt";
+    const cargo = cargos.find(c => c.id === cargoId);
+    if ((cargo as any)?.tipo_comissao === "clt") return "clt";
+    if (policy.cargos_ids.includes(cargoId)) return "escalonada";
     return "fixa";
   };
 
@@ -73,18 +77,39 @@ export function CargosTab() {
     if (perms) updates.permissoes = perms;
     if (newNome !== undefined) updates.nome = newNome.trim();
     if (newComissao !== undefined) updates.comissao_percentual = newComissao;
-    if (newTipo !== undefined) updates.tipo_comissao = newTipo;
-    if (Object.keys(updates).length === 0) return;
-    const { error } = await supabase.from("cargos").update(updates).eq("id", cargoId);
-    if (error) toast.error("Erro ao salvar");
-    else {
-      toast.success("Cargo salvo!");
-      setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
-      setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
-      setEditComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
-      setEditTipoComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
-      refresh();
+
+    // Save commission type: update cargos_ids in company_settings
+    if (newTipo !== undefined && settingsId) {
+      const currentCargosIds = [...policy.cargos_ids];
+      let updatedCargosIds: string[];
+      if (newTipo === "escalonada") {
+        updatedCargosIds = currentCargosIds.includes(cargoId) ? currentCargosIds : [...currentCargosIds, cargoId];
+      } else {
+        updatedCargosIds = currentCargosIds.filter(id => id !== cargoId);
+      }
+      const updatedPolicy = { ...policy, cargos_ids: updatedCargosIds };
+      const { error: policyError } = await (supabase
+        .from("company_settings") as any)
+        .update({ comissao_policy: updatedPolicy })
+        .eq("id", settingsId);
+      if (policyError) {
+        toast.error("Erro ao salvar tipo de comissão: " + policyError.message);
+        return;
+      }
+      refreshPolicy();
     }
+
+    if (Object.keys(updates).length > 0) {
+      const { error } = await supabase.from("cargos").update(updates).eq("id", cargoId);
+      if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+    }
+
+    toast.success("Cargo salvo!");
+    setEditPerms(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    setEditingName(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    setEditComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    setEditTipoComissao(prev => { const n = { ...prev }; delete n[cargoId]; return n; });
+    refresh();
   };
 
   return (
@@ -162,6 +187,12 @@ export function CargosTab() {
                           Comissão Escalonada
                         </span>
                       </SelectItem>
+                      <SelectItem value="clt">
+                        <span className="flex items-center gap-1.5">
+                          <Landmark className="h-3 w-3 text-purple-600" />
+                          CLT (Salário + Comissão)
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -187,7 +218,7 @@ export function CargosTab() {
                       />
                     </div>
                   </div>
-                ) : (
+                ) : tipoComissao === "escalonada" ? (
                   <div className="rounded-md border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800 p-3 space-y-2">
                     <div className="flex items-center gap-1.5">
                       <TrendingUp className="h-3.5 w-3.5 text-blue-600" />
@@ -222,6 +253,32 @@ export function CargosTab() {
                           ))}
                         </TableBody>
                       </Table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-800 p-3 space-y-3">
+                    <div className="flex items-center gap-1.5">
+                      <Landmark className="h-3.5 w-3.5 text-purple-600" />
+                      <Label className="text-xs font-medium">CLT — Salário Fixo + Comissão</Label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground ml-5">
+                      Funcionário com registro CLT recebe salário fixo configurado no cadastro + comissão fixa sobre vendas.
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <Label className="text-[10px]">Comissão CLT sobre vendas (%)</Label>
+                      </div>
+                      <div className="w-24">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          value={comissao}
+                          onChange={e => setEditComissao(prev => ({ ...prev, [cargo.id]: parseFloat(e.target.value) || 0 }))}
+                          className="h-8 text-sm text-right"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
