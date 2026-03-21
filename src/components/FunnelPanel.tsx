@@ -130,6 +130,7 @@ export function FunnelPanel() {
   };
 
   const removeCarouselImage = (idx: number) => {
+    if (idx === 0) return; // First image is locked (platform branding)
     setConfig((p) => ({ ...p, carousel_images: p.carousel_images.filter((_, i) => i !== idx) }));
   };
 
@@ -138,6 +139,8 @@ export function FunnelPanel() {
     const from = result.source.index;
     const to = result.destination.index;
     if (from === to) return;
+    // Prevent moving first image or moving anything to position 0
+    if (from === 0 || to === 0) return;
     setConfig((p) => {
       const imgs = [...p.carousel_images];
       const [moved] = imgs.splice(from, 1);
