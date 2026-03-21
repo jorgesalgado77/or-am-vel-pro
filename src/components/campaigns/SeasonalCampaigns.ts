@@ -1,7 +1,7 @@
 export interface Campaign {
   id: string;
   titulo: string;
-  categoria: "cozinha" | "quarto" | "planejados" | "datas";
+  categoria: "cozinha" | "quarto" | "planejados" | "datas" | "manual";
   plataforma: "facebook" | "instagram" | "google";
   headline: string;
   copy: string;
