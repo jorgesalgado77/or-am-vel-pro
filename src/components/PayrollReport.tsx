@@ -393,7 +393,6 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                          );
                        })()}
                      </TableCell>
-                    </TableCell>
                     <TableCell className="text-sm">{c.client_name || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.contrato_numero || "—"}</TableCell>
                     <TableCell className="text-right text-sm">{c.valor_base ? formatCurrency(Number(c.valor_base)) : "—"}</TableCell>
