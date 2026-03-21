@@ -218,9 +218,29 @@ export function UsuariosTab() {
     }
   };
 
-  const getCargoNome = (cargoId: string | null) => {
+   const getCargoNome = (cargoId: string | null) => {
     if (!cargoId) return "—";
     return cargos.find((c) => c.id === cargoId)?.nome || "—";
+  };
+
+  const TIPO_COMISSAO_LABELS: Record<string, string> = {
+    fixa: "Fixa",
+    escalonada: "Escalonada",
+    clt: "CLT (Sal+Com)",
+    clt_only: "CLT (Só Salário)",
+    clt_escalonada: "CLT (Escalonada)",
+    mei: "MEI (Sal+Com)",
+    mei_only: "MEI (Só Com)",
+  };
+
+  const getCargoTipoComissaoLabel = (cargoId: string | null) => {
+    if (!cargoId) return "—";
+    const cargo = cargos.find((c) => c.id === cargoId);
+    if (!cargo) return "—";
+    const tc = (cargo as any)?.tipo_comissao;
+    if (tc && TIPO_COMISSAO_LABELS[tc]) return TIPO_COMISSAO_LABELS[tc];
+    if (policy.cargos_ids.includes(cargoId)) return "Escalonada";
+    return "Fixa";
   };
 
   const renderPhotoUpload = (inputRef: React.RefObject<HTMLInputElement | null>, isEdit = false) => (
@@ -616,6 +636,7 @@ export function UsuariosTab() {
                   <TableHead>Email</TableHead>
                   <TableHead>Cargo</TableHead>
                   <TableHead>Regime</TableHead>
+                  <TableHead>Tipo Comissão</TableHead>
                   <TableHead className="text-right">Comissão</TableHead>
                   <TableHead className="text-right">Salário</TableHead>
                   <TableHead className="text-center">Ativo</TableHead>
@@ -624,7 +645,7 @@ export function UsuariosTab() {
               </TableHeader>
               <TableBody>
                 {usuarios.length === 0 && (
-                  <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground py-8">Nenhum usuário cadastrado</TableCell></TableRow>
                 )}
                 {usuarios.map((u) => (
                   <TableRow key={u.id} className={!u.ativo ? "opacity-50" : ""}>
@@ -642,6 +663,9 @@ export function UsuariosTab() {
                     <TableCell>{u.email || "—"}</TableCell>
                     <TableCell>{getCargoNome(u.cargo_id)}</TableCell>
                     <TableCell>{u.tipo_regime || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs font-normal">{getCargoTipoComissaoLabel(u.cargo_id)}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">{u.comissao_percentual ? `${u.comissao_percentual}%` : "—"}</TableCell>
                     <TableCell className="text-right">{u.salario_fixo ? formatCurrencyDisplay(u.salario_fixo) : "—"}</TableCell>
                     <TableCell className="text-center">
