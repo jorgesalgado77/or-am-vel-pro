@@ -286,9 +286,9 @@ export function UsuariosTab() {
             if (tipoComissao.startsWith("clt")) tipoRegime = "CLT";
             else if (tipoComissao.startsWith("mei")) tipoRegime = "MEI";
             
-            // Get salario_base from cargo (stored in centavos)
+            // Get salario_base from cargo (stored in reais)
             const salarioBase = (selectedCargo as any)?.salario_base;
-            const salarioFormatted = salarioBase ? formatCurrencyDisplay(salarioBase / 100) : "";
+            const salarioFormatted = salarioBase ? formatCurrencyDisplay(salarioBase) : "";
 
             setForm((f) => ({
               ...f,
