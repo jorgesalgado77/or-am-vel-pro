@@ -138,24 +138,34 @@ export function CargosTab() {
                 </div>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-secondary/50">
-                    <TableHead>Função</TableHead>
-                    <TableHead className="w-24 text-center">Acesso</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(Object.keys(PERM_LABELS) as Array<keyof CargoPermissoes>).map(key => (
-                    <TableRow key={key}>
-                      <TableCell>{PERM_LABELS[key]}</TableCell>
-                      <TableCell className="text-center">
-                        <Switch checked={perms[key]} onCheckedChange={() => togglePerm(cargo.id, cargo.permissoes, key)} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <Collapsible open={openCards[cargo.id] || false} onOpenChange={(v) => setOpenCards(prev => ({ ...prev, [cargo.id]: v }))}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between gap-2 text-muted-foreground hover:text-foreground">
+                    <span className="text-xs font-medium">Permissões de Acesso</span>
+                    {openCards[cargo.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-secondary/50">
+                        <TableHead>Função</TableHead>
+                        <TableHead className="w-24 text-center">Acesso</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(Object.keys(PERM_LABELS) as Array<keyof CargoPermissoes>).map(key => (
+                        <TableRow key={key}>
+                          <TableCell>{PERM_LABELS[key]}</TableCell>
+                          <TableCell className="text-center">
+                            <Switch checked={perms[key]} onCheckedChange={() => togglePerm(cargo.id, cargo.permissoes, key)} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CollapsibleContent>
+              </Collapsible>
             </CardContent>
           </Card>
         );
