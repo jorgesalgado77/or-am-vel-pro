@@ -18,6 +18,7 @@ import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { formatCurrency } from "@/lib/financing";
+import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 
 interface PayrollCommission {
   id: string;
@@ -41,6 +42,7 @@ interface PayrollReportProps {
 export function PayrollReport({ onBack }: PayrollReportProps) {
   const { usuarios } = useUsuarios();
   const { cargos } = useCargos();
+  const { policy } = useComissaoPolicy();
   const [commissions, setCommissions] = useState<PayrollCommission[]>([]);
   const [filterMode, setFilterMode] = useState<"mes" | "periodo">("mes");
   const [mesReferencia, setMesReferencia] = useState(() => format(new Date(), "yyyy-MM"));
@@ -337,6 +339,7 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                 <TableRow className="bg-secondary/50">
                   <TableHead>Funcionário / Indicador</TableHead>
                   <TableHead>Cargo/Função</TableHead>
+                  <TableHead>Tipo Comissão</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Contrato</TableHead>
                   <TableHead className="text-right">Valor Base</TableHead>
@@ -348,7 +351,7 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
               <TableBody>
                 {commissions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       Nenhuma comissão no período
                     </TableCell>
                   </TableRow>
@@ -362,6 +365,19 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                       {c.cargo_referencia ? (
                         <Badge variant="outline" className="text-[10px]">{c.cargo_referencia}</Badge>
                       ) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        // Determine commission type based on policy and user's cargo
+                        const userRecord = c.usuario_id ? usuarios.find(u => u.id === c.usuario_id) : null;
+                        const cargoId = userRecord?.cargo_id || null;
+                        const isEscalonada = policy.tipo === "escalonada" && cargoId && policy.cargos_ids.includes(cargoId);
+                        return isEscalonada ? (
+                          <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-700">Escalonada</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] border-primary/50 text-primary">Fixa</Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-sm">{c.client_name || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.contrato_numero || "—"}</TableCell>

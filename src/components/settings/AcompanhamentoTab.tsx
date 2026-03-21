@@ -11,6 +11,8 @@ import { Plus, Search, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useComissaoPolicy, calcularComissao } from "@/hooks/useComissaoPolicy";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STATUS_OPTIONS = [
   { value: "medicao", label: "Medição" },
@@ -43,6 +45,8 @@ interface TrackingRow {
 }
 
 export function AcompanhamentoTab() {
+  const { user } = useAuth();
+  const { policy } = useComissaoPolicy();
   const [trackings, setTrackings] = useState<TrackingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -97,6 +101,14 @@ export function AcompanhamentoTab() {
       .limit(1)
       .single();
 
+    // Calculate commission based on policy
+    const comissaoResult = calcularComissao(
+      form.valor_contrato,
+      0, // Will be resolved by cargo if needed
+      policy,
+      user?.cargo_id || null
+    );
+
     const { error } = await supabase.from("client_tracking").insert({
       client_id: clientData?.id || "00000000-0000-0000-0000-000000000000",
       numero_contrato: form.numero_contrato.trim(),
@@ -107,6 +119,9 @@ export function AcompanhamentoTab() {
       data_fechamento: form.data_fechamento || null,
       projetista: form.projetista.trim() || null,
       status: "medicao",
+      comissao_percentual: comissaoResult.percentual,
+      comissao_valor: Math.round((form.valor_contrato * comissaoResult.percentual / 100) * 100) / 100,
+      comissao_status: "pendente",
     } as any);
 
     setSaving(false);
