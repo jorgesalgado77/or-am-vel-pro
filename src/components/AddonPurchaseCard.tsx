@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, QrCode, CheckCircle2, ArrowLeft, Sparkles, Shield, Zap } from "lucide-react";
+import { CreditCard, QrCode, CheckCircle2, ArrowLeft, Sparkles, Shield, Lock, Video, FileText } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { toast } from "sonner";
@@ -13,13 +13,14 @@ interface AddonPurchaseCardProps {
   addonName: string;
   addonSlug: string;
   price: string;
+  priceExtra?: string;
   description: string;
-  features: string[];
+  features: { label: string; icon: React.ReactNode }[];
   icon: React.ReactNode;
   onBack?: () => void;
 }
 
-export function AddonPurchaseCard({ addonName, addonSlug, price, description, features, icon, onBack }: AddonPurchaseCardProps) {
+export function AddonPurchaseCard({ addonName, addonSlug, price, priceExtra, description, features, icon, onBack }: AddonPurchaseCardProps) {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "card" | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -29,11 +30,8 @@ export function AddonPurchaseCard({ addonName, addonSlug, price, description, fe
   const handleConfirmPayment = async () => {
     if (!tenantId) { toast.error("Tenant não encontrado"); return; }
     setProcessing(true);
-
-    // Simulate payment processing
     await new Promise(r => setTimeout(r, 2000));
 
-    // Activate addon
     const { error } = await supabase
       .from(addonSlug === "vendazap_ai" ? "vendazap_addon" : "dealroom_addon" as any)
       .upsert({
@@ -53,12 +51,9 @@ export function AddonPurchaseCard({ addonName, addonSlug, price, description, fe
     setConfirmed(true);
     setProcessing(false);
     toast.success(`${addonName} ativado com sucesso! 🎉`);
-
-    // Reload page after short delay
     setTimeout(() => window.location.reload(), 2000);
   };
 
-  // Generate a fake PIX code for demonstration
   const pixCode = `00020126580014BR.GOV.BCB.PIX0136${crypto.randomUUID().replace(/-/g, "").slice(0, 32)}5204000053039865802BR5925ORCAMOVEL PRO LTDA6009SAO PAULO62070503***6304`;
 
   if (confirmed) {
@@ -83,39 +78,44 @@ export function AddonPurchaseCard({ addonName, addonSlug, price, description, fe
         </Button>
       )}
 
+      {/* Lock icon */}
       <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-        {icon}
+        <Lock className="h-8 w-8 text-primary" />
       </div>
 
+      {/* Badge */}
+      <Badge variant="secondary" className="text-xs font-semibold tracking-wider gap-1.5">
+        <Sparkles className="h-3 w-3" /> ADD-ON PREMIUM
+      </Badge>
+
+      {/* Title & description */}
       <div className="text-center space-y-2">
         <h3 className="text-2xl font-bold text-foreground">{addonName}</h3>
-        <p className="text-sm text-muted-foreground max-w-md">{description}</p>
+        <p className="text-sm text-muted-foreground max-w-md leading-relaxed">{description}</p>
       </div>
 
-      <Card className="w-full">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Plano mensal</span>
-            <div className="text-right">
-              <span className="text-3xl font-bold text-foreground">{price}</span>
-              <span className="text-sm text-muted-foreground">/mês</span>
-            </div>
+      {/* Feature pills */}
+      <div className="grid grid-cols-3 gap-4 w-full">
+        {features.slice(0, 3).map((f, i) => (
+          <div key={i} className="flex flex-col items-center text-center gap-2 p-4 rounded-xl border bg-card">
+            <div className="text-primary">{f.icon}</div>
+            <span className="text-xs font-medium text-foreground leading-tight">{f.label}</span>
           </div>
-          <Separator />
-          <div className="space-y-2">
-            {features.map((f, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-                <span className="text-foreground">{f}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
 
-      <Button size="lg" className="w-full gap-2 h-12 text-base" onClick={() => setShowPayment(true)}>
-        <Sparkles className="h-5 w-5" /> Contratar {addonName}
+      {/* Price */}
+      <div className="text-center">
+        <span className="text-4xl font-extrabold text-foreground">{price}</span>
+        <span className="text-sm text-muted-foreground ml-1">/mês{priceExtra ? ` ${priceExtra}` : ""}</span>
+      </div>
+
+      {/* CTA Button */}
+      <Button size="lg" className="w-full gap-2 h-12 text-base font-semibold" onClick={() => setShowPayment(true)}>
+        <Sparkles className="h-5 w-5" /> Adquirir {addonName}
       </Button>
+
+      {/* Error message area for access validation */}
 
       {/* Payment Dialog */}
       <Dialog open={showPayment} onOpenChange={setShowPayment}>
@@ -161,7 +161,6 @@ export function AddonPurchaseCard({ addonName, addonSlug, price, description, fe
               </Button>
               <div className="text-center space-y-3">
                 <p className="text-sm font-medium text-foreground">Escaneie o QR Code ou copie o código PIX</p>
-                {/* QR Code visual representation */}
                 <div className="mx-auto w-48 h-48 bg-foreground/5 rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
                   <div className="grid grid-cols-8 gap-0.5 w-36 h-36">
                     {Array.from({ length: 64 }).map((_, i) => (

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy, CheckCircle2, Lightbulb, Target, MessageSquare, ChevronDown, ChevronUp, Pencil, Save, X, Plus, HelpCircle, Image, Bot, CalendarDays, Library } from "lucide-react";
+import { Copy, CheckCircle2, Lightbulb, Target, MessageSquare, ChevronDown, ChevronUp, Pencil, Save, X, Plus, HelpCircle, Image, Bot, CalendarDays, Library, CopyPlus } from "lucide-react";
 import { toast } from "sonner";
 import { CampaignImageGenerator } from "@/components/campaigns/CampaignImageGenerator";
 import { CampaignAIGenerator } from "@/components/campaigns/CampaignAIGenerator";
@@ -86,7 +86,7 @@ const PLATFORM_CONFIG: Record<string, { label: string; color: string }> = {
   google: { label: "Google Ads", color: "bg-emerald-500/10 text-emerald-700 border-emerald-200" },
 };
 
-function CampaignCard({ campaign, onUpdate }: { campaign: Campaign; onUpdate?: (c: Campaign) => void }) {
+function CampaignCard({ campaign, onUpdate, onDuplicate }: { campaign: Campaign; onUpdate?: (c: Campaign) => void; onDuplicate?: (c: Campaign) => void }) {
   const [showInstrucoes, setShowInstrucoes] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -132,9 +132,14 @@ function CampaignCard({ campaign, onUpdate }: { campaign: Campaign; onUpdate?: (
               <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[campaign.categoria] || campaign.categoria}</Badge>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editing ? cancelEdit() : setEditing(true)}>
-            {editing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Duplicar" onClick={() => onDuplicate?.(campaign)}>
+              <CopyPlus className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editing ? cancelEdit() : setEditing(true)}>
+              {editing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -242,6 +247,17 @@ export function CampaignLibrary() {
     setCampaigns(prev => prev.map(c => c.id === updated.id ? updated : c));
   };
 
+  const duplicateCampaign = (campaign: Campaign) => {
+    const dup: Campaign = {
+      ...campaign,
+      id: `dup-${Date.now()}`,
+      titulo: `${campaign.titulo} (Cópia)`,
+      categoria: "manual" as any,
+    };
+    setCampaigns(prev => [dup, ...prev]);
+    toast.success("Campanha duplicada! Você pode editá-la na aba 'Minhas Campanhas'.");
+  };
+
   const createCampaign = () => {
     if (!newCampaign.titulo || !newCampaign.headline || !newCampaign.copy) {
       toast.error("Preencha título, headline e copy.");
@@ -304,7 +320,7 @@ export function CampaignLibrary() {
               <TabsContent key={cat} value={cat} className="mt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {campaigns.filter(c => cat === "todos" || c.categoria === cat).map(campaign => (
-                    <CampaignCard key={campaign.id} campaign={campaign} onUpdate={updateCampaign} />
+                    <CampaignCard key={campaign.id} campaign={campaign} onUpdate={updateCampaign} onDuplicate={duplicateCampaign} />
                   ))}
                   {cat === "manual" && campaigns.filter(c => c.categoria === "manual").length === 0 && (
                     <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Nenhuma campanha manual criada ainda. Clique em "Nova Campanha" para começar.</p>

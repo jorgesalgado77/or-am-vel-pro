@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, CheckCircle2, User, Building2 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FieldCheck {
   label: string;
@@ -19,16 +20,37 @@ interface Props {
 export function ProfileCompletenessCard({ onOpenProfile, onOpenSettings }: Props) {
   const { user } = useAuth();
   const { settings } = useCompanySettings();
+  const [fullProfile, setFullProfile] = useState<Record<string, any> | null>(null);
 
   const isAdmin = user?.cargo_nome?.toUpperCase().includes("ADMIN") ?? false;
 
+  // Fetch full profile data from DB to check all fields
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("usuarios")
+      .select("nome_completo, apelido, email, telefone, telefone_whatsapp, foto_url, data_nascimento, cep, endereco, numero, bairro, cidade, uf")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setFullProfile(data);
+      });
+  }, [user?.id]);
+
   const fields = useMemo<FieldCheck[]>(() => {
+    const p = fullProfile || {};
     const userFields: FieldCheck[] = [
-      { label: "Nome completo", filled: !!user?.nome_completo, category: "usuario" },
-      { label: "Email", filled: !!user?.email, category: "usuario" },
-      { label: "Telefone", filled: !!user?.telefone, category: "usuario" },
-      { label: "Foto de perfil", filled: !!user?.foto_url, category: "usuario" },
-      { label: "Apelido", filled: !!user?.apelido, category: "usuario" },
+      { label: "Nome completo", filled: !!p.nome_completo, category: "usuario" },
+      { label: "Email", filled: !!p.email, category: "usuario" },
+      { label: "Telefone", filled: !!p.telefone, category: "usuario" },
+      { label: "WhatsApp", filled: !!p.telefone_whatsapp, category: "usuario" },
+      { label: "Foto de perfil", filled: !!p.foto_url, category: "usuario" },
+      { label: "Apelido", filled: !!p.apelido, category: "usuario" },
+      { label: "Data de nascimento", filled: !!p.data_nascimento, category: "usuario" },
+      { label: "Endereço", filled: !!p.endereco, category: "usuario" },
+      { label: "Cidade", filled: !!p.cidade, category: "usuario" },
+      { label: "UF", filled: !!p.uf, category: "usuario" },
+      { label: "CEP", filled: !!p.cep, category: "usuario" },
     ];
 
     if (!isAdmin) return userFields;
@@ -36,17 +58,17 @@ export function ProfileCompletenessCard({ onOpenProfile, onOpenSettings }: Props
     const storeFields: FieldCheck[] = [
       { label: "Nome da empresa", filled: !!settings.company_name && settings.company_name !== "OrçaMóvel PRO", category: "loja" },
       { label: "CNPJ", filled: !!settings.cnpj_loja, category: "loja" },
-      { label: "Endereço", filled: !!settings.endereco_loja, category: "loja" },
-      { label: "Cidade", filled: !!settings.cidade_loja, category: "loja" },
-      { label: "UF", filled: !!settings.uf_loja, category: "loja" },
-      { label: "CEP", filled: !!settings.cep_loja, category: "loja" },
+      { label: "Endereço da loja", filled: !!settings.endereco_loja, category: "loja" },
+      { label: "Cidade da loja", filled: !!settings.cidade_loja, category: "loja" },
+      { label: "UF da loja", filled: !!settings.uf_loja, category: "loja" },
+      { label: "CEP da loja", filled: !!settings.cep_loja, category: "loja" },
       { label: "Telefone da loja", filled: !!settings.telefone_loja, category: "loja" },
       { label: "Email da loja", filled: !!settings.email_loja, category: "loja" },
       { label: "Logo", filled: !!settings.logo_url, category: "loja" },
     ];
 
     return [...userFields, ...storeFields];
-  }, [user, settings, isAdmin]);
+  }, [fullProfile, settings, isAdmin]);
 
   const filledCount = fields.filter((f) => f.filled).length;
   const totalCount = fields.length;
@@ -76,14 +98,11 @@ export function ProfileCompletenessCard({ onOpenProfile, onOpenSettings }: Props
   const userMissing = missingFields.filter((f) => f.category === "usuario");
   const storeMissing = missingFields.filter((f) => f.category === "loja");
 
-  // Determine which action to take based on what's missing
   const handleClick = () => {
-    // If only store fields are missing, open settings
     if (userMissing.length === 0 && storeMissing.length > 0) {
       onOpenSettings?.();
       return;
     }
-    // If only user fields or both are missing, open profile
     onOpenProfile?.();
   };
 

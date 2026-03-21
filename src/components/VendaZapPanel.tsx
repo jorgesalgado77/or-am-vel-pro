@@ -175,12 +175,9 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         price="R$ 69"
         description="Assistente inteligente de vendas para WhatsApp. Gere mensagens persuasivas, receba sugestões da IA e automatize follow-ups."
         features={[
-          "Geração ilimitada de copys de vendas",
-          "Sugestões automáticas por IA",
-          "Gatilhos inteligentes de reativação",
-          "Auto Pilot — IA responde sozinha",
-          "Follow-up automático com lembretes",
-          "Analytics de conversão por mensagem",
+          { label: "Copys de vendas ilimitadas", icon: <MessageSquare className="h-5 w-5" /> },
+          { label: "Sugestões automáticas", icon: <Brain className="h-5 w-5" /> },
+          { label: "Follow-up inteligente", icon: <Calendar className="h-5 w-5" /> },
         ]}
         icon={<Bot className="h-8 w-8 text-primary" />}
         onBack={onBack}
