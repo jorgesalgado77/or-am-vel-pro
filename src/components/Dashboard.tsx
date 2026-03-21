@@ -100,7 +100,6 @@ function isInRange(dateStr: string, start: Date, end: Date): boolean {
 export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfile, onOpenSettings }: DashboardProps) {
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
-  const { policy: comissaoPolicy } = useComissaoPolicy();
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
     evolucao: false,
     projetista: false,
