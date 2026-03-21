@@ -57,7 +57,7 @@ export async function renderCampaignToDataUrl(tpl: Template, d: CampaignImageDra
     ctx.fillStyle = d.badgeTextColor; ctx.fillText(d.badge, c.width - bw / 2 - 30, 30 + bh / 2 + 1);
   }
 
-  ctx.fillStyle = d.accentColor; ctx.font = `600 ${Math.max(22, Math.round(c.width * 0.022))}px ${d.bodyFontFamily}`;
+  ctx.fillStyle = d.storeNameColor || d.accentColor; ctx.font = `600 ${d.storeNameSize || Math.max(22, Math.round(c.width * 0.022))}px ${d.storeNameFontFamily || d.bodyFontFamily}`;
   ctx.fillText(d.storeName.toUpperCase(), c.width / 2, cy - 96);
 
   ctx.fillStyle = d.headlineColor; ctx.font = `700 ${d.headlineSize}px ${d.headlineFontFamily}`;
