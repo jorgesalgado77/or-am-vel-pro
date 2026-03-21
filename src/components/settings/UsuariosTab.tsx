@@ -272,7 +272,21 @@ export function UsuariosTab() {
         </div>
         <div>
           <Label>Cargo</Label>
-          <Select value={form.cargo_id} onValueChange={(v) => setForm((f) => ({ ...f, cargo_id: v }))}>
+          <Select value={form.cargo_id} onValueChange={(v) => {
+            const selectedCargo = cargos.find(c => c.id === v);
+            const tipoComissao = selectedCargo
+              ? (selectedCargo as any).tipo_comissao === "clt" ? "clt"
+                : (selectedCargo as any).tipo_comissao === "clt_only" ? "clt_only"
+                : policy.cargos_ids.includes(v) ? "escalonada"
+                : "fixa"
+              : "fixa";
+            setForm((f) => ({
+              ...f,
+              cargo_id: v,
+              tipo_comissao: tipoComissao as any,
+              comissao_percentual: selectedCargo ? String(selectedCargo.comissao_percentual || "") : f.comissao_percentual,
+            }));
+          }}>
             <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione um cargo" /></SelectTrigger>
             <SelectContent>
               {cargos.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
