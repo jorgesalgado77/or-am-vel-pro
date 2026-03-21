@@ -327,6 +327,18 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       <DialogContent className="max-w-2xl max-h-[90vh] p-0">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="text-xl">Meu Perfil</DialogTitle>
+          <div className="flex items-center gap-3 mt-2">
+            <Progress value={progressPercent} className="h-2 flex-1" />
+            <span className={cn(
+              "text-xs font-bold min-w-[3rem] text-right",
+              progressPercent === 100 ? "text-emerald-600" : "text-muted-foreground"
+            )}>
+              {progressPercent}%
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {progressPercent === 100 ? "✅ Perfil completo!" : `${filledCount} de ${profileFields.length} campos preenchidos`}
+          </p>
         </DialogHeader>
         <ScrollArea className="max-h-[calc(90vh-80px)]">
           <div className="p-6 pt-4 space-y-6">
