@@ -247,6 +247,17 @@ export function CampaignLibrary() {
     setCampaigns(prev => prev.map(c => c.id === updated.id ? updated : c));
   };
 
+  const duplicateCampaign = (campaign: Campaign) => {
+    const dup: Campaign = {
+      ...campaign,
+      id: `dup-${Date.now()}`,
+      titulo: `${campaign.titulo} (Cópia)`,
+      categoria: "manual" as any,
+    };
+    setCampaigns(prev => [dup, ...prev]);
+    toast.success("Campanha duplicada! Você pode editá-la na aba 'Minhas Campanhas'.");
+  };
+
   const createCampaign = () => {
     if (!newCampaign.titulo || !newCampaign.headline || !newCampaign.copy) {
       toast.error("Preencha título, headline e copy.");
