@@ -13,6 +13,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+interface SocialLinks {
+  instagram_url: string;
+  facebook_url: string;
+  youtube_url: string;
+  twitter_url: string;
+  website_url: string;
+}
+
 interface FunnelConfig {
   headline: string;
   sub_headline: string;
@@ -21,7 +29,16 @@ interface FunnelConfig {
   benefits: string[];
   promo_video_url: string;
   carousel_images: string[];
+  social_links: SocialLinks;
 }
+
+const DEFAULT_SOCIAL: SocialLinks = {
+  instagram_url: "",
+  facebook_url: "",
+  youtube_url: "",
+  twitter_url: "",
+  website_url: "",
+};
 
 const DEFAULT_CONFIG: FunnelConfig = {
   headline: "Ganhe seu Projeto 3D Gratuito",
@@ -36,6 +53,7 @@ const DEFAULT_CONFIG: FunnelConfig = {
   ],
   promo_video_url: "",
   carousel_images: [],
+  social_links: DEFAULT_SOCIAL,
 };
 
 export function FunnelPanel() {
