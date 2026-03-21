@@ -247,11 +247,11 @@ export default function TenantLanding() {
           // RPC doesn't exist, fallback to direct query
         }
 
-        // Fallback: query tenants table directly
+        // Fallback: query tenants table directly using the actual schema
         if (!info) {
           const { data: tenantRow } = await supabase
             .from("tenants" as any)
-            .select("id, nome_loja, logo_url, telefone_loja, whatsapp_loja, subtitle")
+            .select("id, nome_loja, telefone_contato")
             .eq("codigo_loja", codigo)
             .maybeSingle();
           if (tenantRow) {
@@ -259,11 +259,11 @@ export default function TenantLanding() {
             info = {
               id: t.id,
               nome_loja: t.nome_loja,
-              logo_url: t.logo_url,
+              logo_url: null,
               primary_color: "hsl(199,89%,48%)",
-              subtitle: t.subtitle || "",
-              telefone_loja: t.telefone_loja,
-              whatsapp_loja: t.whatsapp_loja,
+              subtitle: "",
+              telefone_loja: t.telefone_contato || null,
+              whatsapp_loja: t.telefone_contato || null,
               headline: "Ganhe seu Projeto 3D Gratuito",
               sub_headline: "",
               cta_text: "Solicite seu Projeto 3D Grátis",
