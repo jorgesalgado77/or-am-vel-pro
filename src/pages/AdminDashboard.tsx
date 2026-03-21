@@ -369,7 +369,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                       <TableHead>Período</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Validade</TableHead>
-                      <TableHead>Máx. Usuários</TableHead>
+                      <TableHead className="text-center">Add-ons</TableHead>
                       <TableHead className="w-24">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -383,6 +383,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                       const planCfg = PLAN_CONFIG[t.plano as keyof typeof PLAN_CONFIG] || PLAN_CONFIG.trial;
                       const PlanIcon = planCfg.icon;
                       const validadeDate = t.plano === "trial" ? t.trial_fim : t.assinatura_fim;
+                      const vip = (t as any).recursos_vip || {};
                       return (
                         <TableRow key={t.id}>
                           <TableCell>
@@ -404,7 +405,38 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                           <TableCell className="text-muted-foreground">
                             {validadeDate ? format(new Date(validadeDate), "dd/MM/yyyy", { locale: ptBR }) : "—"}
                           </TableCell>
-                          <TableCell className="text-center">{t.plano === "premium" ? "∞" : t.max_usuarios}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 justify-center">
+                              <Button
+                                variant={vip.vendazap ? "default" : "outline"}
+                                size="sm"
+                                className={`h-7 text-[10px] gap-1 px-2 ${vip.vendazap ? "bg-primary text-primary-foreground" : ""}`}
+                                title={vip.vendazap ? "Clique para revogar VendaZap AI" : "Clique para liberar VendaZap AI"}
+                                onClick={async () => {
+                                  const newVip = { ...vip, vendazap: !vip.vendazap };
+                                  await supabase.from("tenants").update({ recursos_vip: newVip } as any).eq("id", t.id);
+                                  toast.success(`VendaZap AI ${!vip.vendazap ? "liberado" : "revogado"} para ${t.nome_loja}`);
+                                  fetchData();
+                                }}
+                              >
+                                <Bot className="h-3 w-3" />VZ
+                              </Button>
+                              <Button
+                                variant={vip.deal_room ? "default" : "outline"}
+                                size="sm"
+                                className={`h-7 text-[10px] gap-1 px-2 ${vip.deal_room ? "bg-primary text-primary-foreground" : ""}`}
+                                title={vip.deal_room ? "Clique para revogar Deal Room" : "Clique para liberar Deal Room"}
+                                onClick={async () => {
+                                  const newVip = { ...vip, deal_room: !vip.deal_room };
+                                  await supabase.from("tenants").update({ recursos_vip: newVip } as any).eq("id", t.id);
+                                  toast.success(`Deal Room ${!vip.deal_room ? "liberado" : "revogado"} para ${t.nome_loja}`);
+                                  fetchData();
+                                }}
+                              >
+                                <Handshake className="h-3 w-3" />DR
+                              </Button>
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTenant(t)}>

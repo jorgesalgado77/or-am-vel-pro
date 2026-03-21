@@ -36,6 +36,20 @@ export function DealRoomView({ tenantId, onBack }: DealRoomViewProps) {
     const check = async () => {
       setLoading(true);
       const result = await validateAccess(tenantId);
+      if (!result.allowed) {
+        // Check if admin granted access via recursos_vip
+        const { data: tenant } = await supabase
+          .from("tenants")
+          .select("recursos_vip")
+          .eq("id", tenantId)
+          .single();
+        const vip = (tenant as any)?.recursos_vip;
+        if (vip?.deal_room) {
+          setAccess({ allowed: true, plano: "vip" });
+          setLoading(false);
+          return;
+        }
+      }
       setAccess(result);
       setLoading(false);
     };
