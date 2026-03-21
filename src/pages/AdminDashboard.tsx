@@ -416,6 +416,14 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                                 onClick={async () => {
                                   const newVip = { ...vip, vendazap: !vip.vendazap };
                                   await supabase.from("tenants").update({ recursos_vip: newVip } as any).eq("id", t.id);
+                                  logAudit({
+                                    acao: !vip.vendazap ? "addon_liberado" : "addon_revogado",
+                                    entidade: "tenant",
+                                    entidade_id: t.id,
+                                    usuario_nome: adminName,
+                                    tenant_id: t.id,
+                                    detalhes: { addon: "vendazap_ai", loja: t.nome_loja },
+                                  });
                                   toast.success(`VendaZap AI ${!vip.vendazap ? "liberado" : "revogado"} para ${t.nome_loja}`);
                                   fetchData();
                                 }}
