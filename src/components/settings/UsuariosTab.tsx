@@ -438,17 +438,8 @@ export function UsuariosTab() {
               <Label className="text-xs font-medium">CLT — Apenas Salário Fixo</Label>
             </div>
             <p className="text-[10px] text-muted-foreground ml-5">
-              Funcionário CLT recebe apenas o salário fixo, sem comissão sobre vendas.
+              Funcionário CLT recebe apenas o salário fixo configurado abaixo, sem comissão sobre vendas.
             </p>
-            <div className="w-48">
-              <Label className="text-[10px]">Salário Fixo</Label>
-              <Input
-                value={form.salario_fixo}
-                onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
-                className="mt-1 h-8 text-sm"
-                placeholder="R$ 0,00"
-              />
-            </div>
           </div>
         )}
       </div>
