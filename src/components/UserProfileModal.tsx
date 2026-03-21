@@ -76,12 +76,28 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [birthDate, setBirthDate] = useState<Date | undefined>();
+  const [triedSave, setTriedSave] = useState(false);
 
   const [form, setForm] = useState<ProfileData>({
     nome_completo: "", apelido: "", email: "", telefone: "", telefone_whatsapp: "",
     data_nascimento: "", cep: "", endereco: "", numero: "", complemento: "",
     bairro: "", cidade: "", uf: "", facebook: "", instagram: "", tiktok: "", linkedin: "",
   });
+
+  const requiredFields: { key: keyof ProfileData | "birthDate"; label: string }[] = [
+    { key: "nome_completo", label: "Nome Completo" },
+    { key: "email", label: "Email" },
+    { key: "telefone_whatsapp", label: "WhatsApp" },
+  ];
+
+  const isFieldInvalid = (key: string) => {
+    if (!triedSave) return false;
+    if (key === "birthDate") return !birthDate;
+    return !form[key as keyof ProfileData]?.trim();
+  };
+
+  const invalidClass = (key: string) =>
+    isFieldInvalid(key) ? "border-destructive ring-1 ring-destructive/30" : "";
 
   const loadProfile = useCallback(async () => {
     if (!user?.id) return;
@@ -192,6 +208,18 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
 
   const handleSave = async () => {
     if (!user?.id) return;
+    setTriedSave(true);
+
+    // Validate required fields
+    const missing = requiredFields.filter(f => {
+      if (f.key === "birthDate") return !birthDate;
+      return !form[f.key as keyof ProfileData]?.trim();
+    });
+    if (missing.length > 0) {
+      toast.error(`Preencha os campos obrigatórios: ${missing.map(m => m.label).join(", ")}`);
+      return;
+    }
+
     setSaving(true);
 
     const updateData: Record<string, unknown> = {
@@ -313,23 +341,26 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>Nome Completo *</Label>
-                  <Input value={form.nome_completo} onChange={(e) => handleChange("nome_completo", e.target.value)} className="mt-1" />
+                  <Input value={form.nome_completo} onChange={(e) => handleChange("nome_completo", e.target.value)} className={cn("mt-1", invalidClass("nome_completo"))} />
+                  {isFieldInvalid("nome_completo") && <p className="text-xs text-destructive mt-1">Campo obrigatório</p>}
                 </div>
                 <div>
                   <Label>Apelido</Label>
                   <Input value={form.apelido} onChange={(e) => handleChange("apelido", e.target.value)} className="mt-1" />
                 </div>
                 <div>
-                  <Label>Email</Label>
-                  <Input value={form.email} onChange={(e) => handleChange("email", e.target.value)} className="mt-1" type="email" />
+                  <Label>Email *</Label>
+                  <Input value={form.email} onChange={(e) => handleChange("email", e.target.value)} className={cn("mt-1", invalidClass("email"))} type="email" />
+                  {isFieldInvalid("email") && <p className="text-xs text-destructive mt-1">Campo obrigatório</p>}
                 </div>
                 <div>
                   <Label>Telefone</Label>
                   <Input value={form.telefone} onChange={(e) => handleChange("telefone", e.target.value)} className="mt-1" placeholder="(99)99999-9999" />
                 </div>
                 <div>
-                  <Label>WhatsApp</Label>
-                  <Input value={form.telefone_whatsapp} onChange={(e) => handleChange("telefone_whatsapp", e.target.value)} className="mt-1" placeholder="(99)99999-9999" />
+                  <Label>WhatsApp *</Label>
+                  <Input value={form.telefone_whatsapp} onChange={(e) => handleChange("telefone_whatsapp", e.target.value)} className={cn("mt-1", invalidClass("telefone_whatsapp"))} placeholder="(99)99999-9999" />
+                  {isFieldInvalid("telefone_whatsapp") && <p className="text-xs text-destructive mt-1">Campo obrigatório</p>}
                 </div>
                 <div>
                   <Label>Data de Nascimento</Label>
