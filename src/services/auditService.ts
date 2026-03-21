@@ -31,7 +31,9 @@ export type AuditAction =
   | "followup_config_update"
   | "followup_paused"
   | "followup_resumed"
-  | "followup_weekly_report";
+  | "followup_weekly_report"
+  | "addon_liberado"
+  | "addon_revogado";
 
 export type AuditEntity =
   | "client"
@@ -45,7 +47,8 @@ export type AuditEntity =
   | "vendazap"
   | "tracking_messages"
   | "followup_config"
-  | "followup_schedule";
+  | "followup_schedule"
+  | "tenant";
 
 interface AuditLogInput {
   acao: AuditAction;
