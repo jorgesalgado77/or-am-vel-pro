@@ -1,15 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical } from "lucide-react";
 import { FunnelMetrics } from "@/components/funnel/FunnelMetrics";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface FunnelConfig {
   headline: string;
@@ -111,6 +113,19 @@ export function FunnelPanel() {
   const removeCarouselImage = (idx: number) => {
     setConfig((p) => ({ ...p, carousel_images: p.carousel_images.filter((_, i) => i !== idx) }));
   };
+
+  const onDragEnd = useCallback((result: DropResult) => {
+    if (!result.destination) return;
+    const from = result.source.index;
+    const to = result.destination.index;
+    if (from === to) return;
+    setConfig((p) => {
+      const imgs = [...p.carousel_images];
+      const [moved] = imgs.splice(from, 1);
+      imgs.splice(to, 0, moved);
+      return { ...p, carousel_images: imgs };
+    });
+  }, []);
 
   const handleSave = async () => {
     if (!user?.tenant_id) return;
@@ -223,20 +238,38 @@ export function FunnelPanel() {
         <CardContent className="space-y-4">
           <input ref={imagesInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImagesUpload} />
           {config.carousel_images.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {config.carousel_images.map((img, i) => (
-                <div key={i} className="relative group rounded-lg overflow-hidden border border-border aspect-[4/3]">
-                  <img src={img} alt={`Imagem ${i + 1}`} className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => removeCarouselImage(i)}
-                    className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="absolute bottom-1 left-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">{i + 1}</div>
-                </div>
-              ))}
-            </div>
+            <DragDropContext onDragEnd={onDragEnd}>
+              <Droppable droppableId="carousel-images" direction="horizontal">
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {config.carousel_images.map((img, i) => (
+                      <Draggable key={`img-${i}-${img}`} draggableId={`img-${i}`} index={i}>
+                        {(dragProvided, snapshot) => (
+                          <div
+                            ref={dragProvided.innerRef}
+                            {...dragProvided.draggableProps}
+                            className={cn("relative group rounded-lg overflow-hidden border border-border aspect-square", snapshot.isDragging && "ring-2 ring-primary shadow-lg z-10")}
+                          >
+                            <img src={img} alt={`Imagem ${i + 1}`} className="w-full h-full object-cover" />
+                            <div {...dragProvided.dragHandleProps} className="absolute top-1 left-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
+                              <GripVertical className="h-3.5 w-3.5" />
+                            </div>
+                            <button
+                              onClick={() => removeCarouselImage(i)}
+                              className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                            <div className="absolute bottom-1 left-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">{i + 1}</div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           )}
           {config.carousel_images.length < 10 && (
             <div
