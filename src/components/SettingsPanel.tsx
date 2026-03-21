@@ -28,6 +28,7 @@ import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText, Mai
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { useTenant } from "@/contexts/TenantContext";
 import * as XLSX from "xlsx";
 
 export function SettingsPanel() {
@@ -351,6 +352,7 @@ function NotificationSoundToggle() {
 /* ===== BOLETO RATES TAB (5 columns) ===== */
 function BoletoRatesTab() {
   const { rates, providers, refresh } = useFinancingRates("boleto");
+  const { tenantId } = useTenant();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, Partial<FinancingRate>>>({});
 
@@ -364,6 +366,7 @@ function BoletoRatesTab() {
       taxa_fixa: 0,
       coeficiente_60: 0,
       coeficiente_90: 0,
+      tenant_id: tenantId,
     }));
     const { error } = await supabase.from("financing_rates").insert(inserts);
     if (error) toast.error("Erro ao adicionar");
@@ -447,7 +450,7 @@ function BoletoRatesTab() {
         if (parsedRates.length === 0) { toast.error("Nenhum dado válido encontrado"); return; }
 
         await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", "boleto");
-        const inserts = parsedRates.map((r) => ({ ...r, provider_name: providerName, provider_type: "boleto" as const }));
+        const inserts = parsedRates.map((r) => ({ ...r, provider_name: providerName, provider_type: "boleto" as const, tenant_id: tenantId }));
         const { error } = await supabase.from("financing_rates").insert(inserts);
         if (error) toast.error("Erro ao importar");
         else { toast.success(`Importado "${providerName}" com ${parsedRates.length} parcelas!`); refresh(); }
@@ -549,6 +552,7 @@ function BoletoRatesTab() {
 /* ===== CREDITO RATES TAB (simpler: parcelas + coeficiente) ===== */
 function CreditoRatesTab() {
   const { rates, providers, refresh } = useFinancingRates("credito");
+  const { tenantId } = useTenant();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, number>>({});
 
@@ -559,6 +563,7 @@ function CreditoRatesTab() {
       provider_type: "credito" as const,
       installments: i + 1,
       coefficient: 0,
+      tenant_id: tenantId,
     }));
     const { error } = await supabase.from("financing_rates").insert(inserts);
     if (error) toast.error("Erro ao adicionar");
