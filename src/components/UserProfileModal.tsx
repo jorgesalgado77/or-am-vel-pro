@@ -129,7 +129,9 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       });
       setFotoUrl((data as any).foto_url || null);
       if ((data as any).data_nascimento) {
-        setBirthDate(new Date((data as any).data_nascimento));
+        // Parse as local date to avoid timezone shift (e.g. 1980-03-19 showing as March 18)
+        const parts = ((data as any).data_nascimento as string).split("-");
+        setBirthDate(new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
       }
     }
   }, [user?.id]);
