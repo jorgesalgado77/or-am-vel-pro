@@ -49,7 +49,7 @@ function CanvasPreview({ template, draft }: { template: Template; draft: Campaig
         <div className="absolute right-3 top-3 z-10 rounded px-2 py-0.5 font-bold tracking-wider" style={{ backgroundColor: draft.accentColor, color: draft.badgeTextColor, fontSize: Math.max(7, draft.badgeSize * scale * 0.68), fontFamily: draft.badgeFontFamily }}>{draft.badge}</div>
       )}
       <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 p-4 text-center ${template.layout === "split" ? "justify-end pb-8" : ""}`}>
-        <p className="max-w-[80%] uppercase tracking-[0.2em]" style={{ color: draft.accentColor, fontSize: 7, fontFamily: draft.bodyFontFamily }}>{draft.storeName}</p>
+        <p className="max-w-[80%] uppercase tracking-[0.2em]" style={{ color: draft.storeNameColor, fontSize: Math.max(7, draft.storeNameSize * scale * 0.68), fontFamily: draft.storeNameFontFamily }}>{draft.storeName}</p>
         <h3 className="max-w-[82%] font-bold leading-tight" style={{ color: draft.headlineColor, fontSize: draft.headlineSize * scale * 0.72, fontFamily: draft.headlineFontFamily }}>{draft.headline}</h3>
         <p className="max-w-[80%] opacity-90" style={{ color: draft.subtextColor, fontSize: draft.subtextSize * scale * 0.68, fontFamily: draft.bodyFontFamily }}>{draft.subtext}</p>
         <div className="mt-1 rounded-full px-3 py-1 font-bold tracking-wide" style={{ backgroundColor: draft.accentColor, color: draft.ctaTextColor, fontSize: draft.ctaSize * scale * 0.56, fontFamily: draft.ctaFontFamily }}>{draft.cta}</div>
@@ -211,6 +211,7 @@ export function CampaignImageGenerator() {
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium"><Type className="h-4 w-4 text-primary" /> Tipografia</div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {([
+                    { label: "Nome da Loja", fontKey: "storeNameFontFamily" as const, sizeKey: "storeNameSize" as const, colorKey: "storeNameColor" as const },
                     { label: "Headline", fontKey: "headlineFontFamily" as const, sizeKey: "headlineSize" as const, colorKey: "headlineColor" as const },
                     { label: "Subtexto", fontKey: "bodyFontFamily" as const, sizeKey: "subtextSize" as const, colorKey: "subtextColor" as const },
                     { label: "CTA", fontKey: "ctaFontFamily" as const, sizeKey: "ctaSize" as const, colorKey: "ctaTextColor" as const },
