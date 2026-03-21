@@ -246,16 +246,16 @@ export default function TenantLanding() {
       try {
         const normalizedCode = codigo.trim();
 
+        const safeRpc = (fn: string, params: any) =>
+          Promise.resolve((supabase as any).rpc(fn, params)).then(
+            (res: any) => res,
+            (error: any) => ({ data: null, error })
+          );
+
         const [landingResult, tenantIdResult, tenantInfoResult] = await Promise.all([
-          (supabase as any)
-            .rpc("resolve_tenant_landing", { p_code: normalizedCode })
-            .catch((error: any) => ({ data: null, error })),
-          (supabase as any)
-            .rpc("resolve_tenant_by_code", { p_code: normalizedCode })
-            .catch((error: any) => ({ data: null, error })),
-          (supabase as any)
-            .rpc("resolve_tenant_info_by_code", { p_code: normalizedCode })
-            .catch((error: any) => ({ data: null, error })),
+          safeRpc("resolve_tenant_landing", { p_code: normalizedCode }),
+          safeRpc("resolve_tenant_by_code", { p_code: normalizedCode }),
+          safeRpc("resolve_tenant_info_by_code", { p_code: normalizedCode }),
         ]);
 
         console.info("[TenantLanding] lookup", {
