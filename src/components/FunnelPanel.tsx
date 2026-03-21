@@ -363,6 +363,35 @@ export function FunnelPanel() {
         </CardContent>
       </Card>
 
+      {/* Redes Sociais */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg"><Share2 className="h-5 w-5 text-primary" /> Redes Sociais</CardTitle>
+          <CardDescription>Informe os links das suas redes sociais. Apenas os campos preenchidos serão exibidos na página pública.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {([
+            { key: "instagram_url" as const, icon: Instagram, label: "Instagram", placeholder: "https://instagram.com/sualoja" },
+            { key: "facebook_url" as const, icon: Facebook, label: "Facebook", placeholder: "https://facebook.com/sualoja" },
+            { key: "youtube_url" as const, icon: Youtube, label: "YouTube", placeholder: "https://youtube.com/@sualoja" },
+            { key: "twitter_url" as const, icon: Twitter, label: "X / Twitter", placeholder: "https://x.com/sualoja" },
+            { key: "website_url" as const, icon: Globe, label: "Site / Portfólio", placeholder: "https://www.sualoja.com.br" },
+          ]).map(({ key, icon: Icon, label, placeholder }) => (
+            <div key={key} className="flex items-center gap-3">
+              <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex-1 space-y-1">
+                <Label className="text-sm font-medium">{label}</Label>
+                <Input
+                  value={config.social_links[key]}
+                  onChange={(e) => setConfig(p => ({ ...p, social_links: { ...p.social_links, [key]: e.target.value } }))}
+                  placeholder={placeholder}
+                />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       {/* Save */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2 px-8">
