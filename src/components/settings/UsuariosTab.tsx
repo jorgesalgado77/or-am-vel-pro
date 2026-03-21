@@ -28,7 +28,7 @@ const EMPTY_FORM = {
   foto_url: "",
   senha: "",
   tipo_regime: "",
-  tipo_comissao: "fixa" as "fixa" | "escalonada" | "clt" | "clt_only",
+  tipo_comissao: "fixa" as "fixa" | "escalonada" | "clt" | "clt_only" | "mei",
   comissao_percentual: "",
   salario_fixo: "",
 };
