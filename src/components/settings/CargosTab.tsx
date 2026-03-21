@@ -308,14 +308,23 @@ export function CargosTab() {
                     </div>
                   </div>
                 ) : tipoComissao === "clt_only" ? (
-                  <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-2">
+                  <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-3">
                     <div className="flex items-center gap-1.5">
                       <Landmark className="h-3.5 w-3.5 text-orange-600" />
                       <Label className="text-xs font-medium">CLT — Apenas Salário Fixo</Label>
                     </div>
                     <p className="text-[10px] text-muted-foreground ml-5">
-                      Funcionário CLT recebe apenas o salário fixo configurado no cadastro, sem comissão sobre vendas.
+                      Funcionário CLT recebe apenas o salário fixo, sem comissão sobre vendas.
                     </p>
+                    <div className="w-48">
+                      <Label className="text-[10px]">Salário Fixo</Label>
+                      <Input
+                        value={salarioVal}
+                        onChange={e => setEditSalario(prev => ({ ...prev, [cargo.id]: maskCurrency(e.target.value) }))}
+                        className="h-8 text-sm"
+                        placeholder="R$ 0,00"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-md border border-teal-200 bg-teal-50/50 dark:bg-teal-950/20 dark:border-teal-800 p-3 space-y-3">
