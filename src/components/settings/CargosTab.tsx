@@ -288,6 +288,16 @@ export function CargosTab() {
                       </div>
                     </div>
                   </div>
+                ) : tipoComissao === "clt_only" ? (
+                  <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Landmark className="h-3.5 w-3.5 text-orange-600" />
+                      <Label className="text-xs font-medium">CLT — Apenas Salário Fixo</Label>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground ml-5">
+                      Funcionário CLT recebe apenas o salário fixo configurado no cadastro, sem comissão sobre vendas.
+                    </p>
+                  </div>
                 )}
               </div>
 
