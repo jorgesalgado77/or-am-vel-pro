@@ -79,14 +79,12 @@ export function DealRoomView({ tenantId, onBack }: DealRoomViewProps) {
         addonName="Deal Room"
         addonSlug="dealroom"
         price="R$ 147"
+        priceExtra="+ 2% por venda"
         description="Feche vendas em tempo real com apresentações profissionais, pagamento integrado e contratos automáticos."
         features={[
-          "Reuniões por vídeo ao vivo",
-          "Pagamento integrado na hora",
-          "Contratos automáticos",
-          "Ranking de vendedores em tempo real",
-          "Dashboard de métricas de vendas",
-          "Taxa de apenas 2% por venda",
+          { label: "Reuniões por vídeo", icon: <Video className="h-5 w-5" /> },
+          { label: "Pagamento integrado", icon: <CreditCard className="h-5 w-5" /> },
+          { label: "Contratos automáticos", icon: <FileText className="h-5 w-5" /> },
         ]}
         icon={<Handshake className="h-8 w-8 text-primary" />}
         onBack={onBack}
