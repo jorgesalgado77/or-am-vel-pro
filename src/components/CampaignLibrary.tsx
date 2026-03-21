@@ -132,9 +132,14 @@ function CampaignCard({ campaign, onUpdate, onDuplicate }: { campaign: Campaign;
               <Badge variant="secondary" className="text-xs">{CATEGORY_LABELS[campaign.categoria] || campaign.categoria}</Badge>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editing ? cancelEdit() : setEditing(true)}>
-            {editing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Duplicar" onClick={() => onDuplicate?.(campaign)}>
+              <CopyPlus className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editing ? cancelEdit() : setEditing(true)}>
+              {editing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
