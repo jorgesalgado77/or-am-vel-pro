@@ -4,6 +4,7 @@ import { setTenantState } from "@/lib/tenantState";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import { logLoginDiagnostic } from "@/services/loginDiagnosticService";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
+import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 
 export interface AppUser {
   id: string;
@@ -956,32 +957,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncGlobalState(null);
   }, []);
 
-  // Auto-logout after 5 minutes of inactivity
+  // Auto-logout after 5 minutes of inactivity with 1-min warning
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+
   useEffect(() => {
     if (!user) return;
 
-    const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
-    let timer: ReturnType<typeof setTimeout>;
+    const WARNING_AT = 4 * 60 * 1000; // 4 minutes — show warning
+    const LOGOUT_AT = 5 * 60 * 1000;  // 5 minutes — force logout
+    let warningTimer: ReturnType<typeof setTimeout>;
+    let logoutTimer: ReturnType<typeof setTimeout>;
 
-    const resetTimer = () => {
-      clearTimeout(timer);
-      timer = setTimeout(async () => {
+    const resetTimers = () => {
+      clearTimeout(warningTimer);
+      clearTimeout(logoutTimer);
+      setShowInactivityWarning(false);
+
+      warningTimer = setTimeout(() => {
+        setShowInactivityWarning(true);
+      }, WARNING_AT);
+
+      logoutTimer = setTimeout(async () => {
         console.log("[Auth] ⏰ Logout automático por inatividade (5 min)");
+        setShowInactivityWarning(false);
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
         syncGlobalState(null);
         window.location.href = "/";
-      }, INACTIVITY_TIMEOUT);
+      }, LOGOUT_AT);
     };
 
     const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click"];
-    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
-    resetTimer();
+    events.forEach((e) => window.addEventListener(e, resetTimers, { passive: true }));
+    resetTimers();
 
     return () => {
-      clearTimeout(timer);
-      events.forEach((e) => window.removeEventListener(e, resetTimer));
+      clearTimeout(warningTimer);
+      clearTimeout(logoutTimer);
+      events.forEach((e) => window.removeEventListener(e, resetTimers));
     };
   }, [user]);
 
@@ -1000,9 +1014,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session]);
 
+  const handleStayConnected = useCallback(() => {
+    setShowInactivityWarning(false);
+    // Dispatch a synthetic event to reset timers
+    window.dispatchEvent(new MouseEvent("mousedown"));
+  }, []);
+
   return (
     <AuthContext.Provider value={{ user, session, loading, login, signUp, logout, hasPermission, refreshUser }}>
       {children}
+      <InactivityWarningDialog open={showInactivityWarning} onStayConnected={handleStayConnected} />
     </AuthContext.Provider>
   );
 }
