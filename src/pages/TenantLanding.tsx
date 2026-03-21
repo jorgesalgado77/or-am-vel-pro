@@ -339,11 +339,22 @@ export default function TenantLanding() {
 
         if (tenantData.id) {
           try {
-            const { data: fd } = await supabase
+            // Try direct query first (works for authenticated users)
+            let fd: any = null;
+            const { data: directData } = await supabase
               .from("tenant_funnel_config" as any)
-              .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links")
+              .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links, whatsapp")
               .eq("tenant_id", tenantData.id)
               .maybeSingle();
+            fd = directData;
+
+            // If direct fails (RLS), try via RPC with fixed function
+            if (!fd) {
+              const rpcRes = await Promise.resolve(
+                (supabase as any).rpc("get_tenant_funnel_public", { p_tenant_id: tenantData.id })
+              ).then((r: any) => r, () => ({ data: null }));
+              fd = rpcRes?.data ?? null;
+            }
 
             if (fd) {
               const d = fd as any;
@@ -355,9 +366,25 @@ export default function TenantLanding() {
               if (d.cta_text) tenantData.cta_text = d.cta_text;
               if (Array.isArray(d.benefits) && d.benefits.length) tenantData.benefits = d.benefits;
               if (d.social_links) tenantData.social_links = d.social_links;
+              if (d.whatsapp) tenantData.whatsapp_loja = d.whatsapp;
             }
           } catch {
             // keep lightweight fallback data for public route
+          }
+
+          // Also try to get logo from company_settings
+          if (!tenantData.logo_url) {
+            try {
+              const { data: cs } = await supabase
+                .from("company_settings" as any)
+                .select("logo_url, whatsapp")
+                .eq("tenant_id", tenantData.id)
+                .maybeSingle();
+              if (cs) {
+                if ((cs as any).logo_url) tenantData.logo_url = (cs as any).logo_url;
+                if ((cs as any).whatsapp && !tenantData.whatsapp_loja) tenantData.whatsapp_loja = (cs as any).whatsapp;
+              }
+            } catch {}
           }
         }
 
