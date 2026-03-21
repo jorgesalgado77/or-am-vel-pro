@@ -464,6 +464,19 @@ export function UsuariosTab() {
         )}
       </div>
 
+      {/* Salário Fixo - sempre visível */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label>Salário Fixo</Label>
+          <Input
+            value={form.salario_fixo}
+            onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
+            className="mt-1"
+            placeholder="R$ 0,00"
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {!isDialog && (
           <div>
