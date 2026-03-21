@@ -663,6 +663,9 @@ export function UsuariosTab() {
                     <TableCell>{u.email || "—"}</TableCell>
                     <TableCell>{getCargoNome(u.cargo_id)}</TableCell>
                     <TableCell>{u.tipo_regime || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs font-normal">{getCargoTipoComissaoLabel(u.cargo_id)}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">{u.comissao_percentual ? `${u.comissao_percentual}%` : "—"}</TableCell>
                     <TableCell className="text-right">{u.salario_fixo ? formatCurrencyDisplay(u.salario_fixo) : "—"}</TableCell>
                     <TableCell className="text-center">
