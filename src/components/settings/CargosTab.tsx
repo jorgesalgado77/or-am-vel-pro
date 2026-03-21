@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Save, Pencil, X, ChevronDown, ChevronRight, TrendingUp, DollarSign, Landmark } from "lucide-react";
+import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useCargos, type CargoPermissoes } from "@/hooks/useCargos";
