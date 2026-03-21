@@ -378,8 +378,21 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                           <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-700">Escalonada</Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px] border-primary/50 text-primary">Fixa</Badge>
-                        );
-                      })()}
+                         );
+                       })()}
+                     </TableCell>
+                     <TableCell>
+                       {(() => {
+                         const userRecord = c.usuario_id ? usuarios.find(u => u.id === c.usuario_id) : null;
+                         const cargoNome = userRecord?.cargo_id ? cargos.find(cg => cg.id === userRecord.cargo_id)?.nome : null;
+                         const totalLoja = isCargoTotalLoja(cargoNome);
+                         return totalLoja ? (
+                           <Badge variant="outline" className="text-[10px] border-purple-500/50 text-purple-700">Total Loja</Badge>
+                         ) : (
+                           <Badge variant="outline" className="text-[10px] border-sky-500/50 text-sky-700">Por Cliente</Badge>
+                         );
+                       })()}
+                     </TableCell>
                     </TableCell>
                     <TableCell className="text-sm">{c.client_name || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.contrato_numero || "—"}</TableCell>
