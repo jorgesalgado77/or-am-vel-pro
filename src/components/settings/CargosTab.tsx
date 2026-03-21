@@ -60,7 +60,7 @@ export function CargosTab() {
     setEditPerms(prev => ({ ...prev, [cargoId]: { ...existing, [key]: !existing[key] } }));
   };
 
-  const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined;
+  const hasChanges = (cargoId: string) => editPerms[cargoId] || editingName[cargoId] !== undefined || editComissao[cargoId] !== undefined || editTipoComissao[cargoId] !== undefined || editSalario[cargoId] !== undefined;
 
   const getCargoTipoComissao = (cargoId: string): "fixa" | "escalonada" | "clt" | "clt_only" | "mei" => {
     if (editTipoComissao[cargoId] !== undefined) return editTipoComissao[cargoId] as any;
