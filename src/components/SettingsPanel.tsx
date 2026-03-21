@@ -23,7 +23,8 @@ import { ResendTab } from "@/components/settings/ResendTab";
 import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
 import { AuditLogsTab } from "@/components/settings/AuditLogsTab";
 import { CanvaIntegrationTab } from "@/components/settings/CanvaIntegrationTab";
-import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette } from "lucide-react";
+import { ComissaoPolicyTab } from "@/components/settings/ComissaoPolicyTab";
+import { UserCheck, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp } from "lucide-react";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -38,6 +39,7 @@ export function SettingsPanel() {
           <TabsTrigger value="cargos" className="gap-2"><Shield className="h-4 w-4" />Cargos</TabsTrigger>
           <TabsTrigger value="usuarios" className="gap-2"><Users className="h-4 w-4" />Usuários</TabsTrigger>
           <TabsTrigger value="descontos" className="gap-2"><FileText className="h-4 w-4" />Descontos</TabsTrigger>
+          <TabsTrigger value="comissoes" className="gap-2"><TrendingUp className="h-4 w-4" />Comissões</TabsTrigger>
           <TabsTrigger value="indicadores" className="gap-2"><UserCheck className="h-4 w-4" />Indicadores</TabsTrigger>
           <TabsTrigger value="boleto" className="gap-2"><FileText className="h-4 w-4" />Financeiras (Boleto)</TabsTrigger>
           <TabsTrigger value="credito" className="gap-2"><CreditCard className="h-4 w-4" />Operadoras (Crédito)</TabsTrigger>
@@ -52,6 +54,7 @@ export function SettingsPanel() {
         <TabsContent value="cargos"><CargosTab /></TabsContent>
         <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
         <TabsContent value="descontos"><DescontosTab /></TabsContent>
+        <TabsContent value="comissoes"><ComissaoPolicyTab /></TabsContent>
         <TabsContent value="indicadores"><IndicadoresTab /></TabsContent>
         <TabsContent value="boleto"><BoletoRatesTab /></TabsContent>
         <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
