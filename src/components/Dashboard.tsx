@@ -695,6 +695,7 @@ interface TrackingRow {
 }
 
 function ContractTrackingList() {
+  const { policy: comissaoPolicy } = useComissaoPolicy();
   const [trackings, setTrackings] = useState<TrackingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
