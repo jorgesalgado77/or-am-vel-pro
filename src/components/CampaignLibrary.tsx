@@ -86,7 +86,7 @@ const PLATFORM_CONFIG: Record<string, { label: string; color: string }> = {
   google: { label: "Google Ads", color: "bg-emerald-500/10 text-emerald-700 border-emerald-200" },
 };
 
-function CampaignCard({ campaign, onUpdate }: { campaign: Campaign; onUpdate?: (c: Campaign) => void }) {
+function CampaignCard({ campaign, onUpdate, onDuplicate }: { campaign: Campaign; onUpdate?: (c: Campaign) => void; onDuplicate?: (c: Campaign) => void }) {
   const [showInstrucoes, setShowInstrucoes] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
