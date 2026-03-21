@@ -437,7 +437,7 @@ export function UsuariosTab() {
               />
             </div>
           </div>
-        ) : (
+        ) : form.tipo_comissao === "clt_only" ? (
           <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-3">
             <div className="flex items-center gap-1.5">
               <Landmark className="h-3.5 w-3.5 text-orange-600" />
@@ -446,6 +446,29 @@ export function UsuariosTab() {
             <p className="text-[10px] text-muted-foreground ml-5">
               Funcionário CLT recebe apenas o salário fixo configurado abaixo, sem comissão sobre vendas.
             </p>
+          </div>
+        ) : (
+          <div className="rounded-md border border-teal-200 bg-teal-50/50 dark:bg-teal-950/20 dark:border-teal-800 p-3 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <DollarSign className="h-3.5 w-3.5 text-teal-600" />
+              <Label className="text-xs font-medium">MEI — Salário + Comissão</Label>
+            </div>
+            <p className="text-[10px] text-muted-foreground ml-5">
+              Prestador MEI recebe valor fixo acordado + comissão sobre vendas.
+            </p>
+            <div>
+              <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={form.comissao_percentual}
+                onChange={(e) => setForm((f) => ({ ...f, comissao_percentual: e.target.value }))}
+                className="mt-1 h-8 text-sm text-right w-24"
+                placeholder="0"
+              />
+            </div>
           </div>
         )}
       </div>

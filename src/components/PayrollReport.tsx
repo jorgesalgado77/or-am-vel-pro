@@ -370,9 +370,13 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                     </TableCell>
                     <TableCell>
                       {(() => {
-                        // Determine commission type based on policy and user's cargo
                         const userRecord = c.usuario_id ? usuarios.find(u => u.id === c.usuario_id) : null;
                         const cargoId = userRecord?.cargo_id || null;
+                        const cargo = cargoId ? cargos.find(cg => cg.id === cargoId) : null;
+                        const tipoComissao = (cargo as any)?.tipo_comissao;
+                        if (tipoComissao === "mei") return <Badge variant="outline" className="text-[10px] border-teal-500/50 text-teal-700">MEI</Badge>;
+                        if (tipoComissao === "clt") return <Badge variant="outline" className="text-[10px] border-purple-500/50 text-purple-700">CLT</Badge>;
+                        if (tipoComissao === "clt_only") return <Badge variant="outline" className="text-[10px] border-orange-500/50 text-orange-700">CLT Fixo</Badge>;
                         const isEscalonada = policy.tipo === "escalonada" && cargoId && policy.cargos_ids.includes(cargoId);
                         return isEscalonada ? (
                           <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-700">Escalonada</Badge>
