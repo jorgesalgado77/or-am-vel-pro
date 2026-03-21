@@ -154,8 +154,14 @@ export function ClientsKanban({
       const isLiberador = cargoNome.includes("liberador");
 
       if (isLiberador) {
-        // Liberador técnico: only sees closed contracts in period
-        baseClients = baseClients.filter(c => (c as any).status === "fechado");
+        // Liberador técnico: only sees closed contracts in current month
+        const now = new Date();
+        const monthStart = startOfMonth(now);
+        baseClients = baseClients.filter(c => {
+          if ((c as any).status !== "fechado") return false;
+          const updatedAt = new Date(c.updated_at);
+          return !isBefore(updatedAt, monthStart) && !isAfter(updatedAt, endOfDay(now));
+        });
       } else if (!isAdmin && !isGerente) {
         // Vendedor/Projetista: only sees their own clients
         const userName = currentUser.nome_completo || currentUser.apelido || "";
