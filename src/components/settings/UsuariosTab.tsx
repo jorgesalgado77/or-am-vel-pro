@@ -282,27 +282,169 @@ export function UsuariosTab() {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Comissão (%)</Label>
-          <Input
-            value={form.comissao_percentual}
-            onChange={(e) => {
-              const val = e.target.value.replace(/[^0-9.,]/g, "").replace(",", ".");
-              setForm((f) => ({ ...f, comissao_percentual: val }));
-            }}
-            className="mt-1"
-            placeholder="Ex: 5.00"
-          />
+      </div>
+
+      {/* Tipo de Comissão */}
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="text-xs font-semibold">Tipo de Comissão</Label>
+            <p className="text-[10px] text-muted-foreground">Selecione o modelo de comissão para este usuário</p>
+          </div>
+          <Select
+            value={form.tipo_comissao}
+            onValueChange={(v) => setForm((f) => ({ ...f, tipo_comissao: v as any }))}
+          >
+            <SelectTrigger className="w-48 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fixa">
+                <span className="flex items-center gap-1.5">
+                  <DollarSign className="h-3 w-3 text-emerald-600" />
+                  Comissão Fixa
+                </span>
+              </SelectItem>
+              <SelectItem value="escalonada">
+                <span className="flex items-center gap-1.5">
+                  <TrendingUp className="h-3 w-3 text-blue-600" />
+                  Comissão Escalonada
+                </span>
+              </SelectItem>
+              <SelectItem value="clt">
+                <span className="flex items-center gap-1.5">
+                  <Landmark className="h-3 w-3 text-purple-600" />
+                  CLT (Salário + Comissão)
+                </span>
+              </SelectItem>
+              <SelectItem value="clt_only">
+                <span className="flex items-center gap-1.5">
+                  <Landmark className="h-3 w-3 text-orange-600" />
+                  CLT (Apenas Salário Fixo)
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <div>
-          <Label>Salário Fixo</Label>
-          <Input
-            value={form.salario_fixo}
-            onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
-            className="mt-1"
-            placeholder="R$ 0,00"
-          />
-        </div>
+
+        {form.tipo_comissao === "fixa" ? (
+          <div className="flex items-center gap-4 rounded-md border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800 p-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                <Label className="text-xs font-medium">Comissão fixa sobre vendas (%)</Label>
+              </div>
+              <p className="text-[10px] text-muted-foreground ml-5">Percentual fixo calculado sobre o valor à vista da venda</p>
+            </div>
+            <div className="w-24">
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={form.comissao_percentual}
+                onChange={(e) => setForm((f) => ({ ...f, comissao_percentual: e.target.value }))}
+                className="h-8 text-sm text-right"
+                placeholder="0"
+              />
+            </div>
+          </div>
+        ) : form.tipo_comissao === "escalonada" ? (
+          <div className="rounded-md border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800 p-3 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-blue-600" />
+              <Label className="text-xs font-medium">Comissão Escalonada por Metas</Label>
+              <Badge variant="outline" className="text-[9px] ml-auto border-blue-300 text-blue-700 dark:text-blue-400">
+                {policy.faixas.length} faixas configuradas
+              </Badge>
+            </div>
+            <p className="text-[10px] text-muted-foreground ml-5">
+              Comissão calculada automaticamente conforme o valor da venda. Configure as faixas em <strong>Configurações &gt; Comissões</strong>.
+            </p>
+            {policy.faixas.length > 0 && (
+              <div className="mt-2 max-h-32 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="text-[10px]">
+                      <TableHead className="py-1 text-[10px]">Faixa</TableHead>
+                      <TableHead className="py-1 text-[10px] text-center">Base</TableHead>
+                      <TableHead className="py-1 text-[10px] text-center">Prêmio</TableHead>
+                      <TableHead className="py-1 text-[10px] text-center">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {policy.faixas.map((f, i) => (
+                      <TableRow key={i} className="text-[10px]">
+                        <TableCell className="py-0.5 text-[10px]">
+                          {f.min.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} — {f.max.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </TableCell>
+                        <TableCell className="py-0.5 text-center text-[10px]">{f.comissao}%</TableCell>
+                        <TableCell className="py-0.5 text-center text-[10px]">{f.premio}%</TableCell>
+                        <TableCell className="py-0.5 text-center text-[10px] font-semibold text-blue-700 dark:text-blue-400">{f.comissao + f.premio}%</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        ) : form.tipo_comissao === "clt" ? (
+          <div className="rounded-md border border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-800 p-3 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <Landmark className="h-3.5 w-3.5 text-purple-600" />
+              <Label className="text-xs font-medium">CLT — Salário Fixo + Comissão</Label>
+            </div>
+            <p className="text-[10px] text-muted-foreground ml-5">
+              Funcionário com registro CLT recebe salário fixo + comissão fixa sobre vendas.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-[10px]">Salário Fixo</Label>
+                <Input
+                  value={form.salario_fixo}
+                  onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
+                  className="mt-1 h-8 text-sm"
+                  placeholder="R$ 0,00"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px]">Comissão sobre vendas (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={form.comissao_percentual}
+                  onChange={(e) => setForm((f) => ({ ...f, comissao_percentual: e.target.value }))}
+                  className="mt-1 h-8 text-sm text-right"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-800 p-3 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <Landmark className="h-3.5 w-3.5 text-orange-600" />
+              <Label className="text-xs font-medium">CLT — Apenas Salário Fixo</Label>
+            </div>
+            <p className="text-[10px] text-muted-foreground ml-5">
+              Funcionário CLT recebe apenas o salário fixo, sem comissão sobre vendas.
+            </p>
+            <div className="w-48">
+              <Label className="text-[10px]">Salário Fixo</Label>
+              <Input
+                value={form.salario_fixo}
+                onChange={(e) => setForm((f) => ({ ...f, salario_fixo: maskCurrency(e.target.value) }))}
+                className="mt-1 h-8 text-sm"
+                placeholder="R$ 0,00"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {!isDialog && (
           <div>
             <Label>Senha Inicial *</Label>
