@@ -338,6 +338,7 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                 <TableRow className="bg-secondary/50">
                   <TableHead>Funcionário / Indicador</TableHead>
                   <TableHead>Cargo/Função</TableHead>
+                  <TableHead>Tipo Comissão</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Contrato</TableHead>
                   <TableHead className="text-right">Valor Base</TableHead>
