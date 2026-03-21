@@ -263,10 +263,27 @@ export default function TenantLanding() {
       try {
         const { data: info } = await (supabase as any).rpc("resolve_tenant_landing", { p_code: codigo });
         if (info) {
-          setTenant({
+          const tenantData: TenantData = {
             ...info,
+            promo_video_url: info.promo_video_url || null,
             carousel_images: Array.isArray(info.carousel_images) ? info.carousel_images.filter(Boolean) : [],
-          });
+          };
+
+          // If RPC didn't return media fields, fetch directly from tenant_funnel_config
+          if (!tenantData.promo_video_url && tenantData.carousel_images.length === 0 && info.id) {
+            const { data: funnelData } = await supabase
+              .from("tenant_funnel_config" as any)
+              .select("promo_video_url, carousel_images")
+              .eq("tenant_id", info.id)
+              .maybeSingle();
+            if (funnelData) {
+              const fd = funnelData as any;
+              tenantData.promo_video_url = fd.promo_video_url || null;
+              tenantData.carousel_images = Array.isArray(fd.carousel_images) ? fd.carousel_images.filter(Boolean) : [];
+            }
+          }
+
+          setTenant(tenantData);
         } else {
           setNotFound(true);
         }
