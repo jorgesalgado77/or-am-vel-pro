@@ -137,6 +137,7 @@ export function CargosTab() {
         const perms = editPerms[cargo.id] || cargo.permissoes;
         const comissao = editComissao[cargo.id] ?? cargo.comissao_percentual;
         const tipoComissao = getCargoTipoComissao(cargo.id);
+        const salarioVal = editSalario[cargo.id] ?? ((cargo as any).salario_base ? (cargo as any).salario_base.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "");
 
         return (
           <Card key={cargo.id}>
