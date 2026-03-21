@@ -15,6 +15,14 @@ import { Slider } from "@/components/ui/slider";
 import { maskPhone, unmask } from "@/lib/masks";
 import { toast } from "sonner";
 
+interface SocialLinks {
+  instagram_url?: string;
+  facebook_url?: string;
+  youtube_url?: string;
+  twitter_url?: string;
+  website_url?: string;
+}
+
 interface TenantData {
   id: string;
   nome_loja: string;
@@ -29,6 +37,7 @@ interface TenantData {
   benefits: string[];
   promo_video_url: string | null;
   carousel_images: string[];
+  social_links: SocialLinks | null;
 }
 
 const DEFAULT_BENEFITS = [
