@@ -340,10 +340,26 @@ export default function TenantLanding() {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
+        @keyframes landingParticle {
+          0% { transform: translateY(0) translateX(0) scale(0); opacity: 0; }
+          20% { opacity: 1; transform: scale(1); }
+          100% { transform: translateY(-120px) translateX(var(--tx, 30px)) scale(0); opacity: 0; }
+        }
+        @keyframes landingWaPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+          50% { box-shadow: 0 0 0 14px rgba(37, 211, 102, 0); }
+        }
         .landing-fade-in { animation: landingFadeIn 0.3s ease-out forwards; }
         .landing-scale-in { animation: landingFadeIn 0.4s ease-out forwards; }
         .landing-float { animation: landingFloat 3s ease-in-out infinite; }
         .landing-glow { animation: landingGlow 3s ease-in-out infinite; }
+        .landing-particle {
+          position: absolute;
+          border-radius: 50%;
+          pointer-events: none;
+          animation: landingParticle var(--dur, 4s) ease-out var(--delay, 0s) infinite;
+        }
+        .landing-wa-btn { animation: landingWaPulse 2s ease-in-out infinite; }
       `}</style>
 
       <div className="min-h-[100dvh] flex flex-col" style={{ background: `linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)` }}>
