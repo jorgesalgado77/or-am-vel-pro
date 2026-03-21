@@ -210,7 +210,7 @@ export function CargosTab() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {policy.faixas.slice(0, 5).map((f, i) => (
+                          {policy.faixas.map((f, i) => (
                             <TableRow key={i} className="text-[10px]">
                               <TableCell className="py-0.5 text-[10px]">
                                 {f.min.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} — {f.max.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -220,13 +220,6 @@ export function CargosTab() {
                               <TableCell className="py-0.5 text-center text-[10px] font-semibold text-blue-700 dark:text-blue-400">{f.comissao + f.premio}%</TableCell>
                             </TableRow>
                           ))}
-                          {policy.faixas.length > 5 && (
-                            <TableRow>
-                              <TableCell colSpan={4} className="py-0.5 text-[10px] text-center text-muted-foreground">
-                                +{policy.faixas.length - 5} faixas...
-                              </TableCell>
-                            </TableRow>
-                          )}
                         </TableBody>
                       </Table>
                     </div>
