@@ -10,11 +10,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Timer, ShieldAlert } from "lucide-react";
 
+const INACTIVITY_SOUND_KEY = "inactivity_sound_enabled";
+
+export function isInactivitySoundEnabled(): boolean {
+  const val = localStorage.getItem(INACTIVITY_SOUND_KEY);
+  return val === null ? true : val === "true";
+}
+
+export function setInactivitySoundEnabled(enabled: boolean) {
+  localStorage.setItem(INACTIVITY_SOUND_KEY, String(enabled));
+}
+
 function playAlertBeep() {
+  if (!isInactivitySoundEnabled()) return;
   try {
     const ctx = new AudioContext();
     const now = ctx.currentTime;
-    // Two-tone urgent alert
     [880, 1100].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();

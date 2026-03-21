@@ -145,7 +145,30 @@ export function ClientsKanban({
   }, [periodFilter, dateStart, dateEnd]);
 
   const filtered = useMemo(() => {
-    return clients.filter((c) => {
+    let baseClients = clients;
+
+    // Role-based visibility filtering
+    if (currentUser && cargoNome) {
+      const isAdmin = cargoNome.includes("administrador");
+      const isGerente = cargoNome.includes("gerente");
+      const isLiberador = cargoNome.includes("liberador");
+
+      if (isLiberador) {
+        // Liberador técnico: only sees closed contracts in period
+        baseClients = baseClients.filter(c => (c as any).status === "fechado");
+      } else if (!isAdmin && !isGerente) {
+        // Vendedor/Projetista: only sees their own clients
+        const userName = currentUser.nome_completo || currentUser.apelido || "";
+        if (userName) {
+          baseClients = baseClients.filter(c => 
+            c.vendedor?.toLowerCase() === userName.toLowerCase()
+          );
+        }
+      }
+      // Admin/Gerente: sees all clients (no filter)
+    }
+
+    return baseClients.filter((c) => {
       const q = search.toLowerCase().trim();
       if (q) {
         const matchesText =
@@ -167,7 +190,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [clients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates]);
+  }, [clients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates, currentUser, cargoNome]);
 
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
