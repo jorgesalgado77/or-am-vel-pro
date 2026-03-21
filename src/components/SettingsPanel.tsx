@@ -351,6 +351,29 @@ function NotificationSoundToggle() {
   );
 }
 
+function InactivitySoundToggle() {
+  const [enabled, setEnabled] = useState(() => {
+    const val = localStorage.getItem("inactivity_sound_enabled");
+    return val === null ? true : val === "true";
+  });
+
+  const handleToggle = (val: boolean) => {
+    setEnabled(val);
+    localStorage.setItem("inactivity_sound_enabled", String(val));
+    toast.success(val ? "Som de inatividade ativado" : "Som de inatividade desativado");
+  };
+
+  return (
+    <div className="flex items-center justify-between max-w-[600px]">
+      <div>
+        <Label>Som de Alerta de Inatividade</Label>
+        <p className="text-xs text-muted-foreground">Toca um som quando a sessão está prestes a expirar por inatividade</p>
+      </div>
+      <Switch checked={enabled} onCheckedChange={handleToggle} />
+    </div>
+  );
+}
+
 /* ===== BOLETO RATES TAB (5 columns) ===== */
 function BoletoRatesTab() {
   const { rates, providers, refresh } = useFinancingRates("boleto");
