@@ -201,6 +201,12 @@ export function CargosTab() {
                           CLT (Apenas Salário Fixo)
                         </span>
                       </SelectItem>
+                      <SelectItem value="mei">
+                        <span className="flex items-center gap-1.5">
+                          <DollarSign className="h-3 w-3 text-teal-600" />
+                          MEI (Salário + Comissão)
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
