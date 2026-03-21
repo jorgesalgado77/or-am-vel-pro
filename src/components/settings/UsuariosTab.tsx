@@ -277,6 +277,7 @@ export function UsuariosTab() {
             const tipoComissao = selectedCargo
               ? (selectedCargo as any).tipo_comissao === "clt" ? "clt"
                 : (selectedCargo as any).tipo_comissao === "clt_only" ? "clt_only"
+                : (selectedCargo as any).tipo_comissao === "mei" ? "mei"
                 : policy.cargos_ids.includes(v) ? "escalonada"
                 : "fixa"
               : "fixa";
