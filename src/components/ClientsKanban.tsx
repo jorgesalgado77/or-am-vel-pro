@@ -68,6 +68,7 @@ export function ClientsKanban({
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
+  const [liberadorMonth, setLiberadorMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
@@ -154,13 +155,13 @@ export function ClientsKanban({
       const isLiberador = cargoNome.includes("liberador");
 
       if (isLiberador) {
-        // Liberador técnico: only sees closed contracts in current month
-        const now = new Date();
-        const monthStart = startOfMonth(now);
+        const [lYear, lMonth] = liberadorMonth.split("-").map(Number);
+        const lMonthStart = new Date(lYear, lMonth - 1, 1);
+        const lMonthEnd = endOfDay(new Date(lYear, lMonth, 0));
         baseClients = baseClients.filter(c => {
           if ((c as any).status !== "fechado") return false;
           const updatedAt = new Date(c.updated_at);
-          return !isBefore(updatedAt, monthStart) && !isAfter(updatedAt, endOfDay(now));
+          return !isBefore(updatedAt, lMonthStart) && !isAfter(updatedAt, lMonthEnd);
         });
       } else if (!isAdmin && !isGerente) {
         // Vendedor/Projetista: only sees their own clients
@@ -271,7 +272,21 @@ export function ClientsKanban({
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Liberador month selector */}
+      {cargoNome.includes("liberador") && (
+        <div className="flex items-center gap-3 mb-3 p-3 bg-muted/30 rounded-lg border border-border">
+          <CalendarIcon className="h-4 w-4 text-primary" />
+          <Label className="text-sm font-medium whitespace-nowrap">Mês de referência:</Label>
+          <Input
+            type="month"
+            value={liberadorMonth}
+            onChange={(e) => setLiberadorMonth(e.target.value)}
+            className="max-w-[200px]"
+          />
+          <span className="text-xs text-muted-foreground">Contratos fechados no período selecionado</span>
+        </div>
+      )}
+
       {showFilters && (
         <div className="flex items-end gap-3 mb-4 p-3 bg-muted/30 rounded-lg border border-border flex-wrap">
           <div className="min-w-[160px]">
