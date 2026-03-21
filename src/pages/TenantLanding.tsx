@@ -751,20 +751,6 @@ export default function TenantLanding() {
             {tenant.nome_loja} · Powered by <span className="font-semibold text-gray-400">OrçaMóvel PRO</span> — Todos os Direitos Reservados — 2026
           </p>
         </footer>
-
-        {/* ═══ WhatsApp Floating Button ═══ */}
-        {tenant.whatsapp_loja && (
-          <a
-            href={`https://wa.me/55${unmask(tenant.whatsapp_loja)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="fixed bottom-5 right-5 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-transform landing-wa-btn"
-            style={{ backgroundColor: "#25D366" }}
-            title="Fale conosco no WhatsApp"
-          >
-            <MessageCircle className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
-          </a>
-        )}
       </div>
     </>
   );
