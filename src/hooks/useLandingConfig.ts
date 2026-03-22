@@ -22,6 +22,24 @@ export interface PlanItem {
   recommended: boolean;
 }
 
+export interface AffiliateStepItem {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+export interface AffiliateConfig {
+  badge_text: string;
+  title_prefix: string;
+  title_highlight: string;
+  title_suffix: string;
+  description: string;
+  steps: AffiliateStepItem[];
+  cta_text: string;
+  cta_subtext: string;
+  image_url: string | null;
+}
+
 export interface LandingConfig {
   id: string;
   hero_title: string;
@@ -40,6 +58,7 @@ export interface LandingConfig {
   footer_text: string;
   footer_contact_email: string | null;
   footer_contact_phone: string | null;
+  affiliate_config: AffiliateConfig;
 }
 
 const DEFAULT_CONFIG: LandingConfig = {
@@ -60,6 +79,21 @@ const DEFAULT_CONFIG: LandingConfig = {
   footer_text: "Todos os direitos reservados",
   footer_contact_email: "contato@orcamovel.com.br",
   footer_contact_phone: null,
+  affiliate_config: {
+    badge_text: "Programa de Afiliados",
+    title_prefix: "Qualquer pessoa pode",
+    title_highlight: "Divulgar e Ganhar",
+    title_suffix: "com o OrçaMóvel PRO",
+    description: "Indique o OrçaMóvel PRO para marcenarias e lojas de móveis planejados e receba 5% de comissão sobre cada nova assinatura. Basta compartilhar seu link exclusivo!",
+    steps: [
+      { icon: "Share2", title: "Compartilhe", description: "Gere seu link exclusivo em segundos" },
+      { icon: "Gift", title: "Indique", description: "Envie para amigos e parceiros do setor" },
+      { icon: "DollarSign", title: "Ganhe", description: "Receba 5% de comissão via PIX" },
+    ],
+    cta_text: "Quero Divulgar e Ganhar",
+    cta_subtext: "Cadastro gratuito • Sem limite de indicações • Pagamento via PIX",
+    image_url: null,
+  },
 };
 
 export function useLandingConfig() {
@@ -99,6 +133,7 @@ export function useLandingConfig() {
           footer_text: d.footer_text,
           footer_contact_email: d.footer_contact_email,
           footer_contact_phone: d.footer_contact_phone,
+          affiliate_config: d.affiliate_config || DEFAULT_CONFIG.affiliate_config,
         });
       }
     } catch (e) {

@@ -149,7 +149,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const fetchData = async () => {
     setLoading(true);
     const [tenantsRes, paymentsRes, plansRes] = await Promise.all([
-      supabase.from("tenants").select("*").order("created_at", { ascending: false }),
+      supabase.rpc("admin_list_all_tenants" as any),
+      supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
       supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
       supabase.from("subscription_plans" as any).select("slug, preco_mensal, preco_anual_mensal").eq("ativo", true),
     ]);

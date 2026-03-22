@@ -92,10 +92,13 @@ export default function LandingPage() {
           <LandingLeadForm primaryColor={config.primary_color} />
         )}
 
-        <LandingAffiliate
-          primaryColor={config.primary_color}
-          secondaryColor={config.secondary_color}
-        />
+        {s.affiliate !== false && (
+          <LandingAffiliate
+            primaryColor={config.primary_color}
+            secondaryColor={config.secondary_color}
+            affiliateConfig={config.affiliate_config}
+          />
+        )}
 
         {s.cta_final && (
           <LandingCTA
