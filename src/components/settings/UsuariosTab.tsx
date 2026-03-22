@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck, DollarSign, TrendingUp, Landmark } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { logAudit } from "@/services/auditService";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useCargos } from "@/hooks/useCargos";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
