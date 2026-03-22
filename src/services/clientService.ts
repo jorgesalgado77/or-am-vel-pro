@@ -26,12 +26,31 @@ export interface LastSimInfo {
  * Fetches all clients ordered by creation date (newest first).
  */
 export async function fetchClients(): Promise<FetchClientsResult> {
-  const { data, error } = await supabase
+  // Ensure we have an active session before querying
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session) {
+    console.warn("[ClientService] No active session — cannot fetch clients");
+    return { clients: [], error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const tenantId = getCurrentTenantId();
+  let query = supabase
     .from("clients")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) return { clients: [], error: "Erro ao carregar clientes" };
+  // Filter by tenant_id explicitly as safety net beyond RLS
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("fetchClients error:", error);
+    return { clients: [], error: "Erro ao carregar clientes: " + error.message };
+  }
+  console.log("fetchClients returned", data?.length, "clients for tenant", tenantId);
   return { clients: data || [], error: null };
 }
 
