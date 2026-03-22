@@ -20,6 +20,8 @@ import {
   Calculator, ChevronRight, GripVertical, Repeat,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { logAudit, getAuditUserInfo } from "@/services/auditService";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUsuarios } from "@/hooks/useUsuarios";
