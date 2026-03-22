@@ -56,6 +56,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   campaigns: { title: "Biblioteca de Campanhas", subtitle: "Anúncios prontos para copiar e ativar em minutos" },
   referrals: { title: "Programa de Indicações", subtitle: "Gere links, acompanhe indicações e recompense seus clientes" },
   financial: { title: "Módulo Financeiro", subtitle: "Contas a pagar, folha de pagamento e ponto de equilíbrio" },
+  tutorials: { title: "Tutoriais", subtitle: "Aprenda a usar cada funcionalidade do sistema com vídeos práticos" },
 };
 
 export default function Index() {
