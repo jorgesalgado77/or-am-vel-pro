@@ -196,6 +196,46 @@ export default function SignUp() {
 
       toast.success("Conta criada com sucesso!");
 
+      // ---- Affiliate tracking: register conversion if affiliate_code exists ----
+      try {
+        const affCode = localStorage.getItem("affiliate_code");
+        const affExpires = localStorage.getItem("affiliate_code_expires");
+        if (affCode && affExpires && Date.now() < Number(affExpires)) {
+          const { data: affData } = await supabase
+            .from("affiliates" as any)
+            .select("id")
+            .eq("affiliate_code", affCode.toUpperCase())
+            .eq("status", "active")
+            .limit(1);
+
+          if (affData && (affData as any[]).length > 0) {
+            const affiliateId = (affData as any[])[0].id;
+            // Fetch commission percent from settings
+            const { data: settingsData } = await supabase
+              .from("affiliate_settings" as any)
+              .select("commission_percent")
+              .limit(1);
+            const commissionPercent = (settingsData as any[])?.[0]?.commission_percent || 5;
+
+            // We don't know the exact amount yet (plan not chosen), register with 0 — admin will update
+            await supabase.from("affiliate_conversions" as any).insert({
+              affiliate_id: affiliateId,
+              user_id: authUserId || null,
+              plan: "signup_pending",
+              amount: 0,
+              commission_amount: 0,
+              status: "pending",
+            } as any);
+
+            // Clear the cookie
+            localStorage.removeItem("affiliate_code");
+            localStorage.removeItem("affiliate_code_expires");
+          }
+        }
+      } catch (affErr) {
+        console.warn("Affiliate tracking error (non-blocking):", affErr);
+      }
+
       // Best-effort: send WhatsApp welcome (non-blocking)
       sendWelcomeWhatsApp({
         nome: trimmedEmail.split("@")[0],
