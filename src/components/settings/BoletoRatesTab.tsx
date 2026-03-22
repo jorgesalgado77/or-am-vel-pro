@@ -1,20 +1,21 @@
 /**
  * Boleto financing rates tab - extracted from SettingsPanel.tsx
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save, FileSpreadsheet, Download } from "lucide-react";
+import { Plus, Trash2, Save, FileSpreadsheet, Download, Star } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useFinancingRates, type FinancingRate } from "@/hooks/useFinancingRates";
 import { useTenant } from "@/contexts/TenantContext";
-
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 export function BoletoRatesTab() {
   const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("boleto");
