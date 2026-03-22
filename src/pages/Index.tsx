@@ -26,6 +26,7 @@ const FunnelPanel = lazy(() => import("@/components/FunnelPanel").then(m => ({ d
 const CampaignLibrary = lazy(() => import("@/components/CampaignLibrary").then(m => ({ default: m.CampaignLibrary })));
 const ReferralPanel = lazy(() => import("@/components/ReferralPanel").then(m => ({ default: m.ReferralPanel })));
 const FinancialPanel = lazy(() => import("@/components/FinancialPanel").then(m => ({ default: m.FinancialPanel })));
+const TutorialsPanel = lazy(() => import("@/components/tutorials/TutorialsPanel").then(m => ({ default: m.TutorialsPanel })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
