@@ -2,7 +2,7 @@
  * Audit Log Service
  * 
  * Centralized logging for critical business actions.
- * Uses in-memory tenantState — never reads from localStorage.
+ * Uses in-memory tenantState with async JWT fallback.
  */
 
 import { supabase } from "@/lib/supabaseClient";
@@ -33,7 +33,8 @@ export type AuditAction =
   | "followup_resumed"
   | "followup_weekly_report"
   | "addon_liberado"
-  | "addon_revogado";
+  | "addon_revogado"
+  | "senha_resetada";
 
 export type AuditEntity =
   | "client"
@@ -61,35 +62,49 @@ interface AuditLogInput {
 }
 
 /**
+ * Resolves tenant_id with JWT fallback when in-memory state is empty.
+ */
+async function resolveAuditTenantId(explicit?: string | null): Promise<string | null> {
+  if (explicit) return explicit;
+  const memoryTid = getTenantId();
+  if (memoryTid) return memoryTid;
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    return (data?.session?.user?.user_metadata as any)?.tenant_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Logs an audit event. Fire-and-forget — never blocks the UI.
- * tenant_id is resolved from in-memory state if not provided explicitly.
  */
 export function logAudit(input: AuditLogInput): void {
   const { acao, entidade, entidade_id, usuario_id, usuario_nome, tenant_id, detalhes } = input;
 
-  const resolvedTenantId = tenant_id ?? getTenantId();
-
-  supabase
-    .from("audit_logs")
-    .insert({
-      acao,
-      entidade,
-      entidade_id: entidade_id || null,
-      usuario_id: usuario_id || null,
-      usuario_nome: usuario_nome || null,
-      detalhes: detalhes || {},
-      tenant_id: resolvedTenantId,
-    } as any)
-    .then(({ error }) => {
-      if (error) {
-        console.warn("[Audit] Failed to log:", acao, error.message);
-      }
-    });
+  resolveAuditTenantId(tenant_id).then((resolvedTenantId) => {
+    supabase
+      .from("audit_logs")
+      .insert({
+        acao,
+        entidade,
+        entidade_id: entidade_id || null,
+        usuario_id: usuario_id || null,
+        usuario_nome: usuario_nome || null,
+        detalhes: detalhes || {},
+        tenant_id: resolvedTenantId,
+      } as any)
+      .then(({ error }) => {
+        if (error) {
+          console.warn("[Audit] Failed to log:", acao, error.message);
+        }
+      });
+  });
 }
 
 /**
  * Helper to get current user info for audit logs.
- * Uses in-memory state from AuthContext.
  */
 export function getAuditUserInfo(): { usuario_id?: string; usuario_nome?: string } {
   const userId = getUserId();

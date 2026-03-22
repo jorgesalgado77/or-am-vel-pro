@@ -875,6 +875,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 cargo_id: legacyUser.cargo_id ?? null,
                 nome_completo: legacyUser.nome_completo ?? normalizedEmail.split("@")[0],
                 apelido: legacyUser.apelido ?? null,
+                telefone: legacyUser.telefone ?? null,
               },
               emailRedirectTo: window.location.origin,
             },
