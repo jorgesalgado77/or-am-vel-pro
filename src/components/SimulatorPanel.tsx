@@ -882,7 +882,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 <Label>Financeira</Label>
                 <div className="flex gap-2 mt-1 flex-wrap">
                   {boletoProviders.map((p) => (
-                    <Button key={p} size="sm" variant={selectedBoletoProvider === p ? "default" : "outline"} onClick={() => { setSelectedBoletoProvider(p); setParcelas(1); }}>
+                    <Button key={p} size="sm" variant={selectedBoletoProvider === p ? "default" : "outline"} onClick={() => handleBoletoProviderChange(p)}>
                       {p}
                     </Button>
                   ))}
