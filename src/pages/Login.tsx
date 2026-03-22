@@ -285,22 +285,43 @@ export default function Login() {
           const formattedCode = cleanCode.replace(/(\d{3})(\d{3})/, "$1.$2");
           const { data: tenantData } = await (supabase as any)
             .from("tenants")
-            .select("nome_loja, codigo_loja")
+            .select("id, nome_loja, codigo_loja")
             .or(`codigo_loja.eq.${formattedCode},codigo_loja.eq.${cleanCode}`)
             .limit(1)
             .maybeSingle();
+          console.log("[Login] Fallback tenant query →", { formattedCode, cleanCode, tenantData });
           if (!cancelled && tenantData?.nome_loja) {
             const { data: csData } = await (supabase as any)
               .from("company_settings")
               .select("nome_empresa")
-              .eq("tenant_id", tenantData.id || "")
+              .eq("tenant_id", tenantData.id)
               .maybeSingle();
             setTenantInfo({
               nome: csData?.nome_empresa || tenantData.nome_loja,
               subtitulo: "",
             });
           } else if (!cancelled) {
-            setTenantInfo(null);
+            // Try resolve_tenant_by_code as last resort
+            const { data: rpcData } = await (supabase as any).rpc("resolve_tenant_by_code", { p_code: formattedCode });
+            const tenantId = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+            console.log("[Login] Last resort RPC →", { formattedCode, tenantId });
+            if (!cancelled && tenantId) {
+              const tid = typeof tenantId === "string" ? tenantId : tenantId?.tenant_id || tenantId?.id;
+              if (tid) {
+                const { data: tData } = await (supabase as any)
+                  .from("tenants").select("nome_loja").eq("id", tid).maybeSingle();
+                const { data: csData2 } = await (supabase as any)
+                  .from("company_settings").select("nome_empresa").eq("tenant_id", tid).maybeSingle();
+                setTenantInfo({
+                  nome: csData2?.nome_empresa || tData?.nome_loja || "Loja",
+                  subtitulo: "",
+                });
+              } else {
+                setTenantInfo(null);
+              }
+            } else if (!cancelled) {
+              setTenantInfo(null);
+            }
           }
         }
       } catch (err) {
