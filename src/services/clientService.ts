@@ -5,6 +5,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTenantId } from "@/contexts/TenantContext";
 import { generateOrcamentoNumber } from "@/services/financialService";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -41,7 +42,8 @@ export async function createClient(
   data: Omit<ClientInsert, "numero_orcamento" | "numero_orcamento_seq">
 ): Promise<{ client: Client | null; error: string | null }> {
   const orcamento = await generateOrcamentoNumber();
-  const insertData = { ...data, ...orcamento };
+  const tenantId = getCurrentTenantId();
+  const insertData = { ...data, ...orcamento, ...(tenantId ? { tenant_id: tenantId } : {}) };
 
   const { data: created, error } = await supabase
     .from("clients")
