@@ -28,7 +28,101 @@ function formatTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/**
+ * Detects YouTube/Vimeo URLs and returns embed URL, or null for direct video.
+ */
+function getEmbedUrl(src: string): string | null {
+  // YouTube: various formats
+  const ytMatch = src.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`;
+
+  // Vimeo
+  const vimeoMatch = src.match(
+    /(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/)(\d+)/
+  );
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
+
+  return null;
+}
+
 export function VideoPlayer({ src, title, onClose }: VideoPlayerProps) {
+  const embedUrl = getEmbedUrl(src);
+
+  // If it's a YouTube/Vimeo embed, render iframe player
+  if (embedUrl) {
+    return <EmbedPlayer embedUrl={embedUrl} title={title} onClose={onClose} />;
+  }
+
+  // Otherwise render native video player
+  return <NativeVideoPlayer src={src} title={title} onClose={onClose} />;
+}
+
+/* ─── Embed Player (YouTube/Vimeo) ─── */
+function EmbedPlayer({ embedUrl, title, onClose }: { embedUrl: string; title: string; onClose: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isFullscreen) onClose();
+      if (e.key === "f") toggleFullscreen();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) await el.requestFullscreen();
+    else await document.exitFullscreen();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
+      <div ref={containerRef} className="relative w-full max-w-5xl mx-4 bg-black rounded-xl overflow-hidden shadow-2xl">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-3 right-3 z-20 bg-black/60 hover:bg-black/80 text-white rounded-full"
+          onClick={onClose}
+        >
+          <X className="h-5 w-5" />
+        </Button>
+
+        <iframe
+          src={embedUrl}
+          title={title}
+          className="w-full aspect-video"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowFullScreen
+          frameBorder="0"
+        />
+
+        {/* Bottom bar with title and fullscreen */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-3 pt-8">
+          <div className="flex items-center justify-between">
+            <p className="text-white text-sm font-medium truncate">{title}</p>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-9 w-9" onClick={toggleFullscreen}>
+              {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Native Video Player ─── */
+function NativeVideoPlayer({ src, title, onClose }: { src: string; title: string; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -66,11 +160,9 @@ export function VideoPlayer({ src, title, onClose }: VideoPlayerProps) {
   }, []);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
   useEffect(() => {
@@ -123,14 +215,9 @@ export function VideoPlayer({ src, title, onClose }: VideoPlayerProps) {
   const toggleFullscreen = async () => {
     const el = containerRef.current;
     if (!el) return;
-    if (!document.fullscreenElement) {
-      await el.requestFullscreen();
-    } else {
-      await document.exitFullscreen();
-    }
+    if (!document.fullscreenElement) await el.requestFullscreen();
+    else await document.exitFullscreen();
   };
-
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
@@ -140,7 +227,6 @@ export function VideoPlayer({ src, title, onClose }: VideoPlayerProps) {
         onMouseMove={resetHideTimer}
         onMouseLeave={() => { if (playing) setShowControls(false); }}
       >
-        {/* Close button */}
         <Button
           variant="ghost"
           size="icon"
@@ -150,7 +236,6 @@ export function VideoPlayer({ src, title, onClose }: VideoPlayerProps) {
           <X className="h-5 w-5" />
         </Button>
 
-        {/* Video */}
         <video
           ref={videoRef}
           src={src}
@@ -159,70 +244,44 @@ export function VideoPlayer({ src, title, onClose }: VideoPlayerProps) {
           playsInline
         />
 
-        {/* Play overlay */}
         {!playing && (
-          <div
-            className="absolute inset-0 flex items-center justify-center cursor-pointer"
-            onClick={togglePlay}
-          >
+          <div className="absolute inset-0 flex items-center justify-center cursor-pointer" onClick={togglePlay}>
             <div className="w-20 h-20 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
               <Play className="h-10 w-10 text-primary-foreground ml-1" />
             </div>
           </div>
         )}
 
-        {/* Controls bar */}
         <div
           className={cn(
             "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pb-4 pt-12 transition-opacity duration-300",
             showControls ? "opacity-100" : "opacity-0 pointer-events-none"
           )}
         >
-          {/* Title */}
           <p className="text-white text-sm font-medium mb-2 truncate">{title}</p>
 
-          {/* Progress bar */}
           <div className="mb-3">
-            <Slider
-              value={[currentTime]}
-              min={0}
-              max={duration || 100}
-              step={0.1}
-              onValueChange={handleSeek}
-              className="cursor-pointer"
-            />
+            <Slider value={[currentTime]} min={0} max={duration || 100} step={0.1} onValueChange={handleSeek} className="cursor-pointer" />
             <div className="flex justify-between text-[10px] text-white/60 mt-1">
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
           </div>
 
-          {/* Control buttons */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {/* Play/Pause */}
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-9 w-9" onClick={togglePlay}>
                 {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
               </Button>
-
-              {/* Volume */}
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-9 w-9" onClick={toggleMute}>
                 {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
               </Button>
               <div className="w-24">
-                <Slider
-                  value={[muted ? 0 : volume]}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  onValueChange={handleVolume}
-                  className="cursor-pointer"
-                />
+                <Slider value={[muted ? 0 : volume]} min={0} max={1} step={0.01} onValueChange={handleVolume} className="cursor-pointer" />
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Speed */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 gap-1 text-xs h-8 px-2">
@@ -242,8 +301,6 @@ export function VideoPlayer({ src, title, onClose }: VideoPlayerProps) {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* Fullscreen */}
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-9 w-9" onClick={toggleFullscreen}>
                 {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
               </Button>
