@@ -61,6 +61,7 @@ export function AppSidebar({
     { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "vendazap" as const, show: hasPermission("vendazap"), badge: "ADD-ON" },
     { id: "vendazap-chat", label: "Chat Vendas", icon: MessageCircle, perm: "chat_vendas" as const, show: hasPermission("chat_vendas"), badge: "ADD-ON" },
     { id: "dealroom", label: "Deal Room", icon: Video, perm: "dealroom" as const, show: hasPermission("dealroom"), badge: "ADD-ON" },
+    { id: "tutorials", label: "Tutoriais", icon: GraduationCap, perm: "clientes" as const, show: true, badge: null },
   ];
 
   const bottomItems = [
