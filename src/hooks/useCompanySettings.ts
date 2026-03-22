@@ -113,10 +113,22 @@ async function fetchCompanySettingsForTenant(tenantId: string | null): Promise<C
 }
 
 export function useCompanySettings() {
-  const tenantId = getCurrentTenantId();
+  const syncTenantId = getCurrentTenantId();
+  const [tenantId, setTenantId] = useState<string | null>(syncTenantId);
   const cacheKey = getCacheKey(tenantId);
   const [settings, setSettings] = useState<CompanySettings>(cachedSettingsByTenant[cacheKey] || DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(!cachedSettingsByTenant[cacheKey]);
+
+  // Resolve tenant_id asynchronously if not available synchronously
+  useEffect(() => {
+    if (!syncTenantId) {
+      getResolvedTenantId().then((resolved) => {
+        if (resolved) setTenantId(resolved);
+      });
+    } else {
+      setTenantId(syncTenantId);
+    }
+  }, [syncTenantId]);
 
   const refresh = useCallback(async () => {
     const nextSettings = await fetchCompanySettingsForTenant(tenantId);
