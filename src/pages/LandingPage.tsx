@@ -92,6 +92,11 @@ export default function LandingPage() {
           <LandingLeadForm primaryColor={config.primary_color} />
         )}
 
+        <LandingAffiliate
+          primaryColor={config.primary_color}
+          secondaryColor={config.secondary_color}
+        />
+
         {s.cta_final && (
           <LandingCTA
             text={config.cta_final_text}
