@@ -271,13 +271,40 @@ export default function Login() {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await (supabase as any).rpc("resolve_tenant_info_by_code", { p_code: maskedCode });
-        if (!cancelled && data && data.nome) {
-          setTenantInfo({ nome: data.nome, subtitulo: data.subtitulo || "" });
+        const { data, error } = await (supabase as any).rpc("resolve_tenant_info_by_code", { p_code: maskedCode });
+        console.log("[Login] resolve_tenant_info_by_code →", { maskedCode, data, error });
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!cancelled && row && (row.nome || row.nome_empresa || row.nome_loja)) {
+          setTenantInfo({
+            nome: row.nome_empresa || row.nome || row.nome_loja,
+            subtitulo: row.subtitulo || "",
+          });
         } else if (!cancelled) {
-          setTenantInfo(null);
+          // Fallback: try direct query
+          const cleanCode = maskedCode.replace(/\D/g, "");
+          const formattedCode = cleanCode.replace(/(\d{3})(\d{3})/, "$1.$2");
+          const { data: tenantData } = await (supabase as any)
+            .from("tenants")
+            .select("nome_loja, codigo_loja")
+            .or(`codigo_loja.eq.${formattedCode},codigo_loja.eq.${cleanCode}`)
+            .limit(1)
+            .maybeSingle();
+          if (!cancelled && tenantData?.nome_loja) {
+            const { data: csData } = await (supabase as any)
+              .from("company_settings")
+              .select("nome_empresa")
+              .eq("tenant_id", tenantData.id || "")
+              .maybeSingle();
+            setTenantInfo({
+              nome: csData?.nome_empresa || tenantData.nome_loja,
+              subtitulo: "",
+            });
+          } else if (!cancelled) {
+            setTenantInfo(null);
+          }
         }
-      } catch {
+      } catch (err) {
+        console.warn("[Login] Branding fetch failed:", err);
         if (!cancelled) setTenantInfo(null);
       }
     })();
