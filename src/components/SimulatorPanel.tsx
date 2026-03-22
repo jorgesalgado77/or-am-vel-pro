@@ -1298,12 +1298,3 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     </div>
   );
 }
-
-function ResultRow({ label, value, muted, highlight }: { label: string; value: string; muted?: boolean; highlight?: boolean }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className={muted ? "text-sm text-muted-foreground" : highlight ? "text-sm font-semibold text-foreground" : "text-sm text-foreground"}>{label}</span>
-      <span className={highlight ? "text-lg font-bold text-primary tabular-nums" : muted ? "text-sm text-muted-foreground tabular-nums" : "text-sm font-medium text-foreground tabular-nums"}>{value}</span>
-    </div>
-  );
-}
