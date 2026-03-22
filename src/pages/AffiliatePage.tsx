@@ -13,10 +13,9 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Gift, Link2, Copy, CheckCircle2, Users, TrendingUp, DollarSign,
-  Share2, ArrowLeft, Loader2, MessageCircle, Eye, EyeOff
+  Share2, ArrowLeft, Loader2, MessageCircle, Eye, EyeOff, LogIn
 } from "lucide-react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 
 function generateAffiliateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
