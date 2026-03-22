@@ -68,36 +68,30 @@ function notify(settings: CompanySettings, tenantId: string | null) {
 async function fetchCompanySettingsForTenant(tenantId: string | null): Promise<CompanySettings | null> {
   if (!tenantId) return null;
 
-  const baseQuery = supabase.from("company_settings").select("*");
-
-  const scopedQuery = baseQuery.eq("tenant_id", tenantId).limit(1).maybeSingle();
-
-  const { data, error } = await Promise.race([
-    scopedQuery,
-    new Promise<{ data: null; error: null }>((resolve) => setTimeout(() => resolve({ data: null, error: null }), 8000)),
+  // Always fetch tenant data for fallback store name
+  const [settingsRes, tenantRes] = await Promise.all([
+    Promise.race([
+      supabase.from("company_settings").select("*").eq("tenant_id", tenantId).limit(1).maybeSingle(),
+      new Promise<{ data: null; error: null }>((resolve) => setTimeout(() => resolve({ data: null, error: null }), 8000)),
+    ]),
+    Promise.race([
+      supabase.from("tenants").select("id, nome_loja, codigo_loja, email_contato, telefone_contato").eq("id", tenantId).maybeSingle(),
+      new Promise<{ data: null; error: null }>((resolve) => setTimeout(() => resolve({ data: null, error: null }), 8000)),
+    ]),
   ]);
 
-  if (error) {
-    console.warn("[CompanySettings] Falha ao carregar company_settings:", error.message);
-    return null;
-  }
+  const tenantData = tenantRes.data;
+  const settingsData = settingsRes.data;
 
-  if (data) {
-    return normalizeSettings(data);
-  }
-
-  const { data: tenantData, error: tenantError } = await Promise.race([
-    supabase
-      .from("tenants")
-      .select("id, nome_loja, codigo_loja, email_contato, telefone_contato")
-      .eq("id", tenantId)
-      .maybeSingle(),
-    new Promise<{ data: null; error: null }>((resolve) => setTimeout(() => resolve({ data: null, error: null }), 8000)),
-  ]);
-
-  if (tenantError) {
-    console.warn("[CompanySettings] Falha ao carregar fallback de tenant:", tenantError.message);
-    return null;
+  if (settingsData) {
+    const normalized = normalizeSettings(settingsData);
+    // If company_name is still the default, use tenant nome_loja as override
+    const isDefault = !normalized.company_name || normalized.company_name === DEFAULT_SETTINGS.company_name;
+    if (isDefault && tenantData?.nome_loja) {
+      normalized.company_name = tenantData.nome_loja;
+    }
+    // Ensure logo_url from settings is used
+    return normalized;
   }
 
   if (!tenantData) return null;
