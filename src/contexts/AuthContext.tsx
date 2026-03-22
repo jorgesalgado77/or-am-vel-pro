@@ -900,7 +900,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const senhaHash = await hashLegacyPassword(password);
               await (supabase as any)
                 .from("usuarios")
-                .update({ senha: senhaHash, id: signUpData.user.id })
+                .update({ senha: senhaHash, auth_user_id: signUpData.user.id })
                 .eq("id", legacyUser.id);
             } catch {
               /* best effort */
