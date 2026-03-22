@@ -895,7 +895,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 <Label>Operadora de Crédito</Label>
                 <div className="flex gap-2 mt-1 flex-wrap">
                   {creditoProviders.map((p) => (
-                    <Button key={p} size="sm" variant={selectedCreditoProvider === p ? "default" : "outline"} onClick={() => { setSelectedCreditoProvider(p); setParcelas(1); }}>
+                    <Button key={p} size="sm" variant={selectedCreditoProvider === p ? "default" : "outline"} onClick={() => handleCreditoProviderChange(p)}>
                       {p}
                     </Button>
                   ))}
