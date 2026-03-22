@@ -164,11 +164,11 @@ export function AppSidebar({
           ))}
 
         <div className="pt-2 border-t border-border mx-1 space-y-0.5 mt-4">
-          <NavButton label="Divulgue e Ganhe" icon={Gift} badge="NOVO" onClick={() => navigate("/afiliado")} />
+          {hasPermission("divulgue_ganhe") && <NavButton label="Divulgue e Ganhe" icon={Gift} badge="NOVO" onClick={() => navigate("/afiliado")} />}
           {bottomItems.filter(i => i.show).map((item) => (
             <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} badge={item.badge} />
           ))}
-          <NavButton label="Suporte" icon={LifeBuoy} onClick={onSupport} />
+          {hasPermission("suporte") && <NavButton label="Suporte" icon={LifeBuoy} onClick={onSupport} />}
           <NavButton label="Sair" icon={LogOut} destructive onClick={async () => { await logout(); navigate("/"); }} />
         </div>
       </nav>
