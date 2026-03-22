@@ -31,7 +31,11 @@ export async function fetchClients(): Promise<FetchClientsResult> {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) return { clients: [], error: "Erro ao carregar clientes" };
+  if (error) {
+    console.error("fetchClients error:", error);
+    return { clients: [], error: "Erro ao carregar clientes: " + error.message };
+  }
+  console.log("fetchClients returned", data?.length, "clients");
   return { clients: data || [], error: null };
 }
 
