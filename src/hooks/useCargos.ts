@@ -9,14 +9,19 @@ export interface CargoPermissoes {
   desconto2: boolean;
   desconto3: boolean;
   plus: boolean;
-}
-
-export interface Cargo {
-  id: string;
-  nome: string;
-  permissoes: CargoPermissoes;
-  comissao_percentual: number;
-  created_at: string;
+  // Sidebar menu permissions
+  folha_pagamento: boolean;
+  financeiro: boolean;
+  planos: boolean;
+  funil: boolean;
+  campanhas: boolean;
+  indicacoes: boolean;
+  vendazap: boolean;
+  chat_vendas: boolean;
+  dealroom: boolean;
+  divulgue_ganhe: boolean;
+  mensagens: boolean;
+  suporte: boolean;
 }
 
 const DEFAULT_PERMISSOES: CargoPermissoes = {
@@ -27,6 +32,18 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   desconto2: true,
   desconto3: false,
   plus: false,
+  folha_pagamento: false,
+  financeiro: false,
+  planos: false,
+  funil: false,
+  campanhas: true,
+  indicacoes: true,
+  vendazap: true,
+  chat_vendas: true,
+  dealroom: true,
+  divulgue_ganhe: true,
+  mensagens: true,
+  suporte: true,
 };
 
 export function useCargos() {

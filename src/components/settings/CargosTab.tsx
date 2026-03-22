@@ -17,15 +17,35 @@ import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { getTenantId } from "@/lib/tenantState";
 
-const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
+const PERM_LABELS_CORE: Record<string, string> = {
   clientes: "Clientes",
-  simulador: "Simulador",
+  simulador: "Negociação",
   configuracoes: "Configurações",
   desconto1: "Desconto 1",
   desconto2: "Desconto 2",
   desconto3: "Desconto 3",
   plus: "Plus",
 };
+
+const PERM_LABELS_MENU: Record<string, string> = {
+  folha_pagamento: "Folha de Pagamento",
+  financeiro: "Financeiro",
+  planos: "Planos de Assinatura",
+  funil: "Funil de Captação",
+  campanhas: "Campanhas",
+  indicacoes: "Indicações",
+  vendazap: "VendaZap AI",
+  chat_vendas: "Chat Vendas",
+  dealroom: "Deal Room",
+  divulgue_ganhe: "Divulgue e Ganhe",
+  mensagens: "Mensagens",
+  suporte: "Suporte",
+};
+
+const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
+  ...PERM_LABELS_CORE,
+  ...PERM_LABELS_MENU,
+} as Record<keyof CargoPermissoes, string>;
 
 export function CargosTab() {
   const { cargos, refresh, DEFAULT_PERMISSOES } = useCargos();
