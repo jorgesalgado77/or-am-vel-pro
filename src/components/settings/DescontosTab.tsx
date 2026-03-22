@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, Save } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useDiscountOptions } from "@/hooks/useDiscountOptions";
 
@@ -21,7 +20,13 @@ export function DescontosTab() {
     setEditing(map);
   }, [options]);
 
-  const addValue = (field: string) => {
+  const saveField = async (field: string, values: number[]) => {
+    const error = await updateOptions(field, values);
+    if (error) toast.error("Erro ao salvar");
+    else toast.success(`${FIELD_LABELS[field]} atualizado!`);
+  };
+
+  const addValue = async (field: string) => {
     const val = parseFloat(newValues[field] || "");
     if (isNaN(val) || val < 0 || val > 100) {
       toast.error("Informe um valor entre 0 e 100");
@@ -32,26 +37,20 @@ export function DescontosTab() {
       toast.error("Valor já existe");
       return;
     }
-    setEditing((prev) => ({ ...prev, [field]: [...current, val].sort((a, b) => a - b) }));
+    const updated = [...current, val].sort((a, b) => a - b);
+    setEditing((prev) => ({ ...prev, [field]: updated }));
     setNewValues((prev) => ({ ...prev, [field]: "" }));
+    await saveField(field, updated);
   };
 
-  const removeValue = (field: string, val: number) => {
-    setEditing((prev) => ({
-      ...prev,
-      [field]: (prev[field] || []).filter((v) => v !== val),
-    }));
-  };
-
-  const handleSave = async (field: string) => {
-    const values = editing[field] || [];
-    if (values.length === 0) {
-      toast.error("Adicione pelo menos um valor");
-      return;
+  const removeValue = async (field: string, val: number) => {
+    const updated = (editing[field] || []).filter((v) => v !== val);
+    setEditing((prev) => ({ ...prev, [field]: updated }));
+    if (updated.length > 0) {
+      await saveField(field, updated);
+    } else {
+      toast.info("Último valor removido — adicione um novo para salvar");
     }
-    const error = await updateOptions(field, values);
-    if (error) toast.error("Erro ao salvar");
-    else toast.success(`Opções de ${FIELD_LABELS[field]} salvas!`);
   };
 
   if (loading) return <p className="text-muted-foreground text-sm">Carregando...</p>;
@@ -63,21 +62,20 @@ export function DescontosTab() {
       {fields.map((field) => (
         <Card key={field}>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{FIELD_LABELS[field]}</CardTitle>
-              <Button size="sm" onClick={() => handleSave(field)} className="gap-1">
-                <Save className="h-3 w-3" />Salvar
-              </Button>
-            </div>
+            <CardTitle className="text-base">{FIELD_LABELS[field]}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {(editing[field] || []).map((val) => (
-                <Badge key={val} variant="secondary" className="text-sm gap-1 px-3 py-1.5">
+                <Badge
+                  key={val}
+                  variant="secondary"
+                  className="text-sm gap-1.5 px-3 py-1.5 cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  onClick={() => removeValue(field, val)}
+                  title="Clique para remover"
+                >
                   {val}%
-                  <button onClick={() => removeValue(field, val)} className="ml-1 hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
+                  <X className="h-3 w-3" />
                 </Badge>
               ))}
               {(editing[field] || []).length === 0 && (
