@@ -1,26 +1,54 @@
 /**
  * Credit card rates tab - extracted from SettingsPanel.tsx
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save, FileSpreadsheet, Download } from "lucide-react";
+import { Plus, Trash2, Save, FileSpreadsheet, Download, Star } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { useTenant } from "@/contexts/TenantContext";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 
+export type CreditoProviderDefaults = Record<string, { parcelas: number }>;
 
 export function CreditoRatesTab() {
   const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("credito");
   const { tenantId } = useTenant();
+  const { settings, refresh: refreshSettings } = useCompanySettings();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, number>>({});
+
+  // Per-provider defaults
+  const [providerDefaults, setProviderDefaults] = useState<CreditoProviderDefaults>({});
+
+  useEffect(() => {
+    const d = ((settings as any)?.credito_defaults || {}) as CreditoProviderDefaults;
+    setProviderDefaults(d);
+  }, [settings]);
+
+  const updateProviderDefault = (provider: string, parcelas: number) => {
+    setProviderDefaults((prev) => ({
+      ...prev,
+      [provider]: { parcelas },
+    }));
+  };
+
+  const handleSaveDefaults = async () => {
+    if (!settings?.id) return;
+    const { error } = await supabase.from("company_settings").update({
+      credito_defaults: providerDefaults,
+    } as any).eq("id", settings.id);
+    if (error) toast.error("Erro ao salvar padrões");
+    else { toast.success("Padrões do simulador salvos!"); refreshSettings(); }
+  };
 
   const handleAddProvider = async () => {
     if (!newProviderName.trim()) return;
@@ -123,6 +151,44 @@ export function CreditoRatesTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Padrão para o Simulador - por operadora */}
+      {providers.length > 0 && (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Padrão do Simulador por Operadora</CardTitle>
+            </div>
+            <p className="text-xs text-muted-foreground">Configure as parcelas padrão para cada operadora. Esses valores aparecerão pré-preenchidos no simulador ao selecionar a operadora, mas o usuário poderá alterar livremente.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {providers.map((provider) => {
+                const pd = providerDefaults[provider] || { parcelas: 0 };
+                const maxInstallments = rates.filter((r) => r.provider_name === provider).length || 12;
+                return (
+                  <div key={provider} className="flex flex-wrap items-end gap-4 p-3 bg-secondary/30 rounded-lg">
+                    <div className="font-medium text-sm min-w-[120px]">{provider}</div>
+                    <div>
+                      <Label className="text-xs">Parcelas</Label>
+                      <Select value={String(pd.parcelas || "")} onValueChange={(v) => updateProviderDefault(provider, Number(v))}>
+                        <SelectTrigger className="mt-1 w-[100px] h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => (
+                            <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <Button onClick={handleSaveDefaults} className="mt-4 gap-2"><Save className="h-4 w-4" />Salvar Padrões</Button>
+          </CardContent>
+        </Card>
+      )}
 
       {providers.map((provider) => {
         const providerRates = rates.filter((r) => r.provider_name === provider).sort((a, b) => a.installments - b.installments);
