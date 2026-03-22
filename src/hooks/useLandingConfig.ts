@@ -79,6 +79,21 @@ const DEFAULT_CONFIG: LandingConfig = {
   footer_text: "Todos os direitos reservados",
   footer_contact_email: "contato@orcamovel.com.br",
   footer_contact_phone: null,
+  affiliate_config: {
+    badge_text: "Programa de Afiliados",
+    title_prefix: "Qualquer pessoa pode",
+    title_highlight: "Divulgar e Ganhar",
+    title_suffix: "com o OrçaMóvel PRO",
+    description: "Indique o OrçaMóvel PRO para marcenarias e lojas de móveis planejados e receba 5% de comissão sobre cada nova assinatura. Basta compartilhar seu link exclusivo!",
+    steps: [
+      { icon: "Share2", title: "Compartilhe", description: "Gere seu link exclusivo em segundos" },
+      { icon: "Gift", title: "Indique", description: "Envie para amigos e parceiros do setor" },
+      { icon: "DollarSign", title: "Ganhe", description: "Receba 5% de comissão via PIX" },
+    ],
+    cta_text: "Quero Divulgar e Ganhar",
+    cta_subtext: "Cadastro gratuito • Sem limite de indicações • Pagamento via PIX",
+    image_url: null,
+  },
 };
 
 export function useLandingConfig() {
