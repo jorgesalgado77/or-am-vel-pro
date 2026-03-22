@@ -376,7 +376,7 @@ function InactivitySoundToggle() {
 
 /* ===== BOLETO RATES TAB (5 columns) ===== */
 function BoletoRatesTab() {
-  const { rates, providers, refresh } = useFinancingRates("boleto");
+  const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("boleto");
   const { tenantId } = useTenant();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, Partial<FinancingRate>>>({});
@@ -517,7 +517,18 @@ function BoletoRatesTab() {
           <Card key={provider}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <CardTitle className="text-base">{provider}</CardTitle>
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-base">{provider}</CardTitle>
+                  <div className="flex items-center gap-1.5">
+                    <Switch
+                      checked={isProviderActive(provider)}
+                      onCheckedChange={() => { toggleProviderActive(provider).then((err) => { if (err) toast.error("Erro ao alterar status"); else toast.success(isProviderActive(provider) ? "Desativada" : "Ativada"); }); }}
+                    />
+                    <span className={`text-xs font-medium ${isProviderActive(provider) ? "text-green-600" : "text-muted-foreground"}`}>
+                      {isProviderActive(provider) ? "Ativa" : "Inativa"}
+                    </span>
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => handleExportExcel(provider)} className="gap-1"><Download className="h-3 w-3" />Exportar</Button>
                   <Button size="sm" onClick={() => handleSaveRates(provider)} className="gap-1"><Save className="h-3 w-3" />Salvar</Button>
@@ -576,7 +587,7 @@ function BoletoRatesTab() {
 
 /* ===== CREDITO RATES TAB (simpler: parcelas + coeficiente) ===== */
 function CreditoRatesTab() {
-  const { rates, providers, refresh } = useFinancingRates("credito");
+  const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("credito");
   const { tenantId } = useTenant();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, number>>({});
@@ -706,7 +717,18 @@ function CreditoRatesTab() {
           <Card key={provider}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <CardTitle className="text-base">{provider}</CardTitle>
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-base">{provider}</CardTitle>
+                  <div className="flex items-center gap-1.5">
+                    <Switch
+                      checked={isProviderActive(provider)}
+                      onCheckedChange={() => { toggleProviderActive(provider).then((err) => { if (err) toast.error("Erro ao alterar status"); else toast.success(isProviderActive(provider) ? "Desativada" : "Ativada"); }); }}
+                    />
+                    <span className={`text-xs font-medium ${isProviderActive(provider) ? "text-green-600" : "text-muted-foreground"}`}>
+                      {isProviderActive(provider) ? "Ativa" : "Inativa"}
+                    </span>
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => handleExportExcel(provider)} className="gap-1"><Download className="h-3 w-3" />Exportar</Button>
                   <Button size="sm" onClick={() => handleSaveRates(provider)} className="gap-1"><Save className="h-3 w-3" />Salvar</Button>

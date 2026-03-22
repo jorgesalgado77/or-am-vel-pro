@@ -10,6 +10,7 @@ export interface FinancingRate {
   taxa_fixa: number;
   coeficiente_60: number;
   coeficiente_90: number;
+  is_active?: boolean;
 }
 
 export function useFinancingRates(providerType?: "boleto" | "credito") {
@@ -31,7 +32,29 @@ export function useFinancingRates(providerType?: "boleto" | "credito") {
 
   const providers = [...new Set(rates.map((r) => r.provider_name))];
 
+  const activeProviders = [...new Set(
+    rates.filter((r) => r.is_active !== false).map((r) => r.provider_name)
+  )];
+
   const getRatesForProvider = (name: string) => rates.filter((r) => r.provider_name === name);
 
-  return { rates, loading, providers, getRatesForProvider, refresh: fetchRates };
+  const isProviderActive = (name: string): boolean => {
+    const providerRates = rates.filter((r) => r.provider_name === name);
+    return providerRates.length === 0 || providerRates[0]?.is_active !== false;
+  };
+
+  const toggleProviderActive = async (name: string) => {
+    const currentlyActive = isProviderActive(name);
+    const providerRates = rates.filter((r) => r.provider_name === name);
+    const ids = providerRates.map((r) => r.id);
+    if (ids.length === 0) return;
+    const { error } = await supabase
+      .from("financing_rates")
+      .update({ is_active: !currentlyActive } as any)
+      .in("id", ids);
+    if (!error) fetchRates();
+    return error;
+  };
+
+  return { rates, loading, providers, activeProviders, getRatesForProvider, isProviderActive, toggleProviderActive, refresh: fetchRates };
 }
