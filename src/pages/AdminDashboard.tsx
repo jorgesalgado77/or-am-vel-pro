@@ -391,13 +391,23 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
           {/* TAB: Lojas */}
           <TabsContent value="lojas" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Lojas Cadastradas</h3>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={fetchData} className="gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-lg font-semibold text-foreground">Lojas Cadastradas ({filteredTenants.length})</h3>
+              <div className="flex gap-2 flex-wrap">
+                <Input placeholder="Buscar loja..." value={searchTenant} onChange={e => setSearchTenant(e.target.value)} className="w-48 h-8 text-sm" />
+                <Select value={filterPlano} onValueChange={setFilterPlano}>
+                  <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="trial">Trial</SelectItem>
+                    <SelectItem value="basico">Básico</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={fetchData} className="gap-2 h-8">
                   <RefreshCw className="h-3 w-3" /> Atualizar
                 </Button>
-                <Button size="sm" onClick={openNewTenant} className="gap-2">
+                <Button size="sm" onClick={openNewTenant} className="gap-2 h-8">
                   <Plus className="h-3 w-3" /> Nova Loja
                 </Button>
               </div>
@@ -407,22 +417,25 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Ativa</TableHead>
                       <TableHead>Loja</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead>Plano</TableHead>
-                      <TableHead>Período</TableHead>
+                      <TableHead className="text-center">Usuários</TableHead>
+                      <TableHead className="text-center">Clientes</TableHead>
+                      <TableHead className="text-center">Sims/Mês</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Validade</TableHead>
                       <TableHead className="text-center">Add-ons</TableHead>
-                      <TableHead className="w-24">Ações</TableHead>
+                      <TableHead className="w-20">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-                    ) : tenants.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma loja cadastrada</TableCell></TableRow>
-                    ) : tenants.map((t) => {
+                      <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+                    ) : filteredTenants.length === 0 ? (
+                      <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhuma loja encontrada</TableCell></TableRow>
+                    ) : filteredTenants.map((t) => {
                       const status = getPlanStatus(t);
                       const planCfg = PLAN_CONFIG[t.plano as keyof typeof PLAN_CONFIG] || PLAN_CONFIG.trial;
                       const PlanIcon = planCfg.icon;
