@@ -114,7 +114,7 @@ export function AuditLogsTab() {
     return Array.from(set).sort();
   }, [logs]);
 
-  const exportToExcel = useCallback(() => {
+  const exportToExcel = useCallback(async () => {
     if (filtered.length === 0) {
       toast.error("Nenhum registro para exportar");
       return;
