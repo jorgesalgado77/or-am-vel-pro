@@ -708,6 +708,39 @@ export default function TenantLanding() {
                     <div className="flex items-center gap-1"><Shield className="h-3 w-3" /> Dados protegidos</div>
                     <div className="flex items-center gap-1"><Star className="h-3 w-3" /> Sem spam</div>
                   </div>
+
+                  {/* Social Links inside form card */}
+                  {(() => {
+                    const sl = tenant.social_links || {};
+                    const socialItems = [
+                      { icon: Instagram, label: "Instagram", url: sl.instagram_url, gradient: "linear-gradient(135deg, #E1306C, #F77737, #FCAF45)" },
+                      { icon: Facebook, label: "Facebook", url: sl.facebook_url, gradient: "linear-gradient(135deg, #1877F2, #42A5F5)" },
+                      { icon: Youtube, label: "YouTube", url: sl.youtube_url, gradient: "linear-gradient(135deg, #FF0000, #CC0000)" },
+                      { icon: Twitter, label: "X/Twitter", url: sl.twitter_url, gradient: "linear-gradient(135deg, #1DA1F2, #0d8bd9)" },
+                      { icon: Globe, label: "Site", url: sl.website_url, gradient: `linear-gradient(135deg, ${color}, ${color}cc)` },
+                    ].filter(l => l.url && l.url.trim());
+                    if (!socialItems.length) return null;
+                    return (
+                      <div className="pt-3 border-t border-gray-800/60">
+                        <p className="text-xs text-gray-500 text-center mb-3">Siga-nos nas redes sociais</p>
+                        <div className="flex justify-center gap-3">
+                          {socialItems.map(({ icon: Icon, label, url, gradient }) => (
+                            <a
+                              key={label}
+                              href={url!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={label}
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl active:scale-95"
+                              style={{ background: gradient }}
+                            >
+                              <Icon className="h-5 w-5" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
