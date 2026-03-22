@@ -1160,7 +1160,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             {showPlus && (
               <div>
                 <Label className="flex items-center gap-1">
-                  Plus (%)
+                  Desconto Plus (%)
                   {!plusUnlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
                   {plusUnlocked && <LockOpen className="h-3 w-3 text-success" />}
                 </Label>
