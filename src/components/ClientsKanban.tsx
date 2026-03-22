@@ -16,8 +16,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Plus, Search, Filter, X, CalendarIcon, Handshake, Pencil, Trash2,
-  History, FileText, Phone, Mail, User, Hash, Clock, AlertTriangle,
-  Calculator, ChevronRight, GripVertical, Repeat,
+   History, FileText, Phone, Mail, User, Hash, Clock, AlertTriangle,
+   Calculator, ChevronRight, GripVertical, Repeat, ArrowRight, UserPlus,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
