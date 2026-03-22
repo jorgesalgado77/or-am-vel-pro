@@ -49,6 +49,7 @@ const ALL_FEATURES: { key: string; label: string; description: string }[] = [
   { key: "indicadores", label: "Indicadores", description: "Gestão de indicadores de vendas" },
   { key: "comissoes", label: "Comissões", description: "Controle de comissões e folha" },
   { key: "kanban", label: "Kanban de Clientes", description: "Visualização Kanban do pipeline" },
+  { key: "ocultar_indicador", label: "Ocultar Indicador (VIP)", description: "Permite ocultar dados do indicador na negociação" },
 ];
 
 const ICON_MAP: Record<string, React.ElementType> = {
