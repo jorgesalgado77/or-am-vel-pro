@@ -621,6 +621,41 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     }
 
     // === RECORD DEAL ROOM TRANSACTION ===
+    try {
+      const tenantId = resolvedTenantId;
+      if (tenantId) {
+        await recordSale(tenantId, {
+          valor_venda: result.valorFinal,
+          client_id: client.id,
+          usuario_id: currentUser?.id,
+          simulation_id: pendingSimId,
+          forma_pagamento: formaPagamento,
+          numero_contrato: closeSaleFormData?.numero_contrato || "",
+          nome_cliente: client.nome,
+          nome_vendedor: currentUser?.nome_completo || currentUser?.apelido || "",
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao registrar transação Deal Room:", err);
+    }
+
+    openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
+
+    const userInfo = getAuditUserInfo();
+    logAudit({
+      acao: "venda_fechada",
+      entidade: "contract",
+      entidade_id: pendingSimId,
+      detalhes: { cliente: client.nome, cliente_id: client.id, valor_final: result.valorFinal, forma_pagamento: formaPagamento },
+      ...userInfo,
+    });
+
+    toast.success("Venda fechada! Contrato gerado, comissões criadas e salvo.");
+    setContractEditorOpen(false);
+    setPendingSimId(null);
+    setPendingTemplateId(null);
+    setClosingSale(false);
+  };
 
   const passwordDialogTitle = pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
 
