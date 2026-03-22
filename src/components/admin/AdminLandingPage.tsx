@@ -48,7 +48,7 @@ export function AdminLandingPage() {
 
   const fetchData = useCallback(async () => {
     const [configRes, leadsRes] = await Promise.all([
-      supabase.from("landing_page_config").select("*").limit(1).single(),
+      supabase.from("landing_page_config").select("*").limit(1).maybeSingle(),
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
     ]);
 
@@ -88,6 +88,43 @@ export function AdminLandingPage() {
           image_url: null,
         },
       });
+    } else {
+      // No config found — likely RLS blocking or empty table. Use defaults so the UI renders.
+      setConfig({
+        id: "",
+        hero_title: "Orçamentos rápidos. Vendas fechadas. Sem complicação.",
+        hero_subtitle: "O sistema completo para marcenarias e lojas de móveis planejados.",
+        hero_image_url: null,
+        hero_video_url: null,
+        benefits: [],
+        carousel_images: [],
+        how_it_works: [],
+        proof_text: "",
+        plans: [],
+        cta_final_text: "Comece agora e transforme suas vendas",
+        primary_color: "#1e40af",
+        secondary_color: "#0ea5e9",
+        sections_visible: { hero: true, benefits: true, carousel: true, how_it_works: true, proof: true, plans: true, lead_form: true, cta_final: true, affiliate: true },
+        footer_text: "Todos os direitos reservados",
+        footer_contact_email: "contato@orcamovel.com.br",
+        footer_contact_phone: null,
+        affiliate_config: {
+          badge_text: "Programa de Afiliados",
+          title_prefix: "Qualquer pessoa pode",
+          title_highlight: "Divulgar e Ganhar",
+          title_suffix: "com o OrçaMóvel PRO",
+          description: "Indique o OrçaMóvel PRO para marcenarias e lojas de móveis planejados e receba 5% de comissão sobre cada nova assinatura. Basta compartilhar seu link exclusivo!",
+          steps: [
+            { icon: "Share2", title: "Compartilhe", description: "Gere seu link exclusivo em segundos" },
+            { icon: "Gift", title: "Indique", description: "Envie para amigos e parceiros do setor" },
+            { icon: "DollarSign", title: "Ganhe", description: "Receba 5% de comissão via PIX" },
+          ],
+          cta_text: "Quero Divulgar e Ganhar",
+          cta_subtext: "Cadastro gratuito • Sem limite de indicações • Pagamento via PIX",
+          image_url: null,
+        },
+      });
+      if (configRes.error) console.warn("[AdminLandingPage] Config fetch error:", configRes.error);
     }
     if (leadsRes.data) setLeads(leadsRes.data as any);
     setLoading(false);
