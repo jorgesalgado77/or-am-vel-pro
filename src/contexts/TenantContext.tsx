@@ -46,7 +46,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       .from("tenants")
       .select("*")
       .eq("id", id)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setTenant({
