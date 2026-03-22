@@ -470,12 +470,20 @@ export function ClientsKanban({
                             <Draggable key={client.id} draggableId={client.id} index={index}>
                               {(provided, snapshot) => {
                                 const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
+                                const agingColor =
+                                  daysInColumn <= 1 ? "hsl(142, 71%, 45%)" :   // green
+                                  daysInColumn <= 3 ? "hsl(48, 96%, 53%)" :     // yellow
+                                  daysInColumn <= 7 ? "hsl(25, 95%, 53%)" :     // orange
+                                  "hsl(0, 84%, 60%)";                            // red
+                                const agingGlow =
+                                  daysInColumn > 7 ? "0 0 6px hsl(0 84% 60% / 0.3)" :
+                                  daysInColumn > 3 ? "0 0 4px hsl(25 95% 53% / 0.2)" : "none";
                                 return (
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                     className={cn(
-                                    "rounded-lg border bg-card shadow-sm transition-all cursor-pointer group border-l-[3px]",
+                                    "rounded-lg border bg-card shadow-sm transition-all cursor-pointer group border-l-[4px]",
                                     "hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5",
                                     "dark:hover:shadow-[0_4px_20px_hsl(var(--primary)/0.2)] dark:hover:border-primary/50 dark:hover:bg-card/80",
                                     snapshot.isDragging && "shadow-[0_0_20px_hsl(var(--primary)/0.3)] ring-2 ring-primary/40 rotate-1 scale-105",
@@ -483,7 +491,8 @@ export function ClientsKanban({
                                   )}
                                   style={{
                                     ...provided.draggableProps.style,
-                                    borderLeftColor: col.color,
+                                    borderLeftColor: agingColor,
+                                    boxShadow: snapshot.isDragging ? undefined : agingGlow,
                                   }}
                                   onClick={() => setExpandedClient(client)}
                                 >
