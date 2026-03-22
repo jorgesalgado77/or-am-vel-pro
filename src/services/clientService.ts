@@ -5,7 +5,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTenantId } from "@/contexts/TenantContext";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { generateOrcamentoNumber } from "@/services/financialService";
 import type { Database } from "@/integrations/supabase/types";
 

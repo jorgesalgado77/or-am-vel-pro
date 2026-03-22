@@ -31,7 +31,7 @@ import { useDiscountOptions } from "@/hooks/useDiscountOptions";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { useTenantPlanContext } from "@/hooks/useTenantPlan";
-import { getCurrentTenantId } from "@/contexts/TenantContext";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { openContractPrintWindow } from "@/lib/contractDocument";
 import type { Database } from "@/integrations/supabase/types";
 
