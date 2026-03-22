@@ -18,4 +18,4 @@ export { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 // Services
 export { generateSaleCommissions } from "@/services/commissionService";
 export * from "@/services/financialService";
-export { parseFinancingExcel } from "@/services/fileImportService";
+export { parseProjectFile } from "@/services/fileImportService";

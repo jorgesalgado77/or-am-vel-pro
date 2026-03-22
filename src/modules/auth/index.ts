@@ -23,10 +23,10 @@ export { useCargos } from "@/hooks/useCargos";
 
 // Services
 export { logAudit, getAuditUserInfo } from "@/services/auditService";
-export { loginDiagnosticService } from "@/services/loginDiagnosticService";
+export { logLoginDiagnostic } from "@/services/loginDiagnosticService";
 
 // Utils
-export { getResolvedTenantId } from "@/lib/tenantState";
+export { setTenantState, getTenantId, getUserId } from "@/lib/tenantState";
 export * from "@/lib/authHelpers";
-export { provisionTenantAccount } from "@/lib/accountProvisioning";
+export { provisionNewStore, createUsuarioProfile, checkEmailExists } from "@/lib/accountProvisioning";
 export { supabase } from "@/lib/supabaseClient";

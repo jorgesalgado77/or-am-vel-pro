@@ -33,4 +33,4 @@ export { getDateRange } from "@/lib/dateFilterUtils";
 // Hooks
 export { useTheme } from "@/hooks/useTheme";
 export { usePersistedFormState } from "@/hooks/usePersistedFormState";
-export { useMobile } from "@/hooks/use-mobile";
+export { useIsMobile } from "@/hooks/use-mobile";
