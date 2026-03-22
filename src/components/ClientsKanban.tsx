@@ -71,6 +71,7 @@ export function ClientsKanban({
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
   const [filterTemperature, setFilterTemperature] = useState("");
+  const [filterTipoCliente, setFilterTipoCliente] = useState("");
   const [periodFilter, setPeriodFilter] = useState("mes_atual");
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
