@@ -63,7 +63,9 @@ export async function createClient(
 ): Promise<{ client: Client | null; error: string | null }> {
   const orcamento = await generateOrcamentoNumber();
   const tenantId = await getResolvedTenantId();
-  const insertData = { ...data, ...orcamento, ...(tenantId ? { tenant_id: tenantId } : {}) };
+  // Auto-set status to em_negociacao if vendedor is assigned
+  const autoStatus = (data as any).vendedor ? { status: "em_negociacao" } : {};
+  const insertData = { ...data, ...orcamento, ...autoStatus, ...(tenantId ? { tenant_id: tenantId } : {}) };
 
   const { data: created, error } = await supabase
     .from("clients")
