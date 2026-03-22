@@ -1,24 +1,35 @@
+import { lazy, Suspense, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck } from "lucide-react";
-import { CompanySettingsTab } from "@/components/settings/CompanySettingsTab";
-import { CargosTab } from "@/components/settings/CargosTab";
-import { UsuariosTab } from "@/components/settings/UsuariosTab";
-import { DescontosTab } from "@/components/settings/DescontosTab";
-import { ComissaoPolicyTab } from "@/components/settings/ComissaoPolicyTab";
-import { IndicadoresTab } from "@/components/settings/IndicadoresTab";
-import { BoletoRatesTab } from "@/components/settings/BoletoRatesTab";
-import { CreditoRatesTab } from "@/components/settings/CreditoRatesTab";
-import { ContratosTab } from "@/components/settings/ContratosTab";
-import { WhatsAppTab } from "@/components/settings/WhatsAppTab";
-import { ResendTab } from "@/components/settings/ResendTab";
-import { AcompanhamentoTab } from "@/components/settings/AcompanhamentoTab";
-import { AuditLogsTab } from "@/components/settings/AuditLogsTab";
-import { CanvaIntegrationTab } from "@/components/settings/CanvaIntegrationTab";
+
+// Lazy load each tab to reduce initial chunk from 1.5MB
+const CompanySettingsTab = lazy(() => import("@/components/settings/CompanySettingsTab").then(m => ({ default: m.CompanySettingsTab })));
+const CargosTab = lazy(() => import("@/components/settings/CargosTab").then(m => ({ default: m.CargosTab })));
+const UsuariosTab = lazy(() => import("@/components/settings/UsuariosTab").then(m => ({ default: m.UsuariosTab })));
+const DescontosTab = lazy(() => import("@/components/settings/DescontosTab").then(m => ({ default: m.DescontosTab })));
+const ComissaoPolicyTab = lazy(() => import("@/components/settings/ComissaoPolicyTab").then(m => ({ default: m.ComissaoPolicyTab })));
+const IndicadoresTab = lazy(() => import("@/components/settings/IndicadoresTab").then(m => ({ default: m.IndicadoresTab })));
+const BoletoRatesTab = lazy(() => import("@/components/settings/BoletoRatesTab").then(m => ({ default: m.BoletoRatesTab })));
+const CreditoRatesTab = lazy(() => import("@/components/settings/CreditoRatesTab").then(m => ({ default: m.CreditoRatesTab })));
+const ContratosTab = lazy(() => import("@/components/settings/ContratosTab").then(m => ({ default: m.ContratosTab })));
+const WhatsAppTab = lazy(() => import("@/components/settings/WhatsAppTab").then(m => ({ default: m.WhatsAppTab })));
+const ResendTab = lazy(() => import("@/components/settings/ResendTab").then(m => ({ default: m.ResendTab })));
+const AcompanhamentoTab = lazy(() => import("@/components/settings/AcompanhamentoTab").then(m => ({ default: m.AcompanhamentoTab })));
+const AuditLogsTab = lazy(() => import("@/components/settings/AuditLogsTab").then(m => ({ default: m.AuditLogsTab })));
+const CanvaIntegrationTab = lazy(() => import("@/components/settings/CanvaIntegrationTab").then(m => ({ default: m.CanvaIntegrationTab })));
+
+const TabLoader = () => (
+  <div className="flex items-center justify-center py-12">
+    <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 export function SettingsPanel() {
+  const [activeTab, setActiveTab] = useState("company");
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <Tabs defaultValue="company" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" />Empresa</TabsTrigger>
           <TabsTrigger value="cargos" className="gap-2"><Shield className="h-4 w-4" />Cargos</TabsTrigger>
@@ -35,20 +46,23 @@ export function SettingsPanel() {
           <TabsTrigger value="auditoria" className="gap-2"><ScrollText className="h-4 w-4" />Auditoria</TabsTrigger>
           <TabsTrigger value="canva" className="gap-2"><Palette className="h-4 w-4" />Canva</TabsTrigger>
         </TabsList>
-        <TabsContent value="company"><CompanySettingsTab /></TabsContent>
-        <TabsContent value="cargos"><CargosTab /></TabsContent>
-        <TabsContent value="usuarios"><UsuariosTab /></TabsContent>
-        <TabsContent value="descontos"><DescontosTab /></TabsContent>
-        <TabsContent value="comissoes"><ComissaoPolicyTab /></TabsContent>
-        <TabsContent value="indicadores"><IndicadoresTab /></TabsContent>
-        <TabsContent value="boleto"><BoletoRatesTab /></TabsContent>
-        <TabsContent value="credito"><CreditoRatesTab /></TabsContent>
-        <TabsContent value="contratos"><ContratosTab /></TabsContent>
-        <TabsContent value="whatsapp"><WhatsAppTab /></TabsContent>
-        <TabsContent value="resend"><ResendTab /></TabsContent>
-        <TabsContent value="acompanhamento"><AcompanhamentoTab /></TabsContent>
-        <TabsContent value="auditoria"><AuditLogsTab /></TabsContent>
-        <TabsContent value="canva"><CanvaIntegrationTab /></TabsContent>
+
+        <Suspense fallback={<TabLoader />}>
+          {activeTab === "company" && <TabsContent value="company" forceMount><CompanySettingsTab /></TabsContent>}
+          {activeTab === "cargos" && <TabsContent value="cargos" forceMount><CargosTab /></TabsContent>}
+          {activeTab === "usuarios" && <TabsContent value="usuarios" forceMount><UsuariosTab /></TabsContent>}
+          {activeTab === "descontos" && <TabsContent value="descontos" forceMount><DescontosTab /></TabsContent>}
+          {activeTab === "comissoes" && <TabsContent value="comissoes" forceMount><ComissaoPolicyTab /></TabsContent>}
+          {activeTab === "indicadores" && <TabsContent value="indicadores" forceMount><IndicadoresTab /></TabsContent>}
+          {activeTab === "boleto" && <TabsContent value="boleto" forceMount><BoletoRatesTab /></TabsContent>}
+          {activeTab === "credito" && <TabsContent value="credito" forceMount><CreditoRatesTab /></TabsContent>}
+          {activeTab === "contratos" && <TabsContent value="contratos" forceMount><ContratosTab /></TabsContent>}
+          {activeTab === "whatsapp" && <TabsContent value="whatsapp" forceMount><WhatsAppTab /></TabsContent>}
+          {activeTab === "resend" && <TabsContent value="resend" forceMount><ResendTab /></TabsContent>}
+          {activeTab === "acompanhamento" && <TabsContent value="acompanhamento" forceMount><AcompanhamentoTab /></TabsContent>}
+          {activeTab === "auditoria" && <TabsContent value="auditoria" forceMount><AuditLogsTab /></TabsContent>}
+          {activeTab === "canva" && <TabsContent value="canva" forceMount><CanvaIntegrationTab /></TabsContent>}
+        </Suspense>
       </Tabs>
     </div>
   );
