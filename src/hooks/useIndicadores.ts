@@ -18,7 +18,7 @@ export function useIndicadores() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getResolvedTenantId();
     let query = supabase
       .from("indicadores")
       .select("*")

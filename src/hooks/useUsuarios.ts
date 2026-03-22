@@ -23,7 +23,7 @@ export function useUsuarios() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getResolvedTenantId();
     let query = supabase
       .from("usuarios")
       .select("*, cargos(nome)")

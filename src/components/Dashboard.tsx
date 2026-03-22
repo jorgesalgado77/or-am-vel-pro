@@ -638,11 +638,11 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 function DealRoomStoreWidgetWrapper() {
   const [tenantId, setTenantId] = useState<string | null>(null);
   useEffect(() => {
-    const currentTenantId = getCurrentTenantId();
-    if (currentTenantId) {
-      setTenantId(currentTenantId);
-      return;
-    }
+    getResolvedTenantId().then((resolved) => {
+      if (resolved) {
+        setTenantId(resolved);
+        return;
+      }
 
     supabase.from("company_settings").select("tenant_id").limit(1).maybeSingle().then(({ data }) => {
       if (data) setTenantId((data as any).tenant_id);
