@@ -22,6 +22,24 @@ export interface PlanItem {
   recommended: boolean;
 }
 
+export interface AffiliateStepItem {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+export interface AffiliateConfig {
+  badge_text: string;
+  title_prefix: string;
+  title_highlight: string;
+  title_suffix: string;
+  description: string;
+  steps: AffiliateStepItem[];
+  cta_text: string;
+  cta_subtext: string;
+  image_url: string | null;
+}
+
 export interface LandingConfig {
   id: string;
   hero_title: string;
@@ -40,6 +58,7 @@ export interface LandingConfig {
   footer_text: string;
   footer_contact_email: string | null;
   footer_contact_phone: string | null;
+  affiliate_config: AffiliateConfig;
 }
 
 const DEFAULT_CONFIG: LandingConfig = {
