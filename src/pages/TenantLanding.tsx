@@ -724,6 +724,7 @@ export default function TenantLanding() {
                       { icon: Instagram, label: "Instagram", url: sl.instagram_url, gradient: "linear-gradient(135deg, #E1306C, #F77737, #FCAF45)" },
                       { icon: Facebook, label: "Facebook", url: sl.facebook_url, gradient: "linear-gradient(135deg, #1877F2, #42A5F5)" },
                       { icon: Youtube, label: "YouTube", url: sl.youtube_url, gradient: "linear-gradient(135deg, #FF0000, #CC0000)" },
+                      { icon: TikTokIcon, label: "TikTok", url: (sl as any).tiktok_url, gradient: "linear-gradient(135deg, #000000, #25F4EE, #FE2C55)" },
                       { icon: Twitter, label: "X/Twitter", url: sl.twitter_url, gradient: "linear-gradient(135deg, #1DA1F2, #0d8bd9)" },
                       { icon: Globe, label: "Site", url: sl.website_url, gradient: `linear-gradient(135deg, ${color}, ${color}cc)` },
                     ].filter(l => l.url && l.url.trim());
