@@ -62,10 +62,7 @@ export async function createClient(
   data: Omit<ClientInsert, "numero_orcamento" | "numero_orcamento_seq">
 ): Promise<{ client: Client | null; error: string | null }> {
   const orcamento = await generateOrcamentoNumber();
-  const { data: sessionData } = await supabase.auth.getSession();
-  const tenantId = getCurrentTenantId() 
-    ?? sessionData?.session?.user?.user_metadata?.tenant_id 
-    ?? null;
+  const tenantId = await getResolvedTenantId();
   const insertData = { ...data, ...orcamento, ...(tenantId ? { tenant_id: tenantId } : {}) };
 
   const { data: created, error } = await supabase
