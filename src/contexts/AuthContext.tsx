@@ -578,66 +578,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginInProgressRef.current = true;
 
     try {
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
-    const tenantResolutionPromise = normalizedStoreCode.length === 6
-      ? resolveTenantIdByStoreCode(normalizedStoreCode)
-      : Promise.resolve<string | null>(null);
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
+      const tenantResolutionPromise = normalizedStoreCode.length === 6
+        ? resolveTenantIdByStoreCode(normalizedStoreCode)
+        : Promise.resolve<string | null>(null);
 
-    // Resolve tenant in parallel with auth to reduce login latency
-    let resolvedTenantId: string | null = null;
+      let resolvedTenantId: string | null = null;
 
-    // Don't fail yet if resolution returns null - we'll retry after auth succeeds
-    if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
-      console.log("[Auth] ⚠️ Tenant não encontrado pré-auth (pode ser RLS), continuando login...");
-    }
+      const finalizeLogin = async (authData: { user: SupabaseAuthUser | null; session: Session | null }) => {
+        if (!authData.user) {
+          return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
+        }
 
-    const finalizeLogin = async (authData: { user: SupabaseAuthUser | null; session: Session | null }) => {
-      if (!authData.user) {
-        return { user: null, error: "Usuário autenticado, mas não encontrado na sessão" };
-      }
+        const metaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
+        if (!resolvedTenantId && metaTenantId) {
+          resolvedTenantId = metaTenantId;
+          console.log("[Auth] ✅ Usando tenant_id dos metadados do usuário:", metaTenantId);
+        }
 
-      const metadata = {
-        ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
-        ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
-      };
+        if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
+          resolvedTenantId = await withTimeout(tenantResolutionPromise, 1000, null);
+        }
 
-      // Retry tenant resolution after auth (RLS now allows authenticated reads)
-      if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
-        resolvedTenantId = await withTimeout(resolveTenantIdByStoreCode(normalizedStoreCode), 1500, null);
-        
-        // Fallback: use tenant_id from user metadata if store code lookup fails
-        if (!resolvedTenantId) {
-          const metaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
-          if (metaTenantId) {
-            console.log("[Auth] ✅ Usando tenant_id dos metadados do usuário:", metaTenantId);
-            resolvedTenantId = metaTenantId;
+        const metadata = {
+          ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
+          ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
+        };
+
+        if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
+          resolvedTenantId = await withTimeout(resolveTenantIdByStoreCode(normalizedStoreCode), 1500, null);
+
+          if (!resolvedTenantId) {
+            const fallbackMetaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
+            if (fallbackMetaTenantId) {
+              console.log("[Auth] ✅ Fallback final usando tenant_id dos metadados:", fallbackMetaTenantId);
+              resolvedTenantId = fallbackMetaTenantId;
+            }
           }
+
+          if (!resolvedTenantId) {
+            console.log("[Auth] ❌ Tenant não encontrado mesmo após autenticação");
+            return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
+          }
+
+          console.log("[Auth] ✅ Tenant resolvido após autenticação:", resolvedTenantId);
         }
 
-        if (!resolvedTenantId) {
-          console.log("[Auth] ❌ Tenant não encontrado mesmo após autenticação");
-          return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
-        }
-        console.log("[Auth] ✅ Tenant resolvido após autenticação:", resolvedTenantId);
-      }
-
-      let appUser = await withTimeout(loadAppUser(authData.user), 1500, null);
-      let usedFallbackUser = false;
-
-      if (!appUser) {
-        appUser = await buildFallbackUserFromAuth({
-          id: authData.user.id,
-          email: authData.user.email,
-          user_metadata: metadata,
-        });
-        usedFallbackUser = Boolean(appUser);
-      }
-
-      if (!appUser) {
-        console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
-        await withTimeout(ensureUserProfile(authData.user, metadata, password), 1200, undefined);
-        appUser = await withTimeout(loadAppUser(authData.user), 1200, null);
+        let appUser = await withTimeout(loadAppUser(authData.user), 1500, null);
+        let usedFallbackUser = false;
 
         if (!appUser) {
           appUser = await buildFallbackUserFromAuth({
@@ -647,55 +636,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           usedFallbackUser = Boolean(appUser);
         }
-      }
 
-      if (!appUser) {
-        logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { motivo: "Perfil não encontrado na tabela usuarios" } });
-        return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
-      }
+        if (!appUser) {
+          console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
+          await withTimeout(ensureUserProfile(authData.user, metadata, password), 1200, undefined);
+          appUser = await withTimeout(loadAppUser(authData.user), 1200, null);
 
-      // Validate tenant match if store code was provided
-      if (resolvedTenantId && appUser.tenant_id && appUser.tenant_id !== resolvedTenantId) {
-        logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, resultado: "falha_tenant", detalhes: { tenant_usuario: appUser.tenant_id, tenant_esperado: resolvedTenantId } });
-        return { user: null, error: "Este email não está vinculado ao código da loja informado." };
-      }
-
-      logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: appUser.tenant_id, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, auth_user_id: authData.user.id, resultado: "sucesso" });
-      setUser(appUser);
-      setSession(authData.session);
-      syncGlobalState(appUser);
-
-      if (usedFallbackUser) {
-        void (async () => {
-          await withTimeout(ensureUserProfile(authData.user, metadata, password), 1500, undefined);
-          const refreshedUser = await withTimeout(loadAppUser(authData.user), 1500, null);
-
-          if (refreshedUser) {
-            setUser(refreshedUser);
-            syncGlobalState(refreshedUser);
+          if (!appUser) {
+            appUser = await buildFallbackUserFromAuth({
+              id: authData.user.id,
+              email: authData.user.email,
+              user_metadata: metadata,
+            });
+            usedFallbackUser = Boolean(appUser);
           }
-        })();
+        }
+
+        if (!appUser) {
+          logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, auth_user_id: authData.user.id, resultado: "falha_vinculo", detalhes: { motivo: "Perfil não encontrado na tabela usuarios" } });
+          return { user: null, error: "Usuário autenticado, mas não encontrado na tabela usuarios" };
+        }
+
+        if (resolvedTenantId && appUser.tenant_id && appUser.tenant_id !== resolvedTenantId) {
+          logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: resolvedTenantId, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, resultado: "falha_tenant", detalhes: { tenant_usuario: appUser.tenant_id, tenant_esperado: resolvedTenantId } });
+          return { user: null, error: "Este email não está vinculado ao código da loja informado." };
+        }
+
+        logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: appUser.tenant_id, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, auth_user_id: authData.user.id, resultado: "sucesso" });
+        setUser(appUser);
+        setSession(authData.session);
+        syncGlobalState(appUser);
+
+        if (usedFallbackUser) {
+          void (async () => {
+            await withTimeout(ensureUserProfile(authData.user, metadata, password), 1500, undefined);
+            const refreshedUser = await withTimeout(loadAppUser(authData.user), 1500, null);
+
+            if (refreshedUser) {
+              setUser(refreshedUser);
+              syncGlobalState(refreshedUser);
+            }
+          })();
+        }
+
+        return { user: appUser, error: null };
+      };
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+
+      if (!error && data.user) {
+        resolvedTenantId = (data.user.user_metadata as any)?.tenant_id ?? null;
+        console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail, "| tenant metadata:", resolvedTenantId);
+        return finalizeLogin(data);
       }
 
-      return { user: appUser, error: null };
-    };
+      resolvedTenantId = await withTimeout(tenantResolutionPromise, 1200, null);
+      console.log("[Auth] ⚠️ Login direto falhou:", error?.code, error?.message, "| Tentando fallback legado...");
 
-    // 1. Try Supabase Auth first while tenant lookup runs in parallel
-    const [{ data, error }, preResolvedTenantId] = await Promise.all([
-      supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
-      tenantResolutionPromise,
-    ]);
-
-    resolvedTenantId = preResolvedTenantId;
-
-    if (!error && data.user) {
-      console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail);
-      return finalizeLogin(data);
-    }
-
-    console.log("[Auth] ⚠️ Login direto falhou:", error?.code, error?.message, "| Tentando fallback legado...");
-
-    // 2. If email_not_confirmed, try to confirm and retry BEFORE legacy fallback
+      // 2. If email_not_confirmed, try to confirm and retry BEFORE legacy fallback
     if (error && isEmailNotConfirmedError(error)) {
       console.log("[Auth] 📧 Email não confirmado — tentando buscar usuário e confirmar...");
 
