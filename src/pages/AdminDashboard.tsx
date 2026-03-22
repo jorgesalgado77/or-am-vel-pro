@@ -345,6 +345,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <TabsTrigger value="resend" className="gap-2"><Mail className="h-4 w-4" />Resend</TabsTrigger>
             <TabsTrigger value="diagnostics" className="gap-2"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
             <TabsTrigger value="canva" className="gap-2"><Palette className="h-4 w-4" />Canva</TabsTrigger>
+            <TabsTrigger value="affiliates" className="gap-2"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
           </TabsList>
 
           {/* TAB: Lojas */}
