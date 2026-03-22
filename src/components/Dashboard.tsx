@@ -25,7 +25,7 @@ import {
   PieChart, Pie, Cell, LineChart, Line,
 } from "recharts";
 import type { Database } from "@/integrations/supabase/types";
-
+import { type DateFilterPreset, DATE_FILTER_OPTIONS, getDateRange, isInRange } from "@/lib/dateFilterUtils";
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 interface LastSimInfo {
