@@ -17,6 +17,8 @@ import { useFinancingRates, type FinancingRate } from "@/hooks/useFinancingRates
 import { useTenant } from "@/contexts/TenantContext";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 
+export type BoletoProviderDefaults = Record<string, { parcelas: number; carencia: number }>;
+
 export function BoletoRatesTab() {
   const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("boleto");
   const { tenantId } = useTenant();
@@ -24,28 +26,29 @@ export function BoletoRatesTab() {
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, Partial<FinancingRate>>>({});
 
-  // Default settings for simulator
-  const defaults = (settings as any)?.boleto_defaults as { provider?: string; parcelas?: number; carencia?: number } | null;
-  const [defaultProvider, setDefaultProvider] = useState(defaults?.provider || "");
-  const [defaultParcelas, setDefaultParcelas] = useState(defaults?.parcelas || 0);
-  const [defaultCarencia, setDefaultCarencia] = useState(defaults?.carencia || 30);
+  // Per-provider defaults
+  const savedDefaults = ((settings as any)?.boleto_defaults || {}) as BoletoProviderDefaults;
+  const [providerDefaults, setProviderDefaults] = useState<BoletoProviderDefaults>({});
 
   useEffect(() => {
-    const d = (settings as any)?.boleto_defaults as any;
-    if (d) {
-      setDefaultProvider(d.provider || "");
-      setDefaultParcelas(d.parcelas || 0);
-      setDefaultCarencia(d.carencia || 30);
-    }
+    const d = ((settings as any)?.boleto_defaults || {}) as BoletoProviderDefaults;
+    setProviderDefaults(d);
   }, [settings]);
+
+  const updateProviderDefault = (provider: string, field: "parcelas" | "carencia", value: number) => {
+    setProviderDefaults((prev) => ({
+      ...prev,
+      [provider]: { ...prev[provider], parcelas: prev[provider]?.parcelas || 1, carencia: prev[provider]?.carencia || 30, [field]: value },
+    }));
+  };
 
   const handleSaveDefaults = async () => {
     if (!settings?.id) return;
     const { error } = await supabase.from("company_settings").update({
-      boleto_defaults: { provider: defaultProvider, parcelas: defaultParcelas, carencia: defaultCarencia },
+      boleto_defaults: providerDefaults,
     } as any).eq("id", settings.id);
-    if (error) toast.error("Erro ao salvar padrão");
-    else { toast.success("Padrão do simulador salvo!"); refreshSettings(); }
+    if (error) toast.error("Erro ao salvar padrões");
+    else { toast.success("Padrões do simulador salvos!"); refreshSettings(); }
   };
 
   const handleAddProvider = async () => {
@@ -152,53 +155,51 @@ export function BoletoRatesTab() {
         </CardContent>
       </Card>
 
-      {/* Padrão para o Simulador */}
+      {/* Padrão para o Simulador - por financeira */}
       {providers.length > 0 && (
         <Card className="border-primary/30">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Padrão do Simulador</CardTitle>
+              <CardTitle className="text-base">Padrão do Simulador por Financeira</CardTitle>
             </div>
-            <p className="text-xs text-muted-foreground">Configure os valores padrão que aparecerão pré-preenchidos na tela de simulação. O usuário poderá alterar livremente.</p>
+            <p className="text-xs text-muted-foreground">Configure parcelas e carência padrão para cada financeira. Esses valores aparecerão pré-preenchidos no simulador ao selecionar a financeira, mas o usuário poderá alterar livremente.</p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <Label>Financeira Padrão</Label>
-                <Select value={defaultProvider} onValueChange={setDefaultProvider}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    {providers.map((p) => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Parcelas Padrão</Label>
-                <Select value={String(defaultParcelas)} onValueChange={(v) => setDefaultParcelas(Number(v))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => (
-                      <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Carência Padrão</Label>
-                <Select value={String(defaultCarencia)} onValueChange={(v) => setDefaultCarencia(Number(v))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">30 dias</SelectItem>
-                    <SelectItem value="60">60 dias</SelectItem>
-                    <SelectItem value="90">90 dias</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-4">
+              {providers.map((provider) => {
+                const pd = providerDefaults[provider] || { parcelas: 0, carencia: 30 };
+                const maxInstallments = rates.filter((r) => r.provider_name === provider).length || 24;
+                return (
+                  <div key={provider} className="flex flex-wrap items-end gap-4 p-3 bg-secondary/30 rounded-lg">
+                    <div className="font-medium text-sm min-w-[120px]">{provider}</div>
+                    <div>
+                      <Label className="text-xs">Parcelas</Label>
+                      <Select value={String(pd.parcelas || "")} onValueChange={(v) => updateProviderDefault(provider, "parcelas", Number(v))}>
+                        <SelectTrigger className="mt-1 w-[100px] h-8"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => (
+                            <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Carência</Label>
+                      <Select value={String(pd.carencia || 30)} onValueChange={(v) => updateProviderDefault(provider, "carencia", Number(v))}>
+                        <SelectTrigger className="mt-1 w-[110px] h-8"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30">30 dias</SelectItem>
+                          <SelectItem value="60">60 dias</SelectItem>
+                          <SelectItem value="90">90 dias</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <Button onClick={handleSaveDefaults} className="mt-4 gap-2"><Save className="h-4 w-4" />Salvar Padrão</Button>
+            <Button onClick={handleSaveDefaults} className="mt-4 gap-2"><Save className="h-4 w-4" />Salvar Padrões</Button>
           </CardContent>
         </Card>
       )}
