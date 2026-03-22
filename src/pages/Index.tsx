@@ -118,11 +118,24 @@ export default function Index() {
     }
   }, [activeView, authUser, hasPermission, isAdmin]);
 
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeMsg, setUpgradeMsg] = useState("");
+
   const onSaveClient = async (data: Record<string, unknown>) => {
-    handleSaveClient(data, editingClient, () => {
+    const result = await handleSaveClient(data, editingClient, () => {
       setDrawerOpen(false);
       setEditingClient(null);
     });
+    if (result?.error) {
+      const limitMsg = parsePlanLimitError(result.error);
+      if (limitMsg) {
+        setUpgradeMsg(limitMsg);
+        setUpgradeOpen(true);
+      } else {
+        const { toast } = await import("sonner");
+        toast.error(result.error);
+      }
+    }
   };
 
   const handleEdit = (client: Client) => { setEditingClient(client); setDrawerOpen(true); };
