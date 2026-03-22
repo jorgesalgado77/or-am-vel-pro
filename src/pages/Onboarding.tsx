@@ -180,6 +180,36 @@ export default function Onboarding() {
       assinatura_fim: planId !== "trial" ? endDate.toISOString() : null,
     }).eq("id", tenantId);
 
+    // ---- Affiliate: update pending conversion with real plan value ----
+    if (planId !== "trial") {
+      try {
+        const { data: sessionData } = await supabase.auth.getUser();
+        const userId = sessionData.user?.id;
+        if (userId) {
+          const price = annual ? plan.preco_anual_mensal * 12 : plan.preco_mensal;
+          const { data: settingsData } = await supabase
+            .from("affiliate_settings" as any)
+            .select("commission_percent")
+            .limit(1);
+          const commissionPercent = (settingsData as any[])?.[0]?.commission_percent || 5;
+          const commission = Math.round(price * commissionPercent) / 100;
+
+          await supabase
+            .from("affiliate_conversions" as any)
+            .update({
+              plan: `${plan.nome} ${periodo}`,
+              amount: Math.round(price * 100) / 100,
+              commission_amount: Math.round(commission * 100) / 100,
+            } as any)
+            .eq("user_id", userId)
+            .eq("status", "pending")
+            .eq("plan", "signup_pending");
+        }
+      } catch (err) {
+        console.warn("Affiliate conversion update error (non-blocking):", err);
+      }
+    }
+
     setStep("company");
   };
 
