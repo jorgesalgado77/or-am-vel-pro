@@ -437,9 +437,10 @@ export function ClientsKanban({
         <div className="flex items-center justify-center py-16 text-muted-foreground">Carregando...</div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-4 flex-1 min-h-0">
+          <ScrollableContainer direction="horizontal" className="flex-1 min-h-0 pb-4">
+            <div className="flex gap-3 min-w-max">
             {KANBAN_COLUMNS.map(col => (
-              <div key={col.id} className="flex flex-col min-w-[240px] w-[240px] shrink-0">
+              <div key={col.id} className="flex flex-col min-w-[220px] w-[220px] md:min-w-[240px] md:w-[240px] shrink-0">
                 {/* Column header */}
                 <div className="flex items-center gap-2 mb-2 px-1">
                   <span className="text-base">{col.icon}</span>
