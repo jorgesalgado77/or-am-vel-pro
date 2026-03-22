@@ -1,4 +1,4 @@
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, Gift } from "lucide-react";
 
 interface LandingFooterProps {
   text: string;
