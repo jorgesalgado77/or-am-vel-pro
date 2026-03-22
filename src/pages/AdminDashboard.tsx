@@ -216,6 +216,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const lojasBasico = tenants.filter(t => t.plano === "basico").length;
   const lojasPremium = tenants.filter(t => t.plano === "premium").length;
   const lojasTrial = tenants.filter(t => t.plano === "trial").length;
+  const totalUsuarios = Object.values(tenantStats).reduce((acc, s) => acc + s.usuarios, 0);
+  const totalClientes = Object.values(tenantStats).reduce((acc, s) => acc + s.clientes, 0);
 
   const receitaMensal = tenants.reduce((acc, t) => {
     if (t.plano === "trial" || !t.ativo) return acc;
