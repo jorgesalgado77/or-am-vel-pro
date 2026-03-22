@@ -26,6 +26,7 @@ import {AdminResendConfig} from "@/components/admin/AdminResendConfig";
 import {AdminLoginDiagnostics} from "@/components/admin/AdminLoginDiagnostics";
 import {AdminCanvaConfig} from "@/components/admin/AdminCanvaConfig";
 import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
+import {AdminTutorials} from "@/components/admin/AdminTutorials";
 import {format, isAfter, isBefore} from "date-fns";
 import {ptBR} from "date-fns/locale";
 
