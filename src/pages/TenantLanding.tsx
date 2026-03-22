@@ -763,6 +763,7 @@ export default function TenantLanding() {
             { icon: Instagram, label: "Instagram", url: sl.instagram_url },
             { icon: Facebook, label: "Facebook", url: sl.facebook_url },
             { icon: Youtube, label: "YouTube", url: sl.youtube_url },
+            { icon: TikTokIcon, label: "TikTok", url: (sl as any).tiktok_url },
             { icon: Twitter, label: "X/Twitter", url: sl.twitter_url },
             { icon: Globe, label: "Site", url: sl.website_url },
           ].filter(l => l.url && l.url.trim());
