@@ -71,15 +71,7 @@ interface StoredEnvironment {
   importedAt: string;
 }
 
-interface ImportedEnvironment {
-  id: string;
-  fileName: string;
-  environmentName: string;
-  pieceCount: number;
-  totalValue: number;
-  importedAt: Date;
-  file: File;
-}
+// ImportedEnvironment is now imported from SimulatorEnvironmentsTable
 
 interface SimulatorStoredState {
   valorTela: number;
