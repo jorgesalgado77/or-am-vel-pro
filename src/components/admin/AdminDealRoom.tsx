@@ -12,6 +12,7 @@ import {
   RefreshCw, Store, Percent, Calendar, ArrowUpRight, ArrowDownRight, LineChart as LineChartIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { formatCurrency } from "@/lib/financing";
 import { format, subMonths, startOfMonth, endOfMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useDealRoom, type DealRoomMetrics, type VendorRank, type DealRoomTransaction } from "@/hooks/useDealRoom";
@@ -22,10 +23,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   BarChart, Bar, Legend, Tooltip,
 } from "recharts";
-
-function formatCurrency(val: number) {
-  return `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 interface Tenant {
   id: string;

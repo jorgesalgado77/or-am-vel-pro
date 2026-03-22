@@ -10,6 +10,7 @@ import { useTenantPlanContext } from "@/hooks/useTenantPlan";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/financing";
 
 interface Plan {
   id: string;
@@ -29,10 +30,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   basico: Users,
   premium: Crown,
 };
-
-function formatCurrency(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 interface SubscriptionPlansProps {
   onBack?: () => void;

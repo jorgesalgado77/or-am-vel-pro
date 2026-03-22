@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useIndicadores } from "@/hooks/useIndicadores";
+import { formatCurrency } from "@/lib/financing";
 
 interface ComissaoRow {
   id: string;
@@ -35,10 +36,6 @@ const STATUS_BADGE: Record<string, { label: string; variant: "default" | "second
   retida: { label: "Retida", variant: "secondary" },
   recusada: { label: "Recusada", variant: "destructive" },
 };
-
-function formatCurrency(val: number) {
-  return Number(val).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function printListview(title: string, rows: ComissaoRow[]) {
   const html = `
