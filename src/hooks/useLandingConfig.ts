@@ -133,6 +133,7 @@ export function useLandingConfig() {
           footer_text: d.footer_text,
           footer_contact_email: d.footer_contact_email,
           footer_contact_phone: d.footer_contact_phone,
+          affiliate_config: d.affiliate_config || DEFAULT_CONFIG.affiliate_config,
         });
       }
     } catch (e) {
