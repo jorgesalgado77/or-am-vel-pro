@@ -78,7 +78,7 @@ export function ClientsKanban({
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const { settings } = useCompanySettings();
-  const { projetistas } = useUsuarios();
+  const { projetistas, usuarios } = useUsuarios();
   const { indicadores } = useIndicadores();
   const { currentUser } = useCurrentUser();
 
@@ -571,6 +571,13 @@ export function ClientsKanban({
                                         </span>
                                       )}
                                     </div>
+                                    {/* Show vendedor/projetista for Admin/Gerente */}
+                                    {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && client.vendedor && (
+                                      <div className="flex items-center gap-1 mt-1.5">
+                                        <User className="h-3 w-3 text-primary/60" />
+                                        <span className="text-[10px] text-primary/80 font-medium truncate">{client.vendedor}</span>
+                                      </div>
+                                    )}
                                     {expired && (
                                       <div className="flex items-center gap-1 mt-1.5">
                                         <AlertTriangle className="h-3 w-3 text-destructive" />
@@ -664,12 +671,37 @@ export function ClientsKanban({
 
                   {/* Details */}
                   <div className="space-y-2">
-                    {expandedClient.vendedor && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Projetista</span>
-                        <span className="text-foreground font-medium">{expandedClient.vendedor}</span>
-                      </div>
-                    )}
+                    {/* Vendedor/Projetista assignment */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Responsável</span>
+                      {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) ? (
+                        <Select
+                          value={expandedClient.vendedor || ""}
+                          onValueChange={async (val) => {
+                            const newVendedor = val === "__none__" ? null : val;
+                            const { error } = await supabase.from("clients").update({ vendedor: newVendedor }).eq("id", expandedClient.id);
+                            if (error) { toast.error("Erro ao atribuir responsável"); return; }
+                            toast.success(`Cliente atribuído a ${newVendedor || "nenhum"}`);
+                            setLocalClients(prev => prev.map(c => c.id === expandedClient.id ? { ...c, vendedor: newVendedor } : c));
+                            setExpandedClient({ ...expandedClient, vendedor: newVendedor });
+                          }}
+                        >
+                          <SelectTrigger className="w-[180px] h-8 text-xs">
+                            <SelectValue placeholder="Atribuir responsável" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Sem responsável</SelectItem>
+                            {usuarios
+                              .filter(u => u.ativo && u.cargo_nome && !u.cargo_nome.toLowerCase().includes("admin"))
+                              .map(p => (
+                                <SelectItem key={p.id} value={p.nome_completo}>{p.nome_completo} ({p.cargo_nome})</SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-foreground font-medium">{expandedClient.vendedor || "—"}</span>
+                      )}
+                    </div>
                     {expandedClient.indicador_id && indicadorMap[expandedClient.indicador_id] && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Indicador</span>
