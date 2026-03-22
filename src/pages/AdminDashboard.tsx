@@ -629,6 +629,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsContent value="affiliates">
             <AdminAffiliates />
           </TabsContent>
+
+          {/* TAB: Tutoriais */}
+          <TabsContent value="tutorials">
+            <AdminTutorials />
+          </TabsContent>
         </Tabs>
       </main>
 
