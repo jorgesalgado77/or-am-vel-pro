@@ -61,6 +61,8 @@ export function UsuariosTab() {
   const [resetPasswordDialog, setResetPasswordDialog] = useState({ open: false, userId: "", userName: "" });
   const [resetSenha, setResetSenha] = useState("");
   const [showResetPwd, setShowResetPwd] = useState(false);
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
