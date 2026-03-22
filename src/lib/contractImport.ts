@@ -1,5 +1,5 @@
 import mammoth from "mammoth";
-import * as XLSX from "xlsx";
+
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
