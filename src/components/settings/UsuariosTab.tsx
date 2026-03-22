@@ -131,7 +131,15 @@ export function UsuariosTab() {
     } as any);
 
     if (error) {
-      toast.error("Erro ao adicionar usuário: " + error.message);
+      if (error.message?.includes("Limite de usuários atingido")) {
+        const match = error.message.match(/\((\d+) de (\d+)\)/);
+        const current = match?.[1] || "?";
+        const max = match?.[2] || "?";
+        setUpgradeMessage(`Você atingiu o limite de ${max} usuários ativos do seu plano atual (${current} de ${max}). Faça upgrade para adicionar mais usuários.`);
+        setUpgradeDialogOpen(true);
+      } else {
+        toast.error("Erro ao adicionar usuário: " + error.message);
+      }
     } else {
       toast.success(
         `Usuário adicionado! Vinculado ao código da loja ${settings.codigo_loja || "atual"}.`
