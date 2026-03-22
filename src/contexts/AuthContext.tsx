@@ -585,6 +585,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Retry tenant resolution after auth (RLS now allows authenticated reads)
       if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
         resolvedTenantId = await withTimeout(resolveTenantIdByStoreCode(normalizedStoreCode), 1500, null);
+        
+        // Fallback: use tenant_id from user metadata if store code lookup fails
+        if (!resolvedTenantId) {
+          const metaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
+          if (metaTenantId) {
+            console.log("[Auth] ✅ Usando tenant_id dos metadados do usuário:", metaTenantId);
+            resolvedTenantId = metaTenantId;
+          }
+        }
+
         if (!resolvedTenantId) {
           console.log("[Auth] ❌ Tenant não encontrado mesmo após autenticação");
           return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
