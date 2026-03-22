@@ -33,10 +33,8 @@ export async function fetchClients(): Promise<FetchClientsResult> {
     return { clients: [], error: "Sessão expirada. Faça login novamente." };
   }
 
-  // Use in-memory tenant_id, fallback to JWT metadata to avoid race conditions
-  const tenantId = getCurrentTenantId() 
-    ?? sessionData.session.user?.user_metadata?.tenant_id 
-    ?? null;
+  // Use async resolved tenant_id with JWT fallback
+  const tenantId = await getResolvedTenantId();
 
   if (!tenantId) {
     console.warn("[ClientService] No tenant_id available — cannot fetch clients");
