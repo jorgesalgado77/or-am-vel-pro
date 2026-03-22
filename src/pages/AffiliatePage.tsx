@@ -328,7 +328,7 @@ export default function AffiliatePage() {
                       </div>
                       <div>
                         <Label className="text-white/80">CPF</Label>
-                        <Input value={loginCpf} onChange={e => setLoginCpf(maskCPF(e.target.value))} placeholder="000.000.000-00" className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
+                        <Input value={loginCpf} onChange={e => setLoginCpf(maskCpfCnpj(e.target.value))} placeholder="000.000.000-00" className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
                       </div>
                       <Button onClick={handleLogin} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
                         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
