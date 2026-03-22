@@ -85,28 +85,56 @@ async function fetchCompanySettingsForTenant(tenantId: string | null): Promise<C
 
   if (settingsData) {
     const normalized = normalizeSettings(settingsData);
-    // If company_name is still the default, use tenant nome_loja as override
     const isDefault = !normalized.company_name || normalized.company_name === DEFAULT_SETTINGS.company_name;
     if (isDefault && tenantData?.nome_loja) {
       normalized.company_name = tenantData.nome_loja;
     }
-    // Fill codigo_loja from tenant if not in settings
     if (!normalized.codigo_loja && tenantData?.codigo_loja) {
       normalized.codigo_loja = tenantData.codigo_loja;
     }
     return normalized;
   }
 
-  if (!tenantData) return null;
+  if (tenantData) {
+    return normalizeSettings({
+      id: `tenant-${tenantData.id}`,
+      tenant_id: tenantData.id,
+      company_name: tenantData.nome_loja,
+      codigo_loja: tenantData.codigo_loja,
+      telefone_loja: tenantData.telefone_contato,
+      email_loja: tenantData.email_contato,
+    });
+  }
 
-  return normalizeSettings({
-    id: `tenant-${tenantData.id}`,
-    tenant_id: tenantData.id,
-    company_name: tenantData.nome_loja,
-    codigo_loja: tenantData.codigo_loja,
-    telefone_loja: tenantData.telefone_contato,
-    email_loja: tenantData.email_contato,
-  });
+  // Fallback: if both queries returned empty (RLS blocking), try RPC
+  try {
+    const { data: rpcData } = await Promise.race([
+      supabase.rpc("get_current_app_user" as any),
+      new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
+    ]);
+    const user = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    if (user?.tenant_id === tenantId) {
+      // Use RPC to get tenant info via security definer
+      const { data: tenantViaRpc } = await Promise.race([
+        supabase.from("tenants").select("id, nome_loja, codigo_loja, email_contato, telefone_contato").eq("id", tenantId).maybeSingle(),
+        new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
+      ]);
+      if (tenantViaRpc) {
+        return normalizeSettings({
+          id: `tenant-${tenantViaRpc.id}`,
+          tenant_id: tenantViaRpc.id,
+          company_name: tenantViaRpc.nome_loja,
+          codigo_loja: tenantViaRpc.codigo_loja,
+          telefone_loja: tenantViaRpc.telefone_contato,
+          email_loja: tenantViaRpc.email_contato,
+        });
+      }
+    }
+  } catch {
+    // ignore RPC fallback errors
+  }
+
+  return null;
 }
 
 export function useCompanySettings() {
