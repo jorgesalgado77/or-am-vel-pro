@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { FileDown, Lock, LockOpen, Upload, Save, UserPlus, FileText, X, Handshake, Trash2, RotateCcw, EyeOff, Eye } from "lucide-react";
+import { Lock, LockOpen, Upload, EyeOff, Eye } from "lucide-react";
 import { AIStrategyPanel } from "@/components/AIStrategyPanel";
 import { useConversionHistory } from "@/hooks/useConversionHistory";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
