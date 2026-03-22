@@ -191,8 +191,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const comissaoPercentual = selectedIndicador ? selectedIndicador.comissao_percentual : 0;
   const valorTelaComComissao = valorTela * (1 + comissaoPercentual / 100);
 
-  const { rates: boletoRates, providers: boletoProviders } = useFinancingRates("boleto");
-  const { rates: creditoRates, providers: creditoProviders } = useFinancingRates("credito");
+  const { rates: boletoRates, activeProviders: boletoProviders } = useFinancingRates("boleto");
+  const { rates: creditoRates, activeProviders: creditoProviders } = useFinancingRates("credito");
 
   const [selectedBoletoProvider, setSelectedBoletoProvider] = useState("");
   const [selectedCreditoProvider, setSelectedCreditoProvider] = useState("");
