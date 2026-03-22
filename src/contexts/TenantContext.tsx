@@ -100,3 +100,15 @@ export function useTenant() {
 export function getCurrentTenantId(): string | null {
   return getTenantId();
 }
+
+/**
+ * Async version that falls back to JWT metadata when in-memory state is not yet set.
+ * Use this in services/hooks that run early (before AuthContext has synced state).
+ */
+export async function getResolvedTenantId(): Promise<string | null> {
+  const memoryTenantId = getTenantId();
+  if (memoryTenantId) return memoryTenantId;
+
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user?.user_metadata?.tenant_id ?? null;
+}
