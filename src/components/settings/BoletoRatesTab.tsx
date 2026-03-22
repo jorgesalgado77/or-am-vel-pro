@@ -20,8 +20,33 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 export function BoletoRatesTab() {
   const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("boleto");
   const { tenantId } = useTenant();
+  const { settings, refresh: refreshSettings } = useCompanySettings();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, Partial<FinancingRate>>>({});
+
+  // Default settings for simulator
+  const defaults = (settings as any)?.boleto_defaults as { provider?: string; parcelas?: number; carencia?: number } | null;
+  const [defaultProvider, setDefaultProvider] = useState(defaults?.provider || "");
+  const [defaultParcelas, setDefaultParcelas] = useState(defaults?.parcelas || 0);
+  const [defaultCarencia, setDefaultCarencia] = useState(defaults?.carencia || 30);
+
+  useEffect(() => {
+    const d = (settings as any)?.boleto_defaults as any;
+    if (d) {
+      setDefaultProvider(d.provider || "");
+      setDefaultParcelas(d.parcelas || 0);
+      setDefaultCarencia(d.carencia || 30);
+    }
+  }, [settings]);
+
+  const handleSaveDefaults = async () => {
+    if (!settings?.id) return;
+    const { error } = await supabase.from("company_settings").update({
+      boleto_defaults: { provider: defaultProvider, parcelas: defaultParcelas, carencia: defaultCarencia },
+    } as any).eq("id", settings.id);
+    if (error) toast.error("Erro ao salvar padrão");
+    else { toast.success("Padrão do simulador salvo!"); refreshSettings(); }
+  };
 
   const handleAddProvider = async () => {
     if (!newProviderName.trim()) return;
