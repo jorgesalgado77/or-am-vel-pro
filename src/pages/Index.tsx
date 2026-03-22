@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
-import { cn, useIsMobile, AppSidebar, PlanBanner, Dashboard } from "@/modules/shared";
+import { cn, useIsMobile } from "@/modules/shared";
+import { AppSidebar } from "@/components/AppSidebar";
+import { PlanBanner } from "@/components/PlanBanner";
 import Login from "@/pages/Login";
 
 // Lazy load heavy view components via module paths
