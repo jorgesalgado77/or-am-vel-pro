@@ -107,6 +107,10 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Pro
   ]);
 }
 
+function createTimeoutError(label: string) {
+  return { message: `timeout_${label}`, code: "TIMEOUT" };
+}
+
 function mapRpcAppUser(userRow: any, authUserId?: string | null): AppUser {
   return {
     id: userRow.id ?? authUserId ?? "",
@@ -128,11 +132,20 @@ async function buildFallbackUserFromAuth(
 ): Promise<AppUser | null> {
   // Try direct DB lookup first to get real user data
   try {
-    const { data: dbUser } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("auth_user_id", authUser.id)
-      .maybeSingle();
+    const { data: dbUser, error } = await withTimeout(
+      (async () => await supabase
+        .from("usuarios")
+        .select("*")
+        .eq("auth_user_id", authUser.id)
+        .maybeSingle())(),
+      1200,
+      { data: null, error: createTimeoutError("fallback_user_lookup") } as any,
+    );
+
+    if (error) {
+      console.warn("[Auth] Fallback lookup por auth_user_id falhou:", error.message);
+    }
+
     if (dbUser) {
       return mapAppUser(dbUser, authUser.id);
     }
@@ -167,7 +180,11 @@ async function loadAppUserViaRpc(
   authUser: Pick<SupabaseAuthUser, "id" | "email">
 ): Promise<AppUser | null> {
   try {
-    const { data, error } = await (supabase as any).rpc("get_current_app_user");
+    const { data, error } = await withTimeout(
+      (supabase as any).rpc("get_current_app_user"),
+      1200,
+      { data: null, error: createTimeoutError("get_current_app_user") } as any,
+    );
     const userRow = Array.isArray(data) ? data[0] : data;
 
     if (error) {
@@ -306,8 +323,37 @@ async function attemptConfirmedLogin(userId: string, email: string, password: st
     console.warn("[Auth] confirm_user_email retry failed:", confirmError);
   }
 
-  const retry = await supabase.auth.signInWithPassword({ email, password });
+  const retry = await withTimeout(
+    supabase.auth.signInWithPassword({ email, password }),
+    4500,
+    {
+      data: { user: null, session: null },
+      error: createTimeoutError("confirmed_sign_in"),
+    } as any,
+  );
   return !retry.error && retry.data.user ? retry.data : null;
+}
+
+async function signInWithPasswordFast(email: string, password: string) {
+  try {
+    return await withTimeout(
+      supabase.auth.signInWithPassword({ email, password }),
+      4500,
+      {
+        data: { user: null, session: null },
+        error: createTimeoutError("sign_in"),
+      } as any,
+    );
+  } catch (error: any) {
+    console.warn("[Auth] signInWithPassword lançou exceção:", error?.message || error);
+    return {
+      data: { user: null, session: null },
+      error: {
+        message: error?.message || "sign_in_exception",
+        code: error?.code || "SIGN_IN_EXCEPTION",
+      },
+    } as any;
+  }
 }
 
 async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<string | null> {
@@ -319,51 +365,49 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
 
   console.log("[Auth:TenantResolve] 🔎 Iniciando resolução para código:", maskedCode, "| candidatos:", candidates);
 
-  // Strategy 1: Direct query on tenants table
-  const { data, error } = await withTimeout(
-    (async () => await supabase
-      .from("tenants")
-      .select("id, codigo_loja")
-      .in("codigo_loja", candidates)
-      .limit(candidates.length))(),
-    2000,
-    { data: null, error: null } as any,
-  );
+  const [directResult, rpcResult] = await Promise.all([
+    withTimeout(
+      (async () => await supabase
+        .from("tenants")
+        .select("id, codigo_loja")
+        .in("codigo_loja", candidates)
+        .limit(candidates.length))(),
+      1200,
+      { data: null, error: createTimeoutError("tenant_direct_lookup") } as any,
+    ),
+    withTimeout(
+      (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode }),
+      1200,
+      { data: null, error: createTimeoutError("tenant_rpc_lookup") } as any,
+    ),
+  ]);
 
-  if (error) {
-    console.warn("[Auth:TenantResolve] ❌ Strategy 1 (direct query) FALHOU:", error.message);
+  if (directResult.error) {
+    console.warn("[Auth:TenantResolve] ❌ Strategy 1 (direct query) FALHOU:", directResult.error.message);
   } else {
-    console.log("[Auth:TenantResolve] Strategy 1 (direct query) resultado:", data?.length ?? 0, "registros");
+    console.log("[Auth:TenantResolve] Strategy 1 (direct query) resultado:", directResult.data?.length ?? 0, "registros");
   }
 
-  const tenant = data?.find((row) => (row.codigo_loja ?? "").replace(/\D/g, "") === digits);
+  const tenant = directResult.data?.find((row) => (row.codigo_loja ?? "").replace(/\D/g, "") === digits);
   if (tenant) {
     console.log("[Auth:TenantResolve] ✅ Strategy 1 SUCESSO → tenant_id:", tenant.id);
     return tenant.id;
   }
 
-  // Strategy 2: RPC resolve_tenant_by_code (bypasses RLS)
-  try {
-    console.log("[Auth:TenantResolve] 🔎 Strategy 2 (RPC resolve_tenant_by_code) com:", maskedCode);
-    const { data: rpcData, error: rpcError } = await withTimeout(
-      (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode }),
-      2000,
-      { data: null, error: null } as any,
-    );
-    if (rpcError) {
-      console.warn("[Auth:TenantResolve] ❌ Strategy 2 FALHOU:", rpcError.message);
-    } else if (rpcData) {
-      const resolvedId = typeof rpcData === "string" ? rpcData : rpcData?.tenant_id ?? rpcData?.id ?? null;
-      if (resolvedId) {
-        console.log("[Auth:TenantResolve] ✅ Strategy 2 SUCESSO → tenant_id:", resolvedId);
-        return resolvedId;
-      }
-      console.log("[Auth:TenantResolve] ⚠️ Strategy 2 retornou dados mas sem ID válido:", rpcData);
-    } else {
-      console.log("[Auth:TenantResolve] ⚠️ Strategy 2 retornou null/vazio");
+  console.log("[Auth:TenantResolve] 🔎 Strategy 2 (RPC resolve_tenant_by_code) com:", maskedCode);
+  const rpcData = rpcResult.data;
+  const rpcError = rpcResult.error;
+  if (rpcError) {
+    console.warn("[Auth:TenantResolve] ❌ Strategy 2 FALHOU:", rpcError.message);
+  } else if (rpcData) {
+    const resolvedId = typeof rpcData === "string" ? rpcData : rpcData?.tenant_id ?? rpcData?.id ?? null;
+    if (resolvedId) {
+      console.log("[Auth:TenantResolve] ✅ Strategy 2 SUCESSO → tenant_id:", resolvedId);
+      return resolvedId;
     }
-  } catch (e) {
-    console.warn("[Auth:TenantResolve] ❌ Strategy 2 (RPC) indisponível:", e);
+    console.log("[Auth:TenantResolve] ⚠️ Strategy 2 retornou dados mas sem ID válido:", rpcData);
+  } else {
+    console.log("[Auth:TenantResolve] ⚠️ Strategy 2 retornou null/vazio");
   }
 
   console.log("[Auth:TenantResolve] ❌ Todas as strategies falharam para código:", maskedCode);
@@ -598,16 +642,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
-          resolvedTenantId = await withTimeout(tenantResolutionPromise, 1000, null);
-        }
-
-        const metadata = {
-          ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
-          ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
-        };
-
-        if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
-          resolvedTenantId = await withTimeout(resolveTenantIdByStoreCode(normalizedStoreCode), 1500, null);
+          resolvedTenantId = await withTimeout(tenantResolutionPromise, 1400, null);
 
           if (!resolvedTenantId) {
             const fallbackMetaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
@@ -624,6 +659,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           console.log("[Auth] ✅ Tenant resolvido após autenticação:", resolvedTenantId);
         }
+
+        const metadata = {
+          ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
+          ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
+        };
 
         let appUser = await withTimeout(loadAppUser(authData.user), 1500, null);
         let usedFallbackUser = false;
@@ -682,7 +722,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { user: appUser, error: null };
       };
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+      const { data, error } = await signInWithPasswordFast(normalizedEmail, password);
 
       if (!error && data.user) {
         resolvedTenantId = (data.user.user_metadata as any)?.tenant_id ?? null;
@@ -690,7 +730,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return finalizeLogin(data);
       }
 
-      resolvedTenantId = await withTimeout(tenantResolutionPromise, 1200, null);
+      resolvedTenantId = await withTimeout(tenantResolutionPromise, 1400, null);
       console.log("[Auth] ⚠️ Login direto falhou:", error?.code, error?.message, "| Tentando fallback legado...");
 
       // 2. If email_not_confirmed, try to confirm and retry BEFORE legacy fallback
@@ -698,11 +738,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("[Auth] 📧 Email não confirmado — tentando buscar usuário e confirmar...");
 
       // Look up user by email in usuarios to get their ID for confirm RPC
-      const { data: emailUsers } = await (supabase as any)
-        .from("usuarios")
-        .select("id")
-        .eq("email", normalizedEmail)
-        .limit(5);
+      const { data: emailUsers } = await withTimeout(
+        (supabase as any)
+          .from("usuarios")
+          .select("id")
+          .eq("email", normalizedEmail)
+          .limit(5),
+        1200,
+        { data: null, error: createTimeoutError("email_lookup_for_confirm") } as any,
+      );
 
       const emailUserList = Array.isArray(emailUsers) ? emailUsers : emailUsers ? [emailUsers] : [];
 
@@ -750,11 +794,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         console.log("[Auth] 🔍 Código da loja resolvido para tenant_id:", tenantIdFromCode);
 
-        const { data: legacyUsers } = await (supabase as any)
-          .from("usuarios")
-          .select("*")
-          .eq("email", normalizedEmail)
-          .limit(10);
+          const { data: legacyUsers, error: legacyUsersError } = await withTimeout(
+            (supabase as any)
+              .from("usuarios")
+              .select("*")
+              .eq("email", normalizedEmail)
+              .limit(10),
+            1400,
+            { data: null, error: createTimeoutError("legacy_user_lookup") } as any,
+          );
+
+          if (legacyUsersError) {
+            console.warn("[Auth] Lookup legado de usuários falhou:", legacyUsersError.message);
+          }
 
         const legacyList = Array.isArray(legacyUsers) ? legacyUsers : legacyUsers ? [legacyUsers] : [];
 
@@ -855,10 +907,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          const retryProvision = await supabase.auth.signInWithPassword({
-            email: normalizedEmail,
+          const retryProvision = await signInWithPasswordFast(
+            normalizedEmail,
             password,
-          });
+          );
 
           if (!retryProvision.error && retryProvision.data.user) {
             return finalizeLogin(retryProvision.data);
@@ -916,10 +968,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Try login again after migration
-        const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password,
-        });
+        const { data: retryData, error: retryError } = await signInWithPasswordFast(normalizedEmail, password);
 
         if (!retryError && retryData.user) {
           return finalizeLogin(retryData);
