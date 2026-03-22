@@ -119,7 +119,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [saving, setSaving] = useState(false);
   const [desconto3Unlocked, setDesconto3Unlocked] = useState(stored.desconto3Unlocked ?? false);
   const [plusUnlocked, setPlusUnlocked] = useState(stored.plusUnlocked ?? false);
-  const resolvedTenantId = currentUser?.tenant_id || getCurrentTenantId();
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
@@ -167,6 +166,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
   const { settings } = useCompanySettings();
   const { hasPermission, currentUser } = useCurrentUser();
+  const resolvedTenantId = getCurrentTenantId();
   const { getOptionsForField } = useDiscountOptions();
   const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();
