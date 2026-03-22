@@ -1124,7 +1124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasPermission = useCallback((perm: keyof CargoPermissoes) => {
     if (!user) return true;
-    return user.permissoes[perm] ?? false;
+    // For keys not yet saved in DB (backward compat), default to true
+    return perm in user.permissoes ? user.permissoes[perm] : true;
   }, [user]);
 
   const refreshUser = useCallback(async () => {
