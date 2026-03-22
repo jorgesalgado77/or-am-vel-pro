@@ -848,10 +848,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
         }
 
-        const legacyUser = legacyList.find((candidate) => {
+        const legacyUser = legacyUsers.find((candidate: any) => {
           if (!tenantIdFromCode) return true;
           return candidate.tenant_id === tenantIdFromCode;
-        }) ?? legacyList[0] ?? null;
+        }) ?? legacyUsers[0] ?? null;
 
         if (!legacyUser) {
           return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
