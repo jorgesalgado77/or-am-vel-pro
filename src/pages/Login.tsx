@@ -263,6 +263,7 @@ export default function Login() {
   useEffect(() => {
     const digits = unmask(codigoLoja);
     const maskedCode = maskCodigoLoja(codigoLoja);
+    console.log("[Login] useEffect triggered, digits:", digits, "length:", digits.length);
 
     if (digits.length < 6) {
       setTenantInfo(null);
