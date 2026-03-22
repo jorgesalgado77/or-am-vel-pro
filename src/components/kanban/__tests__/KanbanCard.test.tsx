@@ -113,7 +113,8 @@ describe("KanbanCard", () => {
   it("calls onClick when clicked", async () => {
     const onClick = vi.fn();
     renderCard({ onClick });
-    screen.getByText("João Silva").closest("[class*='rounded']")?.click();
+    const el = screen.getByText("João Silva").closest("[class*='rounded']");
+    if (el) fireEvent.click(el);
     expect(onClick).toHaveBeenCalledWith(baseClient);
   });
 
