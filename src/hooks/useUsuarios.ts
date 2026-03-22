@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTenantId } from "@/contexts/TenantContext";
 
 export interface Usuario {
   id: string;
@@ -22,10 +23,18 @@ export function useUsuarios() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data } = await supabase
+    const tenantId = getCurrentTenantId();
+    let query = supabase
       .from("usuarios")
       .select("*, cargos(nome)")
       .order("nome_completo");
+
+    if (tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    const { data } = await query;
+
     if (data) {
       setUsuarios(data.map((u: any) => ({
         ...u,
