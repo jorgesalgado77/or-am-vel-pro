@@ -942,11 +942,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               cargo_id: legacyUser.cargo_id ?? null,
               nome_completo: legacyUser.nome_completo ?? normalizedEmail.split("@")[0],
               apelido: legacyUser.apelido ?? null,
+              telefone: legacyUser.telefone ?? null,
             },
             emailRedirectTo: window.location.origin,
           },
         });
-...
+
+        if (signUpError) {
+          console.warn("[Auth] Legacy migration signUp failed:", signUpError.message);
+
+          if (isAlreadyRegisteredError(signUpError)) {
+            const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
+            if (confirmedLogin) {
+              return finalizeLogin(confirmedLogin);
+            }
+          }
+
+          return { user: null, error: signUpError.message || "Não foi possível concluir o login desta conta." };
+        }
+
+        // Confirm email automatically
+        if (signUpData.user) {
+          try {
+            await (supabase as any).rpc("confirm_user_email", { p_user_id: signUpData.user.id });
+          } catch { /* RPC may not exist */ }
+
+          // Update usuarios row with the auth user id for JWT-based flows
           try {
             const senhaHash = await hashLegacyPassword(password);
             await (supabase as any)
