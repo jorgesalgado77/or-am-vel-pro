@@ -269,17 +269,17 @@ export function ClientsKanban({
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-4 mb-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4 mb-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nome, CPF/CNPJ, nº orçamento..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Buscar por nome, CPF/CNPJ..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <div className="flex gap-2">
-          <Button variant={showFilters ? "secondary" : "outline"} size="sm" className="gap-2" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="h-4 w-4" />Filtros
+          <Button variant={showFilters ? "secondary" : "outline"} size="sm" className="gap-2 flex-1 sm:flex-none" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="h-4 w-4" /><span className="hidden sm:inline">Filtros</span>
             {hasActiveFilters && <Badge variant="default" className="h-5 px-1.5 text-xs ml-1">!</Badge>}
           </Button>
-          <Button onClick={onAdd} className="gap-2"><Plus className="h-4 w-4" />Novo Cliente</Button>
+          <Button onClick={onAdd} className="gap-2 flex-1 sm:flex-none"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Novo Cliente</span></Button>
         </div>
       </div>
 
