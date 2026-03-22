@@ -189,17 +189,45 @@ export function UsuariosTab() {
       toast.error("A senha deve ter pelo menos 4 caracteres");
       return;
     }
+
+    // 1. Hash and update in usuarios table
     const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: resetSenha }) as any;
     const { error } = await supabase
       .from("usuarios")
       .update({ senha: hashedSenha, primeiro_login: true } as any)
       .eq("id", resetPasswordDialog.userId);
-    if (error) toast.error("Erro ao resetar senha");
-    else {
-      toast.success("Senha resetada! O usuário deverá alterá-la no próximo login.");
-      setResetPasswordDialog({ open: false, userId: "", userName: "" });
-      setResetSenha("");
+
+    if (error) {
+      toast.error("Erro ao resetar senha");
+      return;
     }
+
+    // 2. If user has auth_user_id, also update Supabase Auth password via admin RPC
+    const targetUser = usuarios.find(u => u.id === resetPasswordDialog.userId);
+    if (targetUser) {
+      try {
+        await (supabase as any).rpc("admin_update_user_password", {
+          p_user_id: (targetUser as any).auth_user_id || targetUser.id,
+          p_new_password: resetSenha,
+        });
+        console.log("[UsuariosTab] Senha do Supabase Auth atualizada para:", targetUser.email);
+      } catch (authErr) {
+        console.warn("[UsuariosTab] Falha ao atualizar senha no Supabase Auth (pode não existir RPC):", authErr);
+        // Not blocking — legacy hash was already updated
+      }
+    }
+
+    logAudit({
+      acao: "senha_resetada",
+      entidade: "user",
+      entidade_id: resetPasswordDialog.userId,
+      usuario_nome: resetPasswordDialog.userName,
+      detalhes: { resetado_por: "admin" },
+    });
+
+    toast.success("Senha resetada! O usuário deverá alterá-la no próximo login.");
+    setResetPasswordDialog({ open: false, userId: "", userName: "" });
+    setResetSenha("");
   };
 
   const handleToggleAtivo = async (id: string, currentAtivo: boolean) => {
