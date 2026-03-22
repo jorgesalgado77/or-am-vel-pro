@@ -84,16 +84,23 @@ function getPlanStatus(tenant: Tenant) {
   return { text: "Ativo", variant: "default" as const };
 }
 
+interface TenantStats {
+  [tenantId: string]: { usuarios: number; clientes: number; simulacoes: number };
+}
+
 export default function AdminDashboard({ adminName, onLogout }: AdminDashboardProps) {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
+  const [tenantStats, setTenantStats] = useState<TenantStats>({});
   const [loading, setLoading] = useState(true);
   const [addonInterestCount, setAddonInterestCount] = useState(0);
   const [showTenantDialog, setShowTenantDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [editingPayment, setEditingPayment] = useState<PaymentSetting | null>(null);
+  const [searchTenant, setSearchTenant] = useState("");
+  const [filterPlano, setFilterPlano] = useState("all");
 
   // Tenant form
   const [tNome, setTNome] = useState("");
@@ -123,6 +130,21 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setAddonInterestCount(count || 0);
   };
 
+  const fetchTenantStats = async (tenantIds: string[]) => {
+    if (tenantIds.length === 0) return;
+    const [usersRes, clientsRes, simsRes] = await Promise.all([
+      supabase.from("usuarios").select("tenant_id", { count: "exact" }).in("tenant_id", tenantIds).eq("ativo", true),
+      supabase.from("clients").select("tenant_id"),
+      supabase.from("simulations").select("tenant_id").gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+    ]);
+    const stats: TenantStats = {};
+    tenantIds.forEach(id => { stats[id] = { usuarios: 0, clientes: 0, simulacoes: 0 }; });
+    (usersRes.data || []).forEach((u: any) => { if (stats[u.tenant_id]) stats[u.tenant_id].usuarios++; });
+    (clientsRes.data || []).forEach((c: any) => { if (stats[c.tenant_id]) stats[c.tenant_id].clientes++; });
+    (simsRes.data || []).forEach((s: any) => { if (stats[s.tenant_id]) stats[s.tenant_id].simulacoes++; });
+    setTenantStats(stats);
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const [tenantsRes, paymentsRes, plansRes] = await Promise.all([
@@ -130,7 +152,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
       supabase.from("subscription_plans" as any).select("slug, preco_mensal, preco_anual_mensal").eq("ativo", true),
     ]);
-    if (tenantsRes.data) setTenants(tenantsRes.data as any);
+    const tenantData = (tenantsRes.data || []) as any;
+    setTenants(tenantData);
     if (paymentsRes.data) setPayments(paymentsRes.data as any);
     if (plansRes.data) {
       const prices: PlanPriceMap = {};
@@ -139,6 +162,10 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       });
       setPlanPrices(prices);
     }
+    // Fetch stats for all tenants
+    if (tenantData.length > 0) {
+      await fetchTenantStats(tenantData.map((t: any) => t.id));
+    }
     setLoading(false);
   };
 
@@ -146,17 +173,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     fetchData();
     fetchAddonInterestCount();
 
-    // Realtime: notify on new addon interest tickets
     const channel = supabase
       .channel("admin-addon-interest")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "support_tickets",
-          filter: "tipo=eq.addon_interesse",
-        },
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_tickets", filter: "tipo=eq.addon_interesse" },
         (payload) => {
           const ticket = payload.new as any;
           toast.info("🔔 Novo interesse em add-on!", {
@@ -165,13 +184,31 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           });
           setAddonInterestCount((prev) => prev + 1);
         }
-      )
-      .subscribe();
+      ).subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
+
+  const toggleTenantActive = async (tenant: Tenant) => {
+    const newAtivo = !tenant.ativo;
+    const { error } = await supabase.from("tenants").update({ ativo: newAtivo } as any).eq("id", tenant.id);
+    if (error) { toast.error("Erro ao atualizar status"); return; }
+    logAudit({
+      acao: newAtivo ? "tenant_ativado" : "tenant_desativado",
+      entidade: "tenant", entidade_id: tenant.id,
+      usuario_nome: adminName, tenant_id: tenant.id,
+      detalhes: { loja: tenant.nome_loja },
+    });
+    toast.success(`${tenant.nome_loja} ${newAtivo ? "ativada" : "desativada"}`);
+    fetchData();
+  };
+
+  // Filtered tenants
+  const filteredTenants = tenants.filter(t => {
+    const matchSearch = !searchTenant || t.nome_loja.toLowerCase().includes(searchTenant.toLowerCase()) || (t.codigo_loja || "").includes(searchTenant);
+    const matchPlano = filterPlano === "all" || t.plano === filterPlano;
+    return matchSearch && matchPlano;
+  });
 
   // Stats
   const totalLojas = tenants.length;
