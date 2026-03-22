@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTenantId } from "@/contexts/TenantContext";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 
 export interface DiscountOption {
   id: string;
@@ -58,9 +58,10 @@ export function useDiscountOptions() {
         .update({ percentages: sorted } as any)
         .eq("id", existing.id));
     } else {
+      const tenantId = await getResolvedTenantId();
       ({ error } = await supabase
         .from("discount_options")
-        .insert({ field_name: fieldName, percentages: sorted, tenant_id: getCurrentTenantId() } as any));
+        .insert({ field_name: fieldName, percentages: sorted, tenant_id: tenantId } as any));
     }
     if (error) console.error("[DiscountOptions] Save error:", error.message, error);
     if (!error) fetchOptions();

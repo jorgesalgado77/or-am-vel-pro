@@ -13,7 +13,7 @@ import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTenantId } from "@/contexts/TenantContext";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
@@ -120,7 +120,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string }[]>([]);
 
   const fetchTrackingStats = useCallback(async () => {
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getResolvedTenantId();
     let query = supabase
       .from("client_tracking")
       .select("valor_contrato, data_fechamento, created_at");
@@ -638,14 +638,15 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 function DealRoomStoreWidgetWrapper() {
   const [tenantId, setTenantId] = useState<string | null>(null);
   useEffect(() => {
-    const currentTenantId = getCurrentTenantId();
-    if (currentTenantId) {
-      setTenantId(currentTenantId);
-      return;
-    }
+    getResolvedTenantId().then((resolved) => {
+      if (resolved) {
+        setTenantId(resolved);
+        return;
+      }
 
-    supabase.from("company_settings").select("tenant_id").limit(1).maybeSingle().then(({ data }) => {
-      if (data) setTenantId((data as any).tenant_id);
+      supabase.from("company_settings").select("tenant_id").limit(1).maybeSingle().then(({ data }) => {
+        if (data) setTenantId((data as any).tenant_id);
+      });
     });
   }, []);
   if (!tenantId) return null;

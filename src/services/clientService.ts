@@ -5,7 +5,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTenantId } from "@/contexts/TenantContext";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { generateOrcamentoNumber } from "@/services/financialService";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -33,10 +33,8 @@ export async function fetchClients(): Promise<FetchClientsResult> {
     return { clients: [], error: "Sessão expirada. Faça login novamente." };
   }
 
-  // Use in-memory tenant_id, fallback to JWT metadata to avoid race conditions
-  const tenantId = getCurrentTenantId() 
-    ?? sessionData.session.user?.user_metadata?.tenant_id 
-    ?? null;
+  // Use async resolved tenant_id with JWT fallback
+  const tenantId = await getResolvedTenantId();
 
   if (!tenantId) {
     console.warn("[ClientService] No tenant_id available — cannot fetch clients");
@@ -64,10 +62,7 @@ export async function createClient(
   data: Omit<ClientInsert, "numero_orcamento" | "numero_orcamento_seq">
 ): Promise<{ client: Client | null; error: string | null }> {
   const orcamento = await generateOrcamentoNumber();
-  const { data: sessionData } = await supabase.auth.getSession();
-  const tenantId = getCurrentTenantId() 
-    ?? sessionData?.session?.user?.user_metadata?.tenant_id 
-    ?? null;
+  const tenantId = await getResolvedTenantId();
   const insertData = { ...data, ...orcamento, ...(tenantId ? { tenant_id: tenantId } : {}) };
 
   const { data: created, error } = await supabase
@@ -108,11 +103,7 @@ export async function fetchLastSimulations(): Promise<{
   lastSims: Record<string, LastSimInfo>;
   allSimulations: { created_at: string; valor_final: number }[];
 }> {
-  // Use in-memory tenant_id, fallback to JWT metadata
-  const { data: sessionData } = await supabase.auth.getSession();
-  const tenantId = getCurrentTenantId() 
-    ?? sessionData?.session?.user?.user_metadata?.tenant_id 
-    ?? null;
+  const tenantId = await getResolvedTenantId();
 
   let query = supabase
     .from("simulations")

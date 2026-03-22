@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTenantId } from "@/contexts/TenantContext";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 
 export interface Usuario {
   id: string;
@@ -23,7 +23,7 @@ export function useUsuarios() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getResolvedTenantId();
     let query = supabase
       .from("usuarios")
       .select("*, cargos(nome)")
