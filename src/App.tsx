@@ -3,8 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { TenantProvider } from "@/contexts/TenantContext";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { TenantProvider, AuthProvider } from "@/modules/auth";
 
 const Index = lazy(() => import("./pages/Index.tsx"));
 const Admin = lazy(() => import("./pages/Admin.tsx"));

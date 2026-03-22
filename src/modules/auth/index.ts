@@ -17,7 +17,7 @@ export { FirstAccessCredentialsCard } from "@/components/auth/FirstAccessCredent
 // Hooks
 export { useCurrentUser } from "@/hooks/useCurrentUser";
 export { useOnlinePresence } from "@/hooks/useOnlinePresence";
-export { useTenantPlan } from "@/hooks/useTenantPlan";
+export { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
 export { useUsuarios } from "@/hooks/useUsuarios";
 export { useCargos } from "@/hooks/useCargos";
 
