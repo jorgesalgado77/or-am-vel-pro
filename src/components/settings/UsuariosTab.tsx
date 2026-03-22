@@ -211,7 +211,6 @@ export function UsuariosTab() {
           p_user_id: (targetUser as any).auth_user_id || targetUser.id,
           p_new_password: resetSenha,
         });
-        console.log("[UsuariosTab] Senha do Supabase Auth atualizada para:", targetUser.email);
       } catch (authErr) {
         console.warn("[UsuariosTab] Falha ao atualizar senha no Supabase Auth (pode não existir RPC):", authErr);
         // Not blocking — legacy hash was already updated

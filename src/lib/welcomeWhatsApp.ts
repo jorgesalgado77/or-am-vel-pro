@@ -23,7 +23,6 @@ export async function sendWelcomeWhatsApp(params: {
       .maybeSingle();
 
     if (!settings) {
-      console.log("[sendWelcomeWhatsApp] WhatsApp integration not active");
       return;
     }
 
@@ -37,7 +36,6 @@ export async function sendWelcomeWhatsApp(params: {
       .maybeSingle();
 
     if (!template) {
-      console.log("[sendWelcomeWhatsApp] No active welcome template found");
       return;
     }
 
@@ -64,12 +62,10 @@ export async function sendWelcomeWhatsApp(params: {
       });
 
       if (res.ok) {
-        console.log("[sendWelcomeWhatsApp] Welcome message sent via Evolution API");
       } else {
         console.warn("[sendWelcomeWhatsApp] Evolution API error:", res.status);
       }
     } else {
-      console.log("[sendWelcomeWhatsApp] Provider not fully configured, skipping");
     }
   } catch (err) {
     // Non-blocking — don't break the signup flow

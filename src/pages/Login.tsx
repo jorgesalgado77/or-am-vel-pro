@@ -261,7 +261,6 @@ export default function Login() {
   useEffect(() => {
     const digits = unmask(codigoLoja);
     const maskedCode = maskCodigoLoja(codigoLoja);
-    console.log("[Login] useEffect triggered, digits:", digits, "length:", digits.length);
 
     if (digits.length < 6) {
       setTenantInfo(null);
@@ -271,7 +270,6 @@ export default function Login() {
     (async () => {
       try {
         const { data, error } = await (supabase as any).rpc("resolve_tenant_info_by_code", { p_code: maskedCode });
-        console.log("[Login] resolve_tenant_info_by_code →", { maskedCode, data, error });
         const row = Array.isArray(data) ? data[0] : data;
         if (!cancelled && row && (row.company_name || row.nome || row.nome_empresa || row.nome_loja)) {
           setTenantInfo({
@@ -288,7 +286,6 @@ export default function Login() {
             .or(`codigo_loja.eq.${formattedCode},codigo_loja.eq.${cleanCode}`)
             .limit(1)
             .maybeSingle();
-          console.log("[Login] Fallback tenant query →", { formattedCode, cleanCode, tenantData });
           if (!cancelled && tenantData?.nome_loja) {
             const { data: csData } = await (supabase as any)
               .from("company_settings")
@@ -303,7 +300,6 @@ export default function Login() {
             // Try resolve_tenant_by_code as last resort
             const { data: rpcData } = await (supabase as any).rpc("resolve_tenant_by_code", { p_code: formattedCode });
             const tenantId = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-            console.log("[Login] Last resort RPC →", { formattedCode, tenantId });
             if (!cancelled && tenantId) {
               const tid = typeof tenantId === "string" ? tenantId : tenantId?.tenant_id || tenantId?.id;
               if (tid) {
