@@ -502,13 +502,13 @@ export function ClientsKanban({
                                       {/* Badge de tipo na coluna Novo */}
                                       {((client as any).status || "novo") === "novo" && (
                                         <div className="mb-1.5">
-                                          {client.vendedor ? (
+                                          {(client as any).origem_lead && (client as any).origem_lead !== "manual" ? (
                                             <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-primary/15 text-primary border-primary/30 gap-0.5" variant="outline">
                                               <ArrowRight className="h-2.5 w-2.5" />
                                               Lead Recebido
                                             </Badge>
                                           ) : (
-                                            <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-accent/15 text-accent border-accent/30 gap-0.5" variant="outline">
+                                            <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-emerald-500/15 text-emerald-600 border-emerald-500/30 gap-0.5" variant="outline">
                                               <UserPlus className="h-2.5 w-2.5" />
                                               Cliente Recente
                                             </Badge>
