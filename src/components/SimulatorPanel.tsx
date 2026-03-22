@@ -12,7 +12,7 @@ import { SimulatorResultCard } from "@/components/simulator/SimulatorResultCard"
 import { SimulatorClientForm } from "@/components/simulator/SimulatorClientForm";
 import { AIStrategyPanel } from "@/components/AIStrategyPanel";
 import { useConversionHistory } from "@/hooks/useConversionHistory";
-import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
+import { maskCpfCnpj } from "@/lib/masks";
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData, type CreditRateData } from "@/lib/financing";
 import { generateOrcamentoNumber, applyDiscounts, FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
 import { validateFileUpload } from "@/lib/validation";
