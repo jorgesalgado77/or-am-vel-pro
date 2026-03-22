@@ -34,7 +34,8 @@ export type AuditAction =
   | "followup_weekly_report"
   | "addon_liberado"
   | "addon_revogado"
-  | "senha_resetada";
+  | "senha_resetada"
+  | "lead_atribuido";
 
 export type AuditEntity =
   | "client"
