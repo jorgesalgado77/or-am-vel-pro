@@ -120,7 +120,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string }[]>([]);
 
   const fetchTrackingStats = useCallback(async () => {
-    const tenantId = getCurrentTenantId();
+    const tenantId = await getResolvedTenantId();
     let query = supabase
       .from("client_tracking")
       .select("valor_contrato, data_fechamento, created_at");
