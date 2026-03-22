@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTenantId } from "@/contexts/TenantContext";
+import { getCurrentTenantId, getResolvedTenantId } from "@/contexts/TenantContext";
 
 export interface CompanySettings {
   id: string;
