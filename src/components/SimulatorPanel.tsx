@@ -6,15 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Lock, LockOpen, Upload, Save, FileDown, Handshake, Trash2, RotateCcw, UserPlus, EyeOff, Eye } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { SimulatorEnvironmentsTable } from "@/components/simulator/SimulatorEnvironmentsTable";
+import { Lock, LockOpen, Upload, EyeOff, Eye } from "lucide-react";
+import { SimulatorEnvironmentsTable, type ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
 import { SimulatorResultCard } from "@/components/simulator/SimulatorResultCard";
 import { SimulatorClientForm } from "@/components/simulator/SimulatorClientForm";
 import { AIStrategyPanel } from "@/components/AIStrategyPanel";
 import { useConversionHistory } from "@/hooks/useConversionHistory";
-import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
+
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData, type CreditRateData } from "@/lib/financing";
 import { generateOrcamentoNumber, applyDiscounts, FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
 import { validateFileUpload } from "@/lib/validation";
@@ -73,15 +71,7 @@ interface StoredEnvironment {
   importedAt: string;
 }
 
-interface ImportedEnvironment {
-  id: string;
-  fileName: string;
-  environmentName: string;
-  pieceCount: number;
-  totalValue: number;
-  importedAt: Date;
-  file: File;
-}
+// ImportedEnvironment is now imported from SimulatorEnvironmentsTable
 
 interface SimulatorStoredState {
   valorTela: number;
@@ -952,59 +942,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                   <span className="text-xs font-medium text-muted-foreground">Ambientes Importados</span>
                   <span className="text-xs text-muted-foreground">{environments.length} arquivo(s)</span>
                 </div>
-                {environments.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30">
-                        <TableHead className="text-xs py-1.5 h-auto">Ambiente</TableHead>
-                        <TableHead className="text-xs py-1.5 h-auto text-center">Peças</TableHead>
-                        <TableHead className="text-xs py-1.5 h-auto text-right">Valor</TableHead>
-                        <TableHead className="text-xs py-1.5 h-auto text-center">Data</TableHead>
-                        {canDeleteEnvironment && <TableHead className="text-xs py-1.5 h-auto w-8"></TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {environments.map((env) => (
-                        <TableRow key={env.id} className="text-xs">
-                          <TableCell className="py-1.5 font-medium">
-                            <Input
-                              value={env.environmentName}
-                              onChange={(e) => setEnvironments((prev) => prev.map((item) => item.id === env.id ? { ...item, environmentName: e.target.value } : item))}
-                              className="h-6 text-xs border-none bg-transparent p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
-                            />
-                          </TableCell>
-                          <TableCell className="py-1.5 text-center">{env.pieceCount || "—"}</TableCell>
-                          <TableCell className="py-1.5 text-right tabular-nums">{formatCurrency(env.totalValue)}</TableCell>
-                          <TableCell className="py-1.5 text-center text-muted-foreground">
-                            {format(env.importedAt, "dd/MM HH:mm")}
-                          </TableCell>
-                          {canDeleteEnvironment && (
-                            <TableCell className="py-1.5 text-center">
-                              <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => handleRemoveEnvironment(env.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                      {environments.length > 1 && (
-                        <TableRow className="bg-primary/5 font-semibold text-xs">
-                          <TableCell className="py-1.5">Total ({environments.length} ambientes)</TableCell>
-                          <TableCell className="py-1.5 text-center">{environments.reduce((s, e) => s + e.pieceCount, 0) || "—"}</TableCell>
-                          <TableCell className="py-1.5 text-right tabular-nums text-primary">{formatCurrency(environments.reduce((s, e) => s + e.totalValue, 0))}</TableCell>
-                          <TableCell className="py-1.5"></TableCell>
-                          {canDeleteEnvironment && <TableCell className="py-1.5"></TableCell>}
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="flex flex-col items-center gap-1 py-4 text-muted-foreground">
-                    <Upload className="h-5 w-5" />
-                    <p className="text-xs">Nenhum ambiente importado</p>
-                    <p className="text-[10px]">Clique no botão acima para importar arquivos TXT ou XML</p>
-                  </div>
-                )}
+                <SimulatorEnvironmentsTable
+                  environments={environments}
+                  onUpdateName={(id, name) => setEnvironments((prev) => prev.map((item) => item.id === id ? { ...item, environmentName: name } : item))}
+                  onRemove={handleRemoveEnvironment}
+                  canDelete={canDeleteEnvironment}
+                />
               </div>
             </div>
 
@@ -1235,190 +1178,58 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             })()}
             historicalConversionRate={conversionStats.conversionRate}
           />
-          <Card>
-            <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <ResultRow label="Valor de Tela" value={formatCurrency(valorTela)} />
-              {!hideIndicador && comissaoPercentual > 0 && (
-                <ResultRow label={`Indicador (${comissaoPercentual}%)`} value={`+ ${formatCurrency(valorTelaComComissao - valorTela)}`} muted />
-              )}
-              {!hideIndicador && comissaoPercentual > 0 && (
-                <ResultRow label="Valor com Indicador" value={formatCurrency(valorTelaComComissao)} />
-              )}
-              <ResultRow label="Desconto Total" value={formatCurrency(valorTelaComComissao - result.valorComDesconto)} muted />
-              <ResultRow label="Valor com Desconto" value={formatCurrency(result.valorComDesconto)} />
-              <Separator />
-              <ResultRow label="Entrada" value={formatCurrency(valorEntrada)} />
-              <ResultRow label="Saldo" value={formatCurrency(result.saldo)} />
-              {result.taxaCredito > 0 && <ResultRow label="Taxa de Crédito" value={formatPercent(result.taxaCredito * 100)} muted />}
-              {result.taxaBoleto > 0 && <ResultRow label="Coeficiente Boleto" value={result.taxaBoleto.toFixed(6)} muted />}
-              {result.taxaFixaBoleto > 0 && <ResultRow label="Taxa Fixa Boleto" value={formatCurrency(result.taxaFixaBoleto)} muted />}
-              {showCarencia && <ResultRow label="Carência" value={`${carenciaDias} dias`} muted />}
-              <Separator />
-              <div className="bg-primary/5 -mx-6 px-6 py-4 rounded-md">
-                <ResultRow label="Valor Final" value={formatCurrency(result.valorFinal)} highlight />
-                {showParcelas && <ResultRow label={`Parcela (${parcelas}x)`} value={formatCurrency(result.valorParcela)} highlight />}
-              </div>
+          <SimulatorResultCard
+            valorTela={valorTela}
+            valorTelaComComissao={valorTelaComComissao}
+            comissaoPercentual={comissaoPercentual}
+            hideIndicador={hideIndicador}
+            result={result}
+            valorEntrada={valorEntrada}
+            parcelas={parcelas}
+            showParcelas={showParcelas}
+            showCarencia={showCarencia}
+            carenciaDias={carenciaDias}
+            saving={saving}
+            closingSale={closingSale}
+            hasClient={!!client}
+            onSave={handleSave}
+            onPdf={client ? () => generateSimulationPdf({
+              clientName: client.nome,
+              clientCpf: client.cpf || undefined,
+              clientEmail: client.email || undefined,
+              clientPhone: client.telefone1 || undefined,
+              vendedor: client.vendedor || undefined,
+              companyName: settings.company_name,
+              companySubtitle: settings.company_subtitle || undefined,
+              companyLogoUrl: settings.logo_url || undefined,
+              valorTela, desconto1, desconto2, desconto3,
+              valorComDesconto: result.valorComDesconto,
+              formaPagamento, parcelas, valorEntrada, plusPercentual,
+              taxaCredito: result.taxaCredito,
+              saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
+            }) : null}
+            onCloseSale={handleCloseSale}
+            onClear={() => {
+              setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
+              setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
+              setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
+              setDesconto3Unlocked(false); setPlusUnlocked(false);
+              setEnvironments([]); setImportedFile(null);
+              sessionStorage.removeItem(SIM_STORAGE_KEY);
+              toast.success("Simulação limpa");
+            }}
+          />
 
-              <div className="flex flex-col gap-3 mt-4">
-                <div className="flex gap-3">
-                  <Button onClick={handleSave} disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground gap-2">
-                    <Save className="h-4 w-4" />
-                    {saving ? "Salvando..." : "Salvar Simulação"}
-                  </Button>
-                  {client && (
-                    <Button variant="outline" className="gap-2" onClick={() =>
-                      generateSimulationPdf({
-                        clientName: client.nome,
-                        clientCpf: client.cpf || undefined,
-                        clientEmail: client.email || undefined,
-                        clientPhone: client.telefone1 || undefined,
-                        vendedor: client.vendedor || undefined,
-                        companyName: settings.company_name,
-                        companySubtitle: settings.company_subtitle || undefined,
-                        companyLogoUrl: settings.logo_url || undefined,
-                        valorTela, desconto1, desconto2, desconto3,
-                        valorComDesconto: result.valorComDesconto,
-                        formaPagamento, parcelas, valorEntrada, plusPercentual,
-                        taxaCredito: result.taxaCredito,
-                        saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
-                      })
-                    }>
-                      <FileDown className="h-4 w-4" />PDF
-                    </Button>
-                  )}
-                </div>
-                <Button
-                  onClick={handleCloseSale}
-                  disabled={closingSale}
-                  className="w-full gap-2 bg-primary hover:bg-primary/90"
-                >
-                  <Handshake className="h-4 w-4" />
-                  {closingSale ? "Gerando contrato..." : "Fechar Venda"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
-                  onClick={() => {
-                    setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
-                    setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
-                    setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
-                    setDesconto3Unlocked(false); setPlusUnlocked(false);
-                    setEnvironments([]); setImportedFile(null);
-                    sessionStorage.removeItem(SIM_STORAGE_KEY);
-                    toast.success("Simulação limpa");
-                  }}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Limpar Simulação
-                </Button>
-                {!client && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Selecione um cliente para concluir a venda e gerar contrato.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Client creation form - shown when saving without a client */}
           {!client && showClientForm && (
-            <Card className="border-primary/30">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Cadastrar Cliente
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <Label>Nome *</Label>
-                  <Input value={newClient.nome} onChange={(e) => setNewClient(p => ({ ...p, nome: e.target.value }))} className="mt-1" placeholder="Nome completo" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>{isCnpj(newClient.cpf) ? "CNPJ" : "CPF"}</Label>
-                    <Input
-                      value={newClient.cpf}
-                      onChange={(e) => setNewClient(p => ({ ...p, cpf: maskCpfCnpj(e.target.value) }))}
-                      className="mt-1"
-                      placeholder={isCnpj(newClient.cpf) ? "00.000.000/0000-00" : "000.000.000-00"}
-                    />
-                    {newClient.cpf && !validateCpfCnpj(newClient.cpf).valid && (
-                      <p className="text-xs text-destructive mt-1">{validateCpfCnpj(newClient.cpf).message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Email</Label>
-                    <Input type="email" value={newClient.email} onChange={(e) => setNewClient(p => ({ ...p, email: e.target.value }))} className="mt-1" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Telefone 1</Label>
-                    <Input
-                      value={newClient.telefone1}
-                      onChange={(e) => setNewClient(p => ({ ...p, telefone1: maskPhone(e.target.value) }))}
-                      className="mt-1"
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div>
-                    <Label>Telefone 2</Label>
-                    <Input
-                      value={newClient.telefone2}
-                      onChange={(e) => setNewClient(p => ({ ...p, telefone2: maskPhone(e.target.value) }))}
-                      className="mt-1"
-                      placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label>Projetista Responsável</Label>
-                  <Select value={newClient.vendedor} onValueChange={(v) => setNewClient(p => ({ ...p, vendedor: v }))}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      {projetistas.map((u) => (
-                        <SelectItem key={u.id} value={u.apelido || u.nome_completo}>
-                          {u.apelido || u.nome_completo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Indicador do Cliente</Label>
-                  <Select value={newClient.indicador_id || "_none"} onValueChange={(v) => setNewClient(p => ({ ...p, indicador_id: v === "_none" ? "" : v }))}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_none">Nenhum</SelectItem>
-                      {activeIndicadores.map((ind) => (
-                        <SelectItem key={ind.id} value={ind.id}>
-                          {ind.nome} ({ind.comissao_percentual}%)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Qtd. Ambientes</Label>
-                    <Input type="number" min={0} value={newClient.quantidade_ambientes} onChange={(e) => setNewClient(p => ({ ...p, quantidade_ambientes: Number(e.target.value) }))} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Descrição</Label>
-                    <Input value={newClient.descricao_ambientes} onChange={(e) => setNewClient(p => ({ ...p, descricao_ambientes: e.target.value }))} className="mt-1" placeholder="Ex: Cozinha, Quarto..." />
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowClientForm(false)}>Cancelar</Button>
-                  <Button size="sm" className="flex-1 bg-success hover:bg-success/90 text-success-foreground gap-1" onClick={handleSave} disabled={saving}>
-                    <Save className="h-3 w-3" />
-                    {saving ? "Salvando..." : "Cadastrar e Salvar"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <SimulatorClientForm
+              newClient={newClient}
+              onChange={setNewClient}
+              onCancel={() => setShowClientForm(false)}
+              onSave={handleSave}
+              saving={saving}
+              projetistas={projetistas}
+              indicadores={activeIndicadores}
+            />
           )}
         </div>
       </div>
@@ -1474,15 +1285,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           saving={closingSale}
         />
       )}
-    </div>
-  );
-}
-
-function ResultRow({ label, value, muted, highlight }: { label: string; value: string; muted?: boolean; highlight?: boolean }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className={muted ? "text-sm text-muted-foreground" : highlight ? "text-sm font-semibold text-foreground" : "text-sm text-foreground"}>{label}</span>
-      <span className={highlight ? "text-lg font-bold text-primary tabular-nums" : muted ? "text-sm text-muted-foreground tabular-nums" : "text-sm font-medium text-foreground tabular-nums"}>{value}</span>
     </div>
   );
 }
