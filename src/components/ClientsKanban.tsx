@@ -216,7 +216,11 @@ export function ClientsKanban({
     const map: Record<string, Client[]> = {};
     KANBAN_COLUMNS.forEach(col => { map[col.id] = []; });
     filtered.forEach(client => {
-      const status = (client as any).status || "novo";
+      let status = (client as any).status || "novo";
+      // Clients with a vendedor assigned should never be in "novo"
+      if (status === "novo" && client.vendedor) {
+        status = "em_negociacao";
+      }
       if (map[status]) {
         map[status].push(client);
       } else {
