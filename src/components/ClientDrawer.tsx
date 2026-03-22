@@ -100,9 +100,10 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
         indicador_id: client.indicador_id || "",
       });
     } else {
+      const autoVendedor = currentUser?.nome_completo || "";
       reset({
         nome: "", cpf: "", quantidade_ambientes: 0, descricao_ambientes: "",
-        telefone1: "", telefone2: "", email: "", vendedor: "", indicador_id: "",
+        telefone1: "", telefone2: "", email: "", vendedor: autoVendedor, indicador_id: "",
       });
     }
     setCpfError("");
