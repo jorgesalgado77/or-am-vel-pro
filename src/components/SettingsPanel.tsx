@@ -664,11 +664,11 @@ function CreditoRatesTab() {
         if (parsedRates.length === 0) { toast.error("Nenhum dado válido"); return; }
 
         await supabase.from("financing_rates").delete().eq("provider_name", providerName).eq("provider_type", "credito");
-        const inserts = parsedRates.map((r) => ({ ...r, provider_name: providerName, provider_type: "credito" as const }));
+        const inserts = parsedRates.map((r) => ({ ...r, provider_name: providerName, provider_type: "credito" as const, tenant_id: tenantId }));
         const { error } = await supabase.from("financing_rates").insert(inserts);
-        if (error) toast.error("Erro ao importar");
+        if (error) { console.error("Import error:", error); toast.error("Erro ao importar: " + (error.message || "verifique as permissões RLS")); }
         else { toast.success(`Importado "${providerName}" com ${parsedRates.length} parcelas!`); refresh(); }
-      } catch { toast.error("Erro ao ler planilha"); }
+      } catch (err: any) { console.error("Excel read error:", err); toast.error("Erro ao ler planilha: " + (err?.message || "")); }
     };
     reader.readAsArrayBuffer(file);
     e.target.value = "";
