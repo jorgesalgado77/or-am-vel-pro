@@ -133,11 +133,11 @@ async function buildFallbackUserFromAuth(
   // Try direct DB lookup first to get real user data
   try {
     const { data: dbUser, error } = await withTimeout(
-      supabase
+      (async () => await supabase
         .from("usuarios")
         .select("*")
         .eq("auth_user_id", authUser.id)
-        .maybeSingle(),
+        .maybeSingle())(),
       1200,
       { data: null, error: createTimeoutError("fallback_user_lookup") } as any,
     );
