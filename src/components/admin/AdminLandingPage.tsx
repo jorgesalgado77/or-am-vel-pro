@@ -399,6 +399,104 @@ export function AdminLandingPage() {
           </Card>
         </TabsContent>
 
+        {/* AFILIADOS */}
+        <TabsContent value="afiliados" className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Textos da Seção "Divulgue e Ganhe"</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Texto do Badge</Label>
+                <Input value={config.affiliate_config.badge_text} onChange={(e) => updateField("affiliate_config", { ...config.affiliate_config, badge_text: e.target.value })} className="mt-1" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Título (prefixo)</Label>
+                  <Input value={config.affiliate_config.title_prefix} onChange={(e) => updateField("affiliate_config", { ...config.affiliate_config, title_prefix: e.target.value })} className="mt-1" placeholder="Qualquer pessoa pode" />
+                </div>
+                <div>
+                  <Label>Título (destaque colorido)</Label>
+                  <Input value={config.affiliate_config.title_highlight} onChange={(e) => updateField("affiliate_config", { ...config.affiliate_config, title_highlight: e.target.value })} className="mt-1" placeholder="Divulgar e Ganhar" />
+                </div>
+                <div>
+                  <Label>Título (sufixo)</Label>
+                  <Input value={config.affiliate_config.title_suffix} onChange={(e) => updateField("affiliate_config", { ...config.affiliate_config, title_suffix: e.target.value })} className="mt-1" placeholder="com o OrçaMóvel PRO" />
+                </div>
+              </div>
+              <div>
+                <Label>Descrição</Label>
+                <Textarea value={config.affiliate_config.description} onChange={(e) => updateField("affiliate_config", { ...config.affiliate_config, description: e.target.value })} className="mt-1" rows={3} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Texto do Botão CTA</Label>
+                  <Input value={config.affiliate_config.cta_text} onChange={(e) => updateField("affiliate_config", { ...config.affiliate_config, cta_text: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Subtexto abaixo do CTA</Label>
+                  <Input value={config.affiliate_config.cta_subtext} onChange={(e) => updateField("affiliate_config", { ...config.affiliate_config, cta_subtext: e.target.value })} className="mt-1" />
+                </div>
+              </div>
+              <div>
+                <Label>URL da Imagem (deixe vazio para usar a padrão)</Label>
+                <Input value={config.affiliate_config.image_url || ""} onChange={(e) => updateField("affiliate_config", { ...config.affiliate_config, image_url: e.target.value || null })} className="mt-1" placeholder="https://..." />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Cards de Passos</CardTitle>
+                <Button size="sm" variant="outline" onClick={() => updateField("affiliate_config", { ...config.affiliate_config, steps: [...config.affiliate_config.steps, { icon: "Gift", title: "Novo passo", description: "Descrição" }] })}>
+                  <Plus className="h-3 w-3 mr-1" />Adicionar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {config.affiliate_config.steps.map((step, i) => (
+                <div key={i} className="flex gap-2 items-start border rounded-lg p-3">
+                  <div className="flex-1 grid grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-xs">Ícone</Label>
+                      <Select value={step.icon} onValueChange={(v) => {
+                        const ns = [...config.affiliate_config.steps]; ns[i] = { ...ns[i], icon: v };
+                        updateField("affiliate_config", { ...config.affiliate_config, steps: ns });
+                      }}>
+                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Share2">Compartilhar</SelectItem>
+                          <SelectItem value="Gift">Presente</SelectItem>
+                          <SelectItem value="DollarSign">Dinheiro</SelectItem>
+                          <SelectItem value="Users">Pessoas</SelectItem>
+                          <SelectItem value="Star">Estrela</SelectItem>
+                          <SelectItem value="Heart">Coração</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Título</Label>
+                      <Input value={step.title} onChange={(e) => {
+                        const ns = [...config.affiliate_config.steps]; ns[i] = { ...ns[i], title: e.target.value };
+                        updateField("affiliate_config", { ...config.affiliate_config, steps: ns });
+                      }} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Descrição</Label>
+                      <Input value={step.description} onChange={(e) => {
+                        const ns = [...config.affiliate_config.steps]; ns[i] = { ...ns[i], description: e.target.value };
+                        updateField("affiliate_config", { ...config.affiliate_config, steps: ns });
+                      }} className="mt-1" />
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => updateField("affiliate_config", { ...config.affiliate_config, steps: config.affiliate_config.steps.filter((_, j) => j !== i) })}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* LEADS */}
         <TabsContent value="leads">
           <Card>
