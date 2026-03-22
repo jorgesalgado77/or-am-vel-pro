@@ -787,40 +787,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("[Auth] ⚠️ Não foi possível confirmar email automaticamente");
     }
 
-    // 3. Fallback: check usuarios table directly (for legacy users not yet in auth.users)
+    // 3. Fallback: check usuarios table via SECURITY DEFINER RPC (bypasses RLS for unauthenticated users)
     if (error && shouldTryLegacyFallback(error)) {
       try {
         const tenantIdFromCode = resolvedTenantId;
 
         console.log("[Auth] 🔍 Código da loja resolvido para tenant_id:", tenantIdFromCode);
 
-          const { data: legacyUsers, error: legacyUsersError } = await withTimeout(
-            (supabase as any)
-              .from("usuarios")
-              .select("*")
-              .eq("email", normalizedEmail)
-              .limit(10),
-            1400,
-            { data: null, error: createTimeoutError("legacy_user_lookup") } as any,
-          );
+          // Use RPC that bypasses RLS, then fallback to direct query
+          let legacyUsers: any[] = [];
+          let legacyUsersError: any = null;
 
-          if (legacyUsersError) {
-            console.warn("[Auth] Lookup legado de usuários falhou:", legacyUsersError.message);
+          // Strategy 1: RPC validate_legacy_login (SECURITY DEFINER — bypasses RLS)
+          try {
+            const { data: rpcResult, error: rpcErr } = await withTimeout(
+              (supabase as any).rpc("validate_legacy_login", {
+                p_email: normalizedEmail,
+                p_tenant_id: tenantIdFromCode || null,
+              }),
+              1800,
+              { data: null, error: createTimeoutError("legacy_rpc_lookup") } as any,
+            );
+
+            if (rpcErr) {
+              console.warn("[Auth] RPC validate_legacy_login falhou:", rpcErr.message, "| Tentando query direta...");
+              legacyUsersError = rpcErr;
+            } else {
+              legacyUsers = Array.isArray(rpcResult) ? rpcResult : rpcResult ? [rpcResult] : [];
+              console.log("[Auth] ✅ RPC validate_legacy_login retornou:", legacyUsers.length, "usuários");
+            }
+          } catch (rpcCatchErr) {
+            console.warn("[Auth] RPC validate_legacy_login indisponível:", rpcCatchErr);
           }
 
-        const legacyList = Array.isArray(legacyUsers) ? legacyUsers : legacyUsers ? [legacyUsers] : [];
+          // Strategy 2: Direct query fallback (works if there's a residual session)
+          if (legacyUsers.length === 0) {
+            const { data: directData, error: directErr } = await withTimeout(
+              (supabase as any)
+                .from("usuarios")
+                .select("*")
+                .eq("email", normalizedEmail)
+                .limit(10),
+              1400,
+              { data: null, error: createTimeoutError("legacy_user_lookup") } as any,
+            );
 
-        console.log("[Auth] 🔍 Usuários encontrados com email", normalizedEmail, ":", legacyList.length);
+            if (directErr) {
+              console.warn("[Auth] Lookup direto de usuários falhou:", directErr.message);
+              if (!legacyUsersError) legacyUsersError = directErr;
+            } else {
+              legacyUsers = Array.isArray(directData) ? directData : directData ? [directData] : [];
+              console.log("[Auth] 🔍 Query direta retornou:", legacyUsers.length, "usuários");
+            }
+          }
 
-        if (legacyList.length === 0) {
+        console.log("[Auth] 🔍 Usuários encontrados com email", normalizedEmail, ":", legacyUsers.length);
+
+        if (legacyUsers.length === 0) {
           logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: tenantIdFromCode, resultado: "falha_credencial", detalhes: { motivo: "Email não encontrado" } });
           return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
         }
 
-        const legacyUser = legacyList.find((candidate) => {
+        const legacyUser = legacyUsers.find((candidate: any) => {
           if (!tenantIdFromCode) return true;
           return candidate.tenant_id === tenantIdFromCode;
-        }) ?? legacyList[0] ?? null;
+        }) ?? legacyUsers[0] ?? null;
 
         if (!legacyUser) {
           return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
