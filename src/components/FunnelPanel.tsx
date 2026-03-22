@@ -418,6 +418,7 @@ export function FunnelPanel() {
             { key: "instagram_url" as const, icon: Instagram, label: "Instagram", placeholder: "https://instagram.com/sualoja" },
             { key: "facebook_url" as const, icon: Facebook, label: "Facebook", placeholder: "https://facebook.com/sualoja" },
             { key: "youtube_url" as const, icon: Youtube, label: "YouTube", placeholder: "https://youtube.com/@sualoja" },
+            { key: "tiktok_url" as const, icon: TikTokIcon, label: "TikTok", placeholder: "https://tiktok.com/@sualoja" },
             { key: "twitter_url" as const, icon: Twitter, label: "X / Twitter", placeholder: "https://x.com/sualoja" },
             { key: "website_url" as const, icon: Globe, label: "Site / Portfólio", placeholder: "https://www.sualoja.com.br" },
           ]).map(({ key, icon: Icon, label, placeholder }) => (
