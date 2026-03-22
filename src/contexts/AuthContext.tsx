@@ -317,37 +317,56 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
   const maskedCode = `${digits.slice(0, 3)}.${digits.slice(3)}`;
   const candidates = Array.from(new Set([digits, maskedCode]));
 
-  // Try direct query first
+  console.log("[Auth:TenantResolve] 🔎 Iniciando resolução para código:", maskedCode, "| candidatos:", candidates);
+
+  // Strategy 1: Direct query on tenants table
   const { data, error } = await withTimeout(
     (async () => await supabase
       .from("tenants")
       .select("id, codigo_loja")
       .in("codigo_loja", candidates)
       .limit(candidates.length))(),
-    1500,
+    2000,
     { data: null, error: null } as any,
   );
 
   if (error) {
-    console.warn("[Auth] Tenant lookup error:", error.message);
+    console.warn("[Auth:TenantResolve] ❌ Strategy 1 (direct query) FALHOU:", error.message);
+  } else {
+    console.log("[Auth:TenantResolve] Strategy 1 (direct query) resultado:", data?.length ?? 0, "registros");
   }
 
   const tenant = data?.find((row) => (row.codigo_loja ?? "").replace(/\D/g, "") === digits);
-  if (tenant) return tenant.id;
-
-  // Fallback: try RPC if direct query returned nothing (RLS may block unauthenticated reads)
-  try {
-    const { data: rpcData } = await withTimeout(
-      (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode }),
-      1200,
-      { data: null, error: null } as any,
-    );
-    if (rpcData) return rpcData;
-  } catch {
-    // RPC may not exist yet
+  if (tenant) {
+    console.log("[Auth:TenantResolve] ✅ Strategy 1 SUCESSO → tenant_id:", tenant.id);
+    return tenant.id;
   }
 
-  // Fallback 2: lookup via usuarios table (find any user with this email to get their tenant)
+  // Strategy 2: RPC resolve_tenant_by_code (bypasses RLS)
+  try {
+    console.log("[Auth:TenantResolve] 🔎 Strategy 2 (RPC resolve_tenant_by_code) com:", maskedCode);
+    const { data: rpcData, error: rpcError } = await withTimeout(
+      (supabase as any).rpc("resolve_tenant_by_code", { p_code: maskedCode }),
+      2000,
+      { data: null, error: null } as any,
+    );
+    if (rpcError) {
+      console.warn("[Auth:TenantResolve] ❌ Strategy 2 FALHOU:", rpcError.message);
+    } else if (rpcData) {
+      const resolvedId = typeof rpcData === "string" ? rpcData : rpcData?.tenant_id ?? rpcData?.id ?? null;
+      if (resolvedId) {
+        console.log("[Auth:TenantResolve] ✅ Strategy 2 SUCESSO → tenant_id:", resolvedId);
+        return resolvedId;
+      }
+      console.log("[Auth:TenantResolve] ⚠️ Strategy 2 retornou dados mas sem ID válido:", rpcData);
+    } else {
+      console.log("[Auth:TenantResolve] ⚠️ Strategy 2 retornou null/vazio");
+    }
+  } catch (e) {
+    console.warn("[Auth:TenantResolve] ❌ Strategy 2 (RPC) indisponível:", e);
+  }
+
+  console.log("[Auth:TenantResolve] ❌ Todas as strategies falharam para código:", maskedCode);
   return null;
 }
 
