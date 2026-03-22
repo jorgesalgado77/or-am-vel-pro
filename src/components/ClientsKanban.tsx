@@ -78,7 +78,7 @@ export function ClientsKanban({
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const { settings } = useCompanySettings();
-  const { projetistas } = useUsuarios();
+  const { projetistas, usuarios } = useUsuarios();
   const { indicadores } = useIndicadores();
   const { currentUser } = useCurrentUser();
 
