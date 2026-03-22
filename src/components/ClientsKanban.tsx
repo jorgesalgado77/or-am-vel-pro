@@ -58,8 +58,11 @@ const KANBAN_COLUMNS = [
 ];
 
 export function ClientsKanban({
-  clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory, onContracts,
+  clients: externalClients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory, onContracts,
 }: ClientsKanbanProps) {
+  // Local copy of clients so drag-and-drop can update status instantly
+  const [localClients, setLocalClients] = useState<Client[]>(externalClients);
+  useEffect(() => { setLocalClients(externalClients); }, [externalClients]);
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
@@ -88,7 +91,7 @@ export function ClientsKanban({
   }, [indicadores]);
 
   useEffect(() => {
-    if (clients.length === 0) return;
+    if (localClients.length === 0) return;
     const fetchLastSims = async () => {
       const { data } = await supabase
         .from("simulations")
@@ -104,13 +107,13 @@ export function ClientsKanban({
       setLastSims(map);
     };
     fetchLastSims();
-  }, [clients]);
+  }, [localClients]);
 
   // Fetch follow-up statuses for all clients
   useEffect(() => {
-    if (clients.length === 0) return;
+    if (localClients.length === 0) return;
     const fetchFollowUpStatuses = async () => {
-      const clientIds = clients.map(c => c.id);
+      const clientIds = localClients.map(c => c.id);
       const { data } = await supabase
         .from("followup_schedules" as any)
         .select("client_id, status")
@@ -127,7 +130,7 @@ export function ClientsKanban({
       setFollowUpStatus(statusMap);
     };
     fetchFollowUpStatuses();
-  }, [clients]);
+  }, [localClients]);
 
   const effectiveDates = useMemo(() => {
     const now = new Date();
@@ -146,7 +149,7 @@ export function ClientsKanban({
   }, [periodFilter, dateStart, dateEnd]);
 
   const filtered = useMemo(() => {
-    let baseClients = clients;
+    let baseClients = localClients;
 
     // Role-based visibility filtering
     if (currentUser && cargoNome) {
@@ -197,7 +200,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [clients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates, currentUser, cargoNome]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates, currentUser, cargoNome]);
 
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
@@ -217,12 +220,15 @@ export function ClientsKanban({
     const { draggableId, destination } = result;
     if (!destination) return;
     const newStatus = destination.droppableId;
-    const client = clients.find(c => c.id === draggableId);
+    const client = localClients.find(c => c.id === draggableId);
     if (!client || (client as any).status === newStatus) return;
 
-    // Optimistic update
     const oldStatus = (client as any).status;
-    (client as any).status = newStatus;
+
+    // Optimistic update via state (triggers re-render)
+    setLocalClients(prev =>
+      prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c)
+    );
 
     const { error } = await supabase
       .from("clients")
@@ -230,13 +236,16 @@ export function ClientsKanban({
       .eq("id", draggableId);
 
     if (error) {
-      (client as any).status = oldStatus;
+      // Rollback
+      setLocalClients(prev =>
+        prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c)
+      );
       toast.error("Erro ao mover cliente");
     } else {
       const colLabel = KANBAN_COLUMNS.find(c => c.id === newStatus)?.label;
       toast.success(`${client.nome} movido para "${colLabel}"`);
     }
-  }, [clients]);
+  }, [localClients]);
 
   const isExpired = (createdAt: string) => {
     const expiryDate = addDays(new Date(createdAt), settings.budget_validity_days);
