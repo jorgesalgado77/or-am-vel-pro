@@ -1,4 +1,4 @@
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, Gift } from "lucide-react";
 
 interface LandingFooterProps {
   text: string;
@@ -30,6 +30,12 @@ export function LandingFooter({ text, contactEmail, contactPhone, primaryColor }
               <li><a href="#benefits" className="hover:text-white transition-colors">Benefícios</a></li>
               <li><a href="#plans" className="hover:text-white transition-colors">Planos</a></li>
               <li><a href="#lead-form" className="hover:text-white transition-colors">Teste Grátis</a></li>
+              <li>
+                <a href="/afiliado" className="hover:text-white transition-colors flex items-center gap-1.5">
+                  <Gift className="h-3.5 w-3.5 text-emerald-400" />
+                  Divulgue e Ganhe
+                </a>
+              </li>
             </ul>
           </div>
 
