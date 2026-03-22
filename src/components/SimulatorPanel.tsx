@@ -31,6 +31,7 @@ import { useDiscountOptions } from "@/hooks/useDiscountOptions";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { useTenantPlanContext } from "@/hooks/useTenantPlan";
+import { getCurrentTenantId } from "@/contexts/TenantContext";
 import { openContractPrintWindow } from "@/lib/contractDocument";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -165,6 +166,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
   const { settings } = useCompanySettings();
   const { hasPermission, currentUser } = useCurrentUser();
+  const resolvedTenantId = getCurrentTenantId();
   const { getOptionsForField } = useDiscountOptions();
   const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();
@@ -561,8 +563,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
     // Deal Room access validation via backend
     try {
-      const { data: csettings } = await supabase.from("company_settings").select("tenant_id").limit(1).single();
-      const tenantId = (csettings as any)?.tenant_id;
+      const tenantId = resolvedTenantId;
       if (tenantId) {
         const accessResult = await validateAccess(tenantId, currentUser?.id);
         if (!accessResult.allowed) {
@@ -735,8 +736,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
     // === RECORD DEAL ROOM TRANSACTION ===
     try {
-      const { data: csettings } = await supabase.from("company_settings").select("tenant_id").limit(1).single();
-      const tenantId = (csettings as any)?.tenant_id;
+      const tenantId = resolvedTenantId;
       if (tenantId) {
         await recordSale(tenantId, {
           valor_venda: result.valorFinal,

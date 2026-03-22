@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTenantId } from "@/contexts/TenantContext";
 
 export interface CompanySettings {
   id: string;
+  tenant_id?: string | null;
   company_name: string;
   company_subtitle: string | null;
   logo_url: string | null;
@@ -23,6 +25,7 @@ export interface CompanySettings {
 
 const DEFAULT_SETTINGS: CompanySettings = {
   id: "",
+  tenant_id: null,
   company_name: "OrçaMóvel PRO",
   company_subtitle: "Orce. Venda. Simplifique",
   logo_url: null,
@@ -41,42 +44,106 @@ const DEFAULT_SETTINGS: CompanySettings = {
   email_loja: null,
 };
 
-let cachedSettings: CompanySettings | null = null;
+let cachedSettingsByTenant: Record<string, CompanySettings> = {};
 let listeners: Array<(s: CompanySettings) => void> = [];
 
-function notify(s: CompanySettings) {
-  cachedSettings = s;
-  listeners.forEach((fn) => fn(s));
+function normalizeSettings(row: any): CompanySettings {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...row,
+    company_name: row?.company_name || row?.nome_empresa || row?.nome_loja || DEFAULT_SETTINGS.company_name,
+    company_subtitle: row?.company_subtitle || row?.subtitulo || DEFAULT_SETTINGS.company_subtitle,
+  };
+}
+
+function getCacheKey(tenantId: string | null) {
+  return tenantId || "__global__";
+}
+
+function notify(settings: CompanySettings, tenantId: string | null) {
+  cachedSettingsByTenant[getCacheKey(tenantId)] = settings;
+  listeners.forEach((fn) => fn(settings));
+}
+
+async function fetchCompanySettingsForTenant(tenantId: string | null): Promise<CompanySettings | null> {
+  const baseQuery = supabase.from("company_settings").select("*");
+
+  const scopedQuery = tenantId
+    ? baseQuery.eq("tenant_id", tenantId).limit(1).maybeSingle()
+    : baseQuery.limit(1).maybeSingle();
+
+  const { data, error } = await Promise.race([
+    scopedQuery,
+    new Promise<{ data: null; error: null }>((resolve) => setTimeout(() => resolve({ data: null, error: null }), 8000)),
+  ]);
+
+  if (error) {
+    console.warn("[CompanySettings] Falha ao carregar company_settings:", error.message);
+    return null;
+  }
+
+  if (data) {
+    return normalizeSettings(data);
+  }
+
+  if (!tenantId) return null;
+
+  const { data: tenantData, error: tenantError } = await Promise.race([
+    supabase
+      .from("tenants")
+      .select("id, nome_loja, codigo_loja, email_contato, telefone_contato")
+      .eq("id", tenantId)
+      .maybeSingle(),
+    new Promise<{ data: null; error: null }>((resolve) => setTimeout(() => resolve({ data: null, error: null }), 8000)),
+  ]);
+
+  if (tenantError) {
+    console.warn("[CompanySettings] Falha ao carregar fallback de tenant:", tenantError.message);
+    return null;
+  }
+
+  if (!tenantData) return null;
+
+  return normalizeSettings({
+    id: `tenant-${tenantData.id}`,
+    tenant_id: tenantData.id,
+    company_name: tenantData.nome_loja,
+    codigo_loja: tenantData.codigo_loja,
+    telefone_loja: tenantData.telefone_contato,
+    email_loja: tenantData.email_contato,
+  });
 }
 
 export function useCompanySettings() {
-  const [settings, setSettings] = useState<CompanySettings>(cachedSettings || DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(!cachedSettings);
+  const tenantId = getCurrentTenantId();
+  const cacheKey = getCacheKey(tenantId);
+  const [settings, setSettings] = useState<CompanySettings>(cachedSettingsByTenant[cacheKey] || DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(!cachedSettingsByTenant[cacheKey]);
+
+  const refresh = useCallback(async () => {
+    const nextSettings = await fetchCompanySettingsForTenant(tenantId);
+    if (nextSettings) {
+      notify(nextSettings, tenantId);
+      setSettings(nextSettings);
+    } else {
+      setSettings(DEFAULT_SETTINGS);
+    }
+    setLoading(false);
+  }, [tenantId]);
 
   useEffect(() => {
     listeners.push(setSettings);
-    if (!cachedSettings) {
-      Promise.race([
-        supabase
-          .from("company_settings")
-          .select("*")
-          .limit(1)
-          .single(),
-        new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 6000)),
-      ]).then(({ data }) => {
-        if (data) notify(data as unknown as CompanySettings);
-        setLoading(false);
-      }).catch(() => setLoading(false));
+    const cached = cachedSettingsByTenant[cacheKey];
+    if (cached) {
+      setSettings(cached);
+      setLoading(false);
+    } else {
+      refresh();
     }
     return () => {
       listeners = listeners.filter((fn) => fn !== setSettings);
     };
-  }, []);
-
-  const refresh = async () => {
-    const { data } = await supabase.from("company_settings").select("*").limit(1).single();
-    if (data) notify(data as unknown as CompanySettings);
-  };
+  }, [cacheKey, refresh]);
 
   return { settings, loading, refresh };
 }
