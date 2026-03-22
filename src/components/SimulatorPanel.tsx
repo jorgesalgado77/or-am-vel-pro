@@ -15,6 +15,9 @@ import { useConversionHistory } from "@/hooks/useConversionHistory";
 
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData, type CreditRateData } from "@/lib/financing";
 import { generateOrcamentoNumber, applyDiscounts, FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
+import { parseProjectFile } from "@/services/fileImportService";
+import { buildContractHtml } from "@/services/contractService";
+import { generateSaleCommissions } from "@/services/commissionService";
 import { validateFileUpload } from "@/lib/validation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
