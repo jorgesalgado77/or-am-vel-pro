@@ -10,6 +10,7 @@ import { LandingProof } from "@/components/landing/LandingProof";
 import { LandingPlans } from "@/components/landing/LandingPlans";
 import { LandingAddons } from "@/components/landing/LandingAddons";
 import { LandingLeadForm } from "@/components/landing/LandingLeadForm";
+import { LandingAffiliate } from "@/components/landing/LandingAffiliate";
 import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { Toaster as Sonner } from "@/components/ui/sonner";
