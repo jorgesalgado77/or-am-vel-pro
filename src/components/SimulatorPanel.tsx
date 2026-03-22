@@ -105,7 +105,15 @@ function loadStoredState(): Partial<SimulatorStoredState> {
 }
 
 export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPanelProps) {
-  const stored = useMemo(() => loadStoredState(), []);
+  // Only restore stored state if there's an active client context or stored data is fresh
+  const stored = useMemo(() => {
+    if (client) return loadStoredState();
+    // No client — check if stored state has a nonzero valorTela (user was mid-edit)
+    const s = loadStoredState();
+    return s.valorTela ? s : {};
+  }, []);
+
+  const savedRef = useRef(false);
 
   const [valorTela, setValorTela] = useState(stored.valorTela ?? 0);
   const [desconto1, setDesconto1] = useState(stored.desconto1 ?? 0);
@@ -143,7 +151,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     }));
   });
 
-  // Persist state to sessionStorage on changes
+  // Persist state to sessionStorage on changes (memory effect while on screen)
   useEffect(() => {
     const state: SimulatorStoredState = {
       valorTela, desconto1, desconto2, desconto3,
@@ -156,6 +164,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     };
     sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
   }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, environments]);
+
+  // Clear sessionStorage on unmount if simulation was NOT saved
+  useEffect(() => {
+    return () => {
+      if (!savedRef.current) {
+        sessionStorage.removeItem(SIM_STORAGE_KEY);
+      }
+    };
+  }, []);
 
   // New client form state (when no client is provided)
   const [showClientForm, setShowClientForm] = useState(false);
