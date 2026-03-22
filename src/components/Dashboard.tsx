@@ -13,7 +13,7 @@ import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { supabase } from "@/lib/supabaseClient";
-import { getCurrentTenantId } from "@/contexts/TenantContext";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
