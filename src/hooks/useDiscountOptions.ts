@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTenantId } from "@/contexts/TenantContext";
 
 export interface DiscountOption {
   id: string;
