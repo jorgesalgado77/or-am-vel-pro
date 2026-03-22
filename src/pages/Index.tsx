@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { cn } from "@/lib/utils";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PlanBanner } from "@/components/PlanBanner";
 import Login from "@/pages/Login";
@@ -77,6 +78,10 @@ export default function Index() {
   const { unreadCount: unreadMessages } = useRealtimeMessages();
 
   const [activeView, setActiveView] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem("sidebar-collapsed");
+    return saved === "true";
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
@@ -189,9 +194,17 @@ export default function Index() {
             onProfile={() => setShowProfile(true)}
             unreadMessages={unreadMessages}
             onlineUsers={onlineUsers}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => {
+              setSidebarCollapsed(prev => {
+                const next = !prev;
+                localStorage.setItem("sidebar-collapsed", String(next));
+                return next;
+              });
+            }}
           />
 
-          <main className="flex-1 ml-60 p-6">
+          <main className={cn("flex-1 p-6 transition-all duration-300", sidebarCollapsed ? "ml-[60px]" : "ml-60")}>
             <PlanBanner />
             <div className="mb-6">
               <div className="flex items-center gap-3 flex-wrap">
