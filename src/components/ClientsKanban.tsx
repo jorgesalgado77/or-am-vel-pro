@@ -71,6 +71,7 @@ export function ClientsKanban({
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
   const [filterTemperature, setFilterTemperature] = useState("");
+  const [filterTipoCliente, setFilterTipoCliente] = useState("");
   const [periodFilter, setPeriodFilter] = useState("mes_atual");
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
@@ -196,6 +197,11 @@ export function ClientsKanban({
       if (filterProjetista && c.vendedor !== filterProjetista) return false;
       if (filterIndicador && c.indicador_id !== filterIndicador) return false;
       if (filterTemperature && (c as any).lead_temperature !== filterTemperature) return false;
+      if (filterTipoCliente) {
+        const isManual = !(c as any).origem_lead || (c as any).origem_lead === "manual";
+        if (filterTipoCliente === "recente" && !isManual) return false;
+        if (filterTipoCliente === "lead" && isManual) return false;
+      }
       const { start, end } = effectiveDates;
       if (start || end) {
         const clientDate = new Date(c.created_at);
@@ -204,7 +210,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates, currentUser, cargoNome]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome]);
 
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
@@ -256,12 +262,13 @@ export function ClientsKanban({
     return isPast(expiryDate);
   };
 
-  const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || periodFilter !== "mes_atual";
+  const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 
   const clearFilters = () => {
     setFilterProjetista("");
     setFilterIndicador("");
     setFilterTemperature("");
+    setFilterTipoCliente("");
     setPeriodFilter("mes_atual");
     setDateStart(undefined);
     setDateEnd(undefined);
@@ -421,6 +428,17 @@ export function ClientsKanban({
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[140px]">
+            <Label className="text-xs mb-1 block">Tipo</Label>
+            <Select value={filterTipoCliente || "_all"} onValueChange={(v) => setFilterTipoCliente(v === "_all" ? "" : v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">Todos</SelectItem>
+                <SelectItem value="recente">👤 Cliente Recente</SelectItem>
+                <SelectItem value="lead">📩 Lead Recebido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-2 ml-auto">
             <Badge variant="secondary" className="h-7 px-2.5 text-xs font-medium">
               {filtered.length} {filtered.length === 1 ? "cliente" : "clientes"}
@@ -444,12 +462,33 @@ export function ClientsKanban({
             {KANBAN_COLUMNS.map(col => (
               <div key={col.id} className="flex flex-col min-w-[220px] w-[220px] md:min-w-[240px] md:w-[240px] shrink-0">
                 {/* Column header */}
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <span className="text-base">{col.icon}</span>
-                  <span className="text-sm font-semibold text-foreground">{col.label}</span>
-                  <Badge variant="outline" className="ml-auto text-[10px] h-5 px-1.5">
-                    {columnData[col.id]?.length || 0}
-                  </Badge>
+                <div className="flex flex-col gap-1 mb-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{col.icon}</span>
+                    <span className="text-sm font-semibold text-foreground">{col.label}</span>
+                    <Badge variant="outline" className="ml-auto text-[10px] h-5 px-1.5">
+                      {columnData[col.id]?.length || 0}
+                    </Badge>
+                  </div>
+                  {col.id === "novo" && (columnData["novo"]?.length || 0) > 0 && (
+                    <div className="flex items-center gap-1.5 pl-7">
+                      {(() => {
+                        const novos = columnData["novo"] || [];
+                        const recentes = novos.filter(c => !(c as any).origem_lead || (c as any).origem_lead === "manual").length;
+                        const leads = novos.length - recentes;
+                        return (
+                          <>
+                            <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-emerald-500/30 text-emerald-600 gap-0.5">
+                              <UserPlus className="h-2.5 w-2.5" />{recentes}
+                            </Badge>
+                            <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/30 text-primary gap-0.5">
+                              <ArrowRight className="h-2.5 w-2.5" />{leads}
+                            </Badge>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <div
                   className="rounded-lg border border-border/60 bg-muted/20 p-1.5 flex-1 min-h-[200px]"
