@@ -343,21 +343,23 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
       <main className="max-w-7xl mx-auto p-6 space-y-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {[
             { label: "Total Lojas", value: totalLojas, icon: Store, color: "text-primary" },
             { label: "Ativas", value: lojasAtivas, icon: Eye, color: "text-accent" },
             { label: "Trial", value: lojasTrial, icon: Zap, color: "text-muted-foreground" },
             { label: "Básico", value: lojasBasico, icon: Users, color: "text-primary" },
             { label: "Premium", value: lojasPremium, icon: Crown, color: "text-destructive" },
+            { label: "Usuários", value: totalUsuarios, icon: Users, color: "text-primary" },
+            { label: "Clientes", value: totalClientes, icon: Users, color: "text-accent" },
             { label: "Receita Mensal", value: `R$ ${receitaMensal.toFixed(2)}`, icon: DollarSign, color: "text-accent" },
           ].map((kpi) => (
             <Card key={kpi.label}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <kpi.icon className={`h-5 w-5 ${kpi.color} shrink-0`} />
+              <CardContent className="p-3 flex items-center gap-2">
+                <kpi.icon className={`h-4 w-4 ${kpi.color} shrink-0`} />
                 <div>
-                  <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                  <p className="text-lg font-bold text-foreground">{kpi.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{kpi.label}</p>
+                  <p className="text-base font-bold text-foreground">{kpi.value}</p>
                 </div>
               </CardContent>
             </Card>
