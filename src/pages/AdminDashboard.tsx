@@ -442,20 +442,25 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                       const validadeDate = t.plano === "trial" ? t.trial_fim : t.assinatura_fim;
                       const vip = (t as any).recursos_vip || {};
                       return (
-                        <TableRow key={t.id}>
+                        <TableRow key={t.id} className={!t.ativo ? "opacity-50" : ""}>
+                          <TableCell>
+                            <Switch checked={t.ativo} onCheckedChange={() => toggleTenantActive(t)} />
+                          </TableCell>
                           <TableCell>
                             <div>
                               <p className="font-medium text-foreground">{t.nome_loja}</p>
                               {t.email_contato && <p className="text-xs text-muted-foreground">{t.email_contato}</p>}
                             </div>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{t.codigo_loja || "—"}</TableCell>
+                          <TableCell className="text-muted-foreground font-mono text-xs">{t.codigo_loja || "—"}</TableCell>
                           <TableCell>
                             <Badge variant={planCfg.color} className="gap-1">
                               <PlanIcon className="h-3 w-3" />{planCfg.label}
                             </Badge>
                           </TableCell>
-                          <TableCell className="capitalize text-muted-foreground">{t.plano_periodo}</TableCell>
+                          <TableCell className="text-center text-sm">{tenantStats[t.id]?.usuarios ?? 0}</TableCell>
+                          <TableCell className="text-center text-sm">{tenantStats[t.id]?.clientes ?? 0}</TableCell>
+                          <TableCell className="text-center text-sm">{tenantStats[t.id]?.simulacoes ?? 0}</TableCell>
                           <TableCell>
                             <Badge variant={status.variant}>{status.text}</Badge>
                           </TableCell>
