@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { maskPhone, maskCPF } from "@/lib/masks";
+import { maskPhone, maskCpfCnpj } from "@/lib/masks";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
