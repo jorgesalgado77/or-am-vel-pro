@@ -163,12 +163,21 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       });
       setFotoUrl((data as any).foto_url || null);
       if ((data as any).data_nascimento) {
-        // Parse as local date to avoid timezone shift (e.g. 1980-03-19 showing as March 18)
         const parts = ((data as any).data_nascimento as string).split("-");
         setBirthDate(new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
       }
     }
   }, [user?.id]);
+
+  const getAuthIdentity = useCallback(async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const authUser = sessionData.session?.user;
+
+    return {
+      authUid: authUser?.id ?? null,
+      authEmail: authUser?.email?.trim().toLowerCase() ?? null,
+    };
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -211,14 +220,44 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user?.id) return;
+
     setUploading(true);
+    const { authUid } = await getAuthIdentity();
     const ext = file.name.split(".").pop();
     const path = `avatars/${user.id}.${ext}`;
+
     const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (upErr) { toast.error("Erro ao enviar foto"); setUploading(false); return; }
+    if (upErr) {
+      toast.error("Erro ao enviar foto");
+      setUploading(false);
+      return;
+    }
+
     const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
     const url = urlData.publicUrl + `?t=${Date.now()}`;
-    await supabase.from("usuarios").update({ foto_url: url } as any).eq("id", user.id);
+
+    const photoPayload = {
+      foto_url: url,
+      updated_at: new Date().toISOString(),
+      ...(authUid ? { auth_user_id: authUid } : {}),
+    };
+
+    const { error: updateErr } = authUid
+      ? await supabase
+          .from("usuarios")
+          .update(photoPayload as any)
+          .or(`id.eq.${user.id},auth_user_id.eq.${authUid}`)
+      : await supabase
+          .from("usuarios")
+          .update(photoPayload as any)
+          .eq("id", user.id);
+
+    if (updateErr) {
+      toast.error("Erro ao salvar foto do perfil");
+      setUploading(false);
+      return;
+    }
+
     setFotoUrl(url);
     toast.success("Foto atualizada!");
     setUploading(false);
@@ -228,7 +267,6 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     if (!user?.id) return;
     setTriedSave(true);
 
-    // Validate required fields
     const missing = requiredFields.filter(f => {
       if (f.key === "birthDate") return !birthDate;
       return !form[f.key as keyof ProfileData]?.trim();
@@ -239,6 +277,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     }
 
     setSaving(true);
+    const { authUid, authEmail } = await getAuthIdentity();
 
     const updateData: Record<string, unknown> = {
       nome_completo: form.nome_completo,
@@ -259,50 +298,53 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
       tiktok: form.tiktok || null,
       linkedin: form.linkedin || null,
       updated_at: new Date().toISOString(),
+      ...(authUid ? { auth_user_id: authUid } : {}),
     };
 
-    // Try update with select to confirm rows affected
-    const { data: updatedRows, error } = await supabase
-      .from("usuarios")
-      .update(updateData as any)
-      .eq("id", user.id)
-      .select();
+    const primaryResult = authUid
+      ? await supabase
+          .from("usuarios")
+          .update(updateData as any)
+          .or(`id.eq.${user.id},auth_user_id.eq.${authUid}`)
+          .select("id, auth_user_id")
+      : await supabase
+          .from("usuarios")
+          .update(updateData as any)
+          .eq("id", user.id)
+          .select("id, auth_user_id");
 
-    if (error) {
-      console.error("Profile update error:", error);
-      toast.error("Erro ao salvar: " + error.message);
+    let updatedRows = primaryResult.data;
+
+    if (primaryResult.error) {
+      console.error("Profile update error:", primaryResult.error);
+      toast.error("Erro ao salvar: " + primaryResult.error.message);
       setSaving(false);
       return;
     }
 
-    // If RLS blocked the update (0 rows returned), try via auth_user_id
-    if (!updatedRows || updatedRows.length === 0) {
-      console.warn("Update by id returned 0 rows, trying auth_user_id...");
-      const { data: session } = await supabase.auth.getSession();
-      const authUid = session?.session?.user?.id;
-      if (authUid) {
-        const { data: retryRows, error: retryErr } = await supabase
-          .from("usuarios")
-          .update(updateData as any)
-          .eq("auth_user_id", authUid)
-          .select();
+    if ((!updatedRows || updatedRows.length === 0) && authEmail) {
+      const retryResult = await supabase
+        .from("usuarios")
+        .update(updateData as any)
+        .ilike("email", authEmail)
+        .select("id, auth_user_id");
 
-        if (retryErr) {
-          console.error("Retry update error:", retryErr);
-          toast.error("Erro ao salvar perfil. Verifique suas permissões.");
-          setSaving(false);
-          return;
-        }
-
-        if (!retryRows || retryRows.length === 0) {
-          toast.error("Não foi possível salvar. Permissão negada pela política de segurança.");
-          setSaving(false);
-          return;
-        }
+      if (retryResult.error) {
+        console.error("Retry update by email error:", retryResult.error);
+        toast.error("Erro ao salvar perfil. Verifique suas permissões.");
+        setSaving(false);
+        return;
       }
+
+      updatedRows = retryResult.data;
     }
 
-    // Change password if filled
+    if (!updatedRows || updatedRows.length === 0) {
+      toast.error("Não foi possível salvar. A política de segurança do banco ainda não permite atualizar este perfil.");
+      setSaving(false);
+      return;
+    }
+
     if (newPassword) {
       if (newPassword.length < 6) { toast.error("Senha deve ter pelo menos 6 caracteres"); setSaving(false); return; }
       if (newPassword !== confirmPassword) { toast.error("As senhas não coincidem"); setSaving(false); return; }
@@ -314,7 +356,6 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
     }
 
     toast.success("Perfil atualizado com sucesso!");
-    // Reload profile from DB to confirm saved data
     await loadProfile();
     await refreshUser();
     setSaving(false);
