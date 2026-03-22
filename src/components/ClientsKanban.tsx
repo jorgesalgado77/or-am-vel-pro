@@ -220,12 +220,15 @@ export function ClientsKanban({
     const { draggableId, destination } = result;
     if (!destination) return;
     const newStatus = destination.droppableId;
-    const client = clients.find(c => c.id === draggableId);
+    const client = localClients.find(c => c.id === draggableId);
     if (!client || (client as any).status === newStatus) return;
 
-    // Optimistic update
     const oldStatus = (client as any).status;
-    (client as any).status = newStatus;
+
+    // Optimistic update via state (triggers re-render)
+    setLocalClients(prev =>
+      prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c)
+    );
 
     const { error } = await supabase
       .from("clients")
@@ -233,13 +236,16 @@ export function ClientsKanban({
       .eq("id", draggableId);
 
     if (error) {
-      (client as any).status = oldStatus;
+      // Rollback
+      setLocalClients(prev =>
+        prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c)
+      );
       toast.error("Erro ao mover cliente");
     } else {
       const colLabel = KANBAN_COLUMNS.find(c => c.id === newStatus)?.label;
       toast.success(`${client.nome} movido para "${colLabel}"`);
     }
-  }, [clients]);
+  }, [localClients]);
 
   const isExpired = (createdAt: string) => {
     const expiryDate = addDays(new Date(createdAt), settings.budget_validity_days);
