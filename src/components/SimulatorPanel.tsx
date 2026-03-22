@@ -125,6 +125,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeMsg, setUpgradeMsg] = useState("");
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
