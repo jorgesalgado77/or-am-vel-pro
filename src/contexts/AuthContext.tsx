@@ -126,6 +126,20 @@ function mapRpcAppUser(userRow: any, authUserId?: string | null): AppUser {
 async function buildFallbackUserFromAuth(
   authUser: Pick<SupabaseAuthUser, "id" | "email" | "user_metadata">
 ): Promise<AppUser | null> {
+  // Try direct DB lookup first to get real user data
+  try {
+    const { data: dbUser } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("auth_user_id", authUser.id)
+      .maybeSingle();
+    if (dbUser) {
+      return mapAppUser(dbUser, authUser.id);
+    }
+  } catch {
+    // fall through to metadata fallback
+  }
+
   const metadata = (authUser.user_metadata as Record<string, unknown> | undefined) ?? undefined;
   const tenantId = (metadata?.tenant_id as string | undefined) ?? null;
 
