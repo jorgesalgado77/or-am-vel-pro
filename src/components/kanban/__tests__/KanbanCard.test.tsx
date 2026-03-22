@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { KanbanCard } from "../KanbanCard";
