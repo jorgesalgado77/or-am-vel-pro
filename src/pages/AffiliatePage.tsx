@@ -56,6 +56,7 @@ type ViewState = "form" | "result" | "dashboard";
 export default function AffiliatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { code: refCode } = useParams<{ code?: string }>();
   const [view, setView] = useState<ViewState>("form");
   const [loading, setLoading] = useState(false);
   const [affiliate, setAffiliate] = useState<AffiliateData | null>(null);
@@ -75,13 +76,33 @@ export default function AffiliatePage() {
   const [loginCpf, setLoginCpf] = useState("");
   const [showLogin, setShowLogin] = useState(false);
 
-  // Check if returning affiliate via query params
+  // Handle /ref/:code — track click and redirect to landing
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (code) {
-      loadAffiliateByCode(code);
+    if (refCode) {
+      trackClickAndRedirect(refCode);
     }
-  }, [searchParams]);
+    const qCode = searchParams.get("code");
+    if (qCode) {
+      loadAffiliateByCode(qCode);
+    }
+  }, [refCode, searchParams]);
+
+  async function trackClickAndRedirect(code: string) {
+    // Save to localStorage for 30 days
+    localStorage.setItem("affiliate_code", code.toUpperCase());
+    localStorage.setItem("affiliate_code_expires", String(Date.now() + 30 * 24 * 60 * 60 * 1000));
+
+    // Register click in DB (best effort)
+    try {
+      await supabase.from("affiliate_clicks" as any).insert({
+        affiliate_code: code.toUpperCase(),
+        user_agent: navigator.userAgent,
+      } as any);
+    } catch { /* best effort */ }
+
+    // Redirect to landing page
+    navigate("/", { replace: true });
+  }
 
   async function loadAffiliateByCode(code: string) {
     setLoading(true);
