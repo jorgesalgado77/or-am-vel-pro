@@ -74,6 +74,8 @@ export default function AffiliatePage() {
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginCpf, setLoginCpf] = useState("");
+  const [loginCode, setLoginCode] = useState("");
+  const [loginMode, setLoginMode] = useState<"code" | "email">("code");
   const [showLogin, setShowLogin] = useState(false);
 
   // Handle /ref/:code — track click and redirect to landing
