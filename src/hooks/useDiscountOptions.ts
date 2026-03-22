@@ -60,7 +60,7 @@ export function useDiscountOptions() {
     } else {
       ({ error } = await supabase
         .from("discount_options")
-        .insert({ field_name: fieldName, percentages: sorted } as any));
+        .insert({ field_name: fieldName, percentages: sorted, tenant_id: getCurrentTenantId() } as any));
     }
     if (!error) fetchOptions();
     return error;
