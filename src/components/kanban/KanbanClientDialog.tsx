@@ -31,7 +31,7 @@ interface KanbanClientDialogProps {
   canEdit: boolean;
   canDelete: boolean;
   indicadorMap: Record<string, { nome: string; comissao: number }>;
-  usuarios: { id: string; nome_completo: string; cargo_nome: string | null; ativo: boolean }[];
+  usuarios: { id: string; nome_completo: string; cargo_nome?: string | null; ativo: boolean }[];
   onEdit: (client: Client) => void;
   onDelete: (id: string) => void;
   onSimulate: (client: Client) => void;
