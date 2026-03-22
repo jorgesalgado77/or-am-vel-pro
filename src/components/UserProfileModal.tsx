@@ -1,22 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import {useState, useEffect, useCallback} from "react";
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Button} from "@/components/ui/button";
+import {Avatar, AvatarImage, AvatarFallback} from "@/components/ui/avatar";
+import {Separator} from "@/components/ui/separator";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {Calendar} from "@/components/ui/calendar";
+import {ScrollArea} from "@/components/ui/scroll-area";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
+import {Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin} from "lucide-react";
+import {cn} from "@/lib/utils";
+import {format} from "date-fns";
+import {supabase} from "@/integrations/supabase/client";
+import {useAuth} from "@/contexts/AuthContext";
+import {toast} from "sonner";
 
 // TikTok icon
 function TikTokIcon({ className }: { className?: string }) {

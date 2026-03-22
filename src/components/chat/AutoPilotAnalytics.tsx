@@ -1,13 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, Zap, MessageSquare, Coins, TrendingUp, Brain } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import { format, subDays, startOfDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import {useState, useEffect, useCallback} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {Badge} from "@/components/ui/badge";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Bot, Zap, MessageSquare, Coins, TrendingUp, Brain} from "lucide-react";
+import {supabase} from "@/lib/supabaseClient";
+import {format, subDays} from "date-fns";
+import {BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell} from "recharts";
 
 interface Interaction {
   id: string;

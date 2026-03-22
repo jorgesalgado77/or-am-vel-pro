@@ -1,20 +1,20 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle, Plus, Trash2, Edit, Bot, Copy, ExternalLink, Info } from "lucide-react";
-import { getTenantId } from "@/lib/tenantState";
-import { WhatsAppBotMonitor } from "@/components/campaigns/WhatsAppBotMonitor";
+import {useState, useEffect} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Button} from "@/components/ui/button";
+import {Switch} from "@/components/ui/switch";
+import {Separator} from "@/components/ui/separator";
+import {Badge} from "@/components/ui/badge";
+import {Textarea} from "@/components/ui/textarea";
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle, Plus, Trash2, Edit, Bot, Copy, Info} from "lucide-react";
+import {getTenantId} from "@/lib/tenantState";
+import {WhatsAppBotMonitor} from "@/components/campaigns/WhatsAppBotMonitor";
 
 type WhatsAppProvider = "evolution" | "twilio";
 

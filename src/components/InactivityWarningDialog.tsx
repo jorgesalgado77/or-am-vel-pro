@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import {useEffect, useState} from "react";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -7,8 +7,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Timer, ShieldAlert } from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {Timer, ShieldAlert} from "lucide-react";
 
 const INACTIVITY_SOUND_KEY = "inactivity_sound_enabled";
 

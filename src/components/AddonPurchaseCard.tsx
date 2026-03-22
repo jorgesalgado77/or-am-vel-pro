@@ -1,13 +1,11 @@
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import { CreditCard, QrCode, CheckCircle2, ArrowLeft, Sparkles, Shield, Lock, Video, FileText } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import { getTenantId } from "@/lib/tenantState";
-import { toast } from "sonner";
+import {useState} from "react";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
+import {CreditCard, QrCode, CheckCircle2, ArrowLeft, Sparkles, Shield, Lock} from "lucide-react";
+import {supabase} from "@/lib/supabaseClient";
+import {getTenantId} from "@/lib/tenantState";
+import {toast} from "sonner";
 
 interface AddonPurchaseCardProps {
   addonName: string;

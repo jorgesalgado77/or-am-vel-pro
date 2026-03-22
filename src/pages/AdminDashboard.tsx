@@ -1,33 +1,33 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { logAudit } from "@/services/auditService";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {useState, useEffect} from "react";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {logAudit} from "@/services/auditService";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Badge} from "@/components/ui/badge";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Switch} from "@/components/ui/switch";
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift,
 } from "lucide-react";
-import { AdminTickets } from "@/components/admin/AdminTickets";
-import { AdminVendaZap } from "@/components/admin/AdminVendaZap";
-import { AdminLandingPage } from "@/components/admin/AdminLandingPage";
-import { AdminDealRoom } from "@/components/admin/AdminDealRoom";
-import { AdminPlans } from "@/components/admin/AdminPlans";
-import { AdminWhatsAppConfig } from "@/components/admin/AdminWhatsAppConfig";
-import { AdminResendConfig } from "@/components/admin/AdminResendConfig";
-import { AdminLoginDiagnostics } from "@/components/admin/AdminLoginDiagnostics";
-import { AdminCanvaConfig } from "@/components/admin/AdminCanvaConfig";
-import { AdminAffiliates } from "@/components/admin/AdminAffiliates";
-import { format, isAfter, isBefore, addDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {AdminTickets} from "@/components/admin/AdminTickets";
+import {AdminVendaZap} from "@/components/admin/AdminVendaZap";
+import {AdminLandingPage} from "@/components/admin/AdminLandingPage";
+import {AdminDealRoom} from "@/components/admin/AdminDealRoom";
+import {AdminPlans} from "@/components/admin/AdminPlans";
+import {AdminWhatsAppConfig} from "@/components/admin/AdminWhatsAppConfig";
+import {AdminResendConfig} from "@/components/admin/AdminResendConfig";
+import {AdminLoginDiagnostics} from "@/components/admin/AdminLoginDiagnostics";
+import {AdminCanvaConfig} from "@/components/admin/AdminCanvaConfig";
+import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
+import {format, isAfter, isBefore} from "date-fns";
+import {ptBR} from "date-fns/locale";
 
 interface AdminDashboardProps {
   adminName: string;

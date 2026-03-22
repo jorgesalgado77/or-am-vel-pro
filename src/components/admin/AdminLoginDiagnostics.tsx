@@ -1,18 +1,18 @@
-import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { RefreshCw, Search, CalendarIcon, Trash2, Store, User, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, UserX, MailWarning, HelpCircle } from "lucide-react";
-import { format as fmtDate } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import {useState, useEffect, useMemo} from "react";
+import {supabase} from "@/lib/supabaseClient";
+import {Card, CardContent} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {Calendar} from "@/components/ui/calendar";
+import {RefreshCw, Search, CalendarIcon, Trash2, Store, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, UserX, MailWarning, HelpCircle} from "lucide-react";
+import {format as fmtDate} from "date-fns";
+import {ptBR} from "date-fns/locale";
+import {cn} from "@/lib/utils";
+import {toast} from "sonner";
 
 interface DiagnosticEntry {
   id: string;

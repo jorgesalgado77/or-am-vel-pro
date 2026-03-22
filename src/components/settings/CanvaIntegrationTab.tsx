@@ -1,12 +1,10 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/lib/supabaseClient";
-import { getTenantId } from "@/lib/tenantState";
-import { toast } from "sonner";
-import { Palette, ExternalLink, CheckCircle2, XCircle, Image, Download, RefreshCw } from "lucide-react";
+import {useState, useEffect} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Badge} from "@/components/ui/badge";
+import {Separator} from "@/components/ui/separator";
+import {supabase} from "@/lib/supabaseClient";
+import {getTenantId} from "@/lib/tenantState";
+import {Palette, ExternalLink, CheckCircle2, Image} from "lucide-react";
 
 interface CanvaDesign {
   id: string;

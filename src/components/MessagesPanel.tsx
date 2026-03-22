@@ -1,15 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Send, RefreshCw, MessageCircle } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { format } from "date-fns";
+import {useState, useEffect, useRef} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Button} from "@/components/ui/button";
+import {Textarea} from "@/components/ui/textarea";
+import {Badge} from "@/components/ui/badge";
+import {ArrowLeft, Send, RefreshCw, MessageCircle} from "lucide-react";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {format} from "date-fns";
 
 interface TrackingWithMessages {
   id: string;

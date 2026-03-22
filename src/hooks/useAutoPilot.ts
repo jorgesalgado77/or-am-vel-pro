@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { logAudit } from "@/services/auditService";
-import { calcLeadTemperature, type LeadTemperature } from "@/lib/leadTemperature";
+import {useState, useEffect, useCallback, useRef} from "react";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {logAudit} from "@/services/auditService";
+import {type LeadTemperature} from "@/lib/leadTemperature";
 
 export interface AutoPilotSettings {
   id: string;

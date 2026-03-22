@@ -1,18 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { RefreshCw, CheckCircle2, Ban, PauseCircle, Printer, Search, Filter } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { useIndicadores } from "@/hooks/useIndicadores";
-import { formatCurrency } from "@/lib/financing";
+import {useState, useEffect, useCallback} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {Separator} from "@/components/ui/separator";
+import {RefreshCw, CheckCircle2, Ban, PauseCircle, Printer, Search, Filter} from "lucide-react";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {format} from "date-fns";
+import {useIndicadores} from "@/hooks/useIndicadores";
+import {formatCurrency} from "@/lib/financing";
 
 interface ComissaoRow {
   id: string;
