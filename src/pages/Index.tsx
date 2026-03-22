@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { UpgradePlanDialog, parsePlanLimitError } from "@/components/shared/UpgradePlanDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -117,11 +118,24 @@ export default function Index() {
     }
   }, [activeView, authUser, hasPermission, isAdmin]);
 
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeMsg, setUpgradeMsg] = useState("");
+
   const onSaveClient = async (data: Record<string, unknown>) => {
-    handleSaveClient(data, editingClient, () => {
+    const result = await handleSaveClient(data, editingClient, () => {
       setDrawerOpen(false);
       setEditingClient(null);
     });
+    if (result?.error) {
+      const limitMsg = parsePlanLimitError(result.error);
+      if (limitMsg) {
+        setUpgradeMsg(limitMsg);
+        setUpgradeOpen(true);
+      } else {
+        const { toast } = await import("sonner");
+        toast.error(result.error);
+      }
+    }
   };
 
   const handleEdit = (client: Client) => { setEditingClient(client); setDrawerOpen(true); };
@@ -327,6 +341,7 @@ export default function Index() {
             <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
             <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
           </Suspense>
+          <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
         </div>
       </TenantPlanContext.Provider>
     </CurrentUserContext.Provider>

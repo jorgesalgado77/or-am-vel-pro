@@ -1,4 +1,5 @@
 import {useState, useMemo, useEffect, useRef} from "react";
+import {UpgradePlanDialog, parsePlanLimitError} from "@/components/shared/UpgradePlanDialog";
 import {Input} from "@/components/ui/input";
 import {Label} from "@/components/ui/label";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
@@ -124,6 +125,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeMsg, setUpgradeMsg] = useState("");
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
@@ -460,7 +463,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       arquivo_nome: arquivoNome,
     } as any);
     setSaving(false);
-    if (error) toast.error("Erro ao salvar simulação");
+    if (error) {
+      const limitMsg = parsePlanLimitError(error.message || "");
+      if (limitMsg) { setUpgradeMsg(limitMsg); setUpgradeOpen(true); }
+      else toast.error("Erro ao salvar simulação");
+    }
     else {
       savedRef.current = true;
       sessionStorage.removeItem(SIM_STORAGE_KEY);
@@ -553,7 +560,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         valor_parcela: result.valorParcela, arquivo_url: arquivoUrl, arquivo_nome: arquivoNome,
       } as any).select("id").single();
 
-      if (simError || !simData) { toast.error("Erro ao salvar simulação"); setClosingSale(false); return; }
+      if (simError || !simData) {
+        const limitMsg = parsePlanLimitError(simError?.message || "");
+        if (limitMsg) { setUpgradeMsg(limitMsg); setUpgradeOpen(true); }
+        else toast.error("Erro ao salvar simulação");
+        setClosingSale(false); return;
+      }
 
       // Fetch active contract template
       const { data: template } = await supabase
@@ -1046,6 +1058,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           saving={closingSale}
         />
       )}
+      <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
     </div>
   );
 }

@@ -75,8 +75,11 @@ export function useClientManager() {
       }
     } else {
       const result = await clientService.createClient(data as any);
-      if (result.error) toast.error(result.error);
-      else {
+      if (result.error) {
+        // Return the error to the caller so it can show upgrade dialog if needed
+        setSaving(false);
+        return { error: result.error };
+      } else {
         toast.success("Cliente criado!");
         logAudit({
           acao: "cliente_criado",
@@ -90,6 +93,7 @@ export function useClientManager() {
     setSaving(false);
     onDone();
     fetchClients();
+    return { error: null };
   }, [fetchClients]);
 
   const handleDeleteClient = useCallback(async (id: string) => {
