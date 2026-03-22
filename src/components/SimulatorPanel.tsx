@@ -560,7 +560,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         valor_parcela: result.valorParcela, arquivo_url: arquivoUrl, arquivo_nome: arquivoNome,
       } as any).select("id").single();
 
-      if (simError || !simData) { toast.error("Erro ao salvar simulação"); setClosingSale(false); return; }
+      if (simError || !simData) {
+        const limitMsg = parsePlanLimitError(simError?.message || "");
+        if (limitMsg) { setUpgradeMsg(limitMsg); setUpgradeOpen(true); }
+        else toast.error("Erro ao salvar simulação");
+        setClosingSale(false); return;
+      }
 
       // Fetch active contract template
       const { data: template } = await supabase
