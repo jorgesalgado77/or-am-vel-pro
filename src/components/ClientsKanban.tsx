@@ -472,8 +472,10 @@ export function ClientsKanban({
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
-                                  className={cn(
-                                    "rounded-lg border bg-card shadow-sm hover:shadow-md transition-all cursor-pointer group border-l-[3px]",
+                                    className={cn(
+                                    "rounded-lg border bg-card shadow-sm transition-all cursor-pointer group border-l-[3px]",
+                                    "hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5",
+                                    "dark:hover:shadow-[0_4px_20px_hsl(var(--primary)/0.2)] dark:hover:border-primary/50 dark:hover:bg-card/80",
                                     snapshot.isDragging && "shadow-[0_0_20px_hsl(var(--primary)/0.3)] ring-2 ring-primary/40 rotate-1 scale-105",
                                     expired && "border-destructive/30"
                                   )}
