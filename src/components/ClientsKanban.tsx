@@ -644,29 +644,29 @@ export function ClientsKanban({
               <ScrollArea className="flex-1 pr-3">
                 <div className="space-y-4">
                   {/* Client info */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     {expandedClient.cpf && (
                       <div className="flex items-center gap-2 text-sm">
                         <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-foreground">{expandedClient.cpf}</span>
+                        <span className="text-foreground truncate">{expandedClient.cpf}</span>
                       </div>
                     )}
                     {expandedClient.telefone1 && (
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-foreground">{expandedClient.telefone1}</span>
+                        <span className="text-foreground truncate">{expandedClient.telefone1}</span>
                       </div>
                     )}
                     {expandedClient.telefone2 && (
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-foreground">{expandedClient.telefone2}</span>
+                        <span className="text-foreground truncate">{expandedClient.telefone2}</span>
                       </div>
                     )}
                     {expandedClient.email && (
-                      <div className="flex items-center gap-2 text-sm col-span-2">
+                      <div className="flex items-center gap-2 text-sm col-span-1 sm:col-span-2">
                         <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-foreground">{expandedClient.email}</span>
+                        <span className="text-foreground truncate">{expandedClient.email}</span>
                       </div>
                     )}
                   </div>
