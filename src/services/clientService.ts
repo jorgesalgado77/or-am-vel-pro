@@ -72,7 +72,7 @@ export async function createClient(
     .select("*")
     .single();
 
-  if (error) return { client: null, error: "Erro ao criar cliente" };
+  if (error) return { client: null, error: error.message || "Erro ao criar cliente" };
   return { client: created as Client, error: null };
 }
 

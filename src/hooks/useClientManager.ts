@@ -93,6 +93,7 @@ export function useClientManager() {
     setSaving(false);
     onDone();
     fetchClients();
+    return { error: null };
   }, [fetchClients]);
 
   const handleDeleteClient = useCallback(async (id: string) => {
