@@ -571,6 +571,13 @@ export function ClientsKanban({
                                         </span>
                                       )}
                                     </div>
+                                    {/* Show vendedor/projetista for Admin/Gerente */}
+                                    {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && client.vendedor && (
+                                      <div className="flex items-center gap-1 mt-1.5">
+                                        <User className="h-3 w-3 text-primary/60" />
+                                        <span className="text-[10px] text-primary/80 font-medium truncate">{client.vendedor}</span>
+                                      </div>
+                                    )}
                                     {expired && (
                                       <div className="flex items-center gap-1 mt-1.5">
                                         <AlertTriangle className="h-3 w-3 text-destructive" />
