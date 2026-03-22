@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useFinancingRates } from "@/hooks/useFinancingRates";
 import { useTenant } from "@/contexts/TenantContext";
-import * as XLSX from "xlsx";
+
 
 export function CreditoRatesTab() {
   const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("credito");
