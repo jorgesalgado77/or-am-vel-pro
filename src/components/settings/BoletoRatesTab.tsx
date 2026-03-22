@@ -152,6 +152,57 @@ export function BoletoRatesTab() {
         </CardContent>
       </Card>
 
+      {/* Padrão para o Simulador */}
+      {providers.length > 0 && (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Padrão do Simulador</CardTitle>
+            </div>
+            <p className="text-xs text-muted-foreground">Configure os valores padrão que aparecerão pré-preenchidos na tela de simulação. O usuário poderá alterar livremente.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <Label>Financeira Padrão</Label>
+                <Select value={defaultProvider} onValueChange={setDefaultProvider}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {providers.map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Parcelas Padrão</Label>
+                <Select value={String(defaultParcelas)} onValueChange={(v) => setDefaultParcelas(Number(v))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Carência Padrão</Label>
+                <Select value={String(defaultCarencia)} onValueChange={(v) => setDefaultCarencia(Number(v))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 dias</SelectItem>
+                    <SelectItem value="60">60 dias</SelectItem>
+                    <SelectItem value="90">90 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button onClick={handleSaveDefaults} className="mt-4 gap-2"><Save className="h-4 w-4" />Salvar Padrão</Button>
+          </CardContent>
+        </Card>
+      )}
+
       {providers.map((provider) => {
         const providerRates = rates.filter((r) => r.provider_name === provider).sort((a, b) => a.installments - b.installments);
         return (
