@@ -1,26 +1,52 @@
 /**
  * Boleto financing rates tab - extracted from SettingsPanel.tsx
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save, FileSpreadsheet, Download } from "lucide-react";
+import { Plus, Trash2, Save, FileSpreadsheet, Download, Star } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useFinancingRates, type FinancingRate } from "@/hooks/useFinancingRates";
 import { useTenant } from "@/contexts/TenantContext";
-
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 export function BoletoRatesTab() {
   const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("boleto");
   const { tenantId } = useTenant();
+  const { settings, refresh: refreshSettings } = useCompanySettings();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, Partial<FinancingRate>>>({});
+
+  // Default settings for simulator
+  const defaults = (settings as any)?.boleto_defaults as { provider?: string; parcelas?: number; carencia?: number } | null;
+  const [defaultProvider, setDefaultProvider] = useState(defaults?.provider || "");
+  const [defaultParcelas, setDefaultParcelas] = useState(defaults?.parcelas || 0);
+  const [defaultCarencia, setDefaultCarencia] = useState(defaults?.carencia || 30);
+
+  useEffect(() => {
+    const d = (settings as any)?.boleto_defaults as any;
+    if (d) {
+      setDefaultProvider(d.provider || "");
+      setDefaultParcelas(d.parcelas || 0);
+      setDefaultCarencia(d.carencia || 30);
+    }
+  }, [settings]);
+
+  const handleSaveDefaults = async () => {
+    if (!settings?.id) return;
+    const { error } = await supabase.from("company_settings").update({
+      boleto_defaults: { provider: defaultProvider, parcelas: defaultParcelas, carencia: defaultCarencia },
+    } as any).eq("id", settings.id);
+    if (error) toast.error("Erro ao salvar padrão");
+    else { toast.success("Padrão do simulador salvo!"); refreshSettings(); }
+  };
 
   const handleAddProvider = async () => {
     if (!newProviderName.trim()) return;
@@ -125,6 +151,57 @@ export function BoletoRatesTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Padrão para o Simulador */}
+      {providers.length > 0 && (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Padrão do Simulador</CardTitle>
+            </div>
+            <p className="text-xs text-muted-foreground">Configure os valores padrão que aparecerão pré-preenchidos na tela de simulação. O usuário poderá alterar livremente.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <Label>Financeira Padrão</Label>
+                <Select value={defaultProvider} onValueChange={setDefaultProvider}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {providers.map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Parcelas Padrão</Label>
+                <Select value={String(defaultParcelas)} onValueChange={(v) => setDefaultParcelas(Number(v))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Carência Padrão</Label>
+                <Select value={String(defaultCarencia)} onValueChange={(v) => setDefaultCarencia(Number(v))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 dias</SelectItem>
+                    <SelectItem value="60">60 dias</SelectItem>
+                    <SelectItem value="90">90 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button onClick={handleSaveDefaults} className="mt-4 gap-2"><Save className="h-4 w-4" />Salvar Padrão</Button>
+          </CardContent>
+        </Card>
+      )}
 
       {providers.map((provider) => {
         const providerRates = rates.filter((r) => r.provider_name === provider).sort((a, b) => a.installments - b.installments);

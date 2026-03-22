@@ -198,16 +198,37 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const { rates: boletoRates, activeProviders: boletoProviders } = useFinancingRates("boleto");
   const { rates: creditoRates, activeProviders: creditoProviders } = useFinancingRates("credito");
 
+  // Read boleto defaults from company_settings
+  const boletoDefaults = (settings as any)?.boleto_defaults as { provider?: string; parcelas?: number; carencia?: number } | null;
+
   const [selectedBoletoProvider, setSelectedBoletoProvider] = useState("");
   const [selectedCreditoProvider, setSelectedCreditoProvider] = useState("");
 
+  // Apply defaults: provider, parcelas, carencia
   useEffect(() => {
-    if (boletoProviders.length > 0 && !selectedBoletoProvider) setSelectedBoletoProvider(boletoProviders[0]);
+    if (boletoProviders.length > 0 && !selectedBoletoProvider) {
+      const defaultProv = boletoDefaults?.provider && boletoProviders.includes(boletoDefaults.provider)
+        ? boletoDefaults.provider : boletoProviders[0];
+      setSelectedBoletoProvider(defaultProv);
+    }
   }, [boletoProviders]);
 
   useEffect(() => {
     if (creditoProviders.length > 0 && !selectedCreditoProvider) setSelectedCreditoProvider(creditoProviders[0]);
   }, [creditoProviders]);
+
+  // Apply default parcelas and carencia from boleto_defaults (only on first load, if no stored state)
+  const defaultsAppliedRef = useRef(false);
+  useEffect(() => {
+    if (defaultsAppliedRef.current || stored.parcelas || stored.carenciaDias) return;
+    if (boletoDefaults?.parcelas && boletoDefaults.parcelas > 0) {
+      setParcelas(boletoDefaults.parcelas);
+    }
+    if (boletoDefaults?.carencia && [30, 60, 90].includes(boletoDefaults.carencia)) {
+      setCarenciaDias(boletoDefaults.carencia as 30 | 60 | 90);
+    }
+    defaultsAppliedRef.current = true;
+  }, [boletoDefaults]);
 
   const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(formaPagamento);
   const showPlus = ["A vista", "Pix"].includes(formaPagamento);
