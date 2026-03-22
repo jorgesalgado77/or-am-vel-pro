@@ -438,7 +438,7 @@ export function ClientsKanban({
               <SelectTrigger className="h-9"><SelectValue placeholder="Todos" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="_all">Todos</SelectItem>
-                <SelectItem value="recente">👤 Cliente Recente</SelectItem>
+                <SelectItem value="recente">👤 Cliente Loja</SelectItem>
                 <SelectItem value="lead">📩 Lead Recebido</SelectItem>
               </SelectContent>
             </Select>
@@ -553,7 +553,7 @@ export function ClientsKanban({
                                           ) : (
                                             <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-emerald-500/15 text-emerald-600 border-emerald-500/30 gap-0.5" variant="outline">
                                               <UserPlus className="h-2.5 w-2.5" />
-                                              Cliente Recente
+                                              Cliente Loja
                                             </Badge>
                                           )}
                                         </div>
