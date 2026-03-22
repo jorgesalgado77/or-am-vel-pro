@@ -128,6 +128,7 @@ export function AuditLogsTab() {
       "ID Usuário": l.usuario_id || "",
       "Detalhes": l.detalhes ? JSON.stringify(l.detalhes) : "",
     }));
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Logs de Auditoria");

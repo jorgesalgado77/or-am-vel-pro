@@ -301,6 +301,7 @@ const importDocx = async (file: File): Promise<ImportedContractContent> => {
 };
 
 const importSpreadsheet = async (file: File): Promise<ImportedContractContent> => {
+  const XLSX = await import("xlsx");
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
