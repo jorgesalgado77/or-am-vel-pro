@@ -107,7 +107,7 @@ export function ClientsKanban({
       setLastSims(map);
     };
     fetchLastSims();
-  }, [clients]);
+  }, [localClients]);
 
   // Fetch follow-up statuses for all clients
   useEffect(() => {
@@ -130,7 +130,7 @@ export function ClientsKanban({
       setFollowUpStatus(statusMap);
     };
     fetchFollowUpStatuses();
-  }, [clients]);
+  }, [localClients]);
 
   const effectiveDates = useMemo(() => {
     const now = new Date();
@@ -200,7 +200,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [clients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates, currentUser, cargoNome]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates, currentUser, cargoNome]);
 
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
