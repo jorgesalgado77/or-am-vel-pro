@@ -58,8 +58,11 @@ const KANBAN_COLUMNS = [
 ];
 
 export function ClientsKanban({
-  clients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory, onContracts,
+  clients: externalClients, loading, onEdit, onDelete, onAdd, onSimulate, onHistory, onContracts,
 }: ClientsKanbanProps) {
+  // Local copy of clients so drag-and-drop can update status instantly
+  const [localClients, setLocalClients] = useState<Client[]>(externalClients);
+  useEffect(() => { setLocalClients(externalClients); }, [externalClients]);
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
   const [filterIndicador, setFilterIndicador] = useState("");
