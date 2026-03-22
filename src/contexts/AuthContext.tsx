@@ -561,11 +561,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedStoreCode = storeCode?.replace(/\D/g, "") ?? "";
+    const tenantResolutionPromise = normalizedStoreCode.length === 6
+      ? resolveTenantIdByStoreCode(normalizedStoreCode)
+      : Promise.resolve<string | null>(null);
 
-    // Resolve tenant from store code (may fail before auth due to RLS)
-    let resolvedTenantId = normalizedStoreCode.length === 6
-      ? await resolveTenantIdByStoreCode(normalizedStoreCode)
-      : null;
+    // Resolve tenant in parallel with auth to reduce login latency
+    let resolvedTenantId: string | null = null;
 
     // Don't fail yet if resolution returns null - we'll retry after auth succeeds
     if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
@@ -660,8 +661,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { user: appUser, error: null };
     };
 
-    // 1. Try Supabase Auth first
-    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    // 1. Try Supabase Auth first while tenant lookup runs in parallel
+    const [{ data, error }, preResolvedTenantId] = await Promise.all([
+      supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
+      tenantResolutionPromise,
+    ]);
+
+    resolvedTenantId = preResolvedTenantId;
 
     if (!error && data.user) {
       console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail);
