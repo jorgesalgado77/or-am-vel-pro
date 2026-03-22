@@ -9,6 +9,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Check, X, Crown, Zap, Users, Building2, User, ArrowLeft, ArrowRight, Store, Mail, KeyRound, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { maskCpfCnpj, maskPhone, unmask } from "@/lib/masks";
+import { validateCpfCnpj } from "@/lib/validation";
+
+const UF_OPTIONS = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA",
+  "PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
+];
+
+const PLANS = [
+  { slug: "trial", nome: "Trial", preco_mensal: 0, preco_anual_mensal: 0, icon: Zap, destaque: false, features: [] },
+  { slug: "basico", nome: "Básico", preco_mensal: 149.9, preco_anual_mensal: 119.9, icon: Users, destaque: false, features: [] },
+  { slug: "premium", nome: "Premium", preco_mensal: 299.9, preco_anual_mensal: 249.9, icon: Crown, destaque: true, features: [] },
+];
+
+function getUserId() {
+  const raw = localStorage.getItem("sb-bdhfzjuwtkiexyeusnqq-auth-token");
+  if (!raw) return null;
+  try { return JSON.parse(raw)?.user?.id ?? null; } catch { return null; }
+}
 
 type Step = "plan" | "company";
 

@@ -9,6 +9,24 @@ import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
+
+interface PlanFromDB {
+  id: string;
+  slug: string;
+  nome: string;
+  descricao: string | null;
+  preco_mensal: number;
+  preco_anual_mensal: number;
+  max_usuarios: number | null;
+  ativo: boolean;
+}
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  trial: Zap,
+  basico: Users,
+  premium: Crown,
+};
 
 export default function RenewPlan() {
   const navigate = useNavigate();
