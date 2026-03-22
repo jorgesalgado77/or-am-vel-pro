@@ -607,7 +607,7 @@ export function ClientsKanban({
 
       {/* Expanded Client Dialog */}
       <Dialog open={!!expandedClient} onOpenChange={(open) => !open && setExpandedClient(null)}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] sm:max-h-[85vh] overflow-hidden flex flex-col p-4 sm:p-6">
           {expandedClient && (
             <>
               <DialogHeader className="pb-0">
