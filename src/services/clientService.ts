@@ -33,18 +33,21 @@ export async function fetchClients(): Promise<FetchClientsResult> {
     return { clients: [], error: "Sessão expirada. Faça login novamente." };
   }
 
-  const tenantId = getCurrentTenantId();
-  let query = supabase
-    .from("clients")
-    .select("*")
-    .order("created_at", { ascending: false });
+  // Use in-memory tenant_id, fallback to JWT metadata to avoid race conditions
+  const tenantId = getCurrentTenantId() 
+    ?? sessionData.session.user?.user_metadata?.tenant_id 
+    ?? null;
 
-  // Filter by tenant_id explicitly as safety net beyond RLS
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
+  if (!tenantId) {
+    console.warn("[ClientService] No tenant_id available — cannot fetch clients");
+    return { clients: [], error: "Loja não identificada. Faça login novamente." };
   }
 
-  const { data, error } = await query;
+  const { data, error } = await supabase
+    .from("clients")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("fetchClients error:", error);
@@ -61,7 +64,10 @@ export async function createClient(
   data: Omit<ClientInsert, "numero_orcamento" | "numero_orcamento_seq">
 ): Promise<{ client: Client | null; error: string | null }> {
   const orcamento = await generateOrcamentoNumber();
-  const tenantId = getCurrentTenantId();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const tenantId = getCurrentTenantId() 
+    ?? sessionData?.session?.user?.user_metadata?.tenant_id 
+    ?? null;
   const insertData = { ...data, ...orcamento, ...(tenantId ? { tenant_id: tenantId } : {}) };
 
   const { data: created, error } = await supabase
@@ -102,7 +108,12 @@ export async function fetchLastSimulations(): Promise<{
   lastSims: Record<string, LastSimInfo>;
   allSimulations: { created_at: string; valor_final: number }[];
 }> {
-  const tenantId = getCurrentTenantId();
+  // Use in-memory tenant_id, fallback to JWT metadata
+  const { data: sessionData } = await supabase.auth.getSession();
+  const tenantId = getCurrentTenantId() 
+    ?? sessionData?.session?.user?.user_metadata?.tenant_id 
+    ?? null;
+
   let query = supabase
     .from("simulations")
     .select("client_id, valor_final, created_at")
