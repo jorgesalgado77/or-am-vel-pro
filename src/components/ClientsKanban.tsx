@@ -583,6 +583,7 @@ export function ClientsKanban({
               </div>
             ))}
           </div>
+          </ScrollableContainer>
         </DragDropContext>
       )}
 
