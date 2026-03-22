@@ -48,10 +48,19 @@ export function useDiscountOptions() {
 
   const updateOptions = async (fieldName: string, percentages: number[]) => {
     const sorted = [...percentages].sort((a, b) => a - b);
-    const { error } = await supabase
-      .from("discount_options")
-      .update({ percentages: sorted } as any)
-      .eq("field_name", fieldName);
+    const existing = options.find((o) => o.field_name === fieldName);
+    
+    let error;
+    if (existing) {
+      ({ error } = await supabase
+        .from("discount_options")
+        .update({ percentages: sorted } as any)
+        .eq("id", existing.id));
+    } else {
+      ({ error } = await supabase
+        .from("discount_options")
+        .insert({ field_name: fieldName, percentages: sorted } as any));
+    }
     if (!error) fetchOptions();
     return error;
   };
