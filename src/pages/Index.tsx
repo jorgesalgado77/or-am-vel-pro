@@ -5,6 +5,7 @@ import { PlanBanner } from "@/components/PlanBanner";
 import Login from "@/pages/Login";
 
 // Lazy load heavy view components via module paths
+const Dashboard = lazy(() => import("@/components/Dashboard").then(m => ({ default: m.Dashboard })));
 const ClientsKanban = lazy(() => import("@/components/ClientsKanban").then(m => ({ default: m.ClientsKanban })));
 const ClientDrawer = lazy(() => import("@/components/ClientDrawer").then(m => ({ default: m.ClientDrawer })));
 const SimulatorPanel = lazy(() => import("@/components/SimulatorPanel").then(m => ({ default: m.SimulatorPanel })));
