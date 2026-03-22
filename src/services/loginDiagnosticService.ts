@@ -38,12 +38,18 @@ export function logLoginDiagnostic(input: DiagnosticInput): void {
     p_detalhes: input.detalhes || {},
   };
 
-  (supabase as any)
+  void (supabase as any)
     .rpc("log_login_diagnostic", payload)
     .then(({ error }: any) => {
       if (error) {
-        // Fallback: insert directly
-        supabase
+        const message = String(error.message || "");
+        const isMissingRpc = error.code === "PGRST202" || message.includes("schema cache") || message.includes("Could not find the function");
+
+        if (isMissingRpc) {
+          console.warn("[Diagnostic] RPC log_login_diagnostic não existe no banco externo; tentando insert direto.");
+        }
+
+        return supabase
           .from("login_diagnostics" as any)
           .insert({
             email: input.email,
@@ -56,8 +62,15 @@ export function logLoginDiagnostic(input: DiagnosticInput): void {
             detalhes: input.detalhes || {},
           } as any)
           .then(({ error: insertErr }: any) => {
-            if (insertErr) console.warn("[Diagnostic] Failed:", insertErr.message);
+            if (insertErr) {
+              console.warn("[Diagnostic] Falha no fallback insert de login_diagnostics:", insertErr.message);
+            }
           });
       }
+
+      return undefined;
+    })
+    .catch((err: any) => {
+      console.warn("[Diagnostic] Erro inesperado ao registrar diagnóstico de login:", err?.message || err);
     });
 }
