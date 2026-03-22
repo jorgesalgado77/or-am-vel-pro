@@ -230,19 +230,19 @@ export default function Index() {
             isMobile ? "ml-[60px] p-3" : sidebarCollapsed ? "ml-[60px] p-6" : "ml-60 p-6"
           )}>
             <PlanBanner />
-            <div className="mb-6">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+            <div className="mb-4 md:mb-6">
+              <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                <h2 className="text-base md:text-xl font-semibold text-foreground">{currentTitle}</h2>
                 {settings.codigo_loja && (
-                  <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-md font-mono tabular-nums">
+                  <span className="text-[10px] md:text-xs font-medium bg-muted text-muted-foreground px-1.5 md:px-2 py-0.5 rounded-md font-mono tabular-nums">
                     Cód. {settings.codigo_loja}
                   </span>
                 )}
                 {activeView === "dashboard" && (
-                  <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">{cargoLabel}</span>
+                  <span className="text-[10px] md:text-xs font-medium bg-primary/10 text-primary px-2 md:px-2.5 py-0.5 rounded-full">{cargoLabel}</span>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
+              <p className="text-xs md:text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
             </div>
 
             <Suspense fallback={<ViewLoader />}>
