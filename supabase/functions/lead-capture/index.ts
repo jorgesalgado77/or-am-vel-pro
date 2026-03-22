@@ -111,6 +111,41 @@ Deno.serve(async (req) => {
       referrer: req.headers.get("referer") || null,
     });
 
+    // Also create a client entry so the lead appears in the Kanban
+    if (tenant_id) {
+      // Generate orcamento number
+      const { data: seqData } = await supabaseAdmin
+        .from("tenants")
+        .select("codigo_loja")
+        .eq("id", tenant_id)
+        .single();
+
+      const codigoLoja = seqData?.codigo_loja || "000";
+      const cleanCode = codigoLoja.replace(/\D/g, "");
+
+      const { count } = await supabaseAdmin
+        .from("clients")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant_id);
+
+      const seq = (count || 0) + 1;
+      const seqStr = String(seq).padStart(3, "0");
+      const yearSuffix = String(new Date().getFullYear()).slice(-2);
+      const numero_orcamento = `${codigoLoja}.${seqStr}.${yearSuffix}`;
+      const numero_orcamento_seq = parseInt(`${cleanCode}${seqStr}${yearSuffix}`, 10) || 0;
+
+      await supabaseAdmin.from("clients").insert({
+        nome: nome.trim(),
+        telefone1: telefone,
+        email: email?.trim() || "",
+        tenant_id,
+        status: "novo",
+        origem_lead: origem || "site",
+        numero_orcamento,
+        numero_orcamento_seq,
+      });
+    }
+
     // Acionar VendaZap AI automaticamente para leads quentes/mornos
     if (newLead.lead_temperature !== "frio" && tenant_id) {
       try {
