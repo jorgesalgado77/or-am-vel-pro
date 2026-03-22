@@ -300,7 +300,7 @@ export default function AffiliatePage() {
                         </div>
                         <div>
                           <Label className="text-white/80">CPF *</Label>
-                          <Input value={cpf} onChange={e => setCpf(maskCPF(e.target.value))} placeholder="000.000.000-00" className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
+                          <Input value={cpf} onChange={e => setCpf(maskCpfCnpj(e.target.value))} placeholder="000.000.000-00" className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
                         </div>
                         <div>
                           <Label className="text-white/80">Chave PIX *</Label>
