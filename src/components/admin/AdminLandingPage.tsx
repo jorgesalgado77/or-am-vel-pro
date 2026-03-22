@@ -186,6 +186,7 @@ export function AdminLandingPage() {
                 { key: "plans", label: "Planos" },
                 { key: "lead_form", label: "Formulário de Captação" },
                 { key: "cta_final", label: "CTA Final" },
+                { key: "affiliate", label: "Divulgue e Ganhe (Afiliados)" },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center justify-between">
                   <Label>{label}</Label>
