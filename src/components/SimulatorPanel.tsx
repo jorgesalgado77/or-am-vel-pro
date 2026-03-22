@@ -124,8 +124,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
-  const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? "");
+  const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? client?.indicador_id ?? "");
   const [hideIndicador, setHideIndicador] = useState(false);
+
+  // Sync indicador from client when client changes
+  useEffect(() => {
+    if (client?.indicador_id) {
+      setSelectedIndicadorId(client.indicador_id);
+    }
+  }, [client?.id, client?.indicador_id]);
 
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
     return (stored.environments || []).map((e) => ({
