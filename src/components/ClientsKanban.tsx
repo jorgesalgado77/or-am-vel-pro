@@ -16,8 +16,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Plus, Search, Filter, X, CalendarIcon, Handshake, Pencil, Trash2,
-  History, FileText, Phone, Mail, User, Hash, Clock, AlertTriangle,
-  Calculator, ChevronRight, GripVertical, Repeat,
+   History, FileText, Phone, Mail, User, Hash, Clock, AlertTriangle,
+   Calculator, ChevronRight, GripVertical, Repeat, ArrowRight, UserPlus,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
@@ -498,13 +498,29 @@ export function ClientsKanban({
                                   }}
                                   onClick={() => setExpandedClient(client)}
                                 >
-                                  <div className="p-3">
-                                    <div className="flex items-start justify-between gap-1">
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-foreground truncate">{client.nome}</p>
-                                        <div className="flex items-center gap-1 mt-0.5">
-                                          <p className="text-[11px] text-muted-foreground font-mono">
-                                            {(client as any).numero_orcamento || "Sem orçamento"}
+                                    <div className="p-3">
+                                      {/* Badge de tipo na coluna Novo */}
+                                      {((client as any).status || "novo") === "novo" && (
+                                        <div className="mb-1.5">
+                                          {client.vendedor ? (
+                                            <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-primary/15 text-primary border-primary/30 gap-0.5" variant="outline">
+                                              <ArrowRight className="h-2.5 w-2.5" />
+                                              Lead Recebido
+                                            </Badge>
+                                          ) : (
+                                            <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-accent/15 text-accent border-accent/30 gap-0.5" variant="outline">
+                                              <UserPlus className="h-2.5 w-2.5" />
+                                              Cliente Recente
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      )}
+                                      <div className="flex items-start justify-between gap-1">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-semibold text-foreground truncate">{client.nome}</p>
+                                          <div className="flex items-center gap-1 mt-0.5">
+                                            <p className="text-[11px] text-muted-foreground font-mono">
+                                              {(client as any).numero_orcamento || "Sem orçamento"}
                                           </p>
                                           {(() => {
                                             const temp = (client as any).lead_temperature as LeadTemperature | null;
