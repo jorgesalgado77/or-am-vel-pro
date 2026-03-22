@@ -40,7 +40,7 @@ const ALL_FEATURES: { key: string; label: string; description: string }[] = [
   { key: "desconto1", label: "Desconto 1", description: "Primeiro nível de desconto" },
   { key: "desconto2", label: "Desconto 2", description: "Segundo nível de desconto" },
   { key: "desconto3", label: "Desconto 3 (Especial)", description: "Terceiro nível de desconto avançado" },
-  { key: "plus", label: "Plus Percentual", description: "Acréscimo percentual sobre o valor" },
+  { key: "plus", label: "Desconto Plus", description: "Desconto adicional sobre o valor à vista/Pix" },
   { key: "contratos", label: "Contratos Digitais", description: "Geração e gestão de contratos" },
   { key: "deal_room", label: "Deal Room", description: "Sala de negociação premium" },
   { key: "vendazap", label: "VendaZap AI", description: "Assistente de vendas com IA" },
