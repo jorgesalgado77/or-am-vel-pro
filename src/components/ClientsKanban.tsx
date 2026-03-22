@@ -607,7 +607,7 @@ export function ClientsKanban({
 
       {/* Expanded Client Dialog */}
       <Dialog open={!!expandedClient} onOpenChange={(open) => !open && setExpandedClient(null)}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] sm:max-h-[85vh] overflow-hidden flex flex-col p-4 sm:p-6">
           {expandedClient && (
             <>
               <DialogHeader className="pb-0">
@@ -644,29 +644,29 @@ export function ClientsKanban({
               <ScrollArea className="flex-1 pr-3">
                 <div className="space-y-4">
                   {/* Client info */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                     {expandedClient.cpf && (
                       <div className="flex items-center gap-2 text-sm">
                         <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-foreground">{expandedClient.cpf}</span>
+                        <span className="text-foreground truncate">{expandedClient.cpf}</span>
                       </div>
                     )}
                     {expandedClient.telefone1 && (
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-foreground">{expandedClient.telefone1}</span>
+                        <span className="text-foreground truncate">{expandedClient.telefone1}</span>
                       </div>
                     )}
                     {expandedClient.telefone2 && (
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-foreground">{expandedClient.telefone2}</span>
+                        <span className="text-foreground truncate">{expandedClient.telefone2}</span>
                       </div>
                     )}
                     {expandedClient.email && (
-                      <div className="flex items-center gap-2 text-sm col-span-2">
+                      <div className="flex items-center gap-2 text-sm col-span-1 sm:col-span-2">
                         <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-foreground">{expandedClient.email}</span>
+                        <span className="text-foreground truncate">{expandedClient.email}</span>
                       </div>
                     )}
                   </div>
@@ -674,11 +674,11 @@ export function ClientsKanban({
                   {/* Details */}
                   <div className="space-y-2">
                     {/* Vendedor/Projetista assignment */}
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-sm">
                       <span className="text-muted-foreground">Responsável</span>
                       {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) ? (
                         <Select
-                          value={expandedClient.vendedor || ""}
+                          value={expandedClient.vendedor || "__none__"}
                           onValueChange={async (val) => {
                             const newVendedor = val === "__none__" ? null : val;
                             const oldVendedor = expandedClient.vendedor;
@@ -729,8 +729,10 @@ export function ClientsKanban({
                             setExpandedClient({ ...expandedClient, vendedor: newVendedor });
                           }}
                         >
-                          <SelectTrigger className="w-[180px] h-8 text-xs">
-                            <SelectValue placeholder="Atribuir responsável" />
+                          <SelectTrigger className="w-full sm:w-[200px] h-8 text-xs">
+                            <SelectValue>
+                              {expandedClient.vendedor || "Atribuir responsável"}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">Sem responsável</SelectItem>
@@ -807,7 +809,7 @@ export function ClientsKanban({
               <Separator className="my-3" />
 
               {/* Action buttons */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                 <Button
                   className="gap-2 flex-1"
                   onClick={() => { setExpandedClient(null); onSimulate(expandedClient); }}
