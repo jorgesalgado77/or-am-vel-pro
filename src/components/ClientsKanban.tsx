@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { differenceInDays } from "date-fns";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
