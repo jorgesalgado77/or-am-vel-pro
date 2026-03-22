@@ -192,25 +192,43 @@ export default function Index() {
     }}>
       <TenantPlanContext.Provider value={tenantPlan}>
         <div className="flex min-h-screen bg-background">
+          {/* Mobile overlay backdrop */}
+          {isMobile && mobileMenuOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 z-20 transition-opacity"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          )}
+
           <AppSidebar
             activeView={activeView}
-            onViewChange={handleViewChange}
+            onViewChange={(view) => {
+              handleViewChange(view);
+              if (isMobile) setMobileMenuOpen(false);
+            }}
             onChangePassword={() => setShowChangePassword(true)}
             onSupport={() => setShowSupport(true)}
             onProfile={() => setShowProfile(true)}
             unreadMessages={unreadMessages}
             onlineUsers={onlineUsers}
-            collapsed={sidebarCollapsed}
+            collapsed={isMobile ? !mobileMenuOpen : sidebarCollapsed}
             onToggleCollapse={() => {
-              setSidebarCollapsed(prev => {
-                const next = !prev;
-                localStorage.setItem("sidebar-collapsed", String(next));
-                return next;
-              });
+              if (isMobile) {
+                setMobileMenuOpen(prev => !prev);
+              } else {
+                setSidebarCollapsed(prev => {
+                  const next = !prev;
+                  localStorage.setItem("sidebar-collapsed", String(next));
+                  return next;
+                });
+              }
             }}
           />
 
-          <main className={cn("flex-1 p-6 transition-all duration-300", sidebarCollapsed ? "ml-[60px]" : "ml-60")}>
+          <main className={cn(
+            "flex-1 transition-all duration-300",
+            isMobile ? "ml-[60px] p-3" : sidebarCollapsed ? "ml-[60px] p-6" : "ml-60 p-6"
+          )}>
             <PlanBanner />
             <div className="mb-6">
               <div className="flex items-center gap-3 flex-wrap">
