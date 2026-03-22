@@ -428,6 +428,17 @@ export function ClientsKanban({
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[140px]">
+            <Label className="text-xs mb-1 block">Tipo</Label>
+            <Select value={filterTipoCliente || "_all"} onValueChange={(v) => setFilterTipoCliente(v === "_all" ? "" : v)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">Todos</SelectItem>
+                <SelectItem value="recente">👤 Cliente Recente</SelectItem>
+                <SelectItem value="lead">📩 Lead Recebido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-2 ml-auto">
             <Badge variant="secondary" className="h-7 px-2.5 text-xs font-medium">
               {filtered.length} {filtered.length === 1 ? "cliente" : "clientes"}
