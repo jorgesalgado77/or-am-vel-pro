@@ -539,6 +539,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     setSaving(false);
     if (error) toast.error("Erro ao salvar simulação");
     else {
+      savedRef.current = true;
+      sessionStorage.removeItem(SIM_STORAGE_KEY);
       toast.success("Simulação salva com sucesso!");
 
       // Audit: simulation saved
