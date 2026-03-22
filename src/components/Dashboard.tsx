@@ -644,8 +644,9 @@ function DealRoomStoreWidgetWrapper() {
         return;
       }
 
-    supabase.from("company_settings").select("tenant_id").limit(1).maybeSingle().then(({ data }) => {
-      if (data) setTenantId((data as any).tenant_id);
+      supabase.from("company_settings").select("tenant_id").limit(1).maybeSingle().then(({ data }) => {
+        if (data) setTenantId((data as any).tenant_id);
+      });
     });
   }, []);
   if (!tenantId) return null;
