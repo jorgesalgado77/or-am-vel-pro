@@ -883,15 +883,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Verify password against stored hash via RPC
         let passwordValid = false;
         if (legacyUser.senha) {
-          try {
-            const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: password }) as any;
-            if (hashResult && legacyUser.senha === hashResult) {
-              passwordValid = true;
+          // 1. Direct plain text comparison
+          if (legacyUser.senha === password) {
+            passwordValid = true;
+            console.log("[Auth] ✅ Senha validada via comparação direta");
+          }
+          
+          // 2. Try hash comparison via RPC
+          if (!passwordValid) {
+            try {
+              const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: password }) as any;
+              if (hashResult && legacyUser.senha === hashResult) {
+                passwordValid = true;
+                console.log("[Auth] ✅ Senha validada via hash RPC");
+              } else {
+                console.log("[Auth] ⚠️ Hash não corresponde. Stored:", legacyUser.senha?.substring(0, 10) + "...", "Generated:", hashResult?.substring(0, 10) + "...");
+              }
+            } catch (e) {
+              console.warn("[Auth] hash_password RPC failed:", e);
             }
-          } catch {
-            // If hash_password RPC doesn't exist, compare plain text
-            if (legacyUser.senha === password) {
-              passwordValid = true;
+          }
+
+          // 3. Try Supabase Auth login (user may have been partially migrated)
+          if (!passwordValid) {
+            const authAttempt = await signInWithPasswordFast(normalizedEmail, password);
+            if (!authAttempt.error && authAttempt.data?.user) {
+              console.log("[Auth] ✅ Senha validada via Supabase Auth (já migrado)");
+              return finalizeLogin(authAttempt.data);
             }
           }
         }
