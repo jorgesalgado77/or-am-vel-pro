@@ -461,6 +461,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       valor_parcela: result.valorParcela,
       arquivo_url: arquivoUrl,
       arquivo_nome: arquivoNome,
+      tenant_id: resolvedTenantId,
     } as any);
     setSaving(false);
     if (error) {
