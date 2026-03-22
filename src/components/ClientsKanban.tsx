@@ -27,7 +27,7 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUsuarios } from "@/hooks/useUsuarios";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { format, addDays, isPast, startOfDay, endOfDay, startOfMonth, subMonths, subDays, isAfter, isBefore } from "date-fns";
+import { format, addDays, isPast, startOfDay, endOfDay, startOfMonth, subMonths, subDays, isAfter, isBefore, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -685,6 +685,54 @@ export function ClientsKanban({
                         <span className="text-foreground truncate">{expandedClient.email}</span>
                       </div>
                     )}
+                  </div>
+
+                  {/* Datas e tempo em cada coluna */}
+                  <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <CalendarIcon className="h-3.5 w-3.5" />
+                        Cadastrado em
+                      </span>
+                      <span className="text-foreground font-medium">
+                        {format(new Date(expandedClient.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        Tempo no sistema
+                      </span>
+                      <span className="text-foreground font-medium">
+                        {formatDistanceToNow(new Date(expandedClient.created_at), { locale: ptBR, addSuffix: false })}
+                      </span>
+                    </div>
+                    <Separator />
+                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Tempo na coluna atual</p>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {KANBAN_COLUMNS.find(c => c.id === ((expandedClient as any).status || "novo"))?.icon}{" "}
+                        {KANBAN_COLUMNS.find(c => c.id === ((expandedClient as any).status || "novo"))?.label}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs font-medium",
+                          (() => {
+                            const d = differenceInDays(new Date(), new Date((expandedClient as any).updated_at || expandedClient.created_at));
+                            if (d <= 1) return "border-emerald-400 text-emerald-600";
+                            if (d <= 3) return "border-yellow-400 text-yellow-600";
+                            if (d <= 7) return "border-orange-400 text-orange-600";
+                            return "border-destructive text-destructive";
+                          })()
+                        )}
+                      >
+                        {(() => {
+                          const d = differenceInDays(new Date(), new Date((expandedClient as any).updated_at || expandedClient.created_at));
+                          return d === 0 ? "Hoje" : `${d} dia${d > 1 ? "s" : ""}`;
+                        })()}
+                      </Badge>
+                    </div>
                   </div>
 
                   {/* Details */}
