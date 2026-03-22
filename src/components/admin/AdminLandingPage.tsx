@@ -141,11 +141,12 @@ export function AdminLandingPage() {
       </div>
 
       <Tabs defaultValue="geral">
-        <TabsList className="grid grid-cols-5 w-full max-w-xl">
+        <TabsList className="grid grid-cols-6 w-full max-w-2xl">
           <TabsTrigger value="geral">Geral</TabsTrigger>
           <TabsTrigger value="conteudo">Conteúdo</TabsTrigger>
           <TabsTrigger value="planos">Planos</TabsTrigger>
           <TabsTrigger value="imagens">Imagens</TabsTrigger>
+          <TabsTrigger value="afiliados" className="gap-1"><Gift className="h-3 w-3" />Afiliados</TabsTrigger>
           <TabsTrigger value="leads">Leads ({leads.length})</TabsTrigger>
         </TabsList>
 
