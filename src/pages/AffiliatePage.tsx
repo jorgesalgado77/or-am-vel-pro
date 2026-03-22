@@ -138,7 +138,20 @@ export default function AffiliatePage() {
     if (convsRes.data) setConversions(convsRes.data as any);
   }
 
+  async function handleLoginByCode() {
+    if (!loginCode.trim()) {
+      toast.error("Informe seu código de afiliado.");
+      return;
+    }
+    setLoading(true);
+    await loadAffiliateByCode(loginCode.trim().toUpperCase());
+    setLoading(false);
+  }
+
   async function handleLogin() {
+    if (loginMode === "code") {
+      return handleLoginByCode();
+    }
     if (!loginEmail.trim() || !loginCpf.trim()) {
       toast.error("Preencha email e CPF para acessar.");
       return;
@@ -162,7 +175,7 @@ export default function AffiliatePage() {
       await loadAffiliateStats(a.affiliate_code, a.id);
       setView("dashboard");
     } else {
-      toast.error("Afiliado não encontrado. Verifique email e CPF.");
+      toast.error("Afiliado não encontrado. Verifique os dados.");
     }
     setLoading(false);
   }
