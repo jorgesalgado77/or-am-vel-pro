@@ -7,9 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck, DollarSign, TrendingUp, Landmark } from "lucide-react";
+import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck, DollarSign, TrendingUp, Landmark, Crown, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
@@ -61,6 +61,8 @@ export function UsuariosTab() {
   const [resetPasswordDialog, setResetPasswordDialog] = useState({ open: false, userId: "", userName: "" });
   const [resetSenha, setResetSenha] = useState("");
   const [showResetPwd, setShowResetPwd] = useState(false);
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,7 +131,15 @@ export function UsuariosTab() {
     } as any);
 
     if (error) {
-      toast.error("Erro ao adicionar usuário: " + error.message);
+      if (error.message?.includes("Limite de usuários atingido")) {
+        const match = error.message.match(/\((\d+) de (\d+)\)/);
+        const current = match?.[1] || "?";
+        const max = match?.[2] || "?";
+        setUpgradeMessage(`Você atingiu o limite de ${max} usuários ativos do seu plano atual (${current} de ${max}). Faça upgrade para adicionar mais usuários.`);
+        setUpgradeDialogOpen(true);
+      } else {
+        toast.error("Erro ao adicionar usuário: " + error.message);
+      }
     } else {
       toast.success(
         `Usuário adicionado! Vinculado ao código da loja ${settings.codigo_loja || "atual"}.`
@@ -778,6 +788,55 @@ export function UsuariosTab() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetPasswordDialog({ open: false, userId: "", userName: "" })}>Cancelar</Button>
             <Button onClick={handleResetPassword}>Resetar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upgrade Plan Dialog */}
+      <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg">Limite do Plano Atingido</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Faça upgrade para continuar crescendo
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{upgradeMessage}</p>
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-primary" />
+                <span className="font-medium">Vantagens do upgrade:</span>
+              </div>
+              <ul className="text-sm text-muted-foreground space-y-1 ml-7 list-disc">
+                <li>Mais usuários na equipe</li>
+                <li>Mais clientes cadastrados</li>
+                <li>Simulações ilimitadas</li>
+                <li>Suporte prioritário</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setUpgradeDialogOpen(false)}>
+              Voltar
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-primary to-accent"
+              onClick={() => {
+                setUpgradeDialogOpen(false);
+                window.dispatchEvent(new CustomEvent("navigate-to", { detail: "planos" }));
+              }}
+            >
+              <Crown className="h-4 w-4 mr-2" />
+              Ver Planos de Upgrade
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
