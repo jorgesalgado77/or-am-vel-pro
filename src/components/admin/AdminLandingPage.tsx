@@ -113,7 +113,7 @@ export function AdminLandingPage() {
           title_prefix: "Qualquer pessoa pode",
           title_highlight: "Divulgar e Ganhar",
           title_suffix: "com o OrçaMóvel PRO",
-          description: "Indique o OrçaMóvel PRO para marcenarias e lojas de móveis planejados e receba 5% de comissão sobre cada nova assinatura. Basta compartilhar seu link exclusivo!",
+          description: "Indique o OrçaMóvel PRO para Lojas de Móveis Planejados e receba 5% de comissão sobre cada nova assinatura. Basta compartilhar seu link exclusivo!",
           steps: [
             { icon: "Share2", title: "Compartilhe", description: "Gere seu link exclusivo em segundos" },
             { icon: "Gift", title: "Indique", description: "Envie para amigos e parceiros do setor" },
