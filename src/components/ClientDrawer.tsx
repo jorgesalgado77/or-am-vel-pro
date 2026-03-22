@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUsuarios } from "@/hooks/useUsuarios";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useIndicadores } from "@/hooks/useIndicadores";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -60,6 +61,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
   });
   const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();
+  const { currentUser } = useCurrentUser();
 
   const cpfValue = watch("cpf") || "";
   const [cpfError, setCpfError] = useState("");
@@ -99,9 +101,10 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
         indicador_id: client.indicador_id || "",
       });
     } else {
+      const autoVendedor = currentUser?.nome_completo || "";
       reset({
         nome: "", cpf: "", quantidade_ambientes: 0, descricao_ambientes: "",
-        telefone1: "", telefone2: "", email: "", vendedor: "", indicador_id: "",
+        telefone1: "", telefone2: "", email: "", vendedor: autoVendedor, indicador_id: "",
       });
     }
     setCpfError("");
