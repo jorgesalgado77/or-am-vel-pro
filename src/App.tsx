@@ -43,6 +43,8 @@ const App = () => (
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/loja/:codigo" element={<TenantLanding />} />
+                <Route path="/afiliado" element={<AffiliatePage />} />
+                <Route path="/ref/:code" element={<AffiliatePage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
