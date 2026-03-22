@@ -671,12 +671,35 @@ export function ClientsKanban({
 
                   {/* Details */}
                   <div className="space-y-2">
-                    {expandedClient.vendedor && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Projetista</span>
-                        <span className="text-foreground font-medium">{expandedClient.vendedor}</span>
-                      </div>
-                    )}
+                    {/* Vendedor/Projetista assignment */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Responsável</span>
+                      {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) ? (
+                        <Select
+                          value={expandedClient.vendedor || ""}
+                          onValueChange={async (val) => {
+                            const newVendedor = val === "__none__" ? null : val;
+                            const { error } = await supabase.from("clients").update({ vendedor: newVendedor }).eq("id", expandedClient.id);
+                            if (error) { toast.error("Erro ao atribuir responsável"); return; }
+                            toast.success(`Cliente atribuído a ${newVendedor || "nenhum"}`);
+                            setLocalClients(prev => prev.map(c => c.id === expandedClient.id ? { ...c, vendedor: newVendedor } : c));
+                            setExpandedClient({ ...expandedClient, vendedor: newVendedor });
+                          }}
+                        >
+                          <SelectTrigger className="w-[180px] h-8 text-xs">
+                            <SelectValue placeholder="Atribuir responsável" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Sem responsável</SelectItem>
+                            {projetistas.map(p => (
+                              <SelectItem key={p.id} value={p.nome_completo}>{p.nome_completo} ({p.cargo_nome})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-foreground font-medium">{expandedClient.vendedor || "—"}</span>
+                      )}
+                    </div>
                     {expandedClient.indicador_id && indicadorMap[expandedClient.indicador_id] && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Indicador</span>
