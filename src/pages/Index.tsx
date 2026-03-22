@@ -134,7 +134,9 @@ export default function Index() {
   const hour = now.getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
   const firstName = (authUser?.apelido || authUser?.nome_completo || "").split(" ")[0];
-  const dateStr = now.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+  const weekday = now.toLocaleDateString("pt-BR", { weekday: "long" });
+  const weekdayCapitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  const dateStr = now.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" }) + " - " + weekdayCapitalized;
 
   const currentSubtitle = activeView === "dashboard"
     ? `${greeting}, ${firstName}! Hoje é ${dateStr}`
