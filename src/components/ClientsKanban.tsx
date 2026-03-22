@@ -111,9 +111,9 @@ export function ClientsKanban({
 
   // Fetch follow-up statuses for all clients
   useEffect(() => {
-    if (clients.length === 0) return;
+    if (localClients.length === 0) return;
     const fetchFollowUpStatuses = async () => {
-      const clientIds = clients.map(c => c.id);
+      const clientIds = localClients.map(c => c.id);
       const { data } = await supabase
         .from("followup_schedules" as any)
         .select("client_id, status")
@@ -149,7 +149,7 @@ export function ClientsKanban({
   }, [periodFilter, dateStart, dateEnd]);
 
   const filtered = useMemo(() => {
-    let baseClients = clients;
+    let baseClients = localClients;
 
     // Role-based visibility filtering
     if (currentUser && cargoNome) {
