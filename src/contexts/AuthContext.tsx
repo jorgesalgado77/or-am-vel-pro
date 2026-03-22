@@ -363,7 +363,6 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
   const maskedCode = `${digits.slice(0, 3)}.${digits.slice(3)}`;
   const candidates = Array.from(new Set([digits, maskedCode]));
 
-  console.log("[Auth:TenantResolve] 🔎 Iniciando resolução para código:", maskedCode, "| candidatos:", candidates);
 
   const [directResult, rpcResult] = await Promise.all([
     withTimeout(
@@ -385,16 +384,13 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
   if (directResult.error) {
     console.warn("[Auth:TenantResolve] ❌ Strategy 1 (direct query) FALHOU:", directResult.error.message);
   } else {
-    console.log("[Auth:TenantResolve] Strategy 1 (direct query) resultado:", directResult.data?.length ?? 0, "registros");
   }
 
   const tenant = directResult.data?.find((row) => (row.codigo_loja ?? "").replace(/\D/g, "") === digits);
   if (tenant) {
-    console.log("[Auth:TenantResolve] ✅ Strategy 1 SUCESSO → tenant_id:", tenant.id);
     return tenant.id;
   }
 
-  console.log("[Auth:TenantResolve] 🔎 Strategy 2 (RPC resolve_tenant_by_code) com:", maskedCode);
   const rpcData = rpcResult.data;
   const rpcError = rpcResult.error;
   if (rpcError) {
@@ -402,15 +398,11 @@ async function resolveTenantIdByStoreCode(storeCode?: string | null): Promise<st
   } else if (rpcData) {
     const resolvedId = typeof rpcData === "string" ? rpcData : rpcData?.tenant_id ?? rpcData?.id ?? null;
     if (resolvedId) {
-      console.log("[Auth:TenantResolve] ✅ Strategy 2 SUCESSO → tenant_id:", resolvedId);
       return resolvedId;
     }
-    console.log("[Auth:TenantResolve] ⚠️ Strategy 2 retornou dados mas sem ID válido:", rpcData);
   } else {
-    console.log("[Auth:TenantResolve] ⚠️ Strategy 2 retornou null/vazio");
   }
 
-  console.log("[Auth:TenantResolve] ❌ Todas as strategies falharam para código:", maskedCode);
   return null;
 }
 
@@ -537,7 +529,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log("[Auth] 🔄 loadFromSession: carregando usuário para auth UID:", sess.user.id, "email:", sess.user.email);
 
     let appUser: AppUser | null = null;
     try {
@@ -547,7 +538,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (!appUser) {
-        console.log("[Auth] 🛠️ Usuário não encontrado na sessão, tentando recriar/sincronizar perfil...");
         await withTimeout(
           ensureUserProfile(sess.user, (sess.user.user_metadata as Record<string, unknown>) ?? undefined),
           1200,
@@ -560,18 +550,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (appUser) {
-      console.log("[Auth] ✅ Usuário carregado da sessão:", appUser.nome_completo);
       setUser(appUser);
       syncGlobalState(appUser);
     } else {
       const fallbackUser = await buildFallbackUserFromAuth(sess.user);
 
       if (fallbackUser) {
-        console.log("[Auth] 🛟 Usando fallback do usuário da sessão enquanto sincroniza perfil...");
         setUser(fallbackUser);
         syncGlobalState(fallbackUser);
       } else {
-        console.log("[Auth] ⚠️ Usuário não encontrado para sessão, fazendo signout...");
         setUser(null);
         syncGlobalState(null);
         await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
@@ -638,7 +625,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const metaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
         if (!resolvedTenantId && metaTenantId) {
           resolvedTenantId = metaTenantId;
-          console.log("[Auth] ✅ Usando tenant_id dos metadados do usuário:", metaTenantId);
         }
 
         if (normalizedStoreCode.length === 6 && !resolvedTenantId) {
@@ -647,17 +633,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!resolvedTenantId) {
             const fallbackMetaTenantId = (authData.user.user_metadata as any)?.tenant_id as string | undefined;
             if (fallbackMetaTenantId) {
-              console.log("[Auth] ✅ Fallback final usando tenant_id dos metadados:", fallbackMetaTenantId);
               resolvedTenantId = fallbackMetaTenantId;
             }
           }
 
           if (!resolvedTenantId) {
-            console.log("[Auth] ❌ Tenant não encontrado mesmo após autenticação");
             return { user: null, error: "Código da loja não encontrado. Verifique o código informado." };
           }
 
-          console.log("[Auth] ✅ Tenant resolvido após autenticação:", resolvedTenantId);
         }
 
         const metadata = {
@@ -678,7 +661,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!appUser) {
-          console.log("[Auth] 🛠️ Perfil não encontrado após autenticação, tentando auto-reparo...");
           await withTimeout(ensureUserProfile(authData.user, metadata, password), 1200, undefined);
           appUser = await withTimeout(loadAppUser(authData.user), 1200, null);
 
@@ -726,16 +708,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!error && data.user) {
         resolvedTenantId = (data.user.user_metadata as any)?.tenant_id ?? null;
-        console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail, "| tenant metadata:", resolvedTenantId);
         return finalizeLogin(data);
       }
 
       resolvedTenantId = await withTimeout(tenantResolutionPromise, 1400, null);
-      console.log("[Auth] ⚠️ Login direto falhou:", error?.code, error?.message, "| Tentando fallback legado...");
 
       // 2. If email_not_confirmed, try to confirm and retry BEFORE legacy fallback
     if (error && isEmailNotConfirmedError(error)) {
-      console.log("[Auth] 📧 Email não confirmado — tentando buscar usuário e confirmar...");
 
       // Look up user by email in usuarios to get their ID for confirm RPC
       const { data: emailUsers } = await withTimeout(
@@ -751,10 +730,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const emailUserList = Array.isArray(emailUsers) ? emailUsers : emailUsers ? [emailUsers] : [];
 
       for (const eu of emailUserList) {
-        console.log("[Auth] 📧 Tentando confirmar email para user id:", eu.id);
         const result = await attemptConfirmedLogin(eu.id, normalizedEmail, password);
         if (result) {
-          console.log("[Auth] ✅ Login após confirmação de email bem-sucedido para:", normalizedEmail);
           return finalizeLogin(result);
         }
       }
@@ -769,14 +746,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         if (signUpRetryErr && isAlreadyRegisteredError(signUpRetryErr)) {
-          console.log("[Auth] 📧 Usuário já registrado, tentando confirmar via lista de IDs conhecidos...");
         }
 
         if (signUpRetry?.user) {
-          console.log("[Auth] 📧 Confirmando email do auth user:", signUpRetry.user.id);
           const result = await attemptConfirmedLogin(signUpRetry.user.id, normalizedEmail, password);
           if (result) {
-            console.log("[Auth] ✅ Login após re-signup e confirmação bem-sucedido");
             return finalizeLogin(result);
           }
         }
@@ -784,7 +758,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("[Auth] ⚠️ Tentativa de re-signup falhou:", e);
       }
 
-      console.log("[Auth] ⚠️ Não foi possível confirmar email automaticamente");
     }
 
     // 3. Fallback: check usuarios table via SECURITY DEFINER RPC (bypasses RLS for unauthenticated users)
@@ -792,7 +765,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const tenantIdFromCode = resolvedTenantId;
 
-        console.log("[Auth] 🔍 Código da loja resolvido para tenant_id:", tenantIdFromCode);
 
           // Use RPC that bypasses RLS, then fallback to direct query
           let legacyUsers: any[] = [];
@@ -814,7 +786,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               legacyUsersError = rpcErr;
             } else {
               legacyUsers = Array.isArray(rpcResult) ? rpcResult : rpcResult ? [rpcResult] : [];
-              console.log("[Auth] ✅ RPC validate_legacy_login retornou:", legacyUsers.length, "usuários");
             }
           } catch (rpcCatchErr) {
             console.warn("[Auth] RPC validate_legacy_login indisponível:", rpcCatchErr);
@@ -837,11 +808,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (!legacyUsersError) legacyUsersError = directErr;
             } else {
               legacyUsers = Array.isArray(directData) ? directData : directData ? [directData] : [];
-              console.log("[Auth] 🔍 Query direta retornou:", legacyUsers.length, "usuários");
             }
           }
 
-        console.log("[Auth] 🔍 Usuários encontrados com email", normalizedEmail, ":", legacyUsers.length);
 
         if (legacyUsers.length === 0) {
           logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: tenantIdFromCode, resultado: "falha_credencial", detalhes: { motivo: "Email não encontrado" } });
@@ -858,24 +827,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (tenantIdFromCode && legacyUser.tenant_id !== tenantIdFromCode) {
-          console.log("[Auth] ❌ Usuário existe mas não pertence à loja informada. tenant esperado:", tenantIdFromCode, "| tenant do usuário:", legacyUser.tenant_id);
           return { user: null, error: "Este email não está vinculado ao código da loja informado." };
         }
 
-        console.log("[Auth] 👤 Usuário legado encontrado:", legacyUser.id, legacyUser.nome_completo, "| tenant:", legacyUser.tenant_id);
 
         if (isEmailNotConfirmedError(error)) {
-          console.log("[Auth] 📧 Tentando confirmar email e relogar...");
           const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail, password);
           if (confirmedLogin) {
-            console.log("[Auth] ✅ Login após confirmação de email bem-sucedido");
             return finalizeLogin(confirmedLogin);
           }
-          console.log("[Auth] ⚠️ Confirmação de email falhou, continuando fluxo legado...");
         }
 
         if (legacyUser.ativo === false) {
-          console.log("[Auth] ❌ Usuário inativo:", legacyUser.id);
           logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: legacyUser.tenant_id, usuario_id: legacyUser.id, resultado: "falha_inativo" });
           return { user: null, error: "Usuário inativo" };
         }
@@ -886,7 +849,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // 1. Direct plain text comparison
           if (legacyUser.senha === password) {
             passwordValid = true;
-            console.log("[Auth] ✅ Senha validada via comparação direta");
           }
           
           // 2. Try hash comparison via RPC
@@ -895,9 +857,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const { data: hashResult } = await supabase.rpc("hash_password", { plain_text: password }) as any;
               if (hashResult && legacyUser.senha === hashResult) {
                 passwordValid = true;
-                console.log("[Auth] ✅ Senha validada via hash RPC");
               } else {
-                console.log("[Auth] ⚠️ Hash não corresponde. Stored:", legacyUser.senha?.substring(0, 10) + "...", "Generated:", hashResult?.substring(0, 10) + "...");
               }
             } catch (e) {
               console.warn("[Auth] hash_password RPC failed:", e);
@@ -908,7 +868,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!passwordValid) {
             const authAttempt = await signInWithPasswordFast(normalizedEmail, password);
             if (!authAttempt.error && authAttempt.data?.user) {
-              console.log("[Auth] ✅ Senha validada via Supabase Auth (já migrado)");
               return finalizeLogin(authAttempt.data);
             }
           }
@@ -975,13 +934,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!passwordValid) {
-          console.log("[Auth] ❌ Senha inválida para usuário legado:", legacyUser.id);
           logLoginDiagnostic({ email: normalizedEmail, codigo_loja: normalizedStoreCode, tenant_id: legacyUser.tenant_id, usuario_id: legacyUser.id, resultado: "falha_credencial", detalhes: { motivo: "Senha incorreta" } });
           return { user: null, error: "Senha incorreta. Verifique sua senha e tente novamente." };
         }
 
         // Password matches — migrate user to Supabase Auth
-        console.log("[Auth] 🔄 Senha válida, migrando usuário para Supabase Auth...");
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
@@ -1133,7 +1090,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }, WARNING_AT);
 
       logoutTimer = setTimeout(async () => {
-        console.log("[Auth] ⏰ Logout automático por inatividade (5 min)");
         setShowInactivityWarning(false);
         await supabase.auth.signOut();
         setUser(null);

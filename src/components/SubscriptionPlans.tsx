@@ -142,7 +142,6 @@ export function SubscriptionPlans({ onBack }: SubscriptionPlansProps) {
         }
       } catch {
         // Stripe not configured, fallback to direct update
-        console.log("Stripe não configurado, usando atualização direta");
       }
 
       // Fallback: direct plan update (when Stripe is not configured)

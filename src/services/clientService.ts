@@ -51,7 +51,6 @@ export async function fetchClients(): Promise<FetchClientsResult> {
     console.error("fetchClients error:", error);
     return { clients: [], error: "Erro ao carregar clientes: " + error.message };
   }
-  console.log("fetchClients returned", data?.length, "clients for tenant", tenantId);
   return { clients: data || [], error: null };
 }
 
