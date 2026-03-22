@@ -213,12 +213,18 @@ export function AdminAffiliates() {
         ))}
       </div>
 
-      <Tabs defaultValue="affiliates">
+      <Tabs defaultValue="metrics">
         <TabsList>
+          <TabsTrigger value="metrics"><BarChart3 className="w-4 h-4 mr-1" /> Métricas</TabsTrigger>
           <TabsTrigger value="affiliates"><Users className="w-4 h-4 mr-1" /> Afiliados</TabsTrigger>
           <TabsTrigger value="conversions"><DollarSign className="w-4 h-4 mr-1" /> Conversões</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="w-4 h-4 mr-1" /> Configurações</TabsTrigger>
         </TabsList>
+
+        {/* Metrics Tab */}
+        <TabsContent value="metrics">
+          <AffiliateCharts conversions={conversions} affiliates={affiliates} />
+        </TabsContent>
 
         {/* Affiliates Tab */}
         <TabsContent value="affiliates" className="space-y-4">
