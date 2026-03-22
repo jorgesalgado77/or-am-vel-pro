@@ -91,7 +91,7 @@ export function ClientsKanban({
   }, [indicadores]);
 
   useEffect(() => {
-    if (clients.length === 0) return;
+    if (localClients.length === 0) return;
     const fetchLastSims = async () => {
       const { data } = await supabase
         .from("simulations")
