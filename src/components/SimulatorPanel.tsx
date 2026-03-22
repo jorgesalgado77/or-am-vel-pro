@@ -331,92 +331,21 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           const content = ev.target?.result as string;
           if (!content) return;
 
-          let total: number | null = null;
-          let envName = file.name.replace(/\.(txt|xml)$/i, "");
-          let pieces = 0;
+          const parsed = parseProjectFile(content, file.name);
 
-          if (file.name.toLowerCase().endsWith(".xml")) {
-            const matchTotal = content.match(/<(?:Total|ValorTotal|TOTAL|valor_total)[^>]*>\s*([\d.,]+)\s*</i);
-            if (matchTotal) total = parseFloat(matchTotal[1].replace(/\./g, "").replace(",", "."));
-            // Try to extract environment name
-            const matchEnv = content.match(/<(?:Ambiente|NomeAmbiente|AMBIENTE|ambiente)[^>]*>\s*([^<]+)\s*</i);
-            if (matchEnv) envName = matchEnv[1].trim();
-            // Try to extract piece count
-            const matchPieces = content.match(/<(?:QtdPecas|Quantidade|QTD|qtd_pecas|TotalPecas)[^>]*>\s*(\d+)\s*</i);
-            if (matchPieces) pieces = parseInt(matchPieces[1]);
-          } else {
-            const matchTotal = content.match(/Total\s*=\s*([\d.,]+)/i);
-            if (matchTotal) total = parseFloat(matchTotal[1].replace(",", "."));
-            // Try environment name
-            const matchEnv = content.match(/Ambiente\s*[=:]\s*(.+)/i);
-            if (matchEnv) envName = matchEnv[1].trim();
-            // Count pieces from TXT - sum quantity column values
-            const lines = content.split(/\r?\n/).filter(l => l.trim());
-            let itemCount = 0;
-            let foundExplicit = false;
-
-            // First try explicit piece count pattern
-            const matchPieces = content.match(/(?:Pecas|Peças|Quantidade\s*(?:de\s*)?(?:Pe[çc]as)?|Total\s*de\s*Pe[çc]as|Qtd\s*(?:Pe[çc]as)?)\s*[=:]\s*(\d+)/i);
-            if (matchPieces) {
-              itemCount = parseInt(matchPieces[1]);
-              foundExplicit = true;
-            }
-
-            if (!foundExplicit) {
-              // Detect if file uses tabular format with separators
-              const hasTabs = content.includes('\t');
-              const hasSemicolons = content.includes(';');
-              const hasPipes = content.includes('|');
-              const separator = hasTabs ? /\t/ : hasSemicolons ? /;/ : hasPipes ? /\|/ : null;
-
-              for (const line of lines) {
-                const trimmed = line.trim();
-                // Skip known non-data lines
-                if (/^(Total|Ambiente|Pecas|Peças|Quantidade|Descri|Nome|Projeto|Observ|Data|Vers|---|\*|#|=)/i.test(trimmed)) continue;
-                if (trimmed.length < 3) continue;
-                // Skip lines that look like dates (dd/mm/yyyy)
-                if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmed)) continue;
-                // Skip lines that are purely numeric (page numbers, totals, etc.)
-                if (/^[\d.,]+$/.test(trimmed)) continue;
-                
-                if (separator) {
-                  // Tabular data: extract quantity from first column
-                  const cols = trimmed.split(separator);
-                  if (cols.length >= 2) {
-                    const firstCol = cols[0].trim();
-                    const qty = parseInt(firstCol);
-                    if (!isNaN(qty) && qty > 0 && qty < 10000) {
-                      itemCount += qty;
-                    }
-                  }
-                } else {
-                  // Space-separated: try to extract leading quantity
-                  const leadingQty = trimmed.match(/^(\d+)\s+\S/);
-                  if (leadingQty) {
-                    const qty = parseInt(leadingQty[1]);
-                    if (qty > 0 && qty < 10000) {
-                      itemCount += qty;
-                    }
-                  }
-                }
-              }
-            }
-            pieces = itemCount;
-          }
-
-          if (total && !isNaN(total)) {
+          if (parsed.total && !isNaN(parsed.total)) {
             const newEnv: ImportedEnvironment = {
               id: crypto.randomUUID(),
               fileName: file.name,
-              environmentName: envName,
-              pieceCount: pieces,
-              totalValue: total,
+              environmentName: parsed.envName,
+              pieceCount: parsed.pieces,
+              totalValue: parsed.total,
               importedAt: new Date(),
               file,
             };
             setEnvironments((prev) => [...prev, newEnv]);
             setImportedFile(file);
-            toast.success(`Ambiente "${envName}" importado: ${formatCurrency(total)}`);
+            toast.success(`Ambiente "${parsed.envName}" importado: ${formatCurrency(parsed.total)}`);
           } else {
             toast.error(`Não foi possível encontrar o valor total em ${file.name}`);
           }
