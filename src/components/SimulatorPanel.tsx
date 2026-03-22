@@ -1058,6 +1058,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           saving={closingSale}
         />
       )}
+      <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
     </div>
   );
 }
