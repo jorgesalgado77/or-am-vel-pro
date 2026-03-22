@@ -15,6 +15,9 @@ import { useConversionHistory } from "@/hooks/useConversionHistory";
 
 import { calculateSimulation, formatCurrency, formatPercent, type FormaPagamento, type SimulationInput, type BoletoRateData, type CreditRateData } from "@/lib/financing";
 import { generateOrcamentoNumber, applyDiscounts, FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
+import { parseProjectFile } from "@/services/fileImportService";
+import { buildContractHtml } from "@/services/contractService";
+import { generateSaleCommissions } from "@/services/commissionService";
 import { validateFileUpload } from "@/lib/validation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -328,92 +331,21 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
           const content = ev.target?.result as string;
           if (!content) return;
 
-          let total: number | null = null;
-          let envName = file.name.replace(/\.(txt|xml)$/i, "");
-          let pieces = 0;
+          const parsed = parseProjectFile(content, file.name);
 
-          if (file.name.toLowerCase().endsWith(".xml")) {
-            const matchTotal = content.match(/<(?:Total|ValorTotal|TOTAL|valor_total)[^>]*>\s*([\d.,]+)\s*</i);
-            if (matchTotal) total = parseFloat(matchTotal[1].replace(/\./g, "").replace(",", "."));
-            // Try to extract environment name
-            const matchEnv = content.match(/<(?:Ambiente|NomeAmbiente|AMBIENTE|ambiente)[^>]*>\s*([^<]+)\s*</i);
-            if (matchEnv) envName = matchEnv[1].trim();
-            // Try to extract piece count
-            const matchPieces = content.match(/<(?:QtdPecas|Quantidade|QTD|qtd_pecas|TotalPecas)[^>]*>\s*(\d+)\s*</i);
-            if (matchPieces) pieces = parseInt(matchPieces[1]);
-          } else {
-            const matchTotal = content.match(/Total\s*=\s*([\d.,]+)/i);
-            if (matchTotal) total = parseFloat(matchTotal[1].replace(",", "."));
-            // Try environment name
-            const matchEnv = content.match(/Ambiente\s*[=:]\s*(.+)/i);
-            if (matchEnv) envName = matchEnv[1].trim();
-            // Count pieces from TXT - sum quantity column values
-            const lines = content.split(/\r?\n/).filter(l => l.trim());
-            let itemCount = 0;
-            let foundExplicit = false;
-
-            // First try explicit piece count pattern
-            const matchPieces = content.match(/(?:Pecas|Peças|Quantidade\s*(?:de\s*)?(?:Pe[çc]as)?|Total\s*de\s*Pe[çc]as|Qtd\s*(?:Pe[çc]as)?)\s*[=:]\s*(\d+)/i);
-            if (matchPieces) {
-              itemCount = parseInt(matchPieces[1]);
-              foundExplicit = true;
-            }
-
-            if (!foundExplicit) {
-              // Detect if file uses tabular format with separators
-              const hasTabs = content.includes('\t');
-              const hasSemicolons = content.includes(';');
-              const hasPipes = content.includes('|');
-              const separator = hasTabs ? /\t/ : hasSemicolons ? /;/ : hasPipes ? /\|/ : null;
-
-              for (const line of lines) {
-                const trimmed = line.trim();
-                // Skip known non-data lines
-                if (/^(Total|Ambiente|Pecas|Peças|Quantidade|Descri|Nome|Projeto|Observ|Data|Vers|---|\*|#|=)/i.test(trimmed)) continue;
-                if (trimmed.length < 3) continue;
-                // Skip lines that look like dates (dd/mm/yyyy)
-                if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(trimmed)) continue;
-                // Skip lines that are purely numeric (page numbers, totals, etc.)
-                if (/^[\d.,]+$/.test(trimmed)) continue;
-                
-                if (separator) {
-                  // Tabular data: extract quantity from first column
-                  const cols = trimmed.split(separator);
-                  if (cols.length >= 2) {
-                    const firstCol = cols[0].trim();
-                    const qty = parseInt(firstCol);
-                    if (!isNaN(qty) && qty > 0 && qty < 10000) {
-                      itemCount += qty;
-                    }
-                  }
-                } else {
-                  // Space-separated: try to extract leading quantity
-                  const leadingQty = trimmed.match(/^(\d+)\s+\S/);
-                  if (leadingQty) {
-                    const qty = parseInt(leadingQty[1]);
-                    if (qty > 0 && qty < 10000) {
-                      itemCount += qty;
-                    }
-                  }
-                }
-              }
-            }
-            pieces = itemCount;
-          }
-
-          if (total && !isNaN(total)) {
+          if (parsed.total && !isNaN(parsed.total)) {
             const newEnv: ImportedEnvironment = {
               id: crypto.randomUUID(),
               fileName: file.name,
-              environmentName: envName,
-              pieceCount: pieces,
-              totalValue: total,
+              environmentName: parsed.envName,
+              pieceCount: parsed.pieces,
+              totalValue: parsed.total,
               importedAt: new Date(),
               file,
             };
             setEnvironments((prev) => [...prev, newEnv]);
             setImportedFile(file);
-            toast.success(`Ambiente "${envName}" importado: ${formatCurrency(total)}`);
+            toast.success(`Ambiente "${parsed.envName}" importado: ${formatCurrency(parsed.total)}`);
           } else {
             toast.error(`Não foi possível encontrar o valor total em ${file.name}`);
           }
@@ -640,80 +572,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         return;
       }
 
-      // Fill template variables
-      const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-      const formaLabel = FORMAS_PAGAMENTO_LABELS;
-
-      // Build items HTML table
-      let itensHtml = "";
-      if (items.length > 0) {
-        itensHtml = `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;">
-          <tr style="background:#f0f0f0;"><th>Item</th><th>Qtd</th><th>Descrição/Ambiente</th><th>Fornecedor</th><th>Prazo</th><th>Valor</th></tr>
-          ${items.map((it: any, i: number) => `<tr><td style="text-align:center">${i + 1}</td><td style="text-align:center">${it.quantidade}</td><td>${it.descricao_ambiente}</td><td>${it.fornecedor}</td><td>${it.prazo}</td><td style="text-align:right">${formatCurrency(it.valor_ambiente)}</td></tr>`).join("")}
-          <tr style="font-weight:bold;"><td colspan="5" style="text-align:right">Total:</td><td style="text-align:right">${formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0))}</td></tr>
-        </table>`;
-      }
-
-      // Build item details HTML
-      let detalhesHtml = "";
-      if (itemDetails.length > 0) {
-        detalhesHtml = `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
-          <tr style="background:#f0f0f0;"><th>Item</th><th>Títulos</th><th>Corpo</th><th>Porta</th><th>Puxador</th><th>Complemento</th><th>Modelo</th></tr>
-          ${itemDetails.map((d: any) => `<tr><td style="text-align:center">${d.item_num}</td><td>${d.titulos}</td><td>${d.corpo}</td><td>${d.porta}</td><td>${d.puxador}</td><td>${d.complemento}</td><td>${d.modelo}</td></tr>`).join("")}
-        </table>`;
-      }
-
-      let html = (template as any).conteudo_html as string;
-      const replacements: Record<string, string> = {
-        "{{nome_cliente}}": formData.nome_completo || client.nome || "",
-        "{{cpf_cliente}}": formData.cpf_cnpj || client.cpf || "",
-        "{{rg_insc_estadual}}": formData.rg_insc_estadual || "",
-        "{{telefone_cliente}}": formData.telefone || client.telefone1 || "",
-        "{{email_cliente}}": formData.email || client.email || "",
-        "{{numero_orcamento}}": client.numero_orcamento || "",
-        "{{numero_contrato}}": formData.numero_contrato || "",
-        "{{data_fechamento}}": formData.data_fechamento ? format(new Date(formData.data_fechamento + "T12:00:00"), "dd/MM/yyyy") : "",
-        "{{responsavel_venda}}": formData.responsavel_venda || "",
-        "{{data_nascimento}}": formData.data_nascimento ? format(new Date(formData.data_nascimento + "T12:00:00"), "dd/MM/yyyy") : "",
-        "{{profissao}}": formData.profissao || "",
-        "{{endereco}}": formData.endereco || "",
-        "{{bairro}}": formData.bairro || "",
-        "{{cidade}}": formData.cidade || "",
-        "{{uf}}": formData.uf || "",
-        "{{cep}}": formData.cep || "",
-        "{{endereco_entrega}}": formData.endereco_entrega || "",
-        "{{bairro_entrega}}": formData.bairro_entrega || "",
-        "{{cidade_entrega}}": formData.cidade_entrega || "",
-        "{{uf_entrega}}": formData.uf_entrega || "",
-        "{{cep_entrega}}": formData.cep_entrega || "",
-        "{{prazo_entrega}}": formData.prazo_entrega || "",
-        "{{observacoes}}": formData.observacoes || "",
-        "{{projetista}}": formData.responsavel_venda || client.vendedor || "",
-        "{{valor_tela}}": formatCurrency(valorTela),
-        "{{valor_final}}": formatCurrency(result.valorFinal),
-        "{{forma_pagamento}}": formaLabel[formaPagamento] || formaPagamento,
-        "{{parcelas}}": String(formData.qtd_parcelas || parcelas),
-        "{{valor_parcela}}": formatCurrency(formData.valor_parcelas || result.valorParcela),
-        "{{valor_entrada}}": formatCurrency(formData.valor_entrada || valorEntrada),
-        "{{data_atual}}": dataAtual,
-        "{{empresa_nome}}": settings.company_name || "INOVAMAD",
-        "{{cnpj_loja}}": (settings as any).cnpj_loja || "",
-        "{{endereco_loja}}": (settings as any).endereco_loja || "",
-        "{{bairro_loja}}": (settings as any).bairro_loja || "",
-        "{{cidade_loja}}": (settings as any).cidade_loja || "",
-        "{{uf_loja}}": (settings as any).uf_loja || "",
-        "{{cep_loja}}": (settings as any).cep_loja || "",
-        "{{telefone_loja}}": (settings as any).telefone_loja || "",
-        "{{email_loja}}": (settings as any).email_loja || "",
-        "{{indicador_nome}}": selectedIndicador?.nome || "",
-        "{{indicador_comissao}}": String(comissaoPercentual),
-        "{{itens_tabela}}": itensHtml,
-        "{{itens_detalhes}}": detalhesHtml,
-        "{{total_ambientes}}": formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0)),
-      };
-
-      Object.entries(replacements).forEach(([key, val]) => {
-        html = html.split(key).join(val);
+      // Fill template using contract service
+      const html = buildContractHtml((template as any).conteudo_html, {
+        formData, client, valorTela, result, formaPagamento, parcelas, valorEntrada,
+        settings, selectedIndicador, comissaoPercentual, items, itemDetails,
       });
 
       setPendingSimId(simData.id);
@@ -742,7 +604,18 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
     // === AUTO-GENERATE COMMISSIONS ===
     try {
-      await generateSaleCommissions();
+      const valorAVista = applyDiscounts(valorTelaComComissao, desconto1, desconto2, desconto3);
+      const commResult = await generateSaleCommissions({
+        clientId: client.id,
+        clientName: client.nome,
+        valorAVista,
+        contratoNumero: closeSaleFormData?.numero_contrato || client.numero_orcamento || "",
+        responsavelVenda: closeSaleFormData?.responsavel_venda || client.vendedor || "",
+        selectedIndicador,
+        comissaoPercentual,
+      });
+      if (commResult.error) toast.error(commResult.error);
+      else if (commResult.count > 0) toast.success(`${commResult.count} comissão(ões) gerada(s) automaticamente`);
     } catch (err) {
       console.error("Erro ao gerar comissões:", err);
     }
@@ -768,18 +641,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
     openContractPrintWindow(finalHtml, `Contrato - ${client.nome}`);
 
-    // Audit: sale closed
     const userInfo = getAuditUserInfo();
     logAudit({
       acao: "venda_fechada",
       entidade: "contract",
       entidade_id: pendingSimId,
-      detalhes: {
-        cliente: client.nome,
-        cliente_id: client.id,
-        valor_final: result.valorFinal,
-        forma_pagamento: formaPagamento,
-      },
+      detalhes: { cliente: client.nome, cliente_id: client.id, valor_final: result.valorFinal, forma_pagamento: formaPagamento },
       ...userInfo,
     });
 
@@ -788,110 +655,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     setPendingSimId(null);
     setPendingTemplateId(null);
     setClosingSale(false);
-  };
-
-  const generateSaleCommissions = async () => {
-    if (!client) return;
-
-    // Calculate "valor à vista" = after all discounts, before financing
-    const valorAVista = applyDiscounts(valorTelaComComissao, desconto1, desconto2, desconto3);
-
-    const mesRef = format(new Date(), "yyyy-MM");
-    const contratoNum = closeSaleFormData?.numero_contrato || client.numero_orcamento || "";
-    const commissions: any[] = [];
-
-    // 1. Indicador commission
-    if (selectedIndicador && comissaoPercentual > 0) {
-      commissions.push({
-        usuario_id: null,
-        indicador_id: selectedIndicador.id,
-        mes_referencia: mesRef,
-        valor_comissao: (valorAVista * comissaoPercentual) / 100,
-        valor_base: valorAVista,
-        cargo_referencia: "Indicador",
-        contrato_numero: contratoNum,
-        client_name: client.nome,
-        observacao: `Indicador: ${selectedIndicador.nome} (${comissaoPercentual}%)`,
-        status: "pendente",
-      });
-    }
-
-    // 2. Fetch all cargos with commission > 0
-    const { data: cargosData } = await supabase.from("cargos").select("id, nome, comissao_percentual");
-    const cargosComComissao = (cargosData || []).filter((c: any) => Number(c.comissao_percentual) > 0);
-
-    if (cargosComComissao.length > 0) {
-      // Fetch all active users with their cargos
-      const { data: usersData } = await supabase.from("usuarios").select("id, nome_completo, apelido, cargo_id, ativo").eq("ativo", true);
-      const activeUsers = usersData || [];
-
-      for (const cargo of cargosComComissao) {
-        const cargoPercent = Number(cargo.comissao_percentual);
-        const usersWithCargo = activeUsers.filter((u: any) => u.cargo_id === cargo.id);
-
-        // Match vendedor specifically
-        const vendedorName = (closeSaleFormData?.responsavel_venda || client.vendedor || "").toLowerCase().trim();
-        const matchedVendedor = usersWithCargo.find((u: any) =>
-          u.nome_completo.toLowerCase().includes(vendedorName) ||
-          (u.apelido && u.apelido.toLowerCase().includes(vendedorName))
-        );
-
-        if (matchedVendedor) {
-          // Specific user matched as vendedor for this cargo
-          commissions.push({
-            usuario_id: matchedVendedor.id,
-            mes_referencia: mesRef,
-            valor_comissao: (valorAVista * cargoPercent) / 100,
-            valor_base: valorAVista,
-            cargo_referencia: cargo.nome,
-            contrato_numero: contratoNum,
-            client_name: client.nome,
-            observacao: `${cargo.nome}: ${matchedVendedor.apelido || matchedVendedor.nome_completo} (${cargoPercent}%)`,
-            status: "pendente",
-          });
-        } else if (usersWithCargo.length === 1) {
-          // Only one user with this cargo — auto-assign
-          const u = usersWithCargo[0];
-          commissions.push({
-            usuario_id: u.id,
-            mes_referencia: mesRef,
-            valor_comissao: (valorAVista * cargoPercent) / 100,
-            valor_base: valorAVista,
-            cargo_referencia: cargo.nome,
-            contrato_numero: contratoNum,
-            client_name: client.nome,
-            observacao: `${cargo.nome}: ${u.apelido || u.nome_completo} (${cargoPercent}%)`,
-            status: "pendente",
-          });
-        } else if (usersWithCargo.length > 1) {
-          // Multiple users — create one entry per user
-          for (const u of usersWithCargo) {
-            commissions.push({
-              usuario_id: u.id,
-              mes_referencia: mesRef,
-              valor_comissao: (valorAVista * cargoPercent) / 100,
-              valor_base: valorAVista,
-              cargo_referencia: cargo.nome,
-              contrato_numero: contratoNum,
-              client_name: client.nome,
-              observacao: `${cargo.nome}: ${u.apelido || u.nome_completo} (${cargoPercent}%)`,
-              status: "pendente",
-            });
-          }
-        }
-      }
-    }
-
-    // Insert all commissions
-    if (commissions.length > 0) {
-      const { error } = await supabase.from("payroll_commissions").insert(commissions as any);
-      if (error) {
-        console.error("Erro ao inserir comissões:", error);
-        toast.error("Erro ao gerar comissões automáticas");
-      } else {
-        toast.success(`${commissions.length} comissão(ões) gerada(s) automaticamente`);
-      }
-    }
   };
 
   const passwordDialogTitle = pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
