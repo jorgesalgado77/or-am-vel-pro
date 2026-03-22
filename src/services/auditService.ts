@@ -35,7 +35,9 @@ export type AuditAction =
   | "addon_liberado"
   | "addon_revogado"
   | "senha_resetada"
-  | "lead_atribuido";
+  | "lead_atribuido"
+  | "tenant_ativado"
+  | "tenant_desativado";
 
 export type AuditEntity =
   | "client"

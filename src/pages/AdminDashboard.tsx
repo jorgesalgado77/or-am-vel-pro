@@ -84,16 +84,23 @@ function getPlanStatus(tenant: Tenant) {
   return { text: "Ativo", variant: "default" as const };
 }
 
+interface TenantStats {
+  [tenantId: string]: { usuarios: number; clientes: number; simulacoes: number };
+}
+
 export default function AdminDashboard({ adminName, onLogout }: AdminDashboardProps) {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
+  const [tenantStats, setTenantStats] = useState<TenantStats>({});
   const [loading, setLoading] = useState(true);
   const [addonInterestCount, setAddonInterestCount] = useState(0);
   const [showTenantDialog, setShowTenantDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [editingPayment, setEditingPayment] = useState<PaymentSetting | null>(null);
+  const [searchTenant, setSearchTenant] = useState("");
+  const [filterPlano, setFilterPlano] = useState("all");
 
   // Tenant form
   const [tNome, setTNome] = useState("");
@@ -123,6 +130,21 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setAddonInterestCount(count || 0);
   };
 
+  const fetchTenantStats = async (tenantIds: string[]) => {
+    if (tenantIds.length === 0) return;
+    const [usersRes, clientsRes, simsRes] = await Promise.all([
+      supabase.from("usuarios").select("tenant_id", { count: "exact" }).in("tenant_id", tenantIds).eq("ativo", true),
+      supabase.from("clients").select("tenant_id"),
+      supabase.from("simulations").select("tenant_id").gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+    ]);
+    const stats: TenantStats = {};
+    tenantIds.forEach(id => { stats[id] = { usuarios: 0, clientes: 0, simulacoes: 0 }; });
+    (usersRes.data || []).forEach((u: any) => { if (stats[u.tenant_id]) stats[u.tenant_id].usuarios++; });
+    (clientsRes.data || []).forEach((c: any) => { if (stats[c.tenant_id]) stats[c.tenant_id].clientes++; });
+    (simsRes.data || []).forEach((s: any) => { if (stats[s.tenant_id]) stats[s.tenant_id].simulacoes++; });
+    setTenantStats(stats);
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const [tenantsRes, paymentsRes, plansRes] = await Promise.all([
@@ -130,7 +152,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
       supabase.from("subscription_plans" as any).select("slug, preco_mensal, preco_anual_mensal").eq("ativo", true),
     ]);
-    if (tenantsRes.data) setTenants(tenantsRes.data as any);
+    const tenantData = (tenantsRes.data || []) as any;
+    setTenants(tenantData);
     if (paymentsRes.data) setPayments(paymentsRes.data as any);
     if (plansRes.data) {
       const prices: PlanPriceMap = {};
@@ -139,6 +162,10 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       });
       setPlanPrices(prices);
     }
+    // Fetch stats for all tenants
+    if (tenantData.length > 0) {
+      await fetchTenantStats(tenantData.map((t: any) => t.id));
+    }
     setLoading(false);
   };
 
@@ -146,17 +173,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     fetchData();
     fetchAddonInterestCount();
 
-    // Realtime: notify on new addon interest tickets
     const channel = supabase
       .channel("admin-addon-interest")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "support_tickets",
-          filter: "tipo=eq.addon_interesse",
-        },
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_tickets", filter: "tipo=eq.addon_interesse" },
         (payload) => {
           const ticket = payload.new as any;
           toast.info("🔔 Novo interesse em add-on!", {
@@ -165,13 +184,31 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           });
           setAddonInterestCount((prev) => prev + 1);
         }
-      )
-      .subscribe();
+      ).subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
+
+  const toggleTenantActive = async (tenant: Tenant) => {
+    const newAtivo = !tenant.ativo;
+    const { error } = await supabase.from("tenants").update({ ativo: newAtivo } as any).eq("id", tenant.id);
+    if (error) { toast.error("Erro ao atualizar status"); return; }
+    logAudit({
+      acao: newAtivo ? "tenant_ativado" : "tenant_desativado",
+      entidade: "tenant", entidade_id: tenant.id,
+      usuario_nome: adminName, tenant_id: tenant.id,
+      detalhes: { loja: tenant.nome_loja },
+    });
+    toast.success(`${tenant.nome_loja} ${newAtivo ? "ativada" : "desativada"}`);
+    fetchData();
+  };
+
+  // Filtered tenants
+  const filteredTenants = tenants.filter(t => {
+    const matchSearch = !searchTenant || t.nome_loja.toLowerCase().includes(searchTenant.toLowerCase()) || (t.codigo_loja || "").includes(searchTenant);
+    const matchPlano = filterPlano === "all" || t.plano === filterPlano;
+    return matchSearch && matchPlano;
+  });
 
   // Stats
   const totalLojas = tenants.length;
@@ -179,6 +216,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const lojasBasico = tenants.filter(t => t.plano === "basico").length;
   const lojasPremium = tenants.filter(t => t.plano === "premium").length;
   const lojasTrial = tenants.filter(t => t.plano === "trial").length;
+  const totalUsuarios = Object.values(tenantStats).reduce((acc, s) => acc + s.usuarios, 0);
+  const totalClientes = Object.values(tenantStats).reduce((acc, s) => acc + s.clientes, 0);
 
   const receitaMensal = tenants.reduce((acc, t) => {
     if (t.plano === "trial" || !t.ativo) return acc;
@@ -304,21 +343,23 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
       <main className="max-w-7xl mx-auto p-6 space-y-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           {[
             { label: "Total Lojas", value: totalLojas, icon: Store, color: "text-primary" },
             { label: "Ativas", value: lojasAtivas, icon: Eye, color: "text-accent" },
             { label: "Trial", value: lojasTrial, icon: Zap, color: "text-muted-foreground" },
             { label: "Básico", value: lojasBasico, icon: Users, color: "text-primary" },
             { label: "Premium", value: lojasPremium, icon: Crown, color: "text-destructive" },
+            { label: "Usuários", value: totalUsuarios, icon: Users, color: "text-primary" },
+            { label: "Clientes", value: totalClientes, icon: Users, color: "text-accent" },
             { label: "Receita Mensal", value: `R$ ${receitaMensal.toFixed(2)}`, icon: DollarSign, color: "text-accent" },
           ].map((kpi) => (
             <Card key={kpi.label}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <kpi.icon className={`h-5 w-5 ${kpi.color} shrink-0`} />
+              <CardContent className="p-3 flex items-center gap-2">
+                <kpi.icon className={`h-4 w-4 ${kpi.color} shrink-0`} />
                 <div>
-                  <p className="text-xs text-muted-foreground">{kpi.label}</p>
-                  <p className="text-lg font-bold text-foreground">{kpi.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{kpi.label}</p>
+                  <p className="text-base font-bold text-foreground">{kpi.value}</p>
                 </div>
               </CardContent>
             </Card>
@@ -350,13 +391,23 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
           {/* TAB: Lojas */}
           <TabsContent value="lojas" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Lojas Cadastradas</h3>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={fetchData} className="gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-lg font-semibold text-foreground">Lojas Cadastradas ({filteredTenants.length})</h3>
+              <div className="flex gap-2 flex-wrap">
+                <Input placeholder="Buscar loja..." value={searchTenant} onChange={e => setSearchTenant(e.target.value)} className="w-48 h-8 text-sm" />
+                <Select value={filterPlano} onValueChange={setFilterPlano}>
+                  <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="trial">Trial</SelectItem>
+                    <SelectItem value="basico">Básico</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={fetchData} className="gap-2 h-8">
                   <RefreshCw className="h-3 w-3" /> Atualizar
                 </Button>
-                <Button size="sm" onClick={openNewTenant} className="gap-2">
+                <Button size="sm" onClick={openNewTenant} className="gap-2 h-8">
                   <Plus className="h-3 w-3" /> Nova Loja
                 </Button>
               </div>
@@ -366,42 +417,50 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Ativa</TableHead>
                       <TableHead>Loja</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead>Plano</TableHead>
-                      <TableHead>Período</TableHead>
+                      <TableHead className="text-center">Usuários</TableHead>
+                      <TableHead className="text-center">Clientes</TableHead>
+                      <TableHead className="text-center">Sims/Mês</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Validade</TableHead>
                       <TableHead className="text-center">Add-ons</TableHead>
-                      <TableHead className="w-24">Ações</TableHead>
+                      <TableHead className="w-20">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-                    ) : tenants.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhuma loja cadastrada</TableCell></TableRow>
-                    ) : tenants.map((t) => {
+                      <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+                    ) : filteredTenants.length === 0 ? (
+                      <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhuma loja encontrada</TableCell></TableRow>
+                    ) : filteredTenants.map((t) => {
                       const status = getPlanStatus(t);
                       const planCfg = PLAN_CONFIG[t.plano as keyof typeof PLAN_CONFIG] || PLAN_CONFIG.trial;
                       const PlanIcon = planCfg.icon;
                       const validadeDate = t.plano === "trial" ? t.trial_fim : t.assinatura_fim;
                       const vip = (t as any).recursos_vip || {};
                       return (
-                        <TableRow key={t.id}>
+                        <TableRow key={t.id} className={!t.ativo ? "opacity-50" : ""}>
+                          <TableCell>
+                            <Switch checked={t.ativo} onCheckedChange={() => toggleTenantActive(t)} />
+                          </TableCell>
                           <TableCell>
                             <div>
                               <p className="font-medium text-foreground">{t.nome_loja}</p>
                               {t.email_contato && <p className="text-xs text-muted-foreground">{t.email_contato}</p>}
                             </div>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{t.codigo_loja || "—"}</TableCell>
+                          <TableCell className="text-muted-foreground font-mono text-xs">{t.codigo_loja || "—"}</TableCell>
                           <TableCell>
                             <Badge variant={planCfg.color} className="gap-1">
                               <PlanIcon className="h-3 w-3" />{planCfg.label}
                             </Badge>
                           </TableCell>
-                          <TableCell className="capitalize text-muted-foreground">{t.plano_periodo}</TableCell>
+                          <TableCell className="text-center text-sm">{tenantStats[t.id]?.usuarios ?? 0}</TableCell>
+                          <TableCell className="text-center text-sm">{tenantStats[t.id]?.clientes ?? 0}</TableCell>
+                          <TableCell className="text-center text-sm">{tenantStats[t.id]?.simulacoes ?? 0}</TableCell>
                           <TableCell>
                             <Badge variant={status.variant}>{status.text}</Badge>
                           </TableCell>
