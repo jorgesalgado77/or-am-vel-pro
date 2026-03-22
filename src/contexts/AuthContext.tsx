@@ -661,8 +661,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { user: appUser, error: null };
     };
 
-    // 1. Try Supabase Auth first
-    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    // 1. Try Supabase Auth first while tenant lookup runs in parallel
+    const [{ data, error }, preResolvedTenantId] = await Promise.all([
+      supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
+      tenantResolutionPromise,
+    ]);
+
+    resolvedTenantId = preResolvedTenantId;
 
     if (!error && data.user) {
       console.log("[Auth] ✅ Login direto via Supabase Auth bem-sucedido para:", normalizedEmail);
