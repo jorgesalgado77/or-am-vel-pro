@@ -587,7 +587,7 @@ function BoletoRatesTab() {
 
 /* ===== CREDITO RATES TAB (simpler: parcelas + coeficiente) ===== */
 function CreditoRatesTab() {
-  const { rates, providers, refresh } = useFinancingRates("credito");
+  const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("credito");
   const { tenantId } = useTenant();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, number>>({});
