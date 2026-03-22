@@ -8,83 +8,28 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, X, Crown, Zap, Users, Building2, User, ArrowLeft, ArrowRight, Store, Mail, KeyRound, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { validateCpfCnpj } from "@/lib/validation";
+import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { maskCpfCnpj, maskPhone, unmask } from "@/lib/masks";
 import { cn } from "@/lib/utils";
-import { getUserId } from "@/lib/tenantState";
+import { maskCpfCnpj, maskPhone, unmask } from "@/lib/masks";
+import { validateCpfCnpj } from "@/lib/validation";
 
 const UF_OPTIONS = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA",
   "PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"
 ];
 
-interface PlanInfo {
-  id: string;
-  nome: string;
-  descricao: string;
-  preco_mensal: number;
-  preco_anual_mensal: number;
-  max_usuarios: number | null;
-  icon: React.ElementType;
-  destaque: boolean;
-  features: { label: string; included: boolean }[];
-}
-
-const PLANS: PlanInfo[] = [
-  {
-    id: "trial",
-    nome: "Teste Grátis",
-    descricao: "Experimente todas as funcionalidades por 7 dias",
-    preco_mensal: 0,
-    preco_anual_mensal: 0,
-    max_usuarios: 999,
-    icon: Zap,
-    destaque: false,
-    features: [
-      { label: "Acesso completo por 7 dias", included: true },
-      { label: "Clientes ilimitados", included: true },
-      { label: "Simulador de financiamento", included: true },
-      { label: "Configurações avançadas", included: true },
-    ],
-  },
-  {
-    id: "basico",
-    nome: "Básico",
-    descricao: "Ideal para lojas pequenas com até 3 colaboradores",
-    preco_mensal: 59.90,
-    preco_anual_mensal: 50.92,
-    max_usuarios: 3,
-    icon: Users,
-    destaque: false,
-    features: [
-      { label: "Até 3 usuários", included: true },
-      { label: "Clientes ilimitados", included: true },
-      { label: "Simulador de financiamento", included: true },
-      { label: "Suporte por ticket", included: true },
-    ],
-  },
-  {
-    id: "premium",
-    nome: "Premium",
-    descricao: "Para lojas que precisam de tudo, sem limites",
-    preco_mensal: 149.90,
-    preco_anual_mensal: 127.42,
-    max_usuarios: null,
-    icon: Crown,
-    destaque: true,
-    features: [
-      { label: "Usuários ilimitados", included: true },
-      { label: "Todas as funcionalidades", included: true },
-      { label: "Contratos digitais", included: true },
-      { label: "Suporte prioritário", included: true },
-    ],
-  },
+const PLANS = [
+  { id: "trial", slug: "trial", nome: "Trial", descricao: "Teste grátis", preco_mensal: 0, preco_anual_mensal: 0, max_usuarios: 2, icon: Zap, destaque: false, features: [] },
+  { id: "basico", slug: "basico", nome: "Básico", descricao: "Para lojas pequenas", preco_mensal: 149.9, preco_anual_mensal: 119.9, max_usuarios: 5, icon: Users, destaque: false, features: [] },
+  { id: "premium", slug: "premium", nome: "Premium", descricao: "Para lojas maiores", preco_mensal: 299.9, preco_anual_mensal: 249.9, max_usuarios: null, icon: Crown, destaque: true, features: [] },
 ];
 
-function formatCurrency(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function getUserId() {
+  const raw = localStorage.getItem("sb-bdhfzjuwtkiexyeusnqq-auth-token");
+  if (!raw) return null;
+  try { return JSON.parse(raw)?.user?.id ?? null; } catch { return null; }
 }
 
 type Step = "plan" | "company";

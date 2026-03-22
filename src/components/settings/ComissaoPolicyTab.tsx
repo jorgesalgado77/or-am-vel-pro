@@ -12,10 +12,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useComissaoPolicy, type ComissaoPolicy, type ComissaoFaixa } from "@/hooks/useComissaoPolicy";
 import { useCargos } from "@/hooks/useCargos";
-
-function formatCurrency(val: number) {
-  return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
+import { formatCurrency } from "@/lib/financing";
 
 export function ComissaoPolicyTab() {
   const { policy, refresh, settingsId } = useComissaoPolicy();

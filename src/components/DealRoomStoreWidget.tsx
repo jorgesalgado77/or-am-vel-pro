@@ -5,10 +5,7 @@ import { DollarSign, TrendingUp, Target, Percent, Trophy } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useDealRoom } from "@/hooks/useDealRoom";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
-
-function formatCurrency(val: number) {
-  return `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+import { formatCurrency } from "@/lib/financing";
 
 interface DealRoomStoreWidgetProps {
   tenantId: string;

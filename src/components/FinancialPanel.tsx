@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -11,416 +11,44 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabaseClient";
-import { getTenantId } from "@/lib/tenantState";
 import { toast } from "sonner";
-import { format, addDays, isPast, isAfter, isBefore, eachDayOfInterval, addMonths } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/financing";
 import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2,
-  Save, Pencil, X, Search, RefreshCw, Receipt, Users, Target,
+  Save, Pencil, Search, RefreshCw, Receipt, Users, Target,
   ArrowUpRight, ArrowDownRight, CalendarDays, Bell, CheckCircle2,
   Brain, Sparkles, Loader2, FileDown, Wallet, BarChart3
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, Area, AreaChart, ReferenceLine, Legend
+  PieChart, Pie, Cell, Line, Area, AreaChart, ReferenceLine, Legend
 } from "recharts";
-
-interface FinancialAccount {
-  id: string;
-  name: string;
-  description: string | null;
-  amount: number;
-  due_date: string;
-  status: "pendente" | "pago" | "atrasado";
-  is_fixed: boolean;
-  recurrence_type: string | null;
-  category: string | null;
-  created_at: string;
-}
-
-interface PayrollFixed {
-  id: string;
-  usuario_id: string;
-  usuario_nome: string;
-  salary: number;
-  type: string;
-}
-
-interface PayrollCommission {
-  usuario_id: string;
-  usuario_nome: string;
-  total_comissao: number;
-  total_vendas: number;
-}
-
-const STATUS_MAP = {
-  pendente: { label: "Pendente", color: "bg-amber-500/10 text-amber-700 border-amber-200" },
-  pago: { label: "Pago", color: "bg-green-500/10 text-green-700 border-green-200" },
-  atrasado: { label: "Atrasado", color: "bg-red-500/10 text-red-700 border-red-200" },
-};
-
-const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+import {
+  useFinancialData, STATUS_MAP, CHART_COLORS,
+  type FinancialAccount,
+} from "@/hooks/useFinancialData";
 
 export function FinancialPanel() {
-  const tenantId = getTenantId();
-  const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
-  const [loading, setLoading] = useState(true);
+  const fin = useFinancialData();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  // Form state
   const [form, setForm] = useState({
     name: "", description: "", amount: 0, due_date: format(new Date(), "yyyy-MM-dd"),
     status: "pendente" as "pendente" | "pago" | "atrasado", is_fixed: false, recurrence_type: "", category: ""
   });
 
-  // Payroll data
-  const [payrollFixed, setPayrollFixed] = useState<PayrollFixed[]>([]);
-  const [commissions, setCommissions] = useState<PayrollCommission[]>([]);
-  const [faturamento, setFaturamento] = useState(0);
-
-  // AI Forecast state
-  const [aiAnalysis, setAiAnalysis] = useState<string>("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [forecastCache, setForecastCache] = useState<{ data: any[]; timestamp: number } | null>(null);
-  const [notifications, setNotifications] = useState<{ id: string; message: string; type: string; read: boolean }[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-
-  const fetchData = async () => {
-    if (!tenantId) return;
-    setLoading(true);
-
-    // Fetch financial accounts
-    const { data: accs } = await supabase
-      .from("financial_accounts" as any)
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("due_date", { ascending: true });
-    if (accs) {
-      // Auto-update overdue status
-      const updated = (accs as any[]).map(a => ({
-        ...a,
-        status: a.status === "pendente" && isPast(new Date(a.due_date)) ? "atrasado" : a.status
-      }));
-      setAccounts(updated as FinancialAccount[]);
-    }
-
-    // Fetch payroll fixed salaries
-    const { data: pf } = await supabase
-      .from("payroll_fixed" as any)
-      .select("*, usuarios!inner(nome_completo)")
-      .eq("tenant_id", tenantId);
-    if (pf) {
-      setPayrollFixed((pf as any[]).map(p => ({
-        id: p.id,
-        usuario_id: p.usuario_id,
-        usuario_nome: p.usuarios?.nome_completo || "—",
-        salary: p.salary,
-        type: p.type
-      })));
-    }
-
-    // Fetch commissions from payroll_commissions (current month)
-    const mesRef = format(new Date(), "yyyy-MM");
-    const { data: comms } = await supabase
-      .from("payroll_commissions" as any)
-      .select("usuario_id, valor_comissao, valor_base")
-      .eq("tenant_id", tenantId)
-      .eq("mes_referencia", mesRef);
-    if (comms) {
-      const grouped: Record<string, PayrollCommission> = {};
-      (comms as any[]).forEach(c => {
-        if (!grouped[c.usuario_id]) {
-          grouped[c.usuario_id] = { usuario_id: c.usuario_id, usuario_nome: "", total_comissao: 0, total_vendas: 0 };
-        }
-        grouped[c.usuario_id].total_comissao += c.valor_comissao || 0;
-        grouped[c.usuario_id].total_vendas += c.valor_base || 0;
-      });
-      setCommissions(Object.values(grouped));
-    }
-
-    // Fetch revenue from simulations (current month)
-    const { data: sims } = await supabase
-      .from("simulations" as any)
-      .select("valor_final")
-      .eq("tenant_id", tenantId)
-      .gte("created_at", `${mesRef}-01`);
-    if (sims) {
-      const total = (sims as any[]).reduce((sum, s) => sum + (s.valor_final || 0), 0);
-      setFaturamento(total);
-    }
-
-    // Check for alerts and generate notifications
-    const alertsList: { id: string; message: string; type: string; read: boolean }[] = [];
-    const now = new Date();
-    const limit7d = addDays(now, 7);
-
-    (accs as any[] || []).forEach((a: any) => {
-      if (a.status === "pago") return;
-      const due = new Date(a.due_date);
-      if (isPast(due) && a.status !== "pago") {
-        alertsList.push({ id: `atrasado-${a.id}`, message: `⚠️ "${a.name}" venceu em ${format(due, "dd/MM/yyyy")} — ${formatCurrency(a.amount)}`, type: "atrasado", read: false });
-      } else if (isAfter(due, now) && isBefore(due, limit7d)) {
-        alertsList.push({ id: `vencer-${a.id}`, message: `🔔 "${a.name}" vence em ${format(due, "dd/MM/yyyy")} — ${formatCurrency(a.amount)}`, type: "vencer", read: false });
-      }
-    });
-    setNotifications(alertsList);
-
-    // Show toast alerts for overdue
-    const overdue = alertsList.filter(a => a.type === "atrasado");
-    if (overdue.length > 0) {
-      toast.warning(`Você tem ${overdue.length} conta(s) vencida(s)!`, { duration: 6000 });
-    }
-
-    // Save notifications to DB for persistence (fire and forget)
-    if (alertsList.length > 0 && tenantId) {
-      alertsList.forEach(async (alert) => {
-        await supabase.from("financial_notifications" as any).upsert({
-          id: alert.id,
-          tenant_id: tenantId,
-          message: alert.message,
-          type: alert.type,
-          read: false,
-        } as any, { onConflict: "id" }).then(() => {});
-      });
-    }
-
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchData(); }, [tenantId]);
-
-  // === CALCULATIONS ===
-  const totalContasPagar = useMemo(() =>
-    accounts.filter(a => a.status !== "pago").reduce((sum, a) => sum + a.amount, 0), [accounts]);
-
-  const contasVencidas = useMemo(() =>
-    accounts.filter(a => a.status === "atrasado"), [accounts]);
-
-  const contasAVencer7d = useMemo(() =>
-    accounts.filter(a => {
-      if (a.status === "pago") return false;
-      const due = new Date(a.due_date);
-      const limit = addDays(new Date(), 7);
-      return isAfter(due, new Date()) && isBefore(due, limit);
-    }), [accounts]);
-
-  const contasFixas = useMemo(() =>
-    accounts.filter(a => a.is_fixed).reduce((sum, a) => sum + a.amount, 0), [accounts]);
-
-  const totalSalarios = useMemo(() =>
-    payrollFixed.reduce((sum, p) => sum + p.salary, 0), [payrollFixed]);
-
-  const totalComissoes = useMemo(() =>
-    commissions.reduce((sum, c) => sum + c.total_comissao, 0), [commissions]);
-
-  const totalFolha = totalSalarios + totalComissoes;
-  const breakEven = contasFixas + totalFolha;
-  const lucroEstimado = faturamento - breakEven;
-
-  // Chart data
-  const categoryData = useMemo(() => {
-    const cats: Record<string, number> = {};
-    accounts.forEach(a => {
-      const cat = a.category || "Outros";
-      cats[cat] = (cats[cat] || 0) + a.amount;
-    });
-    return Object.entries(cats).map(([name, value]) => ({ name, value }));
-  }, [accounts]);
-
-  // === CASH FLOW FORECAST ===
-  const forecastData = useMemo(() => {
-    if (forecastCache && Date.now() - forecastCache.timestamp < 300000) return forecastCache.data;
-
-    const today = new Date();
-    const days = eachDayOfInterval({ start: today, end: addDays(today, 30) });
-    let saldoAcumulado = faturamento - totalContasPagar;
-
-    const dailyRevenue = faturamento / 30;
-    const dailyCosts = (contasFixas + totalFolha) / 30;
-
-    const data = days.map(day => {
-      const dayStr = format(day, "yyyy-MM-dd");
-      const dayAccounts = accounts.filter(a => a.due_date === dayStr && a.status !== "pago");
-      const dayCost = dayAccounts.reduce((sum, a) => sum + a.amount, 0) || dailyCosts;
-      
-      saldoAcumulado += dailyRevenue - dayCost;
-      
-      return {
-        dia: format(day, "dd/MM"),
-        entradas: Math.round(dailyRevenue),
-        saidas: Math.round(dayCost),
-        saldo: Math.round(saldoAcumulado),
-      };
-    });
-
-    setForecastCache({ data, timestamp: Date.now() });
-    return data;
-  }, [accounts, faturamento, contasFixas, totalFolha, totalContasPagar]);
-
-  const saldoFinal30d = forecastData.length > 0 ? forecastData[forecastData.length - 1].saldo : 0;
-  const diasNegativo = forecastData.filter(d => d.saldo < 0).length;
-
-  const handleAIAnalysis = useCallback(async () => {
-    setAiLoading(true);
-    try {
-      const resumo = `
-Faturamento mensal: ${formatCurrency(faturamento)}
-Custos fixos: ${formatCurrency(contasFixas)}
-Folha total: ${formatCurrency(totalFolha)}
-Ponto de equilíbrio: ${formatCurrency(breakEven)}
-Resultado atual: ${formatCurrency(lucroEstimado)}
-Contas vencidas: ${contasVencidas.length}
-Contas a vencer (7 dias): ${contasAVencer7d.length}
-Total a pagar: ${formatCurrency(totalContasPagar)}
-Saldo projetado 30 dias: ${formatCurrency(saldoFinal30d)}
-Dias com saldo negativo projetado: ${diasNegativo}
-Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.value)}`).join(", ")}
-      `.trim();
-
-      const { data, error } = await supabase.functions.invoke("cashflow-ai", {
-        body: { resumo_financeiro: resumo },
-      });
-      if (error) throw error;
-      setAiAnalysis(data.analise || "Sem análise disponível.");
-    } catch (err: any) {
-      console.error("AI analysis error:", err);
-      toast.error("Erro ao gerar análise de IA");
-    } finally {
-      setAiLoading(false);
-    }
-  }, [faturamento, contasFixas, totalFolha, breakEven, lucroEstimado, contasVencidas, contasAVencer7d, totalContasPagar, saldoFinal30d, diasNegativo, categoryData]);
-
-  // === PDF EXPORT ===
-  const handleExportPDF = useCallback(async () => {
-    setPdfLoading(true);
-    try {
-      const { default: jsPDF } = await import("jspdf");
-      const doc = new jsPDF();
-      const mesRefLabel = format(new Date(), "MMMM yyyy", { locale: ptBR });
-      
-      doc.setFontSize(18);
-      doc.text("Relatório Financeiro Mensal", 14, 22);
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text(`Período: ${mesRefLabel}`, 14, 30);
-      doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 36);
-
-      doc.setFontSize(13);
-      doc.setTextColor(0);
-      doc.text("Resumo Financeiro", 14, 48);
-      doc.setFontSize(10);
-      const kpis = [
-        `Faturamento: ${formatCurrency(faturamento)}`,
-        `Total a Pagar: ${formatCurrency(totalContasPagar)}`,
-        `Contas Vencidas: ${contasVencidas.length}`,
-        `Custos Fixos: ${formatCurrency(contasFixas)}`,
-        `Folha Total: ${formatCurrency(totalFolha)}`,
-        `Ponto de Equilíbrio: ${formatCurrency(breakEven)}`,
-        `Resultado: ${formatCurrency(lucroEstimado)} (${lucroEstimado >= 0 ? "LUCRO" : "PREJUÍZO"})`,
-        `Saldo Projetado 30d: ${formatCurrency(saldoFinal30d)}`,
-      ];
-      kpis.forEach((line, i) => doc.text(line, 14, 56 + i * 7));
-
-      let y = 56 + kpis.length * 7 + 10;
-      doc.setFontSize(13);
-      doc.text("Contas a Pagar", 14, y);
-      y += 8;
-      doc.setFontSize(9);
-      doc.setTextColor(80);
-      doc.text("Conta", 14, y);
-      doc.text("Valor", 90, y);
-      doc.text("Vencimento", 130, y);
-      doc.text("Status", 170, y);
-      y += 6;
-      doc.setTextColor(0);
-      accounts.slice(0, 25).forEach(acc => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.text(acc.name.slice(0, 30), 14, y);
-        doc.text(formatCurrency(acc.amount), 90, y);
-        doc.text(format(new Date(acc.due_date), "dd/MM/yyyy"), 130, y);
-        doc.text(acc.status, 170, y);
-        y += 6;
-      });
-
-      if (payrollFixed.length > 0) {
-        y += 8;
-        if (y > 250) { doc.addPage(); y = 20; }
-        doc.setFontSize(13);
-        doc.text("Folha de Pagamento", 14, y);
-        y += 8;
-        doc.setFontSize(9);
-        payrollFixed.forEach(pf => {
-          if (y > 270) { doc.addPage(); y = 20; }
-          const comm = commissions.find(c => c.usuario_id === pf.usuario_id);
-          doc.text(`${pf.usuario_nome} - Sal: ${formatCurrency(pf.salary)} | Com: ${formatCurrency(comm?.total_comissao || 0)} | Total: ${formatCurrency(pf.salary + (comm?.total_comissao || 0))}`, 14, y);
-          y += 6;
-        });
-      }
-
-      doc.save(`relatorio-financeiro-${format(new Date(), "yyyy-MM")}.pdf`);
-      toast.success("Relatório PDF gerado com sucesso!");
-    } catch (err) {
-      console.error("PDF export error:", err);
-      toast.error("Erro ao gerar PDF");
-    } finally {
-      setPdfLoading(false);
-    }
-  }, [accounts, payrollFixed, commissions, faturamento, totalContasPagar, contasVencidas, contasFixas, totalFolha, breakEven, lucroEstimado, saldoFinal30d]);
-
-  // CRUD
-  const handleSave = async () => {
-    if (!form.name.trim() || form.amount <= 0) {
-      toast.error("Nome e valor são obrigatórios");
-      return;
-    }
-    const payload = {
-      tenant_id: tenantId,
-      name: form.name.trim(),
-      description: form.description || null,
-      amount: form.amount,
-      due_date: form.due_date,
-      status: form.status,
-      is_fixed: form.is_fixed,
-      recurrence_type: form.recurrence_type || null,
-      category: form.category || null,
-    };
-
-    if (editing) {
-      const { error } = await supabase.from("financial_accounts" as any).update(payload as any).eq("id", editing);
-      if (error) toast.error("Erro ao atualizar");
-      else { toast.success("Conta atualizada!"); setEditing(null); }
-    } else {
-      const { error } = await supabase.from("financial_accounts" as any).insert(payload as any);
-      if (error) toast.error("Erro ao criar conta");
-      else toast.success("Conta adicionada!");
-    }
-    resetForm();
-    setShowAddDialog(false);
-    fetchData();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Excluir esta conta?")) return;
-    await supabase.from("financial_accounts" as any).delete().eq("id", id);
-    toast.success("Conta excluída");
-    fetchData();
-  };
-
-  const handleMarkPaid = async (id: string) => {
-    await supabase.from("financial_accounts" as any).update({ status: "pago" } as any).eq("id", id);
-    toast.success("Conta marcada como paga!");
-    fetchData();
-  };
-
   const resetForm = () => setForm({
     name: "", description: "", amount: 0, due_date: format(new Date(), "yyyy-MM-dd"),
-    status: "pendente" as "pendente" | "pago" | "atrasado", is_fixed: false, recurrence_type: "", category: ""
+    status: "pendente", is_fixed: false, recurrence_type: "", category: ""
   });
 
   const startEdit = (acc: FinancialAccount) => {
@@ -433,13 +61,96 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
     setShowAddDialog(true);
   };
 
-  const filtered = accounts.filter(a => {
+  const handleSave = async () => {
+    if (!form.name.trim() || form.amount <= 0) { toast.error("Nome e valor são obrigatórios"); return; }
+    const payload = {
+      tenant_id: fin.tenantId, name: form.name.trim(), description: form.description || null,
+      amount: form.amount, due_date: form.due_date, status: form.status,
+      is_fixed: form.is_fixed, recurrence_type: form.recurrence_type || null, category: form.category || null,
+    };
+    if (editing) {
+      const { error } = await supabase.from("financial_accounts" as any).update(payload as any).eq("id", editing);
+      if (error) toast.error("Erro ao atualizar"); else { toast.success("Conta atualizada!"); setEditing(null); }
+    } else {
+      const { error } = await supabase.from("financial_accounts" as any).insert(payload as any);
+      if (error) toast.error("Erro ao criar conta"); else toast.success("Conta adicionada!");
+    }
+    resetForm(); setShowAddDialog(false); fin.fetchData();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Excluir esta conta?")) return;
+    await supabase.from("financial_accounts" as any).delete().eq("id", id);
+    toast.success("Conta excluída"); fin.fetchData();
+  };
+
+  const handleMarkPaid = async (id: string) => {
+    await supabase.from("financial_accounts" as any).update({ status: "pago" } as any).eq("id", id);
+    toast.success("Conta marcada como paga!"); fin.fetchData();
+  };
+
+  const handleAIAnalysis = useCallback(async () => {
+    setAiLoading(true);
+    try {
+      const resumo = `Faturamento: ${formatCurrency(fin.faturamento)}\nCustos fixos: ${formatCurrency(fin.contasFixas)}\nFolha: ${formatCurrency(fin.totalFolha)}\nPonto equilíbrio: ${formatCurrency(fin.breakEven)}\nResultado: ${formatCurrency(fin.lucroEstimado)}\nVencidas: ${fin.contasVencidas.length}\nA vencer 7d: ${fin.contasAVencer7d.length}\nSaldo 30d: ${formatCurrency(fin.saldoFinal30d)}\nDias negativo: ${fin.diasNegativo}`;
+      const { data, error } = await supabase.functions.invoke("cashflow-ai", { body: { resumo_financeiro: resumo } });
+      if (error) throw error;
+      setAiAnalysis(data.analise || "Sem análise disponível.");
+    } catch { toast.error("Erro ao gerar análise de IA"); } finally { setAiLoading(false); }
+  }, [fin]);
+
+  const handleExportPDF = useCallback(async () => {
+    setPdfLoading(true);
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      const mesRefLabel = format(new Date(), "MMMM yyyy", { locale: ptBR });
+      doc.setFontSize(18); doc.text("Relatório Financeiro Mensal", 14, 22);
+      doc.setFontSize(10); doc.setTextColor(100);
+      doc.text(`Período: ${mesRefLabel}`, 14, 30);
+      doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 36);
+      doc.setFontSize(13); doc.setTextColor(0); doc.text("Resumo Financeiro", 14, 48);
+      doc.setFontSize(10);
+      const kpis = [
+        `Faturamento: ${formatCurrency(fin.faturamento)}`, `Total a Pagar: ${formatCurrency(fin.totalContasPagar)}`,
+        `Contas Vencidas: ${fin.contasVencidas.length}`, `Custos Fixos: ${formatCurrency(fin.contasFixas)}`,
+        `Folha Total: ${formatCurrency(fin.totalFolha)}`, `Ponto de Equilíbrio: ${formatCurrency(fin.breakEven)}`,
+        `Resultado: ${formatCurrency(fin.lucroEstimado)} (${fin.lucroEstimado >= 0 ? "LUCRO" : "PREJUÍZO"})`,
+        `Saldo Projetado 30d: ${formatCurrency(fin.saldoFinal30d)}`,
+      ];
+      kpis.forEach((line, i) => doc.text(line, 14, 56 + i * 7));
+      let y = 56 + kpis.length * 7 + 10;
+      doc.setFontSize(13); doc.text("Contas a Pagar", 14, y); y += 8;
+      doc.setFontSize(9); doc.setTextColor(80);
+      doc.text("Conta", 14, y); doc.text("Valor", 90, y); doc.text("Vencimento", 130, y); doc.text("Status", 170, y);
+      y += 6; doc.setTextColor(0);
+      fin.accounts.slice(0, 25).forEach(acc => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.text(acc.name.slice(0, 30), 14, y); doc.text(formatCurrency(acc.amount), 90, y);
+        doc.text(format(new Date(acc.due_date), "dd/MM/yyyy"), 130, y); doc.text(acc.status, 170, y); y += 6;
+      });
+      if (fin.payrollFixed.length > 0) {
+        y += 8; if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFontSize(13); doc.text("Folha de Pagamento", 14, y); y += 8; doc.setFontSize(9);
+        fin.payrollFixed.forEach(pf => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          const comm = fin.commissions.find(c => c.usuario_id === pf.usuario_id);
+          doc.text(`${pf.usuario_nome} - Sal: ${formatCurrency(pf.salary)} | Com: ${formatCurrency(comm?.total_comissao || 0)} | Total: ${formatCurrency(pf.salary + (comm?.total_comissao || 0))}`, 14, y);
+          y += 6;
+        });
+      }
+      doc.save(`relatorio-financeiro-${format(new Date(), "yyyy-MM")}.pdf`);
+      toast.success("Relatório PDF gerado com sucesso!");
+    } catch { toast.error("Erro ao gerar PDF"); } finally { setPdfLoading(false); }
+  }, [fin]);
+
+  const filtered = fin.accounts.filter(a => {
     if (filterStatus !== "todos" && a.status !== filterStatus) return false;
     if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  if (loading) {
+  if (fin.loading) {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -455,21 +166,20 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
         <div className="flex items-center gap-2">
           <div className="relative">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowNotifications(!showNotifications)}>
-              <Bell className="h-3.5 w-3.5" />
-              Alertas
-              {notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
-                  {notifications.filter(n => !n.read).length}
+              <Bell className="h-3.5 w-3.5" /> Alertas
+              {fin.notifications.filter(n => !n.read).length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-destructive-foreground flex items-center justify-center">
+                  {fin.notifications.filter(n => !n.read).length}
                 </span>
               )}
             </Button>
             {showNotifications && (
               <div className="absolute right-0 top-full mt-1 w-80 bg-card border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
                 <div className="p-3 border-b font-semibold text-sm">Notificações Financeiras</div>
-                {notifications.length === 0 ? (
+                {fin.notifications.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">Nenhum alerta no momento ✅</div>
-                ) : notifications.map(n => (
-                  <div key={n.id} className={`p-3 border-b text-sm ${n.type === "atrasado" ? "bg-red-50 dark:bg-red-950/20" : "bg-amber-50 dark:bg-amber-950/20"}`}>
+                ) : fin.notifications.map(n => (
+                  <div key={n.id} className={`p-3 border-b text-sm ${n.type === "atrasado" ? "bg-destructive/5" : "bg-accent/30"}`}>
                     {n.message}
                   </div>
                 ))}
@@ -487,47 +197,47 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-red-600" />
+            <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <p className="text-lg font-bold">{formatCurrency(totalContasPagar)}</p>
+              <p className="text-lg font-bold">{formatCurrency(fin.totalContasPagar)}</p>
               <p className="text-xs text-muted-foreground">Total a Pagar</p>
             </div>
           </div>
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-accent-foreground" />
             </div>
             <div>
-              <p className="text-lg font-bold text-red-600">{contasVencidas.length}</p>
+              <p className="text-lg font-bold text-destructive">{fin.contasVencidas.length}</p>
               <p className="text-xs text-muted-foreground">Contas Vencidas</p>
             </div>
           </div>
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <CalendarDays className="h-5 w-5 text-blue-600" />
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <CalendarDays className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-lg font-bold">{contasAVencer7d.length}</p>
+              <p className="text-lg font-bold">{fin.contasAVencer7d.length}</p>
               <p className="text-xs text-muted-foreground">Vencem em 7 dias</p>
             </div>
           </div>
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${lucroEstimado >= 0 ? "bg-green-500/10" : "bg-red-500/10"}`}>
-              {lucroEstimado >= 0 ? <TrendingUp className="h-5 w-5 text-green-600" /> : <TrendingDown className="h-5 w-5 text-red-600" />}
+            <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${fin.lucroEstimado >= 0 ? "bg-primary/10" : "bg-destructive/10"}`}>
+              {fin.lucroEstimado >= 0 ? <TrendingUp className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
             </div>
             <div>
-              <p className={`text-lg font-bold ${lucroEstimado >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {formatCurrency(Math.abs(lucroEstimado))}
+              <p className={`text-lg font-bold ${fin.lucroEstimado >= 0 ? "text-primary" : "text-destructive"}`}>
+                {formatCurrency(Math.abs(fin.lucroEstimado))}
               </p>
-              <p className="text-xs text-muted-foreground">{lucroEstimado >= 0 ? "Lucro Estimado" : "Prejuízo Estimado"}</p>
+              <p className="text-xs text-muted-foreground">{fin.lucroEstimado >= 0 ? "Lucro Estimado" : "Prejuízo Estimado"}</p>
             </div>
           </div>
         </Card>
@@ -539,32 +249,30 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 items-center">
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-1">Custos Fixos</p>
-              <p className="font-bold text-sm">{formatCurrency(contasFixas)}</p>
+              <p className="font-bold text-sm">{formatCurrency(fin.contasFixas)}</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-1">Folha Total</p>
-              <p className="font-bold text-sm">{formatCurrency(totalFolha)}</p>
+              <p className="font-bold text-sm">{formatCurrency(fin.totalFolha)}</p>
             </div>
             <div className="text-center">
               <Target className="h-5 w-5 mx-auto text-primary mb-1" />
               <p className="text-xs text-muted-foreground mb-1">Ponto de Equilíbrio</p>
-              <p className="font-bold text-primary">{formatCurrency(breakEven)}</p>
+              <p className="font-bold text-primary">{formatCurrency(fin.breakEven)}</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-1">Faturamento Atual</p>
-              <p className="font-bold text-sm">{formatCurrency(faturamento)}</p>
+              <p className="font-bold text-sm">{formatCurrency(fin.faturamento)}</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-1">Resultado</p>
-              <p className={`font-bold text-sm ${lucroEstimado >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {lucroEstimado >= 0 ? "+" : ""}{formatCurrency(lucroEstimado)}
+              <p className={`font-bold text-sm ${fin.lucroEstimado >= 0 ? "text-primary" : "text-destructive"}`}>
+                {fin.lucroEstimado >= 0 ? "+" : ""}{formatCurrency(fin.lucroEstimado)}
               </p>
-              {faturamento > 0 && (
+              {fin.faturamento > 0 && (
                 <div className="mt-1 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${lucroEstimado >= 0 ? "bg-green-500" : "bg-red-500"}`}
-                    style={{ width: `${Math.min((faturamento / (breakEven || 1)) * 100, 100)}%` }}
-                  />
+                  <div className={`h-full rounded-full transition-all ${fin.lucroEstimado >= 0 ? "bg-primary" : "bg-destructive"}`}
+                    style={{ width: `${Math.min((fin.faturamento / (fin.breakEven || 1)) * 100, 100)}%` }} />
                 </div>
               )}
             </div>
@@ -575,20 +283,16 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
       <Tabs defaultValue="contas">
         <TabsList className="flex-wrap gap-1 bg-muted/50 p-1">
           <TabsTrigger value="contas" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive data-[state=active]:shadow-sm gap-1.5">
-            <Wallet className="h-4 w-4" />
-            Contas a Pagar
+            <Wallet className="h-4 w-4" /> Contas a Pagar
           </TabsTrigger>
           <TabsTrigger value="folha" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm gap-1.5">
-            <Users className="h-4 w-4" />
-            Folha de Pagamento
+            <Users className="h-4 w-4" /> Folha de Pagamento
           </TabsTrigger>
-          <TabsTrigger value="previsao" className="data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-700 data-[state=active]:shadow-sm gap-1.5">
-            <BarChart3 className="h-4 w-4" />
-            Previsão de Caixa
+          <TabsTrigger value="previsao" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-sm gap-1.5">
+            <BarChart3 className="h-4 w-4" /> Previsão de Caixa
           </TabsTrigger>
-          <TabsTrigger value="analise" className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm gap-1.5">
-            <Brain className="h-4 w-4" />
-            Análise
+          <TabsTrigger value="analise" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm gap-1.5">
+            <Brain className="h-4 w-4" /> Análise
           </TabsTrigger>
         </TabsList>
 
@@ -608,7 +312,7 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
                 <SelectItem value="atrasado">Atrasado</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={fin.fetchData} className="gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" /> Atualizar
             </Button>
             <Button size="sm" onClick={() => { resetForm(); setEditing(null); setShowAddDialog(true); }} className="gap-1.5">
@@ -648,23 +352,17 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
                         </TableCell>
                         <TableCell><span className="text-sm">{acc.category || "—"}</span></TableCell>
                         <TableCell className="text-right font-medium tabular-nums">{formatCurrency(acc.amount)}</TableCell>
-                        <TableCell className="text-sm tabular-nums">
-                          {format(new Date(acc.due_date), "dd/MM/yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={st.color}>{st.label}</Badge>
-                        </TableCell>
+                        <TableCell className="text-sm tabular-nums">{format(new Date(acc.due_date), "dd/MM/yyyy")}</TableCell>
+                        <TableCell><Badge variant="outline" className={st.color}>{st.label}</Badge></TableCell>
                         <TableCell>
                           {acc.is_fixed ? (
                             <Badge variant="secondary" className="text-[10px]">Fixo • {acc.recurrence_type || "mensal"}</Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Variável</span>
-                          )}
+                          ) : <span className="text-xs text-muted-foreground">Variável</span>}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             {acc.status !== "pago" && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={() => handleMarkPaid(acc.id)} title="Marcar como pago">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => handleMarkPaid(acc.id)} title="Marcar como pago">
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                               </Button>
                             )}
@@ -690,22 +388,22 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <Card className="p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-blue-600" />
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold">{formatCurrency(totalSalarios)}</p>
+                  <p className="text-lg font-bold">{formatCurrency(fin.totalSalarios)}</p>
                   <p className="text-xs text-muted-foreground">Salários Fixos</p>
                 </div>
               </div>
             </Card>
             <Card className="p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold">{formatCurrency(totalComissoes)}</p>
+                  <p className="text-lg font-bold">{formatCurrency(fin.totalComissoes)}</p>
                   <p className="text-xs text-muted-foreground">Comissões do Mês</p>
                 </div>
               </div>
@@ -716,7 +414,7 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold">{formatCurrency(totalFolha)}</p>
+                  <p className="text-lg font-bold">{formatCurrency(fin.totalFolha)}</p>
                   <p className="text-xs text-muted-foreground">Total Folha</p>
                 </div>
               </div>
@@ -739,21 +437,21 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payrollFixed.length === 0 ? (
+                  {fin.payrollFixed.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
                         Nenhum salário fixo cadastrado. Use Configurações para adicionar.
                       </TableCell>
                     </TableRow>
-                  ) : payrollFixed.map(pf => {
-                    const comm = commissions.find(c => c.usuario_id === pf.usuario_id);
+                  ) : fin.payrollFixed.map(pf => {
+                    const comm = fin.commissions.find(c => c.usuario_id === pf.usuario_id);
                     const commVal = comm?.total_comissao || 0;
                     return (
                       <TableRow key={pf.id}>
                         <TableCell className="font-medium">{pf.usuario_nome}</TableCell>
                         <TableCell><Badge variant="secondary" className="text-[10px]">{pf.type}</Badge></TableCell>
                         <TableCell className="text-right tabular-nums">{formatCurrency(pf.salary)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-green-600">{formatCurrency(commVal)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-primary">{formatCurrency(commVal)}</TableCell>
                         <TableCell className="text-right font-bold tabular-nums">{formatCurrency(pf.salary + commVal)}</TableCell>
                       </TableRow>
                     );
@@ -763,70 +461,68 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
             </CardContent>
           </Card>
         </TabsContent>
+
         {/* === PREVISÃO DE CAIXA === */}
         <TabsContent value="previsao" className="mt-4 space-y-4">
-          {/* KPI row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Card className="p-4">
               <div className="flex items-center gap-3">
-                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${saldoFinal30d >= 0 ? "bg-green-500/10" : "bg-red-500/10"}`}>
-                  {saldoFinal30d >= 0 ? <TrendingUp className="h-5 w-5 text-green-600" /> : <TrendingDown className="h-5 w-5 text-red-600" />}
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${fin.saldoFinal30d >= 0 ? "bg-primary/10" : "bg-destructive/10"}`}>
+                  {fin.saldoFinal30d >= 0 ? <TrendingUp className="h-5 w-5 text-primary" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
                 </div>
                 <div>
-                  <p className={`text-lg font-bold ${saldoFinal30d >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(saldoFinal30d)}</p>
+                  <p className={`text-lg font-bold ${fin.saldoFinal30d >= 0 ? "text-primary" : "text-destructive"}`}>{formatCurrency(fin.saldoFinal30d)}</p>
                   <p className="text-xs text-muted-foreground">Saldo em 30 dias</p>
                 </div>
               </div>
             </Card>
             <Card className="p-4">
               <div className="flex items-center gap-3">
-                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${diasNegativo > 0 ? "bg-red-500/10" : "bg-green-500/10"}`}>
-                  <AlertTriangle className={`h-5 w-5 ${diasNegativo > 0 ? "text-red-600" : "text-green-600"}`} />
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${fin.diasNegativo > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
+                  <AlertTriangle className={`h-5 w-5 ${fin.diasNegativo > 0 ? "text-destructive" : "text-primary"}`} />
                 </div>
                 <div>
-                  <p className={`text-lg font-bold ${diasNegativo > 0 ? "text-red-600" : "text-green-600"}`}>{diasNegativo}</p>
+                  <p className={`text-lg font-bold ${fin.diasNegativo > 0 ? "text-destructive" : "text-primary"}`}>{fin.diasNegativo}</p>
                   <p className="text-xs text-muted-foreground">Dias no Vermelho</p>
                 </div>
               </div>
             </Card>
             <Card className="p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <ArrowUpRight className="h-5 w-5 text-blue-600" />
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <ArrowUpRight className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold">{formatCurrency(faturamento / 30)}</p>
+                  <p className="text-lg font-bold">{formatCurrency(fin.faturamento / 30)}</p>
                   <p className="text-xs text-muted-foreground">Entrada Diária Média</p>
                 </div>
               </div>
             </Card>
             <Card className="p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <ArrowDownRight className="h-5 w-5 text-amber-600" />
+                <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center">
+                  <ArrowDownRight className="h-5 w-5 text-accent-foreground" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold">{formatCurrency((contasFixas + totalFolha) / 30)}</p>
+                  <p className="text-lg font-bold">{formatCurrency((fin.contasFixas + fin.totalFolha) / 30)}</p>
                   <p className="text-xs text-muted-foreground">Saída Diária Média</p>
                 </div>
               </div>
             </Card>
           </div>
 
-          {/* Alert banner */}
-          {diasNegativo > 0 && (
-            <Card className="border-red-300 bg-red-50 dark:bg-red-950/30">
+          {fin.diasNegativo > 0 && (
+            <Card className="border-destructive/30 bg-destructive/5">
               <CardContent className="p-4 flex items-center gap-3">
-                <Bell className="h-5 w-5 text-red-600 animate-pulse" />
+                <Bell className="h-5 w-5 text-destructive animate-pulse" />
                 <div>
-                  <p className="font-semibold text-red-800 dark:text-red-300 text-sm">⚠️ Alerta de Caixa Negativo</p>
-                  <p className="text-xs text-red-600/80">Seu saldo ficará negativo em {diasNegativo} dos próximos 30 dias. Revise suas contas ou aumente o faturamento.</p>
+                  <p className="font-semibold text-destructive text-sm">⚠️ Alerta de Caixa Negativo</p>
+                  <p className="text-xs text-muted-foreground">Seu saldo ficará negativo em {fin.diasNegativo} dos próximos 30 dias.</p>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Forecast chart */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Previsão de Saldo — Próximos 30 Dias</CardTitle>
@@ -835,7 +531,7 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
             <CardContent>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={forecastData}>
+                  <AreaChart data={fin.forecastData}>
                     <defs>
                       <linearGradient id="saldoGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -847,17 +543,16 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
                     <YAxis tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
                     <Tooltip formatter={(v: number) => formatCurrency(v)} />
                     <Legend />
-                    <ReferenceLine y={0} stroke="hsl(0, 70%, 50%)" strokeDasharray="3 3" label="Zero" />
+                    <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="3 3" label="Zero" />
                     <Area type="monotone" dataKey="saldo" name="Saldo Projetado" stroke="hsl(var(--primary))" fill="url(#saldoGrad)" strokeWidth={2} />
-                    <Line type="monotone" dataKey="entradas" name="Entradas" stroke="hsl(142, 71%, 45%)" strokeWidth={1.5} dot={false} />
-                    <Line type="monotone" dataKey="saidas" name="Saídas" stroke="hsl(0, 70%, 50%)" strokeWidth={1.5} dot={false} />
+                    <Line type="monotone" dataKey="entradas" name="Entradas" stroke="hsl(var(--chart-2))" strokeWidth={1.5} dot={false} />
+                    <Line type="monotone" dataKey="saidas" name="Saídas" stroke="hsl(var(--destructive))" strokeWidth={1.5} dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
-          {/* AI Analysis */}
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -874,9 +569,7 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
             </CardHeader>
             <CardContent>
               {aiAnalysis ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert text-sm whitespace-pre-wrap leading-relaxed">
-                  {aiAnalysis}
-                </div>
+                <div className="prose prose-sm max-w-none dark:prose-invert text-sm whitespace-pre-wrap leading-relaxed">{aiAnalysis}</div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Brain className="h-10 w-10 mx-auto mb-3 opacity-20" />
@@ -891,19 +584,17 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
         <TabsContent value="analise" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Despesas por Categoria</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Despesas por Categoria</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-56">
-                  {categoryData.length === 0 ? (
+                  {fin.categoryData.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Sem dados</div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={categoryData} cx="50%" cy="50%" outerRadius={80} dataKey="value"
+                        <Pie data={fin.categoryData} cx="50%" cy="50%" outerRadius={80} dataKey="value"
                           label={({ name, value }) => `${name}: ${formatCurrency(value)}`}>
-                          {categoryData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                          {fin.categoryData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                         </Pie>
                         <Tooltip formatter={(v: number) => formatCurrency(v)} />
                       </PieChart>
@@ -914,17 +605,15 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Composição dos Custos</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Composição dos Custos</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3 pt-2">
                   {[
-                    { label: "Contas Fixas", value: contasFixas, color: "bg-primary" },
-                    { label: "Salários", value: totalSalarios, color: "bg-blue-500" },
-                    { label: "Comissões", value: totalComissoes, color: "bg-green-500" },
+                    { label: "Contas Fixas", value: fin.contasFixas, color: "bg-primary" },
+                    { label: "Salários", value: fin.totalSalarios, color: "bg-chart-2" },
+                    { label: "Comissões", value: fin.totalComissoes, color: "bg-chart-3" },
                   ].map(item => {
-                    const pct = breakEven > 0 ? (item.value / breakEven) * 100 : 0;
+                    const pct = fin.breakEven > 0 ? (item.value / fin.breakEven) * 100 : 0;
                     return (
                       <div key={item.label}>
                         <div className="flex justify-between text-sm mb-1">
@@ -940,14 +629,13 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
                   <Separator className="my-3" />
                   <div className="flex justify-between font-bold text-sm">
                     <span>Total (Ponto de Equilíbrio)</span>
-                    <span className="text-primary">{formatCurrency(breakEven)}</span>
+                    <span className="text-primary">{formatCurrency(fin.breakEven)}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Revenue vs Expenses */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Faturamento vs Custos</CardTitle>
@@ -957,10 +645,10 @@ Categorias de despesa: ${categoryData.map(c => `${c.name}: ${formatCurrency(c.va
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[
-                    { name: "Faturamento", valor: faturamento },
-                    { name: "Custos Fixos", valor: contasFixas },
-                    { name: "Folha", valor: totalFolha },
-                    { name: "Ponto Equilíbrio", valor: breakEven },
+                    { name: "Faturamento", valor: fin.faturamento },
+                    { name: "Custos Fixos", valor: fin.contasFixas },
+                    { name: "Folha", valor: fin.totalFolha },
+                    { name: "Ponto Equilíbrio", valor: fin.breakEven },
                   ]}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />

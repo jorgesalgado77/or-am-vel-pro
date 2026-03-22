@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Check, X, Crown, Users, ArrowLeft, Zap, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -14,12 +15,13 @@ interface PlanFromDB {
   id: string;
   slug: string;
   nome: string;
-  descricao: string;
+  descricao: string | null;
   preco_mensal: number;
   preco_anual_mensal: number;
-  max_usuarios: number;
-  destaque: boolean;
-  features_display: { label: string; included: boolean }[];
+  max_usuarios: number | null;
+  ativo?: boolean;
+  destaque?: boolean;
+  features_display?: { label: string; included: boolean }[];
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -27,10 +29,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   basico: Users,
   premium: Crown,
 };
-
-function formatCurrency(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 export default function RenewPlan() {
   const navigate = useNavigate();
