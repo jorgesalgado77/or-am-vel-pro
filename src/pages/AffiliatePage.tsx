@@ -15,7 +15,7 @@ import {
   Gift, Link2, Copy, CheckCircle2, Users, TrendingUp, DollarSign,
   Share2, ArrowLeft, Loader2, MessageCircle, Eye, EyeOff
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 function generateAffiliateCode(): string {
