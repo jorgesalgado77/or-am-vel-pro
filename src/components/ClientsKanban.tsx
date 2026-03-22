@@ -462,12 +462,33 @@ export function ClientsKanban({
             {KANBAN_COLUMNS.map(col => (
               <div key={col.id} className="flex flex-col min-w-[220px] w-[220px] md:min-w-[240px] md:w-[240px] shrink-0">
                 {/* Column header */}
-                <div className="flex items-center gap-2 mb-2 px-1">
-                  <span className="text-base">{col.icon}</span>
-                  <span className="text-sm font-semibold text-foreground">{col.label}</span>
-                  <Badge variant="outline" className="ml-auto text-[10px] h-5 px-1.5">
-                    {columnData[col.id]?.length || 0}
-                  </Badge>
+                <div className="flex flex-col gap-1 mb-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{col.icon}</span>
+                    <span className="text-sm font-semibold text-foreground">{col.label}</span>
+                    <Badge variant="outline" className="ml-auto text-[10px] h-5 px-1.5">
+                      {columnData[col.id]?.length || 0}
+                    </Badge>
+                  </div>
+                  {col.id === "novo" && (columnData["novo"]?.length || 0) > 0 && (
+                    <div className="flex items-center gap-1.5 pl-7">
+                      {(() => {
+                        const novos = columnData["novo"] || [];
+                        const recentes = novos.filter(c => !(c as any).origem_lead || (c as any).origem_lead === "manual").length;
+                        const leads = novos.length - recentes;
+                        return (
+                          <>
+                            <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-emerald-500/30 text-emerald-600 gap-0.5">
+                              <UserPlus className="h-2.5 w-2.5" />{recentes}
+                            </Badge>
+                            <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/30 text-primary gap-0.5">
+                              <ArrowRight className="h-2.5 w-2.5" />{leads}
+                            </Badge>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <div
                   className="rounded-lg border border-border/60 bg-muted/20 p-1.5 flex-1 min-h-[200px]"
