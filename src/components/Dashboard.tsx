@@ -866,12 +866,12 @@ function ContractTrackingList() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Novo Contrato Fechado</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Nº Contrato *</Label><Input value={form.numero_contrato} onChange={(e) => setForm({ ...form, numero_contrato: e.target.value })} className="mt-1" /></div>
               <div><Label>CPF/CNPJ</Label><Input value={form.cpf_cnpj} onChange={(e) => setForm({ ...form, cpf_cnpj: e.target.value })} className="mt-1" /></div>
             </div>
             <div><Label>Nome do Cliente *</Label><Input value={form.nome_cliente} onChange={(e) => setForm({ ...form, nome_cliente: e.target.value })} className="mt-1" /></div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div><Label>Ambientes</Label><Input type="number" value={form.quantidade_ambientes} onChange={(e) => setForm({ ...form, quantidade_ambientes: Number(e.target.value) })} className="mt-1" /></div>
               <div><Label>Valor do Contrato</Label><Input type="number" value={form.valor_contrato} onChange={(e) => setForm({ ...form, valor_contrato: Number(e.target.value) })} className="mt-1" /></div>
               <div><Label>Data Fechamento</Label><Input type="date" value={form.data_fechamento} onChange={(e) => setForm({ ...form, data_fechamento: e.target.value })} className="mt-1" /></div>
