@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Lock, LockOpen, Upload, EyeOff, Eye } from "lucide-react";
-import { SimulatorEnvironmentsTable } from "@/components/simulator/SimulatorEnvironmentsTable";
+import { SimulatorEnvironmentsTable, type ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
 import { SimulatorResultCard } from "@/components/simulator/SimulatorResultCard";
 import { SimulatorClientForm } from "@/components/simulator/SimulatorClientForm";
 import { AIStrategyPanel } from "@/components/AIStrategyPanel";
