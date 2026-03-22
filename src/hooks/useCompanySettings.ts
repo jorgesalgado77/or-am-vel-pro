@@ -66,11 +66,11 @@ function notify(settings: CompanySettings, tenantId: string | null) {
 }
 
 async function fetchCompanySettingsForTenant(tenantId: string | null): Promise<CompanySettings | null> {
+  if (!tenantId) return null;
+
   const baseQuery = supabase.from("company_settings").select("*");
 
-  const scopedQuery = tenantId
-    ? baseQuery.eq("tenant_id", tenantId).limit(1).maybeSingle()
-    : baseQuery.limit(1).maybeSingle();
+  const scopedQuery = baseQuery.eq("tenant_id", tenantId).limit(1).maybeSingle();
 
   const { data, error } = await Promise.race([
     scopedQuery,
@@ -85,8 +85,6 @@ async function fetchCompanySettingsForTenant(tenantId: string | null): Promise<C
   if (data) {
     return normalizeSettings(data);
   }
-
-  if (!tenantId) return null;
 
   const { data: tenantData, error: tenantError } = await Promise.race([
     supabase
