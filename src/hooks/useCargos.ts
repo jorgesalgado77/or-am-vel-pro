@@ -46,6 +46,14 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   suporte: true,
 };
 
+export interface Cargo {
+  id: string;
+  nome: string;
+  permissoes: CargoPermissoes;
+  comissao_percentual: number;
+  created_at: string;
+}
+
 export function useCargos() {
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [loading, setLoading] = useState(true);
