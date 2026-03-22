@@ -502,13 +502,13 @@ export function ClientsKanban({
                                       {/* Badge de tipo na coluna Novo */}
                                       {((client as any).status || "novo") === "novo" && (
                                         <div className="mb-1.5">
-                                          {client.vendedor ? (
+                                          {(client as any).origem_lead && (client as any).origem_lead !== "manual" ? (
                                             <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-primary/15 text-primary border-primary/30 gap-0.5" variant="outline">
                                               <ArrowRight className="h-2.5 w-2.5" />
                                               Lead Recebido
                                             </Badge>
                                           ) : (
-                                            <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-accent/15 text-accent border-accent/30 gap-0.5" variant="outline">
+                                            <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-emerald-500/15 text-emerald-600 border-emerald-500/30 gap-0.5" variant="outline">
                                               <UserPlus className="h-2.5 w-2.5" />
                                               Cliente Recente
                                             </Badge>
@@ -737,12 +737,25 @@ export function ClientsKanban({
                                 : `"${expandedClient.nome}" desvinculado.`,
                               { duration: 5000 }
                             );
+                            // Auto-move to em_negociacao if currently "novo" and a vendedor was assigned
+                            const currentStatus = (expandedClient as any).status || "novo";
+                            const shouldMove = newVendedor && currentStatus === "novo";
+                            const updateData: any = { vendedor: newVendedor };
+                            if (shouldMove) updateData.status = "em_negociacao";
+
                             setLocalClients(prev =>
                               prev.map(c =>
-                                c.id === expandedClient.id ? { ...c, vendedor: newVendedor } : c
+                                c.id === expandedClient.id
+                                  ? { ...c, vendedor: newVendedor, ...(shouldMove ? { status: "em_negociacao" } : {}) }
+                                  : c
                               )
                             );
-                            setExpandedClient({ ...expandedClient, vendedor: newVendedor });
+                            setExpandedClient({ ...expandedClient, vendedor: newVendedor, ...(shouldMove ? { status: "em_negociacao" } : {}) } as any);
+
+                            if (shouldMove) {
+                              await supabase.from("clients").update({ status: "em_negociacao" } as any).eq("id", expandedClient.id);
+                              toast.success(`📋 "${expandedClient.nome}" movido para "Em Negociação"`, { duration: 3000 });
+                            }
                           }}
                         >
                           <SelectTrigger className="w-full sm:w-[200px] h-8 text-xs">
