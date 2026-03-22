@@ -1,14 +1,15 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Lock, LockOpen, Upload, EyeOff, Eye } from "lucide-react";
+import { SimulatorEnvironmentsTable } from "@/components/simulator/SimulatorEnvironmentsTable";
+import { SimulatorResultCard } from "@/components/simulator/SimulatorResultCard";
+import { SimulatorClientForm } from "@/components/simulator/SimulatorClientForm";
 import { AIStrategyPanel } from "@/components/AIStrategyPanel";
 import { useConversionHistory } from "@/hooks/useConversionHistory";
 import { maskCpfCnpj, maskPhone, isCnpj, validateCpfCnpj } from "@/lib/masks";
