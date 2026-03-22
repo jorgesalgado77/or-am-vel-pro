@@ -50,7 +50,8 @@ export function CreditoRatesTab() {
     refresh();
   };
 
-  const handleExportExcel = (providerName: string) => {
+  const handleExportExcel = async (providerName: string) => {
+    const XLSX = await import("xlsx");
     const providerRates = rates.filter((r) => r.provider_name === providerName).sort((a, b) => a.installments - b.installments);
     const data = [[providerName, ""], ["Parcelas", "Coeficiente / Taxa"]];
     providerRates.forEach((r) => data.push([String(r.installments), String(r.coefficient)]));
