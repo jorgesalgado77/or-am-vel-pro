@@ -354,18 +354,50 @@ export default function AffiliatePage() {
                 <div className="max-w-md mx-auto">
                   <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-white mb-2">Acessar Painel</h1>
-                    <p className="text-white/60">Insira seu email e CPF para acessar seu dashboard de afiliado.</p>
+                    <p className="text-white/60">Informe seu código de afiliado ou email e CPF para acessar.</p>
                   </div>
                   <Card className="border-white/10 bg-white/5 backdrop-blur-md">
                     <CardContent className="pt-6 space-y-4">
-                      <div>
-                        <Label className="text-white/80">Email</Label>
-                        <Input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="seu@email.com" className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
+                      {/* Toggle between code and email login */}
+                      <div className="flex rounded-lg overflow-hidden border border-white/20">
+                        <button
+                          onClick={() => setLoginMode("code")}
+                          className={`flex-1 py-2 text-sm font-medium transition ${loginMode === "code" ? "bg-emerald-600 text-white" : "bg-white/5 text-white/60 hover:bg-white/10"}`}
+                        >
+                          Código de Afiliado
+                        </button>
+                        <button
+                          onClick={() => setLoginMode("email")}
+                          className={`flex-1 py-2 text-sm font-medium transition ${loginMode === "email" ? "bg-emerald-600 text-white" : "bg-white/5 text-white/60 hover:bg-white/10"}`}
+                        >
+                          Email + CPF
+                        </button>
                       </div>
-                      <div>
-                        <Label className="text-white/80">CPF</Label>
-                        <Input value={loginCpf} onChange={e => setLoginCpf(maskCpfCnpj(e.target.value))} placeholder="000.000.000-00" className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
-                      </div>
+
+                      {loginMode === "code" ? (
+                        <div>
+                          <Label className="text-white/80">Código de Afiliado</Label>
+                          <Input
+                            value={loginCode}
+                            onChange={e => setLoginCode(e.target.value.toUpperCase())}
+                            placeholder="Ex: ABC123"
+                            maxLength={10}
+                            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 font-mono text-lg tracking-widest text-center"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <Label className="text-white/80">Email</Label>
+                            <Input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="seu@email.com" className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
+                          </div>
+                          <div>
+                            <Label className="text-white/80">CPF</Label>
+                            <Input value={loginCpf} onChange={e => setLoginCpf(maskCpfCnpj(e.target.value))} placeholder="000.000.000-00" className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
+                          </div>
+                        </>
+                      )}
+
                       <Button onClick={handleLogin} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
                         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                         Acessar meu painel
