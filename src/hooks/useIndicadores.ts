@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getCurrentTenantId } from "@/contexts/TenantContext";
 
 export interface Indicador {
   id: string;
@@ -17,10 +18,18 @@ export function useIndicadores() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data } = await supabase
+    const tenantId = getCurrentTenantId();
+    let query = supabase
       .from("indicadores")
       .select("*")
-      .order("nome") as { data: Indicador[] | null };
+      .order("nome");
+
+    if (tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    const { data } = await query as { data: Indicador[] | null };
+
     if (data) setIndicadores(data);
     setLoading(false);
   }, []);

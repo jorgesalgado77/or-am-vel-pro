@@ -102,10 +102,17 @@ export async function fetchLastSimulations(): Promise<{
   lastSims: Record<string, LastSimInfo>;
   allSimulations: { created_at: string; valor_final: number }[];
 }> {
-  const { data } = await supabase
+  const tenantId = getCurrentTenantId();
+  let query = supabase
     .from("simulations")
     .select("client_id, valor_final, created_at")
     .order("created_at", { ascending: false });
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { data } = await query;
 
   if (!data) return { lastSims: {}, allSimulations: [] };
 

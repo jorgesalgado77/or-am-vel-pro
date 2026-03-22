@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { LogIn, Eye, EyeOff, Search, UserPlus, AlertTriangle, CreditCard, Headphones, Store, Mail, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
-import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { ClientTrackingModal } from "@/components/ClientTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,7 +27,6 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Pro
 
 export default function Login() {
   const navigate = useNavigate();
-  const { settings } = useCompanySettings();
   const { login } = useAuth();
   const [codigoLoja, setCodigoLoja] = useState("");
   const [email, setEmail] = useState("");
@@ -275,10 +273,10 @@ export default function Login() {
         const { data, error } = await (supabase as any).rpc("resolve_tenant_info_by_code", { p_code: maskedCode });
         console.log("[Login] resolve_tenant_info_by_code →", { maskedCode, data, error });
         const row = Array.isArray(data) ? data[0] : data;
-        if (!cancelled && row && (row.nome || row.nome_empresa || row.nome_loja)) {
+        if (!cancelled && row && (row.company_name || row.nome || row.nome_empresa || row.nome_loja)) {
           setTenantInfo({
-            nome: row.nome_empresa || row.nome || row.nome_loja,
-            subtitulo: row.subtitulo || "",
+            nome: row.company_name || row.nome_empresa || row.nome || row.nome_loja,
+            subtitulo: row.company_subtitle || row.subtitulo || "",
           });
         } else if (!cancelled) {
           // Fallback: try direct query
@@ -294,12 +292,12 @@ export default function Login() {
           if (!cancelled && tenantData?.nome_loja) {
             const { data: csData } = await (supabase as any)
               .from("company_settings")
-              .select("nome_empresa")
+              .select("company_name, nome_empresa, company_subtitle, subtitulo")
               .eq("tenant_id", tenantData.id)
               .maybeSingle();
             setTenantInfo({
-              nome: csData?.nome_empresa || tenantData.nome_loja,
-              subtitulo: "",
+              nome: csData?.company_name || csData?.nome_empresa || tenantData.nome_loja,
+              subtitulo: csData?.company_subtitle || csData?.subtitulo || "",
             });
           } else if (!cancelled) {
             // Try resolve_tenant_by_code as last resort
@@ -312,10 +310,10 @@ export default function Login() {
                 const { data: tData } = await (supabase as any)
                   .from("tenants").select("nome_loja").eq("id", tid).maybeSingle();
                 const { data: csData2 } = await (supabase as any)
-                  .from("company_settings").select("nome_empresa").eq("tenant_id", tid).maybeSingle();
+                  .from("company_settings").select("company_name, nome_empresa, company_subtitle, subtitulo").eq("tenant_id", tid).maybeSingle();
                 setTenantInfo({
-                  nome: csData2?.nome_empresa || tData?.nome_loja || "Loja",
-                  subtitulo: "",
+                  nome: csData2?.company_name || csData2?.nome_empresa || tData?.nome_loja || "Loja",
+                  subtitulo: csData2?.company_subtitle || csData2?.subtitulo || "",
                 });
               } else {
                 setTenantInfo(null);

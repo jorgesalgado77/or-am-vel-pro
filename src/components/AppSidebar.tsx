@@ -45,6 +45,8 @@ export function AppSidebar({
 
   const isAdmin = currentUser?.cargo_nome?.toUpperCase().includes("ADMINISTRADOR") || currentUser?.cargo_nome?.toUpperCase().includes("ADMIN");
   const ThemeIcon = THEME_ICONS[mode];
+  const companyName = settings.company_name || "OrçaMóvel PRO";
+  const companySubtitle = settings.company_subtitle || "Orce. Venda. Simplifique";
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
@@ -126,8 +128,8 @@ export function AppSidebar({
         )}
         {!collapsed && (
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-foreground tracking-tight truncate">OrçaMóvel PRO</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Orce. Venda. Simplifique</p>
+            <h1 className="text-lg font-semibold text-foreground tracking-tight truncate">{companyName}</h1>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{companySubtitle}</p>
           </div>
         )}
       </div>
