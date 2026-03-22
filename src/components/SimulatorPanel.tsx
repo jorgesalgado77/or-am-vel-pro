@@ -166,7 +166,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
 
   const { settings } = useCompanySettings();
   const { hasPermission, currentUser } = useCurrentUser();
-  const resolvedTenantId = getCurrentTenantId();
+  const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(null);
+  useEffect(() => { getResolvedTenantId().then(setResolvedTenantId); }, []);
   const { getOptionsForField } = useDiscountOptions();
   const { projetistas } = useUsuarios();
   const { activeIndicadores } = useIndicadores();

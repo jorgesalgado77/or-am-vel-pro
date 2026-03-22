@@ -103,11 +103,7 @@ export async function fetchLastSimulations(): Promise<{
   lastSims: Record<string, LastSimInfo>;
   allSimulations: { created_at: string; valor_final: number }[];
 }> {
-  // Use in-memory tenant_id, fallback to JWT metadata
-  const { data: sessionData } = await supabase.auth.getSession();
-  const tenantId = getCurrentTenantId() 
-    ?? sessionData?.session?.user?.user_metadata?.tenant_id 
-    ?? null;
+  const tenantId = await getResolvedTenantId();
 
   let query = supabase
     .from("simulations")
