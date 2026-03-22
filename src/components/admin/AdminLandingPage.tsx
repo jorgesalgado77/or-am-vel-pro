@@ -48,7 +48,7 @@ export function AdminLandingPage() {
 
   const fetchData = useCallback(async () => {
     const [configRes, leadsRes] = await Promise.all([
-      supabase.from("landing_page_config").select("*").limit(1).single(),
+      supabase.from("landing_page_config").select("*").limit(1).maybeSingle(),
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
     ]);
 
