@@ -268,6 +268,7 @@ export function ClientsKanban({
     setFilterProjetista("");
     setFilterIndicador("");
     setFilterTemperature("");
+    setFilterTipoCliente("");
     setPeriodFilter("mes_atual");
     setDateStart(undefined);
     setDateEnd(undefined);
