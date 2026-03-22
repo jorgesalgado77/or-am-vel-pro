@@ -197,6 +197,11 @@ export function ClientsKanban({
       if (filterProjetista && c.vendedor !== filterProjetista) return false;
       if (filterIndicador && c.indicador_id !== filterIndicador) return false;
       if (filterTemperature && (c as any).lead_temperature !== filterTemperature) return false;
+      if (filterTipoCliente) {
+        const isManual = !(c as any).origem_lead || (c as any).origem_lead === "manual";
+        if (filterTipoCliente === "recente" && !isManual) return false;
+        if (filterTipoCliente === "lead" && isManual) return false;
+      }
       const { start, end } = effectiveDates;
       if (start || end) {
         const clientDate = new Date(c.created_at);
@@ -205,7 +210,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, effectiveDates, currentUser, cargoNome]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome]);
 
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
