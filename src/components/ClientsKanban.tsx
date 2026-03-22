@@ -20,6 +20,8 @@ import {
   Calculator, ChevronRight, GripVertical, Repeat,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { logAudit, getAuditUserInfo } from "@/services/auditService";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -679,10 +681,51 @@ export function ClientsKanban({
                           value={expandedClient.vendedor || ""}
                           onValueChange={async (val) => {
                             const newVendedor = val === "__none__" ? null : val;
-                            const { error } = await supabase.from("clients").update({ vendedor: newVendedor }).eq("id", expandedClient.id);
-                            if (error) { toast.error("Erro ao atribuir responsável"); return; }
-                            toast.success(`Cliente atribuído a ${newVendedor || "nenhum"}`);
-                            setLocalClients(prev => prev.map(c => c.id === expandedClient.id ? { ...c, vendedor: newVendedor } : c));
+                            const oldVendedor = expandedClient.vendedor;
+                            const { error } = await supabase
+                              .from("clients")
+                              .update({ vendedor: newVendedor })
+                              .eq("id", expandedClient.id);
+                            if (error) {
+                              toast.error("Erro ao atribuir responsável");
+                              return;
+                            }
+                            // Audit log
+                            const userInfo = getAuditUserInfo();
+                            logAudit({
+                              acao: "lead_atribuido",
+                              entidade: "client",
+                              entidade_id: expandedClient.id,
+                              detalhes: {
+                                cliente: expandedClient.nome,
+                                de: oldVendedor || "Nenhum",
+                                para: newVendedor || "Nenhum",
+                              },
+                              ...userInfo,
+                            });
+                            // In-app notification for assignee
+                            if (newVendedor) {
+                              const tenantId = await getResolvedTenantId();
+                              supabase.from("tracking_messages").insert({
+                                tenant_id: tenantId,
+                                tipo: "sistema",
+                                canal: "interno",
+                                remetente: userInfo.usuario_nome || "Sistema",
+                                conteudo: `📋 O lead "${expandedClient.nome}" foi atribuído a você por ${userInfo.usuario_nome || "um administrador"}.`,
+                                destinatario: newVendedor,
+                              } as any).then(() => {});
+                            }
+                            toast.success(
+                              newVendedor
+                                ? `✅ "${expandedClient.nome}" atribuído a ${newVendedor}. Notificação enviada!`
+                                : `"${expandedClient.nome}" desvinculado.`,
+                              { duration: 5000 }
+                            );
+                            setLocalClients(prev =>
+                              prev.map(c =>
+                                c.id === expandedClient.id ? { ...c, vendedor: newVendedor } : c
+                              )
+                            );
                             setExpandedClient({ ...expandedClient, vendedor: newVendedor });
                           }}
                         >
