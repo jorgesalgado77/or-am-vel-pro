@@ -461,6 +461,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       valor_parcela: result.valorParcela,
       arquivo_url: arquivoUrl,
       arquivo_nome: arquivoNome,
+      tenant_id: resolvedTenantId,
     } as any);
     setSaving(false);
     if (error) {
@@ -558,6 +559,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         forma_pagamento: formaPagamento, parcelas, valor_entrada: valorEntrada,
         plus_percentual: plusPercentual, valor_final: result.valorFinal,
         valor_parcela: result.valorParcela, arquivo_url: arquivoUrl, arquivo_nome: arquivoNome,
+        tenant_id: resolvedTenantId,
       } as any).select("id").single();
 
       if (simError || !simData) {
