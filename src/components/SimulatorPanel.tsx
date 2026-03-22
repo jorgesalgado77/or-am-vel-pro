@@ -463,7 +463,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
       arquivo_nome: arquivoNome,
     } as any);
     setSaving(false);
-    if (error) toast.error("Erro ao salvar simulação");
+    if (error) {
+      const limitMsg = parsePlanLimitError(error.message || "");
+      if (limitMsg) { setUpgradeMsg(limitMsg); setUpgradeOpen(true); }
+      else toast.error("Erro ao salvar simulação");
+    }
     else {
       savedRef.current = true;
       sessionStorage.removeItem(SIM_STORAGE_KEY);
