@@ -58,6 +58,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
 
 export default function Index() {
   const { user: authUser, loading: authLoading, hasPermission, logout } = useAuth();
+  const isMobile = useIsMobile();
   const tenantPlan = useTenantPlan();
   const { settings } = useCompanySettings();
 
