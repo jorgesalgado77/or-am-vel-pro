@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck, DollarSign, TrendingUp, Landmark, Crown, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck, DollarSign, TrendingUp, Landmark, Crown } from "lucide-react";
+import { UpgradePlanDialog } from "@/components/shared/UpgradePlanDialog";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { logAudit } from "@/services/auditService";
