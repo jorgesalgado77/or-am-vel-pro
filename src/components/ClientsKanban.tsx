@@ -674,11 +674,11 @@ export function ClientsKanban({
                   {/* Details */}
                   <div className="space-y-2">
                     {/* Vendedor/Projetista assignment */}
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-sm">
                       <span className="text-muted-foreground">Responsável</span>
                       {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) ? (
                         <Select
-                          value={expandedClient.vendedor || ""}
+                          value={expandedClient.vendedor || "__none__"}
                           onValueChange={async (val) => {
                             const newVendedor = val === "__none__" ? null : val;
                             const oldVendedor = expandedClient.vendedor;
@@ -729,8 +729,10 @@ export function ClientsKanban({
                             setExpandedClient({ ...expandedClient, vendedor: newVendedor });
                           }}
                         >
-                          <SelectTrigger className="w-[180px] h-8 text-xs">
-                            <SelectValue placeholder="Atribuir responsável" />
+                          <SelectTrigger className="w-full sm:w-[200px] h-8 text-xs">
+                            <SelectValue>
+                              {expandedClient.vendedor || "Atribuir responsável"}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">Sem responsável</SelectItem>
