@@ -18,6 +18,7 @@ import {
   RefreshCw, Settings, Save, Ban, UserCheck, Gift, BarChart3
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
+import { AffiliateCharts } from "./AffiliateCharts";
 
 interface Affiliate {
   id: string;
