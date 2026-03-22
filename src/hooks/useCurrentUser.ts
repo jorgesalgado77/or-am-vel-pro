@@ -22,6 +22,18 @@ const DEFAULT_PERMS: CargoPermissoes = {
   desconto2: true,
   desconto3: true,
   plus: true,
+  folha_pagamento: true,
+  financeiro: true,
+  planos: true,
+  funil: true,
+  campanhas: true,
+  indicacoes: true,
+  vendazap: true,
+  chat_vendas: true,
+  dealroom: true,
+  divulgue_ganhe: true,
+  mensagens: true,
+  suporte: true,
 };
 
 export function useCurrentUserLoader() {

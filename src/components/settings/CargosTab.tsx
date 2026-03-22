@@ -17,15 +17,35 @@ import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { getTenantId } from "@/lib/tenantState";
 
-const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
+const PERM_LABELS_CORE: Record<string, string> = {
   clientes: "Clientes",
-  simulador: "Simulador",
+  simulador: "Negociação",
   configuracoes: "Configurações",
   desconto1: "Desconto 1",
   desconto2: "Desconto 2",
   desconto3: "Desconto 3",
   plus: "Plus",
 };
+
+const PERM_LABELS_MENU: Record<string, string> = {
+  folha_pagamento: "Folha de Pagamento",
+  financeiro: "Financeiro",
+  planos: "Planos de Assinatura",
+  funil: "Funil de Captação",
+  campanhas: "Campanhas",
+  indicacoes: "Indicações",
+  vendazap: "VendaZap AI",
+  chat_vendas: "Chat Vendas",
+  dealroom: "Deal Room",
+  divulgue_ganhe: "Divulgue e Ganhe",
+  mensagens: "Mensagens",
+  suporte: "Suporte",
+};
+
+const PERM_LABELS: Record<keyof CargoPermissoes, string> = {
+  ...PERM_LABELS_CORE,
+  ...PERM_LABELS_MENU,
+} as Record<keyof CargoPermissoes, string>;
 
 export function CargosTab() {
   const { cargos, refresh, DEFAULT_PERMISSOES } = useCargos();
@@ -453,25 +473,49 @@ export function CargosTab() {
                     {openCards[cargo.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </Button>
                 </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-secondary/50">
-                        <TableHead>Função</TableHead>
-                        <TableHead className="w-24 text-center">Acesso</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(Object.keys(PERM_LABELS) as Array<keyof CargoPermissoes>).map(key => (
-                        <TableRow key={key}>
-                          <TableCell>{PERM_LABELS[key]}</TableCell>
-                          <TableCell className="text-center">
-                            <Switch checked={perms[key]} onCheckedChange={() => togglePerm(cargo.id, cargo.permissoes, key)} />
-                          </TableCell>
+                <CollapsibleContent className="space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">Permissões Gerais</p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-secondary/50">
+                          <TableHead>Função</TableHead>
+                          <TableHead className="w-24 text-center">Acesso</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {(Object.keys(PERM_LABELS_CORE) as Array<keyof CargoPermissoes>).map(key => (
+                          <TableRow key={key}>
+                            <TableCell>{PERM_LABELS_CORE[key]}</TableCell>
+                            <TableCell className="text-center">
+                              <Switch checked={perms[key] ?? true} onCheckedChange={() => togglePerm(cargo.id, cargo.permissoes, key)} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">Funções do Menu Lateral</p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-secondary/50">
+                          <TableHead>Função</TableHead>
+                          <TableHead className="w-24 text-center">Acesso</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(Object.keys(PERM_LABELS_MENU) as Array<keyof CargoPermissoes>).map(key => (
+                          <TableRow key={key}>
+                            <TableCell>{PERM_LABELS_MENU[key]}</TableCell>
+                            <TableCell className="text-center">
+                              <Switch checked={perms[key] ?? true} onCheckedChange={() => togglePerm(cargo.id, cargo.permissoes, key)} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CollapsibleContent>
               </Collapsible>
             </CardContent>
