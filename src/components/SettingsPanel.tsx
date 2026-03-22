@@ -376,7 +376,7 @@ function InactivitySoundToggle() {
 
 /* ===== BOLETO RATES TAB (5 columns) ===== */
 function BoletoRatesTab() {
-  const { rates, providers, refresh } = useFinancingRates("boleto");
+  const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("boleto");
   const { tenantId } = useTenant();
   const [newProviderName, setNewProviderName] = useState("");
   const [editingRates, setEditingRates] = useState<Record<string, Partial<FinancingRate>>>({});
