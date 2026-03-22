@@ -875,6 +875,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 cargo_id: legacyUser.cargo_id ?? null,
                 nome_completo: legacyUser.nome_completo ?? normalizedEmail.split("@")[0],
                 apelido: legacyUser.apelido ?? null,
+                telefone: legacyUser.telefone ?? null,
               },
               emailRedirectTo: window.location.origin,
             },
@@ -900,7 +901,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const senhaHash = await hashLegacyPassword(password);
               await (supabase as any)
                 .from("usuarios")
-                .update({ senha: senhaHash, id: signUpData.user.id })
+                .update({ senha: senhaHash, auth_user_id: signUpData.user.id })
                 .eq("id", legacyUser.id);
             } catch {
               /* best effort */
@@ -935,7 +936,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
-          options: { data: { tenant_id: legacyUser.tenant_id } },
+          options: {
+            data: {
+              tenant_id: legacyUser.tenant_id,
+              cargo_id: legacyUser.cargo_id ?? null,
+              nome_completo: legacyUser.nome_completo ?? normalizedEmail.split("@")[0],
+              apelido: legacyUser.apelido ?? null,
+              telefone: legacyUser.telefone ?? null,
+            },
+            emailRedirectTo: window.location.origin,
+          },
         });
 
         if (signUpError) {
@@ -962,7 +972,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const senhaHash = await hashLegacyPassword(password);
             await (supabase as any)
               .from("usuarios")
-              .update({ id: signUpData.user.id, senha: senhaHash })
+              .update({ auth_user_id: signUpData.user.id, senha: senhaHash })
               .eq("id", legacyUser.id);
           } catch { /* best effort */ }
         }
