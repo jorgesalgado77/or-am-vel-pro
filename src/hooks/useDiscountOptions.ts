@@ -62,6 +62,7 @@ export function useDiscountOptions() {
         .from("discount_options")
         .insert({ field_name: fieldName, percentages: sorted, tenant_id: getCurrentTenantId() } as any));
     }
+    if (error) console.error("[DiscountOptions] Save error:", error.message, error);
     if (!error) fetchOptions();
     return error;
   };

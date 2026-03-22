@@ -15,11 +15,19 @@ import { Slider } from "@/components/ui/slider";
 import { maskPhone, unmask } from "@/lib/masks";
 import { toast } from "sonner";
 
+// TikTok icon (not in lucide)
+const TikTokIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.34-6.34V9.37a8.16 8.16 0 004.76 1.52v-3.4a4.85 4.85 0 01-1-.8z"/>
+  </svg>
+);
+
 interface SocialLinks {
   instagram_url?: string;
   facebook_url?: string;
   youtube_url?: string;
   twitter_url?: string;
+  tiktok_url?: string;
   website_url?: string;
 }
 
@@ -716,6 +724,7 @@ export default function TenantLanding() {
                       { icon: Instagram, label: "Instagram", url: sl.instagram_url, gradient: "linear-gradient(135deg, #E1306C, #F77737, #FCAF45)" },
                       { icon: Facebook, label: "Facebook", url: sl.facebook_url, gradient: "linear-gradient(135deg, #1877F2, #42A5F5)" },
                       { icon: Youtube, label: "YouTube", url: sl.youtube_url, gradient: "linear-gradient(135deg, #FF0000, #CC0000)" },
+                      { icon: TikTokIcon, label: "TikTok", url: (sl as any).tiktok_url, gradient: "linear-gradient(135deg, #000000, #25F4EE, #FE2C55)" },
                       { icon: Twitter, label: "X/Twitter", url: sl.twitter_url, gradient: "linear-gradient(135deg, #1DA1F2, #0d8bd9)" },
                       { icon: Globe, label: "Site", url: sl.website_url, gradient: `linear-gradient(135deg, ${color}, ${color}cc)` },
                     ].filter(l => l.url && l.url.trim());
@@ -754,6 +763,7 @@ export default function TenantLanding() {
             { icon: Instagram, label: "Instagram", url: sl.instagram_url },
             { icon: Facebook, label: "Facebook", url: sl.facebook_url },
             { icon: Youtube, label: "YouTube", url: sl.youtube_url },
+            { icon: TikTokIcon, label: "TikTok", url: (sl as any).tiktok_url },
             { icon: Twitter, label: "X/Twitter", url: sl.twitter_url },
             { icon: Globe, label: "Site", url: sl.website_url },
           ].filter(l => l.url && l.url.trim());
