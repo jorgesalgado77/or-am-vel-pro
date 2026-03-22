@@ -205,7 +205,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [selectedBoletoProvider, setSelectedBoletoProvider] = useState("");
   const [selectedCreditoProvider, setSelectedCreditoProvider] = useState("");
 
-  // Apply defaults on first provider load
+  // Helper to apply boleto defaults for a provider
+  const applyBoletoDefaults = (provider: string) => {
+    const pd = boletoDefaults[provider];
+    if (pd) {
+      if (pd.parcelas > 0) setParcelas(pd.parcelas);
+      if ([30, 60, 90].includes(pd.carencia)) setCarenciaDias(pd.carencia as 30 | 60 | 90);
+    }
+  };
+
+  // Helper to apply credito defaults for a provider
+  const applyCreditoDefaults = (provider: string) => {
+    const pd = creditoDefaults[provider];
+    if (pd && pd.parcelas > 0) setParcelas(pd.parcelas);
+  };
+
+  // Set initial provider when providers load
   useEffect(() => {
     if (boletoProviders.length > 0 && !selectedBoletoProvider) {
       setSelectedBoletoProvider(boletoProviders[0]);
@@ -218,29 +233,28 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     }
   }, [creditoProviders]);
 
-  // Apply per-provider defaults when provider changes (only if no stored state)
-  const defaultsAppliedRef = useRef(false);
+  // Apply defaults when settings load and provider is already selected (handles async settings load)
+  const boletoDefaultsAppliedRef = useRef(false);
   useEffect(() => {
-    if (stored.parcelas || stored.carenciaDias) return;
-    if (!selectedBoletoProvider) return;
-    const pd = boletoDefaults[selectedBoletoProvider];
-    if (pd) {
-      if (pd.parcelas > 0) setParcelas(pd.parcelas);
-      if ([30, 60, 90].includes(pd.carencia)) setCarenciaDias(pd.carencia as 30 | 60 | 90);
-    }
-  }, [selectedBoletoProvider]);
+    if (boletoDefaultsAppliedRef.current) return;
+    if (!selectedBoletoProvider || !Object.keys(boletoDefaults).length) return;
+    if (stored.parcelas || stored.carenciaDias) return; // don't override stored state on initial load
+    applyBoletoDefaults(selectedBoletoProvider);
+    boletoDefaultsAppliedRef.current = true;
+  }, [selectedBoletoProvider, boletoDefaults]);
 
-  // Apply credito defaults when credito provider changes
+  const creditoDefaultsAppliedRef = useRef(false);
   useEffect(() => {
+    if (creditoDefaultsAppliedRef.current) return;
+    if (!selectedCreditoProvider || !Object.keys(creditoDefaults).length) return;
     if (stored.parcelas) return;
-    if (!selectedCreditoProvider) return;
-    const pd = creditoDefaults[selectedCreditoProvider];
-    if (pd && pd.parcelas > 0 && (formaPagamento === "Credito" || formaPagamento === "Credito / Boleto")) {
-      setParcelas(pd.parcelas);
+    if (formaPagamento === "Credito" || formaPagamento === "Credito / Boleto") {
+      applyCreditoDefaults(selectedCreditoProvider);
     }
-  }, [selectedCreditoProvider]);
+    creditoDefaultsAppliedRef.current = true;
+  }, [selectedCreditoProvider, creditoDefaults]);
 
-  // When user manually changes boleto provider, apply its defaults
+  // When user manually changes boleto provider, ALWAYS apply its defaults
   const handleBoletoProviderChange = (provider: string) => {
     setSelectedBoletoProvider(provider);
     const pd = boletoDefaults[provider];
@@ -250,7 +264,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     }
   };
 
-  // When user manually changes credito provider, apply its defaults
+  // When user manually changes credito provider, ALWAYS apply its defaults
   const handleCreditoProviderChange = (provider: string) => {
     setSelectedCreditoProvider(provider);
     const pd = creditoDefaults[provider];
