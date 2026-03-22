@@ -3,8 +3,9 @@
  */
 
 // Components
-export { VendaZapPanel } from "@/components/VendaZapPanel";
-export { MessagesPanel } from "@/components/MessagesPanel";
+// VendaZapPanel & MessagesPanel are lazy-loaded — import directly when needed
+// export { VendaZapPanel } from "@/components/VendaZapPanel";
+// export { MessagesPanel } from "@/components/MessagesPanel";
 
 // Sub-components
 export { VendaZapChat } from "@/components/chat/VendaZapChat";
