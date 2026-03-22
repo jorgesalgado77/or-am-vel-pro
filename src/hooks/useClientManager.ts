@@ -7,11 +7,13 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import * as clientService from "@/services/clientService";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 export function useClientManager() {
+  const { session, loading: authLoading, user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastSims, setLastSims] = useState<Record<string, clientService.LastSimInfo>>({});
@@ -19,18 +21,36 @@ export function useClientManager() {
   const [saving, setSaving] = useState(false);
 
   const fetchClients = useCallback(async () => {
+    if (authLoading) return;
+
+    if (!session) {
+      setClients([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const result = await clientService.fetchClients();
-    if (result.error) toast.error(result.error);
-    else setClients(result.clients);
+    if (result.error) {
+      toast.error(result.error);
+      setClients([]);
+    } else {
+      setClients(result.clients);
+    }
     setLoading(false);
-  }, []);
+  }, [authLoading, session]);
 
   const fetchLastSims = useCallback(async () => {
+    if (authLoading || !session) {
+      setLastSims({});
+      setAllSimulations([]);
+      return;
+    }
+
     const result = await clientService.fetchLastSimulations();
     setLastSims(result.lastSims);
     setAllSimulations(result.allSimulations);
-  }, []);
+  }, [authLoading, session]);
 
   const handleSaveClient = useCallback(async (
     data: Record<string, unknown>,
@@ -92,9 +112,10 @@ export function useClientManager() {
   }, [fetchClients, clients]);
 
   useEffect(() => {
+    if (authLoading) return;
     fetchClients();
     fetchLastSims();
-  }, [fetchClients, fetchLastSims]);
+  }, [authLoading, session?.user?.id, user?.tenant_id, fetchClients, fetchLastSims]);
 
   return {
     clients,
