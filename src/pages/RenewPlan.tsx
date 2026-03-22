@@ -19,7 +19,9 @@ interface PlanFromDB {
   preco_mensal: number;
   preco_anual_mensal: number;
   max_usuarios: number | null;
-  ativo: boolean;
+  ativo?: boolean;
+  destaque?: boolean;
+  features_display?: { label: string; included: boolean }[];
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {

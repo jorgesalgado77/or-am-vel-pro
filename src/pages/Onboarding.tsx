@@ -21,9 +21,9 @@ const UF_OPTIONS = [
 ];
 
 const PLANS = [
-  { slug: "trial", nome: "Trial", preco_mensal: 0, preco_anual_mensal: 0, icon: Zap, destaque: false, features: [] },
-  { slug: "basico", nome: "Básico", preco_mensal: 149.9, preco_anual_mensal: 119.9, icon: Users, destaque: false, features: [] },
-  { slug: "premium", nome: "Premium", preco_mensal: 299.9, preco_anual_mensal: 249.9, icon: Crown, destaque: true, features: [] },
+  { id: "trial", slug: "trial", nome: "Trial", descricao: "Teste grátis", preco_mensal: 0, preco_anual_mensal: 0, max_usuarios: 2, icon: Zap, destaque: false, features: [] },
+  { id: "basico", slug: "basico", nome: "Básico", descricao: "Para lojas pequenas", preco_mensal: 149.9, preco_anual_mensal: 119.9, max_usuarios: 5, icon: Users, destaque: false, features: [] },
+  { id: "premium", slug: "premium", nome: "Premium", descricao: "Para lojas maiores", preco_mensal: 299.9, preco_anual_mensal: 249.9, max_usuarios: null, icon: Crown, destaque: true, features: [] },
 ];
 
 function getUserId() {
