@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PlanBanner } from "@/components/PlanBanner";
 import Login from "@/pages/Login";
@@ -57,6 +58,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
 
 export default function Index() {
   const { user: authUser, loading: authLoading, hasPermission, logout } = useAuth();
+  const isMobile = useIsMobile();
   const tenantPlan = useTenantPlan();
   const { settings } = useCompanySettings();
 
@@ -79,9 +81,11 @@ export default function Index() {
 
   const [activeView, setActiveView] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) return true;
     const saved = localStorage.getItem("sidebar-collapsed");
     return saved === "true";
   });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
@@ -188,39 +192,57 @@ export default function Index() {
     }}>
       <TenantPlanContext.Provider value={tenantPlan}>
         <div className="flex min-h-screen bg-background">
+          {/* Mobile overlay backdrop */}
+          {isMobile && mobileMenuOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 z-20 transition-opacity"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          )}
+
           <AppSidebar
             activeView={activeView}
-            onViewChange={handleViewChange}
+            onViewChange={(view) => {
+              handleViewChange(view);
+              if (isMobile) setMobileMenuOpen(false);
+            }}
             onChangePassword={() => setShowChangePassword(true)}
             onSupport={() => setShowSupport(true)}
             onProfile={() => setShowProfile(true)}
             unreadMessages={unreadMessages}
             onlineUsers={onlineUsers}
-            collapsed={sidebarCollapsed}
+            collapsed={isMobile ? !mobileMenuOpen : sidebarCollapsed}
             onToggleCollapse={() => {
-              setSidebarCollapsed(prev => {
-                const next = !prev;
-                localStorage.setItem("sidebar-collapsed", String(next));
-                return next;
-              });
+              if (isMobile) {
+                setMobileMenuOpen(prev => !prev);
+              } else {
+                setSidebarCollapsed(prev => {
+                  const next = !prev;
+                  localStorage.setItem("sidebar-collapsed", String(next));
+                  return next;
+                });
+              }
             }}
           />
 
-          <main className={cn("flex-1 p-6 transition-all duration-300", sidebarCollapsed ? "ml-[60px]" : "ml-60")}>
+          <main className={cn(
+            "flex-1 transition-all duration-300",
+            isMobile ? "ml-[60px] p-3" : sidebarCollapsed ? "ml-[60px] p-6" : "ml-60 p-6"
+          )}>
             <PlanBanner />
-            <div className="mb-6">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h2 className="text-xl font-semibold text-foreground">{currentTitle}</h2>
+            <div className="mb-4 md:mb-6">
+              <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                <h2 className="text-base md:text-xl font-semibold text-foreground">{currentTitle}</h2>
                 {settings.codigo_loja && (
-                  <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-md font-mono tabular-nums">
+                  <span className="text-[10px] md:text-xs font-medium bg-muted text-muted-foreground px-1.5 md:px-2 py-0.5 rounded-md font-mono tabular-nums">
                     Cód. {settings.codigo_loja}
                   </span>
                 )}
                 {activeView === "dashboard" && (
-                  <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">{cargoLabel}</span>
+                  <span className="text-[10px] md:text-xs font-medium bg-primary/10 text-primary px-2 md:px-2.5 py-0.5 rounded-full">{cargoLabel}</span>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
+              <p className="text-xs md:text-sm text-muted-foreground mt-1">{currentSubtitle}</p>
             </div>
 
             <Suspense fallback={<ViewLoader />}>

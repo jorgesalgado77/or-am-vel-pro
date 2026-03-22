@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { differenceInDays } from "date-fns";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { ScrollableContainer } from "@/components/ui/scrollable-container";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,17 +269,17 @@ export function ClientsKanban({
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-4 mb-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4 mb-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nome, CPF/CNPJ, nº orçamento..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Buscar por nome, CPF/CNPJ..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <div className="flex gap-2">
-          <Button variant={showFilters ? "secondary" : "outline"} size="sm" className="gap-2" onClick={() => setShowFilters(!showFilters)}>
-            <Filter className="h-4 w-4" />Filtros
+          <Button variant={showFilters ? "secondary" : "outline"} size="sm" className="gap-2 flex-1 sm:flex-none" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="h-4 w-4" /><span className="hidden sm:inline">Filtros</span>
             {hasActiveFilters && <Badge variant="default" className="h-5 px-1.5 text-xs ml-1">!</Badge>}
           </Button>
-          <Button onClick={onAdd} className="gap-2"><Plus className="h-4 w-4" />Novo Cliente</Button>
+          <Button onClick={onAdd} className="gap-2 flex-1 sm:flex-none"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Novo Cliente</span></Button>
         </div>
       </div>
 
@@ -436,9 +437,10 @@ export function ClientsKanban({
         <div className="flex items-center justify-center py-16 text-muted-foreground">Carregando...</div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-4 flex-1 min-h-0">
+          <ScrollableContainer direction="horizontal" className="flex-1 min-h-0 pb-4">
+            <div className="flex gap-3 min-w-max">
             {KANBAN_COLUMNS.map(col => (
-              <div key={col.id} className="flex flex-col min-w-[240px] w-[240px] shrink-0">
+              <div key={col.id} className="flex flex-col min-w-[220px] w-[220px] md:min-w-[240px] md:w-[240px] shrink-0">
                 {/* Column header */}
                 <div className="flex items-center gap-2 mb-2 px-1">
                   <span className="text-base">{col.icon}</span>
@@ -581,6 +583,7 @@ export function ClientsKanban({
               </div>
             ))}
           </div>
+          </ScrollableContainer>
         </DragDropContext>
       )}
 
