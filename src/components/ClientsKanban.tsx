@@ -691,9 +691,11 @@ export function ClientsKanban({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">Sem responsável</SelectItem>
-                            {projetistas.map(p => (
-                              <SelectItem key={p.id} value={p.nome_completo}>{p.nome_completo} ({p.cargo_nome})</SelectItem>
-                            ))}
+                            {usuarios
+                              .filter(u => u.ativo && u.cargo_nome && !u.cargo_nome.toLowerCase().includes("admin"))
+                              .map(p => (
+                                <SelectItem key={p.id} value={p.nome_completo}>{p.nome_completo} ({p.cargo_nome})</SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       ) : (
