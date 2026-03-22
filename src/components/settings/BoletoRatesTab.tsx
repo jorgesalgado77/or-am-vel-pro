@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { useFinancingRates, type FinancingRate } from "@/hooks/useFinancingRates";
 import { useTenant } from "@/contexts/TenantContext";
-import * as XLSX from "xlsx";
+
 
 export function BoletoRatesTab() {
   const { rates, providers, isProviderActive, toggleProviderActive, refresh } = useFinancingRates("boleto");
@@ -54,7 +54,8 @@ export function BoletoRatesTab() {
     refresh();
   };
 
-  const handleExportExcel = (providerName: string) => {
+  const handleExportExcel = async (providerName: string) => {
+    const XLSX = await import("xlsx");
     const providerRates = rates.filter((r) => r.provider_name === providerName).sort((a, b) => a.installments - b.installments);
     const data = [[providerName, "", "", "", ""], ["Parcelas", "Taxa Fixa", "Coef. 30 dias", "Coef. 60 dias", "Coef. 90 dias"]];
     providerRates.forEach((r) => data.push([String(r.installments), String(r.taxa_fixa), String(r.coefficient), String(r.coeficiente_60), String(r.coeficiente_90)]));
@@ -71,6 +72,7 @@ export function BoletoRatesTab() {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
+        const XLSX = await import("xlsx");
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];

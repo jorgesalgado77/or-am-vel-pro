@@ -2,7 +2,8 @@
  * Settings Module — All settings panel tabs
  */
 
-export { SettingsPanel } from "@/components/SettingsPanel";
+// SettingsPanel is lazy-loaded in Index.tsx — import directly from @/components/SettingsPanel
+// export { SettingsPanel } from "@/components/SettingsPanel";
 export { CompanySettingsTab } from "@/components/settings/CompanySettingsTab";
 export { BoletoRatesTab } from "@/components/settings/BoletoRatesTab";
 export { CreditoRatesTab } from "@/components/settings/CreditoRatesTab";

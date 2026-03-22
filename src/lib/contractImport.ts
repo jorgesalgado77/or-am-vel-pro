@@ -1,5 +1,5 @@
 import mammoth from "mammoth";
-import * as XLSX from "xlsx";
+
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
@@ -301,6 +301,7 @@ const importDocx = async (file: File): Promise<ImportedContractContent> => {
 };
 
 const importSpreadsheet = async (file: File): Promise<ImportedContractContent> => {
+  const XLSX = await import("xlsx");
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];

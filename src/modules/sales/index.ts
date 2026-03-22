@@ -4,8 +4,9 @@
  */
 
 // Components
-export { ClientsKanban } from "@/components/ClientsKanban";
-export { ClientDrawer } from "@/components/ClientDrawer";
+// ClientsKanban & ClientDrawer are lazy-loaded — import directly when needed
+// export { ClientsKanban } from "@/components/ClientsKanban";
+// export { ClientDrawer } from "@/components/ClientDrawer";
 export { ClientContracts } from "@/components/ClientContracts";
 export { ClientTrackingModal } from "@/components/ClientTrackingModal";
 export { CloseSaleModal } from "@/components/CloseSaleModal";

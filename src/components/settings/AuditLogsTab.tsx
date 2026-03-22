@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import * as XLSX from "xlsx";
+
 
 interface AuditLog {
   id: string;
@@ -114,7 +114,7 @@ export function AuditLogsTab() {
     return Array.from(set).sort();
   }, [logs]);
 
-  const exportToExcel = useCallback(() => {
+  const exportToExcel = useCallback(async () => {
     if (filtered.length === 0) {
       toast.error("Nenhum registro para exportar");
       return;
@@ -128,6 +128,7 @@ export function AuditLogsTab() {
       "ID Usuário": l.usuario_id || "",
       "Detalhes": l.detalhes ? JSON.stringify(l.detalhes) : "",
     }));
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Logs de Auditoria");

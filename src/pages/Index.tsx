@@ -1,8 +1,12 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
-import { cn, useIsMobile, AppSidebar, PlanBanner, Dashboard } from "@/modules/shared";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AppSidebar } from "@/components/AppSidebar";
+import { PlanBanner } from "@/components/PlanBanner";
 import Login from "@/pages/Login";
 
 // Lazy load heavy view components via module paths
+const Dashboard = lazy(() => import("@/components/Dashboard").then(m => ({ default: m.Dashboard })));
 const ClientsKanban = lazy(() => import("@/components/ClientsKanban").then(m => ({ default: m.ClientsKanban })));
 const ClientDrawer = lazy(() => import("@/components/ClientDrawer").then(m => ({ default: m.ClientDrawer })));
 const SimulatorPanel = lazy(() => import("@/components/SimulatorPanel").then(m => ({ default: m.SimulatorPanel })));
@@ -24,11 +28,12 @@ const ReferralPanel = lazy(() => import("@/components/ReferralPanel").then(m => 
 const FinancialPanel = lazy(() => import("@/components/FinancialPanel").then(m => ({ default: m.FinancialPanel })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
-import { useTenantPlan, TenantPlanContext } from "@/modules/auth";
-import { useRealtimeMessages } from "@/modules/chat";
-import { useClientManager } from "@/modules/sales";
-import { useCompanySettings } from "@/modules/settings";
-import { useOnlinePresence, useAuth } from "@/modules/auth";
+import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
+import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
+import { useClientManager } from "@/hooks/useClientManager";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
