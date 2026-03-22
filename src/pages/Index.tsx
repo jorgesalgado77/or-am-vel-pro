@@ -341,6 +341,7 @@ export default function Index() {
             <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
             <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
           </Suspense>
+          <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
         </div>
       </TenantPlanContext.Provider>
     </CurrentUserContext.Provider>
