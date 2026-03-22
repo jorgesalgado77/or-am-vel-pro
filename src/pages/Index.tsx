@@ -77,6 +77,10 @@ export default function Index() {
   const { unreadCount: unreadMessages } = useRealtimeMessages();
 
   const [activeView, setActiveView] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem("sidebar-collapsed");
+    return saved === "true";
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
