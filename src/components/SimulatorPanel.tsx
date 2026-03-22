@@ -1188,91 +1188,47 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
             })()}
             historicalConversionRate={conversionStats.conversionRate}
           />
-          <Card>
-            <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <ResultRow label="Valor de Tela" value={formatCurrency(valorTela)} />
-              {!hideIndicador && comissaoPercentual > 0 && (
-                <ResultRow label={`Indicador (${comissaoPercentual}%)`} value={`+ ${formatCurrency(valorTelaComComissao - valorTela)}`} muted />
-              )}
-              {!hideIndicador && comissaoPercentual > 0 && (
-                <ResultRow label="Valor com Indicador" value={formatCurrency(valorTelaComComissao)} />
-              )}
-              <ResultRow label="Desconto Total" value={formatCurrency(valorTelaComComissao - result.valorComDesconto)} muted />
-              <ResultRow label="Valor com Desconto" value={formatCurrency(result.valorComDesconto)} />
-              <Separator />
-              <ResultRow label="Entrada" value={formatCurrency(valorEntrada)} />
-              <ResultRow label="Saldo" value={formatCurrency(result.saldo)} />
-              {result.taxaCredito > 0 && <ResultRow label="Taxa de Crédito" value={formatPercent(result.taxaCredito * 100)} muted />}
-              {result.taxaBoleto > 0 && <ResultRow label="Coeficiente Boleto" value={result.taxaBoleto.toFixed(6)} muted />}
-              {result.taxaFixaBoleto > 0 && <ResultRow label="Taxa Fixa Boleto" value={formatCurrency(result.taxaFixaBoleto)} muted />}
-              {showCarencia && <ResultRow label="Carência" value={`${carenciaDias} dias`} muted />}
-              <Separator />
-              <div className="bg-primary/5 -mx-6 px-6 py-4 rounded-md">
-                <ResultRow label="Valor Final" value={formatCurrency(result.valorFinal)} highlight />
-                {showParcelas && <ResultRow label={`Parcela (${parcelas}x)`} value={formatCurrency(result.valorParcela)} highlight />}
-              </div>
-
-              <div className="flex flex-col gap-3 mt-4">
-                <div className="flex gap-3">
-                  <Button onClick={handleSave} disabled={saving} className="flex-1 bg-success hover:bg-success/90 text-success-foreground gap-2">
-                    <Save className="h-4 w-4" />
-                    {saving ? "Salvando..." : "Salvar Simulação"}
-                  </Button>
-                  {client && (
-                    <Button variant="outline" className="gap-2" onClick={() =>
-                      generateSimulationPdf({
-                        clientName: client.nome,
-                        clientCpf: client.cpf || undefined,
-                        clientEmail: client.email || undefined,
-                        clientPhone: client.telefone1 || undefined,
-                        vendedor: client.vendedor || undefined,
-                        companyName: settings.company_name,
-                        companySubtitle: settings.company_subtitle || undefined,
-                        companyLogoUrl: settings.logo_url || undefined,
-                        valorTela, desconto1, desconto2, desconto3,
-                        valorComDesconto: result.valorComDesconto,
-                        formaPagamento, parcelas, valorEntrada, plusPercentual,
-                        taxaCredito: result.taxaCredito,
-                        saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
-                      })
-                    }>
-                      <FileDown className="h-4 w-4" />PDF
-                    </Button>
-                  )}
-                </div>
-                <Button
-                  onClick={handleCloseSale}
-                  disabled={closingSale}
-                  className="w-full gap-2 bg-primary hover:bg-primary/90"
-                >
-                  <Handshake className="h-4 w-4" />
-                  {closingSale ? "Gerando contrato..." : "Fechar Venda"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive hover:text-destructive-foreground"
-                  onClick={() => {
-                    setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
-                    setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
-                    setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
-                    setDesconto3Unlocked(false); setPlusUnlocked(false);
-                    setEnvironments([]); setImportedFile(null);
-                    sessionStorage.removeItem(SIM_STORAGE_KEY);
-                    toast.success("Simulação limpa");
-                  }}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Limpar Simulação
-                </Button>
-                {!client && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Selecione um cliente para concluir a venda e gerar contrato.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <SimulatorResultCard
+            valorTela={valorTela}
+            valorTelaComComissao={valorTelaComComissao}
+            comissaoPercentual={comissaoPercentual}
+            hideIndicador={hideIndicador}
+            result={result}
+            valorEntrada={valorEntrada}
+            parcelas={parcelas}
+            showParcelas={showParcelas}
+            showCarencia={showCarencia}
+            carenciaDias={carenciaDias}
+            saving={saving}
+            closingSale={closingSale}
+            hasClient={!!client}
+            onSave={handleSave}
+            onPdf={client ? () => generateSimulationPdf({
+              clientName: client.nome,
+              clientCpf: client.cpf || undefined,
+              clientEmail: client.email || undefined,
+              clientPhone: client.telefone1 || undefined,
+              vendedor: client.vendedor || undefined,
+              companyName: settings.company_name,
+              companySubtitle: settings.company_subtitle || undefined,
+              companyLogoUrl: settings.logo_url || undefined,
+              valorTela, desconto1, desconto2, desconto3,
+              valorComDesconto: result.valorComDesconto,
+              formaPagamento, parcelas, valorEntrada, plusPercentual,
+              taxaCredito: result.taxaCredito,
+              saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
+            }) : null}
+            onCloseSale={handleCloseSale}
+            onClear={() => {
+              setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
+              setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
+              setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
+              setDesconto3Unlocked(false); setPlusUnlocked(false);
+              setEnvironments([]); setImportedFile(null);
+              sessionStorage.removeItem(SIM_STORAGE_KEY);
+              toast.success("Simulação limpa");
+            }}
+          />
 
           {/* Client creation form - shown when saving without a client */}
           {!client && showClientForm && (
