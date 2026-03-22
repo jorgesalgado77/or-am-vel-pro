@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentTenantId, getResolvedTenantId } from "@/contexts/TenantContext";
 
@@ -90,7 +90,10 @@ async function fetchCompanySettingsForTenant(tenantId: string | null): Promise<C
     if (isDefault && tenantData?.nome_loja) {
       normalized.company_name = tenantData.nome_loja;
     }
-    // Ensure logo_url from settings is used
+    // Fill codigo_loja from tenant if not in settings
+    if (!normalized.codigo_loja && tenantData?.codigo_loja) {
+      normalized.codigo_loja = tenantData.codigo_loja;
+    }
     return normalized;
   }
 
@@ -112,16 +115,31 @@ export function useCompanySettings() {
   const cacheKey = getCacheKey(tenantId);
   const [settings, setSettings] = useState<CompanySettings>(cachedSettingsByTenant[cacheKey] || DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(!cachedSettingsByTenant[cacheKey]);
+  const retryRef = useRef(0);
 
   // Resolve tenant_id asynchronously if not available synchronously
   useEffect(() => {
-    if (!syncTenantId) {
-      getResolvedTenantId().then((resolved) => {
-        if (resolved) setTenantId(resolved);
-      });
-    } else {
+    if (syncTenantId) {
       setTenantId(syncTenantId);
+      return;
     }
+
+    // Poll for tenant ID resolution (covers race conditions with AuthContext)
+    let cancelled = false;
+    const tryResolve = async () => {
+      const resolved = await getResolvedTenantId();
+      if (!cancelled && resolved) {
+        setTenantId(resolved);
+        return;
+      }
+      // Retry up to 5 times with 500ms intervals
+      if (!cancelled && retryRef.current < 5) {
+        retryRef.current++;
+        setTimeout(tryResolve, 500);
+      }
+    };
+    tryResolve();
+    return () => { cancelled = true; };
   }, [syncTenantId]);
 
   const refresh = useCallback(async () => {
@@ -138,16 +156,16 @@ export function useCompanySettings() {
   useEffect(() => {
     listeners.push(setSettings);
     const cached = cachedSettingsByTenant[cacheKey];
-    if (cached) {
+    if (cached && cacheKey !== "__global__") {
       setSettings(cached);
       setLoading(false);
-    } else {
+    } else if (tenantId) {
       refresh();
     }
     return () => {
       listeners = listeners.filter((fn) => fn !== setSettings);
     };
-  }, [cacheKey, refresh]);
+  }, [cacheKey, refresh, tenantId]);
 
   return { settings, loading, refresh };
 }
