@@ -54,7 +54,8 @@ export function BoletoRatesTab() {
     refresh();
   };
 
-  const handleExportExcel = (providerName: string) => {
+  const handleExportExcel = async (providerName: string) => {
+    const XLSX = await import("xlsx");
     const providerRates = rates.filter((r) => r.provider_name === providerName).sort((a, b) => a.installments - b.installments);
     const data = [[providerName, "", "", "", ""], ["Parcelas", "Taxa Fixa", "Coef. 30 dias", "Coef. 60 dias", "Coef. 90 dias"]];
     providerRates.forEach((r) => data.push([String(r.installments), String(r.taxa_fixa), String(r.coefficient), String(r.coeficiente_60), String(r.coeficiente_90)]));
