@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Printer, Save, Eye, Code, Lock, LockOpen } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { buildContractDocumentHtml } from "@/lib/contractDocument";
+import {useState, useRef, useEffect, useMemo} from "react";
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
+import {Button} from "@/components/ui/button";
+import {Printer, Eye, Code, Lock, LockOpen} from "lucide-react";
+import {Badge} from "@/components/ui/badge";
+import {buildContractDocumentHtml} from "@/lib/contractDocument";
 
 interface ContractEditorDialogProps {
   open: boolean;

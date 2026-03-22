@@ -1,21 +1,21 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { maskPhone, maskCpfCnpj } from "@/lib/masks";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {useState, useEffect} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Badge} from "@/components/ui/badge";
+import {Separator} from "@/components/ui/separator";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {maskPhone, maskCpfCnpj} from "@/lib/masks";
+import {format} from "date-fns";
+import {ptBR} from "date-fns/locale";
 import {
   Gift, Link2, Copy, CheckCircle2, Users, TrendingUp, DollarSign,
   Share2, ArrowLeft, Loader2, MessageCircle, Eye, EyeOff, LogIn
 } from "lucide-react";
-import { useNavigate, useSearchParams, useParams } from "react-router-dom";
+import {useNavigate, useSearchParams, useParams} from "react-router-dom";
 
 function generateAffiliateCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

@@ -1,7 +1,6 @@
-import { memo } from "react";
-import { Button } from "@/components/ui/button";
-import { Lightbulb, Copy, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {memo} from "react";
+import {Button} from "@/components/ui/button";
+import {Lightbulb, Copy, Loader2} from "lucide-react";
 
 interface Props {
   suggestion: string;

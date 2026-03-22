@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { Save, Eye, EyeOff, Palette, ExternalLink, CheckCircle2, XCircle } from "lucide-react";
+import {useState, useEffect} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Button} from "@/components/ui/button";
+import {Switch} from "@/components/ui/switch";
+import {Badge} from "@/components/ui/badge";
+import {Separator} from "@/components/ui/separator";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {Save, Eye, EyeOff, Palette, CheckCircle2, XCircle} from "lucide-react";
 
 export function AdminCanvaConfig() {
   const [clientId, setClientId] = useState("");

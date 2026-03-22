@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, RefreshCw, Phone, Clock, CheckCircle2, MessageSquare } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import { getTenantId } from "@/lib/tenantState";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {useState, useEffect} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Badge} from "@/components/ui/badge";
+import {Button} from "@/components/ui/button";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Bot, RefreshCw, Phone, CheckCircle2, MessageSquare} from "lucide-react";
+import {supabase} from "@/lib/supabaseClient";
+import {getTenantId} from "@/lib/tenantState";
+import {format} from "date-fns";
+import {ptBR} from "date-fns/locale";
 
 interface BotSession {
   id: string;

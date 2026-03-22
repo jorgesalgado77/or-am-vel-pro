@@ -1,20 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Loader2, Trash2, Plus, ExternalLink, Users, Eye, Filter } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
-import type { LandingConfig, BenefitItem, HowItWorksStep, PlanItem } from "@/hooks/useLandingConfig";
+import {useState, useEffect, useCallback} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Button} from "@/components/ui/button";
+import {Textarea} from "@/components/ui/textarea";
+import {Switch} from "@/components/ui/switch";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Badge} from "@/components/ui/badge";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {Save, Loader2, Trash2, Plus, Users, Eye, Filter} from "lucide-react";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {format} from "date-fns";
+import {TEMPERATURE_CONFIG, type LeadTemperature} from "@/lib/leadTemperature";
+import type {LandingConfig} from "@/hooks/useLandingConfig";
 
 interface Lead {
   id: string;

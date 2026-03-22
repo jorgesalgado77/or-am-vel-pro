@@ -1,8 +1,7 @@
-import { useTenantPlanContext } from "@/hooks/useTenantPlan";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Zap, Crown, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {useTenantPlanContext} from "@/hooks/useTenantPlan";
+import {Card, CardContent} from "@/components/ui/card";
+import {Badge} from "@/components/ui/badge";
+import {AlertTriangle, Zap, Users} from "lucide-react";
 
 const PLAN_LABELS: Record<string, string> = {
   trial: "Teste Grátis",

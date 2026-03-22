@@ -1,25 +1,24 @@
-import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { isCargoTotalLoja } from "@/hooks/useComissaoPolicy";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Printer, DollarSign, Users, Briefcase, Check, X, Pause, Plus } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { useUsuarios } from "@/hooks/useUsuarios";
-import { useCargos } from "@/hooks/useCargos";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {useState, useEffect} from "react";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {isCargoTotalLoja} from "@/hooks/useComissaoPolicy";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import {Separator} from "@/components/ui/separator";
+import {Input} from "@/components/ui/input";
+import {Label} from "@/components/ui/label";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {ArrowLeft, Printer, DollarSign, Users, Check, X, Pause, Plus} from "lucide-react";
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
+import {Textarea} from "@/components/ui/textarea";
+import {useUsuarios} from "@/hooks/useUsuarios";
+import {useCargos} from "@/hooks/useCargos";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {format, startOfMonth, endOfMonth} from "date-fns";
 
-import { formatCurrency } from "@/lib/financing";
-import { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
+import {formatCurrency} from "@/lib/financing";
+import {useComissaoPolicy} from "@/hooks/useComissaoPolicy";
 
 interface PayrollCommission {
   id: string;

@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircle2, X } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { playNotificationSound } from "@/lib/notificationSound";
+import {useState, useEffect, useRef} from "react";
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
+import {Input} from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {Textarea} from "@/components/ui/textarea";
+import {Label} from "@/components/ui/label";
+import {Separator} from "@/components/ui/separator";
+import {Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircle2} from "lucide-react";
+import {supabase} from "@/lib/supabaseClient";
+import {toast} from "sonner";
+import {format} from "date-fns";
+import {playNotificationSound} from "@/lib/notificationSound";
 
 const TRACKING_STEPS = [
   { key: "medicao", label: "Medição", icon: Ruler, color: "text-blue-500", bgActive: "bg-blue-500", bgInactive: "bg-muted" },

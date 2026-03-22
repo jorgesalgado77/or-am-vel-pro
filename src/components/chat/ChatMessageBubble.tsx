@@ -1,8 +1,8 @@
-import { memo } from "react";
-import { format } from "date-fns";
-import { FileIcon, Play, Image as ImageIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { ChatMessage } from "./types";
+import {memo} from "react";
+import {format} from "date-fns";
+import {FileIcon} from "lucide-react";
+import {cn} from "@/lib/utils";
+import type {ChatMessage} from "./types";
 
 interface Props {
   message: ChatMessage;

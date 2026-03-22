@@ -1,10 +1,9 @@
-import { useMemo } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Upload, Trash2 } from "lucide-react";
-import { formatCurrency } from "@/lib/financing";
-import { format } from "date-fns";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import {Input} from "@/components/ui/input";
+import {Button} from "@/components/ui/button";
+import {Upload, Trash2} from "lucide-react";
+import {formatCurrency} from "@/lib/financing";
+import {format} from "date-fns";
 
 export interface ImportedEnvironment {
   id: string;
