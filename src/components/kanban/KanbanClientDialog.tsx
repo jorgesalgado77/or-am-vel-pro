@@ -269,6 +269,37 @@ export function KanbanClientDialog({
                 </div>
               </>
             )}
+
+            {/* Lead Attachments */}
+            {attachments.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <Paperclip className="h-3.5 w-3.5" /> Anexos do Lead ({attachments.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {attachments.map(att => {
+                      const sizeKB = Math.round(att.file_size / 1024);
+                      return (
+                        <div key={att.id} className="flex items-center gap-2 text-xs bg-muted/40 rounded-md p-2">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-foreground truncate font-medium">{att.file_name}</p>
+                            <p className="text-muted-foreground">{sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`} • {format(new Date(att.created_at), "dd/MM/yy HH:mm")}</p>
+                          </div>
+                          {att.file_url && (
+                            <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </ScrollArea>
 
