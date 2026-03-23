@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Printer, X } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { getRegimeTaxConfig, type TaxRate } from "./PayrollTaxConfig";
+import { getRegimeTaxConfig, getINSSFaixas, calcularINSS, type TaxRate } from "./PayrollTaxConfig";
 import type { Usuario } from "@/hooks/useUsuarios";
 import type { Cargo } from "@/hooks/useCargos";
 
@@ -33,6 +33,7 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const printRef = useRef<HTMLDivElement>(null);
   const { settings } = useCompanySettings();
   const taxConfig = getRegimeTaxConfig(settings);
+  const inssFaixas = getINSSFaixas(settings);
 
   const cargo = usuario.cargo_id ? cargos.find(c => c.id === usuario.cargo_id) : null;
   const salario = usuario.salario_fixo || (cargo as any)?.salario_base || 0;
@@ -52,7 +53,6 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const descontoFaltas = (salario / diasUteis) * faltasDias;
   const valorHoraExtra = (salario / (diasUteis * 8)) * 1.5;
   const totalHorasExtras = valorHoraExtra * horasExtras;
-  const salarioLiquido = salario - descontoFaltas + totalHorasExtras;
 
   const proventos = [
     { descricao: "Salário Base", valor: salario },
@@ -67,10 +67,24 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const descontos: { descricao: string; valor: number }[] = [];
   if (faltasDias > 0) descontos.push({ descricao: `Faltas (${faltasDias} dias)`, valor: descontoFaltas });
 
-  // Impostos sobre bruto
+  // Impostos - INSS uses progressive table for CLT/Freelancer
+  const isINSSProgressivo = (regime === "CLT" || regime === "Freelancer");
+  
   activeTaxes.forEach(tax => {
-    const base = tax.nome.includes("FGTS") ? salario : totalBruto;
-    descontos.push({ descricao: `${tax.nome} (${tax.aliquota}%)`, valor: (base * tax.aliquota) / 100 });
+    const nomeUpper = tax.nome.toUpperCase();
+    const isINSS = nomeUpper.includes("INSS") && !nomeUpper.includes("PATRONAL");
+    
+    if (isINSS && isINSSProgressivo && inssFaixas.length > 0) {
+      // Use progressive INSS table
+      const inssCalc = calcularINSS(totalBruto, inssFaixas);
+      descontos.push({
+        descricao: `${tax.nome} (${inssCalc.aliquota}% — ${inssCalc.faixa})`,
+        valor: inssCalc.valor,
+      });
+    } else {
+      const base = nomeUpper.includes("FGTS") ? salario : totalBruto;
+      descontos.push({ descricao: `${tax.nome} (${tax.aliquota}%)`, valor: (base * tax.aliquota) / 100 });
+    }
   });
 
   if (adiantamento > 0) descontos.push({ descricao: "Adiantamento", valor: adiantamento });
