@@ -298,6 +298,16 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const maxParcelas = formaPagamento === "Boleto" ? maxBoletoInstallments
     : formaPagamento === "Credito" || formaPagamento === "Credito / Boleto" ? maxCreditoInstallments : 12;
 
+  // Filter carência options based on whether the selected boleto provider has non-zero coefficients
+  const availableCarenciaOptions = useMemo(() => {
+    return CARENCIA_OPTIONS.filter((c) => {
+      if (c.value === "30") return true;
+      if (c.value === "60") return currentBoletoRates.some((r) => Number(r.coeficiente_60) > 0);
+      if (c.value === "90") return currentBoletoRates.some((r) => Number(r.coeficiente_90) > 0);
+      return true;
+    });
+  }, [currentBoletoRates]);
+
   const { boletoCoeffMap, boletoRatesFullMap } = useMemo(() => {
     const coeffMap: Record<number, number> = {};
     const fullMap: Record<number, BoletoRateData> = {};
@@ -923,7 +933,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 <Select value={String(carenciaDias)} onValueChange={(v) => setCarenciaDias(Number(v) as 30 | 60 | 90)}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CARENCIA_OPTIONS.map((c) => (
+                    {availableCarenciaOptions.map((c) => (
                       <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                     ))}
                   </SelectContent>
