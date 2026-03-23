@@ -652,9 +652,11 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           setLoading(false);
         }
       }
-    })();
-
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      cancelAnimationFrame(animationFrameId);
+      removeClickListener?.();
+    };
   }, [fileUrl]);
 
   useEffect(() => {
