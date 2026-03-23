@@ -117,11 +117,74 @@ export function useClientManager() {
     }
   }, [fetchClients, clients]);
 
+  // Track known client IDs to detect truly new arrivals
+  const knownIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (authLoading) return;
     fetchClients();
     fetchLastSims();
   }, [authLoading, session?.user?.id, user?.tenant_id, fetchClients, fetchLastSims]);
+
+  // Keep knownIds in sync
+  useEffect(() => {
+    knownIdsRef.current = new Set(clients.map(c => c.id));
+  }, [clients]);
+
+  // Realtime subscription for new leads / client changes
+  useEffect(() => {
+    if (authLoading || !session || !user?.tenant_id) return;
+
+    const channel = supabase
+      .channel("clients-realtime")
+      .on(
+        "postgres_changes" as any,
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "clients",
+          filter: `tenant_id=eq.${user.tenant_id}`,
+        },
+        (payload: any) => {
+          const newClient = payload.new as Client;
+          if (knownIdsRef.current.has(newClient.id)) return;
+
+          // Play notification sound and show toast
+          playNotificationSound();
+          const origem = (newClient as any).origem_lead || "manual";
+          const label = origem === "manual" ? "Cliente Loja" : "Lead Recebido";
+          toast.success(`🆕 Novo ${label}: ${newClient.nome}`, {
+            description: "Um novo lead chegou ao sistema!",
+            duration: 8000,
+          });
+
+          // Add to local state immediately
+          setClients(prev => {
+            if (prev.some(c => c.id === newClient.id)) return prev;
+            return [newClient, ...prev];
+          });
+          knownIdsRef.current.add(newClient.id);
+        }
+      )
+      .on(
+        "postgres_changes" as any,
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "clients",
+          filter: `tenant_id=eq.${user.tenant_id}`,
+        },
+        (payload: any) => {
+          const updated = payload.new as Client;
+          setClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [authLoading, session, user?.tenant_id]);
 
   return {
     clients,
