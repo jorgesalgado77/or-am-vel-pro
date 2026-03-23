@@ -11,6 +11,13 @@ interface GLBViewerProps {
   onObjectSelect?: (name: string, metadata: any) => void;
 }
 
+interface SelectedPieceInfo {
+  name: string;
+  width: number;
+  height: number;
+  depth: number;
+}
+
 function getFileExtension(url: string): string {
   try {
     const path = new URL(url).pathname;
