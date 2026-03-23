@@ -257,6 +257,7 @@ export function DealRoomMeeting({
                   }}
                 />
               </TabsContent>
+              <TabsContent value="ai" className="m-0 p-3">
                 <DealRoomAIAssistant tenantId={tenantId} clientName={clientName} proposalValue={proposalValue} />
               </TabsContent>
               <TabsContent value="anexos" className="m-0 p-3">
