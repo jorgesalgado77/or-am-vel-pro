@@ -378,7 +378,12 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
     let mounted = true;
     let animationFrameId = 0;
-    let removeClickListener: (() => void) | null = null;
+    let renderer: any = null;
+    let controls: any = null;
+    let resizeHandler: (() => void) | null = null;
+    let clickHandler: ((e: MouseEvent) => void) | null = null;
+    let canvasElement: HTMLCanvasElement | null = null;
+
     (async () => {
       try {
         setProgress(10);
@@ -395,12 +400,13 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         const width = container.clientWidth;
         const height = container.clientHeight;
 
-        const renderer = new THREE.WebGLRenderer({
+        renderer = new THREE.WebGLRenderer({
           canvas: canvasRef.current,
           antialias: true,
           alpha: true,
           powerPreference: "high-performance",
         });
+        canvasElement = canvasRef.current;
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         renderer.toneMapping = THREE.NoToneMapping;
@@ -412,7 +418,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
         camera.position.set(8, 6, 8);
 
-        const controls = new OrbitControls(camera, renderer.domElement);
+        controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.autoRotate = true;
@@ -423,18 +429,15 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         controls.maxPolarAngle = Math.PI * 0.9;
         controls.minPolarAngle = Math.PI * 0.05;
 
-        // Save initial camera state for reset
         cameraInitial.current = {
           pos: camera.position.clone(),
           target: controls.target.clone(),
         };
 
-        // Expose controls to parent
         if (controlsRef) {
           controlsRef.current = { controls, camera, initialPos: camera.position.clone(), initialTarget: controls.target.clone() };
         }
 
-        // Lights - balanced for color accuracy
         const ambient = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambient);
         const dir1 = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -450,7 +453,6 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         scene.add(hemi);
         applyLightingPreset({ ambient, dir1, dir2, dir3, hemi }, lightingPreset);
 
-        // Grid
         const gridPalette = BACKGROUND_PRESETS[backgroundPreset];
         const grid = new THREE.GridHelper(30, 30, gridPalette.ground, gridPalette.ground);
         (grid.material as any).opacity = 0.4;
@@ -459,164 +461,112 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         scene.add(grid);
 
         threeRef.current = {
-          THREE,
-          scene,
-          renderer,
-          camera,
-          controls,
+          THREE, scene, renderer, camera, controls,
           lights: { ambient, dir1, dir2, dir3, hemi },
-          grid,
-          loadedObject: null,
-          selectedObject: null,
+          grid, loadedObject: null, selectedObject: null,
         };
 
         setProgress(40);
         setProgressLabel("Carregando arquivo...");
 
-        try {
-          let loadedObject: any = null;
-
-          const onProgress = (event: any) => {
-            if (event.lengthComputable) {
-              const pct = 40 + (event.loaded / event.total) * 40;
-              if (mounted) setProgress(Math.min(pct, 80));
-            }
-          };
-          setProgressLabel("Processando modelo...");
-          loadedObject = await loadModelForPreview(THREE, fileUrl, onProgress);
-
-          if (mounted) {
-            setProgress(85);
-            setProgressLabel("Finalizando...");
+        const onProgress = (event: any) => {
+          if (event.lengthComputable) {
+            const pct = 40 + (event.loaded / event.total) * 40;
+            if (mounted) setProgress(Math.min(pct, 80));
           }
+        };
 
-          if (loadedObject) {
-            scene.add(loadedObject);
+        setProgressLabel("Processando modelo...");
+        const loadedObject = await loadModelForPreview(THREE, fileUrl, onProgress);
 
-            // Auto-center and scale
-            const box = new THREE.Box3().setFromObject(loadedObject);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
-            if (maxDim > 0) {
-              const scale = 6 / maxDim;
-              loadedObject.scale.setScalar(scale);
-              loadedObject.position.sub(center.multiplyScalar(scale));
-            }
+        if (!mounted) return;
 
-            // Click selection with lightweight highlight
-            const raycaster = new THREE.Raycaster();
-            raycaster.params.Line = { threshold: 0.25 };
-            const mouse = new THREE.Vector2();
-            let selectedObject: any = null;
+        setProgress(85);
+        setProgressLabel("Finalizando...");
 
-            const restoreSelection = () => {
-              if (!selectedObject) return;
-              if (selectedObject.userData?.originalMaterial) {
-                selectedObject.material = selectedObject.userData.originalMaterial;
-              }
-              selectedObject = null;
-            };
+        scene.add(loadedObject);
 
-            const handleClick = (event: MouseEvent) => {
-              const rect = renderer.domElement.getBoundingClientRect();
-              mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-              mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-              raycaster.setFromCamera(mouse, camera);
-
-              const intersects = raycaster.intersectObjects(
-                loadedObject ? [loadedObject] : scene.children,
-                true,
-              );
-
-              restoreSelection();
-
-              const hit = intersects.find((entry: any) => entry.object?.isMesh || entry.object?.isLine || entry.object?.isLineSegments)?.object as any;
-              if (!hit) {
-                if (mounted) setSelectedPiece(null);
-                return;
-              }
-
-              selectedObject = hit;
-              const origMat = hit.userData?.originalMaterial || hit.material;
-              const matName = origMat?.name || "Padrão";
-              const matColor = origMat?.color?.getHexString?.() || null;
-              const matType = origMat?.type || "Unknown";
-              const vtxCount = hit.geometry?.attributes?.position?.count || 0;
-
-              if (hit.isMesh) {
-                const highlightMaterial = origMat?.clone ? origMat.clone() : new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
-                if (highlightMaterial.color) {
-                  const baseColor = origMat?.color?.clone?.() || new THREE.Color(0xffffff);
-                  highlightMaterial.color = baseColor.lerp(new THREE.Color(0xffffff), 0.12);
-                }
-                if ("emissive" in highlightMaterial) {
-                  highlightMaterial.emissive = new THREE.Color(0x38bdf8);
-                  highlightMaterial.emissiveIntensity = 0.18;
-                }
-                highlightMaterial.needsUpdate = true;
-                hit.material = highlightMaterial;
-              } else {
-                hit.material = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
-              }
-
-              const pieceBox = new THREE.Box3().setFromObject(hit);
-              const pieceSize = pieceBox.getSize(new THREE.Vector3());
-              const scaleF = loadedObject.scale.x || 1;
-              const realW = Math.round((pieceSize.x / scaleF) * 100) / 100;
-              const realH = Math.round((pieceSize.y / scaleF) * 100) / 100;
-              const realD = Math.round((pieceSize.z / scaleF) * 100) / 100;
-
-              if (mounted) {
-                setSelectedPiece({
-                  name: hit.name || "Objeto sem nome",
-                  width: realW,
-                  height: realH,
-                  depth: realD,
-                  materialName: matName,
-                  materialColor: matColor,
-                  materialType: matType,
-                  vertexCount: vtxCount,
-                });
-              }
-
-              onObjectSelectRef.current?.(hit.name || "Objeto sem nome", {
-                type: hit.type,
-                dimensions: { width: realW, height: realH, depth: realD },
-                geometry: hit.geometry ? {
-                  vertices: hit.geometry.attributes?.position?.count || 0,
-                } : null,
-                material: {
-                  name: matName,
-                  color: matColor,
-                  finish: matType,
-                },
-                position: {
-                  x: Math.round(hit.position.x * 100) / 100,
-                  y: Math.round(hit.position.y * 100) / 100,
-                  z: Math.round(hit.position.z * 100) / 100,
-                },
-              });
-            };
-
-            renderer.domElement.addEventListener("click", handleClick);
-            removeClickListener = () => renderer.domElement.removeEventListener("click", handleClick);
-          }
-
-          if (mounted) {
-            setProgress(100);
-            setProgressLabel("Concluído!");
-            setTimeout(() => { if (mounted) setLoading(false); }, 220);
-          }
-        } catch (loadErr: any) {
-          console.error("Model load error:", loadErr);
-          if (mounted) {
-            setError(`Erro ao carregar o modelo: ${loadErr.message || "formato inválido"}`);
-            setLoading(false);
-          }
-          renderer.dispose();
-          return;
+        const box = new THREE.Box3().setFromObject(loadedObject);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        if (maxDim > 0) {
+          const scale = 6 / maxDim;
+          loadedObject.scale.setScalar(scale);
+          loadedObject.position.sub(center.multiplyScalar(scale));
         }
+
+        threeRef.current.loadedObject = loadedObject;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.params.Line = { threshold: 0.25 };
+        const mouse = new THREE.Vector2();
+        let selectedObj: any = null;
+
+        clickHandler = (event: MouseEvent) => {
+          const rect = renderer.domElement.getBoundingClientRect();
+          mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+
+          // Restore previous selection
+          if (selectedObj?.userData?.originalMaterial) {
+            selectedObj.material = selectedObj.userData.originalMaterial;
+            selectedObj = null;
+          }
+
+          const intersects = raycaster.intersectObjects([loadedObject], true);
+          const hit = intersects.find((e: any) => e.object?.isMesh || e.object?.isLine || e.object?.isLineSegments)?.object as any;
+
+          if (!hit) {
+            if (mounted) setSelectedPiece(null);
+            return;
+          }
+
+          selectedObj = hit;
+          const origMat = hit.userData?.originalMaterial || hit.material;
+
+          if (hit.isMesh && origMat?.clone) {
+            const hl = origMat.clone();
+            if (hl.color) hl.color = origMat.color.clone().lerp(new THREE.Color(0xffffff), 0.12);
+            if ("emissive" in hl) { hl.emissive = new THREE.Color(0x38bdf8); hl.emissiveIntensity = 0.18; }
+            hl.needsUpdate = true;
+            hit.material = hl;
+          } else if (!hit.isMesh) {
+            hit.material = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
+          }
+
+          const pb = new THREE.Box3().setFromObject(hit);
+          const ps = pb.getSize(new THREE.Vector3());
+          const sf = loadedObject.scale.x || 1;
+
+          if (mounted) {
+            setSelectedPiece({
+              name: hit.name || "Objeto sem nome",
+              width: Math.round((ps.x / sf) * 100) / 100,
+              height: Math.round((ps.y / sf) * 100) / 100,
+              depth: Math.round((ps.z / sf) * 100) / 100,
+              materialName: origMat?.name || "Padrão",
+              materialColor: origMat?.color?.getHexString?.() || null,
+              materialType: origMat?.type || "Unknown",
+              vertexCount: hit.geometry?.attributes?.position?.count || 0,
+            });
+          }
+
+          onObjectSelectRef.current?.(hit.name || "Objeto sem nome", {
+            type: hit.type,
+            dimensions: { width: ps.x / sf, height: ps.y / sf, depth: ps.z / sf },
+            geometry: hit.geometry ? { vertices: hit.geometry.attributes?.position?.count || 0 } : null,
+            material: { name: origMat?.name, color: origMat?.color?.getHexString?.(), finish: origMat?.type },
+            position: { x: hit.position.x, y: hit.position.y, z: hit.position.z },
+          });
+        };
+
+        renderer.domElement.addEventListener("click", clickHandler);
+
+        setProgress(100);
+        setProgressLabel("Concluído!");
+        setTimeout(() => { if (mounted) setLoading(false); }, 200);
 
         const animate = () => {
           if (!mounted) return;
@@ -626,7 +576,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         };
         animate();
 
-        const onResize = () => {
+        resizeHandler = () => {
           if (!canvasRef.current) return;
           const c = canvasRef.current.parentElement!;
           const w = c.clientWidth;
@@ -635,11 +585,11 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           camera.updateProjectionMatrix();
           renderer.setSize(w, h);
         };
-        window.addEventListener("resize", onResize);
+        window.addEventListener("resize", resizeHandler);
       } catch (err: any) {
         console.error("WebGL init error:", err);
         if (mounted) {
-          setError("Erro ao inicializar o visualizador 3D.");
+          setError(`Erro ao carregar: ${err.message || "erro desconhecido"}`);
           setLoading(false);
         }
       }
@@ -648,7 +598,11 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
     return () => {
       mounted = false;
       cancelAnimationFrame(animationFrameId);
-      removeClickListener?.();
+      if (resizeHandler) window.removeEventListener("resize", resizeHandler);
+      if (clickHandler && canvasElement) canvasElement.removeEventListener("click", clickHandler);
+      controls?.dispose?.();
+      renderer?.dispose?.();
+      threeRef.current = null;
     };
   }, [fileUrl]);
 
