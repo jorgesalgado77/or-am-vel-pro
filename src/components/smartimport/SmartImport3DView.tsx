@@ -255,7 +255,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                 <Box className="h-14 w-14 text-muted-foreground mx-auto" />
                 <h4 className="text-lg font-semibold text-foreground">Nenhum projeto importado</h4>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Importe seu primeiro arquivo .GLB ou .DXF para visualizar em 3D, selecionar módulos e gerar orçamentos automaticamente.
+                  Importe seu primeiro arquivo 3D (.GLB, .DXF, .OBJ, .FBX, .STL) para visualizar, selecionar módulos e gerar orçamentos automaticamente.
                 </p>
               </CardContent>
             </Card>
