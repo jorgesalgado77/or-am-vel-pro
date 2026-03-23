@@ -853,6 +853,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Drill-down Modals */}
+      <AdminUsersModal open={showUsersModal} onOpenChange={setShowUsersModal} tenants={tenants} />
+      <AdminClientsModal open={showClientsModal} onOpenChange={setShowClientsModal} tenants={tenants} />
+      <AdminInactiveStoresModal open={showInactiveModal} onOpenChange={setShowInactiveModal} tenants={tenants} />
     </div>
   );
 }
