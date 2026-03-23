@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical, Instagram, Facebook, Youtube, Globe, Twitter, Share2, DollarSign } from "lucide-react";
+import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical, Instagram, Facebook, Youtube, Globe, Twitter, Share2, DollarSign, Pencil, Check } from "lucide-react";
 import { FunnelMetrics } from "@/components/funnel/FunnelMetrics";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/contexts/AuthContext";
