@@ -26,6 +26,7 @@ interface SelectedPieceInfo {
 
 type BackgroundPreset = "dark" | "light" | "studio" | "clean";
 type LightingPreset = "balanced" | "soft" | "contrast";
+type QualityPreset = "low" | "balanced" | "high";
 
 const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground: number; showGrid: boolean }> = {
   dark: { background: 0x1e293b, ground: 0x111827, showGrid: true },
@@ -38,6 +39,21 @@ const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; f
   balanced: { ambient: 0.8, key: 1, fill: 0.6, rim: 0.3, hemi: 0.4 },
   soft: { ambient: 1.05, key: 0.85, fill: 0.75, rim: 0.18, hemi: 0.55 },
   contrast: { ambient: 0.55, key: 1.3, fill: 0.38, rim: 0.55, hemi: 0.28 },
+};
+
+const QUALITY_PRESETS: Record<QualityPreset, { pixelRatio: number; antialias: boolean; shadows: boolean; label: string }> = {
+  low: { pixelRatio: 1, antialias: false, shadows: false, label: "Leve" },
+  balanced: { pixelRatio: Math.min(window.devicePixelRatio, 1.5), antialias: true, shadows: false, label: "Equilibrado" },
+  high: { pixelRatio: Math.min(window.devicePixelRatio, 2), antialias: true, shadows: true, label: "Alta fidelidade" },
+};
+
+const FORMAT_LOADING_MESSAGES: Record<string, string[]> = {
+  glb: ["Decodificando modelo GLB...", "Carregando geometrias e texturas...", "Montando cena GLTF..."],
+  gltf: ["Decodificando modelo GLTF...", "Carregando geometrias e texturas...", "Montando cena GLTF..."],
+  obj: ["Lendo geometria OBJ...", "Processando vértices e faces...", "Aplicando materiais OBJ..."],
+  fbx: ["Decodificando arquivo FBX...", "Processando animações e geometrias...", "Convertendo materiais FBX..."],
+  stl: ["Lendo malha STL...", "Calculando normais de superfície...", "Preparando visualização STL..."],
+  dxf: ["Analisando entidades DXF...", "Convertendo coordenadas CAD...", "Montando geometria vetorial DXF..."],
 };
 
 function applyBackgroundPreset(THREE: any, scene: any, preset: BackgroundPreset) {
