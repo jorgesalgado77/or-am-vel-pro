@@ -35,8 +35,52 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
     fetch();
   }, [tenantId, getMetrics]);
 
-  if (!metrics) return null;
-  if (metrics.totalVendas === 0 && metrics.totalReunioes === 0) return null;
+  if (!metrics) {
+    return (
+      <div className="space-y-6">
+        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-primary" />
+          Deal Room
+        </h3>
+        <Card>
+          <CardContent className="p-8 text-center space-y-3">
+            <TrendingUp className="h-10 w-10 text-muted-foreground mx-auto" />
+            <p className="text-sm text-muted-foreground">Carregando métricas do Deal Room...</p>
+          </CardContent>
+        </Card>
+        <OnboardingDialog
+          featureKey="dealroom"
+          open={showOnboarding}
+          onClose={() => setShowOnboarding(false)}
+        />
+      </div>
+    );
+  }
+
+  if (metrics.totalVendas === 0 && metrics.totalReunioes === 0) {
+    return (
+      <div className="space-y-6">
+        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-primary" />
+          Deal Room
+        </h3>
+        <Card>
+          <CardContent className="p-8 text-center space-y-3">
+            <TrendingUp className="h-10 w-10 text-muted-foreground mx-auto" />
+            <h4 className="font-semibold text-foreground">Nenhuma negociação ainda</h4>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              O Deal Room está ativo! Inicie sua primeira negociação para ver as métricas de vendas, conversão e ranking aqui.
+            </p>
+          </CardContent>
+        </Card>
+        <OnboardingDialog
+          featureKey="dealroom"
+          open={showOnboarding}
+          onClose={() => setShowOnboarding(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
