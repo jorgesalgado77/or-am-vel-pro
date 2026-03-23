@@ -11,10 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DollarSign, TrendingUp, Target, Percent, Trophy, Plus,
-  Send, Eye, CheckCircle, XCircle, Clock, FileText, ExternalLink,
-  Handshake, Users, BarChart3, RefreshCw,
+  Send, Eye, CheckCircle, XCircle, FileText, ExternalLink,
+  Handshake, BarChart3, RefreshCw,
 } from "lucide-react";
-import { useDealRoom } from "@/hooks/useDealRoom";
+import { useDealRoom, type DealRoomProposal } from "@/hooks/useDealRoom";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
 import { formatCurrency } from "@/lib/financing";
 import { supabase } from "@/lib/supabaseClient";
@@ -24,24 +24,6 @@ import { ptBR } from "date-fns/locale";
 
 interface DealRoomStoreWidgetProps {
   tenantId: string;
-}
-
-interface Proposal {
-  id: string;
-  client_id: string | null;
-  tracking_id: string | null;
-  usuario_id: string | null;
-  valor_proposta: number;
-  descricao: string | null;
-  forma_pagamento: string | null;
-  status: string;
-  stripe_checkout_url: string | null;
-  visualizada_em: string | null;
-  clicou_em: string | null;
-  aceita_em: string | null;
-  recusada_em: string | null;
-  pago_em: string | null;
-  created_at: string;
 }
 
 interface ClientOption {
@@ -59,7 +41,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 };
 
 export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
-  const { getMetrics, loading: hookLoading } = useDealRoom();
+  const { getMetrics, listProposals, createProposal, trackProposalEvent, loading: hookLoading } = useDealRoom();
   const { showOnboarding, setShowOnboarding } = useOnboarding("dealroom");
 
   const [metrics, setMetrics] = useState<{
@@ -68,11 +50,10 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
   } | null>(null);
   const [proposalStats, setProposalStats] = useState<any>(null);
   const [ranking, setRanking] = useState<any[]>([]);
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [proposals, setProposals] = useState<DealRoomProposal[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // New proposal form
   const [showNewProposal, setShowNewProposal] = useState(false);
   const [newProposal, setNewProposal] = useState({
     client_id: "", valor_proposta: "", descricao: "", forma_pagamento: "pix",
@@ -81,33 +62,35 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
 
   const loadData = useCallback(async () => {
     setLoadingData(true);
-    // Load metrics
-    const result = await getMetrics({ tenant_id: tenantId });
-    if (result) {
-      setMetrics(result.metrics);
-      setRanking(result.ranking?.slice(0, 5) || []);
-      setProposalStats(result.proposalStats || null);
-    } else {
+    try {
+      // Load metrics via direct queries
+      const result = await getMetrics({ tenant_id: tenantId });
+      if (result) {
+        setMetrics(result.metrics);
+        setRanking(result.ranking?.slice(0, 5) || []);
+        setProposalStats(result.proposalStats || null);
+      } else {
+        setMetrics({ totalVendas: 0, totalTransacionado: 0, totalTaxas: 0, ticketMedio: 0, totalReunioes: 0, taxaConversao: 0 });
+      }
+
+      // Load proposals directly
+      const proposalsList = await listProposals(tenantId);
+      setProposals(proposalsList);
+
+      // Load clients for selector
+      const { data: clientsData } = await supabase
+        .from("clients")
+        .select("id, nome, numero_orcamento")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      setClients(clientsData || []);
+    } catch (err) {
+      console.error("Error loading deal room data:", err);
       setMetrics({ totalVendas: 0, totalTransacionado: 0, totalTaxas: 0, ticketMedio: 0, totalReunioes: 0, taxaConversao: 0 });
     }
-
-    // Load proposals
-    const { data: proposalsData } = await supabase.functions.invoke("dealroom", {
-      body: { action: "list_proposals", tenant_id: tenantId },
-    });
-    setProposals(proposalsData?.proposals || []);
-
-    // Load clients for selector
-    const { data: clientsData } = await supabase
-      .from("clients")
-      .select("id, nome, numero_orcamento")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    setClients(clientsData || []);
-
     setLoadingData(false);
-  }, [tenantId, getMetrics]);
+  }, [tenantId, getMetrics, listProposals]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -121,25 +104,18 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
     }
     setCreatingProposal(true);
     const selectedClient = clients.find(c => c.id === newProposal.client_id);
-    const { data, error } = await supabase.functions.invoke("dealroom", {
-      body: {
-        action: "create_proposal",
-        tenant_id: tenantId,
-        transaction_data: {
-          client_id: newProposal.client_id || null,
-          valor_proposta: Number(newProposal.valor_proposta),
-          descricao: newProposal.descricao || `Proposta para ${selectedClient?.nome || "Cliente"}`,
-          forma_pagamento: newProposal.forma_pagamento,
-          numero_contrato: selectedClient?.numero_orcamento || null,
-        },
-      },
+
+    const proposal = await createProposal(tenantId, {
+      client_id: newProposal.client_id || undefined,
+      valor_proposta: Number(newProposal.valor_proposta),
+      descricao: newProposal.descricao || `Proposta para ${selectedClient?.nome || "Cliente"}`,
+      forma_pagamento: newProposal.forma_pagamento,
+      numero_contrato: selectedClient?.numero_orcamento || undefined,
     });
+
     setCreatingProposal(false);
 
-    if (error || data?.error) {
-      toast.error(data?.error || "Erro ao criar proposta");
-      return;
-    }
+    if (!proposal) return;
 
     toast.success("Proposta criada com sucesso!");
     setShowNewProposal(false);
@@ -148,15 +124,11 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
   };
 
   const handleTrackEvent = async (proposalId: string, event: string) => {
-    const { error } = await supabase.functions.invoke("dealroom", {
-      body: { action: "track_proposal", proposal_id: proposalId, event },
-    });
-    if (error) {
-      toast.error("Erro ao atualizar proposta");
-      return;
+    const success = await trackProposalEvent(proposalId, event);
+    if (success) {
+      toast.success(`Proposta marcada como "${event}"`);
+      loadData();
     }
-    toast.success(`Proposta marcada como "${event}"`);
-    loadData();
   };
 
   if (loadingData && !metrics) {
@@ -266,49 +238,37 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
                             <div className="flex gap-1">
                               {p.status === "enviada" && (
                                 <>
-                                  <Button
-                                    variant="ghost" size="sm" className="h-7 text-xs gap-1"
-                                    onClick={() => handleTrackEvent(p.id, "visualizada")}
-                                  >
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                    onClick={() => handleTrackEvent(p.id, "visualizada")}>
                                     <Eye className="h-3 w-3" /> Vista
                                   </Button>
-                                  <Button
-                                    variant="ghost" size="sm" className="h-7 text-xs gap-1 text-destructive"
-                                    onClick={() => handleTrackEvent(p.id, "recusada")}
-                                  >
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-destructive"
+                                    onClick={() => handleTrackEvent(p.id, "recusada")}>
                                     <XCircle className="h-3 w-3" /> Recusar
                                   </Button>
                                 </>
                               )}
                               {p.status === "visualizada" && (
                                 <>
-                                  <Button
-                                    variant="ghost" size="sm" className="h-7 text-xs gap-1"
-                                    onClick={() => handleTrackEvent(p.id, "aceita")}
-                                  >
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                    onClick={() => handleTrackEvent(p.id, "aceita")}>
                                     <CheckCircle className="h-3 w-3" /> Aceitar
                                   </Button>
-                                  <Button
-                                    variant="ghost" size="sm" className="h-7 text-xs gap-1 text-destructive"
-                                    onClick={() => handleTrackEvent(p.id, "recusada")}
-                                  >
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-destructive"
+                                    onClick={() => handleTrackEvent(p.id, "recusada")}>
                                     <XCircle className="h-3 w-3" /> Recusar
                                   </Button>
                                 </>
                               )}
                               {p.status === "aceita" && (
-                                <Button
-                                  variant="ghost" size="sm" className="h-7 text-xs gap-1"
-                                  onClick={() => handleTrackEvent(p.id, "paga")}
-                                >
+                                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                  onClick={() => handleTrackEvent(p.id, "paga")}>
                                   <DollarSign className="h-3 w-3" /> Confirmar Pgto
                                 </Button>
                               )}
                               {p.stripe_checkout_url && (
-                                <Button
-                                  variant="ghost" size="sm" className="h-7 text-xs gap-1"
-                                  onClick={() => window.open(p.stripe_checkout_url!, "_blank")}
-                                >
+                                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                  onClick={() => window.open(p.stripe_checkout_url!, "_blank")}>
                                   <ExternalLink className="h-3 w-3" /> Link
                                 </Button>
                               )}
@@ -326,26 +286,24 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
 
         {/* Métricas Tab */}
         <TabsContent value="metricas" className="space-y-4">
-          {proposalStats && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {[
-                { label: "Total Propostas", value: proposalStats.total, icon: FileText },
-                { label: "Enviadas", value: proposalStats.enviadas, icon: Send },
-                { label: "Visualizadas", value: proposalStats.visualizadas, icon: Eye },
-                { label: "Aceitas", value: proposalStats.aceitas, icon: CheckCircle },
-                { label: "Pagas", value: proposalStats.pagas, icon: DollarSign },
-                { label: "Recusadas", value: proposalStats.recusadas, icon: XCircle },
-              ].map(s => (
-                <Card key={s.label}>
-                  <CardContent className="p-3 text-center">
-                    <s.icon className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
-                    <p className="text-lg font-bold text-foreground">{s.value}</p>
-                    <p className="text-[10px] text-muted-foreground">{s.label}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { label: "Total Propostas", value: proposalStats?.total ?? proposals.length, icon: FileText },
+              { label: "Enviadas", value: proposalStats?.enviadas ?? 0, icon: Send },
+              { label: "Visualizadas", value: proposalStats?.visualizadas ?? 0, icon: Eye },
+              { label: "Aceitas", value: proposalStats?.aceitas ?? 0, icon: CheckCircle },
+              { label: "Pagas", value: proposalStats?.pagas ?? 0, icon: DollarSign },
+              { label: "Recusadas", value: proposalStats?.recusadas ?? 0, icon: XCircle },
+            ].map(s => (
+              <Card key={s.label}>
+                <CardContent className="p-3 text-center">
+                  <s.icon className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
+                  <p className="text-lg font-bold text-foreground">{s.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         {/* Ranking Tab */}
@@ -410,10 +368,7 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
             <div>
               <Label className="text-sm">Valor da Proposta (R$) *</Label>
               <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0,00"
+                type="number" step="0.01" min="0" placeholder="0,00"
                 value={newProposal.valor_proposta}
                 onChange={e => setNewProposal(p => ({ ...p, valor_proposta: e.target.value }))}
                 className="h-9"
