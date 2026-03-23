@@ -364,46 +364,108 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
       <main className="max-w-7xl mx-auto p-6 space-y-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          {[
-            { label: "Total Lojas", value: totalLojas, icon: Store, color: "text-primary" },
-            { label: "Ativas", value: lojasAtivas, icon: Eye, color: "text-accent" },
-            { label: "Trial", value: lojasTrial, icon: Zap, color: "text-muted-foreground" },
-            { label: "Básico", value: lojasBasico, icon: Users, color: "text-primary" },
-            { label: "Premium", value: lojasPremium, icon: Crown, color: "text-destructive" },
-            { label: "Usuários", value: totalUsuarios, icon: Users, color: "text-primary" },
-            { label: "Clientes", value: totalClientes, icon: Users, color: "text-accent" },
-            { label: "Receita Mensal", value: `R$ ${receitaMensal.toFixed(2)}`, icon: DollarSign, color: "text-accent" },
-          ].map((kpi) => (
-            <Card key={kpi.label}>
-              <CardContent className="p-3 flex items-center gap-2">
-                <kpi.icon className={`h-4 w-4 ${kpi.color} shrink-0`} />
-                <div>
-                  <p className="text-[10px] text-muted-foreground">{kpi.label}</p>
-                  <p className="text-base font-bold text-foreground">{kpi.value}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-3">
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Store className="h-4 w-4 text-primary shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Total Lojas</p>
+                <p className="text-base font-bold text-foreground">{totalLojas}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Eye className="h-4 w-4 text-accent shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Ativas</p>
+                <p className="text-base font-bold text-foreground">{lojasAtivas}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowInactiveModal(true)}>
+            <CardContent className="p-3 flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-destructive shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Inativas</p>
+                <p className="text-base font-bold text-foreground">{lojasInativas}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Trial</p>
+                <p className="text-base font-bold text-foreground">{lojasTrial}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Crown className="h-4 w-4 text-destructive shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Premium</p>
+                <p className="text-base font-bold text-foreground">{lojasPremium}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowUsersModal(true)}>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Usuários</p>
+                <p className="text-base font-bold text-foreground">{totalUsuarios}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowClientsModal(true)}>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Users className="h-4 w-4 text-accent shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Clientes</p>
+                <p className="text-base font-bold text-foreground">{totalClientes}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <AdminContractsValueCard tenants={tenants} />
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-accent shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Receita Mensal</p>
+                <p className="text-base font-bold text-foreground">R$ {receitaMensal.toFixed(2)}</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="lojas" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="lojas" className="gap-2"><Store className="h-4 w-4" />Lojas</TabsTrigger>
-            <TabsTrigger value="dealroom" className="gap-2"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
-            <TabsTrigger value="suporte" className="gap-2 relative">
-              <MessageSquare className="h-4 w-4" />Suporte
-              {addonInterestCount > 0 && (
-                <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px] rounded-full">
-                  {addonInterestCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="pagamentos" className="gap-2"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
-            <TabsTrigger value="planos" className="gap-2"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
-            <TabsTrigger value="landing" className="gap-2"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
-            <TabsTrigger value="vendazap" className="gap-2"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
-            <TabsTrigger value="whatsapp" className="gap-2"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
+          <ScrollArea className="w-full">
+            <TabsList className="inline-flex w-max gap-1 p-1">
+              <TabsTrigger value="lojas" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Store className="h-4 w-4" />Lojas</TabsTrigger>
+              <TabsTrigger value="dealroom" className="gap-2 data-[state=active]:bg-[hsl(270,60%,50%)] data-[state=active]:text-white"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
+              <TabsTrigger value="suporte" className="gap-2 relative data-[state=active]:bg-[hsl(200,80%,45%)] data-[state=active]:text-white">
+                <MessageSquare className="h-4 w-4" />Suporte
+                {addonInterestCount > 0 && (
+                  <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px] rounded-full">
+                    {addonInterestCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="pagamentos" className="gap-2 data-[state=active]:bg-[hsl(150,60%,40%)] data-[state=active]:text-white"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
+              <TabsTrigger value="planos" className="gap-2 data-[state=active]:bg-[hsl(340,70%,50%)] data-[state=active]:text-white"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
+              <TabsTrigger value="landing" className="gap-2 data-[state=active]:bg-[hsl(30,80%,50%)] data-[state=active]:text-white"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
+              <TabsTrigger value="vendazap" className="gap-2 data-[state=active]:bg-[hsl(120,50%,40%)] data-[state=active]:text-white"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
+              <TabsTrigger value="whatsapp" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
+              <TabsTrigger value="resend" className="gap-2 data-[state=active]:bg-[hsl(220,70%,50%)] data-[state=active]:text-white"><Mail className="h-4 w-4" />Resend</TabsTrigger>
+              <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
+              <TabsTrigger value="canva" className="gap-2 data-[state=active]:bg-[hsl(180,60%,40%)] data-[state=active]:text-white"><Palette className="h-4 w-4" />Canva</TabsTrigger>
+              <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
+              <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
+            </TabsList>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
             <TabsTrigger value="resend" className="gap-2"><Mail className="h-4 w-4" />Resend</TabsTrigger>
             <TabsTrigger value="diagnostics" className="gap-2"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
             <TabsTrigger value="canva" className="gap-2"><Palette className="h-4 w-4" />Canva</TabsTrigger>
