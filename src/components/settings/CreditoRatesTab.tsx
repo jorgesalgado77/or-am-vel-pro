@@ -166,7 +166,7 @@ export function CreditoRatesTab() {
             <div className="space-y-4">
               {providers.map((provider) => {
                 const pd = providerDefaults[provider] || { parcelas: 0 };
-                const maxInstallments = rates.filter((r) => r.provider_name === provider).length || 12;
+                const providerInstallments = [...new Set(rates.filter((r) => r.provider_name === provider).map((r) => r.installments))].sort((a, b) => a - b);
                 return (
                   <div key={provider} className="flex flex-wrap items-end gap-4 p-3 bg-secondary/30 rounded-lg">
                     <div className="font-medium text-sm min-w-[120px]">{provider}</div>
@@ -175,7 +175,7 @@ export function CreditoRatesTab() {
                       <Select value={String(pd.parcelas || "")} onValueChange={(v) => updateProviderDefault(provider, Number(v))}>
                         <SelectTrigger className="mt-1 w-[100px] h-8"><SelectValue placeholder="—" /></SelectTrigger>
                         <SelectContent>
-                          {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => (
+                          {providerInstallments.map((n) => (
                             <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
                           ))}
                         </SelectContent>
