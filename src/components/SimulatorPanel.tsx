@@ -298,7 +298,17 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const maxParcelas = formaPagamento === "Boleto" ? maxBoletoInstallments
     : formaPagamento === "Credito" || formaPagamento === "Credito / Boleto" ? maxCreditoInstallments : 12;
 
-  const { boletoCoeffMap, boletoRatesFullMap } = useMemo(() => {
+  // Filter carência options based on whether the selected boleto provider has non-zero coefficients
+  const availableCarenciaOptions = useMemo(() => {
+    return CARENCIA_OPTIONS.filter((c) => {
+      if (c.value === "30") return true;
+      if (c.value === "60") return currentBoletoRates.some((r) => Number(r.coeficiente_60) > 0);
+      if (c.value === "90") return currentBoletoRates.some((r) => Number(r.coeficiente_90) > 0);
+      return true;
+    });
+  }, [currentBoletoRates]);
+
+
     const coeffMap: Record<number, number> = {};
     const fullMap: Record<number, BoletoRateData> = {};
     currentBoletoRates.forEach((r) => {
