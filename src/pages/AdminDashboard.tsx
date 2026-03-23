@@ -672,6 +672,28 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                               >
                                 <Handshake className="h-3 w-3" />DR
                               </Button>
+                              <Button
+                                variant={vip.smart_import_3d ? "default" : "outline"}
+                                size="sm"
+                                className={`h-7 text-[10px] gap-1 px-2 ${vip.smart_import_3d ? "bg-primary text-primary-foreground" : ""}`}
+                                title={vip.smart_import_3d ? "Clique para revogar 3D Smart Import" : "Clique para liberar 3D Smart Import"}
+                                onClick={async () => {
+                                  const newVip = { ...vip, smart_import_3d: !vip.smart_import_3d };
+                                  await supabase.from("tenants").update({ recursos_vip: newVip } as any).eq("id", t.id);
+                                  logAudit({
+                                    acao: !vip.smart_import_3d ? "addon_liberado" : "addon_revogado",
+                                    entidade: "tenant",
+                                    entidade_id: t.id,
+                                    usuario_nome: adminName,
+                                    tenant_id: t.id,
+                                    detalhes: { addon: "smart_import_3d", loja: t.nome_loja },
+                                  });
+                                  toast.success(`3D Smart Import ${!vip.smart_import_3d ? "liberado" : "revogado"} para ${t.nome_loja}`);
+                                  fetchData();
+                                }}
+                              >
+                                <Box className="h-3 w-3" />3D
+                              </Button>
                             </div>
                           </TableCell>
                           <TableCell>
