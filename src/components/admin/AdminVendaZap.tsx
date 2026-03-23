@@ -160,17 +160,19 @@ export function AdminVendaZap() {
       openai_model: fModel,
     };
 
-    if (editingAddon) {
+    if (editingAddon && !editingAddon.id.startsWith("vip-")) {
       const { error } = await supabase.from("vendazap_addon").update(payload as any).eq("id", editingAddon.id);
-      if (error) toast.error("Erro ao atualizar");
+      if (error) { toast.error("Erro ao atualizar"); return; }
       else toast.success("Configuração atualizada!");
     } else {
-      const { error } = await supabase.from("vendazap_addon").insert(payload as any);
+      // For new or VIP-activated stores, upsert by tenant_id
+      const { error } = await supabase.from("vendazap_addon").upsert(payload as any, { onConflict: "tenant_id" });
       if (error) {
-        if (error.code === "23505") toast.error("Esta loja já possui VendaZap configurado");
-        else toast.error("Erro ao criar configuração");
+        console.error("VendaZap save error:", error);
+        toast.error("Erro ao salvar configuração");
+        return;
       } else {
-        toast.success("VendaZap ativado para a loja!");
+        toast.success(editingAddon ? "Configuração atualizada!" : "VendaZap ativado para a loja!");
       }
     }
 
