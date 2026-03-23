@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw, Gauge } from "lucide-react";
+import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { loadModelForPreview } from "./modelPreviewUtils";
@@ -36,9 +36,9 @@ const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground:
 };
 
 const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; fill: number; rim: number; hemi: number }> = {
-  balanced: { ambient: 0.8, key: 1, fill: 0.6, rim: 0.3, hemi: 0.4 },
-  soft: { ambient: 1.05, key: 0.85, fill: 0.75, rim: 0.18, hemi: 0.55 },
-  contrast: { ambient: 0.55, key: 1.3, fill: 0.38, rim: 0.55, hemi: 0.28 },
+  balanced: { ambient: 0.6, key: 1.2, fill: 0.5, rim: 0.3, hemi: 0.5 },
+  soft: { ambient: 0.9, key: 0.8, fill: 0.7, rim: 0.15, hemi: 0.6 },
+  contrast: { ambient: 0.35, key: 1.6, fill: 0.3, rim: 0.6, hemi: 0.25 },
 };
 
 const QUALITY_PRESETS: Record<QualityPreset, { pixelRatio: number; antialias: boolean; shadows: boolean; label: string }> = {
@@ -80,282 +80,6 @@ function getFileExtension(url: string): string {
   }
 }
 
-// AutoCAD Color Index (ACI) - faithful color mapping
-const ACI_COLORS: Record<number, number> = {
-  0: 0x000000, 1: 0xFF0000, 2: 0xFFFF00, 3: 0x00FF00, 4: 0x00FFFF,
-  5: 0x0000FF, 6: 0xFF00FF, 7: 0xBBBBBB, 8: 0x808080, 9: 0xC0C0C0,
-  10: 0xFF0000, 11: 0xFF7F7F, 12: 0xCC0000, 14: 0x990000,
-  20: 0xFF3F00, 30: 0xFF7F00, 40: 0xFFBF00, 50: 0xFFFF00,
-  60: 0xBFFF00, 70: 0x7FFF00, 80: 0x3FFF00, 90: 0x00FF00,
-  100: 0x00FF3F, 110: 0x00FF7F, 120: 0x00FFBF, 130: 0x00FFFF,
-  140: 0x00BFFF, 150: 0x007FFF, 160: 0x003FFF, 170: 0x0000FF,
-  180: 0x3F00FF, 190: 0x7F00FF, 200: 0xBF00FF, 210: 0xFF00FF,
-  220: 0xFF00BF, 230: 0xFF007F, 240: 0xFF003F,
-  250: 0x333333, 251: 0x505050, 252: 0x696969,
-  253: 0x808080, 254: 0xBEBEBE, 255: 0xFFFFFF,
-};
-
-function aciToHex(colorIndex: number): number {
-  // Color 7 = default in DXF → use neutral silver/gray (visible on dark bg)
-  if (colorIndex === 7) return 0xB0BEC5;
-  if (colorIndex === 0) return 0x90A4AE;
-  if (ACI_COLORS[colorIndex] !== undefined) return ACI_COLORS[colorIndex];
-  // Closest mapped color
-  const keys = Object.keys(ACI_COLORS).map(Number).sort((a, b) => a - b);
-  for (let k = 0; k < keys.length - 1; k++) {
-    if (colorIndex >= keys[k] && colorIndex <= keys[k + 1]) return ACI_COLORS[keys[k]];
-  }
-  return 0xB0BEC5;
-}
-
-interface DxfEntity {
-  type: string;
-  color: number;
-  vertices: Array<{ x: number; y: number; z: number }>;
-  isClosed?: boolean;
-}
-
-/** Enhanced DXF parser: extracts multiple entity types with colors */
-function parseDxfEntities(dxfText: string): DxfEntity[] {
-  const lines = dxfText.split(/\r?\n/).map(l => l.trim());
-  const entities: DxfEntity[] = [];
-  let i = 0;
-  let inEntities = false;
-
-  // Find ENTITIES section
-  while (i < lines.length) {
-    if (lines[i] === "ENTITIES") { inEntities = true; i++; break; }
-    i++;
-  }
-  if (!inEntities) return entities;
-
-  let currentEntity: DxfEntity | null = null;
-  let currentCode = -1;
-
-  while (i < lines.length - 1) {
-    if (lines[i] === "ENDSEC") break;
-
-    const code = parseInt(lines[i]);
-    const value = lines[i + 1];
-
-    if (isNaN(code) || value === undefined) { i++; continue; }
-
-    // Entity start
-    if (code === 0) {
-      if (currentEntity && currentEntity.vertices.length > 0) {
-        entities.push(currentEntity);
-      }
-      const entityType = value.toUpperCase();
-      if (["LINE", "POLYLINE", "LWPOLYLINE", "3DFACE", "SOLID", "CIRCLE", "ARC", "POINT", "SPLINE", "INSERT", "VERTEX"].includes(entityType)) {
-        currentEntity = { type: entityType, color: 7, vertices: [], isClosed: false };
-      } else if (entityType === "VERTEX" && currentEntity?.type === "POLYLINE") {
-        // Vertices belong to the current polyline, don't create new entity
-        i += 2; continue;
-      } else if (entityType === "SEQEND" && currentEntity) {
-        entities.push(currentEntity);
-        currentEntity = null;
-        i += 2; continue;
-      } else {
-        currentEntity = null;
-      }
-      i += 2; continue;
-    }
-
-    if (!currentEntity) { i += 2; continue; }
-
-    // Color
-    if (code === 62) {
-      currentEntity.color = parseInt(value) || 7;
-    }
-    // Closed flag for LWPOLYLINE
-    if (code === 70 && (currentEntity.type === "LWPOLYLINE" || currentEntity.type === "POLYLINE")) {
-      currentEntity.isClosed = (parseInt(value) & 1) === 1;
-    }
-
-    // Vertex coordinates
-    if (code === 10) {
-      const x = parseFloat(value);
-      // Look ahead for Y and Z
-      let y = 0, z = 0;
-      let j = i + 2;
-      if (j < lines.length - 1 && parseInt(lines[j]) === 20) { y = parseFloat(lines[j + 1]); j += 2; }
-      if (j < lines.length - 1 && parseInt(lines[j]) === 30) { z = parseFloat(lines[j + 1]); }
-      currentEntity.vertices.push({ x, y, z });
-    }
-    if (code === 11) {
-      const x = parseFloat(value);
-      let y = 0, z = 0;
-      let j = i + 2;
-      if (j < lines.length - 1 && parseInt(lines[j]) === 21) { y = parseFloat(lines[j + 1]); j += 2; }
-      if (j < lines.length - 1 && parseInt(lines[j]) === 31) { z = parseFloat(lines[j + 1]); }
-      currentEntity.vertices.push({ x, y, z });
-    }
-    if (code === 12) {
-      const x = parseFloat(value);
-      let y = 0, z = 0;
-      let j = i + 2;
-      if (j < lines.length - 1 && parseInt(lines[j]) === 22) { y = parseFloat(lines[j + 1]); j += 2; }
-      if (j < lines.length - 1 && parseInt(lines[j]) === 32) { z = parseFloat(lines[j + 1]); }
-      currentEntity.vertices.push({ x, y, z });
-    }
-    if (code === 13) {
-      const x = parseFloat(value);
-      let y = 0, z = 0;
-      let j = i + 2;
-      if (j < lines.length - 1 && parseInt(lines[j]) === 23) { y = parseFloat(lines[j + 1]); j += 2; }
-      if (j < lines.length - 1 && parseInt(lines[j]) === 33) { z = parseFloat(lines[j + 1]); }
-      currentEntity.vertices.push({ x, y, z });
-    }
-
-    i += 2;
-  }
-
-  // Push last entity
-  if (currentEntity && currentEntity.vertices.length > 0) {
-    entities.push(currentEntity);
-  }
-
-  return entities;
-}
-
-// Distinct material palette for individual DXF pieces
-const PIECE_PALETTE = [
-  0x5C6BC0, 0x26A69A, 0xEF5350, 0xAB47BC, 0x42A5F5,
-  0x66BB6A, 0xFFA726, 0x8D6E63, 0xEC407A, 0x78909C,
-  0x7E57C2, 0x29B6F6, 0xD4E157, 0x26C6DA, 0xFF7043,
-];
-
-function buildDxfScene(THREE: any, entities: DxfEntity[]): any {
-  const group = new THREE.Group();
-  group.name = "DXF_Root";
-
-  let pieceIdx = 0;
-  const toV3 = (p: { x: number; y: number; z: number }) =>
-    new THREE.Vector3(p.x, p.z || 0, -(p.y || 0));
-
-  for (const entity of entities) {
-    const entityColor = entity.color !== 7 && entity.color !== 0
-      ? aciToHex(entity.color)
-      : PIECE_PALETTE[pieceIdx % PIECE_PALETTE.length];
-    pieceIdx++;
-
-    switch (entity.type) {
-      case "3DFACE":
-      case "SOLID": {
-        if (entity.vertices.length >= 3) {
-          const verts = entity.vertices.map(toV3);
-          const positions: number[] = [];
-          positions.push(verts[0].x, verts[0].y, verts[0].z, verts[1].x, verts[1].y, verts[1].z, verts[2].x, verts[2].y, verts[2].z);
-          if (verts.length >= 4) {
-            positions.push(verts[0].x, verts[0].y, verts[0].z, verts[2].x, verts[2].y, verts[2].z, verts[3].x, verts[3].y, verts[3].z);
-          }
-          const geo = new THREE.BufferGeometry();
-          geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-          geo.computeVertexNormals();
-          const mat = new THREE.MeshStandardMaterial({
-            color: entityColor, side: THREE.DoubleSide, metalness: 0.15, roughness: 0.6,
-          });
-          const mesh = new THREE.Mesh(geo, mat);
-          mesh.name = `${entity.type}_${pieceIdx}`;
-          group.add(mesh);
-        }
-        break;
-      }
-      case "LINE": {
-        if (entity.vertices.length >= 2) {
-          const geo = new THREE.BufferGeometry().setFromPoints([
-            toV3(entity.vertices[0]), toV3(entity.vertices[1]),
-          ]);
-          const mat = new THREE.LineBasicMaterial({ color: entityColor });
-          const line = new THREE.Line(geo, mat);
-          line.name = `Line_${pieceIdx}`;
-          group.add(line);
-        }
-        break;
-      }
-      case "LWPOLYLINE":
-      case "POLYLINE": {
-        if (entity.vertices.length >= 2) {
-          const subGroup = new THREE.Group();
-          subGroup.name = `${entity.type}_${pieceIdx}`;
-
-          // Filled face if closed
-          if (entity.isClosed && entity.vertices.length >= 3) {
-            const verts = entity.vertices.map(toV3);
-            const positions: number[] = [];
-            for (let t = 1; t < verts.length - 1; t++) {
-              positions.push(verts[0].x, verts[0].y, verts[0].z);
-              positions.push(verts[t].x, verts[t].y, verts[t].z);
-              positions.push(verts[t + 1].x, verts[t + 1].y, verts[t + 1].z);
-            }
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-            geo.computeVertexNormals();
-            const mat = new THREE.MeshStandardMaterial({
-              color: entityColor, side: THREE.DoubleSide, metalness: 0.15, roughness: 0.6,
-              transparent: true, opacity: 0.85,
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.name = `${entity.type}_Face_${pieceIdx}`;
-            subGroup.add(mesh);
-          }
-
-          // Outline lines
-          const linePoints = entity.vertices.map(toV3);
-          if (entity.isClosed) linePoints.push(toV3(entity.vertices[0]));
-          const geo = new THREE.BufferGeometry().setFromPoints(linePoints);
-          const mat = new THREE.LineBasicMaterial({ color: entityColor });
-          const line = new THREE.Line(geo, mat);
-          line.name = `${entity.type}_Edge_${pieceIdx}`;
-          subGroup.add(line);
-
-          group.add(subGroup);
-        }
-        break;
-      }
-      case "CIRCLE": {
-        if (entity.vertices.length >= 1) {
-          const c = toV3(entity.vertices[0]);
-          const r = (entity as any).radius || 0.5;
-          const pts: any[] = [];
-          const segs = 32;
-          for (let s = 0; s <= segs; s++) {
-            const a = (s / segs) * Math.PI * 2;
-            pts.push(new THREE.Vector3(c.x + Math.cos(a) * r, c.y, c.z + Math.sin(a) * r));
-          }
-          const geo = new THREE.BufferGeometry().setFromPoints(pts);
-          const mat = new THREE.LineBasicMaterial({ color: entityColor });
-          const line = new THREE.Line(geo, mat);
-          line.name = `Circle_${pieceIdx}`;
-          group.add(line);
-        }
-        break;
-      }
-      default: {
-        if (entity.vertices.length >= 2) {
-          const pts = entity.vertices.map(toV3);
-          const geo = new THREE.BufferGeometry().setFromPoints(pts);
-          const mat = new THREE.LineBasicMaterial({ color: entityColor });
-          const line = new THREE.Line(geo, mat);
-          line.name = `Entity_${pieceIdx}`;
-          group.add(line);
-        }
-        break;
-      }
-    }
-  }
-
-  if (group.children.length === 0) {
-    const geo = new THREE.BoxGeometry(2, 2, 0.1);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x4499bb, wireframe: true });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.name = "DXF_Placeholder";
-    group.add(mesh);
-  }
-
-  return group;
-}
-
 function LoadingOverlay({ progress, label }: { progress: number; label: string }) {
   return (
     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm gap-4">
@@ -368,16 +92,28 @@ function LoadingOverlay({ progress, label }: { progress: number; label: string }
   );
 }
 
-function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, lightingPreset, qualityPreset }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any>; backgroundPreset: BackgroundPreset; lightingPreset: LightingPreset; qualityPreset: QualityPreset }) {
+function WebGLViewer({
+  fileUrl,
+  onObjectSelect,
+  controlsRef,
+  backgroundPreset,
+  lightingPreset,
+  qualityPreset,
+}: GLBViewerProps & {
+  controlsRef?: React.MutableRefObject<any>;
+  backgroundPreset: BackgroundPreset;
+  lightingPreset: LightingPreset;
+  qualityPreset: QualityPreset;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("Inicializando...");
   const [selectedPiece, setSelectedPiece] = useState<SelectedPieceInfo | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cameraInitial = useRef<{ pos: any; target: any } | null>(null);
   const threeRef = useRef<any>(null);
   const onObjectSelectRef = useRef(onObjectSelect);
+  const needsRenderRef = useRef(true);
 
   useEffect(() => {
     onObjectSelectRef.current = onObjectSelect;
@@ -429,8 +165,16 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         canvasElement = canvasRef.current;
         renderer.setSize(width, height);
         renderer.setPixelRatio(quality.pixelRatio);
-        renderer.toneMapping = THREE.NoToneMapping;
+
+        // ── CRITICAL: Correct color output ──
         renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+
+        if (quality.shadows) {
+          renderer.shadowMap.enabled = true;
+          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        }
 
         const scene = new THREE.Scene();
         applyBackgroundPreset(THREE, scene, backgroundPreset);
@@ -449,27 +193,31 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         controls.maxPolarAngle = Math.PI * 0.9;
         controls.minPolarAngle = Math.PI * 0.05;
 
-        cameraInitial.current = {
-          pos: camera.position.clone(),
-          target: controls.target.clone(),
-        };
+        // Mark scene dirty when user interacts
+        controls.addEventListener("change", () => { needsRenderRef.current = true; });
 
         if (controlsRef) {
-          controlsRef.current = { controls, camera, initialPos: camera.position.clone(), initialTarget: controls.target.clone() };
+          controlsRef.current = {
+            controls,
+            camera,
+            initialPos: camera.position.clone(),
+            initialTarget: controls.target.clone(),
+          };
         }
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+        // ── Lighting ──
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambient);
-        const dir1 = new THREE.DirectionalLight(0xffffff, 1.0);
+        const dir1 = new THREE.DirectionalLight(0xffffff, 1.2);
         dir1.position.set(10, 15, 5);
         scene.add(dir1);
-        const dir2 = new THREE.DirectionalLight(0xffffff, 0.6);
+        const dir2 = new THREE.DirectionalLight(0xffffff, 0.5);
         dir2.position.set(-8, 10, -8);
         scene.add(dir2);
         const dir3 = new THREE.DirectionalLight(0xffffff, 0.3);
         dir3.position.set(0, -5, 10);
         scene.add(dir3);
-        const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
+        const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
         scene.add(hemi);
         applyLightingPreset({ ambient, dir1, dir2, dir3, hemi }, lightingPreset);
 
@@ -489,7 +237,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         setProgress(40);
         setProgressLabel(formatMsgs[1]);
 
-        const onProgress = (event: any) => {
+        const onLoadProgress = (event: any) => {
           if (event.lengthComputable) {
             const pct = 40 + (event.loaded / event.total) * 40;
             if (mounted) setProgress(Math.min(pct, 80));
@@ -497,7 +245,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         };
 
         setProgressLabel(formatMsgs[2]);
-        const loadedObject = await loadModelForPreview(THREE, fileUrl, onProgress);
+        const loadedObject = await loadModelForPreview(THREE, fileUrl, onLoadProgress);
 
         if (!mounted) return;
 
@@ -506,6 +254,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
         scene.add(loadedObject);
 
+        // Center and scale
         const box = new THREE.Box3().setFromObject(loadedObject);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
@@ -518,6 +267,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
         threeRef.current.loadedObject = loadedObject;
 
+        // ── Click selection ──
         const raycaster = new THREE.Raycaster();
         raycaster.params.Line = { threshold: 0.25 };
         const mouse = new THREE.Vector2();
@@ -540,16 +290,20 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
           if (!hit) {
             if (mounted) setSelectedPiece(null);
+            needsRenderRef.current = true;
             return;
           }
 
           selectedObj = hit;
           const origMat = hit.userData?.originalMaterial || hit.material;
 
+          // Lightweight highlight: add emissive glow without replacing material properties
           if (hit.isMesh && origMat?.clone) {
             const hl = origMat.clone();
-            if (hl.color) hl.color = origMat.color.clone().lerp(new THREE.Color(0xffffff), 0.12);
-            if ("emissive" in hl) { hl.emissive = new THREE.Color(0x38bdf8); hl.emissiveIntensity = 0.18; }
+            if ("emissive" in hl) {
+              hl.emissive = new THREE.Color(0x38bdf8);
+              hl.emissiveIntensity = 0.2;
+            }
             hl.needsUpdate = true;
             hit.material = hl;
           } else if (!hit.isMesh) {
@@ -573,6 +327,8 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
             });
           }
 
+          needsRenderRef.current = true;
+
           onObjectSelectRef.current?.(hit.name || "Objeto sem nome", {
             type: hit.type,
             dimensions: { width: ps.x / sf, height: ps.y / sf, depth: ps.z / sf },
@@ -588,11 +344,18 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         setProgressLabel("Concluído!");
         setTimeout(() => { if (mounted) setLoading(false); }, 200);
 
+        // ── On-demand render loop ──
+        // Only renders when controls change, auto-rotate is on, or a click/resize invalidates
         const animate = () => {
           if (!mounted) return;
           animationFrameId = requestAnimationFrame(animate);
-          controls.update();
-          renderer.render(scene, camera);
+
+          const updated = controls.update(); // returns true if controls changed
+          // Always render when autoRotate is on, or when dirty
+          if (controls.autoRotate || needsRenderRef.current || updated) {
+            renderer.render(scene, camera);
+            needsRenderRef.current = false;
+          }
         };
         animate();
 
@@ -604,6 +367,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           camera.aspect = w / h;
           camera.updateProjectionMatrix();
           renderer.setSize(w, h);
+          needsRenderRef.current = true;
         };
         window.addEventListener("resize", resizeHandler);
       } catch (err: any) {
@@ -626,18 +390,18 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
     };
   }, [fileUrl, qualityPreset]);
 
+  // React to background/lighting preset changes without re-init
   useEffect(() => {
     if (!threeRef.current) return;
-
     const { THREE, scene, renderer, lights, grid } = threeRef.current;
     applyBackgroundPreset(THREE, scene, backgroundPreset);
     applyLightingPreset(lights, lightingPreset);
-
     const gridPalette = BACKGROUND_PRESETS[backgroundPreset];
     grid.visible = gridPalette.showGrid;
     grid.material.color?.setHex?.(gridPalette.ground);
     grid.material.needsUpdate = true;
     renderer.setClearColor(gridPalette.background);
+    needsRenderRef.current = true;
   }, [backgroundPreset, lightingPreset]);
 
   if (error) return <FallbackView message={error} fileUrl={fileUrl} />;
@@ -656,8 +420,6 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
       {!loading && selectedPiece && (
         <div className="absolute bottom-3 left-3 z-10 bg-background/90 backdrop-blur rounded-lg border border-border p-3 shadow-lg w-[260px]">
           <p className="text-xs font-semibold text-foreground truncate mb-2">{selectedPiece.name}</p>
-
-          {/* Dimensions */}
           <div className="grid grid-cols-3 gap-2 text-[10px] mb-2">
             <div className="text-center">
               <p className="text-muted-foreground">Largura</p>
@@ -672,8 +434,6 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
               <p className="font-bold text-primary">{selectedPiece.depth.toFixed(1)}</p>
             </div>
           </div>
-
-          {/* Material & Finish */}
           <div className="border-t border-border pt-2 space-y-1 text-[10px]">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Material</span>
@@ -795,36 +555,27 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             </Select>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
-                  onClick={toggleAutoRotate}>
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur" onClick={toggleAutoRotate}>
                   {isAutoRotating ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{isAutoRotating ? "Pausar rotação" : "Retomar rotação"}</p>
-              </TooltipContent>
+              <TooltipContent side="bottom"><p>{isAutoRotating ? "Pausar rotação" : "Retomar rotação"}</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
-                  onClick={resetCamera}>
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur" onClick={resetCamera}>
                   <RotateCcw className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Resetar câmera</p>
-              </TooltipContent>
+              <TooltipContent side="bottom"><p>Resetar câmera</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
-                  onClick={toggleFullscreen}>
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur" onClick={toggleFullscreen}>
                   {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{isFullscreen ? "Sair da tela cheia" : "Tela cheia"}</p>
-              </TooltipContent>
+              <TooltipContent side="bottom"><p>{isFullscreen ? "Sair da tela cheia" : "Tela cheia"}</p></TooltipContent>
             </Tooltip>
           </div>
           <WebGLViewer
