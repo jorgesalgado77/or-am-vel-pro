@@ -23,7 +23,7 @@ interface BriefingModalProps {
   onSendToSimulator?: (data: { environments: string[]; descricaoAmbientes: string; quantidadeAmbientes: number; budgetExpectation: string }) => void;
 }
 
-export function BriefingModal({ open, onOpenChange, clientId, clientName, orcamentoNumero }: BriefingModalProps) {
+export function BriefingModal({ open, onOpenChange, clientId, clientName, orcamentoNumero, onSendToSimulator }: BriefingModalProps) {
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
