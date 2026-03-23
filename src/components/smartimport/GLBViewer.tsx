@@ -480,33 +480,96 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
               loadedObject.position.sub(center.multiplyScalar(scale));
             }
 
-            // Click handler
+            // Click selection with highlight
             const raycaster = new THREE.Raycaster();
+            raycaster.params.Line = { threshold: 0.5 };
             const mouse = new THREE.Vector2();
+            let selectedOutline: any = null;
+            const originalMaterials = new Map<any, any>();
 
             renderer.domElement.addEventListener("click", (event) => {
               const rect = renderer.domElement.getBoundingClientRect();
               mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
               mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
               raycaster.setFromCamera(mouse, camera);
-              const intersects = raycaster.intersectObjects(scene.children, true);
-              if (intersects.length > 0 && onObjectSelect) {
-                const obj = intersects[0].object;
-                onObjectSelect(obj.name || "Objeto sem nome", {
-                  type: obj.type,
-                  geometry: (obj as any).geometry ? {
-                    vertices: (obj as any).geometry.attributes?.position?.count || 0,
-                  } : null,
-                  material: (obj as any).material ? {
-                    name: (obj as any).material.name,
-                    color: (obj as any).material.color?.getHexString?.() || null,
-                  } : null,
-                  position: {
-                    x: Math.round(obj.position.x * 100) / 100,
-                    y: Math.round(obj.position.y * 100) / 100,
-                    z: Math.round(obj.position.z * 100) / 100,
-                  },
+
+              // Restore all previously modified objects
+              originalMaterials.forEach((origMat, obj) => { obj.material = origMat; });
+              originalMaterials.clear();
+              if (selectedOutline) { scene.remove(selectedOutline); selectedOutline = null; }
+
+              const intersects = raycaster.intersectObjects(
+                loadedObject ? [loadedObject] : scene.children, true
+              );
+
+              if (intersects.length > 0) {
+                const hit = intersects[0].object as any;
+
+                // Save original material and apply highlight
+                originalMaterials.set(hit, hit.material);
+
+                if (hit.isMesh) {
+                  const origColor = hit.material?.color?.clone?.();
+                  hit.material = new THREE.MeshStandardMaterial({
+                    color: origColor || new THREE.Color(0x4FC3F7),
+                    emissive: new THREE.Color(0x29B6F6),
+                    emissiveIntensity: 0.5,
+                    metalness: 0.2,
+                    roughness: 0.4,
+                    side: THREE.DoubleSide,
+                  });
+
+                  // Wireframe glow outline
+                  if (hit.geometry) {
+                    const outlineMat = new THREE.MeshBasicMaterial({
+                      color: 0x29B6F6, wireframe: true, transparent: true, opacity: 0.35,
+                    });
+                    selectedOutline = new THREE.Mesh(hit.geometry.clone(), outlineMat);
+                    selectedOutline.position.copy(hit.position);
+                    selectedOutline.rotation.copy(hit.rotation);
+                    selectedOutline.scale.copy(hit.scale).multiplyScalar(1.02);
+                    if (hit.parent) selectedOutline.applyMatrix4(hit.matrixWorld);
+                    scene.add(selectedOutline);
+                  }
+                } else {
+                  hit.material = new THREE.LineBasicMaterial({ color: 0x29B6F6, linewidth: 3 });
+                }
+
+                // Dim other objects
+                loadedObject?.traverse?.((child: any) => {
+                  if (child !== hit && (child.isMesh || child.isLine || child.isLineSegments)) {
+                    if (!originalMaterials.has(child)) originalMaterials.set(child, child.material);
+                    if (child.isMesh) {
+                      child.material = new THREE.MeshStandardMaterial({
+                        color: child.material?.color?.clone?.() || new THREE.Color(0x808080),
+                        transparent: true, opacity: 0.2, side: THREE.DoubleSide,
+                      });
+                    } else {
+                      child.material = new THREE.LineBasicMaterial({
+                        color: child.material?.color?.clone?.() || new THREE.Color(0x808080),
+                        transparent: true, opacity: 0.15,
+                      });
+                    }
+                  }
                 });
+
+                if (onObjectSelect) {
+                  onObjectSelect(hit.name || "Objeto sem nome", {
+                    type: hit.type,
+                    geometry: hit.geometry ? {
+                      vertices: hit.geometry.attributes?.position?.count || 0,
+                    } : null,
+                    material: originalMaterials.get(hit) ? {
+                      name: originalMaterials.get(hit).name,
+                      color: originalMaterials.get(hit).color?.getHexString?.() || null,
+                    } : null,
+                    position: {
+                      x: Math.round(hit.position.x * 100) / 100,
+                      y: Math.round(hit.position.y * 100) / 100,
+                      z: Math.round(hit.position.z * 100) / 100,
+                    },
+                  });
+                }
               }
             });
           }
