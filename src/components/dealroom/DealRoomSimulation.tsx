@@ -60,7 +60,6 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
       return; 
     }
     setLoading(true);
-    console.log("[DealRoomSimulation] Loading simulations for client:", clientId);
     const query = supabase
       .from("simulations")
       .select("*")
