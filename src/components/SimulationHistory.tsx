@@ -265,6 +265,7 @@ function SimulationCard({
   isSelected: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onLoad?: () => void;
 }) {
   const s = simulation;
 
