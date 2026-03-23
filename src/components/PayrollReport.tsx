@@ -22,6 +22,7 @@ import {useComissaoPolicy} from "@/hooks/useComissaoPolicy";
 import {PayrollTaxConfig} from "@/components/payroll/PayrollTaxConfig";
 import {PayrollDeductions, type EmployeeDeduction} from "@/components/payroll/PayrollDeductions";
 import {PayrollHolerite} from "@/components/payroll/PayrollHolerite";
+import {PayrollSummary} from "@/components/payroll/PayrollSummary";
 
 interface PayrollCommission {
   id: string;
@@ -415,6 +416,16 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
         cargos={cargos}
         mesReferencia={mesReferencia}
         getRegimeEfetivo={getRegimeEfetivo}
+      />
+
+      {/* Resumo Geral */}
+      <PayrollSummary
+        usuarios={usuarios}
+        cargos={cargos}
+        mesReferencia={mesReferencia}
+        getRegimeEfetivo={getRegimeEfetivo}
+        getUserCommissions={getUserCommissions}
+        deductionsData={deductionsData}
       />
 
       {/* Commissions Table */}
