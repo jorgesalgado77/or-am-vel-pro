@@ -174,6 +174,41 @@ export function KanbanClientDialog({
               )}
             </div>
 
+            {/* Lead origin info */}
+            {(client as any).origem_lead && (
+              <div className="bg-primary/5 rounded-lg p-3 space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <ArrowRight className="h-3.5 w-3.5" /> Dados da Captação
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Origem</span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {(client as any).origem_lead === "landing_page" ? "Landing Page" :
+                       (client as any).origem_lead === "indicacao" ? "Indicação" :
+                       (client as any).origem_lead === "site" ? "Site" :
+                       (client as any).origem_lead}
+                    </Badge>
+                  </div>
+                  {(client as any).lead_temperature && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Temperatura</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {(client as any).lead_temperature === "quente" ? "🔥 Quente" :
+                         (client as any).lead_temperature === "morno" ? "🟡 Morno" : "❄️ Frio"}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+                {client.descricao_ambientes && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground block mb-1 text-xs">Interesse / Descrição</span>
+                    <p className="text-foreground text-xs bg-background/60 rounded-md p-2">{client.descricao_ambientes}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Datas e tempo */}
             <div className="bg-muted/30 rounded-lg p-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
