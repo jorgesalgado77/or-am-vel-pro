@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { FileText, Save, Edit2, ArrowRight } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
@@ -171,7 +171,7 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col overflow-hidden !grid-rows-none" style={{ display: "flex" }}>
         <DialogHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <DialogTitle className="flex items-center gap-2 text-base">
@@ -190,7 +190,7 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
           )}
         </DialogHeader>
 
-        <ScrollArea className="flex-1 max-h-[65vh] pr-3">
+        <div className="flex-1 overflow-y-auto pr-1 -mr-1" style={{ maxHeight: "calc(90vh - 180px)" }}>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -213,7 +213,7 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
               />
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="pt-3 flex-wrap gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
