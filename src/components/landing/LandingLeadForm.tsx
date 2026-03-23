@@ -24,6 +24,7 @@ interface LandingLeadFormProps {
 
 export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
   const [form, setForm] = useState({ nome: "", area_atuacao: "", cargo: "", telefone: "", email: "", interesse: "" });
+  const [honeypot, setHoneypot] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
