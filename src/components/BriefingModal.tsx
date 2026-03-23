@@ -171,7 +171,7 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col overflow-hidden !grid-rows-none" style={{ display: "flex" }}>
         <DialogHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <DialogTitle className="flex items-center gap-2 text-base">
