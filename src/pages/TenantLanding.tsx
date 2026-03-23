@@ -457,7 +457,7 @@ export default function TenantLanding() {
     return () => { supabase.removeChannel(channel); };
   }, [tenant?.id]);
 
-  const uploadLeadAttachments = useCallback(async (clientId?: string) => {
+  const uploadLeadAttachments = useCallback(async () => {
     if (!arquivos.length || !tenant?.id) return { uploaded: 0, failed: 0, attachmentsMeta: [] as any[] };
 
     let uploaded = 0;
@@ -500,15 +500,24 @@ export default function TenantLanding() {
     return { uploaded, failed, attachmentsMeta };
   }, [arquivos, tenant?.id]);
 
-  const finalizeLeadSuccess = useCallback(async (clientId?: string | null) => {
+  const finalizeLeadSuccess = useCallback((options?: { failedUploads?: number; attachmentRegistrationFailed?: boolean }) => {
+    const failedUploads = options?.failedUploads ?? 0;
+    const attachmentRegistrationFailed = options?.attachmentRegistrationFailed ?? false;
+
     setSent(true);
+    setArquivos([]);
+    setUploadProgress(null);
     toast.success("Cadastro realizado com sucesso!");
 
-    const { failed } = await uploadLeadAttachments(clientId || undefined);
-    if (failed > 0) {
+    if (attachmentRegistrationFailed) {
+      toast.info("Lead enviado, mas os anexos precisam ser reenviados.");
+      return;
+    }
+
+    if (failedUploads > 0) {
       toast.info("Lead enviado, mas alguns anexos não puderam ser enviados.");
     }
-  }, [uploadLeadAttachments]);
+  }, []);
 
   // Anti-spam: cooldown de 30s entre envios
   const lastSubmitRef = useRef<number>(0);
@@ -547,9 +556,12 @@ export default function TenantLanding() {
       tenant_id: tenant.id,
     };
 
+    let attachmentsMeta: any[] = [];
+    let attachFailed = 0;
+
     try {
       // Upload anexos primeiro para obter metadados
-      const { attachmentsMeta, failed: attachFailed } = await uploadLeadAttachments();
+      ({ attachmentsMeta, failed: attachFailed } = await uploadLeadAttachments());
       
       // Enviar lead + metadados dos anexos via Edge Function (service role bypassa RLS)
       const payloadWithAttachments = {
@@ -559,12 +571,8 @@ export default function TenantLanding() {
       
       const res = await supabase.functions.invoke("lead-capture", { body: payloadWithAttachments });
       if (res.error) throw res.error;
-      
-      setSent(true);
-      toast.success("Cadastro realizado com sucesso!");
-      if (attachFailed > 0) {
-        toast.info("Lead enviado, mas alguns anexos não puderam ser enviados.");
-      }
+
+      finalizeLeadSuccess({ failedUploads: attachFailed });
     } catch (edgeFnErr) {
       console.error("Edge function failed, trying direct insert:", edgeFnErr);
 
@@ -581,7 +589,10 @@ export default function TenantLanding() {
         } as any).select("id").single();
 
         if (!clientError) {
-          await finalizeLeadSuccess((clientData as any)?.id ?? null);
+          finalizeLeadSuccess({
+            failedUploads: attachFailed,
+            attachmentRegistrationFailed: attachmentsMeta.length > 0,
+          });
           return;
         }
 
@@ -604,7 +615,10 @@ export default function TenantLanding() {
           return;
         }
 
-        await finalizeLeadSuccess();
+        finalizeLeadSuccess({
+          failedUploads: attachFailed,
+          attachmentRegistrationFailed: attachmentsMeta.length > 0,
+        });
       } catch (fallbackErr) {
         console.error("Fallback insert failed:", { edgeFnErr, fallbackErr });
         toast.error("Erro ao enviar. Tente novamente.");
