@@ -332,7 +332,7 @@ export function KanbanClientDialog({
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <Separator className="my-3" />
 
