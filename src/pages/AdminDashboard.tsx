@@ -799,6 +799,13 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <AdminVendaZap />
           </TabsContent>
 
+          {/* TAB: 3D Smart Import */}
+          <TabsContent value="smartimport3d">
+            <Admin3DSmartImport />
+          </TabsContent>
+            <AdminVendaZap />
+          </TabsContent>
+
           {/* TAB: WhatsApp Admin */}
           <TabsContent value="whatsapp">
             <AdminWhatsAppConfig />
