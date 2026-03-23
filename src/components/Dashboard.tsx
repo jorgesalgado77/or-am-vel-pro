@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays } from "lucide-react";
+import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays, Megaphone, Share2, UserPlus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
+import { useCargos } from "@/hooks/useCargos";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
@@ -63,6 +64,8 @@ type ChartKey = "evolucao" | "projetista" | "indicador" | "contratos";
 export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfile, onOpenSettings }: DashboardProps) {
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
+  const { cargos } = useCargos();
+  const { policy: comissaoPolicyDash } = useComissaoPolicy();
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
     evolucao: false,
     projetista: false,
@@ -158,12 +161,16 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const taxaConversao = totalClients > 0 ? (closedClients / totalClients) * 100 : 0;
     const faturamentoContratos = trackingData.total;
 
-    const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number }> = {};
+    const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number; closedTotal: number }> = {};
     filteredClients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
-      if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0 };
+      if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0, closedTotal: 0 };
       byProjetista[name].count++;
-      if ((c as any).status === "fechado") byProjetista[name].closed++;
+      if ((c as any).status === "fechado") {
+        byProjetista[name].closed++;
+        const sim = filteredLastSims[c.id];
+        if (sim) byProjetista[name].closedTotal += sim.valor_com_desconto || sim.valor_final;
+      }
       const sim = filteredLastSims[c.id];
       if (sim) {
         byProjetista[name].total += sim.valor_com_desconto || sim.valor_final;
@@ -196,12 +203,33 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byStatus[status] = (byStatus[status] || 0) + 1;
     });
 
+    // Leads by source
+    const leadsBySource = { landing_page: 0, afiliado: 0, indicacao: 0, link: 0, manual: 0, total: 0 };
+    filteredClients.forEach(c => {
+      const origem = (c as any).origem_lead;
+      if (!origem || origem === "manual") {
+        leadsBySource.manual++;
+      } else if (origem === "landing_page" || origem === "site") {
+        leadsBySource.landing_page++;
+      } else if (origem === "afiliado" || origem === "affiliate") {
+        leadsBySource.afiliado++;
+      } else if (origem === "indicacao" || origem === "referral") {
+        leadsBySource.indicacao++;
+      } else if (origem === "link" || origem === "compartilhado") {
+        leadsBySource.link++;
+      } else {
+        leadsBySource.manual++;
+      }
+      if (origem && origem !== "manual") leadsBySource.total++;
+    });
+
     return {
       totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue,
       ticketMedio, taxaConversao, closedClients, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
       byStatus,
+      leadsBySource,
     };
   }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, trackingData]);
 
@@ -335,7 +363,15 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
       </div>
 
-      {/* Chart visibility toggles */}
+      {/* Lead Source Cards */}
+      {stats.leadsBySource.total > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard icon={Megaphone} label="Leads Landing Page" value={String(stats.leadsBySource.landing_page)} accent={stats.leadsBySource.landing_page > 0} />
+          <KpiCard icon={UserPlus} label="Leads Afiliados" value={String(stats.leadsBySource.afiliado)} accent={stats.leadsBySource.afiliado > 0} />
+          <KpiCard icon={Users} label="Leads Indicação" value={String(stats.leadsBySource.indicacao)} accent={stats.leadsBySource.indicacao > 0} />
+          <KpiCard icon={Share2} label="Leads Link Compartilhado" value={String(stats.leadsBySource.link)} accent={stats.leadsBySource.link > 0} />
+        </div>
+      )}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground font-medium">Gráficos:</span>
         {chartToggles.map(({ key, label }) => (
@@ -530,11 +566,22 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                     <TableHead className="font-medium text-center">Fechados</TableHead>
                     <TableHead className="font-medium text-center">Conversão</TableHead>
                     <TableHead className="font-medium text-right">Valor Total</TableHead>
+                    <TableHead className="font-medium text-right">Comissão</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {stats.byProjetista.map(([name, data]) => {
                     const conv = data.count > 0 ? ((data.closed / data.count) * 100).toFixed(0) : "0";
+                    // Find matching cargo for this projetista to get commission %
+                    const matchedCargo = cargos.find(c => 
+                      name.toLowerCase().includes(c.nome.toLowerCase()) || c.nome.toLowerCase() === "projetista"
+                    );
+                    const comPercent = matchedCargo ? matchedCargo.comissao_percentual : 0;
+                    const comResult = calcularComissao(
+                      data.closedTotal, comPercent, comissaoPolicyDash,
+                      matchedCargo?.id || null, matchedCargo?.nome || null
+                    );
+                    const comissaoValor = (data.closedTotal * comResult.percentual) / 100;
                     return (
                     <TableRow key={name}>
                       <TableCell className="font-medium text-foreground">{name}</TableCell>
@@ -544,6 +591,10 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                         <Badge variant="outline" className={Number(conv) >= 30 ? "border-emerald-500 text-emerald-600" : ""}>{conv}%</Badge>
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-primary">
+                        {comissaoValor > 0 ? formatCurrency(comissaoValor) : "—"}
+                        {comResult.percentual > 0 && <span className="text-xs text-muted-foreground ml-1">({comResult.percentual}%)</span>}
+                      </TableCell>
                     </TableRow>
                     );
                   })}
