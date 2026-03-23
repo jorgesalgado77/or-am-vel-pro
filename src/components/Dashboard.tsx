@@ -30,6 +30,7 @@ type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 interface LastSimInfo {
   valor_final: number;
+  valor_com_desconto: number;
   created_at: string;
 }
 
