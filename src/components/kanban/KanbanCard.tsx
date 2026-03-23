@@ -24,7 +24,7 @@ interface KanbanCardProps {
   onQuickDelete?: (client: Client) => void;
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick, onQuickDelete }: KanbanCardProps) {
   const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
   const agingColor =
