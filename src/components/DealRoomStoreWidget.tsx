@@ -1,137 +1,458 @@
-import {useState, useEffect} from "react";
-import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {Badge} from "@/components/ui/badge";
-import {DollarSign, TrendingUp, Target, Percent, Trophy} from "lucide-react";
-import {useDealRoom} from "@/hooks/useDealRoom";
-import {OnboardingDialog, useOnboarding} from "@/components/OnboardingDialog";
-import {formatCurrency} from "@/lib/financing";
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DollarSign, TrendingUp, Target, Percent, Trophy, Plus,
+  Send, Eye, CheckCircle, XCircle, Clock, FileText, ExternalLink,
+  Handshake, Users, BarChart3, RefreshCw,
+} from "lucide-react";
+import { useDealRoom } from "@/hooks/useDealRoom";
+import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
+import { formatCurrency } from "@/lib/financing";
+import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface DealRoomStoreWidgetProps {
   tenantId: string;
 }
 
+interface Proposal {
+  id: string;
+  client_id: string | null;
+  tracking_id: string | null;
+  usuario_id: string | null;
+  valor_proposta: number;
+  descricao: string | null;
+  forma_pagamento: string | null;
+  status: string;
+  stripe_checkout_url: string | null;
+  visualizada_em: string | null;
+  clicou_em: string | null;
+  aceita_em: string | null;
+  recusada_em: string | null;
+  pago_em: string | null;
+  created_at: string;
+}
+
+interface ClientOption {
+  id: string;
+  nome: string;
+  numero_orcamento: string | null;
+}
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  enviada: { label: "Enviada", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: Send },
+  visualizada: { label: "Visualizada", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200", icon: Eye },
+  aceita: { label: "Aceita", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircle },
+  paga: { label: "Paga", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200", icon: DollarSign },
+  recusada: { label: "Recusada", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200", icon: XCircle },
+};
+
 export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
-  const { getMetrics } = useDealRoom();
+  const { getMetrics, loading: hookLoading } = useDealRoom();
   const { showOnboarding, setShowOnboarding } = useOnboarding("dealroom");
+
   const [metrics, setMetrics] = useState<{
-    totalVendas: number;
-    totalTransacionado: number;
-    totalTaxas: number;
-    ticketMedio: number;
-    totalReunioes: number;
-    taxaConversao: number;
+    totalVendas: number; totalTransacionado: number; totalTaxas: number;
+    ticketMedio: number; totalReunioes: number; taxaConversao: number;
   } | null>(null);
-  const [ranking, setRanking] = useState<{ posicao: number; nome: string; total_vendido: number; vendas: number }[]>([]);
+  const [proposalStats, setProposalStats] = useState<any>(null);
+  const [ranking, setRanking] = useState<any[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  // New proposal form
+  const [showNewProposal, setShowNewProposal] = useState(false);
+  const [newProposal, setNewProposal] = useState({
+    client_id: "", valor_proposta: "", descricao: "", forma_pagamento: "pix",
+  });
+  const [creatingProposal, setCreatingProposal] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setLoadingData(true);
+    // Load metrics
+    const result = await getMetrics({ tenant_id: tenantId });
+    if (result) {
+      setMetrics(result.metrics);
+      setRanking(result.ranking?.slice(0, 5) || []);
+      setProposalStats(result.proposalStats || null);
+    } else {
+      setMetrics({ totalVendas: 0, totalTransacionado: 0, totalTaxas: 0, ticketMedio: 0, totalReunioes: 0, taxaConversao: 0 });
+    }
+
+    // Load proposals
+    const { data: proposalsData } = await supabase.functions.invoke("dealroom", {
+      body: { action: "list_proposals", tenant_id: tenantId },
+    });
+    setProposals(proposalsData?.proposals || []);
+
+    // Load clients for selector
+    const { data: clientsData } = await supabase
+      .from("clients")
+      .select("id, nome, numero_orcamento")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setClients(clientsData || []);
+
+    setLoadingData(false);
+  }, [tenantId, getMetrics]);
 
   useEffect(() => {
     if (!tenantId) return;
-    const fetch = async () => {
-      const result = await getMetrics({ tenant_id: tenantId });
-      if (result) {
-        setMetrics(result.metrics);
-        setRanking(result.ranking.slice(0, 5));
-      }
-    };
-    fetch();
-  }, [tenantId, getMetrics]);
+    loadData();
+  }, [tenantId, loadData]);
 
-  if (!metrics) {
-    return (
-      <div className="space-y-6">
-        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
-          Deal Room
-        </h3>
-        <Card>
-          <CardContent className="p-8 text-center space-y-3">
-            <TrendingUp className="h-10 w-10 text-muted-foreground mx-auto" />
-            <p className="text-sm text-muted-foreground">Carregando métricas do Deal Room...</p>
-          </CardContent>
-        </Card>
-        <OnboardingDialog
-          featureKey="dealroom"
-          open={showOnboarding}
-          onClose={() => setShowOnboarding(false)}
-        />
-      </div>
-    );
-  }
+  const handleCreateProposal = async () => {
+    if (!newProposal.valor_proposta || Number(newProposal.valor_proposta) <= 0) {
+      toast.error("Informe um valor válido para a proposta");
+      return;
+    }
+    setCreatingProposal(true);
+    const selectedClient = clients.find(c => c.id === newProposal.client_id);
+    const { data, error } = await supabase.functions.invoke("dealroom", {
+      body: {
+        action: "create_proposal",
+        tenant_id: tenantId,
+        transaction_data: {
+          client_id: newProposal.client_id || null,
+          valor_proposta: Number(newProposal.valor_proposta),
+          descricao: newProposal.descricao || `Proposta para ${selectedClient?.nome || "Cliente"}`,
+          forma_pagamento: newProposal.forma_pagamento,
+          numero_contrato: selectedClient?.numero_orcamento || null,
+        },
+      },
+    });
+    setCreatingProposal(false);
 
-  if (metrics.totalVendas === 0 && metrics.totalReunioes === 0) {
+    if (error || data?.error) {
+      toast.error(data?.error || "Erro ao criar proposta");
+      return;
+    }
+
+    toast.success("Proposta criada com sucesso!");
+    setShowNewProposal(false);
+    setNewProposal({ client_id: "", valor_proposta: "", descricao: "", forma_pagamento: "pix" });
+    loadData();
+  };
+
+  const handleTrackEvent = async (proposalId: string, event: string) => {
+    const { error } = await supabase.functions.invoke("dealroom", {
+      body: { action: "track_proposal", proposal_id: proposalId, event },
+    });
+    if (error) {
+      toast.error("Erro ao atualizar proposta");
+      return;
+    }
+    toast.success(`Proposta marcada como "${event}"`);
+    loadData();
+  };
+
+  if (loadingData && !metrics) {
     return (
-      <div className="space-y-6">
-        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
-          Deal Room
-        </h3>
-        <Card>
-          <CardContent className="p-8 text-center space-y-3">
-            <TrendingUp className="h-10 w-10 text-muted-foreground mx-auto" />
-            <h4 className="font-semibold text-foreground">Nenhuma negociação ainda</h4>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              O Deal Room está ativo! Inicie sua primeira negociação para ver as métricas de vendas, conversão e ranking aqui.
-            </p>
-          </CardContent>
-        </Card>
-        <OnboardingDialog
-          featureKey="dealroom"
-          open={showOnboarding}
-          onClose={() => setShowOnboarding(false)}
-        />
+      <div className="flex items-center justify-center py-20 text-muted-foreground">
+        <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Carregando Deal Room...
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-primary" />
-        Deal Room — Resumo
-      </h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Vendas via DR", value: metrics.totalVendas, icon: TrendingUp },
-          { label: "Valor Vendido", value: formatCurrency(metrics.totalTransacionado), icon: DollarSign },
-          { label: "Taxa Plataforma", value: formatCurrency(metrics.totalTaxas), icon: Percent },
-          { label: "Conversão", value: `${metrics.taxaConversao.toFixed(1)}%`, icon: Target },
-        ].map(kpi => (
-          <Card key={kpi.label}>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <kpi.icon className="h-3.5 w-3.5 text-primary" />
-                <span className="text-[11px] text-muted-foreground">{kpi.label}</span>
-              </div>
-              <p className="text-sm font-bold text-foreground">{kpi.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <Handshake className="h-6 w-6 text-primary" />
+          Deal Room
+        </h2>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={loadData} className="gap-2">
+            <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+          </Button>
+          <Button size="sm" onClick={() => setShowNewProposal(true)} className="gap-2">
+            <Plus className="h-3.5 w-3.5" /> Nova Proposta
+          </Button>
+        </div>
       </div>
 
-      {ranking.length > 0 && (
-        <Card>
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-xs flex items-center gap-2">
-              <Trophy className="h-3.5 w-3.5 text-amber-500" /> Top Vendedores
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-3 space-y-2">
-            {ranking.map((v) => (
-              <div key={v.posicao} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold w-5">
-                    {v.posicao === 1 ? "🥇" : v.posicao === 2 ? "🥈" : v.posicao === 3 ? "🥉" : `${v.posicao}º`}
-                  </span>
-                  <span className="text-foreground">{v.nome}</span>
+      <Tabs defaultValue="propostas" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="propostas" className="gap-2"><FileText className="h-4 w-4" /> Propostas</TabsTrigger>
+          <TabsTrigger value="metricas" className="gap-2"><BarChart3 className="h-4 w-4" /> Métricas</TabsTrigger>
+          <TabsTrigger value="ranking" className="gap-2"><Trophy className="h-4 w-4" /> Ranking</TabsTrigger>
+        </TabsList>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            { label: "Propostas", value: proposalStats?.total ?? proposals.length, icon: FileText, color: "text-primary" },
+            { label: "Vendas", value: metrics?.totalVendas ?? 0, icon: TrendingUp, color: "text-primary" },
+            { label: "Valor Vendido", value: formatCurrency(metrics?.totalTransacionado ?? 0), icon: DollarSign, color: "text-primary" },
+            { label: "Taxa Plataforma", value: formatCurrency(metrics?.totalTaxas ?? 0), icon: Percent, color: "text-primary" },
+            { label: "Ticket Médio", value: formatCurrency(metrics?.ticketMedio ?? 0), icon: Target, color: "text-primary" },
+          ].map(kpi => (
+            <Card key={kpi.label}>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <kpi.icon className={`h-3.5 w-3.5 ${kpi.color}`} />
+                  <span className="text-[11px] text-muted-foreground">{kpi.label}</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-[10px]">{v.vendas} vendas</Badge>
-                  <span className="font-semibold text-foreground text-xs">{formatCurrency(v.total_vendido)}</span>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+                <p className="text-sm font-bold text-foreground">{kpi.value}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Propostas Tab */}
+        <TabsContent value="propostas" className="space-y-4">
+          {proposals.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center space-y-3">
+                <Handshake className="h-12 w-12 text-muted-foreground mx-auto" />
+                <h4 className="font-semibold text-foreground">Nenhuma proposta criada</h4>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Crie sua primeira proposta comercial para enviar aos seus clientes. Acompanhe visualizações, aceites e pagamentos em tempo real.
+                </p>
+                <Button onClick={() => setShowNewProposal(true)} className="gap-2 mt-2">
+                  <Plus className="h-4 w-4" /> Criar Primeira Proposta
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead>Pagamento</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {proposals.map(p => {
+                      const statusCfg = STATUS_CONFIG[p.status] || STATUS_CONFIG.enviada;
+                      const StatusIcon = statusCfg.icon;
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(p.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate text-sm">
+                            {p.descricao || "—"}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm font-semibold whitespace-nowrap">
+                            {formatCurrency(p.valor_proposta)}
+                          </TableCell>
+                          <TableCell className="text-xs capitalize">{p.forma_pagamento || "—"}</TableCell>
+                          <TableCell>
+                            <Badge className={`gap-1 text-[10px] ${statusCfg.color}`}>
+                              <StatusIcon className="h-3 w-3" /> {statusCfg.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              {p.status === "enviada" && (
+                                <>
+                                  <Button
+                                    variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                    onClick={() => handleTrackEvent(p.id, "visualizada")}
+                                  >
+                                    <Eye className="h-3 w-3" /> Vista
+                                  </Button>
+                                  <Button
+                                    variant="ghost" size="sm" className="h-7 text-xs gap-1 text-destructive"
+                                    onClick={() => handleTrackEvent(p.id, "recusada")}
+                                  >
+                                    <XCircle className="h-3 w-3" /> Recusar
+                                  </Button>
+                                </>
+                              )}
+                              {p.status === "visualizada" && (
+                                <>
+                                  <Button
+                                    variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                    onClick={() => handleTrackEvent(p.id, "aceita")}
+                                  >
+                                    <CheckCircle className="h-3 w-3" /> Aceitar
+                                  </Button>
+                                  <Button
+                                    variant="ghost" size="sm" className="h-7 text-xs gap-1 text-destructive"
+                                    onClick={() => handleTrackEvent(p.id, "recusada")}
+                                  >
+                                    <XCircle className="h-3 w-3" /> Recusar
+                                  </Button>
+                                </>
+                              )}
+                              {p.status === "aceita" && (
+                                <Button
+                                  variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                  onClick={() => handleTrackEvent(p.id, "paga")}
+                                >
+                                  <DollarSign className="h-3 w-3" /> Confirmar Pgto
+                                </Button>
+                              )}
+                              {p.stripe_checkout_url && (
+                                <Button
+                                  variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                  onClick={() => window.open(p.stripe_checkout_url!, "_blank")}
+                                >
+                                  <ExternalLink className="h-3 w-3" /> Link
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Métricas Tab */}
+        <TabsContent value="metricas" className="space-y-4">
+          {proposalStats && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                { label: "Total Propostas", value: proposalStats.total, icon: FileText },
+                { label: "Enviadas", value: proposalStats.enviadas, icon: Send },
+                { label: "Visualizadas", value: proposalStats.visualizadas, icon: Eye },
+                { label: "Aceitas", value: proposalStats.aceitas, icon: CheckCircle },
+                { label: "Pagas", value: proposalStats.pagas, icon: DollarSign },
+                { label: "Recusadas", value: proposalStats.recusadas, icon: XCircle },
+              ].map(s => (
+                <Card key={s.label}>
+                  <CardContent className="p-3 text-center">
+                    <s.icon className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
+                    <p className="text-lg font-bold text-foreground">{s.value}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Ranking Tab */}
+        <TabsContent value="ranking" className="space-y-4">
+          {ranking.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Trophy className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Nenhuma venda registrada ainda para gerar o ranking.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="py-3 px-4">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" /> Top Vendedores — Deal Room
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-3">
+                {ranking.map((v: any) => (
+                  <div key={v.posicao} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="text-base font-bold w-6 text-center">
+                        {v.posicao === 1 ? "🥇" : v.posicao === 2 ? "🥈" : v.posicao === 3 ? "🥉" : `${v.posicao}º`}
+                      </span>
+                      <span className="text-foreground font-medium">{v.nome}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="secondary" className="text-[10px]">{v.vendas} vendas</Badge>
+                      <span className="font-semibold text-foreground">{formatCurrency(v.total_vendido)}</span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* New Proposal Dialog */}
+      <Dialog open={showNewProposal} onOpenChange={setShowNewProposal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Handshake className="h-5 w-5 text-primary" /> Nova Proposta Comercial
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm">Cliente (opcional)</Label>
+              <Select value={newProposal.client_id} onValueChange={v => setNewProposal(p => ({ ...p, client_id: v }))}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione um cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-sm">Valor da Proposta (R$) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0,00"
+                value={newProposal.valor_proposta}
+                onChange={e => setNewProposal(p => ({ ...p, valor_proposta: e.target.value }))}
+                className="h-9"
+              />
+            </div>
+            <div>
+              <Label className="text-sm">Descrição</Label>
+              <Textarea
+                placeholder="Descrição da proposta..."
+                value={newProposal.descricao}
+                onChange={e => setNewProposal(p => ({ ...p, descricao: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label className="text-sm">Forma de Pagamento</Label>
+              <Select value={newProposal.forma_pagamento} onValueChange={v => setNewProposal(p => ({ ...p, forma_pagamento: v }))}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="cartao">Cartão de Crédito</SelectItem>
+                  <SelectItem value="boleto">Boleto</SelectItem>
+                  <SelectItem value="transferencia">Transferência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewProposal(false)}>Cancelar</Button>
+            <Button onClick={handleCreateProposal} disabled={creatingProposal} className="gap-2">
+              {creatingProposal ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Criar Proposta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <OnboardingDialog featureKey="dealroom" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
   );
