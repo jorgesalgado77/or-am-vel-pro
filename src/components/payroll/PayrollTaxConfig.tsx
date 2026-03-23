@@ -137,6 +137,28 @@ export function getIRRFLimites(settings: any): { isencao: number; transicao: num
   };
 }
 
+export function getMEIDASConfig(settings: any): MEIDASConfig {
+  const raw = settings?.tax_config;
+  if (!raw || typeof raw !== "object" || !raw.mei_das) return DEFAULT_MEI_DAS;
+  return { ...DEFAULT_MEI_DAS, ...raw.mei_das };
+}
+
+export function calcularDASMEI(
+  atividade: MEIAtividade,
+  config: MEIDASConfig,
+): { inss: number; icms: number; iss: number; total: number; descricao: string } {
+  const inss = (config.salario_minimo * config.inss_percentual) / 100;
+  const icms = (atividade === "comercio" || atividade === "ambos") ? config.icms_valor : 0;
+  const iss = (atividade === "servicos" || atividade === "ambos") ? config.iss_valor : 0;
+  const total = inss + icms + iss;
+  
+  const atividadeLabel = atividade === "comercio" ? "Comércio/Indústria"
+    : atividade === "servicos" ? "Prestação de Serviços"
+    : "Comércio e Serviços";
+  
+  return { inss, icms, iss, total, descricao: atividadeLabel };
+}
+
 export function calcularINSS(salarioBruto: number, faixas: INSSFaixa[]): { valor: number; aliquota: number; faixa: string } {
   if (!faixas.length || salarioBruto <= 0) return { valor: 0, aliquota: 0, faixa: "—" };
   const sorted = [...faixas].sort((a, b) => a.limite - b.limite);
