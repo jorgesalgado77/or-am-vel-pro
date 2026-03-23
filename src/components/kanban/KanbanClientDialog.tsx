@@ -226,7 +226,7 @@ export function KanbanClientDialog({
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Último Orçamento</h4>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Valor</span>
-                    <span className="text-sm font-bold text-foreground">{formatCurrency(lastSim.valor_final)}</span>
+                    <span className="text-sm font-bold text-foreground">{formatCurrency(lastSim.valor_com_desconto || lastSim.valor_final)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Data</span>
