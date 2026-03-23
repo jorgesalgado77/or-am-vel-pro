@@ -129,6 +129,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tOcultarIndicador, setTOcultarIndicador] = useState(false);
   const [tDealRoom, setTDealRoom] = useState(false);
   const [tVendaZap, setTVendaZap] = useState(false);
+  const [t3dImport, setT3dImport] = useState(false);
 
   const fetchAddonInterestCount = async () => {
     const { count } = await supabase
