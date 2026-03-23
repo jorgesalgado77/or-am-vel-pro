@@ -13,7 +13,10 @@ import type { CatalogItem } from "@/hooks/useModuleCatalog";
 
 const CATEGORIES: { value: CatalogItem["category"]; label: string; icon: any }[] = [
   { value: "ferragem", label: "Ferragens", icon: Wrench },
+  { value: "dobradica", label: "Dobradiças", icon: Wrench },
+  { value: "corredica", label: "Corrediças", icon: Wrench },
   { value: "puxador", label: "Puxadores", icon: GripVertical },
+  { value: "porta_frente", label: "Portas/Frentes", icon: Settings2 },
   { value: "fundo", label: "Tipos de Fundo", icon: Settings2 },
   { value: "fita_borda", label: "Fitas de Borda", icon: Settings2 },
   { value: "material", label: "Materiais", icon: Settings2 },
