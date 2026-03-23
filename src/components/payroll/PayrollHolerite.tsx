@@ -57,11 +57,17 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const valorHoraExtra = (salario / (diasUteis * 8)) * 1.5;
   const totalHorasExtras = valorHoraExtra * horasExtras;
 
-  const proventos = [
+  const proventos: { descricao: string; valor: number; detalhe?: string }[] = [
     { descricao: "Salário Base", valor: salario },
   ];
   if (totalComissoes > 0) proventos.push({ descricao: "Comissões", valor: totalComissoes });
-  if (totalHorasExtras > 0) proventos.push({ descricao: `Horas Extras (${horasExtras}h × 1.5)`, valor: totalHorasExtras });
+  if (horasExtras > 0) {
+    proventos.push({ 
+      descricao: `Horas Extras (${horasExtras}h)`, 
+      valor: totalHorasExtras,
+      detalhe: `${formatCurrency(valorHoraExtra)}/h × ${horasExtras}h (50% adicional)`
+    });
+  }
   if (bonus > 0) proventos.push({ descricao: deduction?.descricao_bonus ? `Bônus: ${deduction.descricao_bonus}` : "Bônus", valor: bonus });
 
   const totalBruto = proventos.reduce((s, p) => s + p.valor, 0);
