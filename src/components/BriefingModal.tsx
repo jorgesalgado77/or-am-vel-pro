@@ -29,7 +29,9 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
   const [saving, setSaving] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [readOnly, setReadOnly] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const responsesRef = useRef<Record<string, any>>({});
 
   const fetchBriefing = useCallback(async () => {
     setLoading(true);
@@ -41,10 +43,14 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
 
     if (existing) {
       setExistingId((existing as any).id);
-      setResponses((existing as any).responses || {});
+      const r = (existing as any).responses || {};
+      setResponses(r);
+      responsesRef.current = r;
       setReadOnly(true);
     } else {
-      setResponses({ client_1_name: clientName });
+      const initial = { client_1_name: clientName };
+      setResponses(initial);
+      responsesRef.current = initial;
       setExistingId(null);
       setReadOnly(false);
     }
@@ -56,9 +62,41 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [open, fetchBriefing]);
 
-  const updateResponse = useCallback((key: string, value: any) => {
-    setResponses(prev => ({ ...prev, [key]: value }));
+  // Auto-save with debounce (3 seconds after last change)
+  const triggerAutoSave = useCallback(async (currentResponses: Record<string, any>, currentExistingId: string | null) => {
+    if (!currentExistingId) return; // Only auto-save if already saved once
+    setAutoSaving(true);
+    try {
+      const tenantId = await getResolvedTenantId();
+      await supabase
+        .from("client_briefings" as any)
+        .update({
+          responses: currentResponses,
+          updated_at: new Date().toISOString(),
+          tenant_id: tenantId,
+        } as any)
+        .eq("id", currentExistingId);
+    } catch (err) {
+      console.error("Auto-save failed:", err);
+    } finally {
+      setAutoSaving(false);
+    }
   }, []);
+
+  const updateResponse = useCallback((key: string, value: any) => {
+    setResponses(prev => {
+      const updated = { ...prev, [key]: value };
+      responsesRef.current = updated;
+
+      // Schedule auto-save
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => {
+        triggerAutoSave(responsesRef.current, existingId);
+      }, 3000);
+
+      return updated;
+    });
+  }, [existingId, triggerAutoSave]);
 
   const toggleCheckbox = useCallback((key: string, option: string) => {
     setResponses(prev => {
@@ -66,11 +104,22 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
       const updated = current.includes(option)
         ? current.filter((o: string) => o !== option)
         : [...current, option];
-      return { ...prev, [key]: updated };
+      const newResponses = { ...prev, [key]: updated };
+      responsesRef.current = newResponses;
+
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => {
+        triggerAutoSave(responsesRef.current, existingId);
+      }, 3000);
+
+      return newResponses;
     });
-  }, []);
+  }, [existingId, triggerAutoSave]);
 
   const handleSave = useCallback(async () => {
+    // Cancel any pending auto-save
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+
     const required = ["seller_name", "client_1_name", "client_1_phone", "construction_stage", "purchase_timeline"];
     const missing = required.filter(k => !responses[k]);
     if (missing.length > 0) {
@@ -128,6 +177,9 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
             <DialogTitle className="flex items-center gap-2 text-base">
               <FileText className="h-5 w-5 text-primary" />
               Briefing — {clientName}
+              {autoSaving && (
+                <span className="text-xs text-muted-foreground animate-pulse ml-2">Salvando...</span>
+              )}
             </DialogTitle>
             {existingId && Object.keys(responses).length > 0 && (
               <BriefingPrintButton clientName={clientName} orcamentoNumero={orcamentoNumero} responses={responses} />
