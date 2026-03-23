@@ -631,7 +631,7 @@ export default function TenantLanding() {
 
   return (
     <>
-      {/* Inject performant CSS animations */}
+      {/* Inject performant CSS animations — reduced motion & mobile-first */}
       <style>{`
         @keyframes landingFadeIn {
           to { opacity: 1; transform: translateY(0); }
@@ -644,18 +644,10 @@ export default function TenantLanding() {
           0%, 100% { opacity: 0.4; }
           50% { opacity: 0.7; }
         }
-        @keyframes landingShimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
         @keyframes landingParticle {
           0% { transform: translateY(0) translateX(0) scale(0); opacity: 0; }
           20% { opacity: 1; transform: scale(1); }
           100% { transform: translateY(-120px) translateX(var(--tx, 30px)) scale(0); opacity: 0; }
-        }
-        @keyframes landingWaPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
-          50% { box-shadow: 0 0 0 14px rgba(37, 211, 102, 0); }
         }
         .landing-fade-in { animation: landingFadeIn 0.3s ease-out forwards; }
         .landing-scale-in { animation: landingFadeIn 0.4s ease-out forwards; }
@@ -667,16 +659,24 @@ export default function TenantLanding() {
           pointer-events: none;
           animation: landingParticle var(--dur, 4s) ease-out var(--delay, 0s) infinite;
         }
-        .landing-wa-btn { animation: landingWaPulse 2s ease-in-out infinite; }
+        /* Disable heavy effects on low-end / reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+          .landing-float, .landing-glow, .landing-particle { animation: none !important; }
+          .landing-fade-in, .landing-scale-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+        }
+        /* Disable particles on small screens for GPU savings */
+        @media (max-width: 640px) {
+          .landing-particle:nth-child(n+7) { display: none; }
+          .landing-glow-orb { display: none; }
+        }
       `}</style>
 
       <div className="min-h-[100dvh] flex flex-col" style={{ background: `linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)` }}>
 
         {/* ═══ Hero Header ═══ */}
-        <header className="relative pt-8 pb-6 px-4 sm:px-6 overflow-hidden">
-          {/* Glow orb behind logo */}
-          {/* Particles */}
-          {Array.from({ length: 18 }).map((_, i) => (
+        <header className="relative pt-6 sm:pt-8 pb-4 sm:pb-6 px-3 sm:px-6 overflow-hidden contain-paint">
+          {/* Particles — only 8, mobile hides extras via CSS */}
+          {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={`p-${i}`}
               className="landing-particle"
@@ -692,42 +692,41 @@ export default function TenantLanding() {
               } as React.CSSProperties}
             />
           ))}
+          {/* Glow orb — hidden on mobile for GPU savings */}
           <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] sm:w-[500px] sm:h-[400px] rounded-full blur-[100px] landing-glow pointer-events-none"
-            style={{ backgroundColor: color, opacity: 0.25 }}
+            className="landing-glow-orb absolute top-0 left-1/2 -translate-x-1/2 w-[200px] h-[200px] sm:w-[400px] sm:h-[300px] rounded-full blur-[60px] sm:blur-[100px] landing-glow pointer-events-none"
+            style={{ backgroundColor: color, opacity: 0.2 }}
           />
-          <div className="relative flex flex-col items-center gap-4">
+          <div className="relative flex flex-col items-center gap-3 sm:gap-4">
             <div className="landing-float" style={fadeInUp(0)}>
               {tenant.logo_url ? (
                 <div className="relative">
-                  <img src={tenant.logo_url} alt={tenant.nome_loja} className="h-20 sm:h-24 w-auto object-contain drop-shadow-2xl" />
-                  <div className="absolute -inset-3 rounded-full blur-xl -z-10 landing-glow" style={{ backgroundColor: color, opacity: 0.2 }} />
+                  <img src={tenant.logo_url} alt={tenant.nome_loja} className="h-16 sm:h-20 md:h-24 w-auto object-contain drop-shadow-2xl" loading="eager" />
                 </div>
               ) : (
                 <div className="relative">
-                  <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-[28px] border text-2xl font-black text-white shadow-2xl" style={{ background: `linear-gradient(135deg, ${color}, ${color}80)`, borderColor: `${color}40`, boxShadow: `0 20px 60px ${color}30` }}>
+                  <div className="flex h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 items-center justify-center rounded-[20px] sm:rounded-[28px] border text-xl sm:text-2xl font-black text-white shadow-2xl" style={{ background: `linear-gradient(135deg, ${color}, ${color}80)`, borderColor: `${color}40` }}>
                     {tenant.nome_loja.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join("") || "LP"}
                   </div>
-                  <div className="absolute -inset-3 rounded-full blur-2xl -z-10" style={{ backgroundColor: `${color}28` }} />
                 </div>
               )}
             </div>
             <h1
-              className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight text-center"
-              style={{ ...fadeInUp(0.15), textShadow: `0 0 60px ${color}40` }}
+              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight text-center leading-tight"
+              style={{ ...fadeInUp(0.15), textShadow: `0 0 40px ${color}30` }}
             >
               {tenant.nome_loja}
             </h1>
             <div
-              className="flex items-center gap-2 px-4 py-1.5 rounded-full border"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border"
               style={{
                 ...fadeInUp(0.3),
                 borderColor: `${color}40`,
                 background: `linear-gradient(135deg, ${color}15, transparent)`,
               }}
             >
-              <Sparkles className="h-3.5 w-3.5" style={{ color }} />
-              <span className="text-xs sm:text-sm font-semibold tracking-widest uppercase" style={{ color }}>
+              <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5" style={{ color }} />
+              <span className="text-[10px] sm:text-xs font-semibold tracking-widest uppercase" style={{ color }}>
                 Especialistas em Móveis Planejados
               </span>
             </div>
@@ -735,11 +734,11 @@ export default function TenantLanding() {
         </header>
 
         {/* ═══ Main Content ═══ */}
-        <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+        <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 lg:py-10">
+          <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-12 items-start">
 
             {/* ── Left: Media + Copy ── */}
-            <div className="space-y-6" style={fadeInUp(0.2)}>
+            <div className="space-y-4 sm:space-y-6 order-2 lg:order-1" style={fadeInUp(0.2)}>
               {hasVideo && (
                 <PromoVideoPlayer url={tenant.promo_video_url!} color={color} />
               )}
@@ -748,98 +747,98 @@ export default function TenantLanding() {
               )}
 
               {/* Headline & copy */}
-              <div className="space-y-4" style={fadeInUp(0.35)}>
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white leading-tight">
+              <div className="space-y-3 sm:space-y-4" style={fadeInUp(0.35)}>
+                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-white leading-tight">
                   {tenant.headline || "Ganhe seu Projeto 3D Gratuito"}
                 </h2>
-                <p className="text-base sm:text-lg text-gray-400 leading-relaxed">
+                <p className="text-sm sm:text-base lg:text-lg text-gray-400 leading-relaxed">
                   {tenant.sub_headline || `A ${tenant.nome_loja} cria o projeto ideal para sua casa. Preencha o formulário e receba um projeto 3D exclusivo sem custo.`}
                 </p>
               </div>
 
               {/* Benefits */}
-              <div className="space-y-3" style={fadeInUp(0.45)}>
+              <div className="space-y-2 sm:space-y-3" style={fadeInUp(0.45)}>
                 {benefits.map((b, i) => (
-                  <div key={i} className="flex items-start gap-3 group">
+                  <div key={i} className="flex items-start gap-2 sm:gap-3">
                     <div
-                      className="mt-0.5 h-6 w-6 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
+                      className="mt-0.5 h-5 w-5 sm:h-6 sm:w-6 rounded-full flex items-center justify-center shrink-0"
                       style={{ background: `linear-gradient(135deg, ${color}, ${color}80)` }}
                     >
-                      <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                      <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
                     </div>
-                    <span className="text-gray-300 text-sm sm:text-base">{b}</span>
+                    <span className="text-gray-300 text-xs sm:text-sm lg:text-base">{b}</span>
                   </div>
                 ))}
               </div>
 
               {/* Social proof */}
-              <div className="flex items-center gap-4 pt-2" style={fadeInUp(0.55)}>
+              <div className="flex items-center gap-3 sm:gap-4 pt-1 sm:pt-2" style={fadeInUp(0.55)}>
                 <div className="flex -space-x-2">
                   {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="w-9 h-9 rounded-full border-2 border-gray-800 flex items-center justify-center text-[11px] font-bold"
+                    <div key={i} className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border-2 border-gray-800 flex items-center justify-center text-[9px] sm:text-[11px] font-bold"
                       style={{ background: `linear-gradient(135deg, ${color}30, ${color}10)`, color }}>
                       {String.fromCharCode(64 + i)}
                     </div>
                   ))}
                 </div>
-                <div className="text-sm text-gray-400">
+                <div className="text-xs sm:text-sm text-gray-400">
                   <span className="font-bold text-white">+200 clientes</span> já aprovaram
                 </div>
               </div>
             </div>
 
-            {/* ── Right: Form Card ── */}
-            <div style={fadeInUp(0.25)}>
+            {/* ── Right: Form Card — mobile-first, on top for mobile ── */}
+            <div className="order-1 lg:order-2 w-full" style={fadeInUp(0.25)}>
               <div
-                className="rounded-3xl p-[1px] sticky top-6"
+                className="rounded-2xl sm:rounded-3xl p-[1px] lg:sticky lg:top-6"
                 style={{ background: `linear-gradient(135deg, ${color}50, transparent 50%, ${color}20)` }}
               >
-                <div className="bg-gray-900/95 backdrop-blur-sm rounded-3xl p-5 sm:p-7 space-y-5">
-                  <div className="text-center space-y-1.5">
-                    <h2 className="text-lg sm:text-xl font-bold text-white">
+                <div className="bg-gray-900/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-7 space-y-4 sm:space-y-5">
+                  <div className="text-center space-y-1">
+                    <h2 className="text-base sm:text-lg md:text-xl font-bold text-white">
                       {tenant.cta_text || "Solicite seu Projeto 3D Grátis"}
                     </h2>
-                    <p className="text-sm text-gray-400">Sem compromisso. Retornamos em até 24h.</p>
+                    <p className="text-xs sm:text-sm text-gray-400">Sem compromisso. Retornamos em até 24h.</p>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="space-y-3.5">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="lead-nome" className="text-sm font-medium text-gray-300">Seu Nome</Label>
+                  <form onSubmit={handleSubmit} className="space-y-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="lead-nome" className="text-xs sm:text-sm font-medium text-gray-300">Seu Nome</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                         <Input id="lead-nome" value={nome} onChange={e => setNome(e.target.value)} placeholder="Como podemos te chamar?"
-                          className="pl-10 h-12 rounded-xl bg-gray-800/80 border-gray-700 text-white placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10" required />
+                          className="pl-10 h-11 sm:h-12 rounded-xl bg-gray-800/80 border-gray-700 text-white text-sm placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10" required />
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="lead-tel" className="text-sm font-medium text-gray-300">WhatsApp</Label>
+                    <div className="space-y-1">
+                      <Label htmlFor="lead-tel" className="text-xs sm:text-sm font-medium text-gray-300">WhatsApp</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                         <Input id="lead-tel" type="tel" inputMode="numeric" value={telefone} onChange={e => setTelefone(maskPhone(e.target.value))} placeholder="(00) 00000-0000" maxLength={15}
-                          className="pl-10 h-12 rounded-xl bg-gray-800/80 border-gray-700 text-white placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10" required />
+                          className="pl-10 h-11 sm:h-12 rounded-xl bg-gray-800/80 border-gray-700 text-white text-sm placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10" required />
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="lead-mail" className="text-sm font-medium text-gray-300">Email <span className="text-gray-500">(opcional)</span></Label>
+                    <div className="space-y-1">
+                      <Label htmlFor="lead-mail" className="text-xs sm:text-sm font-medium text-gray-300">Email <span className="text-gray-500">(opcional)</span></Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                         <Input id="lead-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com"
-                          className="pl-10 h-12 rounded-xl bg-gray-800/80 border-gray-700 text-white placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10" />
+                          className="pl-10 h-11 sm:h-12 rounded-xl bg-gray-800/80 border-gray-700 text-white text-sm placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10" />
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="lead-desc" className="text-sm font-medium text-gray-300">Descreva sua necessidade <span className="text-gray-500">(opcional)</span></Label>
+                    <div className="space-y-1">
+                      <Label htmlFor="lead-desc" className="text-xs sm:text-sm font-medium text-gray-300">Descreva sua necessidade <span className="text-gray-500">(opcional)</span></Label>
                       <Textarea id="lead-desc" value={descricao} onChange={e => setDescricao(e.target.value)}
                         placeholder="Ex: Cozinha planejada para apartamento de 60m²..."
-                        className="rounded-xl bg-gray-800/80 border-gray-700 text-white placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10 min-h-[70px]" />
+                        className="rounded-xl bg-gray-800/80 border-gray-700 text-white text-sm placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10 min-h-[60px] sm:min-h-[70px]" />
                     </div>
                     {investmentRanges.length > 0 && (
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-gray-300">Quanto pretende investir em Móveis Planejados?</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs sm:text-sm font-medium text-gray-300">Quanto pretende investir em Móveis Planejados?</Label>
                         <select
                           value={investimento}
                           onChange={(e) => setInvestimento(e.target.value)}
-                          className="w-full rounded-xl bg-gray-800/80 border border-gray-700 text-white px-4 py-3 text-sm focus:border-white/30 focus:ring-1 focus:ring-white/10 appearance-none"
+                          className="w-full rounded-xl bg-gray-800/80 border border-gray-700 text-white px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm focus:border-white/30 focus:ring-1 focus:ring-white/10 appearance-none"
                         >
                           <option value="" className="bg-gray-900 text-gray-400">Selecione uma faixa de investimento</option>
                           {investmentRanges.map((range, i) => (
@@ -848,46 +847,48 @@ export default function TenantLanding() {
                         </select>
                       </div>
                     )}
-                    <div className="space-y-1.5">
-                      <div className="border border-dashed border-gray-700 rounded-xl p-3 text-center hover:border-gray-500 transition-colors cursor-pointer"
+                    <div className="space-y-1">
+                      <div className="border border-dashed border-gray-700 rounded-xl p-2.5 sm:p-3 text-center hover:border-gray-500 transition-colors cursor-pointer active:bg-gray-800/30"
                         onClick={() => document.getElementById("lead-files")?.click()}>
                         <input id="lead-files" type="file" multiple accept="image/*,.pdf,.dwg" className="hidden"
                           onChange={e => { setArquivos(prev => [...prev, ...Array.from(e.target.files || [])]); }} />
                         <Paperclip className="h-4 w-4 mx-auto text-gray-500 mb-1" />
-                        <p className="text-xs text-gray-400">Enviar planta, fotos ou documentos</p>
-                        <p className="text-[10px] text-gray-600 mt-0.5">JPG, PNG, PDF • Até 10MB</p>
+                        <p className="text-[11px] sm:text-xs text-gray-400">Enviar planta, fotos ou documentos</p>
+                        <p className="text-[9px] sm:text-[10px] text-gray-600 mt-0.5">JPG, PNG, PDF • Até 10MB</p>
                       </div>
                       {arquivos.length > 0 && (
-                        <div className="space-y-1 mt-1.5">
+                        <div className="space-y-1 mt-1">
                           {arquivos.map((f, i) => (
-                            <div key={i} className="flex items-center gap-2 text-xs text-gray-300 bg-gray-800/60 rounded-lg px-3 py-1.5">
+                            <div key={i} className="flex items-center gap-2 text-[11px] sm:text-xs text-gray-300 bg-gray-800/60 rounded-lg px-2.5 sm:px-3 py-1.5">
                               <FileText className="h-3 w-3 shrink-0 text-gray-500" />
                               <span className="truncate flex-1">{f.name}</span>
-                              <button type="button" onClick={() => setArquivos(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-500 hover:text-red-400">×</button>
+                              <button type="button" onClick={() => setArquivos(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-500 hover:text-red-400 p-1 -mr-1 min-w-[28px] min-h-[28px] flex items-center justify-center">×</button>
                             </div>
                           ))}
                         </div>
                       )}
                     </div>
                     <Button type="submit" disabled={sending}
-                      className="w-full h-13 text-base font-bold rounded-xl text-white shadow-xl active:scale-[0.97] transition-all border-0"
+                      className="w-full h-12 sm:h-13 text-sm sm:text-base font-bold rounded-xl text-white shadow-xl active:scale-[0.97] transition-all border-0"
                       style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)`, boxShadow: `0 8px 30px ${color}40` }}>
                       {sending ? (
                         <span className="flex items-center gap-2">
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                          {uploadProgress
-                            ? `Enviando anexo ${uploadProgress.current}/${uploadProgress.total}...`
-                            : "Enviando dados..."}
+                          <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                          <span className="text-xs sm:text-sm">
+                            {uploadProgress
+                              ? `Enviando anexo ${uploadProgress.current}/${uploadProgress.total}...`
+                              : "Enviando dados..."}
+                          </span>
                         </span>
                       ) : (
-                        <>Quero meu Projeto 3D Grátis <ArrowRight className="ml-2 h-5 w-5" /></>
+                        <>Quero meu Projeto 3D Grátis <ArrowRight className="ml-1.5 sm:ml-2 h-4 w-4 sm:h-5 sm:w-5" /></>
                       )}
                     </Button>
 
                     {/* Upload progress bar */}
                     {sending && uploadProgress && (
-                      <div className="space-y-1.5 landing-fade-in">
-                        <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${color}20` }}>
+                      <div className="space-y-1 landing-fade-in">
+                        <div className="w-full h-1.5 sm:h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${color}20` }}>
                           <div
                             className="h-full rounded-full transition-all duration-500 ease-out"
                             style={{
@@ -896,14 +897,14 @@ export default function TenantLanding() {
                             }}
                           />
                         </div>
-                        <p className="text-[11px] text-gray-400 truncate text-center">
+                        <p className="text-[10px] sm:text-[11px] text-gray-400 truncate text-center">
                           📎 {uploadProgress.fileName}
                         </p>
                       </div>
                     )}
                   </form>
 
-                  <div className="flex items-center justify-center gap-5 text-[11px] text-gray-500 pt-1">
+                  <div className="flex items-center justify-center gap-4 sm:gap-5 text-[10px] sm:text-[11px] text-gray-500 pt-1">
                     <div className="flex items-center gap-1"><Shield className="h-3 w-3" /> Dados protegidos</div>
                     <div className="flex items-center gap-1"><Star className="h-3 w-3" /> Sem spam</div>
                   </div>
@@ -922,8 +923,8 @@ export default function TenantLanding() {
                     if (!socialItems.length) return null;
                     return (
                       <div className="pt-3 border-t border-gray-800/60">
-                        <p className="text-xs text-gray-500 text-center mb-3">Siga-nos nas redes sociais</p>
-                        <div className="flex justify-center gap-3">
+                        <p className="text-[10px] sm:text-xs text-gray-500 text-center mb-2 sm:mb-3">Siga-nos nas redes sociais</p>
+                        <div className="flex justify-center gap-2 sm:gap-3 flex-wrap">
                           {socialItems.map(({ icon: Icon, label, url, gradient }) => (
                             <a
                               key={label}
@@ -931,10 +932,10 @@ export default function TenantLanding() {
                               target="_blank"
                               rel="noopener noreferrer"
                               title={label}
-                              className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl active:scale-95"
+                              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white shadow-lg active:scale-95"
                               style={{ background: gradient }}
                             >
-                              <Icon className="h-5 w-5" />
+                              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                             </a>
                           ))}
                         </div>
@@ -947,7 +948,7 @@ export default function TenantLanding() {
           </div>
         </main>
 
-        {/* ═══ Social Links ═══ */}
+        {/* ═══ Social Links (bottom) ═══ */}
         {(() => {
           const sl = tenant.social_links || {};
           const links = [
@@ -960,7 +961,7 @@ export default function TenantLanding() {
           ].filter(l => l.url && l.url.trim());
           if (!links.length) return null;
           return (
-            <div className="py-6 px-4 flex justify-center gap-4" style={fadeInUp(0.7)}>
+            <div className="py-4 sm:py-6 px-4 flex justify-center gap-3 sm:gap-4 flex-wrap" style={fadeInUp(0.7)}>
               {links.map(({ icon: Icon, label, url }) => (
                 <a
                   key={label}
@@ -968,12 +969,10 @@ export default function TenantLanding() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={label}
-                  className="group w-11 h-11 rounded-full flex items-center justify-center border border-gray-700 hover:border-gray-500 transition-all active:scale-90"
+                  className="group w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border border-gray-700 active:scale-90"
                   style={{ background: "rgba(255,255,255,0.05)" }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${color}30`; (e.currentTarget as HTMLElement).style.borderColor = color; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = ""; }}
                 >
-                  <Icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                 </a>
               ))}
             </div>
@@ -981,8 +980,8 @@ export default function TenantLanding() {
         })()}
 
         {/* ═══ Footer ═══ */}
-        <footer className="py-6 px-4 text-center border-t border-gray-800/50">
-          <p className="text-xs text-gray-500">
+        <footer className="py-4 sm:py-6 px-4 text-center border-t border-gray-800/50">
+          <p className="text-[10px] sm:text-xs text-gray-500">
             {tenant.nome_loja} · Powered by <span className="font-semibold text-gray-400">OrçaMóvel PRO</span> — Todos os Direitos Reservados — 2026
           </p>
         </footer>
