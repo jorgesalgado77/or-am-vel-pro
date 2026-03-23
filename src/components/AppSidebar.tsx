@@ -3,6 +3,7 @@ import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
   MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle, Megaphone,
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
+  Box,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -61,6 +62,7 @@ export function AppSidebar({
     { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "vendazap" as const, show: hasPermission("vendazap"), badge: "ADD-ON" },
     { id: "vendazap-chat", label: "Chat Vendas", icon: MessageCircle, perm: "chat_vendas" as const, show: hasPermission("chat_vendas"), badge: "ADD-ON" },
     { id: "dealroom", label: "Deal Room", icon: Video, perm: "dealroom" as const, show: hasPermission("dealroom"), badge: "ADD-ON" },
+    { id: "smart3d", label: "3D Smart Import", icon: Box, perm: "smart3d" as const, show: hasPermission("smart3d"), badge: "ADD-ON" },
     { id: "tutorials", label: "Tutoriais", icon: GraduationCap, perm: "clientes" as const, show: true, badge: null },
   ];
 

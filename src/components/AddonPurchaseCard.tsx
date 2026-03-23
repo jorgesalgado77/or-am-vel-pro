@@ -30,20 +30,43 @@ export function AddonPurchaseCard({ addonName, addonSlug, price, priceExtra, des
     setProcessing(true);
     await new Promise(r => setTimeout(r, 2000));
 
-    const { error } = await supabase
-      .from(addonSlug === "vendazap_ai" ? "vendazap_addon" : "dealroom_addon" as any)
-      .upsert({
-        tenant_id: tenantId,
-        ativo: true,
-        max_mensagens_dia: addonSlug === "vendazap_ai" ? 50 : 0,
-        activated_at: new Date().toISOString(),
-      } as any, { onConflict: "tenant_id" });
+    const tableName = addonSlug === "vendazap_ai" ? "vendazap_addon"
+      : addonSlug === "dealroom" ? "dealroom_addon"
+      : "company_addons";
 
-    if (error) {
-      console.error("Addon activation error:", error);
-      toast.error("Erro ao ativar add-on. Tente novamente.");
-      setProcessing(false);
-      return;
+    if (addonSlug === "smart_import_3d") {
+      // For 3D Smart Import, use company_addons table
+      const { error } = await supabase
+        .from("company_addons" as any)
+        .insert({
+          company_id: tenantId,
+          addon_name: "3D Smart Import",
+          status: "active",
+          activated_at: new Date().toISOString(),
+        } as any);
+      if (error) {
+        // Try upsert via recursos_vip
+        await supabase
+          .from("tenants")
+          .update({ recursos_vip: { smart_import_3d: true } } as any)
+          .eq("id", tenantId);
+      }
+    } else {
+      const { error } = await supabase
+        .from(tableName as any)
+        .upsert({
+          tenant_id: tenantId,
+          ativo: true,
+          max_mensagens_dia: addonSlug === "vendazap_ai" ? 50 : 0,
+          activated_at: new Date().toISOString(),
+        } as any, { onConflict: "tenant_id" });
+
+      if (error) {
+        console.error("Addon activation error:", error);
+        toast.error("Erro ao ativar add-on. Tente novamente.");
+        setProcessing(false);
+        return;
+      }
     }
 
     setConfirmed(true);

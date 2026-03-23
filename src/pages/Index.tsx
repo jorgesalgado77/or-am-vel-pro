@@ -28,6 +28,7 @@ const CampaignLibrary = lazy(() => import("@/components/CampaignLibrary").then(m
 const ReferralPanel = lazy(() => import("@/components/ReferralPanel").then(m => ({ default: m.ReferralPanel })));
 const FinancialPanel = lazy(() => import("@/components/FinancialPanel").then(m => ({ default: m.FinancialPanel })));
 const TutorialsPanel = lazy(() => import("@/components/tutorials/TutorialsPanel").then(m => ({ default: m.TutorialsPanel })));
+const SmartImport3DView = lazy(() => import("@/components/smartimport/SmartImport3DView").then(m => ({ default: m.SmartImport3DView })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
@@ -58,6 +59,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   referrals: { title: "Programa de Indicações", subtitle: "Gere links, acompanhe indicações e recompense seus clientes" },
   financial: { title: "Módulo Financeiro", subtitle: "Contas a pagar, folha de pagamento e ponto de equilíbrio" },
   tutorials: { title: "Tutoriais", subtitle: "Aprenda a usar cada funcionalidade do sistema com vídeos práticos" },
+  smart3d: { title: "3D Smart Import", subtitle: "Importe projetos 3D, visualize ambientes e gere orçamentos automáticos" },
 };
 
 export default function Index() {
@@ -354,6 +356,10 @@ export default function Index() {
               {activeView === "referrals" && <ReferralPanel />}
               {activeView === "financial" && <FinancialPanel />}
               {activeView === "tutorials" && <TutorialsPanel />}
+
+              {activeView === "smart3d" && (
+                <SmartImport3DView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
+              )}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>
