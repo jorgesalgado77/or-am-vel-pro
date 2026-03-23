@@ -205,6 +205,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [selectedBoletoProvider, setSelectedBoletoProvider] = useState("");
   const [selectedCreditoProvider, setSelectedCreditoProvider] = useState("");
 
+  const currentBoletoRates = useMemo(() =>
+    boletoRates.filter((r) => r.provider_name === selectedBoletoProvider),
+    [boletoRates, selectedBoletoProvider]
+  );
+  const currentCreditoRates = useMemo(() =>
+    creditoRates.filter((r) => r.provider_name === selectedCreditoProvider),
+    [creditoRates, selectedCreditoProvider]
+  );
+
   const availableBoletoInstallments = useMemo(() => {
     return [...new Set(currentBoletoRates.map((r) => Number(r.installments)).filter((n) => n > 0))].sort((a, b) => a - b);
   }, [currentBoletoRates]);
@@ -219,24 +228,47 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     return [1];
   }, [formaPagamento, availableBoletoInstallments, availableCreditoInstallments]);
 
+  const maxParcelas = useMemo(() => {
+    return availableParcelas.length > 0 ? Math.max(...availableParcelas) : 1;
+  }, [availableParcelas]);
+
   const getNearestAvailableInstallment = (target: number, options: number[]) => {
     if (!options.length) return 1;
     if (options.includes(target)) return target;
-    return options.reduce((closest, current) =>
-      Math.abs(current - target) < Math.abs(closest - target) ? current : closest
-    , options[0]);
+    return options.reduce(
+      (closest, current) =>
+        Math.abs(current - target) < Math.abs(closest - target) ? current : closest,
+      options[0]
+    );
   };
+
+  const getAvailableCarenciaValues = (rates: typeof currentBoletoRates): Array<30 | 60 | 90> => {
+    const values: Array<30 | 60 | 90> = [30];
+    if (rates.some((r) => Number(r.coeficiente_60) > 0)) values.push(60);
+    if (rates.some((r) => Number(r.coeficiente_90) > 0)) values.push(90);
+    return values;
+  };
+
+  const availableCarenciaOptions = useMemo(() => {
+    const allowed = new Set(getAvailableCarenciaValues(currentBoletoRates));
+    return CARENCIA_OPTIONS.filter((c) => allowed.has(Number(c.value) as 30 | 60 | 90));
+  }, [currentBoletoRates]);
 
   // Helper to apply boleto defaults for a provider
   const applyBoletoDefaults = (provider: string) => {
     const providerRates = boletoRates.filter((r) => r.provider_name === provider);
     const providerInstallments = [...new Set(providerRates.map((r) => Number(r.installments)).filter((n) => n > 0))].sort((a, b) => a - b);
+    const providerCarencias = getAvailableCarenciaValues(providerRates);
     const pd = boletoDefaults[provider];
 
     if (pd?.parcelas > 0) setParcelas(getNearestAvailableInstallment(pd.parcelas, providerInstallments));
     else if (providerInstallments.length > 0) setParcelas(providerInstallments[0]);
 
-    if (pd && [30, 60, 90].includes(pd.carencia)) setCarenciaDias(pd.carencia as 30 | 60 | 90);
+    if (pd && providerCarencias.includes(pd.carencia as 30 | 60 | 90)) {
+      setCarenciaDias(pd.carencia as 30 | 60 | 90);
+    } else {
+      setCarenciaDias(providerCarencias[0] ?? 30);
+    }
   };
 
   // Helper to apply credito defaults for a provider
@@ -283,6 +315,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     }
   }, [selectedCreditoProvider, creditoDefaults, creditoRates, formaPagamento]);
 
+  // Keep selected installment valid for the current provider/payment method
+  useEffect(() => {
+    if (!showParcelas || availableParcelas.length === 0) return;
+    const nextParcela = getNearestAvailableInstallment(parcelas, availableParcelas);
+    if (nextParcela !== parcelas) setParcelas(nextParcela);
+  }, [showParcelas, availableParcelas, parcelas]);
+
+  // Keep selected grace period valid for the current boleto provider
+  useEffect(() => {
+    if (!showCarencia || availableCarenciaOptions.length === 0) return;
+    const currentIsValid = availableCarenciaOptions.some((option) => Number(option.value) === carenciaDias);
+    if (!currentIsValid) {
+      setCarenciaDias(Number(availableCarenciaOptions[0].value) as 30 | 60 | 90);
+    }
+  }, [showCarencia, availableCarenciaOptions, carenciaDias]);
+
   // When user manually changes boleto provider, ALWAYS apply its defaults
   const handleBoletoProviderChange = (provider: string) => {
     setSelectedBoletoProvider(provider);
@@ -299,24 +347,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const showPlus = ["A vista", "Pix"].includes(formaPagamento);
   const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
 
-  const currentBoletoRates = useMemo(() =>
-    boletoRates.filter((r) => r.provider_name === selectedBoletoProvider),
-    [boletoRates, selectedBoletoProvider]
-  );
-  const currentCreditoRates = useMemo(() =>
-    creditoRates.filter((r) => r.provider_name === selectedCreditoProvider),
-    [creditoRates, selectedCreditoProvider]
-  );
-
-  // Filter carência options based on whether the selected boleto provider has non-zero coefficients
-  const availableCarenciaOptions = useMemo(() => {
-    return CARENCIA_OPTIONS.filter((c) => {
-      if (c.value === "30") return true;
-      if (c.value === "60") return currentBoletoRates.some((r) => Number(r.coeficiente_60) > 0);
-      if (c.value === "90") return currentBoletoRates.some((r) => Number(r.coeficiente_90) > 0);
-      return true;
-    });
-  }, [currentBoletoRates]);
 
   const { boletoCoeffMap, boletoRatesFullMap } = useMemo(() => {
     const coeffMap: Record<number, number> = {};
