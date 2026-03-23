@@ -484,7 +484,10 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
         {Object.entries(regimeGroups)
           .filter(([, users]) => users.length > 0)
           .map(([regime, users]) => {
-            const subtotal = users.reduce((sum, u) => sum + (u.salario_fixo || 0), 0);
+            const subtotal = users.reduce((sum, u) => {
+              const cargo = u.cargo_id ? cargos.find(c => c.id === u.cargo_id) : null;
+              return sum + (u.salario_fixo || (cargo as any)?.salario_base || 0);
+            }, 0);
             return (
               <Card key={regime}>
                 <CardHeader className="pb-2">
@@ -494,12 +497,16 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {users.map((u) => (
-                    <div key={u.id} className="flex items-center justify-between text-sm">
-                      <span className="text-foreground truncate">{u.apelido || u.nome_completo}</span>
-                      <span className="text-muted-foreground font-medium">{u.salario_fixo ? formatCurrency(u.salario_fixo) : "—"}</span>
-                    </div>
-                  ))}
+                  {users.map((u) => {
+                    const cargo = u.cargo_id ? cargos.find(c => c.id === u.cargo_id) : null;
+                    const salario = u.salario_fixo || (cargo as any)?.salario_base || 0;
+                    return (
+                      <div key={u.id} className="flex items-center justify-between text-sm">
+                        <span className="text-foreground truncate">{u.apelido || u.nome_completo}</span>
+                        <span className="text-muted-foreground font-medium">{salario > 0 ? formatCurrency(salario) : "—"}</span>
+                      </div>
+                    );
+                  })}
                   <Separator />
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span className="text-foreground">Subtotal</span>
