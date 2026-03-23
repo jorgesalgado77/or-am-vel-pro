@@ -19,42 +19,32 @@ function getFileExtension(url: string): string {
   }
 }
 
-// AutoCAD Color Index (ACI) - main colors mapped to visible tones
+// AutoCAD Color Index (ACI) - faithful color mapping
 const ACI_COLORS: Record<number, number> = {
-  1: 0xFF3333, 2: 0xFFFF33, 3: 0x33FF33, 4: 0x33FFFF,
-  5: 0x3366FF, 6: 0xFF33FF, 7: 0xB8C4D0, 8: 0x808080,
-  9: 0xA0A0A0, 10: 0xFF4444, 20: 0xFF8844, 30: 0xFF7F00,
-  40: 0xFFBB33, 50: 0xFFFF44, 60: 0xBBFF33, 70: 0x7FFF33,
-  80: 0x33FF44, 90: 0x33FF88, 100: 0x33FFBB, 110: 0x33FFDD,
-  120: 0x33FFFF, 130: 0x33DDFF, 140: 0x33BBFF, 150: 0x3388FF,
-  160: 0x3355FF, 170: 0x4444FF, 180: 0x6633FF, 190: 0x8833FF,
-  200: 0xBB33FF, 210: 0xFF33FF, 220: 0xFF33BB, 230: 0xFF3388,
-  240: 0xFF3355, 250: 0x555555, 251: 0x6B6B6B, 252: 0x888888,
-  253: 0xA0A0A0, 254: 0xBBBBBB, 255: 0xD0D0D0,
+  0: 0x000000, 1: 0xFF0000, 2: 0xFFFF00, 3: 0x00FF00, 4: 0x00FFFF,
+  5: 0x0000FF, 6: 0xFF00FF, 7: 0xBBBBBB, 8: 0x808080, 9: 0xC0C0C0,
+  10: 0xFF0000, 11: 0xFF7F7F, 12: 0xCC0000, 14: 0x990000,
+  20: 0xFF3F00, 30: 0xFF7F00, 40: 0xFFBF00, 50: 0xFFFF00,
+  60: 0xBFFF00, 70: 0x7FFF00, 80: 0x3FFF00, 90: 0x00FF00,
+  100: 0x00FF3F, 110: 0x00FF7F, 120: 0x00FFBF, 130: 0x00FFFF,
+  140: 0x00BFFF, 150: 0x007FFF, 160: 0x003FFF, 170: 0x0000FF,
+  180: 0x3F00FF, 190: 0x7F00FF, 200: 0xBF00FF, 210: 0xFF00FF,
+  220: 0xFF00BF, 230: 0xFF007F, 240: 0xFF003F,
+  250: 0x333333, 251: 0x505050, 252: 0x696969,
+  253: 0x808080, 254: 0xBEBEBE, 255: 0xFFFFFF,
 };
 
-// Palette for auto-coloring entities without explicit color
-const AUTO_COLORS = [
-  0x4FC3F7, 0x81C784, 0xFFB74D, 0xE57373, 0xBA68C8,
-  0x4DD0E1, 0xAED581, 0xFF8A65, 0xF06292, 0x7986CB,
-  0x4DB6AC, 0xDCE775, 0xFFD54F, 0xA1887F, 0x90A4AE,
-];
-let autoColorIdx = 0;
-
 function aciToHex(colorIndex: number): number {
-  // Color 7 = "default" in DXF, assign auto-rotating palette color
-  if (colorIndex === 7 || colorIndex === 0) {
-    const c = AUTO_COLORS[autoColorIdx % AUTO_COLORS.length];
-    autoColorIdx++;
-    return c;
-  }
-  if (ACI_COLORS[colorIndex]) return ACI_COLORS[colorIndex];
-  // Find closest mapped color
+  // Color 7 = default in DXF → use neutral silver/gray (visible on dark bg)
+  if (colorIndex === 7) return 0xB0BEC5;
+  if (colorIndex === 0) return 0x90A4AE;
+  if (ACI_COLORS[colorIndex] !== undefined) return ACI_COLORS[colorIndex];
+  // Closest mapped color
   const keys = Object.keys(ACI_COLORS).map(Number).sort((a, b) => a - b);
   for (let k = 0; k < keys.length - 1; k++) {
     if (colorIndex >= keys[k] && colorIndex <= keys[k + 1]) return ACI_COLORS[keys[k]];
   }
-  return AUTO_COLORS[autoColorIdx++ % AUTO_COLORS.length];
+  return 0xB0BEC5;
 }
 
 interface DxfEntity {
@@ -412,8 +402,6 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             }
           };
 
-          // Reset auto-color index for DXF
-          autoColorIdx = 0;
 
           if (ext === "glb" || ext === "gltf") {
             setProgressLabel("Processando modelo GLB...");
@@ -490,33 +478,96 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
               loadedObject.position.sub(center.multiplyScalar(scale));
             }
 
-            // Click handler
+            // Click selection with highlight
             const raycaster = new THREE.Raycaster();
+            raycaster.params.Line = { threshold: 0.5 };
             const mouse = new THREE.Vector2();
+            let selectedOutline: any = null;
+            const originalMaterials = new Map<any, any>();
 
             renderer.domElement.addEventListener("click", (event) => {
               const rect = renderer.domElement.getBoundingClientRect();
               mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
               mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
               raycaster.setFromCamera(mouse, camera);
-              const intersects = raycaster.intersectObjects(scene.children, true);
-              if (intersects.length > 0 && onObjectSelect) {
-                const obj = intersects[0].object;
-                onObjectSelect(obj.name || "Objeto sem nome", {
-                  type: obj.type,
-                  geometry: (obj as any).geometry ? {
-                    vertices: (obj as any).geometry.attributes?.position?.count || 0,
-                  } : null,
-                  material: (obj as any).material ? {
-                    name: (obj as any).material.name,
-                    color: (obj as any).material.color?.getHexString?.() || null,
-                  } : null,
-                  position: {
-                    x: Math.round(obj.position.x * 100) / 100,
-                    y: Math.round(obj.position.y * 100) / 100,
-                    z: Math.round(obj.position.z * 100) / 100,
-                  },
+
+              // Restore all previously modified objects
+              originalMaterials.forEach((origMat, obj) => { obj.material = origMat; });
+              originalMaterials.clear();
+              if (selectedOutline) { scene.remove(selectedOutline); selectedOutline = null; }
+
+              const intersects = raycaster.intersectObjects(
+                loadedObject ? [loadedObject] : scene.children, true
+              );
+
+              if (intersects.length > 0) {
+                const hit = intersects[0].object as any;
+
+                // Save original material and apply highlight
+                originalMaterials.set(hit, hit.material);
+
+                if (hit.isMesh) {
+                  const origColor = hit.material?.color?.clone?.();
+                  hit.material = new THREE.MeshStandardMaterial({
+                    color: origColor || new THREE.Color(0x4FC3F7),
+                    emissive: new THREE.Color(0x29B6F6),
+                    emissiveIntensity: 0.5,
+                    metalness: 0.2,
+                    roughness: 0.4,
+                    side: THREE.DoubleSide,
+                  });
+
+                  // Wireframe glow outline
+                  if (hit.geometry) {
+                    const outlineMat = new THREE.MeshBasicMaterial({
+                      color: 0x29B6F6, wireframe: true, transparent: true, opacity: 0.35,
+                    });
+                    selectedOutline = new THREE.Mesh(hit.geometry.clone(), outlineMat);
+                    selectedOutline.position.copy(hit.position);
+                    selectedOutline.rotation.copy(hit.rotation);
+                    selectedOutline.scale.copy(hit.scale).multiplyScalar(1.02);
+                    if (hit.parent) selectedOutline.applyMatrix4(hit.matrixWorld);
+                    scene.add(selectedOutline);
+                  }
+                } else {
+                  hit.material = new THREE.LineBasicMaterial({ color: 0x29B6F6, linewidth: 3 });
+                }
+
+                // Dim other objects
+                loadedObject?.traverse?.((child: any) => {
+                  if (child !== hit && (child.isMesh || child.isLine || child.isLineSegments)) {
+                    if (!originalMaterials.has(child)) originalMaterials.set(child, child.material);
+                    if (child.isMesh) {
+                      child.material = new THREE.MeshStandardMaterial({
+                        color: child.material?.color?.clone?.() || new THREE.Color(0x808080),
+                        transparent: true, opacity: 0.2, side: THREE.DoubleSide,
+                      });
+                    } else {
+                      child.material = new THREE.LineBasicMaterial({
+                        color: child.material?.color?.clone?.() || new THREE.Color(0x808080),
+                        transparent: true, opacity: 0.15,
+                      });
+                    }
+                  }
                 });
+
+                if (onObjectSelect) {
+                  onObjectSelect(hit.name || "Objeto sem nome", {
+                    type: hit.type,
+                    geometry: hit.geometry ? {
+                      vertices: hit.geometry.attributes?.position?.count || 0,
+                    } : null,
+                    material: originalMaterials.get(hit) ? {
+                      name: originalMaterials.get(hit).name,
+                      color: originalMaterials.get(hit).color?.getHexString?.() || null,
+                    } : null,
+                    position: {
+                      x: Math.round(hit.position.x * 100) / 100,
+                      y: Math.round(hit.position.y * 100) / 100,
+                      z: Math.round(hit.position.z * 100) / 100,
+                    },
+                  });
+                }
               }
             });
           }
