@@ -67,8 +67,6 @@ const TEXTURE_KEYS = [
   "specularMap",
 ];
 
-const previewModelCache = new Map<string, any>();
-
 export function getFileExtension(url: string): string {
   try {
     const path = new URL(url).pathname;
