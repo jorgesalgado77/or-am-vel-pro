@@ -169,7 +169,10 @@ export function BoletoRatesTab() {
             <div className="space-y-4">
               {providers.map((provider) => {
                 const pd = providerDefaults[provider] || { parcelas: 0, carencia: 30 };
-                const maxInstallments = rates.filter((r) => r.provider_name === provider).length || 24;
+                const providerRates = rates.filter((r) => r.provider_name === provider);
+                const maxInstallments = providerRates.length || 24;
+                const has60 = providerRates.some((r) => Number(r.coeficiente_60) > 0);
+                const has90 = providerRates.some((r) => Number(r.coeficiente_90) > 0);
                 return (
                   <div key={provider} className="flex flex-wrap items-end gap-4 p-3 bg-secondary/30 rounded-lg">
                     <div className="font-medium text-sm min-w-[120px]">{provider}</div>
@@ -190,8 +193,8 @@ export function BoletoRatesTab() {
                         <SelectTrigger className="mt-1 w-[110px] h-8"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="30">30 dias</SelectItem>
-                          <SelectItem value="60">60 dias</SelectItem>
-                          <SelectItem value="90">90 dias</SelectItem>
+                          {has60 && <SelectItem value="60">60 dias</SelectItem>}
+                          {has90 && <SelectItem value="90">90 dias</SelectItem>}
                         </SelectContent>
                       </Select>
                     </div>
