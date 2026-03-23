@@ -248,6 +248,24 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
             </CardContent>
           </Card>
 
+          {/* Upload Progress Bar */}
+          {uploadProgress && (
+            <Card className="border-primary/30">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Upload className="h-4 w-4 text-primary animate-pulse" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground font-medium">{uploadProgress.label}</span>
+                      <span className="text-muted-foreground">{uploadProgress.percent}%</span>
+                    </div>
+                    <Progress value={uploadProgress.percent} className="h-2" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+
           {/* Projects list */}
           {loading ? (
             <div className="flex items-center justify-center py-10">
