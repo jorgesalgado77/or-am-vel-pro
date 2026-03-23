@@ -37,20 +37,33 @@ interface ModuleForm {
   width: string;
   height: string;
   depth: string;
-  ferragem_id: string;
+  dobradica_id: string;
   puxador_id: string;
   fundo_tipo_id: string;
+  porta_frente_id: string;
+  corredica_id: string;
+  agregados: string;
+  ferragens_montagem: string;
   cor_caixa: string;
   cor_porta: string;
   cor_tamponamento: string;
   cor_fita_borda: string;
+  cor_fundo: string;
+  cor_paineis_tampo: string;
+  extra_cores: { label: string; value: string }[];
+  observacoes: string;
 }
 
 const EMPTY_FORM: ModuleForm = {
   name: "", type: "Outro", cost: "", materials: "",
   width: "", height: "", depth: "",
-  ferragem_id: "", puxador_id: "", fundo_tipo_id: "",
+  dobradica_id: "", puxador_id: "", fundo_tipo_id: "",
+  porta_frente_id: "", corredica_id: "",
+  agregados: "", ferragens_montagem: "",
   cor_caixa: "", cor_porta: "", cor_tamponamento: "", cor_fita_borda: "",
+  cor_fundo: "", cor_paineis_tampo: "",
+  extra_cores: [],
+  observacoes: "",
 };
 
 export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate, onDelete }: ModuleLibraryPanelProps) {
