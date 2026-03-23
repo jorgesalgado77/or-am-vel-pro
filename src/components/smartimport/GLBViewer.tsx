@@ -615,9 +615,28 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
                   }
                 });
 
+                // Calculate bounding box dimensions of the selected piece
+                const pieceBox = new THREE.Box3().setFromObject(hit);
+                const pieceSize = pieceBox.getSize(new THREE.Vector3());
+                // Convert from scene scale back to real units (approximate)
+                const scaleF = loadedObject.scale.x || 1;
+                const realW = Math.round((pieceSize.x / scaleF) * 100) / 100;
+                const realH = Math.round((pieceSize.y / scaleF) * 100) / 100;
+                const realD = Math.round((pieceSize.z / scaleF) * 100) / 100;
+
+                if (mounted) {
+                  setSelectedPiece({
+                    name: hit.name || "Objeto sem nome",
+                    width: realW,
+                    height: realH,
+                    depth: realD,
+                  });
+                }
+
                 if (onObjectSelect) {
                   onObjectSelect(hit.name || "Objeto sem nome", {
                     type: hit.type,
+                    dimensions: { width: realW, height: realH, depth: realD },
                     geometry: hit.geometry ? {
                       vertices: hit.geometry.attributes?.position?.count || 0,
                     } : null,
@@ -632,6 +651,8 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
                     },
                   });
                 }
+              } else {
+                if (mounted) setSelectedPiece(null);
               }
             });
           }
