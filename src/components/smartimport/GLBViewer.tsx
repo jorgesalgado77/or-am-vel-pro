@@ -430,6 +430,15 @@ function WebGLViewer({
     needsRenderRef.current = true;
   }, [backgroundPreset, lightingPreset]);
 
+  // React to quality preset changes without full re-init
+  useEffect(() => {
+    if (!threeRef.current) return;
+    const { renderer } = threeRef.current;
+    const quality = QUALITY_PRESETS[qualityPreset];
+    renderer.setPixelRatio(quality.pixelRatio);
+    needsRenderRef.current = true;
+  }, [qualityPreset]);
+
   if (error) return <FallbackView message={error} fileUrl={fileUrl} />;
 
   return (
