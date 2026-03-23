@@ -72,7 +72,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onRemov
             <TableCell className="py-1.5 text-center">{environments.reduce((s, e) => s + e.pieceCount, 0) || "—"}</TableCell>
             <TableCell className="py-1.5 text-right tabular-nums text-primary">{formatCurrency(environments.reduce((s, e) => s + e.totalValue, 0))}</TableCell>
             <TableCell className="py-1.5"></TableCell>
-            {canDelete && <TableCell className="py-1.5"></TableCell>}
+            <TableCell className="py-1.5"></TableCell>
           </TableRow>
         )}
       </TableBody>
