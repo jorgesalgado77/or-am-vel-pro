@@ -213,7 +213,7 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
               />
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="pt-3 flex-wrap gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
