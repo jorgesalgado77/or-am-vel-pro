@@ -17,6 +17,32 @@ const sanitizeString = (value: unknown, max = 500) =>
 
 const getPhoneDigits = (value: string) => value.replace(/\D/g, "");
 
+type AttachmentInput = {
+  file_name: string;
+  file_path: string;
+  file_url: string | null;
+  file_size: number;
+  file_type: string | null;
+};
+
+const sanitizeAttachments = (value: unknown): AttachmentInput[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .slice(0, 10)
+    .map((item) => {
+      const file_name = sanitizeString((item as Record<string, unknown>)?.file_name, 255);
+      const file_path = sanitizeString((item as Record<string, unknown>)?.file_path, 500);
+      const file_url = sanitizeString((item as Record<string, unknown>)?.file_url, 1000) || null;
+      const file_type = sanitizeString((item as Record<string, unknown>)?.file_type, 120) || null;
+      const rawSize = Number((item as Record<string, unknown>)?.file_size ?? 0);
+      const file_size = Number.isFinite(rawSize) && rawSize > 0 ? Math.round(rawSize) : 0;
+
+      return { file_name, file_path, file_url, file_size, file_type };
+    })
+    .filter((item) => item.file_name && item.file_path && item.file_size > 0);
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -34,6 +60,7 @@ Deno.serve(async (req) => {
     const interesse = sanitizeString(body?.interesse, 2000);
     const origem = sanitizeString(body?.origem, 80) || "site";
     const tenant_id = sanitizeString(body?.tenant_id, 80) || null;
+    const attachments = sanitizeAttachments(body?.attachments);
 
     if (nome.length < 2) {
       return json({ error: "Nome inválido (mín. 2 caracteres)" }, 400);
@@ -247,12 +274,44 @@ Deno.serve(async (req) => {
       return json({ error: "Erro ao salvar lead" }, 500);
     }
 
+    let attachmentsRegistered = 0;
+
+    if (attachments.length > 0) {
+      try {
+        const attachmentRows = attachments.map((attachment) => ({
+          tenant_id,
+          lead_id: leadId,
+          client_id: clientId,
+          client_name: nome,
+          file_name: attachment.file_name,
+          file_path: attachment.file_path,
+          file_url: attachment.file_url,
+          file_size: attachment.file_size,
+          file_type: attachment.file_type,
+        }));
+
+        const { error: attachmentsError } = await supabaseAdmin
+          .from("lead_attachments")
+          .insert(attachmentRows);
+
+        if (attachmentsError) {
+          console.error("Lead attachments insert error:", attachmentsError);
+        } else {
+          attachmentsRegistered = attachmentRows.length;
+        }
+      } catch (attachmentsInsertError) {
+        console.error("Lead attachments persistence error:", attachmentsInsertError);
+      }
+    }
+
     return json(
       {
         success: true,
         client_id: clientId,
         lead_id: leadId,
         temperature: leadTemperature,
+        attachments_received: attachments.length,
+        attachments_registered: attachmentsRegistered,
         duplicado,
         message: duplicado ? "Cadastro atualizado com sucesso" : "Cadastro realizado com sucesso",
       },
