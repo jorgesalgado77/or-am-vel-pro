@@ -291,6 +291,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTOcultarIndicador(false);
     setTDealRoom(false);
     setTVendaZap(false);
+    setT3dImport(false);
     setShowTenantDialog(true);
   };
 
