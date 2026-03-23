@@ -1,89 +1,145 @@
 
 
-## Auditoria Completa do Deal Room — Implementado vs. Pendente
+# Plano de Auditoria Global + Otimização — OrçaMóvel PRO
 
-### O que foi implementado (✅)
+## Diagnóstico Atual
 
-1. **Gestão de Propostas Comerciais** — Criar, listar, acompanhar status (Enviada → Visualizada → Aceita → Paga → Recusada)
-2. **KPIs e Métricas** — Cards com total de propostas, vendas, valor transacionado, taxa plataforma, ticket médio
-3. **Ranking de Vendedores** — Top vendedores ordenados por valor vendido
-4. **Funil de Propostas (Métricas)** — Contagem por status (enviadas, visualizadas, aceitas, pagas, recusadas)
-5. **Integração Stripe** — Checkout para pagamento via cartão (Edge Function `dealroom`)
-6. **Validação de Acesso** — Verificação de plano/recursos VIP para habilitar Deal Room
-7. **Registro de Transações** — Tabela `dealroom_transactions` com cálculo de taxa 2.5%
-8. **Card de Comissões Deal Room no Admin** — Valor acumulado de comissões no painel administrativo
-9. **Controle de Uso Diário** — Tabela `dealroom_usage` para limitar uso por plano
+Após análise completa do código, identifiquei os seguintes pontos de ação organizados por prioridade:
 
-### O que está PENDENTE (❌) — Visão completa do usuário
+### Estado Atual (o que já está bem)
+- Lazy loading já implementado em todas as views do Index.tsx e tabs do Settings
+- DRACOLoader já integrado no GLBViewer para compressão GLB
+- Renderização on-demand (needsRenderRef) já implementada no 3D viewer
+- FPS monitor com auto-downgrade de pixel ratio já funcional
+- OrbitControls com damping já configurado corretamente
+- Centralização e normalização de modelos 3D já existentes
+- Frustum culling ativado nos objetos 3D
+- Color space (sRGBColorSpace) e tone mapping (ACES) já configurados
+- Preservação de materiais originais já implementada
+- Architecture modular com modules/ barrel exports
+- RLS e tenant isolation já configurados
 
-| # | Funcionalidade | Descrição |
-|---|---|---|
-| 1 | **Sala de Reunião por Vídeo** | Videoconferência incorporada (WebRTC/Daily.co/Jitsi) com câmera, áudio, compartilhamento de tela |
-| 2 | **Controles de Reunião** | Botões de mudo, ligar/desligar câmera, barra de volume deslizante, tela cheia |
-| 3 | **Gravação da Reunião** | Opção de gravar a sessão de vídeo |
-| 4 | **Tela de Simulação Incorporada** | Exibir simulação de venda em tempo real dentro da sala, editável durante a reunião |
-| 5 | **Agente de IA na Negociação** | Assistente IA incorporado na sala para sugerir argumentos, responder objeções, auxiliar na negociação |
-| 6 | **Campos para Contrato** | Formulário para preencher dados do contrato durante a reunião |
-| 7 | **Assinatura Digital** | Captura de assinatura eletrônica do cliente na sala |
-| 8 | **Tela de Pagamentos Completa** | Opções de PIX (QR code), cartão de crédito, e upload de boletos PDF das financeiras |
-| 9 | **Envio/Recebimento de Anexos** | Troca de arquivos entre projetista e cliente (imagens, PDF, Word, Excel, PowerPoint, etc.) com lista de miniaturas |
-| 10 | **Link Único de Acesso** | Geração de URL exclusiva para o cliente entrar na sala sem login |
-| 11 | **Acesso aos Dados do Cliente** | Botão para consultar todos os dados cadastrados do cliente durante a reunião |
-| 12 | **Agendamento de Reuniões** | Calendário para agendar abertura de salas com notificação |
-| 13 | **Integração VendaZap AI** | Conectar o Deal Room ao chat VendaZap para iniciar reuniões diretamente da conversa |
-| 14 | **Integração Chat de Vendas** | Conectar com o sistema de chat de vendas existente |
+---
 
-### Plano de Implementação
+## Fase 1 — Limpeza e Código Morto
 
-Dado o escopo massivo (videoconferência, WebRTC, gravação, etc.), a implementação será dividida em **fases**:
+### 1.1 Remover console.logs de produção
+- `DealRoomSimulation.tsx` linhas 63, 79: remover `console.log` de debug
 
-**Fase 1 — Sala de Reunião Base** (prioridade alta)
-- Componente `DealRoomMeeting.tsx` com integração Jitsi Meet (iframe, sem servidor próprio)
-- Controles: mudo, câmera, volume, tela cheia
-- Geração de link único por proposta/cliente
-- Botão "Iniciar Sala" no widget existente
+### 1.2 Padronizar imports do Supabase
+- 11 arquivos importam de `@/integrations/supabase/client` diretamente em vez de `@/lib/supabaseClient`
+- Ambos apontam para o mesmo client, mas padronizar para `@/lib/supabaseClient` em todos
 
-**Fase 2 — Conteúdo da Sala**
-- Painel lateral com simulação incorporada (reutilizar `SimulatorPanel`)
-- Campos de contrato editáveis em tempo real
-- Agente IA (reutilizar engine do VendaZap AI) com sugestões contextuais
-- Botão para ver dados completos do cliente
+### 1.3 Remover `eslint-disable` desnecessário
+- `ClientsKanban.tsx` linha 1: remover `/* eslint-disable */`
 
-**Fase 3 — Anexos e Documentos**
-- Upload/download bidirecional (projetista ↔ cliente) usando Supabase Storage
-- Lista com preview em miniatura (imagens, PDF, Office)
-- Upload de boletos PDF das financeiras
+---
 
-**Fase 4 — Pagamentos e Assinatura**
-- Tela de pagamentos: PIX (QR code), cartão (Stripe), anexo de boletos
-- Assinatura digital com canvas de desenho
-- Geração automática do contrato assinado em PDF
+## Fase 2 — Performance Frontend
 
-**Fase 5 — Agendamento e Integrações**
-- Calendário de agendamento de reuniões
-- Integração com VendaZap AI (botão "Abrir Sala" no chat)
-- Gravação de reunião (depende do provedor de vídeo)
+### 2.1 React.memo nos componentes de lista
+- `KanbanCard` — componente renderizado dezenas de vezes no Kanban, sem memo
+- `ChatConversationList` items — re-renderiza toda lista ao selecionar conversa
+- `ChatMessageBubble` — memo para evitar re-render de mensagens
 
-### Considerações Técnicas
+### 2.2 useCallback/useMemo em handlers pesados
+- `ClientsKanban`: memoizar handlers de filtro e drag-drop
+- `VendaZapChat`: memoizar `handleSelectConversation`
 
-- **Vídeo**: Jitsi Meet (gratuito, open-source) via iframe é a opção mais viável sem servidor dedicado. Daily.co ou Twilio Video são alternativas pagas com mais controle.
-- **Assinatura Digital**: Canvas HTML5 com `signature_pad` library
-- **Anexos**: Bucket Supabase `dealroom-attachments` com RLS por tenant
-- **Link do Cliente**: Token JWT temporário ou UUID único na tabela `dealroom_sessions`
-- **IA**: Reutilizar a Edge Function `vendazap-ai` com prompt contextual para negociação
+### 2.3 Virtualização de listas longas (se >50 items)
+- Considerar `react-window` para a lista de conversas do VendaZap se tiver muitas conversas
 
-### Arquivos a criar/editar
+---
 
-- Criar `src/components/dealroom/DealRoomMeeting.tsx` — Sala principal
-- Criar `src/components/dealroom/DealRoomControls.tsx` — Botões de mídia
-- Criar `src/components/dealroom/DealRoomChat.tsx` — Chat interno da sala
-- Criar `src/components/dealroom/DealRoomAttachments.tsx` — Painel de anexos
-- Criar `src/components/dealroom/DealRoomPayments.tsx` — Tela de pagamentos
-- Criar `src/components/dealroom/DealRoomSignature.tsx` — Assinatura digital
-- Criar `src/components/dealroom/DealRoomScheduler.tsx` — Agendamento
-- Criar `src/components/dealroom/DealRoomAIAssistant.tsx` — Agente IA
-- Editar `src/components/DealRoomStoreWidget.tsx` — Adicionar botão "Iniciar Sala"
-- Editar `src/components/chat/VendaZapChat.tsx` — Botão de integração
-- Criar migrações SQL para `dealroom_sessions`, `dealroom_attachments`
-- Criar bucket Storage `dealroom-attachments`
+## Fase 3 — 3D Smart Import (CRÍTICO)
+
+### 3.1 O que já funciona (NÃO tocar)
+- DRACOLoader com decoders CDN ✅
+- sRGBColorSpace + ACESFilmicToneMapping ✅  
+- enableDamping + dampingFactor ✅
+- Centralização e escala automáticas ✅
+- FPS monitor com auto-downgrade ✅
+- Preservação de materiais originais ✅
+- frustumCulled = true ✅
+- On-demand rendering ✅
+
+### 3.2 Melhorias a implementar
+- **Geometry Instancing**: detectar meshes com geometria idêntica e usar `InstancedMesh`
+- **LOD (Level of Detail)**: para modelos com >50k vértices, criar versões simplificadas
+- **Web Worker para DXF parsing**: mover `parseDxfEntities` para Web Worker para não bloquear UI thread
+- **Texture cache por hash**: criar tabela `textures_cache(id, hash, url, created_at)` no Supabase e reutilizar texturas duplicadas no upload
+
+### 3.3 Qualidade de render adicional
+- Adicionar **Environment Map** sutil (não HDRI pesado) para reflexos realistas em materiais metálicos
+- **Soft shadows** já disponível no preset "high" — apenas ajustar shadow map bias
+
+---
+
+## Fase 4 — Segurança
+
+### 4.1 Validação de inputs
+- Adicionar `zod` validation nos formulários de lead capture (já parcialmente implementado em LandingLeadForm)
+- Validar inputs no briefing modal antes de salvar
+- Sanitizar `projectName` no upload 3D contra XSS
+
+### 4.2 RLS audit
+- Auditoria de RLS já concluída em 41 tabelas (conforme memória)
+- Verificar tabelas novas: `client_briefings`, `lead_attachments` — adicionar RLS se ausente
+
+### 4.3 SQL para segurança adicional (entregar ao usuário)
+```sql
+-- RLS para client_briefings e lead_attachments
+```
+
+---
+
+## Fase 5 — VendaZap AI Otimização
+
+### 5.1 O que já existe
+- Debounce de 800ms na sugestão AI ✅
+- Auto-pilot com processamento assíncrono ✅
+
+### 5.2 Melhorias
+- Cache de sugestões AI recentes em memória (Map com TTL de 5 min) para evitar chamadas repetidas para o mesmo contexto
+- Limitar histórico de mensagens no auto-pilot de 8 para 5 (reduzir tokens)
+
+---
+
+## Fase 6 — Deal Room Otimização
+
+### 6.1 Remover logs de debug
+- `DealRoomSimulation.tsx`: remover console.logs
+
+### 6.2 Lazy load de componentes pesados
+- Já implementado via lazy loading no Index.tsx ✅
+- Verificar sub-componentes como `DealRoomMeeting` (Jitsi/Daily.co) — lazy load interno
+
+---
+
+## Fase 7 — Banco de Dados
+
+### 7.1 SQL de otimização (entregar ao usuário)
+- Índices adicionais para queries frequentes
+- Tabela `textures_cache` para o 3D
+- RLS para tabelas novas
+
+---
+
+## Resumo de Arquivos Modificados
+
+| Arquivo | Ação |
+|---------|------|
+| `DealRoomSimulation.tsx` | Remover console.logs |
+| `KanbanCard.tsx` | Adicionar React.memo |
+| `ChatMessageBubble.tsx` | Adicionar React.memo |
+| `ChatConversationList.tsx` | React.memo nos items |
+| `ClientsKanban.tsx` | Remover eslint-disable, memoizar handlers |
+| 11 arquivos com import direto | Padronizar para `@/lib/supabaseClient` |
+| `modelPreviewUtils.ts` | Adicionar instancing detection |
+| `GLBViewer.tsx` | Environment map sutil para qualidade |
+| `VendaZapChat.tsx` | Cache de sugestões AI |
+| `BriefingModal.tsx` | Validação zod nos inputs |
+| SQL script | Textures cache, RLS, índices |
+
+### Estimativa: ~15 edições de código + 1 SQL script
 
