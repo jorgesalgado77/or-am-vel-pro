@@ -402,15 +402,19 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
     (async () => {
       try {
+        const ext = getFileExtension(fileUrl);
+        const formatMsgs = FORMAT_LOADING_MESSAGES[ext] || ["Carregando arquivo 3D...", "Processando geometria...", "Preparando visualização..."];
+        const quality = QUALITY_PRESETS[qualityPreset];
+
         setProgress(10);
-        setProgressLabel("Carregando motor 3D...");
+        setProgressLabel(formatMsgs[0]);
         const THREE = await import("three");
         const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js");
 
         if (!mounted || !canvasRef.current) return;
 
-        setProgress(25);
-        setProgressLabel("Configurando cena...");
+        setProgress(20);
+        setProgressLabel(formatMsgs[1]);
 
         const container = canvasRef.current.parentElement!;
         const width = container.clientWidth;
