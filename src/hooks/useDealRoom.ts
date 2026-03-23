@@ -116,7 +116,7 @@ export function useDealRoom() {
     tenant_id?: string;
     date_from?: string;
     date_to?: string;
-  }): Promise<{ metrics: DealRoomMetrics; ranking: VendorRank[]; transactions: DealRoomTransaction[] } | null> => {
+  }): Promise<{ metrics: DealRoomMetrics; ranking: VendorRank[]; transactions: DealRoomTransaction[]; proposalStats?: any } | null> => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("dealroom", {
