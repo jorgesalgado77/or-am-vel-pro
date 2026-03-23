@@ -136,7 +136,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 .select("mensagem, remetente_tipo")
                 .eq("tracking_id", msg.tracking_id)
                 .order("created_at", { ascending: false })
-                .limit(8);
+                .limit(5);
 
               const result = await autoPilotProcess(
                 msg.tracking_id,
