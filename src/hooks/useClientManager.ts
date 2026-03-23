@@ -3,11 +3,13 @@
  * Extracted from Index.tsx to reduce its complexity.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import * as clientService from "@/services/clientService";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
+import { playNotificationSound } from "@/lib/notificationSound";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
