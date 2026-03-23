@@ -1,5 +1,4 @@
-import { memo, useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { List as VirtualList } from "react-window";
+import { memo, useState, useMemo, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
