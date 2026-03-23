@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Printer, X } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { getRegimeTaxConfig, getINSSFaixas, getIRRFFaixas, getIRRFLimites, calcularINSS, calcularIRRF, type TaxRate } from "./PayrollTaxConfig";
+import { getRegimeTaxConfig, getINSSFaixas, getIRRFFaixas, getIRRFLimites, getMEIDASConfig, calcularINSS, calcularIRRF, calcularDASMEI, type TaxRate, type MEIAtividade } from "./PayrollTaxConfig";
 import type { Usuario } from "@/hooks/useUsuarios";
 import type { Cargo } from "@/hooks/useCargos";
 
