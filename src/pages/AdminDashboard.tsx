@@ -233,6 +233,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   // Stats
   const totalLojas = tenants.length;
   const lojasAtivas = tenants.filter(t => t.ativo).length;
+  const lojasInativas = tenants.filter(t => !t.ativo).length;
   const lojasBasico = tenants.filter(t => t.plano === "basico").length;
   const lojasPremium = tenants.filter(t => t.plano === "premium").length;
   const lojasTrial = tenants.filter(t => t.plano === "trial").length;
