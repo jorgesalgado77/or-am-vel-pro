@@ -264,4 +264,4 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
       </Card>
     </div>
   );
-}
+});
