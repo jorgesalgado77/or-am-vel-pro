@@ -350,7 +350,6 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         usuario_nome: adminName,
         detalhes: { loja_id: id },
       });
-      // Update local state immediately
       setTenants(prev => prev.filter(t => t.id !== id));
       return;
     }
@@ -359,7 +358,14 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const { error } = await supabase.from("tenants").delete().eq("id", id);
     if (error) {
       console.error("Erro ao excluir loja:", error);
-      toast.error("Erro ao excluir loja. Verifique permissões RLS.");
+      // Even if DB delete fails, try to deactivate instead
+      const { error: deactError } = await supabase.from("tenants").update({ ativo: false } as any).eq("id", id);
+      if (!deactError) {
+        toast.warning("Loja desativada (sem permissão para excluir permanentemente)");
+        fetchData();
+      } else {
+        toast.error("Erro ao excluir loja. Verifique permissões RLS.");
+      }
       return;
     }
     toast.success("Loja excluída com sucesso");
