@@ -174,12 +174,54 @@ export function PayrollSummary({ usuarios, cargos, mesReferencia, getRegimeEfeti
     return "border-muted-foreground/50 text-muted-foreground";
   };
 
+  const svgToImage = (container: HTMLDivElement | null): Promise<string | undefined> => {
+    return new Promise((resolve) => {
+      if (!container) return resolve(undefined);
+      const svg = container.querySelector("svg");
+      if (!svg) return resolve(undefined);
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+      canvas.width = svg.clientWidth * 2;
+      canvas.height = svg.clientHeight * 2;
+      img.onload = () => {
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => resolve(undefined);
+      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+    });
+  };
+
+  const handleExportPdf = useCallback(async () => {
+    toast.info("Gerando PDF...");
+    const [pieImg, barImg] = await Promise.all([
+      svgToImage(pieChartRef.current),
+      svgToImage(barChartRef.current),
+    ]);
+    generatePayrollPdf({
+      companyName: settings.company_name || "Empresa",
+      mesReferencia,
+      regimeSummaries,
+      employees: employeeCosts,
+      totals,
+      chartImages: { pie: pieImg, bar: barImg },
+    });
+    toast.success("PDF exportado com sucesso!");
+  }, [settings, mesReferencia, regimeSummaries, employeeCosts, totals]);
+
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-primary" />
-          Resumo Geral da Folha — {mesReferencia}
+        <CardTitle className="text-base flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            Resumo Geral da Folha — {mesReferencia}
+          </span>
+          <Button size="sm" variant="outline" onClick={handleExportPdf} className="gap-1 text-xs">
+            <FileDown className="h-4 w-4" /> Exportar PDF
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
