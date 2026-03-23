@@ -151,10 +151,20 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const [tenantsRes, paymentsRes, plansRes] = await Promise.all([
       supabase.rpc("admin_list_all_tenants" as any),
       supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
-      supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
       supabase.from("subscription_plans" as any).select("slug, preco_mensal, preco_anual_mensal").eq("ativo", true),
     ]);
-    const tenantData = (tenantsRes.data || []) as any;
+
+    // Fallback: if RPC fails (e.g. no admin auth session), query tenants directly
+    let tenantData = (tenantsRes.data || []) as any[];
+    if (tenantsRes.error || tenantData.length === 0) {
+      console.warn("[Admin] RPC failed, falling back to direct tenants query:", tenantsRes.error?.message);
+      const { data: directTenants } = await supabase
+        .from("tenants")
+        .select("*")
+        .order("created_at", { ascending: false });
+      tenantData = (directTenants || []) as any[];
+    }
+
     setTenants(tenantData);
     if (paymentsRes.data) setPayments(paymentsRes.data as any);
     if (plansRes.data) {
