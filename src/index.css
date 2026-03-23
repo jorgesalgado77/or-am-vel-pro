@@ -256,6 +256,26 @@ All colors MUST be HSL.
     --gb-stop-5: 85.76%;
   }
 
+  .dark .gradient-btn {
+    --gb-color-1: hsl(199, 89%, 20%);
+    --gb-color-2: hsl(199, 85%, 28%);
+    --gb-color-3: hsl(199, 75%, 35%);
+    --gb-color-4: hsl(190, 65%, 30%);
+    --gb-color-5: hsl(180, 55%, 25%);
+    --gb-border-color-1: hsla(199, 89%, 60%, 0.3);
+    --gb-border-color-2: hsla(199, 89%, 45%, 0.8);
+  }
+
+  .dark .gradient-btn:hover {
+    --gb-color-1: hsl(199, 89%, 40%);
+    --gb-color-2: hsl(195, 85%, 38%);
+    --gb-color-3: hsl(185, 75%, 32%);
+    --gb-color-4: hsl(199, 90%, 18%);
+    --gb-color-5: hsl(199, 89%, 12%);
+    --gb-border-color-1: hsla(199, 89%, 80%, 0.15);
+    --gb-border-color-2: hsla(199, 89%, 70%, 0.7);
+  }
+
   .gradient-btn:disabled {
     background: hsl(var(--muted));
   }

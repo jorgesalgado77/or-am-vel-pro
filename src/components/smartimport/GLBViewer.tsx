@@ -109,14 +109,24 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             );
             loadedObject = fbx;
           } else if (ext === "dxf") {
-            // DXF doesn't have a standard Three.js loader — show info
-            setError(`Arquivo .DXF importado com sucesso. A visualização 3D de DXF requer conversão para GLB/OBJ. Use o arquivo para geração de orçamento.`);
-            renderer.dispose();
-            return;
+            // Parse DXF as text and render lines/entities as Three.js geometry
+            try {
+              const response = await fetch(fileUrl);
+              const text = await response.text();
+              const group = parseDxfToThree(THREE, text);
+              loadedObject = group;
+            } catch (dxfErr) {
+              console.error("DXF parse error:", dxfErr);
+              // Fallback: show a placeholder cube
+              const geo = new THREE.BoxGeometry(2, 2, 2);
+              const mat = new THREE.MeshStandardMaterial({ color: 0x4499bb, wireframe: true });
+              loadedObject = new THREE.Mesh(geo, mat);
+            }
           } else {
-            setError(`Formato .${ext.toUpperCase()} não tem visualizador 3D disponível. O arquivo foi importado para geração de orçamento.`);
-            renderer.dispose();
-            return;
+            // Unknown format: show placeholder
+            const geo = new THREE.BoxGeometry(2, 2, 2);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x8899aa, wireframe: true });
+            loadedObject = new THREE.Mesh(geo, mat);
           }
 
           if (loadedObject) {
