@@ -165,6 +165,7 @@ function prepareObjectForPreview(THREE: any, root: any) {
 
       const geometryHasColors = Boolean(child.geometry?.getAttribute?.("color"));
       child.material = createPreviewMaterial(THREE, child.material, geometryHasColors);
+      child.userData.originalMaterial = child.material;
       child.castShadow = false;
       child.receiveShadow = false;
       meshIndex += 1;
@@ -176,6 +177,7 @@ function prepareObjectForPreview(THREE: any, root: any) {
       if (child.material.color?.getHex?.() === 0x0000ff) {
         child.material.color.setHex(PREVIEW_FALLBACK_COLOR);
       }
+      child.userData.originalMaterial = child.material;
       child.material.transparent = false;
       child.material.needsUpdate = true;
     }
