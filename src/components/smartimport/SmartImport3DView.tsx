@@ -264,7 +264,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                 </div>
               </CardContent>
             </Card>
-          )
+          )}
 
           {/* Projects list */}
           {loading ? (
