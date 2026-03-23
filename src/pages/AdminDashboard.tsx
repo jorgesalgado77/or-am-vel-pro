@@ -337,38 +337,35 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   };
 
   const deleteTenant = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta loja e todos os dados associados?")) return;
+    const loja = tenants.find(t => t.id === id);
+    const lojaLabel = loja ? `${loja.codigo_loja || ""} - ${loja.nome_fantasia || "Sem nome"}` : id;
+    if (!confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE a loja "${lojaLabel}" e TODOS os dados associados?\n\nEsta ação NÃO pode ser desfeita.`)) return;
     
-    // Try RPC first for admin bypass
+    // Try RPC first for admin bypass (SECURITY DEFINER — full cascade delete)
     const { error: rpcError } = await supabase.rpc("admin_delete_tenant" as any, { target_tenant_id: id });
     if (!rpcError) {
-      toast.success("Loja excluída com sucesso");
+      toast.success(`Loja "${lojaLabel}" excluída permanentemente`);
       logAudit({
         acao: "tenant_excluido",
         entidade: "tenant",
         entidade_id: id,
         usuario_nome: adminName,
-        detalhes: { loja_id: id },
+        detalhes: { loja_id: id, loja_nome: lojaLabel },
       });
       setTenants(prev => prev.filter(t => t.id !== id));
       return;
     }
     
+    console.error("RPC admin_delete_tenant falhou:", rpcError);
+    
     // Fallback: direct delete
     const { error } = await supabase.from("tenants").delete().eq("id", id);
     if (error) {
       console.error("Erro ao excluir loja:", error);
-      // Even if DB delete fails, try to deactivate instead
-      const { error: deactError } = await supabase.from("tenants").update({ ativo: false } as any).eq("id", id);
-      if (!deactError) {
-        toast.warning("Loja desativada (sem permissão para excluir permanentemente)");
-        fetchData();
-      } else {
-        toast.error("Erro ao excluir loja. Verifique permissões RLS.");
-      }
+      toast.error("Erro ao excluir. Execute a RPC admin_delete_tenant no Supabase SQL Editor.");
       return;
     }
-    toast.success("Loja excluída com sucesso");
+    toast.success(`Loja "${lojaLabel}" excluída com sucesso`);
     setTenants(prev => prev.filter(t => t.id !== id));
   };
 
