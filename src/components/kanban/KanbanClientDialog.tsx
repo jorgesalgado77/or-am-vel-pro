@@ -144,7 +144,7 @@ export function KanbanClientDialog({
 
         <Separator className="my-3" />
 
-        <ScrollArea className="flex-1 pr-3">
+        <div className="flex-1 overflow-y-auto pr-1 -mr-1" style={{ maxHeight: "calc(90vh - 200px)" }}>
           <div className="space-y-4">
             {/* Client info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
