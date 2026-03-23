@@ -67,6 +67,8 @@ const TEXTURE_KEYS = [
   "specularMap",
 ];
 
+const previewModelCache = new Map<string, any>();
+
 export function getFileExtension(url: string): string {
   try {
     const path = new URL(url).pathname;
@@ -163,6 +165,7 @@ function prepareObjectForPreview(THREE: any, root: any) {
 
       const geometryHasColors = Boolean(child.geometry?.getAttribute?.("color"));
       child.material = createPreviewMaterial(THREE, child.material, geometryHasColors);
+      child.userData.originalMaterial = child.material;
       child.castShadow = false;
       child.receiveShadow = false;
       meshIndex += 1;
@@ -174,6 +177,7 @@ function prepareObjectForPreview(THREE: any, root: any) {
       if (child.material.color?.getHex?.() === 0x0000ff) {
         child.material.color.setHex(PREVIEW_FALLBACK_COLOR);
       }
+      child.userData.originalMaterial = child.material;
       child.material.transparent = false;
       child.material.needsUpdate = true;
     }
@@ -368,6 +372,11 @@ function buildDxfScene(THREE: any, entities: DxfEntity[]) {
 }
 
 export async function loadModelForPreview(THREE: any, fileUrl: string, onProgress?: (event: ProgressEvent<EventTarget>) => void) {
+  const cached = previewModelCache.get(fileUrl);
+  if (cached?.clone) {
+    return cached.clone(true);
+  }
+
   const ext = getFileExtension(fileUrl);
   let loadedObject: any = null;
 
@@ -399,6 +408,7 @@ export async function loadModelForPreview(THREE: any, fileUrl: string, onProgres
       }),
     );
     loadedObject.name = "Peça_STL";
+    loadedObject.userData.originalMaterial = loadedObject.material;
   } else if (ext === "fbx") {
     const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
     const loader = new FBXLoader();
@@ -421,7 +431,8 @@ export async function loadModelForPreview(THREE: any, fileUrl: string, onProgres
     );
   }
 
-  return loadedObject;
+  previewModelCache.set(fileUrl, loadedObject);
+  return loadedObject.clone(true);
 }
 
 export function frameObjectForThumbnail(THREE: any, object: any, camera: any) {
