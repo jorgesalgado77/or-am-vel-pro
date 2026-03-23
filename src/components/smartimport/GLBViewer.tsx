@@ -783,6 +783,16 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
                 <SelectItem value="contrast">Alto contraste</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={qualityPreset} onValueChange={(value: QualityPreset) => setQualityPreset(value)}>
+              <SelectTrigger className="h-8 w-[120px] bg-background/80 backdrop-blur text-xs">
+                <SelectValue placeholder="Qualidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">🟢 Leve</SelectItem>
+                <SelectItem value="balanced">🟡 Equilibrado</SelectItem>
+                <SelectItem value="high">🔴 Alta fidelidade</SelectItem>
+              </SelectContent>
+            </Select>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
