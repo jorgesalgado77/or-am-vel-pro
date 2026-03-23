@@ -5,7 +5,7 @@ import { toast } from "sonner";
 export interface CatalogItem {
   id: string;
   tenant_id: string;
-  category: "ferragem" | "puxador" | "fundo" | "fita_borda" | "material" | "acabamento" | "cor";
+  category: "ferragem" | "puxador" | "fundo" | "fita_borda" | "material" | "acabamento" | "cor" | "corredica" | "dobradica" | "porta_frente";
   name: string;
   description?: string;
   cost?: number;
