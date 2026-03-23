@@ -32,6 +32,27 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
   const [autoSaving, setAutoSaving] = useState(false);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const responsesRef = useRef<Record<string, any>>({});
+  const [sellers, setSellers] = useState<{ id: string; nome_completo: string; cargo_nome: string }[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const tenantId = await getResolvedTenantId();
+      const { data } = await supabase
+        .from("usuarios")
+        .select("id, nome_completo, ativo, cargo_id, cargos(nome)")
+        .eq("tenant_id", tenantId)
+        .eq("ativo", true)
+        .order("nome_completo");
+      if (data) {
+        const filtered = (data as any[]).filter(u =>
+          u.cargos?.nome?.toLowerCase().includes("vendedor") ||
+          u.cargos?.nome?.toLowerCase().includes("projetista")
+        ).map(u => ({ id: u.id, nome_completo: u.nome_completo, cargo_nome: u.cargos?.nome || "" }));
+        setSellers(filtered);
+      }
+    })();
+  }, [open]);
 
   const fetchBriefing = useCallback(async () => {
     setLoading(true);

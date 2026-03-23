@@ -19,6 +19,7 @@ interface BriefingStructuredFormProps {
   onChange: (key: string, value: any) => void;
   onToggleCheckbox: (key: string, option: string) => void;
   readOnly: boolean;
+  sellers?: { id: string; nome_completo: string; cargo_nome: string }[];
 }
 
 const ENVIRONMENTS = [
