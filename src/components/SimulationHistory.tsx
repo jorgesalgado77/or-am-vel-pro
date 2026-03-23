@@ -220,6 +220,7 @@ export function SimulationHistory({ client, onBack, onLoadSimulation }: Simulati
                   isSelected={selected.has(sim.id)}
                   onToggle={() => toggleSelect(sim.id)}
                   onDelete={() => handleDelete(sim.id)}
+                  onLoad={onLoadSimulation ? () => onLoadSimulation(sim, client) : undefined}
                 />
               ))}
             </div>
