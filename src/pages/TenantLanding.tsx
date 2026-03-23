@@ -490,6 +490,7 @@ export default function TenantLanding() {
       console.error("Edge function failed, trying direct insert:", edgeFnErr);
       // Fallback: insert directly into clients table
       try {
+        const interesseFull = [descricao.trim(), investimento ? `Investimento: ${investimento}` : ""].filter(Boolean).join(" | ");
         const { error: clientError } = await supabase.from("clients").insert({
           nome: nome.trim(),
           telefone1: cleanPhone,
@@ -497,7 +498,8 @@ export default function TenantLanding() {
           tenant_id: tenant?.id,
           status: "novo",
           origem_lead: refCode ? "indicacao" : "landing_page",
-          observacoes: descricao.trim() || null,
+          descricao_ambientes: interesseFull || "Projeto 3D gratuito",
+          quantidade_ambientes: 1,
         } as any);
 
         if (clientError) {
