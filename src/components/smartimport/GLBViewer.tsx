@@ -699,9 +699,11 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         </div>
       )}
       {!loading && selectedPiece && (
-        <div className="absolute bottom-3 left-3 z-10 bg-background/90 backdrop-blur rounded-lg border border-border p-3 shadow-lg max-w-[220px]">
-          <p className="text-xs font-semibold text-foreground truncate mb-1.5">{selectedPiece.name}</p>
-          <div className="grid grid-cols-3 gap-2 text-[10px]">
+        <div className="absolute bottom-3 left-3 z-10 bg-background/90 backdrop-blur rounded-lg border border-border p-3 shadow-lg w-[260px]">
+          <p className="text-xs font-semibold text-foreground truncate mb-2">{selectedPiece.name}</p>
+
+          {/* Dimensions */}
+          <div className="grid grid-cols-3 gap-2 text-[10px] mb-2">
             <div className="text-center">
               <p className="text-muted-foreground">Largura</p>
               <p className="font-bold text-primary">{selectedPiece.width.toFixed(1)}</p>
@@ -713,6 +715,33 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
             <div className="text-center">
               <p className="text-muted-foreground">Prof.</p>
               <p className="font-bold text-primary">{selectedPiece.depth.toFixed(1)}</p>
+            </div>
+          </div>
+
+          {/* Material & Finish */}
+          <div className="border-t border-border pt-2 space-y-1 text-[10px]">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Material</span>
+              <span className="font-medium text-foreground truncate max-w-[140px]">{selectedPiece.materialName}</span>
+            </div>
+            {selectedPiece.materialColor && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Cor</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-full border border-border" style={{ backgroundColor: `#${selectedPiece.materialColor}` }} />
+                  <span className="font-mono text-foreground">#{selectedPiece.materialColor}</span>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Acabamento</span>
+              <span className="font-medium text-foreground">
+                {selectedPiece.materialType.replace("MeshStandard", "Standard").replace("MeshPhysical", "Físico").replace("MeshBasic", "Básico").replace("Material", "")}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Vértices</span>
+              <span className="font-medium text-foreground">{selectedPiece.vertexCount.toLocaleString("pt-BR")}</span>
             </div>
           </div>
         </div>
