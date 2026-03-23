@@ -43,6 +43,12 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
 
     setErrors({});
 
+    // Honeypot check — bots fill hidden fields
+    if (honeypot) {
+      setSubmitted(true);
+      return;
+    }
+
     const result = leadSchema.safeParse(form);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
