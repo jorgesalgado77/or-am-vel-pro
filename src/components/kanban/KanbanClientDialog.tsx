@@ -250,12 +250,20 @@ export function KanbanClientDialog({
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-          <Button className="gap-2 flex-1" onClick={() => { onClose(); onSimulate(client); }}>
-            <Handshake className="h-4 w-4" />Negociar
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => { onClose(); onHistory(client); }} title="Histórico">
-            <History className="h-4 w-4" />
-          </Button>
+          {lastSim && lastSim.sim_count > 0 ? (
+            <Button className="gap-2 flex-1" variant="outline" onClick={() => { onClose(); onHistory(client); }}>
+              <History className="h-4 w-4" />Reabrir Simulação
+            </Button>
+          ) : (
+            <Button className="gap-2 flex-1" onClick={() => { onClose(); onSimulate(client); }}>
+              <Handshake className="h-4 w-4" />Negociar
+            </Button>
+          )}
+          {lastSim && lastSim.sim_count > 0 && (
+            <Button variant="outline" size="icon" onClick={() => { onClose(); onSimulate(client); }} title="Nova Simulação">
+              <Handshake className="h-4 w-4" />
+            </Button>
+          )}
           <Button variant="outline" size="icon" onClick={() => { onClose(); onContracts(client); }} title="Contratos">
             <FileText className="h-4 w-4" />
           </Button>
