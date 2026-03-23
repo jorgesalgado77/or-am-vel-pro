@@ -165,7 +165,7 @@ export function useAutoPilot({ tenantId, userId, addon }: UseAutoPilotParams) {
           openai_model: addon.openai_model,
           max_tokens: Math.min(addon.max_tokens_mensagem, 300),
           modo: "autopilot",
-          historico: recentMessages?.slice(-8) || [],
+          historico: recentMessages?.slice(-5) || [],
         },
       });
 
