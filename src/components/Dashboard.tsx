@@ -566,11 +566,22 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                     <TableHead className="font-medium text-center">Fechados</TableHead>
                     <TableHead className="font-medium text-center">Conversão</TableHead>
                     <TableHead className="font-medium text-right">Valor Total</TableHead>
+                    <TableHead className="font-medium text-right">Comissão</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {stats.byProjetista.map(([name, data]) => {
                     const conv = data.count > 0 ? ((data.closed / data.count) * 100).toFixed(0) : "0";
+                    // Find matching cargo for this projetista to get commission %
+                    const matchedCargo = cargos.find(c => 
+                      name.toLowerCase().includes(c.nome.toLowerCase()) || c.nome.toLowerCase() === "projetista"
+                    );
+                    const comPercent = matchedCargo ? matchedCargo.comissao_percentual : 0;
+                    const comResult = calcularComissao(
+                      data.closedTotal, comPercent, comissaoPolicyDash,
+                      matchedCargo?.id || null, matchedCargo?.nome || null
+                    );
+                    const comissaoValor = (data.closedTotal * comResult.percentual) / 100;
                     return (
                     <TableRow key={name}>
                       <TableCell className="font-medium text-foreground">{name}</TableCell>
@@ -580,6 +591,10 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                         <Badge variant="outline" className={Number(conv) >= 30 ? "border-emerald-500 text-emerald-600" : ""}>{conv}%</Badge>
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-primary">
+                        {comissaoValor > 0 ? formatCurrency(comissaoValor) : "—"}
+                        {comResult.percentual > 0 && <span className="text-xs text-muted-foreground ml-1">({comResult.percentual}%)</span>}
+                      </TableCell>
                     </TableRow>
                     );
                   })}
