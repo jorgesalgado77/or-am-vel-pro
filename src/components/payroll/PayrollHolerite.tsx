@@ -36,6 +36,7 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const inssFaixas = getINSSFaixas(settings);
   const irrfFaixas = getIRRFFaixas(settings);
   const irrfLimites = getIRRFLimites(settings);
+  const meiDasConfig = getMEIDASConfig(settings);
 
   const cargo = usuario.cargo_id ? cargos.find(c => c.id === usuario.cargo_id) : null;
   const salario = usuario.salario_fixo || (cargo as any)?.salario_base || 0;
