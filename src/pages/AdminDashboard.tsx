@@ -497,6 +497,17 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Handshake className="h-4 w-4 text-purple-600 shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Comissões Deal Room</p>
+                <p className="text-base font-bold text-foreground">
+                  R$ {dealRoomCommissions.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="lojas" className="space-y-4">
