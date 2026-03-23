@@ -155,7 +155,7 @@ export function useSmartImport3D(tenantId: string | null) {
     }
 
     toast.success("Projeto 3D importado com sucesso!");
-    loadProjects();
+    setProjects((prev) => [{ ...(data as any), thumbnail_url: thumbnailUrl || (data as any).thumbnail_url }, ...prev]);
     return {
       ...(data as any),
       thumbnail_url: thumbnailUrl || (data as any).thumbnail_url,

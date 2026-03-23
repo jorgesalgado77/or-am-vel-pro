@@ -372,6 +372,11 @@ function buildDxfScene(THREE: any, entities: DxfEntity[]) {
 }
 
 export async function loadModelForPreview(THREE: any, fileUrl: string, onProgress?: (event: ProgressEvent<EventTarget>) => void) {
+  const cached = previewModelCache.get(fileUrl);
+  if (cached?.clone) {
+    return cached.clone(true);
+  }
+
   const ext = getFileExtension(fileUrl);
   let loadedObject: any = null;
 
@@ -403,6 +408,7 @@ export async function loadModelForPreview(THREE: any, fileUrl: string, onProgres
       }),
     );
     loadedObject.name = "Peça_STL";
+    loadedObject.userData.originalMaterial = loadedObject.material;
   } else if (ext === "fbx") {
     const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
     const loader = new FBXLoader();
@@ -425,7 +431,8 @@ export async function loadModelForPreview(THREE: any, fileUrl: string, onProgres
     );
   }
 
-  return loadedObject;
+  previewModelCache.set(fileUrl, loadedObject);
+  return loadedObject.clone(true);
 }
 
 export function frameObjectForThumbnail(THREE: any, object: any, camera: any) {
