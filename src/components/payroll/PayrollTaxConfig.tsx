@@ -286,6 +286,7 @@ export function PayrollTaxConfig({ onClose }: Props) {
       irrf_faixas: irrfFaixas,
       irrf_isencao_limite: irrfIsencao,
       irrf_transicao_limite: irrfTransicao,
+      mei_das: meiDas,
     };
     const { error } = await supabase
       .from("company_settings")
