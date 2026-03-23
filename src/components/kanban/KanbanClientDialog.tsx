@@ -211,7 +211,10 @@ export function KanbanClientDialog({
                     <SelectContent>
                       <SelectItem value="__none__">Sem responsável</SelectItem>
                       {usuarios
-                        .filter(u => u.ativo && u.cargo_nome && !u.cargo_nome.toLowerCase().includes("admin"))
+                        .filter(u => u.ativo && u.cargo_nome && (
+                          u.cargo_nome.toLowerCase().includes("vendedor") ||
+                          u.cargo_nome.toLowerCase().includes("projetista")
+                        ))
                         .map(p => (
                           <SelectItem key={p.id} value={p.nome_completo}>{p.nome_completo} ({p.cargo_nome})</SelectItem>
                         ))}
