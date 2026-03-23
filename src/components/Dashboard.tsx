@@ -303,7 +303,53 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     { key: "contratos", label: "Contratos" },
     { key: "projetista", label: "Projetista" },
     { key: "indicador", label: "Indicador" },
+    { key: "leads_origem", label: "Leads por Origem" },
   ], []);
+
+  // Unique projetistas for filter
+  const projetistaNames = useMemo(() => {
+    const names = new Set(filteredClients.map(c => c.vendedor || "Sem projetista"));
+    return Array.from(names).sort();
+  }, [filteredClients]);
+
+  // Filtered lead source data by projetista
+  const filteredLeadsBySource = useMemo(() => {
+    const src = { landing_page: 0, afiliado: 0, indicacao: 0, link: 0, manual: 0, total: 0 };
+    const clientsToCount = leadProjetistaFilter === "todos" 
+      ? filteredClients 
+      : filteredClients.filter(c => (c.vendedor || "Sem projetista") === leadProjetistaFilter);
+    
+    clientsToCount.forEach(c => {
+      const origem = (c as any).origem_lead;
+      if (!origem || origem === "manual") {
+        src.manual++;
+      } else if (origem === "landing_page" || origem === "site" || origem === "funil_loja") {
+        src.landing_page++;
+      } else if (origem === "afiliado" || origem === "affiliate") {
+        src.afiliado++;
+      } else if (origem === "indicacao" || origem === "referral") {
+        src.indicacao++;
+      } else if (origem === "link" || origem === "compartilhado") {
+        src.link++;
+      } else {
+        src.manual++;
+      }
+      if (origem && origem !== "manual") src.total++;
+    });
+    return src;
+  }, [filteredClients, leadProjetistaFilter]);
+
+  // Pie data for leads by origin
+  const leadsPieData = useMemo(() => {
+    const data = [
+      { name: "Landing Page", value: filteredLeadsBySource.landing_page },
+      { name: "Afiliados", value: filteredLeadsBySource.afiliado },
+      { name: "Indicação", value: filteredLeadsBySource.indicacao },
+      { name: "Link Compartilhado", value: filteredLeadsBySource.link },
+      { name: "Manual / Loja", value: filteredLeadsBySource.manual },
+    ].filter(d => d.value > 0);
+    return data;
+  }, [filteredLeadsBySource]);
 
   return (
     <div className="space-y-6">
