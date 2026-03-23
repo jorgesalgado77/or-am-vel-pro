@@ -307,9 +307,16 @@ function SimulationCard({
   };
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${
+      className={`flex items-center gap-4 p-4 rounded-lg border transition-colors cursor-pointer ${
         isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/30"
       }`}
+      onClick={(e) => {
+        // Don't trigger load when clicking checkbox or buttons
+        const target = e.target as HTMLElement;
+        if (target.closest("button") || target.closest('[role="checkbox"]')) return;
+        onLoad?.();
+      }}
+      title="Clique para abrir esta simulação no simulador"
     >
       <Checkbox checked={isSelected} onCheckedChange={onToggle} />
       <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
