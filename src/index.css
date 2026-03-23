@@ -95,6 +95,94 @@ All colors MUST be HSL.
 }
 
 @layer base {
+  @property --gb-pos-x {
+    syntax: '<percentage>';
+    initial-value: 11.14%;
+    inherits: false;
+  }
+  @property --gb-pos-y {
+    syntax: '<percentage>';
+    initial-value: 140%;
+    inherits: false;
+  }
+  @property --gb-spread-x {
+    syntax: '<percentage>';
+    initial-value: 150%;
+    inherits: false;
+  }
+  @property --gb-spread-y {
+    syntax: '<percentage>';
+    initial-value: 180.06%;
+    inherits: false;
+  }
+  @property --gb-color-1 {
+    syntax: '<color>';
+    initial-value: hsl(199, 89%, 30%);
+    inherits: false;
+  }
+  @property --gb-color-2 {
+    syntax: '<color>';
+    initial-value: hsl(199, 89%, 38%);
+    inherits: false;
+  }
+  @property --gb-color-3 {
+    syntax: '<color>';
+    initial-value: hsl(199, 80%, 45%);
+    inherits: false;
+  }
+  @property --gb-color-4 {
+    syntax: '<color>';
+    initial-value: hsl(190, 70%, 40%);
+    inherits: false;
+  }
+  @property --gb-color-5 {
+    syntax: '<color>';
+    initial-value: hsl(180, 60%, 35%);
+    inherits: false;
+  }
+  @property --gb-border-angle {
+    syntax: '<angle>';
+    initial-value: 20deg;
+    inherits: true;
+  }
+  @property --gb-border-color-1 {
+    syntax: '<color>';
+    initial-value: hsla(199, 89%, 70%, 0.2);
+    inherits: true;
+  }
+  @property --gb-border-color-2 {
+    syntax: '<color>';
+    initial-value: hsla(199, 89%, 50%, 0.75);
+    inherits: true;
+  }
+  @property --gb-stop-1 {
+    syntax: '<percentage>';
+    initial-value: 37.35%;
+    inherits: false;
+  }
+  @property --gb-stop-2 {
+    syntax: '<percentage>';
+    initial-value: 61.36%;
+    inherits: false;
+  }
+  @property --gb-stop-3 {
+    syntax: '<percentage>';
+    initial-value: 78.42%;
+    inherits: false;
+  }
+  @property --gb-stop-4 {
+    syntax: '<percentage>';
+    initial-value: 89.52%;
+    inherits: false;
+  }
+  @property --gb-stop-5 {
+    syntax: '<percentage>';
+    initial-value: 100%;
+    inherits: false;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
@@ -114,6 +202,67 @@ All colors MUST be HSL.
 }
 
 @layer components {
+  .gradient-btn {
+    @apply relative appearance-none cursor-pointer;
+    background: radial-gradient(
+      var(--gb-spread-x) var(--gb-spread-y) at var(--gb-pos-x) var(--gb-pos-y),
+      var(--gb-color-1) var(--gb-stop-1),
+      var(--gb-color-2) var(--gb-stop-2),
+      var(--gb-color-3) var(--gb-stop-3),
+      var(--gb-color-4) var(--gb-stop-4),
+      var(--gb-color-5) var(--gb-stop-5)
+    );
+    transition:
+      --gb-pos-x 0.5s, --gb-pos-y 0.5s,
+      --gb-spread-x 0.5s, --gb-spread-y 0.5s,
+      --gb-color-1 0.5s, --gb-color-2 0.5s, --gb-color-3 0.5s, --gb-color-4 0.5s, --gb-color-5 0.5s,
+      --gb-border-angle 0.5s, --gb-border-color-1 0.5s, --gb-border-color-2 0.5s,
+      --gb-stop-1 0.5s, --gb-stop-2 0.5s, --gb-stop-3 0.5s, --gb-stop-4 0.5s, --gb-stop-5 0.5s;
+  }
+
+  .gradient-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      var(--gb-border-angle),
+      var(--gb-border-color-1),
+      var(--gb-border-color-2)
+    );
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .gradient-btn:hover {
+    --gb-pos-x: 0%;
+    --gb-pos-y: 91.51%;
+    --gb-spread-x: 120.24%;
+    --gb-spread-y: 103.18%;
+    --gb-color-1: hsl(199, 89%, 48%);
+    --gb-color-2: hsl(195, 85%, 45%);
+    --gb-color-3: hsl(185, 75%, 40%);
+    --gb-color-4: hsl(199, 90%, 25%);
+    --gb-color-5: hsl(199, 89%, 18%);
+    --gb-border-angle: 190deg;
+    --gb-border-color-1: hsla(199, 89%, 90%, 0.1);
+    --gb-border-color-2: hsla(199, 89%, 80%, 0.6);
+    --gb-stop-1: 0%;
+    --gb-stop-2: 8.8%;
+    --gb-stop-3: 21.44%;
+    --gb-stop-4: 71.34%;
+    --gb-stop-5: 85.76%;
+  }
+
+  .gradient-btn:disabled {
+    background: hsl(var(--muted));
+  }
+  .gradient-btn:disabled::before {
+    display: none;
+  }
+
   .select-scroll-area {
     scrollbar-width: thin;
     -ms-overflow-style: auto;
