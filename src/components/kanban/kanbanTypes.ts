@@ -7,7 +7,9 @@ export type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 export interface LastSimInfo {
   valor_final: number;
+  valor_com_desconto: number;
   created_at: string;
+  sim_count: number;
 }
 
 export interface ClientsKanbanProps {
