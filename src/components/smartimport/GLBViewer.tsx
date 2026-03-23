@@ -68,7 +68,7 @@ function parseDxfToThree(THREE: any, dxfText: string): any {
   return group;
 }
 
-
+function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
