@@ -9,6 +9,7 @@ export interface CatalogItem {
   name: string;
   description?: string;
   cost?: number;
+  image_url?: string;
   created_at: string;
 }
 
