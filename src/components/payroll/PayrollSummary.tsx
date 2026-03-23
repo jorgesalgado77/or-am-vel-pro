@@ -269,7 +269,7 @@ export function PayrollSummary({ usuarios, cargos, mesReferencia, getRegimeEfeti
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Distribuição de Custo por Regime</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent ref={pieChartRef}>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
