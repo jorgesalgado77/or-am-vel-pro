@@ -159,12 +159,16 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const taxaConversao = totalClients > 0 ? (closedClients / totalClients) * 100 : 0;
     const faturamentoContratos = trackingData.total;
 
-    const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number }> = {};
+    const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number; closedTotal: number }> = {};
     filteredClients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
-      if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0 };
+      if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0, closedTotal: 0 };
       byProjetista[name].count++;
-      if ((c as any).status === "fechado") byProjetista[name].closed++;
+      if ((c as any).status === "fechado") {
+        byProjetista[name].closed++;
+        const sim = filteredLastSims[c.id];
+        if (sim) byProjetista[name].closedTotal += sim.valor_com_desconto || sim.valor_final;
+      }
       const sim = filteredLastSims[c.id];
       if (sim) {
         byProjetista[name].total += sim.valor_com_desconto || sim.valor_final;
@@ -197,12 +201,33 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byStatus[status] = (byStatus[status] || 0) + 1;
     });
 
+    // Leads by source
+    const leadsBySource = { landing_page: 0, afiliado: 0, indicacao: 0, link: 0, manual: 0, total: 0 };
+    filteredClients.forEach(c => {
+      const origem = (c as any).origem_lead;
+      if (!origem || origem === "manual") {
+        leadsBySource.manual++;
+      } else if (origem === "landing_page" || origem === "site") {
+        leadsBySource.landing_page++;
+      } else if (origem === "afiliado" || origem === "affiliate") {
+        leadsBySource.afiliado++;
+      } else if (origem === "indicacao" || origem === "referral") {
+        leadsBySource.indicacao++;
+      } else if (origem === "link" || origem === "compartilhado") {
+        leadsBySource.link++;
+      } else {
+        leadsBySource.manual++;
+      }
+      if (origem && origem !== "manual") leadsBySource.total++;
+    });
+
     return {
       totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue,
       ticketMedio, taxaConversao, closedClients, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
       byStatus,
+      leadsBySource,
     };
   }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, trackingData]);
 
