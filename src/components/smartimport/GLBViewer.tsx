@@ -348,17 +348,35 @@ function WebGLViewer({
         setProgressLabel("Concluído!");
         setTimeout(() => { if (mounted) setLoading(false); }, 200);
 
-        // ── On-demand render loop ──
-        // Only renders when controls change, auto-rotate is on, or a click/resize invalidates
+        // ── On-demand render loop with FPS monitoring ──
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+        let currentPixelRatio = quality.pixelRatio;
+        const MIN_PIXEL_RATIO = 0.8;
+
         const animate = () => {
           if (!mounted) return;
           animationFrameId = requestAnimationFrame(animate);
 
-          const updated = controls.update(); // returns true if controls changed
-          // Always render when autoRotate is on, or when dirty
+          const updated = controls.update();
           if (controls.autoRotate || needsRenderRef.current || updated) {
             renderer.render(scene, camera);
             needsRenderRef.current = false;
+            frameCount++;
+          }
+
+          // FPS monitoring — auto-downgrade every 2 seconds
+          const now = performance.now();
+          if (now - lastFpsTime >= 2000) {
+            const fps = (frameCount / ((now - lastFpsTime) / 1000));
+            frameCount = 0;
+            lastFpsTime = now;
+
+            if (fps < 25 && currentPixelRatio > MIN_PIXEL_RATIO) {
+              currentPixelRatio = Math.max(MIN_PIXEL_RATIO, currentPixelRatio - 0.15);
+              renderer.setPixelRatio(currentPixelRatio);
+              needsRenderRef.current = true;
+            }
           }
         };
         animate();
