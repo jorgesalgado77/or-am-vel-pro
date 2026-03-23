@@ -50,6 +50,15 @@ const DEFAULT_SOCIAL: SocialLinks = {
   website_url: "",
 };
 
+const DEFAULT_INVESTMENT_RANGES = [
+  "Até R$ 20.000",
+  "R$ 20.000 a R$ 50.000",
+  "R$ 50.000 a R$ 100.000",
+  "R$ 100.000 a R$ 200.000",
+  "Acima de R$ 200.000",
+  "Não sei informar",
+];
+
 const DEFAULT_CONFIG: FunnelConfig = {
   headline: "Ganhe seu Projeto 3D Gratuito",
   sub_headline: "",
@@ -64,6 +73,7 @@ const DEFAULT_CONFIG: FunnelConfig = {
   promo_video_url: "",
   carousel_images: [],
   social_links: DEFAULT_SOCIAL,
+  investment_ranges: DEFAULT_INVESTMENT_RANGES,
 };
 
 export function FunnelPanel() {
