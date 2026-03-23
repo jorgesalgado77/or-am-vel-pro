@@ -81,7 +81,7 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
     setLoading(false);
   };
 
-  useEffect(() => { loadSimulations(); }, [clientId]);
+  useEffect(() => { loadSimulations(); }, [clientId, tenantId]);
 
   const calcValorComDesconto = (s: { valor_tela: string; desconto1: string; desconto2: string; desconto3: string }) => {
     const vt = Number(s.valor_tela) || 0;
