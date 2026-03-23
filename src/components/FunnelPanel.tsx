@@ -187,19 +187,29 @@ export function FunnelPanel() {
         social_links: config.social_links,
         investment_ranges: config.investment_ranges,
       };
-      const { error } = await (supabase as any).from("tenant_funnel_config").upsert(payload, { onConflict: "tenant_id" });
-      if (error) {
-        // If social_links column doesn't exist yet, retry without it
-        if (error.message?.includes("social_links")) {
-          const { social_links, ...rest } = payload;
-          const { error: err2 } = await (supabase as any).from("tenant_funnel_config").upsert(rest, { onConflict: "tenant_id" });
-          if (err2) throw err2;
-          toast.success("Configurações salvas! (Execute o SQL para habilitar redes sociais)");
-        } else {
-          throw error;
+      let retryPayload = { ...payload };
+      let lastError: any = null;
+      const optionalCols = ["social_links", "investment_ranges"];
+      
+      for (let attempt = 0; attempt <= optionalCols.length; attempt++) {
+        const { error } = await (supabase as any).from("tenant_funnel_config").upsert(retryPayload, { onConflict: "tenant_id" });
+        if (!error) {
+          toast.success("Configurações do funil salvas!");
+          lastError = null;
+          break;
         }
-      } else {
-        toast.success("Configurações do funil salvas!");
+        // Check if error is about a missing column and strip it
+        const missingCol = optionalCols.find(c => error.message?.includes(c) && retryPayload[c] !== undefined);
+        if (missingCol) {
+          delete retryPayload[missingCol];
+          lastError = error;
+          toast.info(`Coluna '${missingCol}' não encontrada. Execute o SQL de migração no Supabase.`);
+          continue;
+        }
+        throw error;
+      }
+      if (lastError && Object.keys(retryPayload).length > 1) {
+        // Final attempt already succeeded in the loop above
       }
     } catch (e: any) { toast.error("Erro ao salvar: " + (e?.message || "erro desconhecido")); }
     finally { setSaving(false); }
