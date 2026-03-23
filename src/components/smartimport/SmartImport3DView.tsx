@@ -220,12 +220,12 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                     value={projectName} onChange={e => setProjectName(e.target.value)} />
                 </div>
                 <div className="md:col-span-1">
-                  <Label className="text-xs">Arquivo (.GLB)</Label>
-                  <input ref={fileInputRef} type="file" accept=".glb"
+                  <Label className="text-xs">Arquivo (.GLB / .DXF)</Label>
+                  <input ref={fileInputRef} type="file" accept=".glb,.dxf"
                     onChange={handleUpload} className="hidden" />
                   <Button variant="outline" className="w-full h-9 mt-1 gap-1.5 text-xs"
                     onClick={() => fileInputRef.current?.click()} disabled={uploading || !projectName.trim()}>
-                    <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Selecionar .GLB"}
+                    <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Selecionar .GLB / .DXF"}
                   </Button>
                 </div>
                 <div className="flex items-end">
