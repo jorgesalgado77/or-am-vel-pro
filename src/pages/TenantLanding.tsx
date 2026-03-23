@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { maskPhone, unmask } from "@/lib/masks";
+import { validateFileUpload } from "@/lib/validation";
 import { toast } from "sonner";
 
 // TikTok icon (not in lucide)
@@ -454,79 +455,106 @@ export default function TenantLanding() {
     return () => { supabase.removeChannel(channel); };
   }, [tenant?.id]);
 
+  const uploadLeadAttachments = useCallback(async () => {
+    if (!arquivos.length || !tenant?.id) return { uploaded: 0, failed: 0 };
+
+    let uploaded = 0;
+    let failed = 0;
+
+    for (const [index, file] of arquivos.entries()) {
+      const validation = validateFileUpload(file);
+      if (!validation.valid) {
+        failed += 1;
+        console.warn("[TenantLanding] invalid attachment skipped:", validation.message);
+        continue;
+      }
+
+      const safeName = file.name.replace(/[^\w.-]+/g, "_");
+      const path = `leads/${tenant.id}/${Date.now()}_${index}_${safeName}`;
+      const { error } = await supabase.storage.from("company-assets").upload(path, file);
+
+      if (error) {
+        failed += 1;
+        console.warn("[TenantLanding] attachment upload failed:", error.message);
+      } else {
+        uploaded += 1;
+      }
+    }
+
+    return { uploaded, failed };
+  }, [arquivos, tenant?.id]);
+
+  const finalizeLeadSuccess = useCallback(async () => {
+    setSent(true);
+    toast.success("Cadastro realizado com sucesso!");
+
+    const { failed } = await uploadLeadAttachments();
+    if (failed > 0) {
+      toast.info("Lead enviado, mas alguns anexos não puderam ser enviados.");
+    }
+  }, [uploadLeadAttachments]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim() || !telefone.trim()) { toast.error("Preencha nome e telefone"); return; }
     const cleanPhone = unmask(telefone);
     if (cleanPhone.length < 10) { toast.error("Telefone inválido"); return; }
+    if (!tenant?.id) { toast.error("Loja não identificada."); return; }
+
     setSending(true);
 
     const interesseText = [descricao.trim(), investimento ? `Investimento: ${investimento}` : ""].filter(Boolean).join(" | ") || "Projeto 3D gratuito";
+    const origem = refCode ? "indicacao" : "landing_page";
     const leadPayload = {
       nome: nome.trim(),
       telefone: cleanPhone,
       email: email.trim() || undefined,
       interesse: interesseText,
-      origem: refCode ? "indicacao" : "funil_loja",
+      origem,
       referral_code: refCode || undefined,
-      tenant_id: tenant?.id,
+      tenant_id: tenant.id,
     };
 
     try {
       const res = await supabase.functions.invoke("lead-capture", { body: leadPayload });
       if (res.error) throw res.error;
-
-      // Upload attachments if any
-      if (arquivos.length > 0 && tenant?.id) {
-        for (const file of arquivos) {
-          const path = `leads/${tenant.id}/${Date.now()}_${file.name}`;
-          await supabase.storage.from("company-assets").upload(path, file);
-        }
-      }
-
-      setSent(true);
-      toast.success("Cadastro realizado com sucesso!");
+      await finalizeLeadSuccess();
     } catch (edgeFnErr) {
       console.error("Edge function failed, trying direct insert:", edgeFnErr);
-      // Fallback: insert directly into clients table
+
       try {
-        const interesseFull = [descricao.trim(), investimento ? `Investimento: ${investimento}` : ""].filter(Boolean).join(" | ");
         const { error: clientError } = await supabase.from("clients").insert({
           nome: nome.trim(),
           telefone1: cleanPhone,
           email: email.trim() || "",
-          tenant_id: tenant?.id,
+          tenant_id: tenant.id,
           status: "novo",
-          origem_lead: refCode ? "indicacao" : "landing_page",
-          descricao_ambientes: interesseFull || "Projeto 3D gratuito",
+          origem_lead: origem,
+          descricao_ambientes: interesseText,
           quantidade_ambientes: 1,
         } as any);
 
         if (clientError) {
-          // Second fallback: insert into leads table
           const { error: leadError } = await supabase.from("leads").insert({
             nome: nome.trim(),
             telefone: cleanPhone,
             email: email.trim() || "",
-            origem: refCode ? "indicacao" : "site",
-            interesse: descricao.trim() || "Projeto 3D gratuito",
+            origem,
+            interesse: interesseText,
             status: "novo",
-            tenant_id: tenant?.id,
+            tenant_id: tenant.id,
           } as any);
 
           if (leadError) {
-            console.error("All insert methods failed:", { clientError, leadError });
+            console.error("All insert methods failed:", { edgeFnErr, clientError, leadError });
             toast.error("Erro ao enviar. Tente novamente.");
-          } else {
-            setSent(true);
-            toast.success("Cadastro realizado com sucesso!");
+            return;
           }
-        } else {
-          setSent(true);
-          toast.success("Cadastro realizado com sucesso!");
         }
+
+        await finalizeLeadSuccess();
       } catch (fallbackErr) {
-        console.error("Fallback insert failed:", fallbackErr);
+        console.error("Fallback insert failed:", { edgeFnErr, fallbackErr });
         toast.error("Erro ao enviar. Tente novamente.");
       }
     } finally {
