@@ -168,10 +168,23 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   }, [client?.id, client?.indicador_id]);
 
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
+    // Restore from saved simulation (DB) if available
+    if (init?.ambientes && init.ambientes.length > 0) {
+      return init.ambientes.map((e) => ({
+        id: e.id,
+        fileName: e.fileName,
+        environmentName: e.environmentName,
+        pieceCount: e.pieceCount,
+        totalValue: e.totalValue,
+        importedAt: new Date(e.importedAt),
+        file: new File([], e.fileName), // placeholder — original file stored in cloud
+      }));
+    }
+    // Restore from sessionStorage
     return (stored.environments || []).map((e) => ({
       ...e,
       importedAt: new Date(e.importedAt),
-      file: new File([], e.fileName), // placeholder — original file can't be restored
+      file: new File([], e.fileName),
     }));
   });
 
