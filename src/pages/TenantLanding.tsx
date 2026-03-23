@@ -530,6 +530,7 @@ export default function TenantLanding() {
     }
 
     if (!nome.trim() || !telefone.trim()) { toast.error("Preencha nome e telefone"); return; }
+    if (honeypot) { setSent(true); return; } // Honeypot — bots fill hidden fields
     const cleanPhone = unmask(telefone);
     if (cleanPhone.length < 10) { toast.error("Telefone inválido"); return; }
     if (!tenant?.id) { toast.error("Loja não identificada."); return; }
