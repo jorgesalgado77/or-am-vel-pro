@@ -28,6 +28,15 @@ export interface IRRFFaixa {
   deducao: number;
 }
 
+export type MEIAtividade = "comercio" | "servicos" | "ambos";
+
+export interface MEIDASConfig {
+  salario_minimo: number;
+  inss_percentual: number;
+  icms_valor: number;
+  iss_valor: number;
+}
+
 export interface RegimeTaxConfig {
   CLT: TaxRate[];
   MEI: TaxRate[];
@@ -40,6 +49,7 @@ export interface FullTaxConfig {
   irrf_faixas: IRRFFaixa[];
   irrf_isencao_limite: number;
   irrf_transicao_limite: number;
+  mei_das: MEIDASConfig;
 }
 
 export const DEFAULT_INSS_FAIXAS: INSSFaixa[] = [
