@@ -421,15 +421,75 @@ export default function TenantLanding() {
     const cleanPhone = unmask(telefone);
     if (cleanPhone.length < 10) { toast.error("Telefone inválido"); return; }
     setSending(true);
+
+    const leadPayload = {
+      nome: nome.trim(),
+      telefone: cleanPhone,
+      email: email.trim() || undefined,
+      interesse: descricao.trim() || "Projeto 3D gratuito",
+      origem: refCode ? "indicacao" : "funil_loja",
+      referral_code: refCode || undefined,
+      tenant_id: tenant?.id,
+    };
+
     try {
-      const res = await supabase.functions.invoke("lead-capture", {
-        body: { nome: nome.trim(), telefone: cleanPhone, email: email.trim() || undefined, interesse: "Projeto 3D gratuito", origem: refCode ? "indicacao" : "funil_loja", referral_code: refCode || undefined, tenant_id: tenant?.id },
-      });
+      const res = await supabase.functions.invoke("lead-capture", { body: leadPayload });
       if (res.error) throw res.error;
+
+      // Upload attachments if any
+      if (arquivos.length > 0 && tenant?.id) {
+        for (const file of arquivos) {
+          const path = `leads/${tenant.id}/${Date.now()}_${file.name}`;
+          await supabase.storage.from("company-assets").upload(path, file);
+        }
+      }
+
       setSent(true);
       toast.success("Cadastro realizado com sucesso!");
-    } catch { toast.error("Erro ao enviar. Tente novamente."); }
-    finally { setSending(false); }
+    } catch (edgeFnErr) {
+      console.error("Edge function failed, trying direct insert:", edgeFnErr);
+      // Fallback: insert directly into clients table
+      try {
+        const { error: clientError } = await supabase.from("clients").insert({
+          nome: nome.trim(),
+          telefone1: cleanPhone,
+          email: email.trim() || "",
+          tenant_id: tenant?.id,
+          status: "novo",
+          origem_lead: refCode ? "indicacao" : "landing_page",
+          observacoes: descricao.trim() || null,
+        } as any);
+
+        if (clientError) {
+          // Second fallback: insert into leads table
+          const { error: leadError } = await supabase.from("leads").insert({
+            nome: nome.trim(),
+            telefone: cleanPhone,
+            email: email.trim() || "",
+            origem: refCode ? "indicacao" : "site",
+            interesse: descricao.trim() || "Projeto 3D gratuito",
+            status: "novo",
+            tenant_id: tenant?.id,
+          } as any);
+
+          if (leadError) {
+            console.error("All insert methods failed:", { clientError, leadError });
+            toast.error("Erro ao enviar. Tente novamente.");
+          } else {
+            setSent(true);
+            toast.success("Cadastro realizado com sucesso!");
+          }
+        } else {
+          setSent(true);
+          toast.success("Cadastro realizado com sucesso!");
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback insert failed:", fallbackErr);
+        toast.error("Erro ao enviar. Tente novamente.");
+      }
+    } finally {
+      setSending(false);
+    }
   };
 
   if (loading) {

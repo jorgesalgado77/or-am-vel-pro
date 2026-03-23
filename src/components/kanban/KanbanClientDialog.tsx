@@ -1,6 +1,7 @@
 /**
  * Expanded client detail dialog for the Kanban board.
  */
+import { useState } from "react";
 import { differenceInDays } from "date-fns";
 import { format, addDays, isPast, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -12,8 +13,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Handshake, Pencil, Trash2, History, FileText, Phone, Mail, User, Hash, Clock,
-  AlertTriangle, CalendarIcon,
+  AlertTriangle, CalendarIcon, FileQuestion,
 } from "lucide-react";
+import { BriefingModal } from "@/components/BriefingModal";
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
@@ -44,6 +46,7 @@ export function KanbanClientDialog({
   client, onClose, lastSim, budgetValidityDays, cargoNome, canEdit, canDelete,
   indicadorMap, usuarios, onEdit, onDelete, onSimulate, onHistory, onContracts, onClientUpdate,
 }: KanbanClientDialogProps) {
+  const [showBriefing, setShowBriefing] = useState(false);
   if (!client) return null;
 
   const isExpired = lastSim ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
@@ -267,6 +270,9 @@ export function KanbanClientDialog({
           <Button variant="outline" size="icon" onClick={() => { onClose(); onContracts(client); }} title="Contratos">
             <FileText className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="icon" onClick={() => setShowBriefing(true)} title="Briefing">
+            <FileQuestion className="h-4 w-4" />
+          </Button>
           {canEdit && (
             <Button variant="outline" size="icon" onClick={() => { onClose(); onEdit(client); }} title="Editar">
               <Pencil className="h-4 w-4" />
@@ -278,6 +284,14 @@ export function KanbanClientDialog({
             </Button>
           )}
         </div>
+
+        <BriefingModal
+          open={showBriefing}
+          onOpenChange={setShowBriefing}
+          clientId={client.id}
+          clientName={client.nome}
+          orcamentoNumero={(client as any).numero_orcamento}
+        />
       </DialogContent>
     </Dialog>
   );
