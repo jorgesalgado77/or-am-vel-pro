@@ -37,6 +37,7 @@ const PERM_LABELS_MENU: Record<string, string> = {
   vendazap: "VendaZap AI",
   chat_vendas: "Chat Vendas",
   dealroom: "Deal Room",
+  smart3d: "3D Smart Import",
   divulgue_ganhe: "Divulgue e Ganhe",
   mensagens: "Mensagens",
   suporte: "Suporte",
