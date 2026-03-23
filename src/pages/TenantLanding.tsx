@@ -378,6 +378,9 @@ export default function TenantLanding() {
               if (Array.isArray(d.benefits) && d.benefits.length) tenantData.benefits = d.benefits;
               if (d.social_links) tenantData.social_links = d.social_links;
               if (d.whatsapp) tenantData.whatsapp_loja = d.whatsapp;
+              if (Array.isArray(d.investment_ranges) && d.investment_ranges.length) {
+                if (active) setInvestmentRanges(d.investment_ranges);
+              }
             }
           } catch {
             // keep lightweight fallback data for public route
