@@ -37,7 +37,7 @@ interface LastSimInfo {
 interface DashboardProps {
   clients: Client[];
   lastSims: Record<string, LastSimInfo>;
-  allSimulations?: { created_at: string; valor_final: number }[];
+  allSimulations?: { created_at: string; valor_final: number; valor_com_desconto?: number }[];
   onOpenProfile?: () => void;
   onOpenSettings?: () => void;
 }
