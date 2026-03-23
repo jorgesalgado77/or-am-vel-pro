@@ -37,6 +37,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
     deleteProject, generateBudget, refresh,
   } = useSmartImport3D(tenantId);
   const { settings } = useCompanySettings();
+  const { catalogItems, addItem: addCatalogItem, updateItem: updateCatalogItem, deleteItem: deleteCatalogItem } = useModuleCatalog(tenantId);
 
   const [uploading, setUploading] = useState(false);
   const [projectName, setProjectName] = useState("");
