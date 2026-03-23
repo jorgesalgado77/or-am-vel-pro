@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  BookOpen, Plus, Trash2, Edit2, Save, DollarSign, Package, Ruler, Palette,
+  BookOpen, Plus, Trash2, Edit2, Save, DollarSign, Package, Ruler, Palette, Wrench,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import type { ModuleLibraryItem } from "@/hooks/useSmartImport3D";
