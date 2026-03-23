@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Video, ArrowLeft, Users, MessageSquare, Paperclip, CreditCard,
+  Video, ArrowLeft, MessageSquare, Paperclip, CreditCard,
   FileSignature, Brain, User, Maximize2, Copy, ExternalLink,
+  FileText, Settings,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseClient";
 import { DealRoomControls } from "./DealRoomControls";
 import { DealRoomChat } from "./DealRoomChat";
 import { DealRoomAttachments } from "./DealRoomAttachments";
@@ -16,6 +17,10 @@ import { DealRoomPayments } from "./DealRoomPayments";
 import { DealRoomSignature } from "./DealRoomSignature";
 import { DealRoomAIAssistant } from "./DealRoomAIAssistant";
 import { DealRoomClientInfo } from "./DealRoomClientInfo";
+import { DealRoomScreenProtection } from "./DealRoomScreenProtection";
+import { DealRoomWatermark } from "./DealRoomWatermark";
+import { DealRoomVideoConfig, type VideoProvider } from "./DealRoomVideoConfig";
+import { DealRoomContractPdf } from "./DealRoomContractPdf";
 
 interface DealRoomMeetingProps {
   tenantId: string;
@@ -38,13 +43,35 @@ export function DealRoomMeeting({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activePanel, setActivePanel] = useState<string>("chat");
   const [showClientInfo, setShowClientInfo] = useState(false);
+  const [showVideoConfig, setShowVideoConfig] = useState(false);
+
+  // Store info for watermark
+  const [storeInfo, setStoreInfo] = useState({ nome: "Loja", telefone: "" });
+
+  // Video provider config
+  const [videoConfig, setVideoConfig] = useState<{
+    provider: VideoProvider; apiKey?: string; roomUrl?: string;
+    serverUrl?: string; token?: string;
+  }>({ provider: "jitsi" });
 
   const clientLink = `${window.location.origin}/sala/${sessionId}`;
 
-  const initJitsi = useCallback(() => {
-    if (!jitsiContainerRef.current) return;
+  // Load store info
+  useEffect(() => {
+    const loadStore = async () => {
+      const { data } = await supabase
+        .from("tenants")
+        .select("nome, telefone")
+        .eq("id", tenantId)
+        .single();
+      if (data) setStoreInfo({ nome: (data as any).nome || "Loja", telefone: (data as any).telefone || "" });
+    };
+    loadStore();
+  }, [tenantId]);
 
-    // Load Jitsi external API script
+  const initJitsi = useCallback(() => {
+    if (!jitsiContainerRef.current || videoConfig.provider !== "jitsi") return;
+
     const existingScript = document.getElementById("jitsi-api-script");
     if (!existingScript) {
       const script = document.createElement("script");
@@ -56,12 +83,11 @@ export function DealRoomMeeting({
     } else {
       createJitsiMeeting();
     }
-  }, [roomName]);
+  }, [roomName, videoConfig.provider]);
 
   const createJitsiMeeting = () => {
     if (!jitsiContainerRef.current || !(window as any).JitsiMeetExternalAPI) return;
-    
-    // Clean up previous instance
+
     if (jitsiApiRef.current) {
       jitsiApiRef.current.dispose();
     }
@@ -87,23 +113,23 @@ export function DealRoomMeeting({
         DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
         FILM_STRIP_MAX_HEIGHT: 100,
       },
-      userInfo: {
-        displayName: "Projetista",
-      },
+      userInfo: { displayName: "Projetista" },
     });
 
     jitsiApiRef.current = api;
   };
 
   useEffect(() => {
-    initJitsi();
+    if (videoConfig.provider === "jitsi") {
+      initJitsi();
+    }
     return () => {
       if (jitsiApiRef.current) {
         jitsiApiRef.current.dispose();
         jitsiApiRef.current = null;
       }
     };
-  }, [initJitsi]);
+  }, [initJitsi, videoConfig.provider]);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(clientLink);
@@ -120,8 +146,35 @@ export function DealRoomMeeting({
     }
   };
 
+  // Non-Jitsi provider placeholder
+  const renderVideoPlaceholder = () => {
+    const providerNames: Record<string, string> = {
+      daily: "Daily.co", twilio: "Twilio Video", livekit: "LiveKit"
+    };
+    return (
+      <div className="flex-1 flex items-center justify-center bg-muted/20">
+        <div className="text-center space-y-3 p-8">
+          <Video className="h-16 w-16 text-muted-foreground mx-auto" />
+          <h3 className="text-lg font-semibold text-foreground">
+            {providerNames[videoConfig.provider]} Configurado
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-md">
+            A integração com {providerNames[videoConfig.provider]} requer a Edge Function de backend
+            para gerar tokens de acesso. Configure as credenciais na aba de configurações.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => setShowVideoConfig(true)}>
+            <Settings className="h-4 w-4 mr-1" /> Configurar Provedor
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] bg-background">
+      {/* Screen protection */}
+      <DealRoomScreenProtection sessionId={sessionId} userRole="projetista" />
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b bg-card">
         <div className="flex items-center gap-3">
@@ -137,14 +190,17 @@ export function DealRoomMeeting({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowVideoConfig(true)} className="gap-1 text-xs">
+            <Settings className="h-3.5 w-3.5" /> Provedor
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowClientInfo(true)} className="gap-1 text-xs">
-            <User className="h-3.5 w-3.5" /> Dados Cliente
+            <User className="h-3.5 w-3.5" /> Dados
           </Button>
           <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-1 text-xs">
-            <Copy className="h-3.5 w-3.5" /> Copiar Link
+            <Copy className="h-3.5 w-3.5" /> Link
           </Button>
           <Button variant="outline" size="sm" onClick={() => window.open(clientLink, "_blank")} className="gap-1 text-xs">
-            <ExternalLink className="h-3.5 w-3.5" /> Abrir Link
+            <ExternalLink className="h-3.5 w-3.5" /> Abrir
           </Button>
           <Button variant="ghost" size="icon" onClick={toggleFullscreen}>
             <Maximize2 className="h-4 w-4" />
@@ -156,7 +212,15 @@ export function DealRoomMeeting({
       <div className="flex flex-1 overflow-hidden">
         {/* Video area */}
         <div className="flex-1 flex flex-col bg-black relative">
-          <div ref={jitsiContainerRef} className="flex-1 min-h-0" />
+          {videoConfig.provider === "jitsi" ? (
+            <div ref={jitsiContainerRef} className="flex-1 min-h-0" />
+          ) : (
+            renderVideoPlaceholder()
+          )}
+
+          {/* Floating watermark */}
+          <DealRoomWatermark storeName={storeInfo.nome} storePhone={storeInfo.telefone} />
+
           <DealRoomControls
             jitsiApi={jitsiApiRef.current}
             onToggleFullscreen={toggleFullscreen}
@@ -167,12 +231,13 @@ export function DealRoomMeeting({
         {/* Side panel */}
         <div className="w-[380px] border-l flex flex-col bg-card">
           <Tabs value={activePanel} onValueChange={setActivePanel} className="flex flex-col flex-1">
-            <TabsList className="w-full justify-start rounded-none border-b px-2 bg-muted/30 overflow-x-auto flex-shrink-0">
-              <TabsTrigger value="chat" className="gap-1 text-xs"><MessageSquare className="h-3.5 w-3.5" /> Chat</TabsTrigger>
-              <TabsTrigger value="ai" className="gap-1 text-xs"><Brain className="h-3.5 w-3.5" /> IA</TabsTrigger>
-              <TabsTrigger value="anexos" className="gap-1 text-xs"><Paperclip className="h-3.5 w-3.5" /> Anexos</TabsTrigger>
-              <TabsTrigger value="pagamento" className="gap-1 text-xs"><CreditCard className="h-3.5 w-3.5" /> Pagar</TabsTrigger>
-              <TabsTrigger value="assinatura" className="gap-1 text-xs"><FileSignature className="h-3.5 w-3.5" /> Assinar</TabsTrigger>
+            <TabsList className="w-full justify-start rounded-none border-b px-1 bg-muted/30 overflow-x-auto flex-shrink-0">
+              <TabsTrigger value="chat" className="gap-1 text-[10px] px-2"><MessageSquare className="h-3 w-3" /> Chat</TabsTrigger>
+              <TabsTrigger value="ai" className="gap-1 text-[10px] px-2"><Brain className="h-3 w-3" /> IA</TabsTrigger>
+              <TabsTrigger value="anexos" className="gap-1 text-[10px] px-2"><Paperclip className="h-3 w-3" /> Anexos</TabsTrigger>
+              <TabsTrigger value="pagamento" className="gap-1 text-[10px] px-2"><CreditCard className="h-3 w-3" /> Pagar</TabsTrigger>
+              <TabsTrigger value="assinatura" className="gap-1 text-[10px] px-2"><FileSignature className="h-3 w-3" /> Assinar</TabsTrigger>
+              <TabsTrigger value="contrato" className="gap-1 text-[10px] px-2"><FileText className="h-3 w-3" /> Contrato</TabsTrigger>
             </TabsList>
 
             <ScrollArea className="flex-1">
@@ -180,29 +245,25 @@ export function DealRoomMeeting({
                 <DealRoomChat sessionId={sessionId} tenantId={tenantId} userId={userId} />
               </TabsContent>
               <TabsContent value="ai" className="m-0 p-3">
-                <DealRoomAIAssistant
-                  tenantId={tenantId}
-                  clientName={clientName}
-                  proposalValue={proposalValue}
-                />
+                <DealRoomAIAssistant tenantId={tenantId} clientName={clientName} proposalValue={proposalValue} />
               </TabsContent>
               <TabsContent value="anexos" className="m-0 p-3">
                 <DealRoomAttachments sessionId={sessionId} tenantId={tenantId} />
               </TabsContent>
               <TabsContent value="pagamento" className="m-0 p-3">
-                <DealRoomPayments
-                  tenantId={tenantId}
-                  proposalId={proposalId}
-                  proposalValue={proposalValue}
-                  clientName={clientName}
-                />
+                <DealRoomPayments tenantId={tenantId} proposalId={proposalId} proposalValue={proposalValue} clientName={clientName} />
               </TabsContent>
               <TabsContent value="assinatura" className="m-0 p-3">
-                <DealRoomSignature
+                <DealRoomSignature tenantId={tenantId} sessionId={sessionId} clientName={clientName} proposalValue={proposalValue} />
+              </TabsContent>
+              <TabsContent value="contrato" className="m-0 p-3">
+                <DealRoomContractPdf
                   tenantId={tenantId}
                   sessionId={sessionId}
                   clientName={clientName}
                   proposalValue={proposalValue}
+                  storeName={storeInfo.nome}
+                  storePhone={storeInfo.telefone}
                 />
               </TabsContent>
             </ScrollArea>
@@ -212,11 +273,20 @@ export function DealRoomMeeting({
 
       {/* Client Info Dialog */}
       {showClientInfo && clientId && (
-        <DealRoomClientInfo
-          clientId={clientId}
-          tenantId={tenantId}
-          onClose={() => setShowClientInfo(false)}
-        />
+        <DealRoomClientInfo clientId={clientId} tenantId={tenantId} onClose={() => setShowClientInfo(false)} />
+      )}
+
+      {/* Video Config Dialog */}
+      {showVideoConfig && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowVideoConfig(false)}>
+          <div className="max-w-lg w-full" onClick={e => e.stopPropagation()}>
+            <DealRoomVideoConfig
+              config={videoConfig}
+              onChange={setVideoConfig}
+              onSave={() => setShowVideoConfig(false)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
