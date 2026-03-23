@@ -93,7 +93,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-export function BriefingStructuredForm({ responses, onChange, onToggleCheckbox, readOnly }: BriefingStructuredFormProps) {
+export function BriefingStructuredForm({ responses, onChange, onToggleCheckbox, readOnly, sellers = [] }: BriefingStructuredFormProps) {
   const v = (key: string) => responses[key] || "";
   const vArr = (key: string): string[] => Array.isArray(responses[key]) ? responses[key] : [];
   const disabled = readOnly;
