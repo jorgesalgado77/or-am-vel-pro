@@ -18,6 +18,10 @@ interface SelectedPieceInfo {
   width: number;
   height: number;
   depth: number;
+  materialName: string;
+  materialColor: string | null;
+  materialType: string;
+  vertexCount: number;
 }
 
 type BackgroundPreset = "dark" | "light" | "studio";
