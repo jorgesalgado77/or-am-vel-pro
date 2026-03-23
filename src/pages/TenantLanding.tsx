@@ -265,6 +265,7 @@ export default function TenantLanding() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
+  const [honeypot, setHoneypot] = useState("");
 
   useEffect(() => {
     if (!codigo) return;
