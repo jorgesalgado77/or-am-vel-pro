@@ -104,7 +104,7 @@ export async function deleteClient(id: string): Promise<{ error: string | null }
  */
 export async function fetchLastSimulations(): Promise<{
   lastSims: Record<string, LastSimInfo>;
-  allSimulations: { created_at: string; valor_final: number }[];
+  allSimulations: { created_at: string; valor_final: number; valor_com_desconto?: number }[];
 }> {
   const tenantId = await getResolvedTenantId();
 
