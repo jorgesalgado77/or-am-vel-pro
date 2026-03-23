@@ -87,7 +87,10 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
     "Sem regime": activeUsers.filter((u) => !u.tipo_regime),
   };
 
-  const totalSalarios = activeUsers.reduce((sum, u) => sum + (u.salario_fixo || 0), 0);
+  const totalSalarios = activeUsers.reduce((sum, u) => {
+    const cargo = u.cargo_id ? cargos.find(c => c.id === u.cargo_id) : null;
+    return sum + (u.salario_fixo || (cargo as any)?.salario_base || 0);
+  }, 0);
   const mediaSalario = activeUsers.length > 0 ? totalSalarios / activeUsers.length : 0;
 
   // Commission summaries
