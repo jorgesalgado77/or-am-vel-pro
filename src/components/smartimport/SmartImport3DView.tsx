@@ -237,7 +237,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                 </div>
                 <div className="flex items-end">
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Exporte seu projeto em formato .GLB ou .DXF do software de projeto 3D (Promob, SketchUp, 3ds Max, AutoCAD, etc.)
+                    Formatos suportados: .GLB, .DXF, .OBJ, .FBX, .STL — Exporte do Promob, SketchUp, 3ds Max, AutoCAD, Blender, etc.
                   </p>
                 </div>
               </div>
