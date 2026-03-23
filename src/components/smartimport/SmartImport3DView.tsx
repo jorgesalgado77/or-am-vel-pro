@@ -56,7 +56,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
         addonSlug="smart_import_3d"
         price="R$ 197"
         priceExtra="/mês"
-        description="Importe projetos 3D (.GLB / .DXF), visualize ambientes em 3D interativo, selecione módulos, crie biblioteca inteligente e gere orçamentos automáticos."
+        description="Importe projetos 3D (.GLB, .DXF, .OBJ, .FBX, .STL), visualize ambientes em 3D interativo, selecione módulos, crie biblioteca inteligente e gere orçamentos automáticos."
         features={[
           { label: "Visualização 3D", icon: <Box className="h-5 w-5" /> },
           { label: "Biblioteca Inteligente", icon: <BookOpen className="h-5 w-5" /> },
@@ -73,8 +73,9 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
     if (!file) return;
 
     const ext = file.name.toLowerCase();
-    if (!ext.endsWith(".glb") && !ext.endsWith(".dxf")) {
-      toast.error("Apenas arquivos .GLB e .DXF são aceitos");
+    const validExts = [".glb", ".dxf", ".obj", ".fbx", ".stl"];
+    if (!validExts.some(v => ext.endsWith(v))) {
+      toast.error("Formatos aceitos: .GLB, .DXF, .OBJ, .FBX, .STL");
       return;
     }
 
@@ -220,8 +221,8 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                     value={projectName} onChange={e => setProjectName(e.target.value)} />
                 </div>
                 <div className="md:col-span-1">
-                  <Label className="text-xs">Arquivo (.GLB / .DXF)</Label>
-                  <input ref={fileInputRef} type="file" accept=".glb,.dxf"
+                  <Label className="text-xs">Arquivo 3D</Label>
+                  <input ref={fileInputRef} type="file" accept=".glb,.dxf,.obj,.fbx,.stl"
                     onChange={handleUpload} className="hidden" />
                   <Button variant="outline" className="w-full h-9 mt-1 gap-1.5 text-xs"
                     onClick={() => {
@@ -231,12 +232,12 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                       }
                       fileInputRef.current?.click();
                     }} disabled={uploading}>
-                    <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Selecionar .GLB / .DXF"}
+                    <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Selecionar Arquivo 3D"}
                   </Button>
                 </div>
                 <div className="flex items-end">
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Exporte seu projeto em formato .GLB ou .DXF do software de projeto 3D (Promob, SketchUp, 3ds Max, AutoCAD, etc.)
+                    Formatos suportados: .GLB, .DXF, .OBJ, .FBX, .STL — Exporte do Promob, SketchUp, 3ds Max, AutoCAD, Blender, etc.
                   </p>
                 </div>
               </div>
@@ -254,7 +255,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                 <Box className="h-14 w-14 text-muted-foreground mx-auto" />
                 <h4 className="text-lg font-semibold text-foreground">Nenhum projeto importado</h4>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Importe seu primeiro arquivo .GLB ou .DXF para visualizar em 3D, selecionar módulos e gerar orçamentos automaticamente.
+                  Importe seu primeiro arquivo 3D (.GLB, .DXF, .OBJ, .FBX, .STL) para visualizar, selecionar módulos e gerar orçamentos automaticamente.
                 </p>
               </CardContent>
             </Card>
