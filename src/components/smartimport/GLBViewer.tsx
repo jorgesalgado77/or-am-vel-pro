@@ -568,11 +568,17 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
                 // Calculate bounding box dimensions of the selected piece
                 const pieceBox = new THREE.Box3().setFromObject(hit);
                 const pieceSize = pieceBox.getSize(new THREE.Vector3());
-                // Convert from scene scale back to real units (approximate)
                 const scaleF = loadedObject.scale.x || 1;
                 const realW = Math.round((pieceSize.x / scaleF) * 100) / 100;
                 const realH = Math.round((pieceSize.y / scaleF) * 100) / 100;
                 const realD = Math.round((pieceSize.z / scaleF) * 100) / 100;
+
+                // Extract material info
+                const origMat = originalMaterials.get(hit) || hit.material;
+                const matName = origMat?.name || "Padrão";
+                const matColor = origMat?.color?.getHexString?.() || null;
+                const matType = origMat?.type || "Unknown";
+                const vtxCount = hit.geometry?.attributes?.position?.count || 0;
 
                 if (mounted) {
                   setSelectedPiece({
@@ -580,6 +586,10 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
                     width: realW,
                     height: realH,
                     depth: realD,
+                    materialName: matName,
+                    materialColor: matColor,
+                    materialType: matType,
+                    vertexCount: vtxCount,
                   });
                 }
 
