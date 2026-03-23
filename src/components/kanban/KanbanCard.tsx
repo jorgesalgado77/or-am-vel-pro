@@ -70,7 +70,7 @@ export function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, 
             )}
             <div className="flex items-start justify-between gap-1">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{client.nome}</p>
+                <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{client.nome}</p>
                 <div className="flex items-center gap-1 mt-0.5">
                   <p className="text-[11px] text-muted-foreground font-mono">
                     {(client as any).numero_orcamento || "Sem orçamento"}
