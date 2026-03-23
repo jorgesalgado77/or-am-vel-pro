@@ -108,8 +108,13 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
       const nomeUpper = tax.nome.toUpperCase();
       const isINSS = nomeUpper.includes("INSS") && !nomeUpper.includes("PATRONAL");
       const isIRRF = nomeUpper.includes("IRRF");
+      const isFGTS = nomeUpper.includes("FGTS");
+      const isPatronal = nomeUpper.includes("PATRONAL");
       
-      if (isINSS && isProgressivo && inssFaixas.length > 0) {
+      if (isFGTS || isPatronal) {
+        // FGTS e encargos patronais são custo empresa, não descontam do funcionário
+        return;
+      } else if (isINSS && isProgressivo && inssFaixas.length > 0) {
         const inssCalc = calcularINSS(totalBruto, inssFaixas);
         descontos.push({ descricao: `${tax.nome} (${inssCalc.aliquota}% — ${inssCalc.faixa})`, valor: inssCalc.valor });
       } else if (isIRRF && isProgressivo && irrfFaixas.length > 0) {
@@ -118,8 +123,7 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
           descontos.push({ descricao: `${tax.nome} (${irrfCalc.descricao})`, valor: irrfCalc.valor });
         }
       } else {
-        const base = nomeUpper.includes("FGTS") ? salario : totalBruto;
-        descontos.push({ descricao: `${tax.nome} (${tax.aliquota}%)`, valor: (base * tax.aliquota) / 100 });
+        descontos.push({ descricao: `${tax.nome} (${tax.aliquota}%)`, valor: (totalBruto * tax.aliquota) / 100 });
       }
     });
   }
