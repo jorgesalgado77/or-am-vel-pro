@@ -169,7 +169,11 @@ function WebGLViewer({
         // ── CRITICAL: Correct color output ──
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
+        renderer.toneMappingExposure = 1.05;
+        // Enable physically correct lighting (Three.js r155+)
+        if ("useLegacyLights" in renderer) {
+          renderer.useLegacyLights = false;
+        }
 
         if (quality.shadows) {
           renderer.shadowMap.enabled = true;
