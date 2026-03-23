@@ -165,131 +165,133 @@ function parseDxfEntities(dxfText: string): DxfEntity[] {
   return entities;
 }
 
+// Distinct material palette for individual DXF pieces
+const PIECE_PALETTE = [
+  0x5C6BC0, 0x26A69A, 0xEF5350, 0xAB47BC, 0x42A5F5,
+  0x66BB6A, 0xFFA726, 0x8D6E63, 0xEC407A, 0x78909C,
+  0x7E57C2, 0x29B6F6, 0xD4E157, 0x26C6DA, 0xFF7043,
+];
+
 function buildDxfScene(THREE: any, entities: DxfEntity[]): any {
   const group = new THREE.Group();
   group.name = "DXF_Root";
 
-  // Group faces by color for batching
-  const facesByColor: Record<number, Array<any>> = {};
-  const linesByColor: Record<number, Array<any>> = {};
+  let pieceIdx = 0;
+  const toV3 = (p: { x: number; y: number; z: number }) =>
+    new THREE.Vector3(p.x, p.z || 0, -(p.y || 0));
 
   for (const entity of entities) {
-    const color = aciToHex(entity.color);
-    const toV3 = (p: { x: number; y: number; z: number }) =>
-      new THREE.Vector3(p.x, p.z || 0, -(p.y || 0));
+    const entityColor = entity.color !== 7 && entity.color !== 0
+      ? aciToHex(entity.color)
+      : PIECE_PALETTE[pieceIdx % PIECE_PALETTE.length];
+    pieceIdx++;
 
     switch (entity.type) {
       case "3DFACE":
       case "SOLID": {
         if (entity.vertices.length >= 3) {
-          if (!facesByColor[color]) facesByColor[color] = [];
           const verts = entity.vertices.map(toV3);
-          facesByColor[color].push(verts[0], verts[1], verts[2]);
+          const positions: number[] = [];
+          positions.push(verts[0].x, verts[0].y, verts[0].z, verts[1].x, verts[1].y, verts[1].z, verts[2].x, verts[2].y, verts[2].z);
           if (verts.length >= 4) {
-            facesByColor[color].push(verts[0], verts[2], verts[3]);
+            positions.push(verts[0].x, verts[0].y, verts[0].z, verts[2].x, verts[2].y, verts[2].z, verts[3].x, verts[3].y, verts[3].z);
           }
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+          geo.computeVertexNormals();
+          const mat = new THREE.MeshStandardMaterial({
+            color: entityColor, side: THREE.DoubleSide, metalness: 0.15, roughness: 0.6,
+          });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.name = `${entity.type}_${pieceIdx}`;
+          group.add(mesh);
         }
         break;
       }
       case "LINE": {
         if (entity.vertices.length >= 2) {
-          if (!linesByColor[color]) linesByColor[color] = [];
-          linesByColor[color].push(toV3(entity.vertices[0]), toV3(entity.vertices[1]));
+          const geo = new THREE.BufferGeometry().setFromPoints([
+            toV3(entity.vertices[0]), toV3(entity.vertices[1]),
+          ]);
+          const mat = new THREE.LineBasicMaterial({ color: entityColor });
+          const line = new THREE.Line(geo, mat);
+          line.name = `Line_${pieceIdx}`;
+          group.add(line);
         }
         break;
       }
       case "LWPOLYLINE":
       case "POLYLINE": {
         if (entity.vertices.length >= 2) {
-          // Try to create a filled shape if closed and coplanar
+          const subGroup = new THREE.Group();
+          subGroup.name = `${entity.type}_${pieceIdx}`;
+
+          // Filled face if closed
           if (entity.isClosed && entity.vertices.length >= 3) {
-            if (!facesByColor[color]) facesByColor[color] = [];
             const verts = entity.vertices.map(toV3);
-            // Simple fan triangulation
+            const positions: number[] = [];
             for (let t = 1; t < verts.length - 1; t++) {
-              facesByColor[color].push(verts[0], verts[t], verts[t + 1]);
+              positions.push(verts[0].x, verts[0].y, verts[0].z);
+              positions.push(verts[t].x, verts[t].y, verts[t].z);
+              positions.push(verts[t + 1].x, verts[t + 1].y, verts[t + 1].z);
             }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+            geo.computeVertexNormals();
+            const mat = new THREE.MeshStandardMaterial({
+              color: entityColor, side: THREE.DoubleSide, metalness: 0.15, roughness: 0.6,
+              transparent: true, opacity: 0.85,
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.name = `${entity.type}_Face_${pieceIdx}`;
+            subGroup.add(mesh);
           }
-          // Also draw lines
-          if (!linesByColor[color]) linesByColor[color] = [];
-          for (let p = 0; p < entity.vertices.length - 1; p++) {
-            linesByColor[color].push(toV3(entity.vertices[p]), toV3(entity.vertices[p + 1]));
-          }
-          if (entity.isClosed) {
-            linesByColor[color].push(
-              toV3(entity.vertices[entity.vertices.length - 1]),
-              toV3(entity.vertices[0])
-            );
-          }
+
+          // Outline lines
+          const linePoints = entity.vertices.map(toV3);
+          if (entity.isClosed) linePoints.push(toV3(entity.vertices[0]));
+          const geo = new THREE.BufferGeometry().setFromPoints(linePoints);
+          const mat = new THREE.LineBasicMaterial({ color: entityColor });
+          const line = new THREE.Line(geo, mat);
+          line.name = `${entity.type}_Edge_${pieceIdx}`;
+          subGroup.add(line);
+
+          group.add(subGroup);
         }
         break;
       }
       case "CIRCLE": {
-        // vertex[0] = center, radius would need code 40
-        // Simplified: draw as point
         if (entity.vertices.length >= 1) {
-          if (!linesByColor[color]) linesByColor[color] = [];
           const c = toV3(entity.vertices[0]);
-          const r = 0.5; // default radius since we didn't parse code 40 fully
-          const segs = 24;
-          for (let s = 0; s < segs; s++) {
-            const a1 = (s / segs) * Math.PI * 2;
-            const a2 = ((s + 1) / segs) * Math.PI * 2;
-            linesByColor[color].push(
-              new THREE.Vector3(c.x + Math.cos(a1) * r, c.y, c.z + Math.sin(a1) * r),
-              new THREE.Vector3(c.x + Math.cos(a2) * r, c.y, c.z + Math.sin(a2) * r),
-            );
+          const r = (entity as any).radius || 0.5;
+          const pts: any[] = [];
+          const segs = 32;
+          for (let s = 0; s <= segs; s++) {
+            const a = (s / segs) * Math.PI * 2;
+            pts.push(new THREE.Vector3(c.x + Math.cos(a) * r, c.y, c.z + Math.sin(a) * r));
           }
+          const geo = new THREE.BufferGeometry().setFromPoints(pts);
+          const mat = new THREE.LineBasicMaterial({ color: entityColor });
+          const line = new THREE.Line(geo, mat);
+          line.name = `Circle_${pieceIdx}`;
+          group.add(line);
         }
         break;
       }
       default: {
-        // Fallback: draw as lines if we have vertices
         if (entity.vertices.length >= 2) {
-          if (!linesByColor[color]) linesByColor[color] = [];
-          for (let p = 0; p < entity.vertices.length - 1; p++) {
-            linesByColor[color].push(toV3(entity.vertices[p]), toV3(entity.vertices[p + 1]));
-          }
+          const pts = entity.vertices.map(toV3);
+          const geo = new THREE.BufferGeometry().setFromPoints(pts);
+          const mat = new THREE.LineBasicMaterial({ color: entityColor });
+          const line = new THREE.Line(geo, mat);
+          line.name = `Entity_${pieceIdx}`;
+          group.add(line);
         }
         break;
       }
     }
   }
 
-  // Build batched meshes for faces
-  for (const [colorStr, verts] of Object.entries(facesByColor)) {
-    const color = parseInt(colorStr);
-    const positions = new Float32Array(verts.length * 3);
-    verts.forEach((v: any, idx: number) => {
-      positions[idx * 3] = v.x;
-      positions[idx * 3 + 1] = v.y;
-      positions[idx * 3 + 2] = v.z;
-    });
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.computeVertexNormals();
-    const mat = new THREE.MeshStandardMaterial({
-      color,
-      side: THREE.DoubleSide,
-      metalness: 0.1,
-      roughness: 0.7,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.name = `DXF_Faces_${colorStr}`;
-    group.add(mesh);
-  }
-
-  // Build batched lines
-  for (const [colorStr, verts] of Object.entries(linesByColor)) {
-    const color = parseInt(colorStr);
-    const geo = new THREE.BufferGeometry().setFromPoints(verts);
-    const mat = new THREE.LineBasicMaterial({ color, linewidth: 1.5 });
-    const lineSegments = new THREE.LineSegments(geo, mat);
-    lineSegments.name = `DXF_Lines_${colorStr}`;
-    group.add(lineSegments);
-  }
-
-  // If empty, add placeholder
   if (group.children.length === 0) {
     const geo = new THREE.BoxGeometry(2, 2, 0.1);
     const mat = new THREE.MeshStandardMaterial({ color: 0x4499bb, wireframe: true });
