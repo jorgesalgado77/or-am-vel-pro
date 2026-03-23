@@ -248,6 +248,7 @@ function SimulationCard({
   isSelected,
   onToggle,
   onDelete,
+  onLoad,
 }: {
   simulation: Simulation;
   clientName: string;
