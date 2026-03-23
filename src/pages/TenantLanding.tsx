@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { maskPhone, unmask } from "@/lib/masks";
+import { validateFileUpload } from "@/lib/validation";
 import { toast } from "sonner";
 
 // TikTok icon (not in lucide)
