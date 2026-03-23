@@ -24,13 +24,14 @@ interface SelectedPieceInfo {
   vertexCount: number;
 }
 
-type BackgroundPreset = "dark" | "light" | "studio";
+type BackgroundPreset = "dark" | "light" | "studio" | "clean";
 type LightingPreset = "balanced" | "soft" | "contrast";
 
-const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground: number }> = {
-  dark: { background: 0x1e293b, ground: 0x111827 },
-  light: { background: 0xf8fafc, ground: 0xe2e8f0 },
-  studio: { background: 0x202938, ground: 0x334155 },
+const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground: number; showGrid: boolean }> = {
+  dark: { background: 0x1e293b, ground: 0x111827, showGrid: true },
+  light: { background: 0xf8fafc, ground: 0xe2e8f0, showGrid: true },
+  studio: { background: 0x202938, ground: 0x334155, showGrid: true },
+  clean: { background: 0xffffff, ground: 0xffffff, showGrid: false },
 };
 
 const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; fill: number; rim: number; hemi: number }> = {
