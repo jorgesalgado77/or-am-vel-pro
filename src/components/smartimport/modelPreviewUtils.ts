@@ -27,22 +27,6 @@ const TEXTURE_KEYS = [
   "roughnessMap", "specularMap",
 ];
 
-// ── Model cache ─────────────────────────────────────────────
-const modelCache = new Map<string, any>();
-const MAX_CACHE_SIZE = 5;
-
-function addToCache(key: string, object: any) {
-  if (modelCache.size >= MAX_CACHE_SIZE) {
-    const firstKey = modelCache.keys().next().value;
-    if (firstKey) modelCache.delete(firstKey);
-  }
-  modelCache.set(key, object);
-}
-
-export function clearModelCache() {
-  modelCache.clear();
-}
-
 // ── Utilities ───────────────────────────────────────────────
 
 export function getFileExtension(url: string): string {
@@ -89,18 +73,13 @@ function ensureMaterialVisibility(THREE: any, material: any): any {
   if (Array.isArray(material)) {
     return material.map((m: any) => ensureMaterialVisibility(THREE, m));
   }
-
-  // If material has a texture map, it's fine — keep it
   if (material.map) return material;
 
-  // Check if material color is pure white (0xffffff) with no other visual info
   const color = material.color;
   if (color && color.r === 1 && color.g === 1 && color.b === 1) {
-    // Check if there's any other visual property set
     const hasVisualData = material.map || material.normalMap || material.bumpMap ||
       material.metalnessMap || material.roughnessMap || material.emissiveMap;
     if (!hasVisualData && material.type !== "MeshPhysicalMaterial") {
-      // Apply a neutral warm gray so it's visible but not distracting
       material.color = new THREE.Color(0xd4d4d8);
       material.metalness = material.metalness ?? 0.05;
       material.roughness = material.roughness ?? 0.65;
@@ -113,7 +92,6 @@ function ensureMaterialVisibility(THREE: any, material: any): any {
 /**
  * CRITICAL: Preserve original materials from the file.
  * Only apply minimal fixes (double-side, texture color space, compute normals).
- * If material is pure white with no textures, apply neutral fallback for visibility.
  */
 function prepareObjectForPreview(THREE: any, root: any) {
   let meshIndex = 0;
@@ -128,10 +106,7 @@ function prepareObjectForPreview(THREE: any, root: any) {
         child.geometry?.computeVertexNormals?.();
       }
 
-      // Fix texture color spaces and set double-side
       fixTextureColorSpaces(THREE, child.material);
-
-      // Ensure visibility for materials without textures
       child.material = ensureMaterialVisibility(THREE, child.material);
 
       // Store reference for selection highlight/restore
@@ -147,49 +122,7 @@ function prepareObjectForPreview(THREE: any, root: any) {
     }
   });
 
-  // Instancing pass: merge repeated geometries into InstancedMesh
-  applyInstancing(THREE, root);
-
   return root;
-}
-
-/**
- * Detect duplicate geometries by vertex count + index count signature.
- * Replace groups of identical meshes with InstancedMesh for GPU efficiency.
- */
-function applyInstancing(THREE: any, root: any) {
-  const geoMap = new Map<string, any[]>();
-
-  root.traverse((child: any) => {
-    if (!child.isMesh || !child.geometry) return;
-    const geo = child.geometry;
-    const vCount = geo.attributes?.position?.count || 0;
-    const iCount = geo.index?.count || 0;
-    const key = `${vCount}_${iCount}`;
-    if (!geoMap.has(key)) geoMap.set(key, []);
-    geoMap.get(key)!.push(child);
-  });
-
-  geoMap.forEach((meshes) => {
-    if (meshes.length < 3) return;
-
-    const refMesh = meshes[0];
-    const instMesh = new THREE.InstancedMesh(refMesh.geometry, refMesh.material, meshes.length);
-    instMesh.name = `Instanced_${refMesh.name}`;
-    instMesh.userData.originalMaterial = refMesh.material;
-    instMesh.frustumCulled = true;
-
-    const matrix = new THREE.Matrix4();
-    meshes.forEach((m: any, i: number) => {
-      m.updateWorldMatrix(true, false);
-      matrix.copy(m.matrixWorld);
-      instMesh.setMatrixAt(i, matrix);
-      m.parent?.remove(m);
-    });
-
-    instMesh.instanceMatrix.needsUpdate = true;
-    root.add(instMesh);
-  });
 }
 
 /**
@@ -343,15 +276,9 @@ function buildDxfScene(THREE: any, entities: DxfEntity[]) {
   return group;
 }
 
-// ── Model Loader ────────────────────────────────────────────
+// ── Model Loader (no cache — avoids clone/material corruption) ──
 
 export async function loadModelForPreview(THREE: any, fileUrl: string, onProgress?: (event: ProgressEvent<EventTarget>) => void) {
-  // Check cache first
-  const cached = modelCache.get(fileUrl);
-  if (cached) {
-    return cached.clone();
-  }
-
   const ext = getFileExtension(fileUrl);
   let loadedObject: any = null;
 
@@ -409,9 +336,6 @@ export async function loadModelForPreview(THREE: any, fileUrl: string, onProgres
       new THREE.MeshStandardMaterial({ color: PREVIEW_FALLBACK_COLOR, wireframe: true, side: THREE.DoubleSide }),
     );
   }
-
-  // Cache the loaded model
-  addToCache(fileUrl, loadedObject);
 
   return loadedObject;
 }

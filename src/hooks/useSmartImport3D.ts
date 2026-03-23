@@ -30,7 +30,6 @@ export interface ModuleLibraryItem {
   cost: number;
   materials: string;
   created_at: string;
-  // Extended fields
   width?: number;
   height?: number;
   depth?: number;
@@ -46,6 +45,12 @@ export interface ModuleLibraryItem {
   cor_fita_borda?: string;
 }
 
+export interface UploadProgress {
+  stage: "uploading" | "saving" | "thumbnail" | "done";
+  percent: number;
+  label: string;
+}
+
 export function useSmartImport3D(tenantId: string | null) {
   const [projects, setProjects] = useState<ImportedProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<ImportedProject | null>(null);
@@ -54,13 +59,13 @@ export function useSmartImport3D(tenantId: string | null) {
   const [loading, setLoading] = useState(false);
   const [addonActive, setAddonActive] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   // Check addon access
   const checkAccess = useCallback(async () => {
     if (!tenantId) { setCheckingAccess(false); return; }
     setCheckingAccess(true);
 
-    // Check recursos_vip or company_addons
     const { data: tenant } = await supabase
       .from("tenants")
       .select("recursos_vip")
@@ -74,7 +79,6 @@ export function useSmartImport3D(tenantId: string | null) {
       return;
     }
 
-    // Check company_addons table
     const { data: companyAddon } = await supabase
       .from("company_addons" as any)
       .select("status")
@@ -126,54 +130,79 @@ export function useSmartImport3D(tenantId: string | null) {
 
   useEffect(() => { if (addonActive) loadLibrary(); }, [loadLibrary, addonActive]);
 
-  // Upload GLB file
+  // Upload 3D file — non-blocking thumbnail generation
   const uploadProject = async (file: File, projectName: string): Promise<ImportedProject | null> => {
     if (!tenantId) return null;
 
-    const filePath = `${tenantId}/3d-projects/${Date.now()}-${file.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from("smart-import-3d")
-      .upload(filePath, file, { contentType: getSmartImportContentType(file) });
-
-    if (uploadError) {
-      toast.error("Erro ao enviar arquivo 3D");
-      console.error(uploadError);
-      return null;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from("smart-import-3d")
-      .getPublicUrl(filePath);
-
-    const { data, error } = await supabase
-      .from("imported_projects" as any)
-      .insert({
-        company_id: tenantId,
-        name: projectName,
-        file_url: urlData.publicUrl,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error("Erro ao salvar projeto");
-      return null;
-    }
-
-    let thumbnailUrl: string | null = null;
     try {
-      thumbnailUrl = await persistProjectThumbnail((data as any).id, urlData.publicUrl);
-    } catch (thumbnailError) {
-      console.error("Erro ao gerar miniatura persistida:", thumbnailError);
-      toast.warning("Projeto importado, mas a miniatura ainda não foi gerada.");
-    }
+      // Stage 1: Upload file
+      setUploadProgress({ stage: "uploading", percent: 20, label: "Enviando arquivo 3D..." });
 
-    toast.success("Projeto 3D importado com sucesso!");
-    setProjects((prev) => [{ ...(data as any), thumbnail_url: thumbnailUrl || (data as any).thumbnail_url }, ...prev]);
-    return {
-      ...(data as any),
-      thumbnail_url: thumbnailUrl || (data as any).thumbnail_url,
-    } as any;
+      const filePath = `${tenantId}/3d-projects/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("smart-import-3d")
+        .upload(filePath, file, { contentType: getSmartImportContentType(file) });
+
+      if (uploadError) {
+        toast.error("Erro ao enviar arquivo 3D");
+        console.error(uploadError);
+        setUploadProgress(null);
+        return null;
+      }
+
+      setUploadProgress({ stage: "saving", percent: 60, label: "Salvando projeto..." });
+
+      const { data: urlData } = supabase.storage
+        .from("smart-import-3d")
+        .getPublicUrl(filePath);
+
+      // Stage 2: Save project record
+      const { data, error } = await supabase
+        .from("imported_projects" as any)
+        .insert({
+          company_id: tenantId,
+          name: projectName,
+          file_url: urlData.publicUrl,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        toast.error("Erro ao salvar projeto");
+        setUploadProgress(null);
+        return null;
+      }
+
+      const project = data as any;
+
+      // Stage 3: Add project to list immediately (no waiting for thumbnail)
+      setProjects((prev) => [project, ...prev]);
+      toast.success("Projeto 3D importado com sucesso!");
+
+      setUploadProgress({ stage: "thumbnail", percent: 85, label: "Gerando miniatura..." });
+
+      // Generate thumbnail in background — don't block
+      persistProjectThumbnail(project.id, urlData.publicUrl)
+        .then((thumbnailUrl) => {
+          setProjects((prev) =>
+            prev.map((p) => p.id === project.id ? { ...p, thumbnail_url: thumbnailUrl } : p)
+          );
+        })
+        .catch((err) => {
+          console.warn("Thumbnail generation failed:", err);
+        })
+        .finally(() => {
+          setUploadProgress({ stage: "done", percent: 100, label: "Concluído!" });
+          setTimeout(() => setUploadProgress(null), 1500);
+        });
+
+      return project as ImportedProject;
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Erro inesperado no upload");
+      setUploadProgress(null);
+      return null;
+    }
   };
 
   // Save object classification
@@ -187,7 +216,6 @@ export function useSmartImport3D(tenantId: string | null) {
       toast.error("Erro ao classificar objeto");
       return false;
     }
-    // Refresh
     if (selectedProject) loadProjectObjects(selectedProject.id);
     return true;
   };
@@ -210,7 +238,6 @@ export function useSmartImport3D(tenantId: string | null) {
     return data;
   };
 
-  // Update library item
   const updateLibraryItem = async (id: string, updates: Partial<ModuleLibraryItem>) => {
     const { error } = await supabase
       .from("module_library" as any)
@@ -225,7 +252,6 @@ export function useSmartImport3D(tenantId: string | null) {
     return true;
   };
 
-  // Delete library item
   const deleteLibraryItem = async (id: string) => {
     const { error } = await supabase
       .from("module_library" as any)
@@ -240,7 +266,6 @@ export function useSmartImport3D(tenantId: string | null) {
     return true;
   };
 
-  // Delete project
   const deleteProject = async (id: string) => {
     const { error } = await supabase
       .from("imported_projects" as any)
@@ -256,7 +281,6 @@ export function useSmartImport3D(tenantId: string | null) {
     return true;
   };
 
-  // Generate budget from objects
   const generateBudget = () => {
     const modules = projectObjects.filter(o => o.type === "module");
     const accessories = projectObjects.filter(o => o.type === "accessory");
@@ -276,7 +300,7 @@ export function useSmartImport3D(tenantId: string | null) {
 
   return {
     projects, selectedProject, setSelectedProject, projectObjects,
-    library, loading, addonActive, checkingAccess,
+    library, loading, addonActive, checkingAccess, uploadProgress,
     uploadProject, loadProjectObjects, classifyObject,
     addToLibrary, updateLibraryItem, deleteLibraryItem,
     deleteProject, generateBudget, loadProjects, loadLibrary,
