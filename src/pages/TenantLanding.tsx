@@ -265,6 +265,7 @@ export default function TenantLanding() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
+  const [honeypot, setHoneypot] = useState("");
 
   useEffect(() => {
     if (!codigo) return;
@@ -529,6 +530,7 @@ export default function TenantLanding() {
     }
 
     if (!nome.trim() || !telefone.trim()) { toast.error("Preencha nome e telefone"); return; }
+    if (honeypot) { setSent(true); return; } // Honeypot — bots fill hidden fields
     const cleanPhone = unmask(telefone);
     if (cleanPhone.length < 10) { toast.error("Telefone inválido"); return; }
     if (!tenant?.id) { toast.error("Loja não identificada."); return; }
@@ -819,8 +821,12 @@ export default function TenantLanding() {
                     <p className="text-xs sm:text-sm text-gray-400">Sem compromisso. Retornamos em até 24h.</p>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="space-y-3">
-                    <div className="space-y-1">
+                   <form onSubmit={handleSubmit} className="space-y-3">
+                     {/* Honeypot anti-bot */}
+                     <div className="absolute -top-[9999px] -left-[9999px]" aria-hidden="true" tabIndex={-1}>
+                       <input type="text" name="website_url" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} autoComplete="off" tabIndex={-1} />
+                     </div>
+                     <div className="space-y-1">
                       <Label htmlFor="lead-nome" className="text-xs sm:text-sm font-medium text-gray-300">Seu Nome</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />

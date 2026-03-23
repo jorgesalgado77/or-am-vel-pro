@@ -9,11 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Handshake, Pencil, Trash2, History, FileText, Phone, Mail, User, Hash, Clock,
-  AlertTriangle, CalendarIcon, FileQuestion, Paperclip, ExternalLink, Download,
+  AlertTriangle, CalendarIcon, FileQuestion, Paperclip, ExternalLink, Download, ArrowRight,
 } from "lucide-react";
 import { BriefingModal } from "@/components/BriefingModal";
 import { supabase } from "@/lib/supabaseClient";
@@ -144,7 +143,7 @@ export function KanbanClientDialog({
 
         <Separator className="my-3" />
 
-        <ScrollArea className="flex-1 pr-3">
+        <div className="flex-1 overflow-y-auto pr-1 -mr-1" style={{ maxHeight: "calc(90vh - 200px)" }}>
           <div className="space-y-4">
             {/* Client info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
@@ -173,6 +172,41 @@ export function KanbanClientDialog({
                 </div>
               )}
             </div>
+
+            {/* Lead origin info */}
+            {(client as any).origem_lead && (
+              <div className="bg-primary/5 rounded-lg p-3 space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <ArrowRight className="h-3.5 w-3.5" /> Dados da Captação
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Origem</span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {(client as any).origem_lead === "landing_page" ? "Landing Page" :
+                       (client as any).origem_lead === "indicacao" ? "Indicação" :
+                       (client as any).origem_lead === "site" ? "Site" :
+                       (client as any).origem_lead}
+                    </Badge>
+                  </div>
+                  {(client as any).lead_temperature && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Temperatura</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {(client as any).lead_temperature === "quente" ? "🔥 Quente" :
+                         (client as any).lead_temperature === "morno" ? "🟡 Morno" : "❄️ Frio"}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+                {client.descricao_ambientes && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground block mb-1 text-xs">Interesse / Descrição</span>
+                    <p className="text-foreground text-xs bg-background/60 rounded-md p-2">{client.descricao_ambientes}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Datas e tempo */}
             <div className="bg-muted/30 rounded-lg p-3 space-y-2">
@@ -211,7 +245,10 @@ export function KanbanClientDialog({
                     <SelectContent>
                       <SelectItem value="__none__">Sem responsável</SelectItem>
                       {usuarios
-                        .filter(u => u.ativo && u.cargo_nome && !u.cargo_nome.toLowerCase().includes("admin"))
+                        .filter(u => u.ativo && u.cargo_nome && (
+                          u.cargo_nome.toLowerCase().includes("vendedor") ||
+                          u.cargo_nome.toLowerCase().includes("projetista")
+                        ))
                         .map(p => (
                           <SelectItem key={p.id} value={p.nome_completo}>{p.nome_completo} ({p.cargo_nome})</SelectItem>
                         ))}
@@ -332,7 +369,7 @@ export function KanbanClientDialog({
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <Separator className="my-3" />
 

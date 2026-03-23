@@ -24,6 +24,7 @@ interface LandingLeadFormProps {
 
 export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
   const [form, setForm] = useState({ nome: "", area_atuacao: "", cargo: "", telefone: "", email: "", interesse: "" });
+  const [honeypot, setHoneypot] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -41,6 +42,12 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
     }
 
     setErrors({});
+
+    // Honeypot check — bots fill hidden fields
+    if (honeypot) {
+      setSubmitted(true);
+      return;
+    }
 
     const result = leadSchema.safeParse(form);
     if (!result.success) {
@@ -138,6 +145,19 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
           <AnimatedSection variant="slideRight">
             <div className="bg-gray-50 rounded-2xl p-8 border border-gray-200">
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Honeypot — invisible to users, bots auto-fill it */}
+                <div className="absolute -top-[9999px] -left-[9999px]" aria-hidden="true" tabIndex={-1}>
+                  <label htmlFor="company_website_lf">Website</label>
+                  <input
+                    type="text"
+                    id="company_website_lf"
+                    name="company_website"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                    autoComplete="off"
+                    tabIndex={-1}
+                  />
+                </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Nome completo *</Label>
                   <Input
