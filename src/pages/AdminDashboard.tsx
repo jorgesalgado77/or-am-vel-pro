@@ -15,7 +15,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminClientsModal} from "@/components/admin/AdminClientsModal";
@@ -129,6 +129,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tOcultarIndicador, setTOcultarIndicador] = useState(false);
   const [tDealRoom, setTDealRoom] = useState(false);
   const [tVendaZap, setTVendaZap] = useState(false);
+  const [t3dImport, setT3dImport] = useState(false);
 
   const fetchAddonInterestCount = async () => {
     const { count } = await supabase
@@ -290,6 +291,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTOcultarIndicador(false);
     setTDealRoom(false);
     setTVendaZap(false);
+    setT3dImport(false);
     setShowTenantDialog(true);
   };
 
@@ -302,6 +304,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTOcultarIndicador(vip.ocultar_indicador || false);
     setTDealRoom(vip.deal_room || false);
     setTVendaZap(vip.vendazap || false);
+    setT3dImport(vip.smart_import_3d || false);
     setShowTenantDialog(true);
   };
 
@@ -317,7 +320,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       plano_periodo: tPeriodo,
       max_usuarios: maxUsers,
       ativo: tAtivo,
-      recursos_vip: { ocultar_indicador: tOcultarIndicador, deal_room: tDealRoom, vendazap: tVendaZap },
+      recursos_vip: { ocultar_indicador: tOcultarIndicador, deal_room: tDealRoom, vendazap: tVendaZap, smart_import_3d: t3dImport },
     };
 
     if (editingTenant) {
@@ -347,7 +350,6 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         usuario_nome: adminName,
         detalhes: { loja_id: id },
       });
-      // Update local state immediately
       setTenants(prev => prev.filter(t => t.id !== id));
       return;
     }
@@ -356,7 +358,14 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const { error } = await supabase.from("tenants").delete().eq("id", id);
     if (error) {
       console.error("Erro ao excluir loja:", error);
-      toast.error("Erro ao excluir loja. Verifique permissões RLS.");
+      // Even if DB delete fails, try to deactivate instead
+      const { error: deactError } = await supabase.from("tenants").update({ ativo: false } as any).eq("id", id);
+      if (!deactError) {
+        toast.warning("Loja desativada (sem permissão para excluir permanentemente)");
+        fetchData();
+      } else {
+        toast.error("Erro ao excluir loja. Verifique permissões RLS.");
+      }
       return;
     }
     toast.success("Loja excluída com sucesso");
@@ -663,6 +672,28 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                               >
                                 <Handshake className="h-3 w-3" />DR
                               </Button>
+                              <Button
+                                variant={vip.smart_import_3d ? "default" : "outline"}
+                                size="sm"
+                                className={`h-7 text-[10px] gap-1 px-2 ${vip.smart_import_3d ? "bg-primary text-primary-foreground" : ""}`}
+                                title={vip.smart_import_3d ? "Clique para revogar 3D Smart Import" : "Clique para liberar 3D Smart Import"}
+                                onClick={async () => {
+                                  const newVip = { ...vip, smart_import_3d: !vip.smart_import_3d };
+                                  await supabase.from("tenants").update({ recursos_vip: newVip } as any).eq("id", t.id);
+                                  logAudit({
+                                    acao: !vip.smart_import_3d ? "addon_liberado" : "addon_revogado",
+                                    entidade: "tenant",
+                                    entidade_id: t.id,
+                                    usuario_nome: adminName,
+                                    tenant_id: t.id,
+                                    detalhes: { addon: "smart_import_3d", loja: t.nome_loja },
+                                  });
+                                  toast.success(`3D Smart Import ${!vip.smart_import_3d ? "liberado" : "revogado"} para ${t.nome_loja}`);
+                                  fetchData();
+                                }}
+                              >
+                                <Box className="h-3 w-3" />3D
+                              </Button>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -871,6 +902,16 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                   </div>
                 </div>
                 <Switch checked={tVendaZap} onCheckedChange={setTVendaZap} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Box className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">3D Smart Import</p>
+                    <p className="text-xs text-muted-foreground">Importação 3D, orçamento inteligente e biblioteca de módulos</p>
+                  </div>
+                </div>
+                <Switch checked={t3dImport} onCheckedChange={setT3dImport} />
               </div>
             </div>
           </div>
