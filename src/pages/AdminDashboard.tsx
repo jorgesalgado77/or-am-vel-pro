@@ -12,10 +12,15 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/c
 import {Switch} from "@/components/ui/switch";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle,
 } from "lucide-react";
+import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
+import {AdminClientsModal} from "@/components/admin/AdminClientsModal";
+import {AdminInactiveStoresModal} from "@/components/admin/AdminInactiveStoresModal";
+import {AdminContractsValueCard} from "@/components/admin/AdminContractsValueCard";
 import {AdminTickets} from "@/components/admin/AdminTickets";
 import {AdminVendaZap} from "@/components/admin/AdminVendaZap";
 import {AdminLandingPage} from "@/components/admin/AdminLandingPage";
