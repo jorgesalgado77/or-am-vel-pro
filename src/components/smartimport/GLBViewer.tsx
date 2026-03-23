@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { loadModelForPreview } from "./modelPreviewUtils";
 
 interface GLBViewerProps {
   fileUrl: string;
@@ -16,6 +18,36 @@ interface SelectedPieceInfo {
   width: number;
   height: number;
   depth: number;
+}
+
+type BackgroundPreset = "dark" | "light" | "studio";
+type LightingPreset = "balanced" | "soft" | "contrast";
+
+const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground: number }> = {
+  dark: { background: 0x1e293b, ground: 0x111827 },
+  light: { background: 0xf8fafc, ground: 0xe2e8f0 },
+  studio: { background: 0x202938, ground: 0x334155 },
+};
+
+const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; fill: number; rim: number; hemi: number }> = {
+  balanced: { ambient: 0.8, key: 1, fill: 0.6, rim: 0.3, hemi: 0.4 },
+  soft: { ambient: 1.05, key: 0.85, fill: 0.75, rim: 0.18, hemi: 0.55 },
+  contrast: { ambient: 0.55, key: 1.3, fill: 0.38, rim: 0.55, hemi: 0.28 },
+};
+
+function applyBackgroundPreset(THREE: any, scene: any, preset: BackgroundPreset) {
+  const palette = BACKGROUND_PRESETS[preset];
+  scene.background = new THREE.Color(palette.background);
+  scene.fog = new THREE.Fog(palette.background, 40, 100);
+}
+
+function applyLightingPreset(lights: any, preset: LightingPreset) {
+  const config = LIGHTING_PRESETS[preset];
+  lights.ambient.intensity = config.ambient;
+  lights.dir1.intensity = config.key;
+  lights.dir2.intensity = config.fill;
+  lights.dir3.intensity = config.rim;
+  lights.hemi.intensity = config.hemi;
 }
 
 function getFileExtension(url: string): string {
@@ -315,7 +347,7 @@ function LoadingOverlay({ progress, label }: { progress: number; label: string }
   );
 }
 
-function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any> }) {
+function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, lightingPreset }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any>; backgroundPreset: BackgroundPreset; lightingPreset: LightingPreset }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -358,12 +390,11 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
         });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0x1e293b);
         renderer.toneMapping = THREE.NoToneMapping;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         const scene = new THREE.Scene();
-        scene.fog = new THREE.Fog(0x1e293b, 40, 100);
+        applyBackgroundPreset(THREE, scene, backgroundPreset);
 
         const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
         camera.position.set(8, 6, 8);
@@ -404,17 +435,26 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
         scene.add(dir3);
         const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
         scene.add(hemi);
+        applyLightingPreset({ ambient, dir1, dir2, dir3, hemi }, lightingPreset);
 
         // Grid
-        const grid = new THREE.GridHelper(30, 30, 0x374151, 0x4b5563);
+        const gridPalette = BACKGROUND_PRESETS[backgroundPreset];
+        const grid = new THREE.GridHelper(30, 30, gridPalette.ground, gridPalette.ground);
         (grid.material as any).opacity = 0.4;
         (grid.material as any).transparent = true;
         scene.add(grid);
 
+        threeRef.current = {
+          THREE,
+          scene,
+          renderer,
+          lights: { ambient, dir1, dir2, dir3, hemi },
+          grid,
+        };
+
         setProgress(40);
         setProgressLabel("Carregando arquivo...");
 
-        const ext = getFileExtension(fileUrl);
         try {
           let loadedObject: any = null;
 
@@ -424,104 +464,8 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
               if (mounted) setProgress(Math.min(pct, 80));
             }
           };
-
-
-          if (ext === "glb" || ext === "gltf") {
-            setProgressLabel("Processando modelo GLB...");
-            const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
-            const loader = new GLTFLoader();
-            const gltf = await new Promise<any>((resolve, reject) =>
-              loader.load(fileUrl, resolve, onProgress, reject)
-            );
-            loadedObject = gltf.scene;
-            // Preserve original materials, assign colors to uncolored meshes
-            let meshIdx = 0;
-            loadedObject.traverse((child: any) => {
-              if (child.isMesh) {
-                if (child.material) {
-                  if (child.material.map) child.material.map.colorSpace = THREE.SRGBColorSpace;
-                  // If material is default white with no texture, assign a distinct color
-                  if (!child.material.map && child.material.color &&
-                      child.material.color.getHex() === 0xffffff) {
-                    child.material = new THREE.MeshStandardMaterial({
-                      color: PIECE_PALETTE[meshIdx % PIECE_PALETTE.length],
-                      metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide,
-                    });
-                  }
-                  child.material.needsUpdate = true;
-                }
-                if (!child.name) child.name = `Peça_${meshIdx + 1}`;
-                meshIdx++;
-              }
-            });
-          } else if (ext === "obj") {
-            setProgressLabel("Processando modelo OBJ...");
-            const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader.js");
-            const loader = new OBJLoader();
-            const obj = await new Promise<any>((resolve, reject) =>
-              loader.load(fileUrl, resolve, onProgress, reject)
-            );
-            loadedObject = obj;
-            // Assign distinct colors to OBJ meshes
-            let objIdx = 0;
-            loadedObject.traverse((child: any) => {
-              if (child.isMesh) {
-                if (!child.material?.map) {
-                  child.material = new THREE.MeshStandardMaterial({
-                    color: PIECE_PALETTE[objIdx % PIECE_PALETTE.length],
-                    metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide,
-                  });
-                }
-                if (!child.name) child.name = `Peça_${objIdx + 1}`;
-                objIdx++;
-              }
-            });
-          } else if (ext === "stl") {
-            setProgressLabel("Processando modelo STL...");
-            const { STLLoader } = await import("three/examples/jsm/loaders/STLLoader.js");
-            const loader = new STLLoader();
-            const geometry = await new Promise<any>((resolve, reject) =>
-              loader.load(fileUrl, resolve, onProgress, reject)
-            );
-            const material = new THREE.MeshStandardMaterial({
-              color: 0x5C6BC0, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide,
-            });
-            loadedObject = new THREE.Mesh(geometry, material);
-            loadedObject.name = "Peça_STL";
-          } else if (ext === "fbx") {
-            setProgressLabel("Processando modelo FBX...");
-            const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
-            const loader = new FBXLoader();
-            const fbx = await new Promise<any>((resolve, reject) =>
-              loader.load(fileUrl, resolve, onProgress, reject)
-            );
-            loadedObject = fbx;
-            let fbxIdx = 0;
-            loadedObject.traverse((child: any) => {
-              if (child.isMesh) {
-                if (!child.material?.map) {
-                  child.material = new THREE.MeshStandardMaterial({
-                    color: PIECE_PALETTE[fbxIdx % PIECE_PALETTE.length],
-                    metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide,
-                  });
-                }
-                if (!child.name) child.name = `Peça_${fbxIdx + 1}`;
-                fbxIdx++;
-              }
-            });
-          } else if (ext === "dxf") {
-            setProgressLabel("Processando arquivo DXF...");
-            const response = await fetch(fileUrl);
-            const text = await response.text();
-            if (mounted) setProgress(60);
-            setProgressLabel("Renderizando geometrias DXF...");
-            const dxfEntities = parseDxfEntities(text);
-            loadedObject = buildDxfScene(THREE, dxfEntities);
-          } else {
-            const geo = new THREE.BoxGeometry(2, 2, 2);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x8899aa, wireframe: true });
-            loadedObject = new THREE.Mesh(geo, mat);
-          }
+          setProgressLabel("Processando modelo...");
+          loadedObject = await loadModelForPreview(THREE, fileUrl, onProgress);
 
           if (mounted) {
             setProgress(85);
@@ -709,7 +653,20 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
     })();
 
     return () => { mounted = false; };
-  }, [fileUrl, onObjectSelect]);
+  }, [backgroundPreset, fileUrl, lightingPreset, onObjectSelect]);
+
+  useEffect(() => {
+    if (!threeRef.current) return;
+
+    const { THREE, scene, renderer, lights, grid } = threeRef.current;
+    applyBackgroundPreset(THREE, scene, backgroundPreset);
+    applyLightingPreset(lights, lightingPreset);
+
+    const gridPalette = BACKGROUND_PRESETS[backgroundPreset];
+    grid.material.color?.setHex?.(gridPalette.ground);
+    grid.material.needsUpdate = true;
+    renderer.setClearColor(gridPalette.background);
+  }, [backgroundPreset, lightingPreset]);
 
   if (error) return <FallbackView message={error} fileUrl={fileUrl} />;
 
@@ -765,6 +722,8 @@ function FallbackView({ message, fileUrl }: { message: string; fileUrl: string }
 export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAutoRotating, setIsAutoRotating] = useState(true);
+  const [backgroundPreset, setBackgroundPreset] = useState<BackgroundPreset>("dark");
+  const [lightingPreset, setLightingPreset] = useState<LightingPreset>("balanced");
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
 
@@ -801,6 +760,26 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
       <CardContent className="p-0">
         <div ref={containerRef} className={`relative ${isFullscreen ? "h-screen" : "h-[500px]"}`}>
           <div className="absolute top-3 right-3 z-10 flex gap-1.5">
+            <Select value={backgroundPreset} onValueChange={(value: BackgroundPreset) => setBackgroundPreset(value)}>
+              <SelectTrigger className="h-8 w-[112px] bg-background/80 backdrop-blur text-xs">
+                <SelectValue placeholder="Fundo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dark">Fundo escuro</SelectItem>
+                <SelectItem value="light">Fundo claro</SelectItem>
+                <SelectItem value="studio">Fundo studio</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={lightingPreset} onValueChange={(value: LightingPreset) => setLightingPreset(value)}>
+              <SelectTrigger className="h-8 w-[128px] bg-background/80 backdrop-blur text-xs">
+                <SelectValue placeholder="Iluminação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="balanced">Luz balanceada</SelectItem>
+                <SelectItem value="soft">Luz suave</SelectItem>
+                <SelectItem value="contrast">Alto contraste</SelectItem>
+              </SelectContent>
+            </Select>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
@@ -835,7 +814,13 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
               </TooltipContent>
             </Tooltip>
           </div>
-          <WebGLViewer fileUrl={fileUrl} onObjectSelect={onObjectSelect} controlsRef={controlsRef} />
+          <WebGLViewer
+            fileUrl={fileUrl}
+            onObjectSelect={onObjectSelect}
+            controlsRef={controlsRef}
+            backgroundPreset={backgroundPreset}
+            lightingPreset={lightingPreset}
+          />
         </div>
       </CardContent>
     </Card>

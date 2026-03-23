@@ -1,6 +1,5 @@
 import { useEffect, useState, memo } from "react";
 import { Box } from "lucide-react";
-import { persistProjectThumbnail } from "./thumbnailRenderer";
 
 interface ProjectThumbnailProps {
   projectId: string;
@@ -15,37 +14,7 @@ export const ProjectThumbnail = memo(function ProjectThumbnail({ projectId, file
 
   useEffect(() => {
     setThumbSrc(thumbnailUrl || null);
-
-    if (thumbnailUrl) {
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setLoading(true);
-        const persistedUrl = await Promise.race([
-          persistProjectThumbnail(projectId, fileUrl),
-          new Promise<string>((_, reject) => {
-            window.setTimeout(() => reject(new Error("thumbnail-timeout")), 12000);
-          }),
-        ]);
-
-        if (!cancelled) {
-          setThumbSrc(persistedUrl);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Thumbnail generation failed:", err);
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    setLoading(false);
   }, [fileUrl, projectId, thumbnailUrl]);
 
   return (
