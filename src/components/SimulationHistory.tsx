@@ -33,7 +33,7 @@ const FORMA_LABELS: Record<string, string> = {
   "Entrada e Entrega": "Entrada e Entrega",
 };
 
-export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
+export function SimulationHistory({ client, onBack, onLoadSimulation }: SimulationHistoryProps) {
   const [simulations, setSimulations] = useState<Simulation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
