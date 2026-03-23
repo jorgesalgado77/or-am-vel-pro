@@ -236,6 +236,7 @@ export function PayrollTaxConfig({ onClose }: Props) {
   const [irrfFaixas, setIrrfFaixas] = useState<IRRFFaixa[]>(DEFAULT_IRRF_FAIXAS);
   const [irrfIsencao, setIrrfIsencao] = useState(DEFAULT_IRRF_ISENCAO_LIMITE);
   const [irrfTransicao, setIrrfTransicao] = useState(DEFAULT_IRRF_TRANSICAO_LIMITE);
+  const [meiDas, setMeiDas] = useState<MEIDASConfig>(DEFAULT_MEI_DAS);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -245,6 +246,7 @@ export function PayrollTaxConfig({ onClose }: Props) {
     const limites = getIRRFLimites(settings);
     setIrrfIsencao(limites.isencao);
     setIrrfTransicao(limites.transicao);
+    setMeiDas(getMEIDASConfig(settings));
   }, [settings]);
 
   const updateTax = (regime: keyof RegimeTaxConfig, index: number, field: keyof TaxRate, value: any) => {
