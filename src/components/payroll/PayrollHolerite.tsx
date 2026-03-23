@@ -170,7 +170,7 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
       <table>
         <thead><tr><th>Descrição</th><th class="text-right">Valor</th></tr></thead>
         <tbody>
-          ${proventos.map(p => `<tr><td>${p.descricao}</td><td class="text-right">${formatCurrency(p.valor)}</td></tr>`).join("")}
+          ${proventos.map(p => `<tr><td>${p.descricao}${p.detalhe ? `<br/><small style="color:#888;font-style:italic;">${p.detalhe}</small>` : ''}</td><td class="text-right">${formatCurrency(p.valor)}</td></tr>`).join("")}
           <tr class="total-row"><td>TOTAL BRUTO</td><td class="text-right">${formatCurrency(totalBruto)}</td></tr>
         </tbody>
       </table>
