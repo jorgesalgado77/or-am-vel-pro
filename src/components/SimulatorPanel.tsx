@@ -308,7 +308,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     });
   }, [currentBoletoRates]);
 
-
+  const { boletoCoeffMap, boletoRatesFullMap } = useMemo(() => {
     const coeffMap: Record<number, number> = {};
     const fullMap: Record<number, BoletoRateData> = {};
     currentBoletoRates.forEach((r) => {
