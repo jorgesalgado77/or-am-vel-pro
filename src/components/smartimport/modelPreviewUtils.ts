@@ -72,13 +72,11 @@ function prepareObjectForPreview(THREE: any, root: any) {
   let meshIndex = 0;
 
   root.traverse((child: any) => {
-    // Enable frustum culling on all objects
     child.frustumCulled = true;
 
     if (child.isMesh) {
       if (!child.name) child.name = `Peça_${meshIndex + 1}`;
 
-      // Compute normals if missing
       if (!child.geometry?.attributes?.normal) {
         child.geometry?.computeVertexNormals?.();
       }
@@ -99,7 +97,50 @@ function prepareObjectForPreview(THREE: any, root: any) {
     }
   });
 
+  // Instancing pass: merge repeated geometries into InstancedMesh
+  applyInstancing(THREE, root);
+
   return root;
+}
+
+/**
+ * Detect duplicate geometries by vertex count + index count signature.
+ * Replace groups of identical meshes with InstancedMesh for GPU efficiency.
+ */
+function applyInstancing(THREE: any, root: any) {
+  const geoMap = new Map<string, any[]>();
+
+  root.traverse((child: any) => {
+    if (!child.isMesh || !child.geometry) return;
+    const geo = child.geometry;
+    const vCount = geo.attributes?.position?.count || 0;
+    const iCount = geo.index?.count || 0;
+    const key = `${vCount}_${iCount}`;
+    if (!geoMap.has(key)) geoMap.set(key, []);
+    geoMap.get(key)!.push(child);
+  });
+
+  geoMap.forEach((meshes) => {
+    // Only instance groups of 3+ identical meshes to justify overhead
+    if (meshes.length < 3) return;
+
+    const refMesh = meshes[0];
+    const instMesh = new THREE.InstancedMesh(refMesh.geometry, refMesh.material, meshes.length);
+    instMesh.name = `Instanced_${refMesh.name}`;
+    instMesh.userData.originalMaterial = refMesh.material;
+    instMesh.frustumCulled = true;
+
+    const matrix = new THREE.Matrix4();
+    meshes.forEach((m: any, i: number) => {
+      m.updateWorldMatrix(true, false);
+      matrix.copy(m.matrixWorld);
+      instMesh.setMatrixAt(i, matrix);
+      m.parent?.remove(m);
+    });
+
+    instMesh.instanceMatrix.needsUpdate = true;
+    root.add(instMesh);
+  });
 }
 
 // ── DXF Parser ──────────────────────────────────────────────
