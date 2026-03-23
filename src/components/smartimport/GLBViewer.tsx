@@ -1,8 +1,9 @@
-import { Suspense, useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Maximize2, Minimize2, Box, AlertTriangle, FileBox } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Maximize2, Minimize2, FileBox, Loader2 } from "lucide-react";
 
 interface GLBViewerProps {
   fileUrl: string;
@@ -12,83 +13,320 @@ interface GLBViewerProps {
 function getFileExtension(url: string): string {
   try {
     const path = new URL(url).pathname;
-    const ext = path.split(".").pop()?.toLowerCase() || "";
-    return ext;
+    return path.split(".").pop()?.toLowerCase() || "";
   } catch {
     return url.split(".").pop()?.toLowerCase() || "";
   }
 }
 
-/** Simple DXF parser: extracts LINE entities and renders as Three.js lines */
-function parseDxfToThree(THREE: any, dxfText: string): any {
-  const group = new THREE.Group();
-  group.name = "DXF_Root";
-  const lines = dxfText.split("\n").map((l: string) => l.trim());
-  const points: Array<{ x: number; y: number; z: number }> = [];
+// AutoCAD Color Index (ACI) - main colors
+const ACI_COLORS: Record<number, number> = {
+  1: 0xFF0000, 2: 0xFFFF00, 3: 0x00FF00, 4: 0x00FFFF,
+  5: 0x0000FF, 6: 0xFF00FF, 7: 0xFFFFFF, 8: 0x808080,
+  9: 0xC0C0C0, 10: 0xFF0000, 30: 0xFF7F00, 50: 0xFFFF00,
+  70: 0x7FFF00, 90: 0x00FF00, 110: 0x00FF7F, 130: 0x00FFFF,
+  150: 0x007FFF, 170: 0x0000FF, 190: 0x7F00FF, 210: 0xFF00FF,
+  230: 0xFF007F, 250: 0x333333, 251: 0x505050, 252: 0x696969,
+  253: 0x808080, 254: 0xA9A9A9, 255: 0xC0C0C0,
+};
+
+function aciToHex(colorIndex: number): number {
+  if (ACI_COLORS[colorIndex]) return ACI_COLORS[colorIndex];
+  if (colorIndex >= 1 && colorIndex <= 9) return ACI_COLORS[colorIndex] || 0xCCCCCC;
+  // Interpolate approximate color for other indices
+  const keys = Object.keys(ACI_COLORS).map(Number).sort((a, b) => a - b);
+  for (let k = 0; k < keys.length - 1; k++) {
+    if (colorIndex >= keys[k] && colorIndex <= keys[k + 1]) return ACI_COLORS[keys[k]];
+  }
+  return 0xCCCCCC;
+}
+
+interface DxfEntity {
+  type: string;
+  color: number;
+  vertices: Array<{ x: number; y: number; z: number }>;
+  isClosed?: boolean;
+}
+
+/** Enhanced DXF parser: extracts multiple entity types with colors */
+function parseDxfEntities(dxfText: string): DxfEntity[] {
+  const lines = dxfText.split(/\r?\n/).map(l => l.trim());
+  const entities: DxfEntity[] = [];
   let i = 0;
   let inEntities = false;
 
+  // Find ENTITIES section
   while (i < lines.length) {
-    if (lines[i] === "ENTITIES") { inEntities = true; i++; continue; }
-    if (lines[i] === "ENDSEC" && inEntities) break;
-    if (!inEntities) { i++; continue; }
-    const code = parseInt(lines[i]);
-    const value = lines[i + 1];
-    if (!isNaN(code) && value !== undefined) {
-      if (code === 10 || code === 11) {
-        const x = parseFloat(value);
-        const nextCode = parseInt(lines[i + 2]);
-        const y = (nextCode === 20 || nextCode === 21) ? parseFloat(lines[i + 3]) : 0;
-        const zCode = parseInt(lines[i + 4]);
-        const z = (zCode === 30 || zCode === 31) ? parseFloat(lines[i + 5]) : 0;
-        points.push({ x, y, z });
-      }
-    }
+    if (lines[i] === "ENTITIES") { inEntities = true; i++; break; }
     i++;
   }
+  if (!inEntities) return entities;
 
-  if (points.length >= 2) {
-    for (let p = 0; p < points.length - 1; p += 2) {
-      const geometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(points[p].x, points[p].z, -points[p].y),
-        new THREE.Vector3(points[p + 1].x, points[p + 1].z, -points[p + 1].y),
-      ]);
-      const material = new THREE.LineBasicMaterial({ color: 0x00aaff });
-      const line = new THREE.Line(geometry, material);
-      line.name = `DXF_Line_${p}`;
-      group.add(line);
+  let currentEntity: DxfEntity | null = null;
+  let currentCode = -1;
+
+  while (i < lines.length - 1) {
+    if (lines[i] === "ENDSEC") break;
+
+    const code = parseInt(lines[i]);
+    const value = lines[i + 1];
+
+    if (isNaN(code) || value === undefined) { i++; continue; }
+
+    // Entity start
+    if (code === 0) {
+      if (currentEntity && currentEntity.vertices.length > 0) {
+        entities.push(currentEntity);
+      }
+      const entityType = value.toUpperCase();
+      if (["LINE", "POLYLINE", "LWPOLYLINE", "3DFACE", "SOLID", "CIRCLE", "ARC", "POINT", "SPLINE", "INSERT", "VERTEX"].includes(entityType)) {
+        currentEntity = { type: entityType, color: 7, vertices: [], isClosed: false };
+      } else if (entityType === "VERTEX" && currentEntity?.type === "POLYLINE") {
+        // Vertices belong to the current polyline, don't create new entity
+        i += 2; continue;
+      } else if (entityType === "SEQEND" && currentEntity) {
+        entities.push(currentEntity);
+        currentEntity = null;
+        i += 2; continue;
+      } else {
+        currentEntity = null;
+      }
+      i += 2; continue;
     }
-  } else {
+
+    if (!currentEntity) { i += 2; continue; }
+
+    // Color
+    if (code === 62) {
+      currentEntity.color = parseInt(value) || 7;
+    }
+    // Closed flag for LWPOLYLINE
+    if (code === 70 && (currentEntity.type === "LWPOLYLINE" || currentEntity.type === "POLYLINE")) {
+      currentEntity.isClosed = (parseInt(value) & 1) === 1;
+    }
+
+    // Vertex coordinates
+    if (code === 10) {
+      const x = parseFloat(value);
+      // Look ahead for Y and Z
+      let y = 0, z = 0;
+      let j = i + 2;
+      if (j < lines.length - 1 && parseInt(lines[j]) === 20) { y = parseFloat(lines[j + 1]); j += 2; }
+      if (j < lines.length - 1 && parseInt(lines[j]) === 30) { z = parseFloat(lines[j + 1]); }
+      currentEntity.vertices.push({ x, y, z });
+    }
+    if (code === 11) {
+      const x = parseFloat(value);
+      let y = 0, z = 0;
+      let j = i + 2;
+      if (j < lines.length - 1 && parseInt(lines[j]) === 21) { y = parseFloat(lines[j + 1]); j += 2; }
+      if (j < lines.length - 1 && parseInt(lines[j]) === 31) { z = parseFloat(lines[j + 1]); }
+      currentEntity.vertices.push({ x, y, z });
+    }
+    if (code === 12) {
+      const x = parseFloat(value);
+      let y = 0, z = 0;
+      let j = i + 2;
+      if (j < lines.length - 1 && parseInt(lines[j]) === 22) { y = parseFloat(lines[j + 1]); j += 2; }
+      if (j < lines.length - 1 && parseInt(lines[j]) === 32) { z = parseFloat(lines[j + 1]); }
+      currentEntity.vertices.push({ x, y, z });
+    }
+    if (code === 13) {
+      const x = parseFloat(value);
+      let y = 0, z = 0;
+      let j = i + 2;
+      if (j < lines.length - 1 && parseInt(lines[j]) === 23) { y = parseFloat(lines[j + 1]); j += 2; }
+      if (j < lines.length - 1 && parseInt(lines[j]) === 33) { z = parseFloat(lines[j + 1]); }
+      currentEntity.vertices.push({ x, y, z });
+    }
+
+    i += 2;
+  }
+
+  // Push last entity
+  if (currentEntity && currentEntity.vertices.length > 0) {
+    entities.push(currentEntity);
+  }
+
+  return entities;
+}
+
+function buildDxfScene(THREE: any, entities: DxfEntity[]): any {
+  const group = new THREE.Group();
+  group.name = "DXF_Root";
+
+  // Group faces by color for batching
+  const facesByColor: Record<number, Array<any>> = {};
+  const linesByColor: Record<number, Array<any>> = {};
+
+  for (const entity of entities) {
+    const color = aciToHex(entity.color);
+    const toV3 = (p: { x: number; y: number; z: number }) =>
+      new THREE.Vector3(p.x, p.z || 0, -(p.y || 0));
+
+    switch (entity.type) {
+      case "3DFACE":
+      case "SOLID": {
+        if (entity.vertices.length >= 3) {
+          if (!facesByColor[color]) facesByColor[color] = [];
+          const verts = entity.vertices.map(toV3);
+          facesByColor[color].push(verts[0], verts[1], verts[2]);
+          if (verts.length >= 4) {
+            facesByColor[color].push(verts[0], verts[2], verts[3]);
+          }
+        }
+        break;
+      }
+      case "LINE": {
+        if (entity.vertices.length >= 2) {
+          if (!linesByColor[color]) linesByColor[color] = [];
+          linesByColor[color].push(toV3(entity.vertices[0]), toV3(entity.vertices[1]));
+        }
+        break;
+      }
+      case "LWPOLYLINE":
+      case "POLYLINE": {
+        if (entity.vertices.length >= 2) {
+          // Try to create a filled shape if closed and coplanar
+          if (entity.isClosed && entity.vertices.length >= 3) {
+            if (!facesByColor[color]) facesByColor[color] = [];
+            const verts = entity.vertices.map(toV3);
+            // Simple fan triangulation
+            for (let t = 1; t < verts.length - 1; t++) {
+              facesByColor[color].push(verts[0], verts[t], verts[t + 1]);
+            }
+          }
+          // Also draw lines
+          if (!linesByColor[color]) linesByColor[color] = [];
+          for (let p = 0; p < entity.vertices.length - 1; p++) {
+            linesByColor[color].push(toV3(entity.vertices[p]), toV3(entity.vertices[p + 1]));
+          }
+          if (entity.isClosed) {
+            linesByColor[color].push(
+              toV3(entity.vertices[entity.vertices.length - 1]),
+              toV3(entity.vertices[0])
+            );
+          }
+        }
+        break;
+      }
+      case "CIRCLE": {
+        // vertex[0] = center, radius would need code 40
+        // Simplified: draw as point
+        if (entity.vertices.length >= 1) {
+          if (!linesByColor[color]) linesByColor[color] = [];
+          const c = toV3(entity.vertices[0]);
+          const r = 0.5; // default radius since we didn't parse code 40 fully
+          const segs = 24;
+          for (let s = 0; s < segs; s++) {
+            const a1 = (s / segs) * Math.PI * 2;
+            const a2 = ((s + 1) / segs) * Math.PI * 2;
+            linesByColor[color].push(
+              new THREE.Vector3(c.x + Math.cos(a1) * r, c.y, c.z + Math.sin(a1) * r),
+              new THREE.Vector3(c.x + Math.cos(a2) * r, c.y, c.z + Math.sin(a2) * r),
+            );
+          }
+        }
+        break;
+      }
+      default: {
+        // Fallback: draw as lines if we have vertices
+        if (entity.vertices.length >= 2) {
+          if (!linesByColor[color]) linesByColor[color] = [];
+          for (let p = 0; p < entity.vertices.length - 1; p++) {
+            linesByColor[color].push(toV3(entity.vertices[p]), toV3(entity.vertices[p + 1]));
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // Build batched meshes for faces
+  for (const [colorStr, verts] of Object.entries(facesByColor)) {
+    const color = parseInt(colorStr);
+    const positions = new Float32Array(verts.length * 3);
+    verts.forEach((v: any, idx: number) => {
+      positions[idx * 3] = v.x;
+      positions[idx * 3 + 1] = v.y;
+      positions[idx * 3 + 2] = v.z;
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      side: THREE.DoubleSide,
+      metalness: 0.1,
+      roughness: 0.7,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = `DXF_Faces_${colorStr}`;
+    group.add(mesh);
+  }
+
+  // Build batched lines
+  for (const [colorStr, verts] of Object.entries(linesByColor)) {
+    const color = parseInt(colorStr);
+    const geo = new THREE.BufferGeometry().setFromPoints(verts);
+    const mat = new THREE.LineBasicMaterial({ color, linewidth: 1.5 });
+    const lineSegments = new THREE.LineSegments(geo, mat);
+    lineSegments.name = `DXF_Lines_${colorStr}`;
+    group.add(lineSegments);
+  }
+
+  // If empty, add placeholder
+  if (group.children.length === 0) {
     const geo = new THREE.BoxGeometry(2, 2, 0.1);
     const mat = new THREE.MeshStandardMaterial({ color: 0x4499bb, wireframe: true });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.name = "DXF_Placeholder";
     group.add(mesh);
   }
+
   return group;
+}
+
+function LoadingOverlay({ progress, label }: { progress: number; label: string }) {
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm gap-4">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="w-48 space-y-2">
+        <Progress value={progress} className="h-2" />
+        <p className="text-xs text-center text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
 }
 
 function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [progressLabel, setProgressLabel] = useState("Inicializando...");
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    // Test WebGL support before trying to render
     const testCanvas = document.createElement("canvas");
     const gl = testCanvas.getContext("webgl2") || testCanvas.getContext("webgl");
     if (!gl) {
-      setError("WebGL não é suportado neste navegador. Use Chrome, Firefox ou Edge para visualizar modelos 3D.");
+      setError("WebGL não é suportado neste navegador.");
+      setLoading(false);
       return;
     }
 
-    // Dynamically import Three.js to avoid crashes
     let mounted = true;
     (async () => {
       try {
+        setProgress(10);
+        setProgressLabel("Carregando motor 3D...");
         const THREE = await import("three");
         const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js");
 
         if (!mounted || !canvasRef.current) return;
+
+        setProgress(25);
+        setProgressLabel("Configurando cena...");
 
         const container = canvasRef.current.parentElement!;
         const width = container.clientWidth;
@@ -101,81 +339,105 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
         });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0xf1f5f9);
+        renderer.setClearColor(0x1a1a2e);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
 
         const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x1a1a2e, 30, 80);
+
         const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-        camera.position.set(5, 5, 5);
+        camera.position.set(8, 6, 8);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.1;
+        controls.dampingFactor = 0.08;
 
         // Lights
-        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambient);
-        const directional = new THREE.DirectionalLight(0xffffff, 1);
-        directional.position.set(10, 10, 5);
-        scene.add(directional);
+        const dir1 = new THREE.DirectionalLight(0xffffff, 1.2);
+        dir1.position.set(10, 15, 5);
+        dir1.castShadow = true;
+        scene.add(dir1);
+        const dir2 = new THREE.DirectionalLight(0x8899ff, 0.4);
+        dir2.position.set(-5, 8, -10);
+        scene.add(dir2);
+        const hemi = new THREE.HemisphereLight(0xaabbff, 0x443322, 0.3);
+        scene.add(hemi);
 
         // Grid
-        const grid = new THREE.GridHelper(20, 20, 0x374151, 0x6b7280);
+        const grid = new THREE.GridHelper(30, 30, 0x374151, 0x4b5563);
+        (grid.material as any).opacity = 0.4;
+        (grid.material as any).transparent = true;
         scene.add(grid);
 
-        // Load model based on extension
+        setProgress(40);
+        setProgressLabel("Carregando arquivo...");
+
         const ext = getFileExtension(fileUrl);
         try {
           let loadedObject: any = null;
 
+          const onProgress = (event: any) => {
+            if (event.lengthComputable) {
+              const pct = 40 + (event.loaded / event.total) * 40;
+              if (mounted) setProgress(Math.min(pct, 80));
+            }
+          };
+
           if (ext === "glb" || ext === "gltf") {
+            setProgressLabel("Processando modelo GLB...");
             const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
             const loader = new GLTFLoader();
             const gltf = await new Promise<any>((resolve, reject) =>
-              loader.load(fileUrl, resolve, undefined, reject)
+              loader.load(fileUrl, resolve, onProgress, reject)
             );
             loadedObject = gltf.scene;
           } else if (ext === "obj") {
+            setProgressLabel("Processando modelo OBJ...");
             const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader.js");
             const loader = new OBJLoader();
             const obj = await new Promise<any>((resolve, reject) =>
-              loader.load(fileUrl, resolve, undefined, reject)
+              loader.load(fileUrl, resolve, onProgress, reject)
             );
             loadedObject = obj;
           } else if (ext === "stl") {
+            setProgressLabel("Processando modelo STL...");
             const { STLLoader } = await import("three/examples/jsm/loaders/STLLoader.js");
             const loader = new STLLoader();
             const geometry = await new Promise<any>((resolve, reject) =>
-              loader.load(fileUrl, resolve, undefined, reject)
+              loader.load(fileUrl, resolve, onProgress, reject)
             );
-            const material = new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.3, roughness: 0.6 });
-            const mesh = new THREE.Mesh(geometry, material);
-            loadedObject = mesh;
+            const material = new THREE.MeshStandardMaterial({
+              color: 0xaabbcc, metalness: 0.4, roughness: 0.5,
+            });
+            loadedObject = new THREE.Mesh(geometry, material);
           } else if (ext === "fbx") {
+            setProgressLabel("Processando modelo FBX...");
             const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
             const loader = new FBXLoader();
             const fbx = await new Promise<any>((resolve, reject) =>
-              loader.load(fileUrl, resolve, undefined, reject)
+              loader.load(fileUrl, resolve, onProgress, reject)
             );
             loadedObject = fbx;
           } else if (ext === "dxf") {
-            // Parse DXF as text and render lines/entities as Three.js geometry
-            try {
-              const response = await fetch(fileUrl);
-              const text = await response.text();
-              const group = parseDxfToThree(THREE, text);
-              loadedObject = group;
-            } catch (dxfErr) {
-              console.error("DXF parse error:", dxfErr);
-              // Fallback: show a placeholder cube
-              const geo = new THREE.BoxGeometry(2, 2, 2);
-              const mat = new THREE.MeshStandardMaterial({ color: 0x4499bb, wireframe: true });
-              loadedObject = new THREE.Mesh(geo, mat);
-            }
+            setProgressLabel("Processando arquivo DXF...");
+            const response = await fetch(fileUrl);
+            const text = await response.text();
+            if (mounted) setProgress(60);
+            setProgressLabel("Renderizando geometrias DXF...");
+            const dxfEntities = parseDxfEntities(text);
+            loadedObject = buildDxfScene(THREE, dxfEntities);
           } else {
-            // Unknown format: show placeholder
             const geo = new THREE.BoxGeometry(2, 2, 2);
             const mat = new THREE.MeshStandardMaterial({ color: 0x8899aa, wireframe: true });
             loadedObject = new THREE.Mesh(geo, mat);
+          }
+
+          if (mounted) {
+            setProgress(85);
+            setProgressLabel("Finalizando...");
           }
 
           if (loadedObject) {
@@ -186,9 +448,11 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z);
-            const scale = 5 / maxDim;
-            loadedObject.scale.setScalar(scale);
-            loadedObject.position.sub(center.multiplyScalar(scale));
+            if (maxDim > 0) {
+              const scale = 6 / maxDim;
+              loadedObject.scale.setScalar(scale);
+              loadedObject.position.sub(center.multiplyScalar(scale));
+            }
 
             // Click handler
             const raycaster = new THREE.Raycaster();
@@ -220,9 +484,18 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
               }
             });
           }
+
+          if (mounted) {
+            setProgress(100);
+            setProgressLabel("Concluído!");
+            setTimeout(() => { if (mounted) setLoading(false); }, 400);
+          }
         } catch (loadErr: any) {
           console.error("Model load error:", loadErr);
-          if (mounted) setError(`Erro ao carregar o modelo: ${loadErr.message || "formato inválido"}`);
+          if (mounted) {
+            setError(`Erro ao carregar o modelo: ${loadErr.message || "formato inválido"}`);
+            setLoading(false);
+          }
           renderer.dispose();
           return;
         }
@@ -256,25 +529,29 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
         };
       } catch (err: any) {
         console.error("WebGL init error:", err);
-        if (mounted) setError("Erro ao inicializar o visualizador 3D. Verifique se seu navegador suporta WebGL.");
+        if (mounted) {
+          setError("Erro ao inicializar o visualizador 3D.");
+          setLoading(false);
+        }
       }
     })();
 
     return () => { mounted = false; };
   }, [fileUrl, onObjectSelect]);
 
-  if (error) {
-    return <FallbackView message={error} fileUrl={fileUrl} />;
-  }
+  if (error) return <FallbackView message={error} fileUrl={fileUrl} />;
 
   return (
     <div className="relative w-full h-full">
       <canvas ref={canvasRef} className="w-full h-full" />
-      <div className="absolute bottom-3 left-3 z-10">
-        <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur">
-          Clique em um objeto para selecionar
-        </Badge>
-      </div>
+      {loading && <LoadingOverlay progress={progress} label={progressLabel} />}
+      {!loading && (
+        <div className="absolute bottom-3 left-3 z-10">
+          <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur">
+            Clique em um objeto para selecionar
+          </Badge>
+        </div>
+      )}
     </div>
   );
 }
@@ -319,7 +596,6 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
               {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             </Button>
           </div>
-
           <WebGLViewer fileUrl={fileUrl} onObjectSelect={onObjectSelect} />
         </div>
       </CardContent>
