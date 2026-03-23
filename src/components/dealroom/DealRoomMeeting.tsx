@@ -21,6 +21,7 @@ import { DealRoomScreenProtection } from "./DealRoomScreenProtection";
 import { DealRoomWatermark } from "./DealRoomWatermark";
 import { DealRoomVideoConfig, type VideoProvider } from "./DealRoomVideoConfig";
 import { DealRoomContractPdf } from "./DealRoomContractPdf";
+import { DealRoomSimulation } from "./DealRoomSimulation";
 
 interface DealRoomMeetingProps {
   tenantId: string;
