@@ -234,6 +234,7 @@ export function DealRoomMeeting({
           <Tabs value={activePanel} onValueChange={setActivePanel} className="flex flex-col flex-1">
             <TabsList className="w-full justify-start rounded-none border-b px-1 bg-muted/30 overflow-x-auto flex-shrink-0">
               <TabsTrigger value="chat" className="gap-1 text-[10px] px-2"><MessageSquare className="h-3 w-3" /> Chat</TabsTrigger>
+              <TabsTrigger value="simulacao" className="gap-1 text-[10px] px-2"><Calculator className="h-3 w-3" /> Simulação</TabsTrigger>
               <TabsTrigger value="ai" className="gap-1 text-[10px] px-2"><Brain className="h-3 w-3" /> IA</TabsTrigger>
               <TabsTrigger value="anexos" className="gap-1 text-[10px] px-2"><Paperclip className="h-3 w-3" /> Anexos</TabsTrigger>
               <TabsTrigger value="pagamento" className="gap-1 text-[10px] px-2"><CreditCard className="h-3 w-3" /> Pagar</TabsTrigger>
