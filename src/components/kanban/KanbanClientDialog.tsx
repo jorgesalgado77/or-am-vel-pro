@@ -270,6 +270,9 @@ export function KanbanClientDialog({
           <Button variant="outline" size="icon" onClick={() => { onClose(); onContracts(client); }} title="Contratos">
             <FileText className="h-4 w-4" />
           </Button>
+          <Button variant="outline" size="icon" onClick={() => setShowBriefing(true)} title="Briefing">
+            <FileQuestion className="h-4 w-4" />
+          </Button>
           {canEdit && (
             <Button variant="outline" size="icon" onClick={() => { onClose(); onEdit(client); }} title="Editar">
               <Pencil className="h-4 w-4" />
@@ -280,6 +283,15 @@ export function KanbanClientDialog({
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
+        </div>
+
+        <BriefingModal
+          open={showBriefing}
+          onOpenChange={setShowBriefing}
+          clientId={client.id}
+          clientName={client.nome}
+          orcamentoNumero={(client as any).numero_orcamento}
+        />
         </div>
       </DialogContent>
     </Dialog>
