@@ -104,7 +104,7 @@ export async function deleteClient(id: string): Promise<{ error: string | null }
  */
 export async function fetchLastSimulations(): Promise<{
   lastSims: Record<string, LastSimInfo>;
-  allSimulations: { created_at: string; valor_final: number }[];
+  allSimulations: { created_at: string; valor_final: number; valor_com_desconto?: number }[];
 }> {
   const tenantId = await getResolvedTenantId();
 
@@ -122,13 +122,22 @@ export async function fetchLastSimulations(): Promise<{
   if (!data) return { lastSims: {}, allSimulations: [] };
 
   const lastSims: Record<string, LastSimInfo> = {};
-  const allSimulations: { created_at: string; valor_final: number }[] = [];
+  const allSimulations: { created_at: string; valor_final: number; valor_com_desconto?: number }[] = [];
   const simCounts: Record<string, number> = {};
 
   data.forEach((s) => {
+    const vt = Number(s.valor_tela) || 0;
+    const d1 = Number(s.desconto1) || 0;
+    const d2 = Number(s.desconto2) || 0;
+    const d3 = Number(s.desconto3) || 0;
+    const after1 = vt * (1 - d1 / 100);
+    const after2 = after1 * (1 - d2 / 100);
+    const valorComDesconto = after2 * (1 - d3 / 100);
+
     allSimulations.push({
       created_at: s.created_at,
       valor_final: Number(s.valor_final) || 0,
+      valor_com_desconto: valorComDesconto,
     });
 
     simCounts[s.client_id] = (simCounts[s.client_id] || 0) + 1;

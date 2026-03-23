@@ -17,7 +17,7 @@ export function useClientManager() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastSims, setLastSims] = useState<Record<string, clientService.LastSimInfo>>({});
-  const [allSimulations, setAllSimulations] = useState<{ created_at: string; valor_final: number }[]>([]);
+  const [allSimulations, setAllSimulations] = useState<{ created_at: string; valor_final: number; valor_com_desconto?: number }[]>([]);
   const [saving, setSaving] = useState(false);
 
   const fetchClients = useCallback(async () => {

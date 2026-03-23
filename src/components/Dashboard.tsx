@@ -30,13 +30,14 @@ type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 interface LastSimInfo {
   valor_final: number;
+  valor_com_desconto: number;
   created_at: string;
 }
 
 interface DashboardProps {
   clients: Client[];
   lastSims: Record<string, LastSimInfo>;
-  allSimulations?: { created_at: string; valor_final: number }[];
+  allSimulations?: { created_at: string; valor_final: number; valor_com_desconto?: number }[];
   onOpenProfile?: () => void;
   onOpenSettings?: () => void;
 }
@@ -149,7 +150,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    const totalValue = Object.values(filteredLastSims).reduce((sum, s) => sum + s.valor_final, 0);
+    const totalValue = Object.values(filteredLastSims).reduce((sum, s) => sum + (s.valor_com_desconto || s.valor_final), 0);
 
     // New KPIs
     const ticketMedio = clientsWithSim > 0 ? totalValue / clientsWithSim : 0;
@@ -165,7 +166,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       if ((c as any).status === "fechado") byProjetista[name].closed++;
       const sim = filteredLastSims[c.id];
       if (sim) {
-        byProjetista[name].total += sim.valor_final;
+        byProjetista[name].total += sim.valor_com_desconto || sim.valor_final;
         if (isPast(addDays(new Date(sim.created_at), budgetValidityDays))) {
           byProjetista[name].expired++;
         }
@@ -183,8 +184,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byIndicador[c.indicador_id].count++;
       const sim = filteredLastSims[c.id];
       if (sim) {
-        byIndicador[c.indicador_id].total += sim.valor_final;
-        byIndicador[c.indicador_id].comissaoTotal += sim.valor_final * (ind.comissao_percentual / 100);
+        byIndicador[c.indicador_id].total += sim.valor_com_desconto || sim.valor_final;
+        byIndicador[c.indicador_id].comissaoTotal += (sim.valor_com_desconto || sim.valor_final) * (ind.comissao_percentual / 100);
       }
     });
 
@@ -212,7 +213,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       const key = format(parseISO(s.created_at), "yyyy-MM");
       if (!byMonth[key]) byMonth[key] = { count: 0, total: 0 };
       byMonth[key].count++;
-      byMonth[key].total += s.valor_final;
+      byMonth[key].total += s.valor_com_desconto || s.valor_final;
     });
     return Object.entries(byMonth)
       .sort(([a], [b]) => a.localeCompare(b))
