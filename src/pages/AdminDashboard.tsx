@@ -227,6 +227,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   useEffect(() => {
     fetchData();
     fetchAddonInterestCount();
+    fetchDealRoomCommissions();
 
     const channel = supabase
       .channel("admin-addon-interest")
