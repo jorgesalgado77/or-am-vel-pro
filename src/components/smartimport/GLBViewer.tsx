@@ -434,11 +434,24 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
               loader.load(fileUrl, resolve, onProgress, reject)
             );
             loadedObject = gltf.scene;
-            // Ensure materials use correct color space
+            // Preserve original materials, assign colors to uncolored meshes
+            let meshIdx = 0;
             loadedObject.traverse((child: any) => {
-              if (child.isMesh && child.material) {
-                if (child.material.map) child.material.map.colorSpace = THREE.SRGBColorSpace;
-                child.material.needsUpdate = true;
+              if (child.isMesh) {
+                if (child.material) {
+                  if (child.material.map) child.material.map.colorSpace = THREE.SRGBColorSpace;
+                  // If material is default white with no texture, assign a distinct color
+                  if (!child.material.map && child.material.color &&
+                      child.material.color.getHex() === 0xffffff) {
+                    child.material = new THREE.MeshStandardMaterial({
+                      color: PIECE_PALETTE[meshIdx % PIECE_PALETTE.length],
+                      metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide,
+                    });
+                  }
+                  child.material.needsUpdate = true;
+                }
+                if (!child.name) child.name = `Peça_${meshIdx + 1}`;
+                meshIdx++;
               }
             });
           } else if (ext === "obj") {
@@ -449,6 +462,20 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
               loader.load(fileUrl, resolve, onProgress, reject)
             );
             loadedObject = obj;
+            // Assign distinct colors to OBJ meshes
+            let objIdx = 0;
+            loadedObject.traverse((child: any) => {
+              if (child.isMesh) {
+                if (!child.material?.map) {
+                  child.material = new THREE.MeshStandardMaterial({
+                    color: PIECE_PALETTE[objIdx % PIECE_PALETTE.length],
+                    metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide,
+                  });
+                }
+                if (!child.name) child.name = `Peça_${objIdx + 1}`;
+                objIdx++;
+              }
+            });
           } else if (ext === "stl") {
             setProgressLabel("Processando modelo STL...");
             const { STLLoader } = await import("three/examples/jsm/loaders/STLLoader.js");
@@ -457,9 +484,10 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
               loader.load(fileUrl, resolve, onProgress, reject)
             );
             const material = new THREE.MeshStandardMaterial({
-              color: 0xaabbcc, metalness: 0.4, roughness: 0.5,
+              color: 0x5C6BC0, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide,
             });
             loadedObject = new THREE.Mesh(geometry, material);
+            loadedObject.name = "Peça_STL";
           } else if (ext === "fbx") {
             setProgressLabel("Processando modelo FBX...");
             const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
