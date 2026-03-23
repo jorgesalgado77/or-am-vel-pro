@@ -168,4 +168,4 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
       )}
     </Draggable>
   );
-}
+});

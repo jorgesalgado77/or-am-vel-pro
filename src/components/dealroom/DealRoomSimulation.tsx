@@ -75,7 +75,6 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
     if (error) {
       console.error("[DealRoomSimulation] Error loading simulations:", error);
     }
-    console.log("[DealRoomSimulation] Found simulations:", data?.length || 0);
     setSimulations(data || []);
     setLoading(false);
   };
