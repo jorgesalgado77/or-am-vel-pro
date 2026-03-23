@@ -59,6 +59,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   referrals: { title: "Programa de Indicações", subtitle: "Gere links, acompanhe indicações e recompense seus clientes" },
   financial: { title: "Módulo Financeiro", subtitle: "Contas a pagar, folha de pagamento e ponto de equilíbrio" },
   tutorials: { title: "Tutoriais", subtitle: "Aprenda a usar cada funcionalidade do sistema com vídeos práticos" },
+  smart3d: { title: "3D Smart Import", subtitle: "Importe projetos 3D, visualize ambientes e gere orçamentos automáticos" },
 };
 
 export default function Index() {
