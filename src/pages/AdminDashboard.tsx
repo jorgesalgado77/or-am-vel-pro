@@ -333,10 +333,33 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   };
 
   const deleteTenant = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta loja?")) return;
-    await supabase.from("tenants").delete().eq("id", id);
-    toast.success("Loja excluída");
-    fetchData();
+    if (!confirm("Tem certeza que deseja excluir esta loja e todos os dados associados?")) return;
+    
+    // Try RPC first for admin bypass
+    const { error: rpcError } = await supabase.rpc("admin_delete_tenant" as any, { target_tenant_id: id });
+    if (!rpcError) {
+      toast.success("Loja excluída com sucesso");
+      logAudit({
+        acao: "tenant_excluido",
+        entidade: "tenant",
+        entidade_id: id,
+        usuario_nome: adminName,
+        detalhes: { loja_id: id },
+      });
+      // Update local state immediately
+      setTenants(prev => prev.filter(t => t.id !== id));
+      return;
+    }
+    
+    // Fallback: direct delete
+    const { error } = await supabase.from("tenants").delete().eq("id", id);
+    if (error) {
+      console.error("Erro ao excluir loja:", error);
+      toast.error("Erro ao excluir loja. Verifique permissões RLS.");
+      return;
+    }
+    toast.success("Loja excluída com sucesso");
+    setTenants(prev => prev.filter(t => t.id !== id));
   };
 
   // Payment CRUD
