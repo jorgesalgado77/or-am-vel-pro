@@ -292,7 +292,6 @@ export function KanbanClientDialog({
           clientName={client.nome}
           orcamentoNumero={(client as any).numero_orcamento}
         />
-        </div>
       </DialogContent>
     </Dialog>
   );
