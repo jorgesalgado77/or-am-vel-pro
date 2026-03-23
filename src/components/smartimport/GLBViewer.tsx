@@ -42,9 +42,9 @@ const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; f
 };
 
 const QUALITY_PRESETS: Record<QualityPreset, { pixelRatio: number; antialias: boolean; shadows: boolean; label: string }> = {
-  low: { pixelRatio: 1, antialias: false, shadows: false, label: "Leve" },
-  balanced: { pixelRatio: Math.min(window.devicePixelRatio, 1.5), antialias: true, shadows: false, label: "Equilibrado" },
-  high: { pixelRatio: Math.min(window.devicePixelRatio, 2), antialias: true, shadows: true, label: "Alta fidelidade" },
+  low: { pixelRatio: 0.8, antialias: false, shadows: false, label: "Leve" },
+  balanced: { pixelRatio: Math.min(window.devicePixelRatio, 1.2), antialias: true, shadows: false, label: "Equilibrado" },
+  high: { pixelRatio: Math.min(window.devicePixelRatio, 1.5), antialias: true, shadows: true, label: "Alta fidelidade" },
 };
 
 const FORMAT_LOADING_MESSAGES: Record<string, string[]> = {
