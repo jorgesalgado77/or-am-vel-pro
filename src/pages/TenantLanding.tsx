@@ -264,6 +264,7 @@ export default function TenantLanding() {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
 
   useEffect(() => {
     if (!codigo) return;
