@@ -3,7 +3,7 @@ import { frameObjectForThumbnail, loadModelForPreview } from "./modelPreviewUtil
 
 const THUMBNAIL_WIDTH = 320;
 const THUMBNAIL_HEIGHT = 200;
-const THUMBNAIL_BACKGROUND = 0xf1f5f9;
+const THUMBNAIL_BACKGROUND = 0xffffff;
 const THUMBNAIL_BUCKET = "smart-import-3d";
 
 function disposeSceneResources(root: any) {
