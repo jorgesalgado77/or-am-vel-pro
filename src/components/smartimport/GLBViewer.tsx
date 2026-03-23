@@ -19,6 +19,55 @@ function getFileExtension(url: string): string {
   }
 }
 
+/** Simple DXF parser: extracts LINE entities and renders as Three.js lines */
+function parseDxfToThree(THREE: any, dxfText: string): any {
+  const group = new THREE.Group();
+  group.name = "DXF_Root";
+  const lines = dxfText.split("\n").map((l: string) => l.trim());
+  const points: Array<{ x: number; y: number; z: number }> = [];
+  let i = 0;
+  let inEntities = false;
+
+  while (i < lines.length) {
+    if (lines[i] === "ENTITIES") { inEntities = true; i++; continue; }
+    if (lines[i] === "ENDSEC" && inEntities) break;
+    if (!inEntities) { i++; continue; }
+    const code = parseInt(lines[i]);
+    const value = lines[i + 1];
+    if (!isNaN(code) && value !== undefined) {
+      if (code === 10 || code === 11) {
+        const x = parseFloat(value);
+        const nextCode = parseInt(lines[i + 2]);
+        const y = (nextCode === 20 || nextCode === 21) ? parseFloat(lines[i + 3]) : 0;
+        const zCode = parseInt(lines[i + 4]);
+        const z = (zCode === 30 || zCode === 31) ? parseFloat(lines[i + 5]) : 0;
+        points.push({ x, y, z });
+      }
+    }
+    i++;
+  }
+
+  if (points.length >= 2) {
+    for (let p = 0; p < points.length - 1; p += 2) {
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(points[p].x, points[p].z, -points[p].y),
+        new THREE.Vector3(points[p + 1].x, points[p + 1].z, -points[p + 1].y),
+      ]);
+      const material = new THREE.LineBasicMaterial({ color: 0x00aaff });
+      const line = new THREE.Line(geometry, material);
+      line.name = `DXF_Line_${p}`;
+      group.add(line);
+    }
+  } else {
+    const geo = new THREE.BoxGeometry(2, 2, 0.1);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x4499bb, wireframe: true });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = "DXF_Placeholder";
+    group.add(mesh);
+  }
+  return group;
+}
+
 function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -109,14 +158,24 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             );
             loadedObject = fbx;
           } else if (ext === "dxf") {
-            // DXF doesn't have a standard Three.js loader — show info
-            setError(`Arquivo .DXF importado com sucesso. A visualização 3D de DXF requer conversão para GLB/OBJ. Use o arquivo para geração de orçamento.`);
-            renderer.dispose();
-            return;
+            // Parse DXF as text and render lines/entities as Three.js geometry
+            try {
+              const response = await fetch(fileUrl);
+              const text = await response.text();
+              const group = parseDxfToThree(THREE, text);
+              loadedObject = group;
+            } catch (dxfErr) {
+              console.error("DXF parse error:", dxfErr);
+              // Fallback: show a placeholder cube
+              const geo = new THREE.BoxGeometry(2, 2, 2);
+              const mat = new THREE.MeshStandardMaterial({ color: 0x4499bb, wireframe: true });
+              loadedObject = new THREE.Mesh(geo, mat);
+            }
           } else {
-            setError(`Formato .${ext.toUpperCase()} não tem visualizador 3D disponível. O arquivo foi importado para geração de orçamento.`);
-            renderer.dispose();
-            return;
+            // Unknown format: show placeholder
+            const geo = new THREE.BoxGeometry(2, 2, 2);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x8899aa, wireframe: true });
+            loadedObject = new THREE.Mesh(geo, mat);
           }
 
           if (loadedObject) {
