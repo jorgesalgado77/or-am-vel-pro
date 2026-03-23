@@ -82,22 +82,10 @@ Deno.serve(async (req) => {
         duplicado = true;
         clientId = existingClient.id;
 
-        const { error: clientUpdateError } = await supabaseAdmin
-          .from("clients")
-          .update({
-            nome,
-            telefone1: telefone,
-            email: email || "",
-            descricao_ambientes: interesse || null,
-            quantidade_ambientes: 1,
-            origem_lead: origem,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingClient.id);
+        // NUNCA sobrescrever dados de clientes existentes
+        // Apenas registrar a nova interação no log de origem
+        console.log(`[lead-capture] Duplicate client detected: ${existingClient.id}, skipping update`);
 
-        if (clientUpdateError) {
-          console.error("Client update error:", clientUpdateError);
-        }
       } else {
         const { data: tenantData, error: tenantError } = await supabaseAdmin
           .from("tenants")
