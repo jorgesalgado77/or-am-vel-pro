@@ -64,6 +64,8 @@ type ChartKey = "evolucao" | "projetista" | "indicador" | "contratos";
 export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfile, onOpenSettings }: DashboardProps) {
   const { settings } = useCompanySettings();
   const { indicadores } = useIndicadores();
+  const { cargos } = useCargos();
+  const { policy: comissaoPolicyDash } = useComissaoPolicy();
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
     evolucao: false,
     projetista: false,
