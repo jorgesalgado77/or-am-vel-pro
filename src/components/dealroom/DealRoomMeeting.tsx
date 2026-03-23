@@ -6,10 +6,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Video, ArrowLeft, MessageSquare, Paperclip, CreditCard,
   FileSignature, Brain, User, Maximize2, Copy, ExternalLink,
-  FileText, Settings,
+  FileText, Settings, Calculator,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
+import { formatCurrency } from "@/lib/financing";
 import { DealRoomControls } from "./DealRoomControls";
 import { DealRoomChat } from "./DealRoomChat";
 import { DealRoomAttachments } from "./DealRoomAttachments";
@@ -21,6 +22,7 @@ import { DealRoomScreenProtection } from "./DealRoomScreenProtection";
 import { DealRoomWatermark } from "./DealRoomWatermark";
 import { DealRoomVideoConfig, type VideoProvider } from "./DealRoomVideoConfig";
 import { DealRoomContractPdf } from "./DealRoomContractPdf";
+import { DealRoomSimulation } from "./DealRoomSimulation";
 
 interface DealRoomMeetingProps {
   tenantId: string;
@@ -233,6 +235,7 @@ export function DealRoomMeeting({
           <Tabs value={activePanel} onValueChange={setActivePanel} className="flex flex-col flex-1">
             <TabsList className="w-full justify-start rounded-none border-b px-1 bg-muted/30 overflow-x-auto flex-shrink-0">
               <TabsTrigger value="chat" className="gap-1 text-[10px] px-2"><MessageSquare className="h-3 w-3" /> Chat</TabsTrigger>
+              <TabsTrigger value="simulacao" className="gap-1 text-[10px] px-2"><Calculator className="h-3 w-3" /> Simulação</TabsTrigger>
               <TabsTrigger value="ai" className="gap-1 text-[10px] px-2"><Brain className="h-3 w-3" /> IA</TabsTrigger>
               <TabsTrigger value="anexos" className="gap-1 text-[10px] px-2"><Paperclip className="h-3 w-3" /> Anexos</TabsTrigger>
               <TabsTrigger value="pagamento" className="gap-1 text-[10px] px-2"><CreditCard className="h-3 w-3" /> Pagar</TabsTrigger>
@@ -243,6 +246,17 @@ export function DealRoomMeeting({
             <ScrollArea className="flex-1">
               <TabsContent value="chat" className="m-0 p-0 h-full">
                 <DealRoomChat sessionId={sessionId} tenantId={tenantId} userId={userId} />
+              </TabsContent>
+              <TabsContent value="simulacao" className="m-0 p-3">
+                <DealRoomSimulation
+                  tenantId={tenantId}
+                  clientId={clientId}
+                  clientName={clientName}
+                  proposalValue={proposalValue}
+                  onSendAsProposal={(valor, descricao) => {
+                    toast.success(`Proposta de ${formatCurrency(valor)} criada: ${descricao}`);
+                  }}
+                />
               </TabsContent>
               <TabsContent value="ai" className="m-0 p-3">
                 <DealRoomAIAssistant tenantId={tenantId} clientName={clientName} proposalValue={proposalValue} />
