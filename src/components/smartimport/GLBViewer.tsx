@@ -414,7 +414,7 @@ function WebGLViewer({
       renderer?.dispose?.();
       threeRef.current = null;
     };
-  }, [fileUrl, qualityPreset]);
+  }, [fileUrl]);
 
   // React to background/lighting preset changes without re-init
   useEffect(() => {
