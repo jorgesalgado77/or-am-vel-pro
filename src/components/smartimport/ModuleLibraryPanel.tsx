@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  BookOpen, Plus, Trash2, Edit2, Save, DollarSign, Package, Ruler, Palette, Wrench,
+  BookOpen, Plus, Trash2, Edit2, Save, DollarSign, Package, Ruler, Palette, Wrench, Copy, MessageSquare,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import type { ModuleLibraryItem } from "@/hooks/useSmartImport3D";
@@ -37,21 +38,66 @@ interface ModuleForm {
   width: string;
   height: string;
   depth: string;
-  ferragem_id: string;
+  dobradica_id: string;
   puxador_id: string;
   fundo_tipo_id: string;
+  porta_frente_id: string;
+  corredica_id: string;
+  agregados: string;
+  ferragens_montagem: string;
   cor_caixa: string;
   cor_porta: string;
   cor_tamponamento: string;
   cor_fita_borda: string;
+  cor_fundo: string;
+  cor_paineis_tampo: string;
+  extra_cores: { label: string; value: string }[];
+  observacoes: string;
 }
 
 const EMPTY_FORM: ModuleForm = {
   name: "", type: "Outro", cost: "", materials: "",
   width: "", height: "", depth: "",
-  ferragem_id: "", puxador_id: "", fundo_tipo_id: "",
+  dobradica_id: "", puxador_id: "", fundo_tipo_id: "",
+  porta_frente_id: "", corredica_id: "",
+  agregados: "", ferragens_montagem: "",
   cor_caixa: "", cor_porta: "", cor_tamponamento: "", cor_fita_borda: "",
+  cor_fundo: "", cor_paineis_tampo: "",
+  extra_cores: [],
+  observacoes: "",
 };
+
+// Helper to render a color field with duplicate button
+function ColorField({
+  label, value, onChange, cores, onDuplicate,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  cores: CatalogItem[]; onDuplicate: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <Label className="text-[10px] text-muted-foreground">{label}</Label>
+        <Button type="button" variant="ghost" size="icon" className="h-5 w-5" title="Duplicar campo"
+          onClick={onDuplicate}>
+          <Copy className="h-3 w-3" />
+        </Button>
+      </div>
+      {cores.length > 0 ? (
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Nenhuma</SelectItem>
+            {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input className="h-9 mt-0.5" placeholder="Ex: Branco TX"
+          value={value} onChange={e => onChange(e.target.value)} />
+      )}
+    </div>
+  );
+}
 
 export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate, onDelete }: ModuleLibraryPanelProps) {
   const [showAdd, setShowAdd] = useState(false);
@@ -76,7 +122,7 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
   const handleSave = async () => {
     if (!form.name.trim() || !form.cost) return;
 
-    const ferragemItem = ferragens.find(f => f.id === form.ferragem_id);
+    const dobradicaItem = ferragens.find(f => f.id === form.dobradica_id);
     const puxadorItem = puxadores.find(p => p.id === form.puxador_id);
     const fundoItem = fundos.find(f => f.id === form.fundo_tipo_id);
 
@@ -88,8 +134,8 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
       width: form.width ? Number(form.width) : null,
       height: form.height ? Number(form.height) : null,
       depth: form.depth ? Number(form.depth) : null,
-      ferragem_id: form.ferragem_id || null,
-      ferragem_name: ferragemItem?.name || null,
+      ferragem_id: form.dobradica_id || null,
+      ferragem_name: dobradicaItem?.name || null,
       puxador_id: form.puxador_id || null,
       puxador_name: puxadorItem?.name || null,
       fundo_tipo_id: form.fundo_tipo_id || null,
@@ -123,23 +169,31 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
       width: item.width ? String(item.width) : "",
       height: item.height ? String(item.height) : "",
       depth: item.depth ? String(item.depth) : "",
-      ferragem_id: item.ferragem_id || "",
+      dobradica_id: item.ferragem_id || "",
       puxador_id: item.puxador_id || "",
       fundo_tipo_id: item.fundo_tipo_id || "",
+      porta_frente_id: "",
+      corredica_id: "",
+      agregados: "",
+      ferragens_montagem: "",
       cor_caixa: item.cor_caixa || "",
       cor_porta: item.cor_porta || "",
       cor_tamponamento: item.cor_tamponamento || "",
       cor_fita_borda: item.cor_fita_borda || "",
+      cor_fundo: "",
+      cor_paineis_tampo: "",
+      extra_cores: [],
+      observacoes: "",
     });
     setEditingId(item.id);
     setShowAdd(true);
   };
 
-  // Auto-fill when selecting a module by name from library
   const handleNameSelect = (selectedName: string) => {
     const existing = library.find(m => m.name === selectedName);
     if (existing && !editingId) {
-      setForm({
+      setForm(prev => ({
+        ...prev,
         name: existing.name,
         type: existing.type,
         cost: String(existing.cost),
@@ -147,15 +201,22 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
         width: existing.width ? String(existing.width) : "",
         height: existing.height ? String(existing.height) : "",
         depth: existing.depth ? String(existing.depth) : "",
-        ferragem_id: existing.ferragem_id || "",
+        dobradica_id: existing.ferragem_id || "",
         puxador_id: existing.puxador_id || "",
         fundo_tipo_id: existing.fundo_tipo_id || "",
         cor_caixa: existing.cor_caixa || "",
         cor_porta: existing.cor_porta || "",
         cor_tamponamento: existing.cor_tamponamento || "",
         cor_fita_borda: existing.cor_fita_borda || "",
-      });
+      }));
     }
+  };
+
+  const addExtraColor = (label: string) => {
+    setForm(prev => ({
+      ...prev,
+      extra_cores: [...prev.extra_cores, { label: `${label} (cópia)`, value: "" }],
+    }));
   };
 
   const filtered = library.filter(item =>
@@ -271,7 +332,7 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
                   <Label className="text-xs">Nome do Módulo</Label>
                   <Input className="h-9 mt-1" placeholder="Ex: Aéreo 80cm 2 Portas"
                     value={form.name}
-                    onChange={e => { setForm(p => ({ ...p, name: e.target.value })); }}
+                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                     onBlur={() => handleNameSelect(form.name)}
                   />
                 </div>
@@ -330,16 +391,18 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
                   <Wrench className="h-3 w-3 text-primary" /> Componentes
                 </Label>
                 <div className="grid grid-cols-2 gap-3">
+                  {/* Tipo de Porta/Frente */}
                   <div>
-                    <Label className="text-[10px] text-muted-foreground">Ferragem</Label>
-                    <Select value={form.ferragem_id} onValueChange={v => setForm(p => ({ ...p, ferragem_id: v }))}>
+                    <Label className="text-[10px] text-muted-foreground">Tipo de Porta/Frente</Label>
+                    <Select value={form.porta_frente_id} onValueChange={v => setForm(p => ({ ...p, porta_frente_id: v }))}>
                       <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Nenhuma</SelectItem>
+                        <SelectItem value="none">Nenhum</SelectItem>
                         {ferragens.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
+                  {/* Puxador */}
                   <div>
                     <Label className="text-[10px] text-muted-foreground">Puxador</Label>
                     <Select value={form.puxador_id} onValueChange={v => setForm(p => ({ ...p, puxador_id: v }))}>
@@ -350,7 +413,30 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2">
+                  {/* Tipo de Dobradiça */}
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Tipo de Dobradiça</Label>
+                    <Select value={form.dobradica_id} onValueChange={v => setForm(p => ({ ...p, dobradica_id: v }))}>
+                      <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                        {ferragens.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Tipo de Corrediça */}
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Tipo de Corrediça</Label>
+                    <Select value={form.corredica_id} onValueChange={v => setForm(p => ({ ...p, corredica_id: v }))}>
+                      <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                        {ferragens.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Tipo de Fundo */}
+                  <div>
                     <Label className="text-[10px] text-muted-foreground">Tipo de Fundo</Label>
                     <Select value={form.fundo_tipo_id} onValueChange={v => setForm(p => ({ ...p, fundo_tipo_id: v }))}>
                       <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
@@ -359,6 +445,18 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
                         {fundos.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                  </div>
+                  {/* Agregados */}
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Agregados</Label>
+                    <Input className="h-9 mt-0.5" placeholder="Ex: Bandeja giratória, iluminação"
+                      value={form.agregados} onChange={e => setForm(p => ({ ...p, agregados: e.target.value }))} />
+                  </div>
+                  {/* Ferragens de Montagem */}
+                  <div className="col-span-2">
+                    <Label className="text-[10px] text-muted-foreground">Ferragens de Montagem</Label>
+                    <Input className="h-9 mt-0.5" placeholder="Ex: Minifix, cavilha, parafusos"
+                      value={form.ferragens_montagem} onChange={e => setForm(p => ({ ...p, ferragens_montagem: e.target.value }))} />
                   </div>
                 </div>
               </div>
@@ -371,67 +469,84 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
                   <Palette className="h-3 w-3 text-primary" /> Cores e Acabamentos
                 </Label>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Cor da Caixa</Label>
-                    {cores.length > 0 ? (
-                      <Select value={form.cor_caixa} onValueChange={v => setForm(p => ({ ...p, cor_caixa: v }))}>
-                        <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Nenhuma</SelectItem>
-                          {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input className="h-9 mt-0.5" placeholder="Ex: Branco TX"
-                        value={form.cor_caixa} onChange={e => setForm(p => ({ ...p, cor_caixa: e.target.value }))} />
-                    )}
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Cor da Porta</Label>
-                    {cores.length > 0 ? (
-                      <Select value={form.cor_porta} onValueChange={v => setForm(p => ({ ...p, cor_porta: v }))}>
-                        <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Nenhuma</SelectItem>
-                          {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input className="h-9 mt-0.5" placeholder="Ex: Cinza Grafite"
-                        value={form.cor_porta} onChange={e => setForm(p => ({ ...p, cor_porta: e.target.value }))} />
-                    )}
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Cor do Tamponamento</Label>
-                    {cores.length > 0 ? (
-                      <Select value={form.cor_tamponamento} onValueChange={v => setForm(p => ({ ...p, cor_tamponamento: v }))}>
-                        <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Nenhuma</SelectItem>
-                          {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input className="h-9 mt-0.5" placeholder="Ex: Branco TX"
-                        value={form.cor_tamponamento} onChange={e => setForm(p => ({ ...p, cor_tamponamento: e.target.value }))} />
-                    )}
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-muted-foreground">Cor Fita de Borda da Caixa</Label>
-                    {cores.length > 0 ? (
-                      <Select value={form.cor_fita_borda} onValueChange={v => setForm(p => ({ ...p, cor_fita_borda: v }))}>
-                        <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Nenhuma</SelectItem>
-                          {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input className="h-9 mt-0.5" placeholder="Ex: Branco TX"
-                        value={form.cor_fita_borda} onChange={e => setForm(p => ({ ...p, cor_fita_borda: e.target.value }))} />
-                    )}
-                  </div>
+                  <ColorField label="Cor da Caixa" value={form.cor_caixa}
+                    onChange={v => setForm(p => ({ ...p, cor_caixa: v }))}
+                    cores={cores} onDuplicate={() => addExtraColor("Cor da Caixa")} />
+                  <ColorField label="Cor da Porta" value={form.cor_porta}
+                    onChange={v => setForm(p => ({ ...p, cor_porta: v }))}
+                    cores={cores} onDuplicate={() => addExtraColor("Cor da Porta")} />
+                  <ColorField label="Cor do Tamponamento" value={form.cor_tamponamento}
+                    onChange={v => setForm(p => ({ ...p, cor_tamponamento: v }))}
+                    cores={cores} onDuplicate={() => addExtraColor("Cor do Tamponamento")} />
+                  <ColorField label="Cor Fita de Borda" value={form.cor_fita_borda}
+                    onChange={v => setForm(p => ({ ...p, cor_fita_borda: v }))}
+                    cores={cores} onDuplicate={() => addExtraColor("Cor Fita de Borda")} />
+                  <ColorField label="Cor do Fundo" value={form.cor_fundo}
+                    onChange={v => setForm(p => ({ ...p, cor_fundo: v }))}
+                    cores={cores} onDuplicate={() => addExtraColor("Cor do Fundo")} />
+                  <ColorField label="Cor dos Painéis/Tampo" value={form.cor_paineis_tampo}
+                    onChange={v => setForm(p => ({ ...p, cor_paineis_tampo: v }))}
+                    cores={cores} onDuplicate={() => addExtraColor("Cor dos Painéis/Tampo")} />
+
+                  {/* Extra duplicated color fields */}
+                  {form.extra_cores.map((extra, idx) => (
+                    <div key={idx}>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] text-muted-foreground">{extra.label}</Label>
+                        <Button type="button" variant="ghost" size="icon" className="h-5 w-5 text-destructive"
+                          onClick={() => setForm(p => ({
+                            ...p,
+                            extra_cores: p.extra_cores.filter((_, i) => i !== idx),
+                          }))}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      {cores.length > 0 ? (
+                        <Select value={extra.value} onValueChange={v => {
+                          setForm(p => {
+                            const updated = [...p.extra_cores];
+                            updated[idx] = { ...updated[idx], value: v };
+                            return { ...p, extra_cores: updated };
+                          });
+                        }}>
+                          <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhuma</SelectItem>
+                            {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input className="h-9 mt-0.5" placeholder="Ex: Branco TX"
+                          value={extra.value} onChange={e => {
+                            setForm(p => {
+                              const updated = [...p.extra_cores];
+                              updated[idx] = { ...updated[idx], value: e.target.value };
+                              return { ...p, extra_cores: updated };
+                            });
+                          }} />
+                      )}
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* Observations */}
+              <div>
+                <Label className="text-xs font-semibold flex items-center gap-1 mb-2">
+                  <MessageSquare className="h-3 w-3 text-primary" /> Outros Materiais ou Observações
+                </Label>
+                <Textarea
+                  className="min-h-[80px] text-sm"
+                  placeholder="Descreva materiais adicionais, observações ou detalhes especiais (máx. 300 caracteres)"
+                  maxLength={300}
+                  value={form.observacoes}
+                  onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))}
+                />
+                <p className="text-[10px] text-muted-foreground text-right mt-1">
+                  {form.observacoes.length}/300
+                </p>
               </div>
             </div>
           </ScrollArea>
