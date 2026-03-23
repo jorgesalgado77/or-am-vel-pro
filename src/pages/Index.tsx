@@ -287,6 +287,13 @@ export default function Index() {
                   client={historyClient}
                   onBack={() => { setActiveView("clients"); setHistoryClient(null); }}
                   onLoadSimulation={(sim, c) => {
+                    // Parse environments from arquivo_nome if it's JSON
+                    let ambientes: any[] | undefined;
+                    try {
+                      if ((sim as any).arquivo_nome && (sim as any).arquivo_nome.startsWith('[')) {
+                        ambientes = JSON.parse((sim as any).arquivo_nome);
+                      }
+                    } catch {}
                     setLoadedSimulation({
                       valor_tela: Number(sim.valor_tela),
                       desconto1: Number(sim.desconto1) || 0,
@@ -296,6 +303,7 @@ export default function Index() {
                       parcelas: sim.parcelas || 1,
                       valor_entrada: Number(sim.valor_entrada) || 0,
                       plus_percentual: Number(sim.plus_percentual) || 0,
+                      ambientes,
                     });
                     setSimulatingClient(c);
                     setHistoryClient(null);
