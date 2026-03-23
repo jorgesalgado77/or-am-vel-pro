@@ -372,11 +372,6 @@ function buildDxfScene(THREE: any, entities: DxfEntity[]) {
 }
 
 export async function loadModelForPreview(THREE: any, fileUrl: string, onProgress?: (event: ProgressEvent<EventTarget>) => void) {
-  const cached = previewModelCache.get(fileUrl);
-  if (cached?.clone) {
-    return cached.clone(true);
-  }
-
   const ext = getFileExtension(fileUrl);
   let loadedObject: any = null;
 
@@ -431,8 +426,7 @@ export async function loadModelForPreview(THREE: any, fileUrl: string, onProgres
     );
   }
 
-  previewModelCache.set(fileUrl, loadedObject);
-  return loadedObject.clone(true);
+  return loadedObject;
 }
 
 export function frameObjectForThumbnail(THREE: any, object: any, camera: any) {
