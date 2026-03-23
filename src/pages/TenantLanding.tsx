@@ -821,8 +821,12 @@ export default function TenantLanding() {
                     <p className="text-xs sm:text-sm text-gray-400">Sem compromisso. Retornamos em até 24h.</p>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="space-y-3">
-                    <div className="space-y-1">
+                   <form onSubmit={handleSubmit} className="space-y-3">
+                     {/* Honeypot anti-bot */}
+                     <div className="absolute -top-[9999px] -left-[9999px]" aria-hidden="true" tabIndex={-1}>
+                       <input type="text" name="website_url" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} autoComplete="off" tabIndex={-1} />
+                     </div>
+                     <div className="space-y-1">
                       <Label htmlFor="lead-nome" className="text-xs sm:text-sm font-medium text-gray-300">Seu Nome</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
