@@ -823,6 +823,7 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             controlsRef={controlsRef}
             backgroundPreset={backgroundPreset}
             lightingPreset={lightingPreset}
+            qualityPreset={qualityPreset}
           />
         </div>
       </CardContent>
