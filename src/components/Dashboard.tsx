@@ -618,6 +618,63 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         )}
       </div>
 
+      {/* Leads by Origin Pie Chart */}
+      {visibleCharts.leads_origem && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Distribuição de Leads por Origem</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {leadsPieData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum lead no período</p>
+            ) : (
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="w-[280px] h-[280px] flex-shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={leadsPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={100}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        labelLine={false}
+                        style={{ fontSize: 11 }}
+                      >
+                        {leadsPieData.map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => [value, "Leads"]}
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          fontSize: 13,
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-3 flex-1">
+                  {leadsPieData.map((d, i) => (
+                    <div key={d.name} className="flex items-center gap-3">
+                      <div className="h-4 w-4 rounded-full flex-shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span className="text-sm text-foreground font-medium flex-1">{d.name}</span>
+                      <Badge variant="secondary" className="text-sm font-bold">{d.value}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
