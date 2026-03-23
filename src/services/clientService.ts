@@ -110,7 +110,7 @@ export async function fetchLastSimulations(): Promise<{
 
   let query = supabase
     .from("simulations")
-    .select("client_id, valor_final, created_at")
+    .select("client_id, valor_final, valor_tela, desconto1, desconto2, desconto3, created_at")
     .order("created_at", { ascending: false });
 
   if (tenantId) {
@@ -123,18 +123,38 @@ export async function fetchLastSimulations(): Promise<{
 
   const lastSims: Record<string, LastSimInfo> = {};
   const allSimulations: { created_at: string; valor_final: number }[] = [];
+  const simCounts: Record<string, number> = {};
 
   data.forEach((s) => {
     allSimulations.push({
       created_at: s.created_at,
       valor_final: Number(s.valor_final) || 0,
     });
+
+    simCounts[s.client_id] = (simCounts[s.client_id] || 0) + 1;
+
     if (!lastSims[s.client_id]) {
+      // Calculate à vista value (valor com desconto)
+      const vt = Number(s.valor_tela) || 0;
+      const d1 = Number(s.desconto1) || 0;
+      const d2 = Number(s.desconto2) || 0;
+      const d3 = Number(s.desconto3) || 0;
+      const after1 = vt * (1 - d1 / 100);
+      const after2 = after1 * (1 - d2 / 100);
+      const valorComDesconto = after2 * (1 - d3 / 100);
+
       lastSims[s.client_id] = {
         valor_final: Number(s.valor_final) || 0,
+        valor_com_desconto: valorComDesconto,
         created_at: s.created_at,
+        sim_count: 0, // will be filled after
       };
     }
+  });
+
+  // Fill sim_count
+  Object.keys(lastSims).forEach((clientId) => {
+    lastSims[clientId].sim_count = simCounts[clientId] || 0;
   });
 
   return { lastSims, allSimulations };
