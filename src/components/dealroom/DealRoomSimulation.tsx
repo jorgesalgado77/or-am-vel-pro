@@ -61,11 +61,17 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
     }
     setLoading(true);
     console.log("[DealRoomSimulation] Loading simulations for client:", clientId);
-    const { data, error } = await supabase
+    const query = supabase
       .from("simulations")
       .select("*")
-      .eq("client_id", clientId)
-      .order("created_at", { ascending: false });
+      .eq("client_id", clientId);
+    
+    // Also filter by tenant if available
+    if (tenantId) {
+      query.eq("tenant_id", tenantId);
+    }
+    
+    const { data, error } = await query.order("created_at", { ascending: false });
     
     if (error) {
       console.error("[DealRoomSimulation] Error loading simulations:", error);
