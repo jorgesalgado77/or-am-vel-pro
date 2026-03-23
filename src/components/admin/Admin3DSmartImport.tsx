@@ -5,9 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RefreshCw, Box, Store, FileBox, Layers } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RefreshCw, Box, Store, FileBox, Layers, Settings2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useModuleCatalog } from "@/hooks/useModuleCatalog";
+import { ModuleCatalogAdmin } from "@/components/smartimport/ModuleCatalogAdmin";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface StoreRow {
   id: string;
@@ -28,6 +32,8 @@ export function Admin3DSmartImport() {
   const [stores, setStores] = useState<StoreRow[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const { tenant } = useTenant();
+  const { catalogItems, addItem, updateItem, deleteItem } = useModuleCatalog(tenant?.id || null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -61,7 +67,7 @@ export function Admin3DSmartImport() {
         {[
           { label: "Lojas com 3D Import", value: activeCount, icon: Store },
           { label: "Projetos Importados", value: totalProjects, icon: FileBox },
-          { label: "Objetos Identificados", value: "—", icon: Layers },
+          { label: "Itens no Catálogo", value: catalogItems.length, icon: Layers },
         ].map((kpi) => (
           <Card key={kpi.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -75,72 +81,94 @@ export function Admin3DSmartImport() {
         ))}
       </div>
 
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Lojas com 3D Smart Import Ativo</h3>
-        <Button variant="outline" size="sm" onClick={fetchData} className="gap-2">
-          <RefreshCw className="h-3 w-3" /> Atualizar
-        </Button>
-      </div>
+      <Tabs defaultValue="lojas" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="lojas" className="gap-1.5">
+            <Store className="h-4 w-4" /> Lojas & Projetos
+          </TabsTrigger>
+          <TabsTrigger value="catalogo" className="gap-1.5">
+            <Settings2 className="h-4 w-4" /> Catálogo de Componentes
+          </TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Loja</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Projetos</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-              ) : stores.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma loja com 3D Smart Import</TableCell></TableRow>
-              ) : stores.map((store) => {
-                const storeProjects = projects.filter((p) => p.tenant_id === store.id).length;
-                return (
-                  <TableRow key={store.id}>
-                    <TableCell className="font-medium text-foreground">{store.nome_loja}</TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">{store.codigo_loja || "—"}</TableCell>
-                    <TableCell><Badge variant="default">Ativo</Badge></TableCell>
-                    <TableCell className="text-muted-foreground">{storeProjects}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <TabsContent value="lojas" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground">Lojas com 3D Smart Import Ativo</h3>
+            <Button variant="outline" size="sm" onClick={fetchData} className="gap-2">
+              <RefreshCw className="h-3 w-3" /> Atualizar
+            </Button>
+          </div>
 
-      {projects.length > 0 && (
-        <>
-          <h3 className="text-lg font-semibold text-foreground">Últimos Projetos Importados</h3>
           <Card>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Projeto</TableHead>
                     <TableHead>Loja</TableHead>
-                    <TableHead>Data</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Projetos</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {projects.slice(0, 20).map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium text-foreground">{p.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{p.tenant_nome}</TableCell>
-                      <TableCell className="text-muted-foreground">{format(new Date(p.created_at), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
-                    </TableRow>
-                  ))}
+                  {loading ? (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+                  ) : stores.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma loja com 3D Smart Import</TableCell></TableRow>
+                  ) : stores.map((store) => {
+                    const storeProjects = projects.filter((p) => p.tenant_id === store.id).length;
+                    return (
+                      <TableRow key={store.id}>
+                        <TableCell className="font-medium text-foreground">{store.nome_loja}</TableCell>
+                        <TableCell className="text-muted-foreground font-mono text-xs">{store.codigo_loja || "—"}</TableCell>
+                        <TableCell><Badge variant="default">Ativo</Badge></TableCell>
+                        <TableCell className="text-muted-foreground">{storeProjects}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
-        </>
-      )}
+
+          {projects.length > 0 && (
+            <>
+              <h3 className="text-lg font-semibold text-foreground">Últimos Projetos Importados</h3>
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Projeto</TableHead>
+                        <TableHead>Loja</TableHead>
+                        <TableHead>Data</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {projects.slice(0, 20).map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-medium text-foreground">{p.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{p.tenant_nome}</TableCell>
+                          <TableCell className="text-muted-foreground">{format(new Date(p.created_at), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="catalogo">
+          <ModuleCatalogAdmin
+            catalogItems={catalogItems}
+            onAdd={addItem}
+            onUpdate={updateItem}
+            onDelete={deleteItem}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

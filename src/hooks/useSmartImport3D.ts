@@ -30,6 +30,20 @@ export interface ModuleLibraryItem {
   cost: number;
   materials: string;
   created_at: string;
+  // Extended fields
+  width?: number;
+  height?: number;
+  depth?: number;
+  ferragem_id?: string;
+  ferragem_name?: string;
+  puxador_id?: string;
+  puxador_name?: string;
+  fundo_tipo_id?: string;
+  fundo_tipo_name?: string;
+  cor_caixa?: string;
+  cor_porta?: string;
+  cor_tamponamento?: string;
+  cor_fita_borda?: string;
 }
 
 export function useSmartImport3D(tenantId: string | null) {

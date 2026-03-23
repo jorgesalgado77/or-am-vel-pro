@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { AddonPurchaseCard } from "@/components/AddonPurchaseCard";
 import { useSmartImport3D } from "@/hooks/useSmartImport3D";
+import { useModuleCatalog } from "@/hooks/useModuleCatalog";
 import { ProjectThumbnail } from "./ProjectThumbnail";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GLBViewer } from "./GLBViewer";
@@ -36,6 +37,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
     deleteProject, generateBudget, refresh,
   } = useSmartImport3D(tenantId);
   const { settings } = useCompanySettings();
+  const { catalogItems, addItem: addCatalogItem, updateItem: updateCatalogItem, deleteItem: deleteCatalogItem } = useModuleCatalog(tenantId);
 
   const [uploading, setUploading] = useState(false);
   const [projectName, setProjectName] = useState("");
@@ -297,6 +299,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
         <TabsContent value="biblioteca">
           <ModuleLibraryPanel
             library={library}
+            catalogItems={catalogItems}
             onAdd={addToLibrary}
             onUpdate={updateLibraryItem}
             onDelete={deleteLibraryItem}

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,14 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  BookOpen, Plus, Trash2, Edit2, Save, DollarSign, Package,
+  BookOpen, Plus, Trash2, Edit2, Save, DollarSign, Package, Ruler, Palette, Wrench,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import type { ModuleLibraryItem } from "@/hooks/useSmartImport3D";
+import type { CatalogItem } from "@/hooks/useModuleCatalog";
 
 interface ModuleLibraryPanelProps {
   library: ModuleLibraryItem[];
+  catalogItems?: CatalogItem[];
   onAdd: (item: Omit<ModuleLibraryItem, "id" | "tenant_id" | "created_at">) => Promise<any>;
   onUpdate: (id: string, updates: Partial<ModuleLibraryItem>) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
@@ -25,42 +29,133 @@ const MODULE_TYPES = [
   "Estante", "Prateleira", "Nicho", "Tamponamento", "Outro",
 ];
 
-export function ModuleLibraryPanel({ library, onAdd, onUpdate, onDelete }: ModuleLibraryPanelProps) {
+interface ModuleForm {
+  name: string;
+  type: string;
+  cost: string;
+  materials: string;
+  width: string;
+  height: string;
+  depth: string;
+  ferragem_id: string;
+  puxador_id: string;
+  fundo_tipo_id: string;
+  cor_caixa: string;
+  cor_porta: string;
+  cor_tamponamento: string;
+  cor_fita_borda: string;
+}
+
+const EMPTY_FORM: ModuleForm = {
+  name: "", type: "Outro", cost: "", materials: "",
+  width: "", height: "", depth: "",
+  ferragem_id: "", puxador_id: "", fundo_tipo_id: "",
+  cor_caixa: "", cor_porta: "", cor_tamponamento: "", cor_fita_borda: "",
+};
+
+export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate, onDelete }: ModuleLibraryPanelProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", type: "Outro", cost: "", materials: "" });
+  const [form, setForm] = useState<ModuleForm>(EMPTY_FORM);
   const [filter, setFilter] = useState("");
+
+  const catalogByCategory = useMemo(() => {
+    const map: Record<string, CatalogItem[]> = {};
+    catalogItems.forEach(i => {
+      if (!map[i.category]) map[i.category] = [];
+      map[i.category].push(i);
+    });
+    return map;
+  }, [catalogItems]);
+
+  const ferragens = catalogByCategory["ferragem"] || [];
+  const puxadores = catalogByCategory["puxador"] || [];
+  const fundos = catalogByCategory["fundo"] || [];
+  const cores = catalogByCategory["cor"] || [];
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.cost) return;
+
+    const ferragemItem = ferragens.find(f => f.id === form.ferragem_id);
+    const puxadorItem = puxadores.find(p => p.id === form.puxador_id);
+    const fundoItem = fundos.find(f => f.id === form.fundo_tipo_id);
+
+    const payload: any = {
+      name: form.name,
+      type: form.type,
+      cost: Number(form.cost),
+      materials: form.materials,
+      width: form.width ? Number(form.width) : null,
+      height: form.height ? Number(form.height) : null,
+      depth: form.depth ? Number(form.depth) : null,
+      ferragem_id: form.ferragem_id || null,
+      ferragem_name: ferragemItem?.name || null,
+      puxador_id: form.puxador_id || null,
+      puxador_name: puxadorItem?.name || null,
+      fundo_tipo_id: form.fundo_tipo_id || null,
+      fundo_tipo_name: fundoItem?.name || null,
+      cor_caixa: form.cor_caixa || null,
+      cor_porta: form.cor_porta || null,
+      cor_tamponamento: form.cor_tamponamento || null,
+      cor_fita_borda: form.cor_fita_borda || null,
+    };
+
     if (editingId) {
-      await onUpdate(editingId, {
-        name: form.name,
-        type: form.type,
-        cost: Number(form.cost),
-        materials: form.materials,
-      });
+      await onUpdate(editingId, payload);
     } else {
-      await onAdd({
-        name: form.name,
-        type: form.type,
-        cost: Number(form.cost),
-        materials: form.materials,
-      });
+      await onAdd(payload);
     }
     resetForm();
   };
 
   const resetForm = () => {
-    setForm({ name: "", type: "Outro", cost: "", materials: "" });
+    setForm(EMPTY_FORM);
     setEditingId(null);
     setShowAdd(false);
   };
 
   const startEdit = (item: ModuleLibraryItem) => {
-    setForm({ name: item.name, type: item.type, cost: String(item.cost), materials: item.materials });
+    setForm({
+      name: item.name,
+      type: item.type,
+      cost: String(item.cost),
+      materials: item.materials,
+      width: item.width ? String(item.width) : "",
+      height: item.height ? String(item.height) : "",
+      depth: item.depth ? String(item.depth) : "",
+      ferragem_id: item.ferragem_id || "",
+      puxador_id: item.puxador_id || "",
+      fundo_tipo_id: item.fundo_tipo_id || "",
+      cor_caixa: item.cor_caixa || "",
+      cor_porta: item.cor_porta || "",
+      cor_tamponamento: item.cor_tamponamento || "",
+      cor_fita_borda: item.cor_fita_borda || "",
+    });
     setEditingId(item.id);
     setShowAdd(true);
+  };
+
+  // Auto-fill when selecting a module by name from library
+  const handleNameSelect = (selectedName: string) => {
+    const existing = library.find(m => m.name === selectedName);
+    if (existing && !editingId) {
+      setForm({
+        name: existing.name,
+        type: existing.type,
+        cost: String(existing.cost),
+        materials: existing.materials,
+        width: existing.width ? String(existing.width) : "",
+        height: existing.height ? String(existing.height) : "",
+        depth: existing.depth ? String(existing.depth) : "",
+        ferragem_id: existing.ferragem_id || "",
+        puxador_id: existing.puxador_id || "",
+        fundo_tipo_id: existing.fundo_tipo_id || "",
+        cor_caixa: existing.cor_caixa || "",
+        cor_porta: existing.cor_porta || "",
+        cor_tamponamento: existing.cor_tamponamento || "",
+        cor_fita_borda: existing.cor_fita_borda || "",
+      });
+    }
   };
 
   const filtered = library.filter(item =>
@@ -104,12 +199,7 @@ export function ModuleLibraryPanel({ library, onAdd, onUpdate, onDelete }: Modul
       </div>
 
       {/* Search */}
-      <Input
-        placeholder="Buscar módulo..."
-        value={filter}
-        onChange={e => setFilter(e.target.value)}
-        className="h-8 text-sm"
-      />
+      <Input placeholder="Buscar módulo..." value={filter} onChange={e => setFilter(e.target.value)} className="h-8 text-sm" />
 
       {/* Table */}
       {filtered.length === 0 ? (
@@ -129,6 +219,7 @@ export function ModuleLibraryPanel({ library, onAdd, onUpdate, onDelete }: Modul
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Dimensões</TableHead>
                   <TableHead>Material</TableHead>
                   <TableHead className="text-right">Custo</TableHead>
                   <TableHead className="w-20">Ações</TableHead>
@@ -140,6 +231,11 @@ export function ModuleLibraryPanel({ library, onAdd, onUpdate, onDelete }: Modul
                     <TableCell className="text-sm font-medium">{item.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">{item.type}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {item.width || item.height || item.depth
+                        ? `${item.width || "—"} × ${item.height || "—"} × ${item.depth || "—"} mm`
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{item.materials || "—"}</TableCell>
                     <TableCell className="text-right font-mono text-sm">{formatCurrency(item.cost)}</TableCell>
@@ -163,36 +259,182 @@ export function ModuleLibraryPanel({ library, onAdd, onUpdate, onDelete }: Modul
 
       {/* Add/Edit Dialog */}
       <Dialog open={showAdd} onOpenChange={v => { if (!v) resetForm(); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Módulo" : "Novo Módulo"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">Nome do Módulo</Label>
-              <Input className="h-9 mt-1" placeholder="Ex: Aéreo 80cm 2 Portas"
-                value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+          <ScrollArea className="max-h-[65vh] pr-3">
+            <div className="space-y-4">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label className="text-xs">Nome do Módulo</Label>
+                  <Input className="h-9 mt-1" placeholder="Ex: Aéreo 80cm 2 Portas"
+                    value={form.name}
+                    onChange={e => { setForm(p => ({ ...p, name: e.target.value })); }}
+                    onBlur={() => handleNameSelect(form.name)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Tipo</Label>
+                  <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v }))}>
+                    <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MODULE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Custo (R$)</Label>
+                  <Input type="number" className="h-9 mt-1" placeholder="0.00"
+                    value={form.cost} onChange={e => setForm(p => ({ ...p, cost: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Material Principal</Label>
+                  <Input className="h-9 mt-1" placeholder="Ex: MDF 18mm Branco TX"
+                    value={form.materials} onChange={e => setForm(p => ({ ...p, materials: e.target.value }))} />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Dimensions */}
+              <div>
+                <Label className="text-xs font-semibold flex items-center gap-1 mb-2">
+                  <Ruler className="h-3 w-3 text-primary" /> Dimensões (mm)
+                </Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Largura</Label>
+                    <Input type="number" className="h-9 mt-0.5" placeholder="0"
+                      value={form.width} onChange={e => setForm(p => ({ ...p, width: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Altura</Label>
+                    <Input type="number" className="h-9 mt-0.5" placeholder="0"
+                      value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Profundidade</Label>
+                    <Input type="number" className="h-9 mt-0.5" placeholder="0"
+                      value={form.depth} onChange={e => setForm(p => ({ ...p, depth: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Components from Catalog */}
+              <div>
+                <Label className="text-xs font-semibold flex items-center gap-1 mb-2">
+                  <Wrench className="h-3 w-3 text-primary" /> Componentes
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Ferragem</Label>
+                    <Select value={form.ferragem_id} onValueChange={v => setForm(p => ({ ...p, ferragem_id: v }))}>
+                      <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                        {ferragens.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Puxador</Label>
+                    <Select value={form.puxador_id} onValueChange={v => setForm(p => ({ ...p, puxador_id: v }))}>
+                      <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {puxadores.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-[10px] text-muted-foreground">Tipo de Fundo</Label>
+                    <Select value={form.fundo_tipo_id} onValueChange={v => setForm(p => ({ ...p, fundo_tipo_id: v }))}>
+                      <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {fundos.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Colors */}
+              <div>
+                <Label className="text-xs font-semibold flex items-center gap-1 mb-2">
+                  <Palette className="h-3 w-3 text-primary" /> Cores e Acabamentos
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Cor da Caixa</Label>
+                    {cores.length > 0 ? (
+                      <Select value={form.cor_caixa} onValueChange={v => setForm(p => ({ ...p, cor_caixa: v }))}>
+                        <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhuma</SelectItem>
+                          {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input className="h-9 mt-0.5" placeholder="Ex: Branco TX"
+                        value={form.cor_caixa} onChange={e => setForm(p => ({ ...p, cor_caixa: e.target.value }))} />
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Cor da Porta</Label>
+                    {cores.length > 0 ? (
+                      <Select value={form.cor_porta} onValueChange={v => setForm(p => ({ ...p, cor_porta: v }))}>
+                        <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhuma</SelectItem>
+                          {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input className="h-9 mt-0.5" placeholder="Ex: Cinza Grafite"
+                        value={form.cor_porta} onChange={e => setForm(p => ({ ...p, cor_porta: e.target.value }))} />
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Cor do Tamponamento</Label>
+                    {cores.length > 0 ? (
+                      <Select value={form.cor_tamponamento} onValueChange={v => setForm(p => ({ ...p, cor_tamponamento: v }))}>
+                        <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhuma</SelectItem>
+                          {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input className="h-9 mt-0.5" placeholder="Ex: Branco TX"
+                        value={form.cor_tamponamento} onChange={e => setForm(p => ({ ...p, cor_tamponamento: e.target.value }))} />
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Cor Fita de Borda da Caixa</Label>
+                    {cores.length > 0 ? (
+                      <Select value={form.cor_fita_borda} onValueChange={v => setForm(p => ({ ...p, cor_fita_borda: v }))}>
+                        <SelectTrigger className="h-9 mt-0.5"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhuma</SelectItem>
+                          {cores.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input className="h-9 mt-0.5" placeholder="Ex: Branco TX"
+                        value={form.cor_fita_borda} onChange={e => setForm(p => ({ ...p, cor_fita_borda: e.target.value }))} />
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label className="text-xs">Tipo</Label>
-              <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v }))}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MODULE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Custo (R$)</Label>
-              <Input type="number" className="h-9 mt-1" placeholder="0.00"
-                value={form.cost} onChange={e => setForm(p => ({ ...p, cost: e.target.value }))} />
-            </div>
-            <div>
-              <Label className="text-xs">Material</Label>
-              <Input className="h-9 mt-1" placeholder="Ex: MDF 18mm Branco TX"
-                value={form.materials} onChange={e => setForm(p => ({ ...p, materials: e.target.value }))} />
-            </div>
-          </div>
+          </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={resetForm}>Cancelar</Button>
             <Button onClick={handleSave} className="gap-1.5" disabled={!form.name.trim() || !form.cost}>
