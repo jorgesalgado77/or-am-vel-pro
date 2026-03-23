@@ -502,7 +502,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         if (!mounted) return;
 
         setProgress(85);
-        setProgressLabel("Finalizando...");
+        setProgressLabel(`Finalizando (${ext.toUpperCase()})...`);
 
         scene.add(loadedObject);
 
