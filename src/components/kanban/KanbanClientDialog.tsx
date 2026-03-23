@@ -1,6 +1,7 @@
 /**
  * Expanded client detail dialog for the Kanban board.
  */
+import { useState } from "react";
 import { differenceInDays } from "date-fns";
 import { format, addDays, isPast, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
