@@ -104,7 +104,7 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
           } else if (ext === "fbx") {
             const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
             const loader = new FBXLoader();
-            const fbx = await new Promise<THREE.Object3D>((resolve, reject) =>
+            const fbx = await new Promise<any>((resolve, reject) =>
               loader.load(fileUrl, resolve, undefined, reject)
             );
             loadedObject = fbx;
