@@ -46,6 +46,7 @@ export function KanbanClientDialog({
   client, onClose, lastSim, budgetValidityDays, cargoNome, canEdit, canDelete,
   indicadorMap, usuarios, onEdit, onDelete, onSimulate, onHistory, onContracts, onClientUpdate,
 }: KanbanClientDialogProps) {
+  const [showBriefing, setShowBriefing] = useState(false);
   if (!client) return null;
 
   const isExpired = lastSim ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
