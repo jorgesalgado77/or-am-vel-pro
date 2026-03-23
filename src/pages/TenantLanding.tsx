@@ -612,13 +612,13 @@ export default function TenantLanding() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900">Recebemos seu cadastro!</h2>
           <p className="text-gray-600">A equipe da <strong>{tenant.nome_loja}</strong> entrará em contato em breve.</p>
-          {tenant.whatsapp_loja && (
-            <a href={`https://wa.me/55${unmask(tenant.whatsapp_loja)}`} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium shadow-lg active:scale-[0.97] transition-transform"
-              style={{ backgroundColor: "#25D366" }}>
-              <Phone className="h-4 w-4" /> Falar no WhatsApp
-            </a>
-          )}
+          <button
+            onClick={() => window.location.href = "https://orcamovelpro.lovable.app"}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium shadow-lg active:scale-[0.97] transition-transform"
+            style={{ backgroundColor: "#25D366" }}
+          >
+            <CheckCircle2 className="h-4 w-4" /> Obrigado pelo contato
+          </button>
         </div>
       </div>
     );
