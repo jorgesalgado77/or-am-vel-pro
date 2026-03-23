@@ -70,6 +70,13 @@ export const DEFAULT_IRRF_FAIXAS: IRRFFaixa[] = [
 export const DEFAULT_IRRF_ISENCAO_LIMITE = 5000.00;
 export const DEFAULT_IRRF_TRANSICAO_LIMITE = 7350.00;
 
+export const DEFAULT_MEI_DAS: MEIDASConfig = {
+  salario_minimo: 1621.00,
+  inss_percentual: 5,
+  icms_valor: 1.00,
+  iss_valor: 5.00,
+};
+
 const DEFAULT_CLT_TAXES: TaxRate[] = [
   { nome: "INSS", aliquota: 7.5, ativo: true },
   { nome: "IRRF", aliquota: 0, ativo: true },
