@@ -205,6 +205,64 @@ export function PayrollSummary({ usuarios, cargos, mesReferencia, getRegimeEfeti
           ))}
         </div>
 
+        {/* Charts */}
+        {regimeSummaries.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Pie Chart - Distribuição por Regime */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Distribuição de Custo por Regime</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={regimeSummaries.map(r => ({ name: r.regime, value: r.totalCustoEmpresa }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {regimeSummaries.map((r, i) => (
+                        <Cell key={r.regime} fill={REGIME_COLORS[r.regime] || REGIME_COLORS.default} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Bar Chart - Bruto vs Líquido vs Custo */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Bruto × Líquido × Custo Empresa</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={regimeSummaries.map(r => ({
+                    regime: r.regime,
+                    Bruto: r.totalBruto,
+                    Líquido: r.totalLiquido,
+                    "Custo Empresa": r.totalCustoEmpresa,
+                  }))}>
+                    <XAxis dataKey="regime" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="Bruto" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Líquido" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Custo Empresa" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Detailed table */}
         <div className="border rounded-md overflow-x-auto">
           <Table>
