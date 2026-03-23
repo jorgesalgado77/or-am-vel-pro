@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Maximize2, Minimize2, FileBox, Loader2 } from "lucide-react";
+import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface GLBViewerProps {
   fileUrl: string;
@@ -305,12 +306,13 @@ function LoadingOverlay({ progress, label }: { progress: number; label: string }
   );
 }
 
-function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
+function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any> }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("Inicializando...");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cameraInitial = useRef<{ pos: any; target: any } | null>(null);
 
   useEffect(() => {
     const testCanvas = document.createElement("canvas");
@@ -366,6 +368,17 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
         controls.enablePan = true;
         controls.maxPolarAngle = Math.PI * 0.9;
         controls.minPolarAngle = Math.PI * 0.05;
+
+        // Save initial camera state for reset
+        cameraInitial.current = {
+          pos: camera.position.clone(),
+          target: controls.target.clone(),
+        };
+
+        // Expose controls to parent
+        if (controlsRef) {
+          controlsRef.current = { controls, camera, initialPos: camera.position.clone(), initialTarget: controls.target.clone() };
+        }
 
         // Lights - balanced for color accuracy
         const ambient = new THREE.AmbientLight(0xffffff, 0.8);
@@ -660,7 +673,9 @@ function FallbackView({ message, fileUrl }: { message: string; fileUrl: string }
 
 export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isAutoRotating, setIsAutoRotating] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<any>(null);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -673,17 +688,63 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
     }
   };
 
+  const toggleAutoRotate = () => {
+    if (controlsRef.current?.controls) {
+      const next = !controlsRef.current.controls.autoRotate;
+      controlsRef.current.controls.autoRotate = next;
+      setIsAutoRotating(next);
+    }
+  };
+
+  const resetCamera = () => {
+    if (controlsRef.current) {
+      const { controls, camera, initialPos, initialTarget } = controlsRef.current;
+      camera.position.copy(initialPos);
+      controls.target.copy(initialTarget);
+      controls.update();
+    }
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
         <div ref={containerRef} className={`relative ${isFullscreen ? "h-screen" : "h-[500px]"}`}>
           <div className="absolute top-3 right-3 z-10 flex gap-1.5">
-            <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
-              onClick={toggleFullscreen}>
-              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
+                  onClick={toggleAutoRotate}>
+                  {isAutoRotating ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{isAutoRotating ? "Pausar rotação" : "Retomar rotação"}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
+                  onClick={resetCamera}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Resetar câmera</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
+                  onClick={toggleFullscreen}>
+                  {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{isFullscreen ? "Sair da tela cheia" : "Tela cheia"}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
-          <WebGLViewer fileUrl={fileUrl} onObjectSelect={onObjectSelect} />
+          <WebGLViewer fileUrl={fileUrl} onObjectSelect={onObjectSelect} controlsRef={controlsRef} />
         </div>
       </CardContent>
     </Card>
