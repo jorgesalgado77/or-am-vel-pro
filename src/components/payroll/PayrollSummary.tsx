@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Building2, TrendingUp } from "lucide-react";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import {
@@ -152,6 +153,14 @@ export function PayrollSummary({ usuarios, cargos, mesReferencia, getRegimeEfeti
     totalCustoEmpresa: employeeCosts.reduce((s, e) => s + e.custoEmpresa, 0),
   };
 
+  const REGIME_COLORS: Record<string, string> = {
+    CLT: "hsl(142, 71%, 45%)",
+    MEI: "hsl(217, 91%, 60%)",
+    Freelancer: "hsl(38, 92%, 50%)",
+    "Sem regime": "hsl(0, 0%, 60%)",
+    default: "hsl(0, 0%, 70%)",
+  };
+
   const regimeBadgeClass = (regime: string) => {
     if (regime === "CLT") return "border-emerald-500/50 text-emerald-700";
     if (regime === "MEI") return "border-blue-500/50 text-blue-700";
@@ -203,6 +212,64 @@ export function PayrollSummary({ usuarios, cargos, mesReferencia, getRegimeEfeti
             </Card>
           ))}
         </div>
+
+        {/* Charts */}
+        {regimeSummaries.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Pie Chart - Distribuição por Regime */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Distribuição de Custo por Regime</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={regimeSummaries.map(r => ({ name: r.regime, value: r.totalCustoEmpresa }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {regimeSummaries.map((r, i) => (
+                        <Cell key={r.regime} fill={REGIME_COLORS[r.regime] || REGIME_COLORS.default} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Bar Chart - Bruto vs Líquido vs Custo */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Bruto × Líquido × Custo Empresa</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={regimeSummaries.map(r => ({
+                    regime: r.regime,
+                    Bruto: r.totalBruto,
+                    Líquido: r.totalLiquido,
+                    "Custo Empresa": r.totalCustoEmpresa,
+                  }))}>
+                    <XAxis dataKey="regime" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="Bruto" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Líquido" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Custo Empresa" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Detailed table */}
         <div className="border rounded-md overflow-x-auto">
