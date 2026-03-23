@@ -717,11 +717,30 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
     <div className="relative w-full h-full">
       <canvas ref={canvasRef} className="w-full h-full" />
       {loading && <LoadingOverlay progress={progress} label={progressLabel} />}
-      {!loading && (
+      {!loading && !selectedPiece && (
         <div className="absolute bottom-3 left-3 z-10">
           <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur">
-            Clique em um objeto para selecionar
+            Clique em uma peça para selecionar
           </Badge>
+        </div>
+      )}
+      {!loading && selectedPiece && (
+        <div className="absolute bottom-3 left-3 z-10 bg-background/90 backdrop-blur rounded-lg border border-border p-3 shadow-lg max-w-[220px]">
+          <p className="text-xs font-semibold text-foreground truncate mb-1.5">{selectedPiece.name}</p>
+          <div className="grid grid-cols-3 gap-2 text-[10px]">
+            <div className="text-center">
+              <p className="text-muted-foreground">Largura</p>
+              <p className="font-bold text-primary">{selectedPiece.width.toFixed(1)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-muted-foreground">Altura</p>
+              <p className="font-bold text-primary">{selectedPiece.height.toFixed(1)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-muted-foreground">Prof.</p>
+              <p className="font-bold text-primary">{selectedPiece.depth.toFixed(1)}</p>
+            </div>
+          </div>
         </div>
       )}
     </div>
