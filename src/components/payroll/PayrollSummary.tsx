@@ -153,6 +153,14 @@ export function PayrollSummary({ usuarios, cargos, mesReferencia, getRegimeEfeti
     totalCustoEmpresa: employeeCosts.reduce((s, e) => s + e.custoEmpresa, 0),
   };
 
+  const REGIME_COLORS: Record<string, string> = {
+    CLT: "hsl(142, 71%, 45%)",
+    MEI: "hsl(217, 91%, 60%)",
+    Freelancer: "hsl(38, 92%, 50%)",
+    "Sem regime": "hsl(0, 0%, 60%)",
+    default: "hsl(0, 0%, 70%)",
+  };
+
   const regimeBadgeClass = (regime: string) => {
     if (regime === "CLT") return "border-emerald-500/50 text-emerald-700";
     if (regime === "MEI") return "border-blue-500/50 text-blue-700";
