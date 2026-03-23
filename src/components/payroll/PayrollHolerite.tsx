@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Printer, X } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { getRegimeTaxConfig, getINSSFaixas, getIRRFFaixas, getIRRFLimites, calcularINSS, calcularIRRF, type TaxRate } from "./PayrollTaxConfig";
+import { getRegimeTaxConfig, getINSSFaixas, getIRRFFaixas, getIRRFLimites, getMEIDASConfig, calcularINSS, calcularIRRF, calcularDASMEI, type TaxRate, type MEIAtividade } from "./PayrollTaxConfig";
 import type { Usuario } from "@/hooks/useUsuarios";
 import type { Cargo } from "@/hooks/useCargos";
 
@@ -36,6 +36,7 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const inssFaixas = getINSSFaixas(settings);
   const irrfFaixas = getIRRFFaixas(settings);
   const irrfLimites = getIRRFLimites(settings);
+  const meiDasConfig = getMEIDASConfig(settings);
 
   const cargo = usuario.cargo_id ? cargos.find(c => c.id === usuario.cargo_id) : null;
   const salario = usuario.salario_fixo || (cargo as any)?.salario_base || 0;
@@ -69,40 +70,53 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const descontos: { descricao: string; valor: number }[] = [];
   if (faltasDias > 0) descontos.push({ descricao: `Faltas (${faltasDias} dias)`, valor: descontoFaltas });
 
-  // Impostos - INSS and IRRF use progressive tables for CLT/Freelancer
+  // Impostos
   const isProgressivo = (regime === "CLT" || regime === "Freelancer");
+  const isMEI = regime === "MEI";
 
-  // First pass: calculate INSS to use as base for IRRF
-  let descontoINSSCalc = 0;
-  if (isProgressivo && inssFaixas.length > 0) {
-    const inssCalc = calcularINSS(totalBruto, inssFaixas);
-    descontoINSSCalc = inssCalc.valor;
-  }
-  
-  activeTaxes.forEach(tax => {
-    const nomeUpper = tax.nome.toUpperCase();
-    const isINSS = nomeUpper.includes("INSS") && !nomeUpper.includes("PATRONAL");
-    const isIRRF = nomeUpper.includes("IRRF");
+  if (isMEI) {
+    // MEI uses fixed DAS values — detect activity from active taxes
+    const hasICMS = activeTaxes.some(t => t.nome.toUpperCase().includes("ICMS"));
+    const hasISS = activeTaxes.some(t => t.nome.toUpperCase().includes("ISS"));
+    const atividade: MEIAtividade = (hasICMS && hasISS) ? "ambos" : hasICMS ? "comercio" : "servicos";
+    const dasCalc = calcularDASMEI(atividade, meiDasConfig);
     
-    if (isINSS && isProgressivo && inssFaixas.length > 0) {
-      const inssCalc = calcularINSS(totalBruto, inssFaixas);
-      descontos.push({
-        descricao: `${tax.nome} (${inssCalc.aliquota}% — ${inssCalc.faixa})`,
-        valor: inssCalc.valor,
-      });
-    } else if (isIRRF && isProgressivo && irrfFaixas.length > 0) {
-      const irrfCalc = calcularIRRF(totalBruto, descontoINSSCalc, irrfFaixas, irrfLimites.isencao, irrfLimites.transicao);
-      if (irrfCalc.valor > 0) {
-        descontos.push({
-          descricao: `${tax.nome} (${irrfCalc.descricao})`,
-          valor: irrfCalc.valor,
-        });
-      }
-    } else {
-      const base = nomeUpper.includes("FGTS") ? salario : totalBruto;
-      descontos.push({ descricao: `${tax.nome} (${tax.aliquota}%)`, valor: (base * tax.aliquota) / 100 });
+    descontos.push({ descricao: `INSS MEI (${meiDasConfig.inss_percentual}% do SM ${formatCurrency(meiDasConfig.salario_minimo)})`, valor: dasCalc.inss });
+    if (dasCalc.icms > 0) descontos.push({ descricao: "ICMS (fixo)", valor: dasCalc.icms });
+    if (dasCalc.iss > 0) descontos.push({ descricao: "ISS (fixo)", valor: dasCalc.iss });
+    
+    // Add other non-DAS taxes that may be active
+    activeTaxes.forEach(tax => {
+      const n = tax.nome.toUpperCase();
+      if (n.includes("INSS") || n.includes("ICMS") || n.includes("ISS") || n.includes("DAS")) return;
+      descontos.push({ descricao: `${tax.nome} (${tax.aliquota}%)`, valor: (totalBruto * tax.aliquota) / 100 });
+    });
+  } else {
+    // CLT/Freelancer: progressive INSS + IRRF
+    let descontoINSSCalc = 0;
+    if (isProgressivo && inssFaixas.length > 0) {
+      descontoINSSCalc = calcularINSS(totalBruto, inssFaixas).valor;
     }
-  });
+    
+    activeTaxes.forEach(tax => {
+      const nomeUpper = tax.nome.toUpperCase();
+      const isINSS = nomeUpper.includes("INSS") && !nomeUpper.includes("PATRONAL");
+      const isIRRF = nomeUpper.includes("IRRF");
+      
+      if (isINSS && isProgressivo && inssFaixas.length > 0) {
+        const inssCalc = calcularINSS(totalBruto, inssFaixas);
+        descontos.push({ descricao: `${tax.nome} (${inssCalc.aliquota}% — ${inssCalc.faixa})`, valor: inssCalc.valor });
+      } else if (isIRRF && isProgressivo && irrfFaixas.length > 0) {
+        const irrfCalc = calcularIRRF(totalBruto, descontoINSSCalc, irrfFaixas, irrfLimites.isencao, irrfLimites.transicao);
+        if (irrfCalc.valor > 0) {
+          descontos.push({ descricao: `${tax.nome} (${irrfCalc.descricao})`, valor: irrfCalc.valor });
+        }
+      } else {
+        const base = nomeUpper.includes("FGTS") ? salario : totalBruto;
+        descontos.push({ descricao: `${tax.nome} (${tax.aliquota}%)`, valor: (base * tax.aliquota) / 100 });
+      }
+    });
+  }
 
   if (adiantamento > 0) descontos.push({ descricao: "Adiantamento", valor: adiantamento });
   if (outrosDescontos > 0) descontos.push({ descricao: deduction?.descricao_outros ? `Outros: ${deduction.descricao_outros}` : "Outros Descontos", valor: outrosDescontos });

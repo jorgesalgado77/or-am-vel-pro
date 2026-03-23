@@ -28,6 +28,15 @@ export interface IRRFFaixa {
   deducao: number;
 }
 
+export type MEIAtividade = "comercio" | "servicos" | "ambos";
+
+export interface MEIDASConfig {
+  salario_minimo: number;
+  inss_percentual: number;
+  icms_valor: number;
+  iss_valor: number;
+}
+
 export interface RegimeTaxConfig {
   CLT: TaxRate[];
   MEI: TaxRate[];
@@ -40,6 +49,7 @@ export interface FullTaxConfig {
   irrf_faixas: IRRFFaixa[];
   irrf_isencao_limite: number;
   irrf_transicao_limite: number;
+  mei_das: MEIDASConfig;
 }
 
 export const DEFAULT_INSS_FAIXAS: INSSFaixa[] = [
@@ -59,6 +69,13 @@ export const DEFAULT_IRRF_FAIXAS: IRRFFaixa[] = [
 
 export const DEFAULT_IRRF_ISENCAO_LIMITE = 5000.00;
 export const DEFAULT_IRRF_TRANSICAO_LIMITE = 7350.00;
+
+export const DEFAULT_MEI_DAS: MEIDASConfig = {
+  salario_minimo: 1621.00,
+  inss_percentual: 5,
+  icms_valor: 1.00,
+  iss_valor: 5.00,
+};
 
 const DEFAULT_CLT_TAXES: TaxRate[] = [
   { nome: "INSS", aliquota: 7.5, ativo: true },
@@ -118,6 +135,28 @@ export function getIRRFLimites(settings: any): { isencao: number; transicao: num
     isencao: typeof raw.irrf_isencao_limite === "number" ? raw.irrf_isencao_limite : DEFAULT_IRRF_ISENCAO_LIMITE,
     transicao: typeof raw.irrf_transicao_limite === "number" ? raw.irrf_transicao_limite : DEFAULT_IRRF_TRANSICAO_LIMITE,
   };
+}
+
+export function getMEIDASConfig(settings: any): MEIDASConfig {
+  const raw = settings?.tax_config;
+  if (!raw || typeof raw !== "object" || !raw.mei_das) return DEFAULT_MEI_DAS;
+  return { ...DEFAULT_MEI_DAS, ...raw.mei_das };
+}
+
+export function calcularDASMEI(
+  atividade: MEIAtividade,
+  config: MEIDASConfig,
+): { inss: number; icms: number; iss: number; total: number; descricao: string } {
+  const inss = (config.salario_minimo * config.inss_percentual) / 100;
+  const icms = (atividade === "comercio" || atividade === "ambos") ? config.icms_valor : 0;
+  const iss = (atividade === "servicos" || atividade === "ambos") ? config.iss_valor : 0;
+  const total = inss + icms + iss;
+  
+  const atividadeLabel = atividade === "comercio" ? "Comércio/Indústria"
+    : atividade === "servicos" ? "Prestação de Serviços"
+    : "Comércio e Serviços";
+  
+  return { inss, icms, iss, total, descricao: atividadeLabel };
 }
 
 export function calcularINSS(salarioBruto: number, faixas: INSSFaixa[]): { valor: number; aliquota: number; faixa: string } {
@@ -197,6 +236,7 @@ export function PayrollTaxConfig({ onClose }: Props) {
   const [irrfFaixas, setIrrfFaixas] = useState<IRRFFaixa[]>(DEFAULT_IRRF_FAIXAS);
   const [irrfIsencao, setIrrfIsencao] = useState(DEFAULT_IRRF_ISENCAO_LIMITE);
   const [irrfTransicao, setIrrfTransicao] = useState(DEFAULT_IRRF_TRANSICAO_LIMITE);
+  const [meiDas, setMeiDas] = useState<MEIDASConfig>(DEFAULT_MEI_DAS);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -206,6 +246,7 @@ export function PayrollTaxConfig({ onClose }: Props) {
     const limites = getIRRFLimites(settings);
     setIrrfIsencao(limites.isencao);
     setIrrfTransicao(limites.transicao);
+    setMeiDas(getMEIDASConfig(settings));
   }, [settings]);
 
   const updateTax = (regime: keyof RegimeTaxConfig, index: number, field: keyof TaxRate, value: any) => {
@@ -245,6 +286,7 @@ export function PayrollTaxConfig({ onClose }: Props) {
       irrf_faixas: irrfFaixas,
       irrf_isencao_limite: irrfIsencao,
       irrf_transicao_limite: irrfTransicao,
+      mei_das: meiDas,
     };
     const { error } = await supabase
       .from("company_settings")
@@ -372,6 +414,83 @@ export function PayrollTaxConfig({ onClose }: Props) {
           </Card>
         </div>
       </div>
+
+      {/* MEI DAS Table */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Badge variant="outline" className="border-blue-500/50 text-blue-700">Tabela DAS MEI 2026</Badge>
+            <span className="text-xs text-muted-foreground font-normal">Guia mensal fixa por tipo de atividade</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">Salário Mínimo Base</p>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">R$</span>
+                <Input type="number" step="0.01" value={meiDas.salario_minimo}
+                  onChange={(e) => setMeiDas(p => ({ ...p, salario_minimo: parseFloat(e.target.value) || 0 }))} className="text-xs h-8" />
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">INSS (% do SM)</p>
+              <div className="flex items-center gap-1">
+                <Input type="number" step="0.1" value={meiDas.inss_percentual}
+                  onChange={(e) => setMeiDas(p => ({ ...p, inss_percentual: parseFloat(e.target.value) || 0 }))} className="text-xs h-8 w-20 text-right" />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">ICMS (fixo)</p>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">R$</span>
+                <Input type="number" step="0.01" value={meiDas.icms_valor}
+                  onChange={(e) => setMeiDas(p => ({ ...p, icms_valor: parseFloat(e.target.value) || 0 }))} className="text-xs h-8" />
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">ISS (fixo)</p>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">R$</span>
+                <Input type="number" step="0.01" value={meiDas.iss_valor}
+                  onChange={(e) => setMeiDas(p => ({ ...p, iss_valor: parseFloat(e.target.value) || 0 }))} className="text-xs h-8" />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Resumo por Atividade</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {([
+                { atividade: "comercio" as MEIAtividade, label: "Comércio / Indústria", desc: "INSS + ICMS" },
+                { atividade: "servicos" as MEIAtividade, label: "Prestação de Serviços", desc: "INSS + ISS" },
+                { atividade: "ambos" as MEIAtividade, label: "Comércio e Serviços", desc: "INSS + ICMS + ISS" },
+              ]).map(item => {
+                const calc = calcularDASMEI(item.atividade, meiDas);
+                return (
+                  <div key={item.atividade} className="rounded-lg border p-3 space-y-1">
+                    <p className="text-xs font-semibold text-foreground">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                    <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                      <div className="flex justify-between"><span>INSS ({meiDas.inss_percentual}%)</span><span>{formatCurrency(calc.inss)}</span></div>
+                      {calc.icms > 0 && <div className="flex justify-between"><span>ICMS</span><span>{formatCurrency(calc.icms)}</span></div>}
+                      {calc.iss > 0 && <div className="flex justify-between"><span>ISS</span><span>{formatCurrency(calc.iss)}</span></div>}
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-xs font-bold text-foreground">
+                      <span>Total DAS</span>
+                      <span>{formatCurrency(calc.total)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {(Object.keys(config) as Array<keyof RegimeTaxConfig>).map((regime) => (
