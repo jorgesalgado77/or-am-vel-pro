@@ -831,34 +831,34 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
       {/* Tenant Dialog */}
       <Dialog open={showTenantDialog} onOpenChange={setShowTenantDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingTenant ? "Editar Loja" : "Nova Loja"}</DialogTitle>
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 shrink-0">
+            <DialogTitle className="text-base">{editingTenant ? "Editar Loja" : "Nova Loja"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-2 sm:px-6 space-y-3">
             <div>
-              <Label>Nome da Loja *</Label>
-              <Input value={tNome} onChange={(e) => setTNome(e.target.value)} className="mt-1" />
+              <Label className="text-xs">Nome da Loja *</Label>
+              <Input value={tNome} onChange={(e) => setTNome(e.target.value)} className="mt-1 h-9 text-sm" />
             </div>
             <div>
-              <Label>Código da Loja</Label>
-              <Input value={tCodigo} onChange={(e) => setTCodigo(e.target.value)} className="mt-1" placeholder="000.000" />
+              <Label className="text-xs">Código da Loja</Label>
+              <Input value={tCodigo} onChange={(e) => setTCodigo(e.target.value)} className="mt-1 h-9 text-sm" placeholder="000.000" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Email</Label>
+                <Input value={tEmail} onChange={(e) => setTEmail(e.target.value)} className="mt-1 h-9 text-sm" type="email" />
+              </div>
+              <div>
+                <Label className="text-xs">Telefone</Label>
+                <Input value={tTelefone} onChange={(e) => setTTelefone(e.target.value)} className="mt-1 h-9 text-sm" />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Email</Label>
-                <Input value={tEmail} onChange={(e) => setTEmail(e.target.value)} className="mt-1" type="email" />
-              </div>
-              <div>
-                <Label>Telefone</Label>
-                <Input value={tTelefone} onChange={(e) => setTTelefone(e.target.value)} className="mt-1" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Plano</Label>
+                <Label className="text-xs">Plano</Label>
                 <Select value={tPlano} onValueChange={setTPlano}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="trial">Teste Grátis</SelectItem>
                     <SelectItem value="basico">Básico</SelectItem>
@@ -867,9 +867,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 </Select>
               </div>
               <div>
-                <Label>Período</Label>
+                <Label className="text-xs">Período</Label>
                 <Select value={tPeriodo} onValueChange={setTPeriodo}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="mensal">Mensal</SelectItem>
                     <SelectItem value="anual">Anual</SelectItem>
@@ -879,57 +879,57 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={tAtivo} onCheckedChange={setTAtivo} />
-              <Label>Loja ativa</Label>
+              <Label className="text-sm">Loja ativa</Label>
             </div>
-            <div className="border rounded-lg p-3 space-y-3">
-              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Crown className="h-4 w-4 text-primary" /> Recursos VIP
+            <div className="border border-border rounded-lg p-3 space-y-2.5">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                <Crown className="h-3.5 w-3.5 text-primary" /> Recursos VIP
               </p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <EyeOff className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Ocultar Indicador</p>
-                    <p className="text-xs text-muted-foreground">Permite ocultar informações do indicador no simulador</p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <EyeOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">Ocultar Indicador</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Ocultar informações do indicador no simulador</p>
                   </div>
                 </div>
                 <Switch checked={tOcultarIndicador} onCheckedChange={setTOcultarIndicador} />
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Handshake className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Deal Room</p>
-                    <p className="text-xs text-muted-foreground">Libera acesso à Deal Room mesmo no plano Trial</p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Handshake className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">Deal Room</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Acesso à Deal Room no plano Trial</p>
                   </div>
                 </div>
                 <Switch checked={tDealRoom} onCheckedChange={setTDealRoom} />
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bot className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">VendaZap AI</p>
-                    <p className="text-xs text-muted-foreground">Libera assistente de vendas IA para WhatsApp</p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Bot className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">VendaZap AI</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Assistente de vendas IA para WhatsApp</p>
                   </div>
                 </div>
                 <Switch checked={tVendaZap} onCheckedChange={setTVendaZap} />
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Box className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">3D Smart Import</p>
-                    <p className="text-xs text-muted-foreground">Importação 3D, orçamento inteligente e biblioteca de módulos</p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Box className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">3D Smart Import</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Importação 3D e orçamento inteligente</p>
                   </div>
                 </div>
                 <Switch checked={t3dImport} onCheckedChange={setT3dImport} />
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTenantDialog(false)}>Cancelar</Button>
-            <Button onClick={saveTenant}>Salvar</Button>
+          <DialogFooter className="px-4 pb-4 pt-2 sm:px-6 sm:pb-6 shrink-0 border-t border-border">
+            <Button variant="outline" size="sm" onClick={() => setShowTenantDialog(false)}>Cancelar</Button>
+            <Button size="sm" onClick={saveTenant}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
