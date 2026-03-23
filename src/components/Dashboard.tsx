@@ -363,7 +363,15 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
       </div>
 
-      {/* Chart visibility toggles */}
+      {/* Lead Source Cards */}
+      {stats.leadsBySource.total > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard icon={Megaphone} label="Leads Landing Page" value={String(stats.leadsBySource.landing_page)} accent={stats.leadsBySource.landing_page > 0} />
+          <KpiCard icon={UserPlus} label="Leads Afiliados" value={String(stats.leadsBySource.afiliado)} accent={stats.leadsBySource.afiliado > 0} />
+          <KpiCard icon={Users} label="Leads Indicação" value={String(stats.leadsBySource.indicacao)} accent={stats.leadsBySource.indicacao > 0} />
+          <KpiCard icon={Share2} label="Leads Link Compartilhado" value={String(stats.leadsBySource.link)} accent={stats.leadsBySource.link > 0} />
+        </div>
+      )}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground font-medium">Gráficos:</span>
         {chartToggles.map(({ key, label }) => (
