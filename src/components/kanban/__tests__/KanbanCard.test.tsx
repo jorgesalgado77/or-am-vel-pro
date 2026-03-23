@@ -95,7 +95,7 @@ describe("KanbanCard", () => {
   it("shows expired badge when simulation is old", () => {
     const oldDate = new Date();
     oldDate.setDate(oldDate.getDate() - 60);
-    const sim: LastSimInfo = { valor_final: 10000, created_at: oldDate.toISOString() };
+    const sim: LastSimInfo = { valor_final: 10000, valor_com_desconto: 9000, created_at: oldDate.toISOString(), sim_count: 1 };
     renderCard({ sim, budgetValidityDays: 30 });
     expect(screen.getByText("Orçamento expirado")).toBeInTheDocument();
   });
