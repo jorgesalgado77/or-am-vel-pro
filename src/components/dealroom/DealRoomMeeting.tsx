@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
+import { formatCurrency } from "@/lib/financing";
 import { DealRoomControls } from "./DealRoomControls";
 import { DealRoomChat } from "./DealRoomChat";
 import { DealRoomAttachments } from "./DealRoomAttachments";
