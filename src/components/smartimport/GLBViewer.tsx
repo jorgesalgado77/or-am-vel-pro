@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw } from "lucide-react";
+import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw, Gauge } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { loadModelForPreview } from "./modelPreviewUtils";
@@ -26,6 +26,7 @@ interface SelectedPieceInfo {
 
 type BackgroundPreset = "dark" | "light" | "studio" | "clean";
 type LightingPreset = "balanced" | "soft" | "contrast";
+type QualityPreset = "low" | "balanced" | "high";
 
 const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground: number; showGrid: boolean }> = {
   dark: { background: 0x1e293b, ground: 0x111827, showGrid: true },
@@ -38,6 +39,21 @@ const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; f
   balanced: { ambient: 0.8, key: 1, fill: 0.6, rim: 0.3, hemi: 0.4 },
   soft: { ambient: 1.05, key: 0.85, fill: 0.75, rim: 0.18, hemi: 0.55 },
   contrast: { ambient: 0.55, key: 1.3, fill: 0.38, rim: 0.55, hemi: 0.28 },
+};
+
+const QUALITY_PRESETS: Record<QualityPreset, { pixelRatio: number; antialias: boolean; shadows: boolean; label: string }> = {
+  low: { pixelRatio: 1, antialias: false, shadows: false, label: "Leve" },
+  balanced: { pixelRatio: Math.min(window.devicePixelRatio, 1.5), antialias: true, shadows: false, label: "Equilibrado" },
+  high: { pixelRatio: Math.min(window.devicePixelRatio, 2), antialias: true, shadows: true, label: "Alta fidelidade" },
+};
+
+const FORMAT_LOADING_MESSAGES: Record<string, string[]> = {
+  glb: ["Decodificando modelo GLB...", "Carregando geometrias e texturas...", "Montando cena GLTF..."],
+  gltf: ["Decodificando modelo GLTF...", "Carregando geometrias e texturas...", "Montando cena GLTF..."],
+  obj: ["Lendo geometria OBJ...", "Processando vértices e faces...", "Aplicando materiais OBJ..."],
+  fbx: ["Decodificando arquivo FBX...", "Processando animações e geometrias...", "Convertendo materiais FBX..."],
+  stl: ["Lendo malha STL...", "Calculando normais de superfície...", "Preparando visualização STL..."],
+  dxf: ["Analisando entidades DXF...", "Convertendo coordenadas CAD...", "Montando geometria vetorial DXF..."],
 };
 
 function applyBackgroundPreset(THREE: any, scene: any, preset: BackgroundPreset) {
@@ -352,7 +368,7 @@ function LoadingOverlay({ progress, label }: { progress: number; label: string }
   );
 }
 
-function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, lightingPreset }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any>; backgroundPreset: BackgroundPreset; lightingPreset: LightingPreset }) {
+function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, lightingPreset, qualityPreset }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any>; backgroundPreset: BackgroundPreset; lightingPreset: LightingPreset; qualityPreset: QualityPreset }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -386,15 +402,19 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
     (async () => {
       try {
+        const ext = getFileExtension(fileUrl);
+        const formatMsgs = FORMAT_LOADING_MESSAGES[ext] || ["Carregando arquivo 3D...", "Processando geometria...", "Preparando visualização..."];
+        const quality = QUALITY_PRESETS[qualityPreset];
+
         setProgress(10);
-        setProgressLabel("Carregando motor 3D...");
+        setProgressLabel(formatMsgs[0]);
         const THREE = await import("three");
         const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js");
 
         if (!mounted || !canvasRef.current) return;
 
-        setProgress(25);
-        setProgressLabel("Configurando cena...");
+        setProgress(20);
+        setProgressLabel(formatMsgs[1]);
 
         const container = canvasRef.current.parentElement!;
         const width = container.clientWidth;
@@ -402,13 +422,13 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
         renderer = new THREE.WebGLRenderer({
           canvas: canvasRef.current,
-          antialias: true,
+          antialias: quality.antialias,
           alpha: true,
-          powerPreference: "high-performance",
+          powerPreference: qualityPreset === "low" ? "low-power" : "high-performance",
         });
         canvasElement = canvasRef.current;
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        renderer.setPixelRatio(quality.pixelRatio);
         renderer.toneMapping = THREE.NoToneMapping;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -467,7 +487,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         };
 
         setProgress(40);
-        setProgressLabel("Carregando arquivo...");
+        setProgressLabel(formatMsgs[1]);
 
         const onProgress = (event: any) => {
           if (event.lengthComputable) {
@@ -476,13 +496,13 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           }
         };
 
-        setProgressLabel("Processando modelo...");
+        setProgressLabel(formatMsgs[2]);
         const loadedObject = await loadModelForPreview(THREE, fileUrl, onProgress);
 
         if (!mounted) return;
 
         setProgress(85);
-        setProgressLabel("Finalizando...");
+        setProgressLabel(`Finalizando (${ext.toUpperCase()})...`);
 
         scene.add(loadedObject);
 
@@ -604,7 +624,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
       renderer?.dispose?.();
       threeRef.current = null;
     };
-  }, [fileUrl]);
+  }, [fileUrl, qualityPreset]);
 
   useEffect(() => {
     if (!threeRef.current) return;
@@ -705,6 +725,7 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [backgroundPreset, setBackgroundPreset] = useState<BackgroundPreset>("dark");
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>("balanced");
+  const [qualityPreset, setQualityPreset] = useState<QualityPreset>("balanced");
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
 
@@ -762,6 +783,16 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
                 <SelectItem value="contrast">Alto contraste</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={qualityPreset} onValueChange={(value: QualityPreset) => setQualityPreset(value)}>
+              <SelectTrigger className="h-8 w-[120px] bg-background/80 backdrop-blur text-xs">
+                <SelectValue placeholder="Qualidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">🟢 Leve</SelectItem>
+                <SelectItem value="balanced">🟡 Equilibrado</SelectItem>
+                <SelectItem value="high">🔴 Alta fidelidade</SelectItem>
+              </SelectContent>
+            </Select>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur"
@@ -802,6 +833,7 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             controlsRef={controlsRef}
             backgroundPreset={backgroundPreset}
             lightingPreset={lightingPreset}
+            qualityPreset={qualityPreset}
           />
         </div>
       </CardContent>
