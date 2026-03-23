@@ -41,7 +41,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onRemov
           <TableHead className="text-xs py-1.5 h-auto text-center">Peças</TableHead>
           <TableHead className="text-xs py-1.5 h-auto text-right">Valor</TableHead>
           <TableHead className="text-xs py-1.5 h-auto text-center">Data</TableHead>
-          {canDelete && <TableHead className="text-xs py-1.5 h-auto w-8"></TableHead>}
+          <TableHead className="text-xs py-1.5 h-auto w-8"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
