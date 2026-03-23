@@ -679,7 +679,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
     })();
 
     return () => { mounted = false; };
-  }, [backgroundPreset, fileUrl, lightingPreset, onObjectSelect]);
+  }, [fileUrl]);
 
   useEffect(() => {
     if (!threeRef.current) return;
