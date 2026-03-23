@@ -57,11 +57,17 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const valorHoraExtra = (salario / (diasUteis * 8)) * 1.5;
   const totalHorasExtras = valorHoraExtra * horasExtras;
 
-  const proventos = [
+  const proventos: { descricao: string; valor: number; detalhe?: string }[] = [
     { descricao: "Salário Base", valor: salario },
   ];
   if (totalComissoes > 0) proventos.push({ descricao: "Comissões", valor: totalComissoes });
-  if (totalHorasExtras > 0) proventos.push({ descricao: `Horas Extras (${horasExtras}h × 1.5)`, valor: totalHorasExtras });
+  if (horasExtras > 0) {
+    proventos.push({ 
+      descricao: `Horas Extras (${horasExtras}h)`, 
+      valor: totalHorasExtras,
+      detalhe: `${formatCurrency(valorHoraExtra)}/h × ${horasExtras}h (50% adicional)`
+    });
+  }
   if (bonus > 0) proventos.push({ descricao: deduction?.descricao_bonus ? `Bônus: ${deduction.descricao_bonus}` : "Bônus", valor: bonus });
 
   const totalBruto = proventos.reduce((s, p) => s + p.valor, 0);
@@ -164,7 +170,7 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
       <table>
         <thead><tr><th>Descrição</th><th class="text-right">Valor</th></tr></thead>
         <tbody>
-          ${proventos.map(p => `<tr><td>${p.descricao}</td><td class="text-right">${formatCurrency(p.valor)}</td></tr>`).join("")}
+          ${proventos.map(p => `<tr><td>${p.descricao}${p.detalhe ? `<br/><small style="color:#888;font-style:italic;">${p.detalhe}</small>` : ''}</td><td class="text-right">${formatCurrency(p.valor)}</td></tr>`).join("")}
           <tr class="total-row"><td>TOTAL BRUTO</td><td class="text-right">${formatCurrency(totalBruto)}</td></tr>
         </tbody>
       </table>
@@ -219,9 +225,14 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
             <h4 className="text-sm font-semibold text-foreground mb-2">PROVENTOS</h4>
             <div className="space-y-1">
               {proventos.map((p, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{p.descricao}</span>
-                  <span className="font-medium text-foreground">{formatCurrency(p.valor)}</span>
+                <div key={i}>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{p.descricao}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(p.valor)}</span>
+                  </div>
+                  {p.detalhe && (
+                    <p className="text-[11px] text-muted-foreground ml-2 italic">{p.detalhe}</p>
+                  )}
                 </div>
               ))}
               <Separator />
