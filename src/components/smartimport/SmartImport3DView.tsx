@@ -233,7 +233,6 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                     }} disabled={uploading}>
                     <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Selecionar .GLB / .DXF"}
                   </Button>
-                  </Button>
                 </div>
                 <div className="flex items-end">
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
