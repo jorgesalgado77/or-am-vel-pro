@@ -377,6 +377,8 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
     }
 
     let mounted = true;
+    let animationFrameId = 0;
+    let removeClickListener: (() => void) | null = null;
     (async () => {
       try {
         setProgress(10);
