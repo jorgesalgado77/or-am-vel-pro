@@ -20,6 +20,7 @@ interface BriefingModalProps {
   clientId: string;
   clientName: string;
   orcamentoNumero?: string;
+  onSendToSimulator?: (data: { environments: string[]; descricaoAmbientes: string; quantidadeAmbientes: number; budgetExpectation: string }) => void;
 }
 
 export function BriefingModal({ open, onOpenChange, clientId, clientName, orcamentoNumero }: BriefingModalProps) {
