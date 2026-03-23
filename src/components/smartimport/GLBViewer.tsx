@@ -814,6 +814,7 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
                 <SelectItem value="dark">Fundo escuro</SelectItem>
                 <SelectItem value="light">Fundo claro</SelectItem>
                 <SelectItem value="studio">Fundo studio</SelectItem>
+                <SelectItem value="clean">Limpo (sem grade)</SelectItem>
               </SelectContent>
             </Select>
             <Select value={lightingPreset} onValueChange={(value: LightingPreset) => setLightingPreset(value)}>
