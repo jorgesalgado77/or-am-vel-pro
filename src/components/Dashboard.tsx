@@ -165,7 +165,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       if ((c as any).status === "fechado") byProjetista[name].closed++;
       const sim = filteredLastSims[c.id];
       if (sim) {
-        byProjetista[name].total += sim.valor_final;
+        byProjetista[name].total += sim.valor_com_desconto || sim.valor_final;
         if (isPast(addDays(new Date(sim.created_at), budgetValidityDays))) {
           byProjetista[name].expired++;
         }
