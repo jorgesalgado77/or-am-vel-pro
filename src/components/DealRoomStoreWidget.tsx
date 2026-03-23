@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DollarSign, TrendingUp, Target, Percent, Trophy, Plus,
   Send, Eye, CheckCircle, XCircle, FileText, ExternalLink,
-  Handshake, BarChart3, RefreshCw,
+  Handshake, BarChart3, RefreshCw, Video, Calendar,
 } from "lucide-react";
 import { useDealRoom, type DealRoomProposal } from "@/hooks/useDealRoom";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
@@ -21,6 +21,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DealRoomMeeting } from "./dealroom/DealRoomMeeting";
+import { DealRoomScheduler } from "./dealroom/DealRoomScheduler";
 
 interface DealRoomStoreWidgetProps {
   tenantId: string;
@@ -54,6 +56,16 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
+  // Meeting state
+  const [activeMeeting, setActiveMeeting] = useState<{
+    sessionId: string; roomName: string; clientName: string;
+    clientId?: string; proposalId?: string; proposalValue?: number;
+  } | null>(null);
+
+  // Quick meeting dialog
+  const [showQuickMeeting, setShowQuickMeeting] = useState(false);
+  const [quickMeetingClient, setQuickMeetingClient] = useState("");
+
   const [showNewProposal, setShowNewProposal] = useState(false);
   const [newProposal, setNewProposal] = useState({
     client_id: "", valor_proposta: "", descricao: "", forma_pagamento: "pix",
@@ -63,7 +75,6 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
   const loadData = useCallback(async () => {
     setLoadingData(true);
     try {
-      // Load metrics via direct queries
       const result = await getMetrics({ tenant_id: tenantId });
       if (result) {
         setMetrics(result.metrics);
@@ -73,11 +84,9 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
         setMetrics({ totalVendas: 0, totalTransacionado: 0, totalTaxas: 0, ticketMedio: 0, totalReunioes: 0, taxaConversao: 0 });
       }
 
-      // Load proposals directly
       const proposalsList = await listProposals(tenantId);
       setProposals(proposalsList);
 
-      // Load clients for selector
       const { data: clientsData } = await supabase
         .from("clients")
         .select("id, nome, numero_orcamento")
@@ -114,7 +123,6 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
     });
 
     setCreatingProposal(false);
-
     if (!proposal) return;
 
     toast.success("Proposta criada com sucesso!");
@@ -130,6 +138,35 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
       loadData();
     }
   };
+
+  const startMeeting = (sessionId: string, clientName: string, clientId?: string, proposalId?: string, proposalValue?: number) => {
+    const roomName = sessionId.replace(/-/g, "").slice(0, 16);
+    setActiveMeeting({ sessionId, roomName, clientName, clientId, proposalId, proposalValue });
+  };
+
+  const handleQuickStart = () => {
+    const sessionId = crypto.randomUUID();
+    const selectedClient = clients.find(c => c.id === quickMeetingClient);
+    startMeeting(sessionId, selectedClient?.nome || "Convidado", quickMeetingClient || undefined);
+    setShowQuickMeeting(false);
+    setQuickMeetingClient("");
+  };
+
+  // If meeting is active, render the meeting room
+  if (activeMeeting) {
+    return (
+      <DealRoomMeeting
+        tenantId={tenantId}
+        sessionId={activeMeeting.sessionId}
+        roomName={activeMeeting.roomName}
+        clientName={activeMeeting.clientName}
+        clientId={activeMeeting.clientId}
+        proposalId={activeMeeting.proposalId}
+        proposalValue={activeMeeting.proposalValue}
+        onClose={() => setActiveMeeting(null)}
+      />
+    );
+  }
 
   if (loadingData && !metrics) {
     return (
@@ -150,6 +187,9 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
           <Button variant="outline" size="sm" onClick={loadData} className="gap-2">
             <RefreshCw className="h-3.5 w-3.5" /> Atualizar
           </Button>
+          <Button variant="default" size="sm" onClick={() => setShowQuickMeeting(true)} className="gap-2">
+            <Video className="h-3.5 w-3.5" /> Iniciar Sala
+          </Button>
           <Button size="sm" onClick={() => setShowNewProposal(true)} className="gap-2">
             <Plus className="h-3.5 w-3.5" /> Nova Proposta
           </Button>
@@ -157,10 +197,11 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
       </div>
 
       <Tabs defaultValue="propostas" className="space-y-4">
-        <TabsList>
+        <TabsList className="overflow-x-auto">
           <TabsTrigger value="propostas" className="gap-2"><FileText className="h-4 w-4" /> Propostas</TabsTrigger>
           <TabsTrigger value="metricas" className="gap-2"><BarChart3 className="h-4 w-4" /> Métricas</TabsTrigger>
           <TabsTrigger value="ranking" className="gap-2"><Trophy className="h-4 w-4" /> Ranking</TabsTrigger>
+          <TabsTrigger value="agenda" className="gap-2"><Calendar className="h-4 w-4" /> Agenda</TabsTrigger>
         </TabsList>
 
         {/* KPI Cards */}
@@ -192,7 +233,7 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
                 <Handshake className="h-12 w-12 text-muted-foreground mx-auto" />
                 <h4 className="font-semibold text-foreground">Nenhuma proposta criada</h4>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Crie sua primeira proposta comercial para enviar aos seus clientes. Acompanhe visualizações, aceites e pagamentos em tempo real.
+                  Crie sua primeira proposta comercial para enviar aos seus clientes.
                 </p>
                 <Button onClick={() => setShowNewProposal(true)} className="gap-2 mt-2">
                   <Plus className="h-4 w-4" /> Criar Primeira Proposta
@@ -236,6 +277,11 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
+                              {/* Start meeting for this proposal */}
+                              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
+                                onClick={() => startMeeting(crypto.randomUUID(), p.descricao || "Cliente", p.client_id || undefined, p.id, p.valor_proposta)}>
+                                <Video className="h-3 w-3" /> Sala
+                              </Button>
                               {p.status === "enviada" && (
                                 <>
                                   <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"
@@ -312,17 +358,12 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
             <Card>
               <CardContent className="p-8 text-center">
                 <Trophy className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Nenhuma venda registrada ainda para gerar o ranking.</p>
+                <p className="text-sm text-muted-foreground">Nenhuma venda registrada ainda.</p>
               </CardContent>
             </Card>
           ) : (
             <Card>
-              <CardHeader className="py-3 px-4">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-amber-500" /> Top Vendedores — Deal Room
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-3">
+              <CardContent className="px-4 py-3 space-y-3">
                 {ranking.map((v: any) => (
                   <div key={v.posicao} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-3">
@@ -341,7 +382,48 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
             </Card>
           )}
         </TabsContent>
+
+        {/* Agenda Tab */}
+        <TabsContent value="agenda">
+          <DealRoomScheduler
+            tenantId={tenantId}
+            clients={clients.map(c => ({ id: c.id, nome: c.nome }))}
+            onStartMeeting={(sessionId, clientName, clientId) => startMeeting(sessionId, clientName, clientId)}
+          />
+        </TabsContent>
       </Tabs>
+
+      {/* Quick Meeting Dialog */}
+      <Dialog open={showQuickMeeting} onOpenChange={setShowQuickMeeting}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Video className="h-5 w-5 text-primary" /> Iniciar Sala de Reunião
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm">Cliente (opcional)</Label>
+              <Select value={quickMeetingClient} onValueChange={setQuickMeetingClient}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecione um cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowQuickMeeting(false)}>Cancelar</Button>
+            <Button onClick={handleQuickStart} className="gap-2">
+              <Video className="h-4 w-4" /> Iniciar Agora
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* New Proposal Dialog */}
       <Dialog open={showNewProposal} onOpenChange={setShowNewProposal}>
