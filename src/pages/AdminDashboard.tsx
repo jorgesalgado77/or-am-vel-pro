@@ -338,7 +338,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
   const deleteTenant = async (id: string) => {
     const loja = tenants.find(t => t.id === id);
-    const lojaLabel = loja ? `${loja.codigo_loja || ""} - ${loja.nome_fantasia || "Sem nome"}` : id;
+    const lojaLabel = loja ? `${loja.codigo_loja || ""} - ${loja.nome_loja || "Sem nome"}` : id;
     if (!confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE a loja "${lojaLabel}" e TODOS os dados associados?\n\nEsta ação NÃO pode ser desfeita.`)) return;
     
     // Try RPC first for admin bypass (SECURITY DEFINER — full cascade delete)
