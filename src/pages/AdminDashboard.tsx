@@ -903,6 +903,16 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 </div>
                 <Switch checked={tVendaZap} onCheckedChange={setTVendaZap} />
               </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Box className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">3D Smart Import</p>
+                    <p className="text-xs text-muted-foreground">Importação 3D, orçamento inteligente e biblioteca de módulos</p>
+                  </div>
+                </div>
+                <Switch checked={t3dImport} onCheckedChange={setT3dImport} />
+              </div>
             </div>
           </div>
           <DialogFooter>
