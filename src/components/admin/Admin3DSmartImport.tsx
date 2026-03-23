@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useModuleCatalog } from "@/hooks/useModuleCatalog";
 import { ModuleCatalogAdmin } from "@/components/smartimport/ModuleCatalogAdmin";
-import { useTenantContext } from "@/contexts/TenantContext";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface StoreRow {
   id: string;
