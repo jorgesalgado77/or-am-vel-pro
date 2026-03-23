@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -31,7 +32,7 @@ interface SmartImport3DViewProps {
 export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) {
   const {
     projects, selectedProject, setSelectedProject, projectObjects,
-    library, loading, addonActive, checkingAccess,
+    library, loading, addonActive, checkingAccess, uploadProgress,
     uploadProject, loadProjectObjects, classifyObject,
     addToLibrary, updateLibraryItem, deleteLibraryItem,
     deleteProject, generateBudget, refresh,
@@ -246,6 +247,24 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
               </div>
             </CardContent>
           </Card>
+
+          {/* Upload Progress Bar */}
+          {uploadProgress && (
+            <Card className="border-primary/30">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Upload className="h-4 w-4 text-primary animate-pulse" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground font-medium">{uploadProgress.label}</span>
+                      <span className="text-muted-foreground">{uploadProgress.percent}%</span>
+                    </div>
+                    <Progress value={uploadProgress.percent} className="h-2" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Projects list */}
           {loading ? (

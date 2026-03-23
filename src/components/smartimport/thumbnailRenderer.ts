@@ -3,8 +3,10 @@ import { frameObjectForThumbnail, loadModelForPreview } from "./modelPreviewUtil
 
 const THUMBNAIL_WIDTH = 320;
 const THUMBNAIL_HEIGHT = 200;
-const THUMBNAIL_BACKGROUND = 0xffffff;
 const THUMBNAIL_BUCKET = "smart-import-3d";
+
+// Use a soft neutral background with good contrast for both light and dark objects
+const THUMBNAIL_BG = 0xf0f0f0;
 
 function disposeSceneResources(root: any) {
   root?.traverse?.((child: any) => {
@@ -49,11 +51,8 @@ export function getSmartImportContentType(file: File) {
 
 export async function renderThumbnailDataUrl(fileUrl: string) {
   const THREE = await import("three");
-  const { RoomEnvironment } = await import("three/examples/jsm/environments/RoomEnvironment.js");
 
   let renderer: any;
-  let environment: any;
-  let pmremGenerator: any;
   let loadedObject: any;
 
   try {
@@ -64,27 +63,29 @@ export async function renderThumbnailDataUrl(fileUrl: string) {
     });
     renderer.setSize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
     renderer.setPixelRatio(1);
-    renderer.setClearColor(THUMBNAIL_BACKGROUND);
-    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.setClearColor(THUMBNAIL_BG);
+    // Use ACES for better contrast in thumbnails
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    pmremGenerator = new THREE.PMREMGenerator(renderer);
-    environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04);
-
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(THUMBNAIL_BACKGROUND);
-    scene.environment = environment.texture;
+    scene.background = new THREE.Color(THUMBNAIL_BG);
 
     const camera = new THREE.PerspectiveCamera(45, THUMBNAIL_WIDTH / THUMBNAIL_HEIGHT, 0.1, 500);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 1.15));
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.25);
+    // Strong lighting for clear thumbnails
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
     keyLight.position.set(10, 14, 8);
     scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.65);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
     fillLight.position.set(-8, 10, -6);
     scene.add(fillLight);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x94a3b8, 0.55));
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    rimLight.position.set(0, -5, 10);
+    scene.add(rimLight);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x94a3b8, 0.6));
 
     loadedObject = await loadModelForPreview(THREE, fileUrl);
     scene.add(loadedObject);
@@ -95,8 +96,6 @@ export async function renderThumbnailDataUrl(fileUrl: string) {
   } finally {
     disposeSceneResources(loadedObject);
     renderer?.dispose?.();
-    environment?.dispose?.();
-    pmremGenerator?.dispose?.();
   }
 }
 
