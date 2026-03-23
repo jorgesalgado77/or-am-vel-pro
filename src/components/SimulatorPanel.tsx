@@ -711,13 +711,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setCloseSaleModalOpen(false);
 
     try {
-      // Save the simulation
-      let arquivoUrl: string | null = null;
-      let arquivoNome: string | null = null;
-      if (importedFile) {
-        const uploaded = await uploadFile(importedFile, client.id);
-        if (uploaded) { arquivoUrl = uploaded.url; arquivoNome = uploaded.nome; }
+      // Upload all environment files
+      const uploadedEnvs: SavedEnvironmentData[] = [];
+      for (const env of environments) {
+        let fileUrl: string | undefined;
+        if (env.file && env.file.size > 0) {
+          const uploaded = await uploadFile(env.file, client.id);
+          if (uploaded) fileUrl = uploaded.url;
+        }
+        uploadedEnvs.push({
+          id: env.id, fileName: env.fileName, environmentName: env.environmentName,
+          pieceCount: env.pieceCount, totalValue: env.totalValue,
+          importedAt: env.importedAt.toISOString(), fileUrl,
+        });
       }
+      const arquivoNome = uploadedEnvs.length > 0 ? JSON.stringify(uploadedEnvs) : null;
+      const arquivoUrl = uploadedEnvs.length > 0 ? uploadedEnvs.map(e => e.fileUrl).filter(Boolean).join(',') : null;
 
       const { data: simData, error: simError } = await supabase.from("simulations").insert({
         client_id: client.id, valor_tela: valorTela, desconto1, desconto2, desconto3,
