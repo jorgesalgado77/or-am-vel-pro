@@ -54,18 +54,34 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
   const [saving, setSaving] = useState(false);
 
   const loadSimulations = async () => {
-    if (!clientId) { setLoading(false); return; }
+    if (!clientId) { 
+      console.warn("[DealRoomSimulation] No clientId provided");
+      setLoading(false); 
+      return; 
+    }
     setLoading(true);
-    const { data } = await supabase
+    console.log("[DealRoomSimulation] Loading simulations for client:", clientId);
+    const query = supabase
       .from("simulations")
       .select("*")
-      .eq("client_id", clientId)
-      .order("created_at", { ascending: false });
+      .eq("client_id", clientId);
+    
+    // Also filter by tenant if available
+    if (tenantId) {
+      query.eq("tenant_id", tenantId);
+    }
+    
+    const { data, error } = await query.order("created_at", { ascending: false });
+    
+    if (error) {
+      console.error("[DealRoomSimulation] Error loading simulations:", error);
+    }
+    console.log("[DealRoomSimulation] Found simulations:", data?.length || 0);
     setSimulations(data || []);
     setLoading(false);
   };
 
-  useEffect(() => { loadSimulations(); }, [clientId]);
+  useEffect(() => { loadSimulations(); }, [clientId, tenantId]);
 
   const calcValorComDesconto = (s: { valor_tela: string; desconto1: string; desconto2: string; desconto3: string }) => {
     const vt = Number(s.valor_tela) || 0;
