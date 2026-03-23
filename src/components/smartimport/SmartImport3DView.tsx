@@ -123,7 +123,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
         <GLBViewer fileUrl={selectedProject.file_url} onObjectSelect={handleObjectSelect} />
 
         {/* Selected objects and budget */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {/* Object selection panel */}
           <Card>
             <CardContent className="p-4 space-y-3">
@@ -164,12 +164,13 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
             </CardContent>
           </Card>
 
-          {/* Budget */}
-          <BudgetGenerator
+          {/* Smart Budget Engine */}
+          <SmartBudgetPanel
             projectName={selectedProject.name}
             objects={projectObjects}
+            library={library}
+            tenantId={tenantId}
             storeName={settings.company_name}
-            onClassify={classifyObject}
           />
         </div>
       </div>
