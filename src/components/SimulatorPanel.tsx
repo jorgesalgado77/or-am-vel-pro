@@ -205,78 +205,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
   const [selectedBoletoProvider, setSelectedBoletoProvider] = useState("");
   const [selectedCreditoProvider, setSelectedCreditoProvider] = useState("");
 
-  // Helper to apply boleto defaults for a provider
-  const applyBoletoDefaults = (provider: string) => {
-    const pd = boletoDefaults[provider];
-    if (pd) {
-      if (pd.parcelas > 0) setParcelas(pd.parcelas);
-      if ([30, 60, 90].includes(pd.carencia)) setCarenciaDias(pd.carencia as 30 | 60 | 90);
-    }
-  };
-
-  // Helper to apply credito defaults for a provider
-  const applyCreditoDefaults = (provider: string) => {
-    const pd = creditoDefaults[provider];
-    if (pd && pd.parcelas > 0) setParcelas(pd.parcelas);
-  };
-
-  // Set initial provider when providers load
-  useEffect(() => {
-    if (boletoProviders.length > 0 && !selectedBoletoProvider) {
-      setSelectedBoletoProvider(boletoProviders[0]);
-    }
-  }, [boletoProviders]);
-
-  useEffect(() => {
-    if (creditoProviders.length > 0 && !selectedCreditoProvider) {
-      setSelectedCreditoProvider(creditoProviders[0]);
-    }
-  }, [creditoProviders]);
-
-  // Apply defaults when settings load and provider is already selected (handles async settings load)
-  const boletoDefaultsAppliedRef = useRef(false);
-  useEffect(() => {
-    if (boletoDefaultsAppliedRef.current) return;
-    if (!selectedBoletoProvider || !Object.keys(boletoDefaults).length) return;
-    if (stored.parcelas || stored.carenciaDias) return; // don't override stored state on initial load
-    applyBoletoDefaults(selectedBoletoProvider);
-    boletoDefaultsAppliedRef.current = true;
-  }, [selectedBoletoProvider, boletoDefaults]);
-
-  const creditoDefaultsAppliedRef = useRef(false);
-  useEffect(() => {
-    if (creditoDefaultsAppliedRef.current) return;
-    if (!selectedCreditoProvider || !Object.keys(creditoDefaults).length) return;
-    if (stored.parcelas) return;
-    if (formaPagamento === "Credito" || formaPagamento === "Credito / Boleto") {
-      applyCreditoDefaults(selectedCreditoProvider);
-    }
-    creditoDefaultsAppliedRef.current = true;
-  }, [selectedCreditoProvider, creditoDefaults]);
-
-  // When user manually changes boleto provider, ALWAYS apply its defaults
-  const handleBoletoProviderChange = (provider: string) => {
-    setSelectedBoletoProvider(provider);
-    const pd = boletoDefaults[provider];
-    if (pd) {
-      if (pd.parcelas > 0) setParcelas(pd.parcelas);
-      if ([30, 60, 90].includes(pd.carencia)) setCarenciaDias(pd.carencia as 30 | 60 | 90);
-    }
-  };
-
-  // When user manually changes credito provider, ALWAYS apply its defaults
-  const handleCreditoProviderChange = (provider: string) => {
-    setSelectedCreditoProvider(provider);
-    const pd = creditoDefaults[provider];
-    if (pd && pd.parcelas > 0) {
-      setParcelas(pd.parcelas);
-    }
-  };
-
-  const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(formaPagamento);
-  const showPlus = ["A vista", "Pix"].includes(formaPagamento);
-  const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
-
   const currentBoletoRates = useMemo(() =>
     boletoRates.filter((r) => r.provider_name === selectedBoletoProvider),
     [boletoRates, selectedBoletoProvider]
@@ -286,27 +214,139 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     [creditoRates, selectedCreditoProvider]
   );
 
-  const maxBoletoInstallments = useMemo(() =>
-    currentBoletoRates.length > 0 ? Math.max(...currentBoletoRates.map((r) => r.installments)) : 12,
-    [currentBoletoRates]
-  );
-  const maxCreditoInstallments = useMemo(() =>
-    currentCreditoRates.length > 0 ? Math.max(...currentCreditoRates.map((r) => r.installments)) : 12,
-    [currentCreditoRates]
-  );
-
-  const maxParcelas = formaPagamento === "Boleto" ? maxBoletoInstallments
-    : formaPagamento === "Credito" || formaPagamento === "Credito / Boleto" ? maxCreditoInstallments : 12;
-
-  // Filter carência options based on whether the selected boleto provider has non-zero coefficients
-  const availableCarenciaOptions = useMemo(() => {
-    return CARENCIA_OPTIONS.filter((c) => {
-      if (c.value === "30") return true;
-      if (c.value === "60") return currentBoletoRates.some((r) => Number(r.coeficiente_60) > 0);
-      if (c.value === "90") return currentBoletoRates.some((r) => Number(r.coeficiente_90) > 0);
-      return true;
-    });
+  const availableBoletoInstallments = useMemo(() => {
+    return [...new Set(currentBoletoRates.map((r) => Number(r.installments)).filter((n) => n > 0))].sort((a, b) => a - b);
   }, [currentBoletoRates]);
+
+  const availableCreditoInstallments = useMemo(() => {
+    return [...new Set(currentCreditoRates.map((r) => Number(r.installments)).filter((n) => n > 0))].sort((a, b) => a - b);
+  }, [currentCreditoRates]);
+
+  const availableParcelas = useMemo(() => {
+    if (formaPagamento === "Boleto") return availableBoletoInstallments;
+    if (formaPagamento === "Credito" || formaPagamento === "Credito / Boleto") return availableCreditoInstallments;
+    return [1];
+  }, [formaPagamento, availableBoletoInstallments, availableCreditoInstallments]);
+
+  const maxParcelas = useMemo(() => {
+    return availableParcelas.length > 0 ? Math.max(...availableParcelas) : 1;
+  }, [availableParcelas]);
+
+  const getNearestAvailableInstallment = (target: number, options: number[]) => {
+    if (!options.length) return 1;
+    if (options.includes(target)) return target;
+    return options.reduce(
+      (closest, current) =>
+        Math.abs(current - target) < Math.abs(closest - target) ? current : closest,
+      options[0]
+    );
+  };
+
+  const getAvailableCarenciaValues = (rates: typeof currentBoletoRates): Array<30 | 60 | 90> => {
+    const values: Array<30 | 60 | 90> = [30];
+    if (rates.some((r) => Number(r.coeficiente_60) > 0)) values.push(60);
+    if (rates.some((r) => Number(r.coeficiente_90) > 0)) values.push(90);
+    return values;
+  };
+
+  const availableCarenciaOptions = useMemo(() => {
+    const allowed = new Set(getAvailableCarenciaValues(currentBoletoRates));
+    return CARENCIA_OPTIONS.filter((c) => allowed.has(Number(c.value) as 30 | 60 | 90));
+  }, [currentBoletoRates]);
+
+  // Helper to apply boleto defaults for a provider
+  const applyBoletoDefaults = (provider: string) => {
+    const providerRates = boletoRates.filter((r) => r.provider_name === provider);
+    const providerInstallments = [...new Set(providerRates.map((r) => Number(r.installments)).filter((n) => n > 0))].sort((a, b) => a - b);
+    const providerCarencias = getAvailableCarenciaValues(providerRates);
+    const pd = boletoDefaults[provider];
+
+    if (pd?.parcelas > 0) setParcelas(getNearestAvailableInstallment(pd.parcelas, providerInstallments));
+    else if (providerInstallments.length > 0) setParcelas(providerInstallments[0]);
+
+    if (pd && providerCarencias.includes(pd.carencia as 30 | 60 | 90)) {
+      setCarenciaDias(pd.carencia as 30 | 60 | 90);
+    } else {
+      setCarenciaDias(providerCarencias[0] ?? 30);
+    }
+  };
+
+  // Helper to apply credito defaults for a provider
+  const applyCreditoDefaults = (provider: string) => {
+    const providerRates = creditoRates.filter((r) => r.provider_name === provider);
+    const providerInstallments = [...new Set(providerRates.map((r) => Number(r.installments)).filter((n) => n > 0))].sort((a, b) => a - b);
+    const pd = creditoDefaults[provider];
+
+    if (pd?.parcelas > 0) setParcelas(getNearestAvailableInstallment(pd.parcelas, providerInstallments));
+    else if (providerInstallments.length > 0) setParcelas(providerInstallments[0]);
+  };
+
+  // Set initial provider when providers load
+  useEffect(() => {
+    if (boletoProviders.length > 0 && !selectedBoletoProvider) {
+      setSelectedBoletoProvider(boletoProviders[0]);
+    }
+  }, [boletoProviders, selectedBoletoProvider]);
+
+  useEffect(() => {
+    if (creditoProviders.length > 0 && !selectedCreditoProvider) {
+      setSelectedCreditoProvider(creditoProviders[0]);
+    }
+  }, [creditoProviders, selectedCreditoProvider]);
+
+  // Apply defaults when settings load and provider is already selected (handles async settings load)
+  const boletoDefaultsAppliedRef = useRef(false);
+  useEffect(() => {
+    if (boletoDefaultsAppliedRef.current) return;
+    if (!selectedBoletoProvider) return;
+    if (stored.parcelas || stored.carenciaDias) return;
+    applyBoletoDefaults(selectedBoletoProvider);
+    boletoDefaultsAppliedRef.current = true;
+  }, [selectedBoletoProvider, boletoDefaults, boletoRates]);
+
+  const creditoDefaultsAppliedRef = useRef(false);
+  useEffect(() => {
+    if (creditoDefaultsAppliedRef.current) return;
+    if (!selectedCreditoProvider) return;
+    if (stored.parcelas) return;
+    if (formaPagamento === "Credito" || formaPagamento === "Credito / Boleto") {
+      applyCreditoDefaults(selectedCreditoProvider);
+      creditoDefaultsAppliedRef.current = true;
+    }
+  }, [selectedCreditoProvider, creditoDefaults, creditoRates, formaPagamento]);
+
+  const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(formaPagamento);
+  const showPlus = ["A vista", "Pix"].includes(formaPagamento);
+  const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
+
+  // Keep selected installment valid for the current provider/payment method
+  useEffect(() => {
+    if (!showParcelas || availableParcelas.length === 0) return;
+    const nextParcela = getNearestAvailableInstallment(parcelas, availableParcelas);
+    if (nextParcela !== parcelas) setParcelas(nextParcela);
+  }, [showParcelas, availableParcelas, parcelas]);
+
+  // Keep selected grace period valid for the current boleto provider
+  useEffect(() => {
+    if (!showCarencia || availableCarenciaOptions.length === 0) return;
+    const currentIsValid = availableCarenciaOptions.some((option) => Number(option.value) === carenciaDias);
+    if (!currentIsValid) {
+      setCarenciaDias(Number(availableCarenciaOptions[0].value) as 30 | 60 | 90);
+    }
+  }, [showCarencia, availableCarenciaOptions, carenciaDias]);
+
+  // When user manually changes boleto provider, ALWAYS apply its defaults
+  const handleBoletoProviderChange = (provider: string) => {
+    setSelectedBoletoProvider(provider);
+    applyBoletoDefaults(provider);
+  };
+
+  // When user manually changes credito provider, ALWAYS apply its defaults
+  const handleCreditoProviderChange = (provider: string) => {
+    setSelectedCreditoProvider(provider);
+    applyCreditoDefaults(provider);
+  };
+
 
   const { boletoCoeffMap, boletoRatesFullMap } = useMemo(() => {
     const coeffMap: Record<number, number> = {};
@@ -947,7 +987,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-60">
-                    {Array.from({ length: maxParcelas }, (_, i) => i + 1).map((n) => (
+                    {availableParcelas.map((n) => (
                       <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
                     ))}
                   </SelectContent>
