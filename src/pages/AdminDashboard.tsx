@@ -32,6 +32,7 @@ import {AdminLoginDiagnostics} from "@/components/admin/AdminLoginDiagnostics";
 import {AdminCanvaConfig} from "@/components/admin/AdminCanvaConfig";
 import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
 import {AdminTutorials} from "@/components/admin/AdminTutorials";
+import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
 import {format, isAfter, isBefore} from "date-fns";
 import {ptBR} from "date-fns/locale";
 
