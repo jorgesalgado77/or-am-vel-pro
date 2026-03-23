@@ -579,16 +579,28 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       setSaving(true);
     }
 
-    // Upload file if exists
-    let arquivoUrl: string | null = null;
-    let arquivoNome: string | null = null;
-    if (importedFile) {
-      const uploaded = await uploadFile(importedFile, clientId);
-      if (uploaded) {
-        arquivoUrl = uploaded.url;
-        arquivoNome = uploaded.nome;
+    // Upload all environment files to storage
+    const uploadedEnvironments: SavedEnvironmentData[] = [];
+    for (const env of environments) {
+      let fileUrl: string | undefined;
+      if (env.file && env.file.size > 0) {
+        const uploaded = await uploadFile(env.file, clientId);
+        if (uploaded) fileUrl = uploaded.url;
       }
+      uploadedEnvironments.push({
+        id: env.id,
+        fileName: env.fileName,
+        environmentName: env.environmentName,
+        pieceCount: env.pieceCount,
+        totalValue: env.totalValue,
+        importedAt: env.importedAt.toISOString(),
+        fileUrl,
+      });
     }
+
+    // Store environments as JSON in arquivo_nome/arquivo_url
+    const arquivoNome = uploadedEnvironments.length > 0 ? JSON.stringify(uploadedEnvironments) : null;
+    const arquivoUrl = uploadedEnvironments.length > 0 ? uploadedEnvironments.map(e => e.fileUrl).filter(Boolean).join(',') : null;
 
     // Limit to 3 simulations per client — delete oldest if needed
     const { data: existingSims } = await supabase
