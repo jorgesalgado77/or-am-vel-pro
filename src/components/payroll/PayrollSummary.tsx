@@ -46,6 +46,8 @@ interface EmployeeCost {
 }
 
 export function PayrollSummary({ usuarios, cargos, mesReferencia, getRegimeEfetivo, getUserCommissions, deductionsData }: Props) {
+  const pieChartRef = useRef<HTMLDivElement>(null);
+  const barChartRef = useRef<HTMLDivElement>(null);
   const { settings } = useCompanySettings();
   const taxConfig = getRegimeTaxConfig(settings);
   const inssFaixas = getINSSFaixas(settings);
