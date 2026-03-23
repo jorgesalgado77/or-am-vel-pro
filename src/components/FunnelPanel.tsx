@@ -106,6 +106,7 @@ export function FunnelPanel() {
           promo_video_url: d.promo_video_url || "",
           carousel_images: d.carousel_images || [],
           social_links: d.social_links || DEFAULT_SOCIAL,
+          investment_ranges: d.investment_ranges || DEFAULT_INVESTMENT_RANGES,
         });
       }
       setLoading(false);
