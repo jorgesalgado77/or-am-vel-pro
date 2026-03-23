@@ -141,17 +141,52 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
   const fetchTenantStats = async (tenantIds: string[]) => {
     if (tenantIds.length === 0) return;
-    const [usersRes, clientsRes, simsRes] = await Promise.all([
-      supabase.from("usuarios").select("tenant_id", { count: "exact" }).in("tenant_id", tenantIds).eq("ativo", true),
-      supabase.from("clients").select("tenant_id"),
-      supabase.from("simulations").select("tenant_id").gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
-    ]);
     const stats: TenantStats = {};
     tenantIds.forEach(id => { stats[id] = { usuarios: 0, clientes: 0, simulacoes: 0 }; });
-    (usersRes.data || []).forEach((u: any) => { if (stats[u.tenant_id]) stats[u.tenant_id].usuarios++; });
-    (clientsRes.data || []).forEach((c: any) => { if (stats[c.tenant_id]) stats[c.tenant_id].clientes++; });
-    (simsRes.data || []).forEach((s: any) => { if (stats[s.tenant_id]) stats[s.tenant_id].simulacoes++; });
+
+    // Try RPC first for admin bypass, fallback to direct queries
+    const { data: rpcStats } = await supabase.rpc("admin_tenant_stats" as any, { tenant_ids: tenantIds });
+    if (rpcStats && Array.isArray(rpcStats) && rpcStats.length > 0) {
+      rpcStats.forEach((r: any) => {
+        if (stats[r.tenant_id]) {
+          stats[r.tenant_id].usuarios = r.usuarios_count || 0;
+          stats[r.tenant_id].clientes = r.clientes_count || 0;
+          stats[r.tenant_id].simulacoes = r.simulacoes_count || 0;
+        }
+      });
+    } else {
+      // Fallback: query each table individually
+      const [usersRes, clientsRes, simsRes] = await Promise.all([
+        supabase.from("usuarios").select("tenant_id").in("tenant_id", tenantIds).eq("ativo", true),
+        supabase.from("clients").select("tenant_id").in("tenant_id", tenantIds),
+        supabase.from("simulations").select("tenant_id").in("tenant_id", tenantIds).gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+      ]);
+      (usersRes.data || []).forEach((u: any) => { if (stats[u.tenant_id]) stats[u.tenant_id].usuarios++; });
+      (clientsRes.data || []).forEach((c: any) => { if (stats[c.tenant_id]) stats[c.tenant_id].clientes++; });
+      (simsRes.data || []).forEach((s: any) => { if (stats[s.tenant_id]) stats[s.tenant_id].simulacoes++; });
+    }
     setTenantStats(stats);
+  };
+
+  const [dealRoomCommissions, setDealRoomCommissions] = useState(0);
+
+  const fetchDealRoomCommissions = async () => {
+    const { data } = await supabase
+      .from("dealroom_proposals" as any)
+      .select("commission_value, status")
+      .eq("status", "paid");
+    if (data && data.length > 0) {
+      const total = data.reduce((sum: number, r: any) => sum + (Number(r.commission_value) || 0), 0);
+      setDealRoomCommissions(total);
+    } else {
+      // Fallback: try payroll_commissions with deal_room reference
+      const { data: commData } = await supabase
+        .from("payroll_commissions" as any)
+        .select("valor_comissao")
+        .ilike("observacao", "%deal%room%");
+      const total = (commData || []).reduce((sum: number, r: any) => sum + (Number(r.valor_comissao) || 0), 0);
+      setDealRoomCommissions(total);
+    }
   };
 
   const fetchData = async () => {
@@ -192,6 +227,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   useEffect(() => {
     fetchData();
     fetchAddonInterestCount();
+    fetchDealRoomCommissions();
 
     const channel = supabase
       .channel("admin-addon-interest")
@@ -298,10 +334,33 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   };
 
   const deleteTenant = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta loja?")) return;
-    await supabase.from("tenants").delete().eq("id", id);
-    toast.success("Loja excluída");
-    fetchData();
+    if (!confirm("Tem certeza que deseja excluir esta loja e todos os dados associados?")) return;
+    
+    // Try RPC first for admin bypass
+    const { error: rpcError } = await supabase.rpc("admin_delete_tenant" as any, { target_tenant_id: id });
+    if (!rpcError) {
+      toast.success("Loja excluída com sucesso");
+      logAudit({
+        acao: "tenant_excluido",
+        entidade: "tenant",
+        entidade_id: id,
+        usuario_nome: adminName,
+        detalhes: { loja_id: id },
+      });
+      // Update local state immediately
+      setTenants(prev => prev.filter(t => t.id !== id));
+      return;
+    }
+    
+    // Fallback: direct delete
+    const { error } = await supabase.from("tenants").delete().eq("id", id);
+    if (error) {
+      console.error("Erro ao excluir loja:", error);
+      toast.error("Erro ao excluir loja. Verifique permissões RLS.");
+      return;
+    }
+    toast.success("Loja excluída com sucesso");
+    setTenants(prev => prev.filter(t => t.id !== id));
   };
 
   // Payment CRUD
@@ -364,7 +423,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
       <main className="max-w-7xl mx-auto p-6 space-y-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-3">
           <Card>
             <CardContent className="p-3 flex items-center gap-2">
               <Store className="h-4 w-4 text-primary shrink-0" />
@@ -435,6 +494,17 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               <div>
                 <p className="text-[10px] text-muted-foreground">Receita Mensal</p>
                 <p className="text-base font-bold text-foreground">R$ {receitaMensal.toFixed(2)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <Handshake className="h-4 w-4 text-purple-600 shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Comissões Deal Room</p>
+                <p className="text-base font-bold text-foreground">
+                  R$ {dealRoomCommissions.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </p>
               </div>
             </CardContent>
           </Card>
