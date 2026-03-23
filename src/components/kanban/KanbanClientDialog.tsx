@@ -275,9 +275,40 @@ export function KanbanClientDialog({
               <>
                 <Separator />
                 <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                    <Paperclip className="h-3.5 w-3.5" /> Anexos do Lead ({attachments.length})
-                  </h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                      <Paperclip className="h-3.5 w-3.5" /> Anexos do Lead ({attachments.length})
+                    </h4>
+                    {attachments.filter(a => a.file_url).length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={async () => {
+                          const downloadable = attachments.filter(a => a.file_url);
+                          toast.info(`Baixando ${downloadable.length} anexos...`);
+                          for (const att of downloadable) {
+                            try {
+                              const res = await fetch(att.file_url!);
+                              const blob = await res.blob();
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = att.file_name;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              URL.revokeObjectURL(url);
+                              await new Promise(r => setTimeout(r, 300));
+                            } catch { /* skip failed */ }
+                          }
+                          toast.success("Downloads concluídos!");
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" /> Baixar todos
+                      </Button>
+                    )}
+                  </div>
                   <div className="space-y-1.5">
                     {attachments.map(att => {
                       const sizeKB = Math.round(att.file_size / 1024);
