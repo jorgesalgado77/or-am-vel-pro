@@ -376,6 +376,20 @@ export function KanbanClientDialog({
           clientId={client.id}
           clientName={client.nome}
           orcamentoNumero={(client as any).numero_orcamento}
+          onSendToSimulator={(data) => {
+            // Update client with briefing environments data then open simulator
+            supabase.from("clients").update({
+              quantidade_ambientes: data.quantidadeAmbientes,
+              descricao_ambientes: data.descricaoAmbientes,
+            } as any).eq("id", client.id).then(() => {});
+            setShowBriefing(false);
+            onClose();
+            onSimulate({
+              ...client,
+              quantidade_ambientes: data.quantidadeAmbientes,
+              descricao_ambientes: data.descricaoAmbientes,
+            } as any);
+          }}
         />
       </DialogContent>
     </Dialog>

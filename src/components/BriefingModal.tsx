@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Save, Edit2 } from "lucide-react";
+import { FileText, Save, Edit2, ArrowRight } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
@@ -20,9 +20,10 @@ interface BriefingModalProps {
   clientId: string;
   clientName: string;
   orcamentoNumero?: string;
+  onSendToSimulator?: (data: { environments: string[]; descricaoAmbientes: string; quantidadeAmbientes: number; budgetExpectation: string }) => void;
 }
 
-export function BriefingModal({ open, onOpenChange, clientId, clientName, orcamentoNumero }: BriefingModalProps) {
+export function BriefingModal({ open, onOpenChange, clientId, clientName, orcamentoNumero, onSendToSimulator }: BriefingModalProps) {
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -162,8 +163,30 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
           )}
         </ScrollArea>
 
-        <DialogFooter className="pt-3">
+        <DialogFooter className="pt-3 flex-wrap gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+          {onSendToSimulator && existingId && (
+            <Button
+              variant="secondary"
+              className="gap-1.5"
+              onClick={() => {
+                const envs: string[] = Array.isArray(responses.environments) ? responses.environments : [];
+                const otherEnv = responses.environments_other ? String(responses.environments_other).trim() : "";
+                const allEnvs = otherEnv ? [...envs, otherEnv] : envs;
+                onSendToSimulator({
+                  environments: allEnvs,
+                  descricaoAmbientes: allEnvs.join(", "),
+                  quantidadeAmbientes: allEnvs.length,
+                  budgetExpectation: responses.budget_expectation || "",
+                });
+                onOpenChange(false);
+                toast.success("Dados do briefing enviados para o simulador!");
+              }}
+            >
+              <ArrowRight className="h-4 w-4" />
+              Enviar para Simulador
+            </Button>
+          )}
           {!readOnly && (
             <Button onClick={handleSave} disabled={saving} className="gap-1">
               <Save className="h-4 w-4" />
