@@ -262,7 +262,7 @@ export function ClientsKanban({
           </div>
           {(() => {
             const totalContratos = filtered.length;
-            const valorAcumulado = filtered.reduce((sum, c) => sum + (lastSims[c.id]?.valor_final || 0), 0);
+            const valorAcumulado = filtered.reduce((sum, c) => sum + (lastSims[c.id]?.valor_com_desconto || lastSims[c.id]?.valor_final || 0), 0);
             return (
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
