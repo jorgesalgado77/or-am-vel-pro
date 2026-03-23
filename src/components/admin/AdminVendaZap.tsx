@@ -62,7 +62,7 @@ export function AdminVendaZap() {
     setLoading(true);
     const [addonsRes, tenantsRes, messagesRes] = await Promise.all([
       supabase.from("vendazap_addon").select("*").order("created_at", { ascending: false }),
-      supabase.from("tenants").select("id, nome_loja").order("nome_loja"),
+      supabase.from("tenants").select("id, nome_loja, recursos_vip").order("nome_loja"),
       supabase.from("vendazap_messages").select("tenant_id, tokens_usados"),
     ]);
 
@@ -70,12 +70,33 @@ export function AdminVendaZap() {
     setTenants(tenantsList);
     const tenantMap = Object.fromEntries(tenantsList.map((t: any) => [t.id, t.nome_loja]));
 
-    if (addonsRes.data) {
-      setAddons((addonsRes.data as any[]).map((addon) => ({
-        ...addon,
-        tenant_nome: tenantMap[addon.tenant_id] || "Desconhecida",
-      })));
-    }
+    const addonsList = (addonsRes.data as any[] || []).map((addon) => ({
+      ...addon,
+      tenant_nome: tenantMap[addon.tenant_id] || "Desconhecida",
+    }));
+
+    // Also include stores activated via recursos_vip that don't have an addon record yet
+    const addonTenantIds = new Set(addonsList.map((a: any) => a.tenant_id));
+    const vipStores = tenantsList.filter((t: any) => {
+      const vip = t.recursos_vip || {};
+      return vip.vendazap && !addonTenantIds.has(t.id);
+    });
+
+    const vipAddons: AddonRow[] = vipStores.map((t: any) => ({
+      id: `vip-${t.id}`,
+      tenant_id: t.id,
+      ativo: true,
+      max_mensagens_dia: 0,
+      max_tokens_mensagem: 2000,
+      prompt_sistema: "Ativado via Admin Master (recursos VIP)",
+      tom_padrao: "consultivo",
+      api_provider: "openai",
+      openai_model: "gpt-4.1-mini",
+      created_at: new Date().toISOString(),
+      tenant_nome: t.nome_loja,
+    }));
+
+    setAddons([...addonsList, ...vipAddons]);
 
     const msgData = (messagesRes.data || []) as any[];
     const usageMap: Record<string, { total_mensagens: number; total_tokens: number }> = {};
