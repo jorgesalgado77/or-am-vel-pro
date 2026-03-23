@@ -15,6 +15,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage.tsx"));
 const TenantLanding = lazy(() => import("./pages/TenantLanding.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const AffiliatePage = lazy(() => import("./pages/AffiliatePage.tsx"));
+const ClientSala = lazy(() => import("./pages/ClientSala.tsx"));
 
 const queryClient = new QueryClient();
 
