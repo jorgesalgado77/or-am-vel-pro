@@ -19,6 +19,7 @@ export interface CargoPermissoes {
   vendazap: boolean;
   chat_vendas: boolean;
   dealroom: boolean;
+  smart3d: boolean;
   divulgue_ganhe: boolean;
   mensagens: boolean;
   suporte: boolean;
