@@ -56,6 +56,20 @@ export function KanbanClientDialog({
   indicadorMap, usuarios, onEdit, onDelete, onSimulate, onHistory, onContracts, onClientUpdate,
 }: KanbanClientDialogProps) {
   const [showBriefing, setShowBriefing] = useState(false);
+  const [attachments, setAttachments] = useState<LeadAttachment[]>([]);
+
+  useEffect(() => {
+    if (!client?.id) { setAttachments([]); return; }
+    supabase
+      .from("lead_attachments" as any)
+      .select("id, file_name, file_url, file_size, file_type, created_at")
+      .or(`client_id.eq.${client.id},client_name.eq.${client.nome}`)
+      .order("created_at", { ascending: false })
+      .then(({ data }: any) => {
+        if (data) setAttachments(data as LeadAttachment[]);
+      });
+  }, [client?.id, client?.nome]);
+
   if (!client) return null;
 
   const isExpired = lastSim ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
