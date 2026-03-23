@@ -694,7 +694,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     try {
       const tenantId = resolvedTenantId;
       if (tenantId) {
-        const accessResult = await validateAccess(tenantId, currentUser?.id);
+        const accessResult = await validateAccess(tenantId);
         if (!accessResult.allowed) {
           // Show upgrade suggestion for basic plan
           if (accessResult.reason?.includes("Básico")) {
