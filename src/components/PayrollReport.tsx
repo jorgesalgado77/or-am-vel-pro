@@ -8,7 +8,7 @@ import {Separator} from "@/components/ui/separator";
 import {Input} from "@/components/ui/input";
 import {Label} from "@/components/ui/label";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {ArrowLeft, Printer, DollarSign, Users, Check, X, Pause, Plus} from "lucide-react";
+import {ArrowLeft, Printer, DollarSign, Users, Check, X, Pause, Plus, Settings2, FileText} from "lucide-react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
 import {Textarea} from "@/components/ui/textarea";
 import {useUsuarios} from "@/hooks/useUsuarios";
@@ -19,6 +19,9 @@ import {format, startOfMonth, endOfMonth} from "date-fns";
 
 import {formatCurrency} from "@/lib/financing";
 import {useComissaoPolicy} from "@/hooks/useComissaoPolicy";
+import {PayrollTaxConfig} from "@/components/payroll/PayrollTaxConfig";
+import {PayrollDeductions, type EmployeeDeduction} from "@/components/payroll/PayrollDeductions";
+import {PayrollHolerite} from "@/components/payroll/PayrollHolerite";
 
 interface PayrollCommission {
   id: string;
@@ -50,6 +53,9 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
   const [dataFim, setDataFim] = useState(() => format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newCommission, setNewCommission] = useState({ usuario_id: "", valor_comissao: "", observacao: "" });
+  const [showTaxConfig, setShowTaxConfig] = useState(false);
+  const [holeriteUser, setHoleriteUser] = useState<string | null>(null);
+  const [deductionsData, setDeductionsData] = useState<Record<string, EmployeeDeduction>>({});
 
   const activeUsers = usuarios.filter((u) => u.ativo);
 
@@ -67,7 +73,17 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
     else setCommissions((data as PayrollCommission[]) || []);
   };
 
-  useEffect(() => { fetchCommissions(); }, [filterMode, mesReferencia, dataInicio, dataFim]);
+  const fetchDeductions = async () => {
+    const { data } = await supabase
+      .from("payroll_deductions" as any)
+      .select("*")
+      .eq("mes_referencia", mesReferencia);
+    const map: Record<string, EmployeeDeduction> = {};
+    (data as any[] || []).forEach((d: any) => { map[d.usuario_id] = d; });
+    setDeductionsData(map);
+  };
+
+  useEffect(() => { fetchCommissions(); fetchDeductions(); }, [filterMode, mesReferencia, dataInicio, dataFim]);
 
   const getCargoNome = (cargoId: string | null) => {
     if (!cargoId) return "—";
@@ -114,6 +130,12 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
   const totalPendentes = comissoesPendentes.reduce((s, c) => s + Number(c.valor_comissao), 0);
   const totalComissoes = commissions.reduce((s, c) => s + Number(c.valor_comissao), 0);
 
+  const getUserCommissions = (userId: string) => {
+    return commissions
+      .filter(c => c.usuario_id === userId && (c.status === "paga" || c.status === "pendente"))
+      .reduce((s, c) => s + Number(c.valor_comissao), 0);
+  };
+
   const updateCommissionStatus = async (id: string, status: string) => {
     const { error } = await supabase.from("payroll_commissions").update({ status } as any).eq("id", id);
     if (error) toast.error("Erro ao atualizar");
@@ -148,8 +170,33 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
 
   const handlePrint = () => window.print();
 
+  // Show tax config
+  if (showTaxConfig) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <PayrollTaxConfig onClose={() => setShowTaxConfig(false)} />
+      </div>
+    );
+  }
+
+  // Show holerite
+  const holeriteUsuario = holeriteUser ? usuarios.find(u => u.id === holeriteUser) : null;
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 print:space-y-4">
+      {/* Holerite overlay */}
+      {holeriteUsuario && (
+        <PayrollHolerite
+          usuario={holeriteUsuario}
+          cargos={cargos}
+          mesReferencia={mesReferencia}
+          totalComissoes={getUserCommissions(holeriteUsuario.id)}
+          deduction={deductionsData[holeriteUsuario.id] || null}
+          regimeEfetivo={getRegimeEfetivo(holeriteUsuario)}
+          onClose={() => setHoleriteUser(null)}
+        />
+      )}
+
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={onBack}>
@@ -161,6 +208,9 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowTaxConfig(true)}>
+            <Settings2 className="h-4 w-4" /> Impostos
+          </Button>
           <Button size="sm" variant="outline" className="gap-2" onClick={() => setAddDialogOpen(true)}>
             <Plus className="h-4 w-4" /> Comissão
           </Button>
@@ -291,12 +341,13 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                   <TableHead className="text-right">Comissão (%)</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead className="text-center print:hidden">Holerite</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activeUsers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       Nenhum funcionário ativo
                     </TableCell>
                   </TableRow>
@@ -330,6 +381,17 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                       <TableCell className="text-right">{comissaoEfetiva > 0 ? `${comissaoEfetiva}%` : "—"}</TableCell>
                       <TableCell className="text-sm">{u.telefone || "—"}</TableCell>
                       <TableCell className="text-sm">{u.email || "—"}</TableCell>
+                      <TableCell className="text-center print:hidden">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Gerar Holerite"
+                          onClick={() => setHoleriteUser(u.id)}
+                        >
+                          <FileText className="h-4 w-4 text-primary" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -338,7 +400,7 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                     <TableCell colSpan={3} className="text-right">TOTAL</TableCell>
                     <TableCell className="text-right">{formatCurrency(totalSalarios)}</TableCell>
                     <TableCell className="text-right">—</TableCell>
-                    <TableCell colSpan={2}></TableCell>
+                    <TableCell colSpan={3}></TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -346,6 +408,14 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Faltas e Descontos */}
+      <PayrollDeductions
+        usuarios={usuarios}
+        cargos={cargos}
+        mesReferencia={mesReferencia}
+        getRegimeEfetivo={getRegimeEfetivo}
+      />
 
       {/* Commissions Table */}
       <Card>
