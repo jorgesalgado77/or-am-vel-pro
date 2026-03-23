@@ -227,6 +227,24 @@ export function FunnelPanel() {
     setConfig((p) => ({ ...p, investment_ranges: p.investment_ranges.filter((_, idx) => idx !== i) }));
   };
 
+  const [editingRangeIdx, setEditingRangeIdx] = useState<number | null>(null);
+  const [editingRangeValue, setEditingRangeValue] = useState("");
+
+  const startEditRange = (i: number) => {
+    setEditingRangeIdx(i);
+    setEditingRangeValue(config.investment_ranges[i]);
+  };
+
+  const confirmEditRange = () => {
+    if (editingRangeIdx === null || !editingRangeValue.trim()) return;
+    setConfig((p) => ({
+      ...p,
+      investment_ranges: p.investment_ranges.map((r, idx) => idx === editingRangeIdx ? editingRangeValue.trim() : r),
+    }));
+    setEditingRangeIdx(null);
+    setEditingRangeValue("");
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
