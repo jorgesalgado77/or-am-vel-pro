@@ -602,10 +602,12 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
             renderer.domElement.addEventListener("click", handleClick);
           }
 
+          removeClickListener = () => renderer.domElement.replaceWith(renderer.domElement.cloneNode(true) as HTMLCanvasElement);
+
           if (mounted) {
             setProgress(100);
             setProgressLabel("Concluído!");
-            setTimeout(() => { if (mounted) setLoading(false); }, 400);
+            setTimeout(() => { if (mounted) setLoading(false); }, 220);
           }
         } catch (loadErr: any) {
           console.error("Model load error:", loadErr);
@@ -617,16 +619,14 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           return;
         }
 
-        // Animation loop
         const animate = () => {
           if (!mounted) return;
-          requestAnimationFrame(animate);
+          animationFrameId = requestAnimationFrame(animate);
           controls.update();
           renderer.render(scene, camera);
         };
         animate();
 
-        // Resize
         const onResize = () => {
           if (!canvasRef.current) return;
           const c = canvasRef.current.parentElement!;
@@ -640,9 +640,10 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
         return () => {
           mounted = false;
+          cancelAnimationFrame(animationFrameId);
           window.removeEventListener("resize", onResize);
-          renderer.dispose();
           controls.dispose();
+          renderer.dispose();
         };
       } catch (err: any) {
         console.error("WebGL init error:", err);
