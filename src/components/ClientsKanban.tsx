@@ -355,6 +355,11 @@ export function ClientsKanban({
                               cargoNome={cargoNome}
                               followUpStatus={followUpStatus[client.id]}
                               onClick={setExpandedClient}
+                              onQuickDelete={canDelete ? (c) => {
+                                if (window.confirm(`Excluir o lead "${c.nome}"? Esta ação não pode ser desfeita.`)) {
+                                  onDelete(c.id);
+                                }
+                              } : undefined}
                             />
                           ))}
                           {provided.placeholder}
