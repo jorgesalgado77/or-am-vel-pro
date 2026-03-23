@@ -369,6 +369,17 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
         controls.maxPolarAngle = Math.PI * 0.9;
         controls.minPolarAngle = Math.PI * 0.05;
 
+        // Save initial camera state for reset
+        cameraInitial.current = {
+          pos: camera.position.clone(),
+          target: controls.target.clone(),
+        };
+
+        // Expose controls to parent
+        if (controlsRef) {
+          controlsRef.current = { controls, camera, initialPos: camera.position.clone(), initialTarget: controls.target.clone() };
+        }
+
         // Lights - balanced for color accuracy
         const ambient = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambient);
