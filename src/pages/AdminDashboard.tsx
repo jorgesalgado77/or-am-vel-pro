@@ -320,7 +320,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       plano_periodo: tPeriodo,
       max_usuarios: maxUsers,
       ativo: tAtivo,
-      recursos_vip: { ocultar_indicador: tOcultarIndicador, deal_room: tDealRoom, vendazap: tVendaZap },
+      recursos_vip: { ocultar_indicador: tOcultarIndicador, deal_room: tDealRoom, vendazap: tVendaZap, smart_import_3d: t3dImport },
     };
 
     if (editingTenant) {
