@@ -224,7 +224,13 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                   <input ref={fileInputRef} type="file" accept=".glb,.dxf"
                     onChange={handleUpload} className="hidden" />
                   <Button variant="outline" className="w-full h-9 mt-1 gap-1.5 text-xs"
-                    onClick={() => fileInputRef.current?.click()} disabled={uploading || !projectName.trim()}>
+                    onClick={() => {
+                      if (!projectName.trim()) {
+                        toast.error("Informe o nome do projeto antes de selecionar o arquivo");
+                        return;
+                      }
+                      fileInputRef.current?.click();
+                    }} disabled={uploading}>
                     <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Selecionar .GLB / .DXF"}
                   </Button>
                 </div>
