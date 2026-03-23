@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Printer, X } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { getRegimeTaxConfig, getINSSFaixas, calcularINSS, type TaxRate } from "./PayrollTaxConfig";
+import { getRegimeTaxConfig, getINSSFaixas, getIRRFFaixas, getIRRFLimites, calcularINSS, calcularIRRF, type TaxRate } from "./PayrollTaxConfig";
 import type { Usuario } from "@/hooks/useUsuarios";
 import type { Cargo } from "@/hooks/useCargos";
 
@@ -34,6 +34,8 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const { settings } = useCompanySettings();
   const taxConfig = getRegimeTaxConfig(settings);
   const inssFaixas = getINSSFaixas(settings);
+  const irrfFaixas = getIRRFFaixas(settings);
+  const irrfLimites = getIRRFLimites(settings);
 
   const cargo = usuario.cargo_id ? cargos.find(c => c.id === usuario.cargo_id) : null;
   const salario = usuario.salario_fixo || (cargo as any)?.salario_base || 0;
@@ -67,20 +69,35 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
   const descontos: { descricao: string; valor: number }[] = [];
   if (faltasDias > 0) descontos.push({ descricao: `Faltas (${faltasDias} dias)`, valor: descontoFaltas });
 
-  // Impostos - INSS uses progressive table for CLT/Freelancer
-  const isINSSProgressivo = (regime === "CLT" || regime === "Freelancer");
+  // Impostos - INSS and IRRF use progressive tables for CLT/Freelancer
+  const isProgressivo = (regime === "CLT" || regime === "Freelancer");
+
+  // First pass: calculate INSS to use as base for IRRF
+  let descontoINSSCalc = 0;
+  if (isProgressivo && inssFaixas.length > 0) {
+    const inssCalc = calcularINSS(totalBruto, inssFaixas);
+    descontoINSSCalc = inssCalc.valor;
+  }
   
   activeTaxes.forEach(tax => {
     const nomeUpper = tax.nome.toUpperCase();
     const isINSS = nomeUpper.includes("INSS") && !nomeUpper.includes("PATRONAL");
+    const isIRRF = nomeUpper.includes("IRRF");
     
-    if (isINSS && isINSSProgressivo && inssFaixas.length > 0) {
-      // Use progressive INSS table
+    if (isINSS && isProgressivo && inssFaixas.length > 0) {
       const inssCalc = calcularINSS(totalBruto, inssFaixas);
       descontos.push({
         descricao: `${tax.nome} (${inssCalc.aliquota}% — ${inssCalc.faixa})`,
         valor: inssCalc.valor,
       });
+    } else if (isIRRF && isProgressivo && irrfFaixas.length > 0) {
+      const irrfCalc = calcularIRRF(totalBruto, descontoINSSCalc, irrfFaixas, irrfLimites.isencao, irrfLimites.transicao);
+      if (irrfCalc.valor > 0) {
+        descontos.push({
+          descricao: `${tax.nome} (${irrfCalc.descricao})`,
+          valor: irrfCalc.valor,
+        });
+      }
     } else {
       const base = nomeUpper.includes("FGTS") ? salario : totalBruto;
       descontos.push({ descricao: `${tax.nome} (${tax.aliquota}%)`, valor: (base * tax.aliquota) / 100 });
