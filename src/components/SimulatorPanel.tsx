@@ -55,10 +55,22 @@ const CARENCIA_OPTIONS: { value: "30" | "60" | "90"; label: string }[] = [
   { value: "90", label: "90 dias" },
 ];
 
+export interface SavedSimulationData {
+  valor_tela: number;
+  desconto1: number;
+  desconto2: number;
+  desconto3: number;
+  forma_pagamento: string;
+  parcelas: number;
+  valor_entrada: number;
+  plus_percentual: number;
+}
+
 interface SimulatorPanelProps {
   client?: Client | null;
   onBack?: () => void;
   onClientCreated?: () => void;
+  initialSimulation?: SavedSimulationData | null;
 }
 
 // Keys for sessionStorage persistence

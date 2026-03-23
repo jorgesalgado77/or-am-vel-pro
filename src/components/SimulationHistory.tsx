@@ -21,6 +21,7 @@ type Simulation = Database["public"]["Tables"]["simulations"]["Row"];
 interface SimulationHistoryProps {
   client: Client;
   onBack: () => void;
+  onLoadSimulation?: (simulation: Simulation, client: Client) => void;
 }
 
 const FORMA_LABELS: Record<string, string> = {
