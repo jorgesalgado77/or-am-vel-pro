@@ -107,6 +107,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [editingPayment, setEditingPayment] = useState<PaymentSetting | null>(null);
   const [searchTenant, setSearchTenant] = useState("");
   const [filterPlano, setFilterPlano] = useState("all");
+  const [showUsersModal, setShowUsersModal] = useState(false);
+  const [showClientsModal, setShowClientsModal] = useState(false);
+  const [showInactiveModal, setShowInactiveModal] = useState(false);
 
   // Tenant form
   const [tNome, setTNome] = useState("");
