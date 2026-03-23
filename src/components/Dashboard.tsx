@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useIndicadores } from "@/hooks/useIndicadores";
+import { useCargos } from "@/hooks/useCargos";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
