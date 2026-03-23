@@ -304,6 +304,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTOcultarIndicador(vip.ocultar_indicador || false);
     setTDealRoom(vip.deal_room || false);
     setTVendaZap(vip.vendazap || false);
+    setT3dImport(vip.smart_import_3d || false);
     setShowTenantDialog(true);
   };
 
