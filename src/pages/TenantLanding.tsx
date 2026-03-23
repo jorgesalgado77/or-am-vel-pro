@@ -455,7 +455,7 @@ export default function TenantLanding() {
     return () => { supabase.removeChannel(channel); };
   }, [tenant?.id]);
 
-  const uploadLeadAttachments = useCallback(async () => {
+  const uploadLeadAttachments = useCallback(async (clientId?: string) => {
     if (!arquivos.length || !tenant?.id) return { uploaded: 0, failed: 0 };
 
     let uploaded = 0;
@@ -465,7 +465,6 @@ export default function TenantLanding() {
       const validation = validateFileUpload(file);
       if (!validation.valid) {
         failed += 1;
-        console.warn("[TenantLanding] invalid attachment skipped:", validation.message);
         continue;
       }
 
@@ -476,13 +475,29 @@ export default function TenantLanding() {
       if (error) {
         failed += 1;
         console.warn("[TenantLanding] attachment upload failed:", error.message);
-      } else {
-        uploaded += 1;
+        continue;
       }
+
+      uploaded += 1;
+
+      // Persist metadata in lead_attachments table
+      const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
+      await supabase.from("lead_attachments" as any).insert({
+        tenant_id: tenant.id,
+        client_id: clientId || null,
+        client_name: nome.trim(),
+        file_name: file.name,
+        file_path: path,
+        file_url: urlData?.publicUrl || null,
+        file_size: file.size,
+        file_type: file.type || null,
+      } as any).then(({ error: insertErr }: any) => {
+        if (insertErr) console.warn("[TenantLanding] lead_attachments insert failed:", insertErr.message);
+      });
     }
 
     return { uploaded, failed };
-  }, [arquivos, tenant?.id]);
+  }, [arquivos, tenant?.id, nome]);
 
   const finalizeLeadSuccess = useCallback(async () => {
     setSent(true);

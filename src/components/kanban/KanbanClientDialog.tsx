@@ -1,7 +1,7 @@
 /**
  * Expanded client detail dialog for the Kanban board.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { differenceInDays } from "date-fns";
 import { format, addDays, isPast, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Handshake, Pencil, Trash2, History, FileText, Phone, Mail, User, Hash, Clock,
-  AlertTriangle, CalendarIcon, FileQuestion,
+  AlertTriangle, CalendarIcon, FileQuestion, Paperclip, ExternalLink,
 } from "lucide-react";
 import { BriefingModal } from "@/components/BriefingModal";
 import { supabase } from "@/lib/supabaseClient";
@@ -23,6 +23,15 @@ import { formatCurrency } from "@/lib/financing";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { KANBAN_COLUMNS, type Client, type LastSimInfo } from "./kanbanTypes";
+
+interface LeadAttachment {
+  id: string;
+  file_name: string;
+  file_url: string | null;
+  file_size: number;
+  file_type: string | null;
+  created_at: string;
+}
 
 interface KanbanClientDialogProps {
   client: Client | null;
@@ -47,6 +56,20 @@ export function KanbanClientDialog({
   indicadorMap, usuarios, onEdit, onDelete, onSimulate, onHistory, onContracts, onClientUpdate,
 }: KanbanClientDialogProps) {
   const [showBriefing, setShowBriefing] = useState(false);
+  const [attachments, setAttachments] = useState<LeadAttachment[]>([]);
+
+  useEffect(() => {
+    if (!client?.id) { setAttachments([]); return; }
+    supabase
+      .from("lead_attachments" as any)
+      .select("id, file_name, file_url, file_size, file_type, created_at")
+      .or(`client_id.eq.${client.id},client_name.eq.${client.nome}`)
+      .order("created_at", { ascending: false })
+      .then(({ data }: any) => {
+        if (data) setAttachments(data as LeadAttachment[]);
+      });
+  }, [client?.id, client?.nome]);
+
   if (!client) return null;
 
   const isExpired = lastSim ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
@@ -242,6 +265,37 @@ export function KanbanClientDialog({
                     ) : (
                       <span className="text-sm text-foreground">Até {format(addDays(new Date(lastSim.created_at), budgetValidityDays), "dd/MM/yyyy")}</span>
                     )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Lead Attachments */}
+            {attachments.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <Paperclip className="h-3.5 w-3.5" /> Anexos do Lead ({attachments.length})
+                  </h4>
+                  <div className="space-y-1.5">
+                    {attachments.map(att => {
+                      const sizeKB = Math.round(att.file_size / 1024);
+                      return (
+                        <div key={att.id} className="flex items-center gap-2 text-xs bg-muted/40 rounded-md p-2">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-foreground truncate font-medium">{att.file_name}</p>
+                            <p className="text-muted-foreground">{sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`} • {format(new Date(att.created_at), "dd/MM/yy HH:mm")}</p>
+                          </div>
+                          {att.file_url && (
+                            <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </>
