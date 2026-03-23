@@ -225,9 +225,14 @@ export function PayrollHolerite({ usuario, cargos, mesReferencia, totalComissoes
             <h4 className="text-sm font-semibold text-foreground mb-2">PROVENTOS</h4>
             <div className="space-y-1">
               {proventos.map((p, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{p.descricao}</span>
-                  <span className="font-medium text-foreground">{formatCurrency(p.valor)}</span>
+                <div key={i}>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{p.descricao}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(p.valor)}</span>
+                  </div>
+                  {p.detalhe && (
+                    <p className="text-[11px] text-muted-foreground ml-2 italic">{p.detalhe}</p>
+                  )}
                 </div>
               ))}
               <Separator />
