@@ -357,8 +357,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setClearColor(0x1e293b);
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
+        renderer.toneMapping = THREE.NoToneMapping;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         const scene = new THREE.Scene();
