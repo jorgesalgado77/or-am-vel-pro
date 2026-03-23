@@ -15,7 +15,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminClientsModal} from "@/components/admin/AdminClientsModal";
