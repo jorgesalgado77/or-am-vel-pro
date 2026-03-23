@@ -37,7 +37,8 @@ export type AuditAction =
   | "senha_resetada"
   | "lead_atribuido"
   | "tenant_ativado"
-  | "tenant_desativado";
+  | "tenant_desativado"
+  | "tenant_excluido";
 
 export type AuditEntity =
   | "client"
