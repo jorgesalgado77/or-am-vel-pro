@@ -43,11 +43,12 @@ export default function ClientSala() {
           .eq("session_id", sessionId)
           .limit(1);
 
-        if (attachData?.[0]?.tenant_id) {
+        const attachArr = attachData as any[];
+        if (attachArr?.[0]?.tenant_id) {
           const { data: tenant } = await supabase
             .from("tenants")
             .select("nome, telefone")
-            .eq("id", attachData[0].tenant_id)
+            .eq("id", attachArr[0].tenant_id)
             .single();
           if (tenant) {
             setStoreInfo({
