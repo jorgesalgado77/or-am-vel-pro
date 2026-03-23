@@ -406,6 +406,10 @@ function WebGLViewer({
       cancelAnimationFrame(animationFrameId);
       if (resizeHandler) window.removeEventListener("resize", resizeHandler);
       if (clickHandler && canvasElement) canvasElement.removeEventListener("click", clickHandler);
+      // Dispose scene graph (geometries, materials, textures)
+      if (threeRef.current?.loadedObject) {
+        disposeSceneGraph(threeRef.current.loadedObject);
+      }
       controls?.dispose?.();
       renderer?.dispose?.();
       threeRef.current = null;
