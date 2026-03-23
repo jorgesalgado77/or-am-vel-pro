@@ -537,6 +537,10 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <TabsList className="inline-flex w-max gap-1 p-1">
               <TabsTrigger value="lojas" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Store className="h-4 w-4" />Lojas</TabsTrigger>
               <TabsTrigger value="dealroom" className="gap-2 data-[state=active]:bg-[hsl(270,60%,50%)] data-[state=active]:text-white"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
+              <TabsTrigger value="vendazap" className="gap-2 data-[state=active]:bg-[hsl(120,50%,40%)] data-[state=active]:text-white"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
+              <TabsTrigger value="smartimport3d" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Box className="h-4 w-4" />3D Smart Import</TabsTrigger>
+              <TabsTrigger value="planos" className="gap-2 data-[state=active]:bg-[hsl(340,70%,50%)] data-[state=active]:text-white"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
+              <TabsTrigger value="pagamentos" className="gap-2 data-[state=active]:bg-[hsl(150,60%,40%)] data-[state=active]:text-white"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
               <TabsTrigger value="suporte" className="gap-2 relative data-[state=active]:bg-[hsl(200,80%,45%)] data-[state=active]:text-white">
                 <MessageSquare className="h-4 w-4" />Suporte
                 {addonInterestCount > 0 && (
@@ -545,16 +549,13 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="pagamentos" className="gap-2 data-[state=active]:bg-[hsl(150,60%,40%)] data-[state=active]:text-white"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
-              <TabsTrigger value="planos" className="gap-2 data-[state=active]:bg-[hsl(340,70%,50%)] data-[state=active]:text-white"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
               <TabsTrigger value="landing" className="gap-2 data-[state=active]:bg-[hsl(30,80%,50%)] data-[state=active]:text-white"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
-              <TabsTrigger value="vendazap" className="gap-2 data-[state=active]:bg-[hsl(120,50%,40%)] data-[state=active]:text-white"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
               <TabsTrigger value="whatsapp" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageSquare className="h-4 w-4" />WhatsApp</TabsTrigger>
               <TabsTrigger value="resend" className="gap-2 data-[state=active]:bg-[hsl(220,70%,50%)] data-[state=active]:text-white"><Mail className="h-4 w-4" />Resend</TabsTrigger>
-              <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
               <TabsTrigger value="canva" className="gap-2 data-[state=active]:bg-[hsl(180,60%,40%)] data-[state=active]:text-white"><Palette className="h-4 w-4" />Canva</TabsTrigger>
               <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
               <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
+              <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
