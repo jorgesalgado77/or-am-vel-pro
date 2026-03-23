@@ -212,7 +212,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       const key = format(parseISO(s.created_at), "yyyy-MM");
       if (!byMonth[key]) byMonth[key] = { count: 0, total: 0 };
       byMonth[key].count++;
-      byMonth[key].total += s.valor_final;
+      byMonth[key].total += s.valor_com_desconto || s.valor_final;
     });
     return Object.entries(byMonth)
       .sort(([a], [b]) => a.localeCompare(b))
