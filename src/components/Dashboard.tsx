@@ -413,15 +413,35 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
       </div>
 
-      {/* Lead Source Cards */}
-      {stats.leadsBySource.total > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard icon={Megaphone} label="Leads Landing Page" value={String(stats.leadsBySource.landing_page)} accent={stats.leadsBySource.landing_page > 0} />
-          <KpiCard icon={UserPlus} label="Leads Afiliados" value={String(stats.leadsBySource.afiliado)} accent={stats.leadsBySource.afiliado > 0} />
-          <KpiCard icon={Users} label="Leads Indicação" value={String(stats.leadsBySource.indicacao)} accent={stats.leadsBySource.indicacao > 0} />
-          <KpiCard icon={Share2} label="Leads Link Compartilhado" value={String(stats.leadsBySource.link)} accent={stats.leadsBySource.link > 0} />
-        </div>
-      )}
+      {/* Lead Source Cards with Projetista filter */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Megaphone className="h-4 w-4 text-primary" />
+              Leads por Origem
+            </h3>
+            <Select value={leadProjetistaFilter} onValueChange={setLeadProjetistaFilter}>
+              <SelectTrigger className="w-[180px] h-8 text-sm">
+                <SelectValue placeholder="Todos os projetistas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os projetistas</SelectItem>
+                {projetistaNames.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} accent={filteredLeadsBySource.landing_page > 0} />
+            <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} accent={filteredLeadsBySource.afiliado > 0} />
+            <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} accent={filteredLeadsBySource.indicacao > 0} />
+            <KpiCard icon={Share2} label="Link Compartilhado" value={String(filteredLeadsBySource.link)} accent={filteredLeadsBySource.link > 0} />
+            <KpiCard icon={UserCheck} label="Manual / Loja" value={String(filteredLeadsBySource.manual)} />
+          </div>
+        </CardContent>
+      </Card>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground font-medium">Gráficos:</span>
         {chartToggles.map(({ key, label }) => (
