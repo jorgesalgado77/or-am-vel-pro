@@ -185,7 +185,7 @@ export function ClientsKanban({
     });
   }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome]);
 
-  // Column data
+  // Column data — sorted by created_at descending (most recent first)
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
     KANBAN_COLUMNS.forEach(col => { map[col.id] = []; });
@@ -194,6 +194,10 @@ export function ClientsKanban({
       if (status === "novo" && client.vendedor) status = "em_negociacao";
       if (map[status]) map[status].push(client);
       else map["novo"].push(client);
+    });
+    // Sort each column: most recent first
+    Object.keys(map).forEach(key => {
+      map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
   }, [filtered]);
@@ -351,6 +355,11 @@ export function ClientsKanban({
                               cargoNome={cargoNome}
                               followUpStatus={followUpStatus[client.id]}
                               onClick={setExpandedClient}
+                              onQuickDelete={canDelete ? (c) => {
+                                if (window.confirm(`Excluir o lead "${c.nome}"? Esta ação não pode ser desfeita.`)) {
+                                  onDelete(c.id);
+                                }
+                              } : undefined}
                             />
                           ))}
                           {provided.placeholder}

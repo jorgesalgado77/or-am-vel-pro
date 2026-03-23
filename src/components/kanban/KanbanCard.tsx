@@ -7,7 +7,7 @@ import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText } from "lucide-react";
+import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
@@ -21,9 +21,10 @@ interface KanbanCardProps {
   cargoNome: string;
   followUpStatus?: "active" | "paused" | "completed";
   onClick: (client: Client) => void;
+  onQuickDelete?: (client: Client) => void;
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick, onQuickDelete }: KanbanCardProps) {
   const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
   const agingColor =
@@ -134,11 +135,22 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                   {daysInColumn === 0 ? "hoje" : `${daysInColumn}d`}
                 </Badge>
               </div>
-              {sim && (
-                <span className={cn("text-xs font-semibold", expired ? "text-destructive" : "text-foreground")}>
-                  {formatCurrency(sim.valor_com_desconto)}
-                </span>
-              )}
+              <div className="flex items-center gap-1">
+                {sim && (
+                  <span className={cn("text-xs font-semibold", expired ? "text-destructive" : "text-foreground")}>
+                    {formatCurrency(sim.valor_com_desconto)}
+                  </span>
+                )}
+                {onQuickDelete && ((client as any).status || "novo") === "novo" && cargoNome.includes("administrador") && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onQuickDelete(client); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10"
+                    title="Excluir lead"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </button>
+                )}
+              </div>
             </div>
             {sim && (
               <div className="flex items-center justify-between mt-1">
