@@ -35,11 +35,30 @@ export function DealRoomControls({ jitsiApi, onToggleFullscreen, isFullscreen }:
     setVideoOff(!videoOff);
   };
 
-  const toggleScreenShare = () => {
+  const toggleScreenShare = async () => {
     if (jitsiApi) {
       jitsiApi.executeCommand("toggleShareScreen");
+      setSharing(!sharing);
+      return;
     }
-    setSharing(!sharing);
+
+    // Fallback: native screen share via browser API
+    if (!sharing) {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        stream.getVideoTracks()[0].addEventListener("ended", () => {
+          setSharing(false);
+          toast.info("Compartilhamento de tela encerrado");
+        });
+        setSharing(true);
+        toast.success("Compartilhamento de tela iniciado");
+      } catch {
+        toast.error("Compartilhamento de tela cancelado ou não suportado");
+      }
+    } else {
+      setSharing(false);
+      toast.info("Compartilhamento de tela encerrado");
+    }
   };
 
   const handleVolumeChange = (val: number[]) => {
