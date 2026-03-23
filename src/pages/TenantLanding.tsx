@@ -420,6 +420,40 @@ export default function TenantLanding() {
     };
   }, [codigo]);
 
+  // Realtime: update benefits/config when admin saves changes
+  useEffect(() => {
+    if (!tenant?.id) return;
+    const channel = supabase
+      .channel("funnel-config-realtime")
+      .on("postgres_changes" as any, {
+        event: "*",
+        schema: "public",
+        table: "tenant_funnel_config",
+        filter: `tenant_id=eq.${tenant.id}`,
+      }, (payload: any) => {
+        const d = payload.new;
+        if (!d) return;
+        setTenant(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            ...(Array.isArray(d.benefits) && d.benefits.length ? { benefits: d.benefits } : {}),
+            ...(d.headline ? { headline: d.headline } : {}),
+            ...(d.sub_headline ? { sub_headline: d.sub_headline } : {}),
+            ...(d.cta_text ? { cta_text: d.cta_text } : {}),
+            ...(d.primary_color ? { primary_color: d.primary_color } : {}),
+            ...(d.promo_video_url !== undefined ? { promo_video_url: d.promo_video_url } : {}),
+            ...(Array.isArray(d.carousel_images) ? { carousel_images: d.carousel_images.filter(Boolean) } : {}),
+          };
+        });
+        if (Array.isArray(d.investment_ranges) && d.investment_ranges.length) {
+          setInvestmentRanges(d.investment_ranges);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenant?.id]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim() || !telefone.trim()) { toast.error("Preencha nome e telefone"); return; }
