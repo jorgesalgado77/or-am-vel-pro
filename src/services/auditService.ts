@@ -84,26 +84,25 @@ async function resolveAuditTenantId(explicit?: string | null): Promise<string | 
  * Logs an audit event. Fire-and-forget — never blocks the UI.
  */
 export function logAudit(input: AuditLogInput): void {
-  const { acao, entidade, entidade_id, usuario_id, usuario_nome, tenant_id, detalhes } = input;
+  const { acao, entidade, entidade_id, usuario_id, usuario_nome, detalhes } = input;
 
-  resolveAuditTenantId(tenant_id).then((resolvedTenantId) => {
-    supabase
-      .from("audit_logs")
-      .insert({
-        acao,
-        entidade,
-        entidade_id: entidade_id || null,
-        usuario_id: usuario_id || null,
-        usuario_nome: usuario_nome || null,
-        detalhes: detalhes || {},
-        tenant_id: resolvedTenantId,
-      } as any)
-      .then(({ error }) => {
-        if (error) {
-          console.warn("[Audit] Failed to log:", acao, error.message);
-        }
-      });
-  });
+  const payload: Record<string, unknown> = {
+    acao,
+    entidade,
+    entidade_id: entidade_id || null,
+    usuario_id: usuario_id || null,
+    usuario_nome: usuario_nome || null,
+    detalhes: detalhes || {},
+  };
+
+  supabase
+    .from("audit_logs")
+    .insert(payload as any)
+    .then(({ error }) => {
+      if (error) {
+        console.warn("[Audit] Failed to log:", acao, error.message);
+      }
+    });
 }
 
 /**

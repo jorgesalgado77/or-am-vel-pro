@@ -146,7 +146,26 @@ export async function buildFallbackUserFromAuth(
   const metadata = (authUser.user_metadata as Record<string, unknown> | undefined) ?? undefined;
   const tenantId = (metadata?.tenant_id as string | undefined) ?? null;
 
-  if (!tenantId) return null;
+  // Admin master users don't have a tenant_id — return a valid AppUser so AuthContext
+  // doesn't sign them out. The Admin dashboard manages its own data loading.
+  const isAdminMaster = metadata?.is_admin_master === true;
+  if (!tenantId && !isAdminMaster) return null;
+
+  if (isAdminMaster && !tenantId) {
+    return {
+      id: authUser.id,
+      nome_completo: (metadata?.nome_completo as string) || "Admin Master",
+      apelido: null,
+      email: normalizeEmail(authUser.email),
+      telefone: null,
+      cargo_id: null,
+      cargo_nome: "Admin Master",
+      foto_url: null,
+      tenant_id: null,
+      auth_user_id: authUser.id,
+      permissoes: DEFAULT_PERMS,
+    };
+  }
 
   const cargoId = (metadata?.cargo_id as string | undefined) ?? null;
   const { cargo_nome, permissoes } = await resolveCargo(cargoId);
