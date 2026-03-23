@@ -95,7 +95,7 @@ export default function Index() {
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [contractsClient, setContractsClient] = useState<Client | null>(null);
-  const [loadedSimulation, setLoadedSimulation] = useState<{ valor_tela: number; desconto1: number; desconto2: number; desconto3: number; forma_pagamento: string; parcelas: number; valor_entrada: number; plus_percentual: number } | null>(null);
+  const [loadedSimulation, setLoadedSimulation] = useState<{ valor_tela: number; desconto1: number; desconto2: number; desconto3: number; forma_pagamento: string; parcelas: number; valor_entrada: number; plus_percentual: number; ambientes?: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string }> } | null>(null);
 
   const {
     clients, loading, lastSims, allSimulations, saving,
@@ -287,6 +287,13 @@ export default function Index() {
                   client={historyClient}
                   onBack={() => { setActiveView("clients"); setHistoryClient(null); }}
                   onLoadSimulation={(sim, c) => {
+                    // Parse environments from arquivo_nome if it's JSON
+                    let ambientes: any[] | undefined;
+                    try {
+                      if ((sim as any).arquivo_nome && (sim as any).arquivo_nome.startsWith('[')) {
+                        ambientes = JSON.parse((sim as any).arquivo_nome);
+                      }
+                    } catch {}
                     setLoadedSimulation({
                       valor_tela: Number(sim.valor_tela),
                       desconto1: Number(sim.desconto1) || 0,
@@ -296,6 +303,7 @@ export default function Index() {
                       parcelas: sim.parcelas || 1,
                       valor_entrada: Number(sim.valor_entrada) || 0,
                       plus_percentual: Number(sim.plus_percentual) || 0,
+                      ambientes,
                     });
                     setSimulatingClient(c);
                     setHistoryClient(null);

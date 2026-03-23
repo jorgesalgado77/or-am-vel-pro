@@ -55,6 +55,16 @@ const CARENCIA_OPTIONS: { value: "30" | "60" | "90"; label: string }[] = [
   { value: "90", label: "90 dias" },
 ];
 
+export interface SavedEnvironmentData {
+  id: string;
+  fileName: string;
+  environmentName: string;
+  pieceCount: number;
+  totalValue: number;
+  importedAt: string;
+  fileUrl?: string;
+}
+
 export interface SavedSimulationData {
   valor_tela: number;
   desconto1: number;
@@ -64,6 +74,7 @@ export interface SavedSimulationData {
   parcelas: number;
   valor_entrada: number;
   plus_percentual: number;
+  ambientes?: SavedEnvironmentData[];
 }
 
 interface SimulatorPanelProps {
@@ -157,10 +168,23 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   }, [client?.id, client?.indicador_id]);
 
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
+    // Restore from saved simulation (DB) if available
+    if (init?.ambientes && init.ambientes.length > 0) {
+      return init.ambientes.map((e) => ({
+        id: e.id,
+        fileName: e.fileName,
+        environmentName: e.environmentName,
+        pieceCount: e.pieceCount,
+        totalValue: e.totalValue,
+        importedAt: new Date(e.importedAt),
+        file: new File([], e.fileName), // placeholder — original file stored in cloud
+      }));
+    }
+    // Restore from sessionStorage
     return (stored.environments || []).map((e) => ({
       ...e,
       importedAt: new Date(e.importedAt),
-      file: new File([], e.fileName), // placeholder — original file can't be restored
+      file: new File([], e.fileName),
     }));
   });
 
@@ -568,16 +592,28 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       setSaving(true);
     }
 
-    // Upload file if exists
-    let arquivoUrl: string | null = null;
-    let arquivoNome: string | null = null;
-    if (importedFile) {
-      const uploaded = await uploadFile(importedFile, clientId);
-      if (uploaded) {
-        arquivoUrl = uploaded.url;
-        arquivoNome = uploaded.nome;
+    // Upload all environment files to storage
+    const uploadedEnvironments: SavedEnvironmentData[] = [];
+    for (const env of environments) {
+      let fileUrl: string | undefined;
+      if (env.file && env.file.size > 0) {
+        const uploaded = await uploadFile(env.file, clientId);
+        if (uploaded) fileUrl = uploaded.url;
       }
+      uploadedEnvironments.push({
+        id: env.id,
+        fileName: env.fileName,
+        environmentName: env.environmentName,
+        pieceCount: env.pieceCount,
+        totalValue: env.totalValue,
+        importedAt: env.importedAt.toISOString(),
+        fileUrl,
+      });
     }
+
+    // Store environments as JSON in arquivo_nome/arquivo_url
+    const arquivoNome = uploadedEnvironments.length > 0 ? JSON.stringify(uploadedEnvironments) : null;
+    const arquivoUrl = uploadedEnvironments.length > 0 ? uploadedEnvironments.map(e => e.fileUrl).filter(Boolean).join(',') : null;
 
     // Limit to 3 simulations per client — delete oldest if needed
     const { data: existingSims } = await supabase
@@ -688,13 +724,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setCloseSaleModalOpen(false);
 
     try {
-      // Save the simulation
-      let arquivoUrl: string | null = null;
-      let arquivoNome: string | null = null;
-      if (importedFile) {
-        const uploaded = await uploadFile(importedFile, client.id);
-        if (uploaded) { arquivoUrl = uploaded.url; arquivoNome = uploaded.nome; }
+      // Upload all environment files
+      const uploadedEnvs: SavedEnvironmentData[] = [];
+      for (const env of environments) {
+        let fileUrl: string | undefined;
+        if (env.file && env.file.size > 0) {
+          const uploaded = await uploadFile(env.file, client.id);
+          if (uploaded) fileUrl = uploaded.url;
+        }
+        uploadedEnvs.push({
+          id: env.id, fileName: env.fileName, environmentName: env.environmentName,
+          pieceCount: env.pieceCount, totalValue: env.totalValue,
+          importedAt: env.importedAt.toISOString(), fileUrl,
+        });
       }
+      const arquivoNome = uploadedEnvs.length > 0 ? JSON.stringify(uploadedEnvs) : null;
+      const arquivoUrl = uploadedEnvs.length > 0 ? uploadedEnvs.map(e => e.fileUrl).filter(Boolean).join(',') : null;
 
       const { data: simData, error: simError } = await supabase.from("simulations").insert({
         client_id: client.id, valor_tela: valorTela, desconto1, desconto2, desconto3,
