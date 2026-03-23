@@ -750,22 +750,16 @@ export default function TenantLanding() {
                     {investmentRanges.length > 0 && (
                       <div className="space-y-1.5">
                         <Label className="text-sm font-medium text-gray-300">Quanto pretende investir em Móveis Planejados?</Label>
-                        <div className="grid grid-cols-1 gap-2">
+                        <select
+                          value={investimento}
+                          onChange={(e) => setInvestimento(e.target.value)}
+                          className="w-full rounded-xl bg-gray-800/80 border border-gray-700 text-white px-4 py-3 text-sm focus:border-white/30 focus:ring-1 focus:ring-white/10 appearance-none"
+                        >
+                          <option value="" className="bg-gray-900 text-gray-400">Selecione uma faixa de investimento</option>
                           {investmentRanges.map((range, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => setInvestimento(range)}
-                              className={`text-left px-4 py-2.5 rounded-xl text-sm transition-all border ${
-                                investimento === range
-                                  ? "border-white/40 bg-white/10 text-white font-medium"
-                                  : "border-gray-700 bg-gray-800/60 text-gray-400 hover:border-gray-600 hover:text-gray-300"
-                              }`}
-                            >
-                              {range}
-                            </button>
+                            <option key={i} value={range} className="bg-gray-900 text-white">{range}</option>
                           ))}
-                        </div>
+                        </select>
                       </div>
                     )}
                     <div className="space-y-1.5">
