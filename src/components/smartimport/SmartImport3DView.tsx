@@ -73,8 +73,9 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
     if (!file) return;
 
     const ext = file.name.toLowerCase();
-    if (!ext.endsWith(".glb") && !ext.endsWith(".dxf")) {
-      toast.error("Apenas arquivos .GLB e .DXF são aceitos");
+    const validExts = [".glb", ".dxf", ".obj", ".fbx", ".stl"];
+    if (!validExts.some(v => ext.endsWith(v))) {
+      toast.error("Formatos aceitos: .GLB, .DXF, .OBJ, .FBX, .STL");
       return;
     }
 
