@@ -45,6 +45,7 @@ const App = () => (
                 <Route path="/loja/:codigo" element={<TenantLanding />} />
                 <Route path="/afiliado" element={<AffiliatePage />} />
                 <Route path="/ref/:code" element={<AffiliatePage />} />
+                <Route path="/sala/:sessionId" element={<ClientSala />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
