@@ -679,6 +679,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
     applyLightingPreset(lights, lightingPreset);
 
     const gridPalette = BACKGROUND_PRESETS[backgroundPreset];
+    grid.visible = gridPalette.showGrid;
     grid.material.color?.setHex?.(gridPalette.ground);
     grid.material.needsUpdate = true;
     renderer.setClearColor(gridPalette.background);
