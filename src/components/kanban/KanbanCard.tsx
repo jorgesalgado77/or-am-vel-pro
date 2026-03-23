@@ -6,7 +6,7 @@ import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat } from "lucide-react";
+import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
@@ -136,10 +136,21 @@ export function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, 
               </div>
               {sim && (
                 <span className={cn("text-xs font-semibold", expired ? "text-destructive" : "text-foreground")}>
-                  {formatCurrency(sim.valor_final)}
+                  {formatCurrency(sim.valor_com_desconto)}
                 </span>
               )}
             </div>
+            {sim && (
+              <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center gap-1">
+                  <FileText className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">{sim.sim_count} {sim.sim_count === 1 ? "simulação" : "simulações"}</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  Última: {format(new Date(sim.created_at), "dd/MM/yy")}
+                </span>
+              </div>
+            )}
             {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && client.vendedor && (
               <div className="flex items-center gap-1 mt-1.5">
                 <User className="h-3 w-3 text-primary/60" />

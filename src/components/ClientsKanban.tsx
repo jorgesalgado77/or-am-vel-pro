@@ -62,15 +62,30 @@ export function ClientsKanban({
     const fetchLastSims = async () => {
       const { data } = await supabase
         .from("simulations")
-        .select("client_id, valor_final, created_at")
+        .select("client_id, valor_final, valor_tela, desconto1, desconto2, desconto3, created_at")
         .order("created_at", { ascending: false });
       if (!data) return;
       const map: Record<string, LastSimInfo> = {};
+      const counts: Record<string, number> = {};
       data.forEach((s) => {
+        counts[s.client_id] = (counts[s.client_id] || 0) + 1;
         if (!map[s.client_id]) {
-          map[s.client_id] = { valor_final: Number(s.valor_final) || 0, created_at: s.created_at };
+          const vt = Number(s.valor_tela) || 0;
+          const d1 = Number(s.desconto1) || 0;
+          const d2 = Number(s.desconto2) || 0;
+          const d3 = Number(s.desconto3) || 0;
+          const after1 = vt * (1 - d1 / 100);
+          const after2 = after1 * (1 - d2 / 100);
+          const valorComDesconto = after2 * (1 - d3 / 100);
+          map[s.client_id] = {
+            valor_final: Number(s.valor_final) || 0,
+            valor_com_desconto: valorComDesconto,
+            created_at: s.created_at,
+            sim_count: 0,
+          };
         }
       });
+      Object.keys(map).forEach((id) => { map[id].sim_count = counts[id] || 0; });
       setLastSims(map);
     };
     fetchLastSims();
