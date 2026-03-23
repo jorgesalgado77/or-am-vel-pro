@@ -415,6 +415,83 @@ export function PayrollTaxConfig({ onClose }: Props) {
         </div>
       </div>
 
+      {/* MEI DAS Table */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Badge variant="outline" className="border-blue-500/50 text-blue-700">Tabela DAS MEI 2026</Badge>
+            <span className="text-xs text-muted-foreground font-normal">Guia mensal fixa por tipo de atividade</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">Salário Mínimo Base</p>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">R$</span>
+                <Input type="number" step="0.01" value={meiDas.salario_minimo}
+                  onChange={(e) => setMeiDas(p => ({ ...p, salario_minimo: parseFloat(e.target.value) || 0 }))} className="text-xs h-8" />
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">INSS (% do SM)</p>
+              <div className="flex items-center gap-1">
+                <Input type="number" step="0.1" value={meiDas.inss_percentual}
+                  onChange={(e) => setMeiDas(p => ({ ...p, inss_percentual: parseFloat(e.target.value) || 0 }))} className="text-xs h-8 w-20 text-right" />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">ICMS (fixo)</p>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">R$</span>
+                <Input type="number" step="0.01" value={meiDas.icms_valor}
+                  onChange={(e) => setMeiDas(p => ({ ...p, icms_valor: parseFloat(e.target.value) || 0 }))} className="text-xs h-8" />
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground mb-1">ISS (fixo)</p>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">R$</span>
+                <Input type="number" step="0.01" value={meiDas.iss_valor}
+                  onChange={(e) => setMeiDas(p => ({ ...p, iss_valor: parseFloat(e.target.value) || 0 }))} className="text-xs h-8" />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Resumo por Atividade</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {([
+                { atividade: "comercio" as MEIAtividade, label: "Comércio / Indústria", desc: "INSS + ICMS" },
+                { atividade: "servicos" as MEIAtividade, label: "Prestação de Serviços", desc: "INSS + ISS" },
+                { atividade: "ambos" as MEIAtividade, label: "Comércio e Serviços", desc: "INSS + ICMS + ISS" },
+              ]).map(item => {
+                const calc = calcularDASMEI(item.atividade, meiDas);
+                return (
+                  <div key={item.atividade} className="rounded-lg border p-3 space-y-1">
+                    <p className="text-xs font-semibold text-foreground">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                    <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                      <div className="flex justify-between"><span>INSS ({meiDas.inss_percentual}%)</span><span>{formatCurrency(calc.inss)}</span></div>
+                      {calc.icms > 0 && <div className="flex justify-between"><span>ICMS</span><span>{formatCurrency(calc.icms)}</span></div>}
+                      {calc.iss > 0 && <div className="flex justify-between"><span>ISS</span><span>{formatCurrency(calc.iss)}</span></div>}
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-xs font-bold text-foreground">
+                      <span>Total DAS</span>
+                      <span>{formatCurrency(calc.total)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {(Object.keys(config) as Array<keyof RegimeTaxConfig>).map((regime) => (
           <Card key={regime}>
