@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck } from "lucide-react";
+import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion } from "lucide-react";
 
 // Lazy load each tab to reduce initial chunk from 1.5MB
 const CompanySettingsTab = lazy(() => import("@/components/settings/CompanySettingsTab").then(m => ({ default: m.CompanySettingsTab })));
