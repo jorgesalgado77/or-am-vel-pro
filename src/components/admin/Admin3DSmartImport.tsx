@@ -33,10 +33,10 @@ export function Admin3DSmartImport() {
     setLoading(true);
     const [tenantsRes, projectsRes] = await Promise.all([
       supabase.from("tenants").select("id, nome_loja, codigo_loja, recursos_vip").order("nome_loja"),
-      supabase.from("imported_projects").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("imported_projects" as any).select("*").order("created_at", { ascending: false }).limit(100),
     ]);
 
-    const tenantsList = (tenantsRes.data || []) as StoreRow[];
+    const tenantsList = (tenantsRes.data || []) as unknown as StoreRow[];
     const activeStores = tenantsList.filter((t) => {
       const vip = t.recursos_vip || {};
       return vip.smart_import_3d;
@@ -44,7 +44,7 @@ export function Admin3DSmartImport() {
     setStores(activeStores);
 
     const tenantMap = Object.fromEntries(tenantsList.map((t) => [t.id, t.nome_loja]));
-    const projectsList = (projectsRes.data || []) as ProjectRow[];
+    const projectsList = (projectsRes.data || []) as unknown as ProjectRow[];
     setProjects(projectsList.map((p) => ({ ...p, tenant_nome: tenantMap[p.tenant_id] || "Desconhecida" })));
 
     setLoading(false);
