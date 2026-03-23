@@ -600,9 +600,8 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
             };
 
             renderer.domElement.addEventListener("click", handleClick);
+            removeClickListener = () => renderer.domElement.removeEventListener("click", handleClick);
           }
-
-          removeClickListener = () => renderer.domElement.replaceWith(renderer.domElement.cloneNode(true) as HTMLCanvasElement);
 
           if (mounted) {
             setProgress(100);
@@ -637,14 +636,6 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           renderer.setSize(w, h);
         };
         window.addEventListener("resize", onResize);
-
-        return () => {
-          mounted = false;
-          cancelAnimationFrame(animationFrameId);
-          window.removeEventListener("resize", onResize);
-          controls.dispose();
-          renderer.dispose();
-        };
       } catch (err: any) {
         console.error("WebGL init error:", err);
         if (mounted) {
@@ -652,6 +643,8 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           setLoading(false);
         }
       }
+    })();
+
     return () => {
       mounted = false;
       cancelAnimationFrame(animationFrameId);
