@@ -19,7 +19,9 @@ export interface FetchClientsResult {
 
 export interface LastSimInfo {
   valor_final: number;
+  valor_com_desconto: number;
   created_at: string;
+  sim_count: number;
 }
 
 /**
