@@ -80,11 +80,20 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
     return u?.apelido || u?.nome_completo || "—";
   };
 
+  const getRegimeEfetivo = (u: typeof activeUsers[0]) => {
+    if (u.tipo_regime) return u.tipo_regime;
+    const cargo = u.cargo_id ? cargos.find(c => c.id === u.cargo_id) : null;
+    const tc = (cargo as any)?.tipo_comissao as string | undefined;
+    if (tc?.startsWith("clt")) return "CLT";
+    if (tc?.startsWith("mei")) return "MEI";
+    return null;
+  };
+
   const regimeGroups = {
-    CLT: activeUsers.filter((u) => u.tipo_regime === "CLT"),
-    MEI: activeUsers.filter((u) => u.tipo_regime === "MEI"),
-    Freelancer: activeUsers.filter((u) => u.tipo_regime === "Freelancer"),
-    "Sem regime": activeUsers.filter((u) => !u.tipo_regime),
+    CLT: activeUsers.filter((u) => getRegimeEfetivo(u) === "CLT"),
+    MEI: activeUsers.filter((u) => getRegimeEfetivo(u) === "MEI"),
+    Freelancer: activeUsers.filter((u) => getRegimeEfetivo(u) === "Freelancer"),
+    "Sem regime": activeUsers.filter((u) => !getRegimeEfetivo(u)),
   };
 
   const totalSalarios = activeUsers.reduce((sum, u) => {
