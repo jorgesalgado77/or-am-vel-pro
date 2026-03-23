@@ -55,6 +55,16 @@ const CARENCIA_OPTIONS: { value: "30" | "60" | "90"; label: string }[] = [
   { value: "90", label: "90 dias" },
 ];
 
+export interface SavedEnvironmentData {
+  id: string;
+  fileName: string;
+  environmentName: string;
+  pieceCount: number;
+  totalValue: number;
+  importedAt: string;
+  fileUrl?: string;
+}
+
 export interface SavedSimulationData {
   valor_tela: number;
   desconto1: number;
@@ -64,6 +74,7 @@ export interface SavedSimulationData {
   parcelas: number;
   valor_entrada: number;
   plus_percentual: number;
+  ambientes?: SavedEnvironmentData[];
 }
 
 interface SimulatorPanelProps {
