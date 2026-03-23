@@ -17,6 +17,7 @@ const ResendTab = lazy(() => import("@/components/settings/ResendTab").then(m =>
 const AcompanhamentoTab = lazy(() => import("@/components/settings/AcompanhamentoTab").then(m => ({ default: m.AcompanhamentoTab })));
 const AuditLogsTab = lazy(() => import("@/components/settings/AuditLogsTab").then(m => ({ default: m.AuditLogsTab })));
 const CanvaIntegrationTab = lazy(() => import("@/components/settings/CanvaIntegrationTab").then(m => ({ default: m.CanvaIntegrationTab })));
+const BriefingTab = lazy(() => import("@/components/settings/BriefingTab").then(m => ({ default: m.BriefingTab })));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-12">
