@@ -49,13 +49,9 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
           </CardContent>
         </Card>
         <OnboardingDialog
+          featureKey="dealroom"
           open={showOnboarding}
           onClose={() => setShowOnboarding(false)}
-          title="Deal Room"
-          steps={[
-            { title: "Sala de Negociação", description: "Feche vendas em tempo real com apresentações profissionais e checkout integrado." },
-            { title: "Métricas", description: "Acompanhe vendas, conversão e ranking de vendedores em tempo real." },
-          ]}
         />
       </div>
     );
