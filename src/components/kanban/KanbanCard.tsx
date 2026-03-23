@@ -53,7 +53,7 @@ export function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, 
           }}
           onClick={() => onClick(client)}
         >
-          <div className="p-3">
+          <div className="p-2 sm:p-3">
             {/* Badge de tipo na coluna Novo */}
             {((client as any).status || "novo") === "novo" && (
               <div className="mb-1.5">
