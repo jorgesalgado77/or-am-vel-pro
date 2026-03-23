@@ -933,7 +933,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 <Select value={String(carenciaDias)} onValueChange={(v) => setCarenciaDias(Number(v) as 30 | 60 | 90)}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CARENCIA_OPTIONS.map((c) => (
+                    {availableCarenciaOptions.map((c) => (
                       <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                     ))}
                   </SelectContent>
