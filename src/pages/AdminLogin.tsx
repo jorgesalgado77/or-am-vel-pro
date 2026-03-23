@@ -149,27 +149,35 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
       }
 
       // Sign in via Supabase Auth so RPC/RLS policies work
-      // First try sign in, if fails try sign up
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password: senha,
       });
 
       if (authError) {
-        // Try creating the auth user if doesn't exist
-        const { error: signUpError } = await supabase.auth.signUp({
+        console.warn("[AdminLogin] Auth sign-in failed:", authError.message);
+        // Try creating the auth user if it doesn't exist
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password: senha,
-          options: { data: { nome_completo: adminInfo.nome, is_admin_master: true } },
+          options: {
+            data: { nome_completo: adminInfo.nome, is_admin_master: true },
+            emailRedirectTo: window.location.origin,
+          },
         });
+
         if (signUpError) {
-          console.warn("[AdminLogin] Could not create Supabase Auth session:", signUpError.message);
-        } else {
+          console.warn("[AdminLogin] Could not create Supabase Auth user:", signUpError.message);
+          // Still proceed - admin validated via admin_master table
+        } else if (signUpData?.user) {
           // Try signing in again after signup
-          await supabase.auth.signInWithPassword({
+          const { error: retryError } = await supabase.auth.signInWithPassword({
             email: normalizedEmail,
             password: senha,
           });
+          if (retryError) {
+            console.warn("[AdminLogin] Auth retry failed (email may need confirmation):", retryError.message);
+          }
         }
       }
 
