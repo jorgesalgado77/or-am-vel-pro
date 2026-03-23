@@ -112,3 +112,30 @@ All colors MUST be HSL.
     display: none; /* Chrome/Safari/Opera */
   }
 }
+
+@layer components {
+  .select-scroll-area {
+    scrollbar-width: thin;
+    -ms-overflow-style: auto;
+  }
+
+  .select-scroll-area::-webkit-scrollbar {
+    display: block;
+    width: 10px;
+  }
+
+  .select-scroll-area::-webkit-scrollbar-track {
+    background: hsl(var(--secondary));
+    border-radius: 9999px;
+  }
+
+  .select-scroll-area::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+    border: 2px solid hsl(var(--secondary));
+  }
+
+  .select-scroll-area::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.45);
+  }
+}
