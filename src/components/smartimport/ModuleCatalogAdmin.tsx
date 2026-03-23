@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Edit2, Save, Settings2, Palette, Wrench, GripVertical } from "lucide-react";
+import { Plus, Trash2, Edit2, Save, Settings2, Palette, Wrench, GripVertical, ImagePlus, X } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 
 const CATEGORIES: { value: CatalogItem["category"]; label: string; icon: any }[] = [
@@ -34,8 +36,31 @@ interface Props {
 export function ModuleCatalogAdmin({ catalogItems, onAdd, onUpdate, onDelete }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", category: "ferragem" as CatalogItem["category"], description: "", cost: "" });
+  const [form, setForm] = useState({ name: "", category: "ferragem" as CatalogItem["category"], description: "", cost: "", image_url: "" });
   const [activeTab, setActiveTab] = useState("ferragem");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem deve ter no máximo 5MB");
+      return;
+    }
+    setUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `catalog/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true });
+    if (error) {
+      toast.error("Erro ao enviar imagem");
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
+    setForm(p => ({ ...p, image_url: urlData.publicUrl }));
+    setUploading(false);
+  };
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
@@ -44,6 +69,7 @@ export function ModuleCatalogAdmin({ catalogItems, onAdd, onUpdate, onDelete }: 
       category: form.category,
       description: form.description || undefined,
       cost: form.cost ? Number(form.cost) : undefined,
+      image_url: form.image_url || undefined,
     };
     if (editingId) {
       await onUpdate(editingId, payload);
@@ -54,13 +80,13 @@ export function ModuleCatalogAdmin({ catalogItems, onAdd, onUpdate, onDelete }: 
   };
 
   const resetForm = () => {
-    setForm({ name: "", category: activeTab as CatalogItem["category"], description: "", cost: "" });
+    setForm({ name: "", category: activeTab as CatalogItem["category"], description: "", cost: "", image_url: "" });
     setEditingId(null);
     setShowAdd(false);
   };
 
   const startEdit = (item: CatalogItem) => {
-    setForm({ name: item.name, category: item.category, description: item.description || "", cost: item.cost ? String(item.cost) : "" });
+    setForm({ name: item.name, category: item.category, description: item.description || "", cost: item.cost ? String(item.cost) : "", image_url: item.image_url || "" });
     setEditingId(item.id);
     setShowAdd(true);
   };
@@ -104,6 +130,7 @@ export function ModuleCatalogAdmin({ catalogItems, onAdd, onUpdate, onDelete }: 
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-14">Foto</TableHead>
                         <TableHead>Nome</TableHead>
                         <TableHead>Descrição</TableHead>
                         <TableHead className="text-right">Custo</TableHead>
@@ -113,6 +140,15 @@ export function ModuleCatalogAdmin({ catalogItems, onAdd, onUpdate, onDelete }: 
                     <TableBody>
                       {getItems(cat.value).map(item => (
                         <TableRow key={item.id}>
+                          <TableCell>
+                            {item.image_url ? (
+                              <img src={item.image_url} alt={item.name} className="h-9 w-9 rounded object-cover border border-border" />
+                            ) : (
+                              <div className="h-9 w-9 rounded bg-muted flex items-center justify-center">
+                                <ImagePlus className="h-3.5 w-3.5 text-muted-foreground" />
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-sm font-medium">{item.name}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{item.description || "—"}</TableCell>
                           <TableCell className="text-right font-mono text-sm">{item.cost ? `R$ ${item.cost.toFixed(2)}` : "—"}</TableCell>
@@ -143,6 +179,36 @@ export function ModuleCatalogAdmin({ catalogItems, onAdd, onUpdate, onDelete }: 
             <DialogTitle>{editingId ? "Editar Item" : "Novo Item do Catálogo"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {/* Image upload */}
+            <div>
+              <Label className="text-xs">Foto do Componente</Label>
+              <div className="mt-1 flex items-center gap-3">
+                {form.image_url ? (
+                  <div className="relative">
+                    <img src={form.image_url} alt="Preview" className="h-16 w-16 rounded-lg object-cover border border-border" />
+                    <button
+                      type="button"
+                      onClick={() => setForm(p => ({ ...p, image_url: "" }))}
+                      className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="h-16 w-16 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                  >
+                    <ImagePlus className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-[9px] text-muted-foreground">{uploading ? "Enviando..." : "Enviar"}</span>
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                <p className="text-[10px] text-muted-foreground">JPG, PNG ou WebP. Máx 5MB.</p>
+              </div>
+            </div>
             <div>
               <Label className="text-xs">Categoria</Label>
               <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v as any }))}>
@@ -170,7 +236,7 @@ export function ModuleCatalogAdmin({ catalogItems, onAdd, onUpdate, onDelete }: 
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={resetForm}>Cancelar</Button>
-            <Button onClick={handleSave} className="gap-1.5" disabled={!form.name.trim()}>
+            <Button onClick={handleSave} className="gap-1.5" disabled={!form.name.trim() || uploading}>
               <Save className="h-3.5 w-3.5" /> {editingId ? "Salvar" : "Adicionar"}
             </Button>
           </DialogFooter>
