@@ -354,7 +354,7 @@ export default function TenantLanding() {
             let fd: any = null;
             const { data: directData } = await supabase
               .from("tenant_funnel_config" as any)
-              .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links, whatsapp")
+              .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links, whatsapp, investment_ranges")
               .eq("tenant_id", tenantData.id)
               .maybeSingle();
             fd = directData;
