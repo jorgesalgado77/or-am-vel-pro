@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical, Instagram, Facebook, Youtube, Globe, Twitter, Share2, DollarSign } from "lucide-react";
+import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical, Instagram, Facebook, Youtube, Globe, Twitter, Share2, DollarSign, Pencil, Check } from "lucide-react";
 import { FunnelMetrics } from "@/components/funnel/FunnelMetrics";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -227,6 +227,24 @@ export function FunnelPanel() {
     setConfig((p) => ({ ...p, investment_ranges: p.investment_ranges.filter((_, idx) => idx !== i) }));
   };
 
+  const [editingRangeIdx, setEditingRangeIdx] = useState<number | null>(null);
+  const [editingRangeValue, setEditingRangeValue] = useState("");
+
+  const startEditRange = (i: number) => {
+    setEditingRangeIdx(i);
+    setEditingRangeValue(config.investment_ranges[i]);
+  };
+
+  const confirmEditRange = () => {
+    if (editingRangeIdx === null || !editingRangeValue.trim()) return;
+    setConfig((p) => ({
+      ...p,
+      investment_ranges: p.investment_ranges.map((r, idx) => idx === editingRangeIdx ? editingRangeValue.trim() : r),
+    }));
+    setEditingRangeIdx(null);
+    setEditingRangeValue("");
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
@@ -440,8 +458,19 @@ export function FunnelPanel() {
         <CardContent className="space-y-3">
           {config.investment_ranges.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <div className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm">{r}</div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeInvestRange(i)}><X className="h-4 w-4" /></Button>
+              {editingRangeIdx === i ? (
+                <>
+                  <Input className="flex-1" value={editingRangeValue} onChange={(e) => setEditingRangeValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), confirmEditRange())} autoFocus />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={confirmEditRange}><Check className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingRangeIdx(null)}><X className="h-4 w-4" /></Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm">{r}</div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => startEditRange(i)}><Pencil className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeInvestRange(i)}><X className="h-4 w-4" /></Button>
+                </>
+              )}
             </div>
           ))}
           <div className="flex gap-2">
