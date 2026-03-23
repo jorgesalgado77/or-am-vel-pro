@@ -32,7 +32,7 @@ interface SmartImport3DViewProps {
 export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) {
   const {
     projects, selectedProject, setSelectedProject, projectObjects,
-    library, loading, addonActive, checkingAccess,
+    library, loading, addonActive, checkingAccess, uploadProgress,
     uploadProject, loadProjectObjects, classifyObject,
     addToLibrary, updateLibraryItem, deleteLibraryItem,
     deleteProject, generateBudget, refresh,
