@@ -418,6 +418,16 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
         getRegimeEfetivo={getRegimeEfetivo}
       />
 
+      {/* Resumo Geral */}
+      <PayrollSummary
+        usuarios={usuarios}
+        cargos={cargos}
+        mesReferencia={mesReferencia}
+        getRegimeEfetivo={getRegimeEfetivo}
+        getUserCommissions={getUserCommissions}
+        deductionsData={deductionsData}
+      />
+
       {/* Commissions Table */}
       <Card>
         <CardHeader className="pb-3">
