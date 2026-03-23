@@ -14,6 +14,7 @@ export { CreditoRatesTab } from "@/components/settings/CreditoRatesTab";
 export { useFinancialData } from "@/hooks/useFinancialData";
 export { useFinancingRates } from "@/hooks/useFinancingRates";
 export { useComissaoPolicy } from "@/hooks/useComissaoPolicy";
+export { useSmartBudgetEngine } from "@/hooks/useSmartBudgetEngine";
 
 // Services
 export { generateSaleCommissions } from "@/services/commissionService";
