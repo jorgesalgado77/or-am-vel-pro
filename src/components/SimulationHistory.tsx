@@ -21,6 +21,7 @@ type Simulation = Database["public"]["Tables"]["simulations"]["Row"];
 interface SimulationHistoryProps {
   client: Client;
   onBack: () => void;
+  onLoadSimulation?: (simulation: Simulation, client: Client) => void;
 }
 
 const FORMA_LABELS: Record<string, string> = {
@@ -32,7 +33,7 @@ const FORMA_LABELS: Record<string, string> = {
   "Entrada e Entrega": "Entrada e Entrega",
 };
 
-export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
+export function SimulationHistory({ client, onBack, onLoadSimulation }: SimulationHistoryProps) {
   const [simulations, setSimulations] = useState<Simulation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -219,6 +220,7 @@ export function SimulationHistory({ client, onBack }: SimulationHistoryProps) {
                   isSelected={selected.has(sim.id)}
                   onToggle={() => toggleSelect(sim.id)}
                   onDelete={() => handleDelete(sim.id)}
+                  onLoad={onLoadSimulation ? () => onLoadSimulation(sim, client) : undefined}
                 />
               ))}
             </div>
@@ -246,6 +248,7 @@ function SimulationCard({
   isSelected,
   onToggle,
   onDelete,
+  onLoad,
 }: {
   simulation: Simulation;
   clientName: string;
@@ -263,6 +266,7 @@ function SimulationCard({
   isSelected: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onLoad?: () => void;
 }) {
   const s = simulation;
 
@@ -304,9 +308,16 @@ function SimulationCard({
   };
   return (
     <div
-      className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${
+      className={`flex items-center gap-4 p-4 rounded-lg border transition-colors cursor-pointer ${
         isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/30"
       }`}
+      onClick={(e) => {
+        // Don't trigger load when clicking checkbox or buttons
+        const target = e.target as HTMLElement;
+        if (target.closest("button") || target.closest('[role="checkbox"]')) return;
+        onLoad?.();
+      }}
+      title="Clique para abrir esta simulação no simulador"
     >
       <Checkbox checked={isSelected} onCheckedChange={onToggle} />
       <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">

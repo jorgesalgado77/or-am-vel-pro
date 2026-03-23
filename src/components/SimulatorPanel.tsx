@@ -55,10 +55,22 @@ const CARENCIA_OPTIONS: { value: "30" | "60" | "90"; label: string }[] = [
   { value: "90", label: "90 dias" },
 ];
 
+export interface SavedSimulationData {
+  valor_tela: number;
+  desconto1: number;
+  desconto2: number;
+  desconto3: number;
+  forma_pagamento: string;
+  parcelas: number;
+  valor_entrada: number;
+  plus_percentual: number;
+}
+
 interface SimulatorPanelProps {
   client?: Client | null;
   onBack?: () => void;
   onClientCreated?: () => void;
+  initialSimulation?: SavedSimulationData | null;
 }
 
 // Keys for sessionStorage persistence
@@ -99,29 +111,33 @@ function loadStoredState(): Partial<SimulatorStoredState> {
   return {};
 }
 
-export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPanelProps) {
+export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulation }: SimulatorPanelProps) {
   // Only restore stored state if there's an active client context or stored data is fresh
   const stored = useMemo(() => {
+    // If opening from a saved simulation, use that data instead of sessionStorage
+    if (initialSimulation) return {};
     if (client) return loadStoredState();
-    // No client — check if stored state has a nonzero valorTela (user was mid-edit)
     const s = loadStoredState();
     return s.valorTela ? s : {};
   }, []);
 
+  // Pre-fill from saved simulation if provided
+  const init = initialSimulation;
+
   const savedRef = useRef(false);
 
-  const [valorTela, setValorTela] = useState(stored.valorTela ?? 0);
-  const [desconto1, setDesconto1] = useState(stored.desconto1 ?? 0);
-  const [desconto2, setDesconto2] = useState(stored.desconto2 ?? 0);
-  const [desconto3, setDesconto3] = useState(stored.desconto3 ?? 0);
-  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>(stored.formaPagamento ?? "A vista");
-  const [parcelas, setParcelas] = useState(stored.parcelas ?? 1);
-  const [valorEntrada, setValorEntrada] = useState(stored.valorEntrada ?? 0);
-  const [plusPercentual, setPlusPercentual] = useState(stored.plusPercentual ?? 0);
+  const [valorTela, setValorTela] = useState(init?.valor_tela ?? stored.valorTela ?? 0);
+  const [desconto1, setDesconto1] = useState(init?.desconto1 ?? stored.desconto1 ?? 0);
+  const [desconto2, setDesconto2] = useState(init?.desconto2 ?? stored.desconto2 ?? 0);
+  const [desconto3, setDesconto3] = useState(init?.desconto3 ?? stored.desconto3 ?? 0);
+  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>((init?.forma_pagamento as FormaPagamento) ?? stored.formaPagamento ?? "A vista");
+  const [parcelas, setParcelas] = useState(init?.parcelas ?? stored.parcelas ?? 1);
+  const [valorEntrada, setValorEntrada] = useState(init?.valor_entrada ?? stored.valorEntrada ?? 0);
+  const [plusPercentual, setPlusPercentual] = useState(init?.plus_percentual ?? stored.plusPercentual ?? 0);
   const [carenciaDias, setCarenciaDias] = useState<30 | 60 | 90>(stored.carenciaDias ?? 30);
   const [saving, setSaving] = useState(false);
-  const [desconto3Unlocked, setDesconto3Unlocked] = useState(stored.desconto3Unlocked ?? false);
-  const [plusUnlocked, setPlusUnlocked] = useState(stored.plusUnlocked ?? false);
+  const [desconto3Unlocked, setDesconto3Unlocked] = useState((init?.desconto3 ?? 0) > 0 || (stored.desconto3Unlocked ?? false));
+  const [plusUnlocked, setPlusUnlocked] = useState((init?.plus_percentual ?? 0) > 0 || (stored.plusUnlocked ?? false));
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
@@ -561,6 +577,18 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
         arquivoUrl = uploaded.url;
         arquivoNome = uploaded.nome;
       }
+    }
+
+    // Limit to 3 simulations per client — delete oldest if needed
+    const { data: existingSims } = await supabase
+      .from("simulations")
+      .select("id, created_at")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+
+    if (existingSims && existingSims.length >= 3) {
+      const idsToDelete = existingSims.slice(2).map((s) => s.id);
+      await supabase.from("simulations").delete().in("id", idsToDelete);
     }
 
     const { error } = await supabase.from("simulations").insert({

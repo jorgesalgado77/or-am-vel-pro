@@ -95,6 +95,7 @@ export default function Index() {
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [contractsClient, setContractsClient] = useState<Client | null>(null);
+  const [loadedSimulation, setLoadedSimulation] = useState<{ valor_tela: number; desconto1: number; desconto2: number; desconto3: number; forma_pagamento: string; parcelas: number; valor_entrada: number; plus_percentual: number } | null>(null);
 
   const {
     clients, loading, lastSims, allSimulations, saving,
@@ -140,10 +141,10 @@ export default function Index() {
 
   const handleEdit = (client: Client) => { setEditingClient(client); setDrawerOpen(true); };
   const handleAdd = () => { setEditingClient(null); setDrawerOpen(true); };
-  const handleSimulate = (client: Client) => { setSimulatingClient(client); setHistoryClient(null); setContractsClient(null); setActiveView("simulator"); };
+  const handleSimulate = (client: Client) => { setSimulatingClient(client); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null); setActiveView("simulator"); };
   const handleHistory = (client: Client) => { setHistoryClient(client); setSimulatingClient(null); setContractsClient(null); setActiveView("history"); };
   const handleContracts = (client: Client) => { setContractsClient(client); setSimulatingClient(null); setHistoryClient(null); setActiveView("contracts"); };
-  const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); };
+  const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null); };
 
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
   const storeName = settings.company_name || "OrçaMóvel PRO";
@@ -273,14 +274,34 @@ export default function Index() {
 
               {activeView === "simulator" && (
                 <SimulatorPanel
+                  key={loadedSimulation ? JSON.stringify(loadedSimulation) : simulatingClient?.id ?? "new"}
                   client={simulatingClient}
-                  onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
+                  onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); setLoadedSimulation(null); } : undefined}
                   onClientCreated={fetchClients}
+                  initialSimulation={loadedSimulation}
                 />
               )}
 
               {activeView === "history" && historyClient && (
-                <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
+                <SimulationHistory
+                  client={historyClient}
+                  onBack={() => { setActiveView("clients"); setHistoryClient(null); }}
+                  onLoadSimulation={(sim, c) => {
+                    setLoadedSimulation({
+                      valor_tela: Number(sim.valor_tela),
+                      desconto1: Number(sim.desconto1) || 0,
+                      desconto2: Number(sim.desconto2) || 0,
+                      desconto3: Number(sim.desconto3) || 0,
+                      forma_pagamento: sim.forma_pagamento,
+                      parcelas: sim.parcelas || 1,
+                      valor_entrada: Number(sim.valor_entrada) || 0,
+                      plus_percentual: Number(sim.plus_percentual) || 0,
+                    });
+                    setSimulatingClient(c);
+                    setHistoryClient(null);
+                    setActiveView("simulator");
+                  }}
+                />
               )}
 
               {activeView === "contracts" && contractsClient && (
