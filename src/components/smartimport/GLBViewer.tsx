@@ -19,26 +19,42 @@ function getFileExtension(url: string): string {
   }
 }
 
-// AutoCAD Color Index (ACI) - main colors
+// AutoCAD Color Index (ACI) - main colors mapped to visible tones
 const ACI_COLORS: Record<number, number> = {
-  1: 0xFF0000, 2: 0xFFFF00, 3: 0x00FF00, 4: 0x00FFFF,
-  5: 0x0000FF, 6: 0xFF00FF, 7: 0xFFFFFF, 8: 0x808080,
-  9: 0xC0C0C0, 10: 0xFF0000, 30: 0xFF7F00, 50: 0xFFFF00,
-  70: 0x7FFF00, 90: 0x00FF00, 110: 0x00FF7F, 130: 0x00FFFF,
-  150: 0x007FFF, 170: 0x0000FF, 190: 0x7F00FF, 210: 0xFF00FF,
-  230: 0xFF007F, 250: 0x333333, 251: 0x505050, 252: 0x696969,
-  253: 0x808080, 254: 0xA9A9A9, 255: 0xC0C0C0,
+  1: 0xFF3333, 2: 0xFFFF33, 3: 0x33FF33, 4: 0x33FFFF,
+  5: 0x3366FF, 6: 0xFF33FF, 7: 0xB8C4D0, 8: 0x808080,
+  9: 0xA0A0A0, 10: 0xFF4444, 20: 0xFF8844, 30: 0xFF7F00,
+  40: 0xFFBB33, 50: 0xFFFF44, 60: 0xBBFF33, 70: 0x7FFF33,
+  80: 0x33FF44, 90: 0x33FF88, 100: 0x33FFBB, 110: 0x33FFDD,
+  120: 0x33FFFF, 130: 0x33DDFF, 140: 0x33BBFF, 150: 0x3388FF,
+  160: 0x3355FF, 170: 0x4444FF, 180: 0x6633FF, 190: 0x8833FF,
+  200: 0xBB33FF, 210: 0xFF33FF, 220: 0xFF33BB, 230: 0xFF3388,
+  240: 0xFF3355, 250: 0x555555, 251: 0x6B6B6B, 252: 0x888888,
+  253: 0xA0A0A0, 254: 0xBBBBBB, 255: 0xD0D0D0,
 };
 
+// Palette for auto-coloring entities without explicit color
+const AUTO_COLORS = [
+  0x4FC3F7, 0x81C784, 0xFFB74D, 0xE57373, 0xBA68C8,
+  0x4DD0E1, 0xAED581, 0xFF8A65, 0xF06292, 0x7986CB,
+  0x4DB6AC, 0xDCE775, 0xFFD54F, 0xA1887F, 0x90A4AE,
+];
+let autoColorIdx = 0;
+
 function aciToHex(colorIndex: number): number {
+  // Color 7 = "default" in DXF, assign auto-rotating palette color
+  if (colorIndex === 7 || colorIndex === 0) {
+    const c = AUTO_COLORS[autoColorIdx % AUTO_COLORS.length];
+    autoColorIdx++;
+    return c;
+  }
   if (ACI_COLORS[colorIndex]) return ACI_COLORS[colorIndex];
-  if (colorIndex >= 1 && colorIndex <= 9) return ACI_COLORS[colorIndex] || 0xCCCCCC;
-  // Interpolate approximate color for other indices
+  // Find closest mapped color
   const keys = Object.keys(ACI_COLORS).map(Number).sort((a, b) => a - b);
   for (let k = 0; k < keys.length - 1; k++) {
     if (colorIndex >= keys[k] && colorIndex <= keys[k + 1]) return ACI_COLORS[keys[k]];
   }
-  return 0xCCCCCC;
+  return AUTO_COLORS[autoColorIdx++ % AUTO_COLORS.length];
 }
 
 interface DxfEntity {
@@ -339,12 +355,13 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
         });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0x1a1a2e);
+        renderer.setClearColor(0x1e293b);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
+        renderer.toneMappingExposure = 1.0;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
 
         const scene = new THREE.Scene();
-        scene.fog = new THREE.Fog(0x1a1a2e, 30, 80);
+        scene.fog = new THREE.Fog(0x1e293b, 40, 100);
 
         const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
         camera.position.set(8, 6, 8);
@@ -352,18 +369,27 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.5;
+        controls.minDistance = 2;
+        controls.maxDistance = 50;
+        controls.enablePan = true;
+        controls.maxPolarAngle = Math.PI * 0.9;
+        controls.minPolarAngle = Math.PI * 0.05;
 
-        // Lights
-        const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+        // Lights - balanced for color accuracy
+        const ambient = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambient);
-        const dir1 = new THREE.DirectionalLight(0xffffff, 1.2);
+        const dir1 = new THREE.DirectionalLight(0xffffff, 1.0);
         dir1.position.set(10, 15, 5);
-        dir1.castShadow = true;
         scene.add(dir1);
-        const dir2 = new THREE.DirectionalLight(0x8899ff, 0.4);
-        dir2.position.set(-5, 8, -10);
+        const dir2 = new THREE.DirectionalLight(0xffffff, 0.6);
+        dir2.position.set(-8, 10, -8);
         scene.add(dir2);
-        const hemi = new THREE.HemisphereLight(0xaabbff, 0x443322, 0.3);
+        const dir3 = new THREE.DirectionalLight(0xffffff, 0.3);
+        dir3.position.set(0, -5, 10);
+        scene.add(dir3);
+        const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
         scene.add(hemi);
 
         // Grid
@@ -386,6 +412,9 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             }
           };
 
+          // Reset auto-color index for DXF
+          autoColorIdx = 0;
+
           if (ext === "glb" || ext === "gltf") {
             setProgressLabel("Processando modelo GLB...");
             const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
@@ -394,6 +423,13 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
               loader.load(fileUrl, resolve, onProgress, reject)
             );
             loadedObject = gltf.scene;
+            // Ensure materials use correct color space
+            loadedObject.traverse((child: any) => {
+              if (child.isMesh && child.material) {
+                if (child.material.map) child.material.map.colorSpace = THREE.SRGBColorSpace;
+                child.material.needsUpdate = true;
+              }
+            });
           } else if (ext === "obj") {
             setProgressLabel("Processando modelo OBJ...");
             const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader.js");
