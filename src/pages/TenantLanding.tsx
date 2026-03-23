@@ -480,7 +480,6 @@ export default function TenantLanding() {
 
       uploaded += 1;
 
-      // Persist metadata in lead_attachments table
       const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
       await supabase.from("lead_attachments" as any).insert({
         tenant_id: tenant.id,
@@ -499,11 +498,11 @@ export default function TenantLanding() {
     return { uploaded, failed };
   }, [arquivos, tenant?.id, nome]);
 
-  const finalizeLeadSuccess = useCallback(async () => {
+  const finalizeLeadSuccess = useCallback(async (clientId?: string | null) => {
     setSent(true);
     toast.success("Cadastro realizado com sucesso!");
 
-    const { failed } = await uploadLeadAttachments();
+    const { failed } = await uploadLeadAttachments(clientId || undefined);
     if (failed > 0) {
       toast.info("Lead enviado, mas alguns anexos não puderam ser enviados.");
     }
@@ -533,12 +532,12 @@ export default function TenantLanding() {
     try {
       const res = await supabase.functions.invoke("lead-capture", { body: leadPayload });
       if (res.error) throw res.error;
-      await finalizeLeadSuccess();
+      await finalizeLeadSuccess((res.data as any)?.client_id ?? null);
     } catch (edgeFnErr) {
       console.error("Edge function failed, trying direct insert:", edgeFnErr);
 
       try {
-        const { error: clientError } = await supabase.from("clients").insert({
+        const { data: clientData, error: clientError } = await supabase.from("clients").insert({
           nome: nome.trim(),
           telefone1: cleanPhone,
           email: email.trim() || "",
@@ -547,24 +546,27 @@ export default function TenantLanding() {
           origem_lead: origem,
           descricao_ambientes: interesseText,
           quantidade_ambientes: 1,
+        } as any).select("id").single();
+
+        if (!clientError) {
+          await finalizeLeadSuccess((clientData as any)?.id ?? null);
+          return;
+        }
+
+        const { error: leadError } = await supabase.from("leads").insert({
+          nome: nome.trim(),
+          telefone: cleanPhone,
+          email: email.trim() || "",
+          area_atuacao: "outro",
+          cargo: "outro",
+          notas: interesseText,
+          status: "novo",
         } as any);
 
-        if (clientError) {
-          const { error: leadError } = await supabase.from("leads").insert({
-            nome: nome.trim(),
-            telefone: cleanPhone,
-            email: email.trim() || "",
-            origem,
-            interesse: interesseText,
-            status: "novo",
-            tenant_id: tenant.id,
-          } as any);
-
-          if (leadError) {
-            console.error("All insert methods failed:", { edgeFnErr, clientError, leadError });
-            toast.error("Erro ao enviar. Tente novamente.");
-            return;
-          }
+        if (leadError) {
+          console.error("All insert methods failed:", { edgeFnErr, clientError, leadError });
+          toast.error("Erro ao enviar. Tente novamente.");
+          return;
         }
 
         await finalizeLeadSuccess();

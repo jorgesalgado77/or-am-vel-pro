@@ -6,148 +6,221 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const sanitizeString = (value: unknown, max = 500) =>
+  typeof value === "string" ? value.trim().slice(0, max) : "";
+
+const getPhoneDigits = (value: string) => value.replace(/\D/g, "");
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
-    const { nome, telefone, email, area_atuacao, cargo, interesse, origem, tenant_id } = body;
+    const body = await req.json().catch(() => ({}));
 
-    // Validação básica
-    if (!nome || typeof nome !== "string" || nome.trim().length < 2) {
-      return new Response(JSON.stringify({ error: "Nome inválido (mín 2 caracteres)" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const nome = sanitizeString(body?.nome, 120);
+    const telefoneRaw = sanitizeString(body?.telefone, 30);
+    const telefone = getPhoneDigits(telefoneRaw);
+    const email = sanitizeString(body?.email, 255);
+    const area_atuacao = sanitizeString(body?.area_atuacao, 80) || "outro";
+    const cargo = sanitizeString(body?.cargo, 80) || "outro";
+    const interesse = sanitizeString(body?.interesse, 2000);
+    const origem = sanitizeString(body?.origem, 80) || "site";
+    const tenant_id = sanitizeString(body?.tenant_id, 80) || null;
+
+    if (nome.length < 2) {
+      return json({ error: "Nome inválido (mín. 2 caracteres)" }, 400);
     }
 
-    if (!telefone || typeof telefone !== "string" || telefone.replace(/\D/g, "").length < 10) {
-      return new Response(JSON.stringify({ error: "Telefone inválido" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (telefone.length < 10) {
+      return json({ error: "Telefone inválido" }, 400);
     }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const cleanPhone = telefone.replace(/\D/g, "");
+    let clientId: string | null = null;
+    let leadId: string | null = null;
+    let duplicado = false;
+    let leadTemperature: string | null = null;
 
-    // Verificar duplicidade por telefone + tenant
-    const { data: existing } = await supabaseAdmin
-      .from("leads")
-      .select("id, lead_temperature, status")
-      .eq("telefone", cleanPhone)
-      .eq("tenant_id", tenant_id || null)
-      .maybeSingle();
-
-    if (existing) {
-      // Atualizar lead existente em vez de duplicar
-      await supabaseAdmin
-        .from("leads")
-        .update({ 
-          nome: nome.trim(),
-          email: email?.trim() || undefined,
-          interesse: interesse || undefined,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-
-      // Registrar log de origem
-      await supabaseAdmin.from("lead_origin_logs").insert({
-        lead_id: existing.id,
-        tenant_id: tenant_id || null,
-        origem: origem || "site",
-        user_agent: req.headers.get("user-agent") || null,
-        referrer: req.headers.get("referer") || null,
-      });
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          lead_id: existing.id, 
-          duplicado: true,
-          message: "Lead já existente, dados atualizados" 
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Inserir novo lead (trigger faz classificação automática)
-    const { data: newLead, error: insertError } = await supabaseAdmin
-      .from("leads")
-      .insert({
-        nome: nome.trim(),
-        telefone: cleanPhone,
-        email: email?.trim() || "",
-        area_atuacao: area_atuacao || "outro",
-        cargo: cargo || "outro",
-        interesse: interesse || null,
-        origem: origem || "site",
-        tenant_id: tenant_id || null,
-        status: "novo",
-      })
-      .select("id, lead_temperature")
-      .single();
-
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      return new Response(JSON.stringify({ error: "Erro ao salvar lead" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Log de origem
-    await supabaseAdmin.from("lead_origin_logs").insert({
-      lead_id: newLead.id,
-      tenant_id: tenant_id || null,
-      origem: origem || "site",
-      user_agent: req.headers.get("user-agent") || null,
-      referrer: req.headers.get("referer") || null,
-    });
-
-    // Also create a client entry so the lead appears in the Kanban
     if (tenant_id) {
-      // Generate orcamento number
-      const { data: seqData } = await supabaseAdmin
-        .from("tenants")
-        .select("codigo_loja")
-        .eq("id", tenant_id)
-        .single();
+      let existingClient: { id: string; numero_orcamento: string | null } | null = null;
 
-      const codigoLoja = seqData?.codigo_loja || "000";
-      const cleanCode = codigoLoja.replace(/\D/g, "");
-
-      const { count } = await supabaseAdmin
+      const byPhone = await supabaseAdmin
         .from("clients")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenant_id);
+        .select("id, numero_orcamento")
+        .eq("tenant_id", tenant_id)
+        .eq("telefone1", telefone)
+        .maybeSingle();
 
-      const seq = (count || 0) + 1;
-      const seqStr = String(seq).padStart(3, "0");
-      const yearSuffix = String(new Date().getFullYear()).slice(-2);
-      const numero_orcamento = `${codigoLoja}.${seqStr}.${yearSuffix}`;
-      const numero_orcamento_seq = parseInt(`${cleanCode}${seqStr}${yearSuffix}`, 10) || 0;
+      if (byPhone.data) {
+        existingClient = byPhone.data;
+      } else if (email) {
+        const byEmail = await supabaseAdmin
+          .from("clients")
+          .select("id, numero_orcamento")
+          .eq("tenant_id", tenant_id)
+          .eq("email", email)
+          .maybeSingle();
 
-      await supabaseAdmin.from("clients").insert({
-        nome: nome.trim(),
-        telefone1: telefone,
-        email: email?.trim() || "",
-        tenant_id,
-        status: "novo",
-        origem_lead: origem || "site",
-        numero_orcamento,
-        numero_orcamento_seq,
-      });
+        if (byEmail.data) {
+          existingClient = byEmail.data;
+        }
+      }
+
+      if (existingClient?.id) {
+        duplicado = true;
+        clientId = existingClient.id;
+
+        const { error: clientUpdateError } = await supabaseAdmin
+          .from("clients")
+          .update({
+            nome,
+            telefone1: telefone,
+            email: email || "",
+            descricao_ambientes: interesse || null,
+            quantidade_ambientes: 1,
+            origem_lead: origem,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingClient.id);
+
+        if (clientUpdateError) {
+          console.error("Client update error:", clientUpdateError);
+        }
+      } else {
+        const { data: tenantData, error: tenantError } = await supabaseAdmin
+          .from("tenants")
+          .select("codigo_loja")
+          .eq("id", tenant_id)
+          .single();
+
+        if (tenantError) {
+          console.error("Tenant lookup error:", tenantError);
+        }
+
+        const codigoLoja = tenantData?.codigo_loja || "000";
+        const cleanCode = codigoLoja.replace(/\D/g, "");
+
+        const { count } = await supabaseAdmin
+          .from("clients")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenant_id);
+
+        const seq = (count || 0) + 1;
+        const seqStr = String(seq).padStart(3, "0");
+        const yearSuffix = String(new Date().getFullYear()).slice(-2);
+        const numero_orcamento = `${codigoLoja}.${seqStr}.${yearSuffix}`;
+        const numero_orcamento_seq = parseInt(`${cleanCode}${seqStr}${yearSuffix}`, 10) || 0;
+
+        const { data: createdClient, error: clientInsertError } = await supabaseAdmin
+          .from("clients")
+          .insert({
+            nome,
+            telefone1: telefone,
+            email: email || "",
+            tenant_id,
+            status: "novo",
+            origem_lead: origem,
+            descricao_ambientes: interesse || "Projeto 3D gratuito",
+            quantidade_ambientes: 1,
+            numero_orcamento,
+            numero_orcamento_seq,
+          })
+          .select("id")
+          .single();
+
+        if (clientInsertError) {
+          console.error("Client insert error:", clientInsertError);
+        } else {
+          clientId = createdClient.id;
+        }
+      }
     }
 
-    // Acionar VendaZap AI automaticamente para leads quentes/mornos
-    if (newLead.lead_temperature !== "frio" && tenant_id) {
+    try {
+      const { data: existingLead, error: existingLeadError } = await supabaseAdmin
+        .from("leads")
+        .select("id")
+        .eq("telefone", telefone)
+        .maybeSingle();
+
+      if (existingLeadError) {
+        console.error("Lead lookup error:", existingLeadError);
+      }
+
+      if (existingLead?.id) {
+        leadId = existingLead.id;
+        duplicado = true;
+
+        const { error: leadUpdateError } = await supabaseAdmin
+          .from("leads")
+          .update({
+            nome,
+            email: email || "",
+            notas: interesse || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingLead.id);
+
+        if (leadUpdateError) {
+          console.error("Lead update error:", leadUpdateError);
+        }
+      } else {
+        const { data: newLead, error: leadInsertError } = await supabaseAdmin
+          .from("leads")
+          .insert({
+            nome,
+            telefone,
+            email: email || "",
+            area_atuacao,
+            cargo,
+            notas: interesse || null,
+            status: "novo",
+          })
+          .select("id, lead_temperature")
+          .single();
+
+        if (leadInsertError) {
+          console.error("Lead insert error:", leadInsertError);
+        } else {
+          leadId = newLead.id;
+          leadTemperature = (newLead as { lead_temperature?: string | null }).lead_temperature ?? null;
+        }
+      }
+    } catch (leadError) {
+      console.error("Lead persistence error:", leadError);
+    }
+
+    if (leadId) {
+      try {
+        const { error: originLogError } = await supabaseAdmin.from("lead_origin_logs").insert({
+          lead_id: leadId,
+          tenant_id: tenant_id || null,
+          origem,
+          user_agent: req.headers.get("user-agent") || null,
+          referrer: req.headers.get("referer") || null,
+        });
+
+        if (originLogError) {
+          console.error("Lead origin log error:", originLogError);
+        }
+      } catch (originError) {
+        console.error("Lead origin logging error:", originError);
+      }
+    }
+
+    if (leadTemperature && leadTemperature !== "frio" && tenant_id) {
       try {
         const { data: addon } = await supabaseAdmin
           .from("vendazap_addon")
@@ -157,10 +230,9 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (addon) {
-          // Gerar mensagem de boas-vindas automática via VendaZap
           await supabaseAdmin.functions.invoke("vendazap-ai", {
             body: {
-              nome_cliente: nome.trim(),
+              nome_cliente: nome,
               tipo_copy: "boas_vindas",
               tom: "amigavel",
               status_negociacao: "novo",
@@ -171,32 +243,35 @@ Deno.serve(async (req) => {
             },
           });
 
-          // Marcar que whatsapp foi enviado
-          await supabaseAdmin
-            .from("leads")
-            .update({ whatsapp_enviado: true })
-            .eq("id", newLead.id);
+          if (leadId) {
+            await supabaseAdmin
+              .from("leads")
+              .update({ whatsapp_enviado: true })
+              .eq("id", leadId);
+          }
         }
       } catch (vendaErr) {
         console.error("VendaZap auto-trigger error:", vendaErr);
-        // Não falhar o lead capture por causa do VendaZap
       }
     }
 
-    return new Response(
-      JSON.stringify({
+    if (!clientId && !leadId) {
+      return json({ error: "Erro ao salvar lead" }, 500);
+    }
+
+    return json(
+      {
         success: true,
-        lead_id: newLead.id,
-        temperature: newLead.lead_temperature,
-        duplicado: false,
-      }),
-      { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        client_id: clientId,
+        lead_id: leadId,
+        temperature: leadTemperature,
+        duplicado,
+        message: duplicado ? "Cadastro atualizado com sucesso" : "Cadastro realizado com sucesso",
+      },
+      duplicado ? 200 : 201,
     );
   } catch (err) {
     console.error("Lead capture error:", err);
-    return new Response(JSON.stringify({ error: "Erro interno" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: "Erro interno" }, 500);
   }
 });
