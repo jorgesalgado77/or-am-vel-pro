@@ -56,7 +56,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
         addonSlug="smart_import_3d"
         price="R$ 197"
         priceExtra="/mês"
-        description="Importe projetos 3D (.GLB), visualize ambientes em 3D interativo, selecione módulos, crie biblioteca inteligente e gere orçamentos automáticos."
+        description="Importe projetos 3D (.GLB / .DXF), visualize ambientes em 3D interativo, selecione módulos, crie biblioteca inteligente e gere orçamentos automáticos."
         features={[
           { label: "Visualização 3D", icon: <Box className="h-5 w-5" /> },
           { label: "Biblioteca Inteligente", icon: <BookOpen className="h-5 w-5" /> },
