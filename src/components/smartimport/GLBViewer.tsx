@@ -368,7 +368,7 @@ function LoadingOverlay({ progress, label }: { progress: number; label: string }
   );
 }
 
-function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, lightingPreset }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any>; backgroundPreset: BackgroundPreset; lightingPreset: LightingPreset }) {
+function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, lightingPreset, qualityPreset }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any>; backgroundPreset: BackgroundPreset; lightingPreset: LightingPreset; qualityPreset: QualityPreset }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
