@@ -31,6 +31,85 @@ function timeAgo(dateStr?: string) {
   return `${days}d`;
 }
 
+const BATCH_SIZE = 30;
+
+/** Progressively renders conversations in batches to avoid DOM overload */
+const VirtualizedConversationList = memo(function VirtualizedConversationList({
+  conversations, selectedId, onSelect,
+}: { conversations: ChatConversation[]; selectedId: string | null; onSelect: (c: ChatConversation) => void }) {
+  const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Reset visible count when list changes
+  useMemo(() => { setVisibleCount(BATCH_SIZE); }, [conversations.length]);
+
+  // Intersection Observer to load more items
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const sentinelCallback = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!node) return;
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) {
+        setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, conversations.length));
+      }
+    }, { threshold: 0.1 });
+    observerRef.current.observe(node);
+  }, [conversations.length]);
+
+  const visible = conversations.slice(0, visibleCount);
+
+  return (
+    <>
+      {visible.map((conv) => (
+        <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={onSelect} />
+      ))}
+      {visibleCount < conversations.length && (
+        <div ref={sentinelCallback} className="p-2 text-center text-[10px] text-muted-foreground">
+          Carregando mais ({visibleCount}/{conversations.length})...
+        </div>
+      )}
+    </>
+  );
+});
+
+const ConversationItem = memo(function ConversationItem({
+  conv, isSelected, onSelect,
+}: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void }) {
+  const tempConfig = conv.lead_temperature ? TEMPERATURE_CONFIG[conv.lead_temperature] : null;
+  return (
+    <button
+      onClick={() => onSelect(conv)}
+      className={cn(
+        "w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors duration-100",
+        isSelected ? "bg-primary/8" : "hover:bg-muted/50 active:scale-[0.99]"
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold text-primary">
+          {conv.nome_cliente.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-sm font-medium text-foreground truncate">{conv.nome_cliente}</span>
+            <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(conv.last_message_at)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-1 mt-0.5">
+            <p className="text-xs text-muted-foreground truncate flex-1">{conv.last_message || conv.numero_contrato}</p>
+            <div className="flex items-center gap-1 shrink-0">
+              {tempConfig && <span className="text-[10px]" title={tempConfig.label}>{tempConfig.emoji}</span>}
+              {conv.unread_count > 0 && (
+                <Badge variant="destructive" className="text-[9px] h-4 min-w-[16px] px-1 flex items-center justify-center">
+                  {conv.unread_count}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+});
+
 export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, loading }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
