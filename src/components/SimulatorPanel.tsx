@@ -579,6 +579,18 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       }
     }
 
+    // Limit to 3 simulations per client — delete oldest if needed
+    const { data: existingSims } = await supabase
+      .from("simulations")
+      .select("id, created_at")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false });
+
+    if (existingSims && existingSims.length >= 3) {
+      const idsToDelete = existingSims.slice(2).map((s) => s.id);
+      await supabase.from("simulations").delete().in("id", idsToDelete);
+    }
+
     const { error } = await supabase.from("simulations").insert({
       client_id: clientId,
       valor_tela: valorTela,
