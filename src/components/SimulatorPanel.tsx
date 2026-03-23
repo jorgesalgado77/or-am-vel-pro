@@ -315,6 +315,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     }
   }, [selectedCreditoProvider, creditoDefaults, creditoRates, formaPagamento]);
 
+  const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(formaPagamento);
+  const showPlus = ["A vista", "Pix"].includes(formaPagamento);
+  const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
+
   // Keep selected installment valid for the current provider/payment method
   useEffect(() => {
     if (!showParcelas || availableParcelas.length === 0) return;
@@ -342,10 +346,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
     setSelectedCreditoProvider(provider);
     applyCreditoDefaults(provider);
   };
-
-  const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(formaPagamento);
-  const showPlus = ["A vista", "Pix"].includes(formaPagamento);
-  const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
 
 
   const { boletoCoeffMap, boletoRatesFullMap } = useMemo(() => {
