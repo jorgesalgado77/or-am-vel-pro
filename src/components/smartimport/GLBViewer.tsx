@@ -306,12 +306,13 @@ function LoadingOverlay({ progress, label }: { progress: number; label: string }
   );
 }
 
-function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
+function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & { controlsRef?: React.MutableRefObject<any> }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("Inicializando...");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cameraInitial = useRef<{ pos: any; target: any } | null>(null);
 
   useEffect(() => {
     const testCanvas = document.createElement("canvas");
