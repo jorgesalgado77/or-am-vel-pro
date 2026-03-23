@@ -41,7 +41,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onRemov
           <TableHead className="text-xs py-1.5 h-auto text-center">Peças</TableHead>
           <TableHead className="text-xs py-1.5 h-auto text-right">Valor</TableHead>
           <TableHead className="text-xs py-1.5 h-auto text-center">Data</TableHead>
-          {canDelete && <TableHead className="text-xs py-1.5 h-auto w-8"></TableHead>}
+          <TableHead className="text-xs py-1.5 h-auto w-8"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -59,13 +59,11 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onRemov
             <TableCell className="py-1.5 text-center text-muted-foreground">
               {format(env.importedAt, "dd/MM HH:mm")}
             </TableCell>
-            {canDelete && (
-              <TableCell className="py-1.5 text-center">
-                <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => onRemove(env.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </TableCell>
-            )}
+            <TableCell className="py-1.5 text-center">
+              <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => onRemove(env.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </TableCell>
           </TableRow>
         ))}
         {environments.length > 1 && (
@@ -74,7 +72,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onRemov
             <TableCell className="py-1.5 text-center">{environments.reduce((s, e) => s + e.pieceCount, 0) || "—"}</TableCell>
             <TableCell className="py-1.5 text-right tabular-nums text-primary">{formatCurrency(environments.reduce((s, e) => s + e.totalValue, 0))}</TableCell>
             <TableCell className="py-1.5"></TableCell>
-            {canDelete && <TableCell className="py-1.5"></TableCell>}
+            <TableCell className="py-1.5"></TableCell>
           </TableRow>
         )}
       </TableBody>
