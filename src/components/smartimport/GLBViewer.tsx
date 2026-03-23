@@ -76,7 +76,7 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
         // Load model based on extension
         const ext = getFileExtension(fileUrl);
         try {
-          let loadedObject: THREE.Object3D | null = null;
+          let loadedObject: any = null;
 
           if (ext === "glb" || ext === "gltf") {
             const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
