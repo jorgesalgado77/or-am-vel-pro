@@ -297,7 +297,7 @@ export function PayrollSummary({ usuarios, cargos, mesReferencia, getRegimeEfeti
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Bruto × Líquido × Custo Empresa</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent ref={barChartRef}>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={regimeSummaries.map(r => ({
                     regime: r.regime,
