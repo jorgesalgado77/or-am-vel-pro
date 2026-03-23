@@ -217,6 +217,16 @@ export function FunnelPanel() {
     setConfig((p) => ({ ...p, benefits: p.benefits.filter((_, idx) => idx !== i) }));
   };
 
+  const addInvestRange = () => {
+    if (!newInvestRange.trim()) return;
+    setConfig((p) => ({ ...p, investment_ranges: [...p.investment_ranges, newInvestRange.trim()] }));
+    setNewInvestRange("");
+  };
+
+  const removeInvestRange = (i: number) => {
+    setConfig((p) => ({ ...p, investment_ranges: p.investment_ranges.filter((_, idx) => idx !== i) }));
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
