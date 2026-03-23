@@ -183,8 +183,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byIndicador[c.indicador_id].count++;
       const sim = filteredLastSims[c.id];
       if (sim) {
-        byIndicador[c.indicador_id].total += sim.valor_final;
-        byIndicador[c.indicador_id].comissaoTotal += sim.valor_final * (ind.comissao_percentual / 100);
+        byIndicador[c.indicador_id].total += sim.valor_com_desconto || sim.valor_final;
+        byIndicador[c.indicador_id].comissaoTotal += (sim.valor_com_desconto || sim.valor_final) * (ind.comissao_percentual / 100);
       }
     });
 
