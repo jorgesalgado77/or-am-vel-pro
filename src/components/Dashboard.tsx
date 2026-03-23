@@ -149,7 +149,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    const totalValue = Object.values(filteredLastSims).reduce((sum, s) => sum + s.valor_final, 0);
+    const totalValue = Object.values(filteredLastSims).reduce((sum, s) => sum + (s.valor_com_desconto || s.valor_final), 0);
 
     // New KPIs
     const ticketMedio = clientsWithSim > 0 ? totalValue / clientsWithSim : 0;
