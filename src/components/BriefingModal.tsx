@@ -163,8 +163,30 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
           )}
         </ScrollArea>
 
-        <DialogFooter className="pt-3">
+        <DialogFooter className="pt-3 flex-wrap gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+          {onSendToSimulator && existingId && (
+            <Button
+              variant="secondary"
+              className="gap-1.5"
+              onClick={() => {
+                const envs: string[] = Array.isArray(responses.environments) ? responses.environments : [];
+                const otherEnv = responses.environments_other ? String(responses.environments_other).trim() : "";
+                const allEnvs = otherEnv ? [...envs, otherEnv] : envs;
+                onSendToSimulator({
+                  environments: allEnvs,
+                  descricaoAmbientes: allEnvs.join(", "),
+                  quantidadeAmbientes: allEnvs.length,
+                  budgetExpectation: responses.budget_expectation || "",
+                });
+                onOpenChange(false);
+                toast.success("Dados do briefing enviados para o simulador!");
+              }}
+            >
+              <ArrowRight className="h-4 w-4" />
+              Enviar para Simulador
+            </Button>
+          )}
           {!readOnly && (
             <Button onClick={handleSave} disabled={saving} className="gap-1">
               <Save className="h-4 w-4" />
