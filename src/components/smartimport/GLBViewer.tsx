@@ -320,8 +320,10 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("Inicializando...");
+  const [selectedPiece, setSelectedPiece] = useState<SelectedPieceInfo | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraInitial = useRef<{ pos: any; target: any } | null>(null);
+  const threeRef = useRef<any>(null);
 
   useEffect(() => {
     const testCanvas = document.createElement("canvas");
