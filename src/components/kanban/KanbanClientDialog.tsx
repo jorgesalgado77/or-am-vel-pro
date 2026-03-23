@@ -1,7 +1,7 @@
 /**
  * Expanded client detail dialog for the Kanban board.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { differenceInDays } from "date-fns";
 import { format, addDays, isPast, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Handshake, Pencil, Trash2, History, FileText, Phone, Mail, User, Hash, Clock,
-  AlertTriangle, CalendarIcon, FileQuestion,
+  AlertTriangle, CalendarIcon, FileQuestion, Paperclip, ExternalLink,
 } from "lucide-react";
 import { BriefingModal } from "@/components/BriefingModal";
 import { supabase } from "@/lib/supabaseClient";
@@ -23,6 +23,15 @@ import { formatCurrency } from "@/lib/financing";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { KANBAN_COLUMNS, type Client, type LastSimInfo } from "./kanbanTypes";
+
+interface LeadAttachment {
+  id: string;
+  file_name: string;
+  file_url: string | null;
+  file_size: number;
+  file_type: string | null;
+  created_at: string;
+}
 
 interface KanbanClientDialogProps {
   client: Client | null;
