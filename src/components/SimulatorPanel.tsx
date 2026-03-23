@@ -946,7 +946,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPan
                 <Label>Parcelas</Label>
                 <Select value={String(parcelas)} onValueChange={(v) => setParcelas(Number(v))}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
+                  <SelectContent className="max-h-60">
                     {Array.from({ length: maxParcelas }, (_, i) => i + 1).map((n) => (
                       <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
                     ))}
