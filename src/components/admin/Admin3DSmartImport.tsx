@@ -5,9 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RefreshCw, Box, Store, FileBox, Layers } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RefreshCw, Box, Store, FileBox, Layers, Settings2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useModuleCatalog } from "@/hooks/useModuleCatalog";
+import { ModuleCatalogAdmin } from "@/components/smartimport/ModuleCatalogAdmin";
+import { useTenantContext } from "@/contexts/TenantContext";
 
 interface StoreRow {
   id: string;
