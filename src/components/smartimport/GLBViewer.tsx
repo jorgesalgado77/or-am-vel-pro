@@ -725,6 +725,7 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [backgroundPreset, setBackgroundPreset] = useState<BackgroundPreset>("dark");
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>("balanced");
+  const [qualityPreset, setQualityPreset] = useState<QualityPreset>("balanced");
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
 
