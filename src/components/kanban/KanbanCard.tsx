@@ -21,6 +21,7 @@ interface KanbanCardProps {
   cargoNome: string;
   followUpStatus?: "active" | "paused" | "completed";
   onClick: (client: Client) => void;
+  onQuickDelete?: (client: Client) => void;
 }
 
 export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick }: KanbanCardProps) {
