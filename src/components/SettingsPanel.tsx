@@ -64,6 +64,7 @@ export function SettingsPanel() {
           {activeTab === "acompanhamento" && <TabsContent value="acompanhamento" forceMount><AcompanhamentoTab /></TabsContent>}
           {activeTab === "auditoria" && <TabsContent value="auditoria" forceMount><AuditLogsTab /></TabsContent>}
           {activeTab === "canva" && <TabsContent value="canva" forceMount><CanvaIntegrationTab /></TabsContent>}
+          {activeTab === "briefing" && <TabsContent value="briefing" forceMount><BriefingTab /></TabsContent>}
         </Suspense>
       </Tabs>
     </div>
