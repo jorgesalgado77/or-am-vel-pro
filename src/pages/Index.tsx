@@ -274,14 +274,34 @@ export default function Index() {
 
               {activeView === "simulator" && (
                 <SimulatorPanel
+                  key={loadedSimulation ? JSON.stringify(loadedSimulation) : simulatingClient?.id ?? "new"}
                   client={simulatingClient}
-                  onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); } : undefined}
+                  onBack={simulatingClient ? () => { setActiveView("clients"); setSimulatingClient(null); setLoadedSimulation(null); } : undefined}
                   onClientCreated={fetchClients}
+                  initialSimulation={loadedSimulation}
                 />
               )}
 
               {activeView === "history" && historyClient && (
-                <SimulationHistory client={historyClient} onBack={() => { setActiveView("clients"); setHistoryClient(null); }} />
+                <SimulationHistory
+                  client={historyClient}
+                  onBack={() => { setActiveView("clients"); setHistoryClient(null); }}
+                  onLoadSimulation={(sim, c) => {
+                    setLoadedSimulation({
+                      valor_tela: Number(sim.valor_tela),
+                      desconto1: Number(sim.desconto1) || 0,
+                      desconto2: Number(sim.desconto2) || 0,
+                      desconto3: Number(sim.desconto3) || 0,
+                      forma_pagamento: sim.forma_pagamento,
+                      parcelas: sim.parcelas || 1,
+                      valor_entrada: Number(sim.valor_entrada) || 0,
+                      plus_percentual: Number(sim.plus_percentual) || 0,
+                    });
+                    setSimulatingClient(c);
+                    setHistoryClient(null);
+                    setActiveView("simulator");
+                  }}
+                />
               )}
 
               {activeView === "contracts" && contractsClient && (
