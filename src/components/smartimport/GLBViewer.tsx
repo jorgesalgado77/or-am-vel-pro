@@ -42,9 +42,9 @@ const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; f
 };
 
 const QUALITY_PRESETS: Record<QualityPreset, { pixelRatio: number; antialias: boolean; shadows: boolean; label: string }> = {
-  low: { pixelRatio: 1, antialias: false, shadows: false, label: "Leve" },
-  balanced: { pixelRatio: Math.min(window.devicePixelRatio, 1.5), antialias: true, shadows: false, label: "Equilibrado" },
-  high: { pixelRatio: Math.min(window.devicePixelRatio, 2), antialias: true, shadows: true, label: "Alta fidelidade" },
+  low: { pixelRatio: 0.8, antialias: false, shadows: false, label: "Leve" },
+  balanced: { pixelRatio: Math.min(window.devicePixelRatio, 1.2), antialias: true, shadows: false, label: "Equilibrado" },
+  high: { pixelRatio: Math.min(window.devicePixelRatio, 1.5), antialias: true, shadows: true, label: "Alta fidelidade" },
 };
 
 const FORMAT_LOADING_MESSAGES: Record<string, string[]> = {
@@ -169,7 +169,11 @@ function WebGLViewer({
         // ── CRITICAL: Correct color output ──
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
+        renderer.toneMappingExposure = 1.05;
+        // Enable physically correct lighting (Three.js r155+)
+        if ("useLegacyLights" in renderer) {
+          renderer.useLegacyLights = false;
+        }
 
         if (quality.shadows) {
           renderer.shadowMap.enabled = true;
@@ -344,17 +348,35 @@ function WebGLViewer({
         setProgressLabel("Concluído!");
         setTimeout(() => { if (mounted) setLoading(false); }, 200);
 
-        // ── On-demand render loop ──
-        // Only renders when controls change, auto-rotate is on, or a click/resize invalidates
+        // ── On-demand render loop with FPS monitoring ──
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+        let currentPixelRatio = quality.pixelRatio;
+        const MIN_PIXEL_RATIO = 0.8;
+
         const animate = () => {
           if (!mounted) return;
           animationFrameId = requestAnimationFrame(animate);
 
-          const updated = controls.update(); // returns true if controls changed
-          // Always render when autoRotate is on, or when dirty
+          const updated = controls.update();
           if (controls.autoRotate || needsRenderRef.current || updated) {
             renderer.render(scene, camera);
             needsRenderRef.current = false;
+            frameCount++;
+          }
+
+          // FPS monitoring — auto-downgrade every 2 seconds
+          const now = performance.now();
+          if (now - lastFpsTime >= 2000) {
+            const fps = (frameCount / ((now - lastFpsTime) / 1000));
+            frameCount = 0;
+            lastFpsTime = now;
+
+            if (fps < 25 && currentPixelRatio > MIN_PIXEL_RATIO) {
+              currentPixelRatio = Math.max(MIN_PIXEL_RATIO, currentPixelRatio - 0.15);
+              renderer.setPixelRatio(currentPixelRatio);
+              needsRenderRef.current = true;
+            }
           }
         };
         animate();
