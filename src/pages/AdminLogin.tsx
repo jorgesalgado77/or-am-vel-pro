@@ -103,7 +103,9 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
     const normalizedEmail = email.trim().toLowerCase();
 
     try {
-      // Try RPC first (if admin_login function exists)
+      // Validate admin credentials via RPC or direct query
+      let adminInfo: { id: string; nome: string } | null = null;
+
       const { data: rpcData, error: rpcError } = await (supabase as any).rpc("admin_login", {
         p_email: normalizedEmail,
         p_senha: senha,
@@ -111,42 +113,69 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
 
       if (!rpcError) {
         const admin = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-        if (admin) {
-          setLoading(false);
-          toast.success(`Bem-vindo, ${admin.nome}!`);
-          onLogin(admin.id, admin.nome);
-          return;
-        }
+        if (admin) adminInfo = { id: admin.id, nome: admin.nome };
       }
 
       // Fallback: direct query
-      const { data, error } = await supabase
-        .from("admin_master")
-        .select("id, nome, email, senha")
-        .eq("email", normalizedEmail)
-        .maybeSingle();
+      if (!adminInfo) {
+        const { data, error } = await supabase
+          .from("admin_master")
+          .select("id, nome, email, senha")
+          .eq("email", normalizedEmail)
+          .maybeSingle();
 
-      if (error) {
-        toast.error("Erro ao validar administrador");
+        if (error) {
+          toast.error("Erro ao validar administrador");
+          setLoading(false);
+          return;
+        }
+        if (!data) {
+          toast.error("Administrador master ainda não foi configurado no banco");
+          setLoading(false);
+          return;
+        }
+        if ((data as any).senha !== senha) {
+          toast.error("Senha incorreta");
+          setLoading(false);
+          return;
+        }
+        adminInfo = { id: (data as any).id, nome: (data as any).nome };
+      }
+
+      if (!adminInfo) {
+        toast.error("Credenciais inválidas");
         setLoading(false);
         return;
       }
 
-      if (!data) {
-        toast.error("Administrador master ainda não foi configurado no banco");
-        setLoading(false);
-        return;
-      }
+      // Sign in via Supabase Auth so RPC/RLS policies work
+      // First try sign in, if fails try sign up
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: senha,
+      });
 
-      if ((data as any).senha !== senha) {
-        toast.error("Senha incorreta");
-        setLoading(false);
-        return;
+      if (authError) {
+        // Try creating the auth user if doesn't exist
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password: senha,
+          options: { data: { nome_completo: adminInfo.nome, is_admin_master: true } },
+        });
+        if (signUpError) {
+          console.warn("[AdminLogin] Could not create Supabase Auth session:", signUpError.message);
+        } else {
+          // Try signing in again after signup
+          await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password: senha,
+          });
+        }
       }
 
       setLoading(false);
-      toast.success(`Bem-vindo, ${(data as any).nome}!`);
-      onLogin((data as any).id, (data as any).nome);
+      toast.success(`Bem-vindo, ${adminInfo.nome}!`);
+      onLogin(adminInfo.id, adminInfo.nome);
     } catch {
       toast.error("Erro ao conectar. Tente novamente.");
       setLoading(false);
