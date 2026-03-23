@@ -289,27 +289,31 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
                     </TableCell>
                   </TableRow>
                 )}
-                {activeUsers.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.nome_completo}</TableCell>
-                    <TableCell>{getCargoNome(u.cargo_id)}</TableCell>
-                    <TableCell>
-                      {u.tipo_regime ? (
-                        <Badge variant="outline" className={
-                          u.tipo_regime === "CLT" ? "border-emerald-500/50 text-emerald-700"
-                            : u.tipo_regime === "MEI" ? "border-blue-500/50 text-blue-700"
-                            : "border-amber-500/50 text-amber-700"
-                        }>
-                          {u.tipo_regime}
-                        </Badge>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">{u.salario_fixo ? formatCurrency(u.salario_fixo) : "—"}</TableCell>
-                    <TableCell className="text-right">{u.comissao_percentual ? `${u.comissao_percentual}%` : "—"}</TableCell>
-                    <TableCell className="text-sm">{u.telefone || "—"}</TableCell>
-                    <TableCell className="text-sm">{u.email || "—"}</TableCell>
-                  </TableRow>
-                ))}
+                {activeUsers.map((u) => {
+                  const cargo = u.cargo_id ? cargos.find(c => c.id === u.cargo_id) : null;
+                  const comissaoEfetiva = u.comissao_percentual || cargo?.comissao_percentual || 0;
+                  return (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">{u.apelido || u.nome_completo}</TableCell>
+                      <TableCell>{getCargoNome(u.cargo_id)}</TableCell>
+                      <TableCell>
+                        {u.tipo_regime ? (
+                          <Badge variant="outline" className={
+                            u.tipo_regime === "CLT" ? "border-emerald-500/50 text-emerald-700"
+                              : u.tipo_regime === "MEI" ? "border-blue-500/50 text-blue-700"
+                              : "border-amber-500/50 text-amber-700"
+                          }>
+                            {u.tipo_regime}
+                          </Badge>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{u.salario_fixo ? formatCurrency(u.salario_fixo) : "—"}</TableCell>
+                      <TableCell className="text-right">{comissaoEfetiva > 0 ? `${comissaoEfetiva}%` : "—"}</TableCell>
+                      <TableCell className="text-sm">{u.telefone || "—"}</TableCell>
+                      <TableCell className="text-sm">{u.email || "—"}</TableCell>
+                    </TableRow>
+                  );
+                })}
                 {activeUsers.length > 0 && (
                   <TableRow className="bg-secondary/30 font-semibold">
                     <TableCell colSpan={3} className="text-right">TOTAL</TableCell>
