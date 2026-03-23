@@ -361,6 +361,11 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraInitial = useRef<{ pos: any; target: any } | null>(null);
   const threeRef = useRef<any>(null);
+  const onObjectSelectRef = useRef(onObjectSelect);
+
+  useEffect(() => {
+    onObjectSelectRef.current = onObjectSelect;
+  }, [onObjectSelect]);
 
   useEffect(() => {
     const testCanvas = document.createElement("canvas");
