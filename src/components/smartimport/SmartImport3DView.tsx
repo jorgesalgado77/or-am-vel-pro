@@ -299,6 +299,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
         <TabsContent value="biblioteca">
           <ModuleLibraryPanel
             library={library}
+            catalogItems={catalogItems}
             onAdd={addToLibrary}
             onUpdate={updateLibraryItem}
             onDelete={deleteLibraryItem}
