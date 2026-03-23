@@ -357,6 +357,10 @@ export default function Index() {
               {activeView === "financial" && <FinancialPanel />}
               {activeView === "tutorials" && <TutorialsPanel />}
 
+              {activeView === "smart3d" && (
+                <SmartImport3DView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
+              )}
+
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>
           </main>
