@@ -1,15 +1,15 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
-  Video, Send, Paperclip, Upload, Download, Eye, Mic, MicOff,
-  VideoIcon, VideoOff, PhoneOff, Maximize2, Minimize2,
+  Video, Send, Mic, MicOff, VideoIcon, VideoOff, PhoneOff, Maximize2, Minimize2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { DealRoomScreenProtection } from "@/components/dealroom/DealRoomScreenProtection";
+import { DealRoomWatermark } from "@/components/dealroom/DealRoomWatermark";
 
 export default function ClientSala() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -20,12 +20,46 @@ export default function ClientSala() {
   const [muted, setMuted] = useState(false);
   const [videoOff, setVideoOff] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [storeInfo, setStoreInfo] = useState({ nome: "Loja", telefone: "" });
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!sessionId) return;
 
-    // Load chat messages
+    // Try to load store info from session
+    const loadStoreInfo = async () => {
+      // Get tenant from chat messages or attachments
+      const { data: chatData } = await supabase
+        .from("dealroom_chat_messages" as any)
+        .select("session_id")
+        .eq("session_id", sessionId)
+        .limit(1);
+
+      if (chatData && chatData.length > 0) {
+        // Try to get tenant info from attachments
+        const { data: attachData } = await supabase
+          .from("dealroom_attachments" as any)
+          .select("tenant_id")
+          .eq("session_id", sessionId)
+          .limit(1);
+
+        if (attachData?.[0]?.tenant_id) {
+          const { data: tenant } = await supabase
+            .from("tenants")
+            .select("nome, telefone")
+            .eq("id", attachData[0].tenant_id)
+            .single();
+          if (tenant) {
+            setStoreInfo({
+              nome: (tenant as any).nome || "Loja",
+              telefone: (tenant as any).telefone || "",
+            });
+          }
+        }
+      }
+    };
+    loadStoreInfo();
+
     const loadMessages = async () => {
       const { data } = await supabase
         .from("dealroom_chat_messages" as any)
@@ -36,7 +70,6 @@ export default function ClientSala() {
     };
     loadMessages();
 
-    // Realtime
     const channel = supabase
       .channel(`client-chat-${sessionId}`)
       .on("postgres_changes", {
@@ -49,7 +82,6 @@ export default function ClientSala() {
       })
       .subscribe();
 
-    // Init Jitsi
     const script = document.createElement("script");
     script.src = "https://meet.jit.si/external_api.js";
     script.async = true;
@@ -120,6 +152,9 @@ export default function ClientSala() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      {/* Screen protection for client */}
+      <DealRoomScreenProtection sessionId={sessionId} userRole="cliente" />
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b bg-card">
         <div className="flex items-center gap-2">
@@ -133,6 +168,10 @@ export default function ClientSala() {
         {/* Video */}
         <div className="flex-1 flex flex-col bg-black relative">
           <div ref={jitsiContainerRef} className="flex-1 min-h-0" />
+
+          {/* Floating watermark */}
+          <DealRoomWatermark storeName={storeInfo.nome} storePhone={storeInfo.telefone} />
+
           <div className="flex items-center justify-center gap-3 py-3 px-4 bg-card/90 backdrop-blur border-t">
             <Button variant={muted ? "destructive" : "secondary"} size="icon"
               onClick={() => { jitsiApiRef.current?.executeCommand("toggleAudio"); setMuted(!muted); }}>
@@ -164,10 +203,12 @@ export default function ClientSala() {
                   <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
                     msg.sender === "cliente"
                       ? "bg-primary text-primary-foreground"
+                      : msg.sender === "sistema"
+                      ? "bg-destructive/10 text-destructive border border-destructive/20"
                       : "bg-muted text-foreground"
                   }`}>
                     <p className="text-[10px] font-medium opacity-70 mb-0.5">
-                      {msg.sender === "cliente" ? "Você" : "Projetista"}
+                      {msg.sender === "cliente" ? "Você" : msg.sender === "sistema" ? "Sistema" : "Projetista"}
                     </p>
                     <p>{msg.message}</p>
                   </div>
