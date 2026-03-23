@@ -88,7 +88,7 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
           } else if (ext === "obj") {
             const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader.js");
             const loader = new OBJLoader();
-            const obj = await new Promise<THREE.Object3D>((resolve, reject) =>
+            const obj = await new Promise<any>((resolve, reject) =>
               loader.load(fileUrl, resolve, undefined, reject)
             );
             loadedObject = obj;
