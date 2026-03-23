@@ -225,6 +225,23 @@ function WebGLViewer({
         scene.add(hemi);
         applyLightingPreset({ ambient, dir1, dir2, dir3, hemi }, lightingPreset);
 
+        // ── Subtle Environment Map for metallic reflections ──
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+        const neutralEnvScene = new THREE.Scene();
+        neutralEnvScene.background = new THREE.Color(0xcccccc);
+        // Add gradient lights to create subtle reflections
+        const envLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+        envLight1.position.set(1, 1, 1);
+        neutralEnvScene.add(envLight1);
+        const envLight2 = new THREE.DirectionalLight(0x8899aa, 0.4);
+        envLight2.position.set(-1, 0.5, -1);
+        neutralEnvScene.add(envLight2);
+        neutralEnvScene.add(new THREE.AmbientLight(0xdddddd, 0.6));
+        const envMap = pmremGenerator.fromScene(neutralEnvScene, 0.04).texture;
+        scene.environment = envMap;
+        pmremGenerator.dispose();
+
         const gridPalette = BACKGROUND_PRESETS[backgroundPreset];
         const grid = new THREE.GridHelper(30, 30, gridPalette.ground, gridPalette.ground);
         (grid.material as any).opacity = 0.4;
