@@ -12,3 +12,4 @@ export { AdminLoginDiagnostics } from "@/components/admin/AdminLoginDiagnostics"
 export { AdminResendConfig } from "@/components/admin/AdminResendConfig";
 export { AdminVendaZap } from "@/components/admin/AdminVendaZap";
 export { AdminWhatsAppConfig } from "@/components/admin/AdminWhatsAppConfig";
+export { Admin3DSmartImport } from "@/components/admin/Admin3DSmartImport";
