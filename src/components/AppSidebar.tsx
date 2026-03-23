@@ -3,6 +3,7 @@ import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
   MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle, Megaphone,
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
+  Box,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
