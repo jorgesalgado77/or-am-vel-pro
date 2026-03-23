@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { ScrollableContainer } from "@/components/ui/scrollable-container";

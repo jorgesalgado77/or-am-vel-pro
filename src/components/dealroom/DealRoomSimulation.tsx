@@ -60,7 +60,6 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
       return; 
     }
     setLoading(true);
-    console.log("[DealRoomSimulation] Loading simulations for client:", clientId);
     const query = supabase
       .from("simulations")
       .select("*")
@@ -76,7 +75,6 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
     if (error) {
       console.error("[DealRoomSimulation] Error loading simulations:", error);
     }
-    console.log("[DealRoomSimulation] Found simulations:", data?.length || 0);
     setSimulations(data || []);
     setLoading(false);
   };

@@ -1,6 +1,7 @@
 /**
  * Individual Kanban card rendered inside a Draggable.
  */
+import { memo } from "react";
 import { differenceInDays } from "date-fns";
 import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
@@ -22,7 +23,7 @@ interface KanbanCardProps {
   onClick: (client: Client) => void;
 }
 
-export function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick }: KanbanCardProps) {
   const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
   const agingColor =
@@ -167,4 +168,4 @@ export function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, 
       )}
     </Draggable>
   );
-}
+});

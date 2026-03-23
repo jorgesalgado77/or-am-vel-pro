@@ -122,7 +122,58 @@ function prepareObjectForPreview(THREE: any, root: any) {
     }
   });
 
+  // ── Geometry Instancing: merge duplicate geometries ──
+  applyGeometryInstancing(THREE, root);
+
   return root;
+}
+
+/**
+ * Detect meshes sharing identical geometry (by vertex count + bounding box)
+ * and replace them with InstancedMesh for better GPU performance.
+ */
+function applyGeometryInstancing(THREE: any, root: any) {
+  const meshes: any[] = [];
+  root.traverse((child: any) => {
+    if (child.isMesh && child.geometry) meshes.push(child);
+  });
+
+  // Group by geometry signature (vertex count + bbox dimensions)
+  const groups = new Map<string, any[]>();
+  for (const mesh of meshes) {
+    const geo = mesh.geometry;
+    const posAttr = geo.attributes?.position;
+    if (!posAttr) continue;
+    const box = new THREE.Box3().setFromBufferAttribute(posAttr);
+    const size = box.getSize(new THREE.Vector3());
+    const key = `${posAttr.count}_${size.x.toFixed(3)}_${size.y.toFixed(3)}_${size.z.toFixed(3)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(mesh);
+  }
+
+  // Only instance groups with 3+ identical meshes (worth the overhead)
+  for (const [, group] of groups) {
+    if (group.length < 3) continue;
+    const template = group[0];
+    const instancedMesh = new THREE.InstancedMesh(
+      template.geometry,
+      template.material,
+      group.length
+    );
+    instancedMesh.name = `Instanced_${template.name}`;
+    instancedMesh.userData.originalMaterial = template.material;
+    instancedMesh.frustumCulled = true;
+
+    const matrix = new THREE.Matrix4();
+    for (let i = 0; i < group.length; i++) {
+      group[i].updateWorldMatrix(true, false);
+      matrix.copy(group[i].matrixWorld);
+      instancedMesh.setMatrixAt(i, matrix);
+      group[i].parent?.remove(group[i]);
+    }
+    instancedMesh.instanceMatrix.needsUpdate = true;
+    root.add(instancedMesh);
+  }
 }
 
 /**
