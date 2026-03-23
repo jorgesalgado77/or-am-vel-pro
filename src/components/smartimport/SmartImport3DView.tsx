@@ -273,7 +273,12 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                    <ProjectThumbnail fileUrl={project.file_url} />
+                    <ProjectThumbnail
+                      projectId={project.id}
+                      fileUrl={project.file_url}
+                      thumbnailUrl={project.thumbnail_url}
+                      name={project.name}
+                    />
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-muted-foreground">
                         {format(new Date(project.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
