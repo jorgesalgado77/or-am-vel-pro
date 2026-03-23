@@ -1,6 +1,6 @@
 /**
  * PDF generation button for briefing — generates a professional PDF document.
- * Uses jsPDF for PDF creation with company branding.
+ * Uses jsPDF for PDF creation with company branding and logo.
  */
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { FIELD_LABELS, SECTIONS, formatValue } from "./briefingPdfData";
 
 interface BriefingPrintButtonProps {
   clientName: string;
@@ -16,70 +17,20 @@ interface BriefingPrintButtonProps {
   responses: Record<string, any>;
 }
 
-const FIELD_LABELS: Record<string, string> = {
-  seller_name: "Vendedor/Projetista",
-  initial_date: "Data Inicial",
-  presentation_date: "Data de Apresentação",
-  client_1_name: "Cliente 1 — Nome",
-  client_1_phone: "Cliente 1 — Telefone",
-  client_1_email: "Cliente 1 — E-mail",
-  client_1_profession: "Cliente 1 — Profissão",
-  client_1_profile: "Cliente 1 — Perfil DISC",
-  client_2_name: "Cliente 2 — Nome",
-  client_2_phone: "Cliente 2 — Telefone",
-  client_2_email: "Cliente 2 — E-mail",
-  client_2_profession: "Cliente 2 — Profissão",
-  client_2_profile: "Cliente 2 — Perfil DISC",
-  construction_stage: "Estágio da Obra",
-  enterprise: "Empreendimento",
-  has_floor_plan: "Possui planta?",
-  has_measurements: "Medidas conferidas?",
-  measurement_date: "Data da Medição",
-  knows_company: "Já conhece a empresa?",
-  lead_source: "Como nos conheceu?",
-  company_knowledge: "O que sabe sobre a empresa",
-  reason_for_contact: "Motivo do contato",
-  environments: "Ambientes",
-  environments_other: "Outros ambientes",
-  technical_checklist: "Checklist Técnico",
-  pain_points: "Problemas / Dores",
-  residents_adults: "Adultos",
-  residents_children: "Crianças",
-  residents_pets: "Pets",
-  residents_special_needs: "Necessidades especiais",
-  previous_experience: "Já comprou planejados?",
-  previous_budget: "Já fez orçamento em outro lugar?",
-  competitors: "Concorrentes visitados",
-  purchase_timeline: "Previsão de compra",
-  budget_expectation: "Expectativa de investimento",
-  payment_type: "Forma de pagamento",
-  meeting_date: "Data da reunião",
-  meeting_time: "Horário",
-  notes: "Observações gerais",
-  final_notes: "Anotações finais",
-};
-
-const SECTIONS: { title: string; keys: string[] }[] = [
-  { title: "Dados Iniciais", keys: ["seller_name", "initial_date", "presentation_date"] },
-  { title: "Dados dos Clientes", keys: ["client_1_name", "client_1_phone", "client_1_email", "client_1_profession", "client_1_profile", "client_2_name", "client_2_phone", "client_2_email", "client_2_profession", "client_2_profile"] },
-  { title: "Dados da Obra / Imóvel", keys: ["construction_stage", "enterprise", "has_floor_plan", "has_measurements", "measurement_date"] },
-  { title: "Origem do Lead", keys: ["knows_company", "lead_source", "company_knowledge", "reason_for_contact"] },
-  { title: "Ambientes", keys: ["environments", "environments_other"] },
-  { title: "Checklist Técnico", keys: ["technical_checklist"] },
-  { title: "Problemas e Necessidades", keys: ["pain_points"] },
-  { title: "Moradores", keys: ["residents_adults", "residents_children", "residents_pets", "residents_special_needs"] },
-  { title: "Experiência Anterior", keys: ["previous_experience", "previous_budget", "competitors"] },
-  { title: "Prazo e Investimento", keys: ["purchase_timeline", "budget_expectation", "payment_type"] },
-  { title: "Agendamento", keys: ["meeting_date", "meeting_time"] },
-  { title: "Observações", keys: ["notes", "final_notes"] },
-];
-
-function formatValue(value: any): string {
-  if (value === true) return "Sim";
-  if (value === false) return "Não";
-  if (Array.isArray(value)) return value.join(", ");
-  if (value === null || value === undefined || value === "") return "—";
-  return String(value);
+async function loadImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
 }
 
 export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: BriefingPrintButtonProps) {
@@ -97,45 +48,68 @@ export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: 
       const contentW = pageW - marginL - marginR;
       let y = 15;
 
-      const primaryColor: [number, number, number] = [30, 64, 175]; // blue-800
-      const headerBg: [number, number, number] = [241, 245, 249]; // slate-100
-      const textColor: [number, number, number] = [30, 41, 59]; // slate-800
-      const mutedColor: [number, number, number] = [100, 116, 139]; // slate-500
+      const primaryColor: [number, number, number] = [30, 64, 175];
+      const headerBg: [number, number, number] = [241, 245, 249];
+      const textColor: [number, number, number] = [30, 41, 59];
+      const mutedColor: [number, number, number] = [100, 116, 139];
 
-      // Helper: add new page if needed
       const checkPage = (needed: number) => {
         if (y + needed > pageH - 20) {
           doc.addPage();
           y = 15;
-          // Footer on each page
-          addFooter();
         }
       };
 
-      const addFooter = () => {
-        const pageNum = doc.getNumberOfPages();
-        doc.setFontSize(8);
-        doc.setTextColor(...mutedColor);
-        doc.text(`Página ${pageNum}`, pageW / 2, pageH - 8, { align: "center" });
-      };
-
       // ===== HEADER =====
-      // Logo placeholder or company name
       doc.setFillColor(...primaryColor);
       doc.rect(0, 0, pageW, 28, "F");
 
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text(settings.company_name || "OrçaMóvel PRO", marginL, 13);
+      // Try to load company logo
+      let logoLoaded = false;
+      if (settings.logo_url) {
+        try {
+          const base64 = await loadImageAsBase64(settings.logo_url);
+          if (base64) {
+            const img = new Image();
+            await new Promise<void>((resolve) => {
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+              img.src = base64;
+            });
+            if (img.width > 0) {
+              const logoH = 16;
+              const logoW = (img.width / img.height) * logoH;
+              const logoX = marginL;
+              const logoY = 6;
+              doc.addImage(base64, "PNG", logoX, logoY, Math.min(logoW, 40), logoH);
+              logoLoaded = true;
 
+              // Company name next to logo
+              doc.setTextColor(255, 255, 255);
+              doc.setFontSize(14);
+              doc.setFont("helvetica", "bold");
+              doc.text(settings.company_name || "OrçaMóvel PRO", logoX + Math.min(logoW, 40) + 4, 16);
+            }
+          }
+        } catch {
+          // fallback to text-only header
+        }
+      }
+
+      if (!logoLoaded) {
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text(settings.company_name || "OrçaMóvel PRO", marginL, 13);
+      }
+
+      doc.setTextColor(255, 255, 255);
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       if (settings.company_subtitle) {
-        doc.text(settings.company_subtitle, marginL, 19);
+        doc.text(settings.company_subtitle, marginL, logoLoaded ? 24 : 19);
       }
 
-      // Company info line
       const infoLine = [
         settings.telefone_loja,
         settings.email_loja,
@@ -143,7 +117,7 @@ export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: 
       ].filter(Boolean).join("  •  ");
       if (infoLine) {
         doc.setFontSize(7);
-        doc.text(infoLine, marginL, 24);
+        doc.text(infoLine, marginL, logoLoaded ? 27 : 24);
       }
 
       y = 35;
@@ -165,12 +139,10 @@ export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: 
       y += 5;
       doc.text(
         `Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`,
-        marginL,
-        y
+        marginL, y
       );
       y += 8;
 
-      // Divider
       doc.setDrawColor(...primaryColor);
       doc.setLineWidth(0.5);
       doc.line(marginL, y, pageW - marginR, y);
@@ -186,7 +158,6 @@ export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: 
 
         checkPage(16);
 
-        // Section header
         doc.setFillColor(...headerBg);
         doc.roundedRect(marginL, y, contentW, 7, 1, 1, "F");
         doc.setTextColor(...primaryColor);
@@ -195,12 +166,10 @@ export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: 
         doc.text(section.title, marginL + 3, y + 5);
         y += 10;
 
-        // Fields
         for (const key of filledKeys) {
           const label = FIELD_LABELS[key] || key;
           const value = formatValue(responses[key]);
 
-          // Calculate needed height
           const valueLines = doc.splitTextToSize(value, contentW - 55);
           const lineHeight = 4.5;
           const neededH = Math.max(lineHeight, valueLines.length * lineHeight) + 2;
@@ -216,14 +185,12 @@ export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: 
           doc.setFont("helvetica", "normal");
           doc.text(valueLines, marginL + 55, y + 3.5);
 
-          // Subtle separator
           doc.setDrawColor(226, 232, 240);
           doc.setLineWidth(0.2);
           doc.line(marginL + 3, y + neededH - 1, pageW - marginR - 3, y + neededH - 1);
 
           y += neededH;
         }
-
         y += 4;
       }
 
@@ -235,9 +202,7 @@ export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: 
         doc.setTextColor(...mutedColor);
         doc.text(
           `${settings.company_name || "OrçaMóvel PRO"} — Briefing de ${clientName} — Página ${i}/${totalPages}`,
-          pageW / 2,
-          pageH - 8,
-          { align: "center" }
+          pageW / 2, pageH - 8, { align: "center" }
         );
       }
 
@@ -249,7 +214,6 @@ export function BriefingPrintButton({ clientName, orcamentoNumero, responses }: 
     }
   }, [clientName, orcamentoNumero, responses, settings]);
 
-  // Simple print fallback
   const handlePrint = useCallback(() => {
     const rows = Object.entries(responses)
       .filter(([, v]) => v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0))

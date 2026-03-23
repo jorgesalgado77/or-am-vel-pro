@@ -558,6 +558,8 @@ export default function TenantLanding() {
           return;
         }
 
+        console.error("Direct client insert failed, trying leads table:", clientError);
+
         const { error: leadError } = await supabase.from("leads").insert({
           nome: nome.trim(),
           telefone: cleanPhone,
@@ -566,6 +568,7 @@ export default function TenantLanding() {
           cargo: "outro",
           notas: interesseText,
           status: "novo",
+          tenant_id: tenant.id,
         } as any);
 
         if (leadError) {
