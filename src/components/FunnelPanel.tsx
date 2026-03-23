@@ -83,6 +83,7 @@ export function FunnelPanel() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [newBenefit, setNewBenefit] = useState("");
+  const [newInvestRange, setNewInvestRange] = useState("");
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
