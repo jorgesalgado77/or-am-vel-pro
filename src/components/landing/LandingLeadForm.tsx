@@ -27,9 +27,19 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const lastSubmitRef = useRef<number>(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const now = Date.now();
+    const elapsed = now - lastSubmitRef.current;
+    if (elapsed < 30_000 && lastSubmitRef.current > 0) {
+      const wait = Math.ceil((30_000 - elapsed) / 1000);
+      toast.error(`Aguarde ${wait}s antes de enviar novamente.`);
+      return;
+    }
+
     setErrors({});
 
     const result = leadSchema.safeParse(form);
