@@ -29,7 +29,7 @@ interface MessagesPanelProps {
   onUnreadChange?: (count: number) => void;
 }
 
-export function MessagesPanel({ onUnreadChange }: MessagesPanelProps) {
+export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(function MessagesPanel({ onUnreadChange }, _ref) {
   const [trackings, setTrackings] = useState<TrackingWithMessages[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTracking, setSelectedTracking] = useState<TrackingWithMessages | null>(null);
