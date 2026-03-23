@@ -170,7 +170,7 @@ export function BoletoRatesTab() {
               {providers.map((provider) => {
                 const pd = providerDefaults[provider] || { parcelas: 0, carencia: 30 };
                 const providerRates = rates.filter((r) => r.provider_name === provider);
-                const maxInstallments = providerRates.length || 24;
+                const providerInstallments = [...new Set(providerRates.map((r) => r.installments))].sort((a, b) => a - b);
                 const has60 = providerRates.some((r) => Number(r.coeficiente_60) > 0);
                 const has90 = providerRates.some((r) => Number(r.coeficiente_90) > 0);
                 return (
@@ -181,7 +181,7 @@ export function BoletoRatesTab() {
                       <Select value={String(pd.parcelas || "")} onValueChange={(v) => updateProviderDefault(provider, "parcelas", Number(v))}>
                         <SelectTrigger className="mt-1 w-[100px] h-8"><SelectValue placeholder="—" /></SelectTrigger>
                         <SelectContent>
-                          {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((n) => (
+                          {providerInstallments.map((n) => (
                             <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
                           ))}
                         </SelectContent>
