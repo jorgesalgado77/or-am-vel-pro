@@ -28,6 +28,7 @@ const CampaignLibrary = lazy(() => import("@/components/CampaignLibrary").then(m
 const ReferralPanel = lazy(() => import("@/components/ReferralPanel").then(m => ({ default: m.ReferralPanel })));
 const FinancialPanel = lazy(() => import("@/components/FinancialPanel").then(m => ({ default: m.FinancialPanel })));
 const TutorialsPanel = lazy(() => import("@/components/tutorials/TutorialsPanel").then(m => ({ default: m.TutorialsPanel })));
+const SmartImport3DView = lazy(() => import("@/components/smartimport/SmartImport3DView").then(m => ({ default: m.SmartImport3DView })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
