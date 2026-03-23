@@ -195,7 +195,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
         </div>
       )}
 
-      {/* List */}
+      {/* List — progressive rendering for large lists */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="p-4 text-center text-sm text-muted-foreground">Carregando...</div>
@@ -204,54 +204,11 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
             {search || hasActiveFilter ? "Nenhum resultado" : "Nenhuma conversa"}
           </div>
         ) : (
-          filtered.map((conv) => {
-            const tempConfig = conv.lead_temperature ? TEMPERATURE_CONFIG[conv.lead_temperature] : null;
-            return (
-              <button
-                key={conv.id}
-                onClick={() => onSelect(conv)}
-                className={cn(
-                  "w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors duration-100",
-                  selectedId === conv.id
-                    ? "bg-primary/8"
-                    : "hover:bg-muted/50 active:scale-[0.99]"
-                )}
-              >
-                <div className="flex items-start gap-2">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold text-primary">
-                    {conv.nome_cliente.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {conv.nome_cliente}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {timeAgo(conv.last_message_at)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-1 mt-0.5">
-                      <p className="text-xs text-muted-foreground truncate flex-1">
-                        {conv.last_message || conv.numero_contrato}
-                      </p>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {tempConfig && (
-                          <span className="text-[10px]" title={tempConfig.label}>
-                            {tempConfig.emoji}
-                          </span>
-                        )}
-                        {conv.unread_count > 0 && (
-                          <Badge variant="destructive" className="text-[9px] h-4 min-w-[16px] px-1 flex items-center justify-center">
-                            {conv.unread_count}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })
+          <VirtualizedConversationList
+            conversations={filtered}
+            selectedId={selectedId}
+            onSelect={onSelect}
+          />
         )}
       </div>
     </div>
