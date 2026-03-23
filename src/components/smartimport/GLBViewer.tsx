@@ -624,7 +624,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
       renderer?.dispose?.();
       threeRef.current = null;
     };
-  }, [fileUrl]);
+  }, [fileUrl, qualityPreset]);
 
   useEffect(() => {
     if (!threeRef.current) return;
