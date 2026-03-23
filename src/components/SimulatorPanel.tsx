@@ -111,29 +111,33 @@ function loadStoredState(): Partial<SimulatorStoredState> {
   return {};
 }
 
-export function SimulatorPanel({ client, onBack, onClientCreated }: SimulatorPanelProps) {
+export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulation }: SimulatorPanelProps) {
   // Only restore stored state if there's an active client context or stored data is fresh
   const stored = useMemo(() => {
+    // If opening from a saved simulation, use that data instead of sessionStorage
+    if (initialSimulation) return {};
     if (client) return loadStoredState();
-    // No client — check if stored state has a nonzero valorTela (user was mid-edit)
     const s = loadStoredState();
     return s.valorTela ? s : {};
   }, []);
 
+  // Pre-fill from saved simulation if provided
+  const init = initialSimulation;
+
   const savedRef = useRef(false);
 
-  const [valorTela, setValorTela] = useState(stored.valorTela ?? 0);
-  const [desconto1, setDesconto1] = useState(stored.desconto1 ?? 0);
-  const [desconto2, setDesconto2] = useState(stored.desconto2 ?? 0);
-  const [desconto3, setDesconto3] = useState(stored.desconto3 ?? 0);
-  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>(stored.formaPagamento ?? "A vista");
-  const [parcelas, setParcelas] = useState(stored.parcelas ?? 1);
-  const [valorEntrada, setValorEntrada] = useState(stored.valorEntrada ?? 0);
-  const [plusPercentual, setPlusPercentual] = useState(stored.plusPercentual ?? 0);
+  const [valorTela, setValorTela] = useState(init?.valor_tela ?? stored.valorTela ?? 0);
+  const [desconto1, setDesconto1] = useState(init?.desconto1 ?? stored.desconto1 ?? 0);
+  const [desconto2, setDesconto2] = useState(init?.desconto2 ?? stored.desconto2 ?? 0);
+  const [desconto3, setDesconto3] = useState(init?.desconto3 ?? stored.desconto3 ?? 0);
+  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>((init?.forma_pagamento as FormaPagamento) ?? stored.formaPagamento ?? "A vista");
+  const [parcelas, setParcelas] = useState(init?.parcelas ?? stored.parcelas ?? 1);
+  const [valorEntrada, setValorEntrada] = useState(init?.valor_entrada ?? stored.valorEntrada ?? 0);
+  const [plusPercentual, setPlusPercentual] = useState(init?.plus_percentual ?? stored.plusPercentual ?? 0);
   const [carenciaDias, setCarenciaDias] = useState<30 | 60 | 90>(stored.carenciaDias ?? 30);
   const [saving, setSaving] = useState(false);
-  const [desconto3Unlocked, setDesconto3Unlocked] = useState(stored.desconto3Unlocked ?? false);
-  const [plusUnlocked, setPlusUnlocked] = useState(stored.plusUnlocked ?? false);
+  const [desconto3Unlocked, setDesconto3Unlocked] = useState((init?.desconto3 ?? 0) > 0 || (stored.desconto3Unlocked ?? false));
+  const [plusUnlocked, setPlusUnlocked] = useState((init?.plus_percentual ?? 0) > 0 || (stored.plusUnlocked ?? false));
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
