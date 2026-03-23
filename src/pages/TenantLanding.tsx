@@ -264,6 +264,7 @@ export default function TenantLanding() {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
 
   useEffect(() => {
     if (!codigo) return;
@@ -460,8 +461,11 @@ export default function TenantLanding() {
 
     let uploaded = 0;
     let failed = 0;
+    const total = arquivos.length;
 
     for (const [index, file] of arquivos.entries()) {
+      setUploadProgress({ current: index + 1, total, fileName: file.name });
+
       const validation = validateFileUpload(file);
       if (!validation.valid) {
         failed += 1;
@@ -495,6 +499,7 @@ export default function TenantLanding() {
       });
     }
 
+    setUploadProgress(null);
     return { uploaded, failed };
   }, [arquivos, tenant?.id, nome]);
 
@@ -867,10 +872,35 @@ export default function TenantLanding() {
                     <Button type="submit" disabled={sending}
                       className="w-full h-13 text-base font-bold rounded-xl text-white shadow-xl active:scale-[0.97] transition-all border-0"
                       style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)`, boxShadow: `0 8px 30px ${color}40` }}>
-                      {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                      {sending ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          {uploadProgress
+                            ? `Enviando anexo ${uploadProgress.current}/${uploadProgress.total}...`
+                            : "Enviando dados..."}
+                        </span>
+                      ) : (
                         <>Quero meu Projeto 3D Grátis <ArrowRight className="ml-2 h-5 w-5" /></>
                       )}
                     </Button>
+
+                    {/* Upload progress bar */}
+                    {sending && uploadProgress && (
+                      <div className="space-y-1.5 landing-fade-in">
+                        <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${color}20` }}>
+                          <div
+                            className="h-full rounded-full transition-all duration-500 ease-out"
+                            style={{
+                              width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                              background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-gray-400 truncate text-center">
+                          📎 {uploadProgress.fileName}
+                        </p>
+                      </div>
+                    )}
                   </form>
 
                   <div className="flex items-center justify-center gap-5 text-[11px] text-gray-500 pt-1">
