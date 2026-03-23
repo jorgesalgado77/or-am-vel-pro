@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical, Instagram, Facebook, Youtube, Globe, Twitter, Share2 } from "lucide-react";
+import { Copy, ExternalLink, Loader2, Save, Plus, X, Link2, Palette, Type, ListChecks, BarChart3, Video, ImageIcon, Upload, Trash2, GripVertical, Instagram, Facebook, Youtube, Globe, Twitter, Share2, DollarSign } from "lucide-react";
 import { FunnelMetrics } from "@/components/funnel/FunnelMetrics";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +38,7 @@ interface FunnelConfig {
   promo_video_url: string;
   carousel_images: string[];
   social_links: SocialLinks;
+  investment_ranges: string[];
 }
 
 const DEFAULT_SOCIAL: SocialLinks = {
@@ -48,6 +49,15 @@ const DEFAULT_SOCIAL: SocialLinks = {
   tiktok_url: "",
   website_url: "",
 };
+
+const DEFAULT_INVESTMENT_RANGES = [
+  "Até R$ 20.000",
+  "R$ 20.000 a R$ 50.000",
+  "R$ 50.000 a R$ 100.000",
+  "R$ 100.000 a R$ 200.000",
+  "Acima de R$ 200.000",
+  "Não sei informar",
+];
 
 const DEFAULT_CONFIG: FunnelConfig = {
   headline: "Ganhe seu Projeto 3D Gratuito",
@@ -63,6 +73,7 @@ const DEFAULT_CONFIG: FunnelConfig = {
   promo_video_url: "",
   carousel_images: [],
   social_links: DEFAULT_SOCIAL,
+  investment_ranges: DEFAULT_INVESTMENT_RANGES,
 };
 
 export function FunnelPanel() {
@@ -72,6 +83,7 @@ export function FunnelPanel() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [newBenefit, setNewBenefit] = useState("");
+  const [newInvestRange, setNewInvestRange] = useState("");
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -95,6 +107,7 @@ export function FunnelPanel() {
           promo_video_url: d.promo_video_url || "",
           carousel_images: d.carousel_images || [],
           social_links: d.social_links || DEFAULT_SOCIAL,
+          investment_ranges: d.investment_ranges || DEFAULT_INVESTMENT_RANGES,
         });
       }
       setLoading(false);
@@ -172,6 +185,7 @@ export function FunnelPanel() {
         promo_video_url: config.promo_video_url,
         carousel_images: config.carousel_images,
         social_links: config.social_links,
+        investment_ranges: config.investment_ranges,
       };
       const { error } = await (supabase as any).from("tenant_funnel_config").upsert(payload, { onConflict: "tenant_id" });
       if (error) {
@@ -201,6 +215,16 @@ export function FunnelPanel() {
 
   const removeBenefit = (i: number) => {
     setConfig((p) => ({ ...p, benefits: p.benefits.filter((_, idx) => idx !== i) }));
+  };
+
+  const addInvestRange = () => {
+    if (!newInvestRange.trim()) return;
+    setConfig((p) => ({ ...p, investment_ranges: [...p.investment_ranges, newInvestRange.trim()] }));
+    setNewInvestRange("");
+  };
+
+  const removeInvestRange = (i: number) => {
+    setConfig((p) => ({ ...p, investment_ranges: p.investment_ranges.filter((_, idx) => idx !== i) }));
   };
 
   if (loading) {
@@ -407,7 +431,30 @@ export function FunnelPanel() {
         </CardContent>
       </Card>
 
-      {/* Redes Sociais */}
+      {/* Faixas de Investimento */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg"><DollarSign className="h-5 w-5 text-primary" /> Faixas de Investimento</CardTitle>
+          <CardDescription>Configure as opções de investimento que aparecerão no formulário da landing page pública.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {config.investment_ranges.map((r, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm">{r}</div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeInvestRange(i)}><X className="h-4 w-4" /></Button>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <Input value={newInvestRange} onChange={(e) => setNewInvestRange(e.target.value)} placeholder="Ex: R$ 50.000 a R$ 100.000" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInvestRange())} />
+            <Button variant="outline" size="icon" onClick={addInvestRange}><Plus className="h-4 w-4" /></Button>
+          </div>
+          {config.investment_ranges.length === 0 && (
+            <Button variant="outline" size="sm" onClick={() => setConfig(p => ({ ...p, investment_ranges: DEFAULT_INVESTMENT_RANGES }))}>
+              Carregar valores padrão
+            </Button>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg"><Share2 className="h-5 w-5 text-primary" /> Redes Sociais</CardTitle>

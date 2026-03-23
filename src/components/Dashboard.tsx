@@ -57,7 +57,7 @@ const CHART_COLORS = [
 const currencyFormatter = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
-type ChartKey = "evolucao" | "projetista" | "indicador" | "contratos";
+type ChartKey = "evolucao" | "projetista" | "indicador" | "contratos" | "leads_origem";
 
 // Date filter types and utilities now imported from @/lib/dateFilterUtils
 
@@ -71,7 +71,11 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     projetista: false,
     indicador: false,
     contratos: false,
+    leads_origem: false,
   });
+
+  // Lead filter by projetista
+  const [leadProjetistaFilter, setLeadProjetistaFilter] = useState<string>("todos");
 
   // Date filter state
   const [datePreset, setDatePreset] = useState<DateFilterPreset>("mes_atual");
@@ -299,7 +303,53 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     { key: "contratos", label: "Contratos" },
     { key: "projetista", label: "Projetista" },
     { key: "indicador", label: "Indicador" },
+    { key: "leads_origem", label: "Leads por Origem" },
   ], []);
+
+  // Unique projetistas for filter
+  const projetistaNames = useMemo(() => {
+    const names = new Set(filteredClients.map(c => c.vendedor || "Sem projetista"));
+    return Array.from(names).sort();
+  }, [filteredClients]);
+
+  // Filtered lead source data by projetista
+  const filteredLeadsBySource = useMemo(() => {
+    const src = { landing_page: 0, afiliado: 0, indicacao: 0, link: 0, manual: 0, total: 0 };
+    const clientsToCount = leadProjetistaFilter === "todos" 
+      ? filteredClients 
+      : filteredClients.filter(c => (c.vendedor || "Sem projetista") === leadProjetistaFilter);
+    
+    clientsToCount.forEach(c => {
+      const origem = (c as any).origem_lead;
+      if (!origem || origem === "manual") {
+        src.manual++;
+      } else if (origem === "landing_page" || origem === "site" || origem === "funil_loja") {
+        src.landing_page++;
+      } else if (origem === "afiliado" || origem === "affiliate") {
+        src.afiliado++;
+      } else if (origem === "indicacao" || origem === "referral") {
+        src.indicacao++;
+      } else if (origem === "link" || origem === "compartilhado") {
+        src.link++;
+      } else {
+        src.manual++;
+      }
+      if (origem && origem !== "manual") src.total++;
+    });
+    return src;
+  }, [filteredClients, leadProjetistaFilter]);
+
+  // Pie data for leads by origin
+  const leadsPieData = useMemo(() => {
+    const data = [
+      { name: "Landing Page", value: filteredLeadsBySource.landing_page },
+      { name: "Afiliados", value: filteredLeadsBySource.afiliado },
+      { name: "Indicação", value: filteredLeadsBySource.indicacao },
+      { name: "Link Compartilhado", value: filteredLeadsBySource.link },
+      { name: "Manual / Loja", value: filteredLeadsBySource.manual },
+    ].filter(d => d.value > 0);
+    return data;
+  }, [filteredLeadsBySource]);
 
   return (
     <div className="space-y-6">
@@ -363,15 +413,35 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
       </div>
 
-      {/* Lead Source Cards */}
-      {stats.leadsBySource.total > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard icon={Megaphone} label="Leads Landing Page" value={String(stats.leadsBySource.landing_page)} accent={stats.leadsBySource.landing_page > 0} />
-          <KpiCard icon={UserPlus} label="Leads Afiliados" value={String(stats.leadsBySource.afiliado)} accent={stats.leadsBySource.afiliado > 0} />
-          <KpiCard icon={Users} label="Leads Indicação" value={String(stats.leadsBySource.indicacao)} accent={stats.leadsBySource.indicacao > 0} />
-          <KpiCard icon={Share2} label="Leads Link Compartilhado" value={String(stats.leadsBySource.link)} accent={stats.leadsBySource.link > 0} />
-        </div>
-      )}
+      {/* Lead Source Cards with Projetista filter */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Megaphone className="h-4 w-4 text-primary" />
+              Leads por Origem
+            </h3>
+            <Select value={leadProjetistaFilter} onValueChange={setLeadProjetistaFilter}>
+              <SelectTrigger className="w-[180px] h-8 text-sm">
+                <SelectValue placeholder="Todos os projetistas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os projetistas</SelectItem>
+                {projetistaNames.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <KpiCard icon={Megaphone} label="Landing Page" value={String(filteredLeadsBySource.landing_page)} accent={filteredLeadsBySource.landing_page > 0} />
+            <KpiCard icon={UserPlus} label="Afiliados" value={String(filteredLeadsBySource.afiliado)} accent={filteredLeadsBySource.afiliado > 0} />
+            <KpiCard icon={Users} label="Indicação" value={String(filteredLeadsBySource.indicacao)} accent={filteredLeadsBySource.indicacao > 0} />
+            <KpiCard icon={Share2} label="Link Compartilhado" value={String(filteredLeadsBySource.link)} accent={filteredLeadsBySource.link > 0} />
+            <KpiCard icon={UserCheck} label="Manual / Loja" value={String(filteredLeadsBySource.manual)} />
+          </div>
+        </CardContent>
+      </Card>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground font-medium">Gráficos:</span>
         {chartToggles.map(({ key, label }) => (
@@ -547,6 +617,63 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
           </Card>
         )}
       </div>
+
+      {/* Leads by Origin Pie Chart */}
+      {visibleCharts.leads_origem && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Distribuição de Leads por Origem</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {leadsPieData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum lead no período</p>
+            ) : (
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="w-[280px] h-[280px] flex-shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={leadsPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={100}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        labelLine={false}
+                        style={{ fontSize: 11 }}
+                      >
+                        {leadsPieData.map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number) => [value, "Leads"]}
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          fontSize: 13,
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-3 flex-1">
+                  {leadsPieData.map((d, i) => (
+                    <div key={d.name} className="flex items-center gap-3">
+                      <div className="h-4 w-4 rounded-full flex-shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span className="text-sm text-foreground font-medium flex-1">{d.name}</span>
+                      <Badge variant="secondary" className="text-sm font-bold">{d.value}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -258,6 +258,8 @@ export default function TenantLanding() {
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [descricao, setDescricao] = useState("");
+  const [investimento, setInvestimento] = useState("");
+  const [investmentRanges, setInvestmentRanges] = useState<string[]>([]);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -352,7 +354,7 @@ export default function TenantLanding() {
             let fd: any = null;
             const { data: directData } = await supabase
               .from("tenant_funnel_config" as any)
-              .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links, whatsapp")
+              .select("promo_video_url, carousel_images, primary_color, headline, sub_headline, cta_text, benefits, social_links, whatsapp, investment_ranges")
               .eq("tenant_id", tenantData.id)
               .maybeSingle();
             fd = directData;
@@ -376,6 +378,9 @@ export default function TenantLanding() {
               if (Array.isArray(d.benefits) && d.benefits.length) tenantData.benefits = d.benefits;
               if (d.social_links) tenantData.social_links = d.social_links;
               if (d.whatsapp) tenantData.whatsapp_loja = d.whatsapp;
+              if (Array.isArray(d.investment_ranges) && d.investment_ranges.length) {
+                if (active) setInvestmentRanges(d.investment_ranges);
+              }
             }
           } catch {
             // keep lightweight fallback data for public route
@@ -422,11 +427,12 @@ export default function TenantLanding() {
     if (cleanPhone.length < 10) { toast.error("Telefone inválido"); return; }
     setSending(true);
 
+    const interesseText = [descricao.trim(), investimento ? `Investimento: ${investimento}` : ""].filter(Boolean).join(" | ") || "Projeto 3D gratuito";
     const leadPayload = {
       nome: nome.trim(),
       telefone: cleanPhone,
       email: email.trim() || undefined,
-      interesse: descricao.trim() || "Projeto 3D gratuito",
+      interesse: interesseText,
       origem: refCode ? "indicacao" : "funil_loja",
       referral_code: refCode || undefined,
       tenant_id: tenant?.id,
@@ -741,8 +747,28 @@ export default function TenantLanding() {
                         placeholder="Ex: Cozinha planejada para apartamento de 60m²..."
                         className="rounded-xl bg-gray-800/80 border-gray-700 text-white placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10 min-h-[70px]" />
                     </div>
+                    {investmentRanges.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium text-gray-300">Quanto pretende investir em Móveis Planejados?</Label>
+                        <div className="grid grid-cols-1 gap-2">
+                          {investmentRanges.map((range, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setInvestimento(range)}
+                              className={`text-left px-4 py-2.5 rounded-xl text-sm transition-all border ${
+                                investimento === range
+                                  ? "border-white/40 bg-white/10 text-white font-medium"
+                                  : "border-gray-700 bg-gray-800/60 text-gray-400 hover:border-gray-600 hover:text-gray-300"
+                              }`}
+                            >
+                              {range}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-1.5">
-                      <Label className="text-sm font-medium text-gray-300">Anexar planta ou fotos <span className="text-gray-500">(opcional)</span></Label>
                       <div className="border border-dashed border-gray-700 rounded-xl p-3 text-center hover:border-gray-500 transition-colors cursor-pointer"
                         onClick={() => document.getElementById("lead-files")?.click()}>
                         <input id="lead-files" type="file" multiple accept="image/*,.pdf,.dwg" className="hidden"
