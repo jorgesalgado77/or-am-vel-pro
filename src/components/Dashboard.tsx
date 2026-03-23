@@ -71,7 +71,11 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     projetista: false,
     indicador: false,
     contratos: false,
+    leads_origem: false,
   });
+
+  // Lead filter by projetista
+  const [leadProjetistaFilter, setLeadProjetistaFilter] = useState<string>("todos");
 
   // Date filter state
   const [datePreset, setDatePreset] = useState<DateFilterPreset>("mes_atual");
