@@ -746,8 +746,28 @@ export default function TenantLanding() {
                         placeholder="Ex: Cozinha planejada para apartamento de 60m²..."
                         className="rounded-xl bg-gray-800/80 border-gray-700 text-white placeholder:text-gray-500 focus:border-white/30 focus:ring-1 focus:ring-white/10 min-h-[70px]" />
                     </div>
+                    {investmentRanges.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium text-gray-300">Quanto pretende investir em Móveis Planejados?</Label>
+                        <div className="grid grid-cols-1 gap-2">
+                          {investmentRanges.map((range, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setInvestimento(range)}
+                              className={`text-left px-4 py-2.5 rounded-xl text-sm transition-all border ${
+                                investimento === range
+                                  ? "border-white/40 bg-white/10 text-white font-medium"
+                                  : "border-gray-700 bg-gray-800/60 text-gray-400 hover:border-gray-600 hover:text-gray-300"
+                              }`}
+                            >
+                              {range}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-1.5">
-                      <Label className="text-sm font-medium text-gray-300">Anexar planta ou fotos <span className="text-gray-500">(opcional)</span></Label>
                       <div className="border border-dashed border-gray-700 rounded-xl p-3 text-center hover:border-gray-500 transition-colors cursor-pointer"
                         onClick={() => document.getElementById("lead-files")?.click()}>
                         <input id="lead-files" type="file" multiple accept="image/*,.pdf,.dwg" className="hidden"
