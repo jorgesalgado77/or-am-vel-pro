@@ -422,13 +422,13 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
 
         renderer = new THREE.WebGLRenderer({
           canvas: canvasRef.current,
-          antialias: true,
+          antialias: quality.antialias,
           alpha: true,
-          powerPreference: "high-performance",
+          powerPreference: qualityPreset === "low" ? "low-power" : "high-performance",
         });
         canvasElement = canvasRef.current;
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        renderer.setPixelRatio(quality.pixelRatio);
         renderer.toneMapping = THREE.NoToneMapping;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
 
