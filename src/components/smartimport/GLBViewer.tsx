@@ -447,6 +447,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         const grid = new THREE.GridHelper(30, 30, gridPalette.ground, gridPalette.ground);
         (grid.material as any).opacity = 0.4;
         (grid.material as any).transparent = true;
+        grid.visible = gridPalette.showGrid;
         scene.add(grid);
 
         threeRef.current = {
