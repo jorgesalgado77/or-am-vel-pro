@@ -82,7 +82,7 @@ export const ProjectThumbnail = memo(function ProjectThumbnail({ fileUrl }: Proj
           const group = new THREE.Group();
           const lines = text.split(/\r?\n/).map(l => l.trim());
           let i = 0, inEntities = false;
-          const pts: THREE.Vector3[] = [];
+          const pts: any[] = [];
           while (i < lines.length) {
             if (lines[i] === "ENTITIES") { inEntities = true; i++; continue; }
             if (lines[i] === "ENDSEC" && inEntities) break;
