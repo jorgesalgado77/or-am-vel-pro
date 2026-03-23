@@ -402,8 +402,6 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             }
           };
 
-          // Reset auto-color index for DXF
-          autoColorIdx = 0;
 
           if (ext === "glb" || ext === "gltf") {
             setProgressLabel("Processando modelo GLB...");
