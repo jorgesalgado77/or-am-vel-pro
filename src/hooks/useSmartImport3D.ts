@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { getSmartImportContentType, persistProjectThumbnail } from "@/components/smartimport/thumbnailRenderer";
 
 export interface ImportedProject {
   id: string;
@@ -118,7 +119,7 @@ export function useSmartImport3D(tenantId: string | null) {
     const filePath = `${tenantId}/3d-projects/${Date.now()}-${file.name}`;
     const { error: uploadError } = await supabase.storage
       .from("smart-import-3d")
-      .upload(filePath, file, { contentType: "model/gltf-binary" });
+      .upload(filePath, file, { contentType: getSmartImportContentType(file) });
 
     if (uploadError) {
       toast.error("Erro ao enviar arquivo 3D");
@@ -145,9 +146,20 @@ export function useSmartImport3D(tenantId: string | null) {
       return null;
     }
 
+    let thumbnailUrl: string | null = null;
+    try {
+      thumbnailUrl = await persistProjectThumbnail((data as any).id, urlData.publicUrl);
+    } catch (thumbnailError) {
+      console.error("Erro ao gerar miniatura persistida:", thumbnailError);
+      toast.warning("Projeto importado, mas a miniatura ainda não foi gerada.");
+    }
+
     toast.success("Projeto 3D importado com sucesso!");
     loadProjects();
-    return data as any;
+    return {
+      ...(data as any),
+      thumbnail_url: thumbnailUrl || (data as any).thumbnail_url,
+    } as any;
   };
 
   // Save object classification
