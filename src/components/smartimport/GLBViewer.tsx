@@ -502,129 +502,102 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
               loadedObject.position.sub(center.multiplyScalar(scale));
             }
 
-            // Click selection with highlight
+            // Click selection with lightweight highlight
             const raycaster = new THREE.Raycaster();
-            raycaster.params.Line = { threshold: 0.5 };
+            raycaster.params.Line = { threshold: 0.25 };
             const mouse = new THREE.Vector2();
-            let selectedOutline: any = null;
-            const originalMaterials = new Map<any, any>();
+            let selectedObject: any = null;
 
-            renderer.domElement.addEventListener("click", (event) => {
+            const restoreSelection = () => {
+              if (!selectedObject) return;
+              if (selectedObject.userData?.originalMaterial) {
+                selectedObject.material = selectedObject.userData.originalMaterial;
+              }
+              selectedObject = null;
+            };
+
+            const handleClick = (event: MouseEvent) => {
               const rect = renderer.domElement.getBoundingClientRect();
               mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
               mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
               raycaster.setFromCamera(mouse, camera);
 
-              // Restore all previously modified objects
-              originalMaterials.forEach((origMat, obj) => { obj.material = origMat; });
-              originalMaterials.clear();
-              if (selectedOutline) { scene.remove(selectedOutline); selectedOutline = null; }
-
               const intersects = raycaster.intersectObjects(
-                loadedObject ? [loadedObject] : scene.children, true
+                loadedObject ? [loadedObject] : scene.children,
+                true,
               );
 
-              if (intersects.length > 0) {
-                const hit = intersects[0].object as any;
+              restoreSelection();
 
-                // Save original material and apply highlight
-                originalMaterials.set(hit, hit.material);
-
-                if (hit.isMesh) {
-                  const origColor = hit.material?.color?.clone?.();
-                  hit.material = new THREE.MeshStandardMaterial({
-                    color: origColor || new THREE.Color(0x4FC3F7),
-                    emissive: new THREE.Color(0x29B6F6),
-                    emissiveIntensity: 0.5,
-                    metalness: 0.2,
-                    roughness: 0.4,
-                    side: THREE.DoubleSide,
-                  });
-
-                  // Wireframe glow outline
-                  if (hit.geometry) {
-                    const outlineMat = new THREE.MeshBasicMaterial({
-                      color: 0x29B6F6, wireframe: true, transparent: true, opacity: 0.35,
-                    });
-                    selectedOutline = new THREE.Mesh(hit.geometry.clone(), outlineMat);
-                    selectedOutline.position.copy(hit.position);
-                    selectedOutline.rotation.copy(hit.rotation);
-                    selectedOutline.scale.copy(hit.scale).multiplyScalar(1.02);
-                    if (hit.parent) selectedOutline.applyMatrix4(hit.matrixWorld);
-                    scene.add(selectedOutline);
-                  }
-                } else {
-                  hit.material = new THREE.LineBasicMaterial({ color: 0x29B6F6, linewidth: 3 });
-                }
-
-                // Dim other objects
-                loadedObject?.traverse?.((child: any) => {
-                  if (child !== hit && (child.isMesh || child.isLine || child.isLineSegments)) {
-                    if (!originalMaterials.has(child)) originalMaterials.set(child, child.material);
-                    if (child.isMesh) {
-                      child.material = new THREE.MeshStandardMaterial({
-                        color: child.material?.color?.clone?.() || new THREE.Color(0x808080),
-                        transparent: true, opacity: 0.2, side: THREE.DoubleSide,
-                      });
-                    } else {
-                      child.material = new THREE.LineBasicMaterial({
-                        color: child.material?.color?.clone?.() || new THREE.Color(0x808080),
-                        transparent: true, opacity: 0.15,
-                      });
-                    }
-                  }
-                });
-
-                // Calculate bounding box dimensions of the selected piece
-                const pieceBox = new THREE.Box3().setFromObject(hit);
-                const pieceSize = pieceBox.getSize(new THREE.Vector3());
-                const scaleF = loadedObject.scale.x || 1;
-                const realW = Math.round((pieceSize.x / scaleF) * 100) / 100;
-                const realH = Math.round((pieceSize.y / scaleF) * 100) / 100;
-                const realD = Math.round((pieceSize.z / scaleF) * 100) / 100;
-
-                // Extract material info
-                const origMat = originalMaterials.get(hit) || hit.material;
-                const matName = origMat?.name || "Padrão";
-                const matColor = origMat?.color?.getHexString?.() || null;
-                const matType = origMat?.type || "Unknown";
-                const vtxCount = hit.geometry?.attributes?.position?.count || 0;
-
-                if (mounted) {
-                  setSelectedPiece({
-                    name: hit.name || "Objeto sem nome",
-                    width: realW,
-                    height: realH,
-                    depth: realD,
-                    materialName: matName,
-                    materialColor: matColor,
-                    materialType: matType,
-                    vertexCount: vtxCount,
-                  });
-                }
-
-                if (onObjectSelect) {
-                  onObjectSelect(hit.name || "Objeto sem nome", {
-                    type: hit.type,
-                    dimensions: { width: realW, height: realH, depth: realD },
-                    geometry: hit.geometry ? {
-                      vertices: hit.geometry.attributes?.position?.count || 0,
-                    } : null,
-                    material: originalMaterials.get(hit) ? {
-                      name: originalMaterials.get(hit).name,
-                      color: originalMaterials.get(hit).color?.getHexString?.() || null,
-                    } : null,
-                    position: {
-                      x: Math.round(hit.position.x * 100) / 100,
-                      y: Math.round(hit.position.y * 100) / 100,
-                      z: Math.round(hit.position.z * 100) / 100,
-                    },
-                  });
-                }
-              } else {
+              const hit = intersects.find((entry: any) => entry.object?.isMesh || entry.object?.isLine || entry.object?.isLineSegments)?.object as any;
+              if (!hit) {
                 if (mounted) setSelectedPiece(null);
+                return;
               }
-            });
+
+              selectedObject = hit;
+              const origMat = hit.userData?.originalMaterial || hit.material;
+              const matName = origMat?.name || "Padrão";
+              const matColor = origMat?.color?.getHexString?.() || null;
+              const matType = origMat?.type || "Unknown";
+              const vtxCount = hit.geometry?.attributes?.position?.count || 0;
+
+              if (hit.isMesh) {
+                const highlightMaterial = origMat?.clone ? origMat.clone() : new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
+                if (highlightMaterial.color) {
+                  const baseColor = origMat?.color?.clone?.() || new THREE.Color(0xffffff);
+                  highlightMaterial.color = baseColor.lerp(new THREE.Color(0xffffff), 0.12);
+                }
+                if ("emissive" in highlightMaterial) {
+                  highlightMaterial.emissive = new THREE.Color(0x38bdf8);
+                  highlightMaterial.emissiveIntensity = 0.18;
+                }
+                highlightMaterial.needsUpdate = true;
+                hit.material = highlightMaterial;
+              } else {
+                hit.material = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
+              }
+
+              const pieceBox = new THREE.Box3().setFromObject(hit);
+              const pieceSize = pieceBox.getSize(new THREE.Vector3());
+              const scaleF = loadedObject.scale.x || 1;
+              const realW = Math.round((pieceSize.x / scaleF) * 100) / 100;
+              const realH = Math.round((pieceSize.y / scaleF) * 100) / 100;
+              const realD = Math.round((pieceSize.z / scaleF) * 100) / 100;
+
+              if (mounted) {
+                setSelectedPiece({
+                  name: hit.name || "Objeto sem nome",
+                  width: realW,
+                  height: realH,
+                  depth: realD,
+                  materialName: matName,
+                  materialColor: matColor,
+                  materialType: matType,
+                  vertexCount: vtxCount,
+                });
+              }
+
+              onObjectSelectRef.current?.(hit.name || "Objeto sem nome", {
+                type: hit.type,
+                dimensions: { width: realW, height: realH, depth: realD },
+                geometry: hit.geometry ? {
+                  vertices: hit.geometry.attributes?.position?.count || 0,
+                } : null,
+                material: {
+                  name: matName,
+                  color: matColor,
+                  finish: matType,
+                },
+                position: {
+                  x: Math.round(hit.position.x * 100) / 100,
+                  y: Math.round(hit.position.y * 100) / 100,
+                  z: Math.round(hit.position.z * 100) / 100,
+                },
+              });
+            };
+
+            renderer.domElement.addEventListener("click", handleClick);
           }
 
           if (mounted) {
