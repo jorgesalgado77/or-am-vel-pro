@@ -38,6 +38,7 @@ interface FunnelConfig {
   promo_video_url: string;
   carousel_images: string[];
   social_links: SocialLinks;
+  investment_ranges: string[];
 }
 
 const DEFAULT_SOCIAL: SocialLinks = {
