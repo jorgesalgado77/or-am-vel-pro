@@ -460,8 +460,12 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           THREE,
           scene,
           renderer,
+          camera,
+          controls,
           lights: { ambient, dir1, dir2, dir3, hemi },
           grid,
+          loadedObject: null,
+          selectedObject: null,
         };
 
         setProgress(40);
