@@ -340,9 +340,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const loja = tenants.find(t => t.id === id);
     const lojaLabel = loja ? `${loja.codigo_loja || ""} - ${loja.nome_loja || "Sem nome"}` : id;
     if (!confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE a loja "${lojaLabel}" e TODOS os dados associados?\n\nEsta ação NÃO pode ser desfeita.`)) return;
-    
-    // Try RPC first for admin bypass (SECURITY DEFINER — full cascade delete)
+
     const { error: rpcError } = await supabase.rpc("admin_delete_tenant" as any, { target_tenant_id: id });
+
     if (!rpcError) {
       toast.success(`Loja "${lojaLabel}" excluída permanentemente`);
       logAudit({
@@ -352,21 +352,36 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         usuario_nome: adminName,
         detalhes: { loja_id: id, loja_nome: lojaLabel },
       });
-      setTenants(prev => prev.filter(t => t.id !== id));
+      await fetchData();
       return;
     }
-    
+
     console.error("RPC admin_delete_tenant falhou:", rpcError);
-    
-    // Fallback: direct delete
+
+    const rpcMessage = rpcError.message || "";
+    const rpcMissingRelation = rpcError.code === "42P01" || /relation\s+"public\.[^"]+"\s+does\s+not\s+exist/i.test(rpcMessage);
+
+    if (rpcMissingRelation) {
+      toast.error("A RPC admin_delete_tenant está desatualizada no Supabase. Atualize a função SQL para exclusão automática por tenant_id.");
+      return;
+    }
+
     const { error } = await supabase.from("tenants").delete().eq("id", id);
     if (error) {
       console.error("Erro ao excluir loja:", error);
-      toast.error("Erro ao excluir. Execute a RPC admin_delete_tenant no Supabase SQL Editor.");
+      toast.error("Erro ao excluir loja. Crie ou atualize a RPC admin_delete_tenant no Supabase SQL Editor.");
       return;
     }
+
     toast.success(`Loja "${lojaLabel}" excluída com sucesso`);
-    setTenants(prev => prev.filter(t => t.id !== id));
+    logAudit({
+      acao: "tenant_excluido",
+      entidade: "tenant",
+      entidade_id: id,
+      usuario_nome: adminName,
+      detalhes: { loja_id: id, loja_nome: lojaLabel },
+    });
+    await fetchData();
   };
 
   // Payment CRUD
