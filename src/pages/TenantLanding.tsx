@@ -458,11 +458,12 @@ export default function TenantLanding() {
   }, [tenant?.id]);
 
   const uploadLeadAttachments = useCallback(async (clientId?: string) => {
-    if (!arquivos.length || !tenant?.id) return { uploaded: 0, failed: 0 };
+    if (!arquivos.length || !tenant?.id) return { uploaded: 0, failed: 0, attachmentsMeta: [] as any[] };
 
     let uploaded = 0;
     let failed = 0;
     const total = arquivos.length;
+    const attachmentsMeta: any[] = [];
 
     for (const [index, file] of arquivos.entries()) {
       setUploadProgress({ current: index + 1, total, fileName: file.name });
@@ -486,23 +487,18 @@ export default function TenantLanding() {
       uploaded += 1;
 
       const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
-      await supabase.from("lead_attachments" as any).insert({
-        tenant_id: tenant.id,
-        client_id: clientId || null,
-        client_name: nome.trim(),
+      attachmentsMeta.push({
         file_name: file.name,
         file_path: path,
         file_url: urlData?.publicUrl || null,
         file_size: file.size,
         file_type: file.type || null,
-      } as any).then(({ error: insertErr }: any) => {
-        if (insertErr) console.warn("[TenantLanding] lead_attachments insert failed:", insertErr.message);
       });
     }
 
     setUploadProgress(null);
-    return { uploaded, failed };
-  }, [arquivos, tenant?.id, nome]);
+    return { uploaded, failed, attachmentsMeta };
+  }, [arquivos, tenant?.id]);
 
   const finalizeLeadSuccess = useCallback(async (clientId?: string | null) => {
     setSent(true);
