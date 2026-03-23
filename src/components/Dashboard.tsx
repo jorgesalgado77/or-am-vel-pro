@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays } from "lucide-react";
+import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays, Megaphone, Share2, UserPlus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/financing";
