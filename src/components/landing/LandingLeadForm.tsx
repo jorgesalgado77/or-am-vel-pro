@@ -52,6 +52,7 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
       return;
     }
 
+    lastSubmitRef.current = now;
     setLoading(true);
 
     try {
