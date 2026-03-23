@@ -184,6 +184,7 @@ export function FunnelPanel() {
         promo_video_url: config.promo_video_url,
         carousel_images: config.carousel_images,
         social_links: config.social_links,
+        investment_ranges: config.investment_ranges,
       };
       const { error } = await (supabase as any).from("tenant_funnel_config").upsert(payload, { onConflict: "tenant_id" });
       if (error) {
