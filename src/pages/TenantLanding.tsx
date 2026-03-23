@@ -548,9 +548,23 @@ export default function TenantLanding() {
     };
 
     try {
-      const res = await supabase.functions.invoke("lead-capture", { body: leadPayload });
+      // Upload anexos primeiro para obter metadados
+      const { attachmentsMeta, failed: attachFailed } = await uploadLeadAttachments();
+      
+      // Enviar lead + metadados dos anexos via Edge Function (service role bypassa RLS)
+      const payloadWithAttachments = {
+        ...leadPayload,
+        attachments: attachmentsMeta || [],
+      };
+      
+      const res = await supabase.functions.invoke("lead-capture", { body: payloadWithAttachments });
       if (res.error) throw res.error;
-      await finalizeLeadSuccess((res.data as any)?.client_id ?? null);
+      
+      setSent(true);
+      toast.success("Cadastro realizado com sucesso!");
+      if (attachFailed > 0) {
+        toast.info("Lead enviado, mas alguns anexos não puderam ser enviados.");
+      }
     } catch (edgeFnErr) {
       console.error("Edge function failed, trying direct insert:", edgeFnErr);
 
