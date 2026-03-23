@@ -246,7 +246,17 @@ export function DealRoomMeeting({
               <TabsContent value="chat" className="m-0 p-0 h-full">
                 <DealRoomChat sessionId={sessionId} tenantId={tenantId} userId={userId} />
               </TabsContent>
-              <TabsContent value="ai" className="m-0 p-3">
+              <TabsContent value="simulacao" className="m-0 p-3">
+                <DealRoomSimulation
+                  tenantId={tenantId}
+                  clientId={clientId}
+                  clientName={clientName}
+                  proposalValue={proposalValue}
+                  onSendAsProposal={(valor, descricao) => {
+                    toast.success(`Proposta de ${formatCurrency(valor)} criada: ${descricao}`);
+                  }}
+                />
+              </TabsContent>
                 <DealRoomAIAssistant tenantId={tenantId} clientName={clientName} proposalValue={proposalValue} />
               </TabsContent>
               <TabsContent value="anexos" className="m-0 p-3">
