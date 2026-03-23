@@ -427,11 +427,12 @@ export default function TenantLanding() {
     if (cleanPhone.length < 10) { toast.error("Telefone inválido"); return; }
     setSending(true);
 
+    const interesseText = [descricao.trim(), investimento ? `Investimento: ${investimento}` : ""].filter(Boolean).join(" | ") || "Projeto 3D gratuito";
     const leadPayload = {
       nome: nome.trim(),
       telefone: cleanPhone,
       email: email.trim() || undefined,
-      interesse: descricao.trim() || "Projeto 3D gratuito",
+      interesse: interesseText,
       origem: refCode ? "indicacao" : "funil_loja",
       referral_code: refCode || undefined,
       tenant_id: tenant?.id,
