@@ -496,6 +496,19 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef }: GLBViewerProps & 
               loader.load(fileUrl, resolve, onProgress, reject)
             );
             loadedObject = fbx;
+            let fbxIdx = 0;
+            loadedObject.traverse((child: any) => {
+              if (child.isMesh) {
+                if (!child.material?.map) {
+                  child.material = new THREE.MeshStandardMaterial({
+                    color: PIECE_PALETTE[fbxIdx % PIECE_PALETTE.length],
+                    metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide,
+                  });
+                }
+                if (!child.name) child.name = `Peça_${fbxIdx + 1}`;
+                fbxIdx++;
+              }
+            });
           } else if (ext === "dxf") {
             setProgressLabel("Processando arquivo DXF...");
             const response = await fetch(fileUrl);
