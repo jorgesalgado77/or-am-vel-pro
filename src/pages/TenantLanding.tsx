@@ -513,12 +513,27 @@ export default function TenantLanding() {
     }
   }, [uploadLeadAttachments]);
 
+  // Anti-spam: cooldown de 30s entre envios
+  const lastSubmitRef = useRef<number>(0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Rate limiting — 30s cooldown
+    const now = Date.now();
+    const elapsed = now - lastSubmitRef.current;
+    if (elapsed < 30_000 && lastSubmitRef.current > 0) {
+      const wait = Math.ceil((30_000 - elapsed) / 1000);
+      toast.error(`Aguarde ${wait}s antes de enviar novamente.`);
+      return;
+    }
+
     if (!nome.trim() || !telefone.trim()) { toast.error("Preencha nome e telefone"); return; }
     const cleanPhone = unmask(telefone);
     if (cleanPhone.length < 10) { toast.error("Telefone inválido"); return; }
     if (!tenant?.id) { toast.error("Loja não identificada."); return; }
+
+    lastSubmitRef.current = now;
 
     setSending(true);
 
