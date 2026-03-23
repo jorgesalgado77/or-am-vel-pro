@@ -19,6 +19,7 @@ interface BriefingStructuredFormProps {
   onChange: (key: string, value: any) => void;
   onToggleCheckbox: (key: string, option: string) => void;
   readOnly: boolean;
+  sellers?: { id: string; nome_completo: string; cargo_nome: string }[];
 }
 
 const ENVIRONMENTS = [
@@ -92,7 +93,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-export function BriefingStructuredForm({ responses, onChange, onToggleCheckbox, readOnly }: BriefingStructuredFormProps) {
+export function BriefingStructuredForm({ responses, onChange, onToggleCheckbox, readOnly, sellers = [] }: BriefingStructuredFormProps) {
   const v = (key: string) => responses[key] || "";
   const vArr = (key: string): string[] => Array.isArray(responses[key]) ? responses[key] : [];
   const disabled = readOnly;
@@ -103,7 +104,18 @@ export function BriefingStructuredForm({ responses, onChange, onToggleCheckbox, 
       <SectionCard icon={FileText} title="Dados Iniciais">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Vendedor/Projetista" required>
-            <Input value={v("seller_name")} onChange={e => onChange("seller_name", e.target.value)} disabled={disabled} placeholder="Nome do responsável" />
+            {sellers.length > 0 ? (
+              <Select value={v("seller_name")} onValueChange={val => onChange("seller_name", val)} disabled={disabled}>
+                <SelectTrigger><SelectValue placeholder="Selecione o responsável" /></SelectTrigger>
+                <SelectContent>
+                  {sellers.map(s => (
+                    <SelectItem key={s.id} value={s.nome_completo}>{s.nome_completo} ({s.cargo_nome})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input value={v("seller_name")} onChange={e => onChange("seller_name", e.target.value)} disabled={disabled} placeholder="Nome do responsável" />
+            )}
           </Field>
           <Field label="Data Inicial">
             <Input type="date" value={v("initial_date")} onChange={e => onChange("initial_date", e.target.value)} disabled={disabled} />
