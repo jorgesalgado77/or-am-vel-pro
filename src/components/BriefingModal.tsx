@@ -231,6 +231,7 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
                 onChange={updateResponse}
                 onToggleCheckbox={toggleCheckbox}
                 readOnly={readOnly}
+                sellers={sellers}
               />
             </div>
           )}
