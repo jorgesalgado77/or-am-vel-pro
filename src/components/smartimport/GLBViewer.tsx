@@ -95,7 +95,7 @@ function WebGLViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
           } else if (ext === "stl") {
             const { STLLoader } = await import("three/examples/jsm/loaders/STLLoader.js");
             const loader = new STLLoader();
-            const geometry = await new Promise<THREE.BufferGeometry>((resolve, reject) =>
+            const geometry = await new Promise<any>((resolve, reject) =>
               loader.load(fileUrl, resolve, undefined, reject)
             );
             const material = new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.3, roughness: 0.6 });
