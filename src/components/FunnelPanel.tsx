@@ -458,8 +458,19 @@ export function FunnelPanel() {
         <CardContent className="space-y-3">
           {config.investment_ranges.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <div className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm">{r}</div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeInvestRange(i)}><X className="h-4 w-4" /></Button>
+              {editingRangeIdx === i ? (
+                <>
+                  <Input className="flex-1" value={editingRangeValue} onChange={(e) => setEditingRangeValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), confirmEditRange())} autoFocus />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={confirmEditRange}><Check className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingRangeIdx(null)}><X className="h-4 w-4" /></Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm">{r}</div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => startEditRange(i)}><Pencil className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeInvestRange(i)}><X className="h-4 w-4" /></Button>
+                </>
+              )}
             </div>
           ))}
           <div className="flex gap-2">
