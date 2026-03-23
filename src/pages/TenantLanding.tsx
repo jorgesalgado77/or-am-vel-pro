@@ -461,8 +461,11 @@ export default function TenantLanding() {
 
     let uploaded = 0;
     let failed = 0;
+    const total = arquivos.length;
 
     for (const [index, file] of arquivos.entries()) {
+      setUploadProgress({ current: index + 1, total, fileName: file.name });
+
       const validation = validateFileUpload(file);
       if (!validation.valid) {
         failed += 1;
@@ -496,6 +499,7 @@ export default function TenantLanding() {
       });
     }
 
+    setUploadProgress(null);
     return { uploaded, failed };
   }, [arquivos, tenant?.id, nome]);
 
