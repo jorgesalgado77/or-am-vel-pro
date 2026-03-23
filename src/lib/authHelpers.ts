@@ -38,6 +38,7 @@ export const DEFAULT_PERMS: CargoPermissoes = {
   vendazap: true,
   chat_vendas: true,
   dealroom: true,
+  smart3d: true,
   divulgue_ganhe: true,
   mensagens: true,
   suporte: true,
