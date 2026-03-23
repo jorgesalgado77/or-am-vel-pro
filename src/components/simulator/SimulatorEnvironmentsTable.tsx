@@ -59,13 +59,11 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onRemov
             <TableCell className="py-1.5 text-center text-muted-foreground">
               {format(env.importedAt, "dd/MM HH:mm")}
             </TableCell>
-            {canDelete && (
-              <TableCell className="py-1.5 text-center">
-                <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => onRemove(env.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </TableCell>
-            )}
+            <TableCell className="py-1.5 text-center">
+              <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => onRemove(env.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </TableCell>
           </TableRow>
         ))}
         {environments.length > 1 && (
