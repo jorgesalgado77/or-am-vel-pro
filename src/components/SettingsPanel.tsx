@@ -46,6 +46,7 @@ export function SettingsPanel() {
           <TabsTrigger value="acompanhamento" className="gap-2"><ClipboardList className="h-4 w-4" />Acompanhamento</TabsTrigger>
           <TabsTrigger value="auditoria" className="gap-2"><ScrollText className="h-4 w-4" />Auditoria</TabsTrigger>
           <TabsTrigger value="canva" className="gap-2"><Palette className="h-4 w-4" />Canva</TabsTrigger>
+          <TabsTrigger value="briefing" className="gap-2"><FileQuestion className="h-4 w-4" />Briefing</TabsTrigger>
         </TabsList>
 
         <Suspense fallback={<TabLoader />}>
