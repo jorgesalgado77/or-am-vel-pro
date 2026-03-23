@@ -95,6 +95,94 @@ All colors MUST be HSL.
 }
 
 @layer base {
+  @property --gb-pos-x {
+    syntax: '<percentage>';
+    initial-value: 11.14%;
+    inherits: false;
+  }
+  @property --gb-pos-y {
+    syntax: '<percentage>';
+    initial-value: 140%;
+    inherits: false;
+  }
+  @property --gb-spread-x {
+    syntax: '<percentage>';
+    initial-value: 150%;
+    inherits: false;
+  }
+  @property --gb-spread-y {
+    syntax: '<percentage>';
+    initial-value: 180.06%;
+    inherits: false;
+  }
+  @property --gb-color-1 {
+    syntax: '<color>';
+    initial-value: hsl(199, 89%, 30%);
+    inherits: false;
+  }
+  @property --gb-color-2 {
+    syntax: '<color>';
+    initial-value: hsl(199, 89%, 38%);
+    inherits: false;
+  }
+  @property --gb-color-3 {
+    syntax: '<color>';
+    initial-value: hsl(199, 80%, 45%);
+    inherits: false;
+  }
+  @property --gb-color-4 {
+    syntax: '<color>';
+    initial-value: hsl(190, 70%, 40%);
+    inherits: false;
+  }
+  @property --gb-color-5 {
+    syntax: '<color>';
+    initial-value: hsl(180, 60%, 35%);
+    inherits: false;
+  }
+  @property --gb-border-angle {
+    syntax: '<angle>';
+    initial-value: 20deg;
+    inherits: true;
+  }
+  @property --gb-border-color-1 {
+    syntax: '<color>';
+    initial-value: hsla(199, 89%, 70%, 0.2);
+    inherits: true;
+  }
+  @property --gb-border-color-2 {
+    syntax: '<color>';
+    initial-value: hsla(199, 89%, 50%, 0.75);
+    inherits: true;
+  }
+  @property --gb-stop-1 {
+    syntax: '<percentage>';
+    initial-value: 37.35%;
+    inherits: false;
+  }
+  @property --gb-stop-2 {
+    syntax: '<percentage>';
+    initial-value: 61.36%;
+    inherits: false;
+  }
+  @property --gb-stop-3 {
+    syntax: '<percentage>';
+    initial-value: 78.42%;
+    inherits: false;
+  }
+  @property --gb-stop-4 {
+    syntax: '<percentage>';
+    initial-value: 89.52%;
+    inherits: false;
+  }
+  @property --gb-stop-5 {
+    syntax: '<percentage>';
+    initial-value: 100%;
+    inherits: false;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
