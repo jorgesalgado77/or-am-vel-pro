@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Handshake, Pencil, Trash2, History, FileText, Phone, Mail, User, Hash, Clock,
-  AlertTriangle, CalendarIcon, FileQuestion, Paperclip, ExternalLink,
+  AlertTriangle, CalendarIcon, FileQuestion, Paperclip, ExternalLink, Download,
 } from "lucide-react";
 import { BriefingModal } from "@/components/BriefingModal";
 import { supabase } from "@/lib/supabaseClient";
