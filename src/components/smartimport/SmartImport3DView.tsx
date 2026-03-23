@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { AddonPurchaseCard } from "@/components/AddonPurchaseCard";
 import { useSmartImport3D } from "@/hooks/useSmartImport3D";
+import { useModuleCatalog } from "@/hooks/useModuleCatalog";
 import { ProjectThumbnail } from "./ProjectThumbnail";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GLBViewer } from "./GLBViewer";
