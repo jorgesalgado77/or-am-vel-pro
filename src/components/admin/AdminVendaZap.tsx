@@ -160,20 +160,32 @@ export function AdminVendaZap() {
       openai_model: fModel,
     };
 
-    if (editingAddon && !editingAddon.id.startsWith("vip-")) {
-      const { error } = await supabase.from("vendazap_addon").update(payload as any).eq("id", editingAddon.id);
-      if (error) { toast.error("Erro ao atualizar"); return; }
-      else toast.success("Configuração atualizada!");
-    } else {
-      // For new or VIP-activated stores, upsert by tenant_id
-      const { error } = await supabase.from("vendazap_addon").upsert(payload as any, { onConflict: "tenant_id" });
-      if (error) {
-        console.error("VendaZap save error:", error);
-        toast.error("Erro ao salvar configuração");
-        return;
+    try {
+      if (editingAddon && !editingAddon.id.startsWith("vip-")) {
+        // Use edge function to bypass RLS for admin master
+        const { data, error } = await supabase.functions.invoke("admin-vendazap", {
+          body: { action: "update", addon_id: editingAddon.id, payload },
+        });
+        if (error || data?.error) {
+          toast.error(data?.error || "Erro ao atualizar");
+          return;
+        }
+        toast.success("Configuração atualizada!");
       } else {
+        // For new or VIP-activated stores, upsert via edge function
+        const { data, error } = await supabase.functions.invoke("admin-vendazap", {
+          body: { action: "upsert", payload },
+        });
+        if (error || data?.error) {
+          toast.error(data?.error || "Erro ao salvar configuração");
+          return;
+        }
         toast.success(editingAddon ? "Configuração atualizada!" : "VendaZap ativado para a loja!");
       }
+    } catch (err) {
+      console.error("VendaZap save error:", err);
+      toast.error("Erro ao salvar configuração");
+      return;
     }
 
     setShowConfigDialog(false);
