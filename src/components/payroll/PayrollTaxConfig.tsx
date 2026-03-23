@@ -23,6 +23,12 @@ export interface INSSFaixa {
   deducao: number;
 }
 
+export interface IRRFFaixa {
+  limite: number;
+  aliquota: number;
+  deducao: number;
+}
+
 export interface RegimeTaxConfig {
   CLT: TaxRate[];
   MEI: TaxRate[];
@@ -32,6 +38,9 @@ export interface RegimeTaxConfig {
 export interface FullTaxConfig {
   regimes: RegimeTaxConfig;
   inss_faixas: INSSFaixa[];
+  irrf_faixas: IRRFFaixa[];
+  irrf_isencao_limite: number;
+  irrf_transicao_limite: number;
 }
 
 export const DEFAULT_INSS_FAIXAS: INSSFaixa[] = [
