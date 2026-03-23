@@ -487,7 +487,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
         };
 
         setProgress(40);
-        setProgressLabel("Carregando arquivo...");
+        setProgressLabel(formatMsgs[1]);
 
         const onProgress = (event: any) => {
           if (event.lengthComputable) {
@@ -496,7 +496,7 @@ function WebGLViewer({ fileUrl, onObjectSelect, controlsRef, backgroundPreset, l
           }
         };
 
-        setProgressLabel("Processando modelo...");
+        setProgressLabel(formatMsgs[2]);
         const loadedObject = await loadModelForPreview(THREE, fileUrl, onProgress);
 
         if (!mounted) return;
