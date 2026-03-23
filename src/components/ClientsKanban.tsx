@@ -296,31 +296,31 @@ export function ClientsKanban({
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
           <ScrollableContainer direction="horizontal" className="flex-1 min-h-0 pb-4">
-            <div className="flex gap-3 min-w-max">
+            <div className="flex gap-2 sm:gap-3 min-w-max">
               {KANBAN_COLUMNS.map(col => (
-                <div key={col.id} className="flex flex-col min-w-[220px] w-[220px] md:min-w-[240px] md:w-[240px] shrink-0">
+                <div key={col.id} className="flex flex-col min-w-[170px] w-[170px] sm:min-w-[200px] sm:w-[200px] md:min-w-[220px] md:w-[220px] lg:min-w-[240px] lg:w-[240px] shrink-0">
                   {/* Column header */}
                   <div className="flex flex-col gap-1 mb-2 px-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{col.icon}</span>
-                      <span className="text-sm font-semibold text-foreground">{col.label}</span>
-                      <Badge variant="outline" className="ml-auto text-[10px] h-5 px-1.5">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-sm sm:text-base">{col.icon}</span>
+                      <span className="text-xs sm:text-sm font-semibold text-foreground truncate">{col.label}</span>
+                      <Badge variant="outline" className="ml-auto text-[9px] sm:text-[10px] h-4 sm:h-5 px-1 sm:px-1.5">
                         {columnData[col.id]?.length || 0}
                       </Badge>
                     </div>
                     {col.id === "novo" && (columnData["novo"]?.length || 0) > 0 && (
-                      <div className="flex items-center gap-1.5 pl-7">
+                      <div className="flex items-center gap-1.5 pl-6 sm:pl-7">
                         {(() => {
                           const novos = columnData["novo"] || [];
                           const recentes = novos.filter(c => !(c as any).origem_lead || (c as any).origem_lead === "manual").length;
                           const leads = novos.length - recentes;
                           return (
                             <>
-                              <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-emerald-500/30 text-emerald-600 gap-0.5">
-                                <UserPlus className="h-2.5 w-2.5" />{recentes}
+                              <Badge variant="outline" className="text-[8px] sm:text-[9px] h-3.5 sm:h-4 px-1 sm:px-1.5 border-emerald-500/30 text-emerald-600 gap-0.5">
+                                <UserPlus className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{recentes}
                               </Badge>
-                              <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/30 text-primary gap-0.5">
-                                <ArrowRight className="h-2.5 w-2.5" />{leads}
+                              <Badge variant="outline" className="text-[8px] sm:text-[9px] h-3.5 sm:h-4 px-1 sm:px-1.5 border-primary/30 text-primary gap-0.5">
+                                <ArrowRight className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{leads}
                               </Badge>
                             </>
                           );
@@ -329,7 +329,7 @@ export function ClientsKanban({
                     )}
                   </div>
                   <div
-                    className="rounded-lg border border-border/60 bg-muted/20 p-1.5 flex-1 min-h-[200px]"
+                    className="rounded-lg border border-border/60 bg-muted/20 p-1 sm:p-1.5 flex-1 min-h-[150px] sm:min-h-[200px]"
                     style={{ borderTopColor: col.color, borderTopWidth: 3 }}
                   >
                     <Droppable droppableId={col.id}>
@@ -338,8 +338,8 @@ export function ClientsKanban({
                           ref={provided.innerRef}
                           {...provided.droppableProps}
                           className={cn(
-                            "space-y-2 min-h-[180px] rounded-md transition-all duration-300 p-1",
-                            snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20 shadow-[0_0_15px_hsl(var(--primary)/0.15)]"
+                            "space-y-1.5 sm:space-y-2 min-h-[130px] sm:min-h-[180px] rounded-md transition-colors duration-200 p-0.5 sm:p-1",
+                            snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20"
                           )}
                         >
                           {(columnData[col.id] || []).map((client, index) => (

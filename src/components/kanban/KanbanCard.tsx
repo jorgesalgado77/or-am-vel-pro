@@ -41,20 +41,19 @@ export function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, 
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
-            "rounded-lg border bg-card shadow-sm transition-all cursor-pointer group border-l-[4px]",
-            "hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5",
-            "dark:hover:shadow-[0_4px_20px_hsl(var(--primary)/0.2)] dark:hover:border-primary/50 dark:hover:bg-card/80",
-            snapshot.isDragging && "shadow-[0_0_20px_hsl(var(--primary)/0.3)] ring-2 ring-primary/40 rotate-1 scale-105",
+            "rounded-lg border bg-card shadow-sm transition-colors cursor-pointer group border-l-[3px] sm:border-l-[4px]",
+            "hover:shadow-md hover:border-primary/30",
+            "active:scale-[0.98]",
+            snapshot.isDragging && "shadow-lg ring-2 ring-primary/40 scale-[1.02]",
             expired && "border-destructive/30"
           )}
           style={{
             ...provided.draggableProps.style,
             borderLeftColor: agingColor,
-            boxShadow: snapshot.isDragging ? undefined : agingGlow,
           }}
           onClick={() => onClick(client)}
         >
-          <div className="p-3">
+          <div className="p-2 sm:p-3">
             {/* Badge de tipo na coluna Novo */}
             {((client as any).status || "novo") === "novo" && (
               <div className="mb-1.5">
@@ -71,7 +70,7 @@ export function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, 
             )}
             <div className="flex items-start justify-between gap-1">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">{client.nome}</p>
+                <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{client.nome}</p>
                 <div className="flex items-center gap-1 mt-0.5">
                   <p className="text-[11px] text-muted-foreground font-mono">
                     {(client as any).numero_orcamento || "Sem orçamento"}
