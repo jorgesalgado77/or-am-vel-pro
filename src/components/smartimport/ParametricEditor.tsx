@@ -210,12 +210,32 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     delete textureCache.current[slot];
   }, [textureSlots, updatePersisted]);
 
+  const savedPalettes = persisted.savedPalettes ?? [];
+
+  const savePalette = useCallback((name: string) => {
+    const palette: SavedPalette = { id: crypto.randomUUID(), name, colors: { ...furnitureColors } };
+    updatePersisted({ savedPalettes: [...savedPalettes, palette] });
+    toast.success(`Paleta "${name}" salva!`);
+  }, [furnitureColors, savedPalettes, updatePersisted]);
+
+  const loadPalette = useCallback((palette: SavedPalette) => {
+    updatePersisted({ furnitureColors: { ...palette.colors } });
+    toast.success(`Paleta "${palette.name}" aplicada!`);
+  }, [updatePersisted]);
+
+  const removePalette = useCallback((id: string) => {
+    updatePersisted({ savedPalettes: savedPalettes.filter((p) => p.id !== id) });
+  }, [savedPalettes, updatePersisted]);
+
   const [showPanel, setShowPanel] = useState(true);
   const [showSaveLibrary, setShowSaveLibrary] = useState(false);
   const [saveLibName, setSaveLibName] = useState("");
   const [saveLibCategory, setSaveLibCategory] = useState("");
   const [saveLibSubcategory, setSaveLibSubcategory] = useState("");
   const [savedModules, setSavedModules] = useState<any[]>([]);
+  const [showTextureLib, setShowTextureLib] = useState(false);
+  const [textureLibTarget, setTextureLibTarget] = useState<keyof FurnitureColors>("body");
+  const [paletteName, setPaletteName] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const threeRef = useRef<any>(null);
