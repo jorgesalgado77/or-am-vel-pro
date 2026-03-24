@@ -685,12 +685,51 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Detalhes por Projetista</CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <CardTitle className="text-base">Detalhes por Projetista</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar..."
+                    value={projetistaSearch}
+                    onChange={e => setProjetistaSearch(e.target.value)}
+                    className="h-8 w-[140px] pl-7 text-xs"
+                  />
+                </div>
+                <Select value={projetistaSort} onValueChange={(v: any) => setProjetistaSort(v)}>
+                  <SelectTrigger className="h-8 w-[120px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nome">Nome</SelectItem>
+                    <SelectItem value="clientes">Clientes</SelectItem>
+                    <SelectItem value="valor">Valor</SelectItem>
+                    <SelectItem value="conversao">Conversão</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {stats.byProjetista.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado no período</p>
-            ) : (
+            ) : (() => {
+              const filtered = stats.byProjetista
+                .filter(([name]) => name.toLowerCase().includes(projetistaSearch.toLowerCase()))
+                .sort((a, b) => {
+                  if (projetistaSort === "clientes") return b[1].count - a[1].count;
+                  if (projetistaSort === "valor") return b[1].total - a[1].total;
+                  if (projetistaSort === "conversao") {
+                    const convA = a[1].count > 0 ? a[1].closed / a[1].count : 0;
+                    const convB = b[1].count > 0 ? b[1].closed / b[1].count : 0;
+                    return convB - convA;
+                  }
+                  return a[0].localeCompare(b[0]);
+                });
+              return filtered.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum resultado para "{projetistaSearch}"</p>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
@@ -703,9 +742,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stats.byProjetista.map(([name, data]) => {
+                  {filtered.map(([name, data]) => {
                     const conv = data.count > 0 ? ((data.closed / data.count) * 100).toFixed(0) : "0";
-                    // Find matching cargo for this projetista to get commission %
                     const matchedCargo = cargos.find(c => 
                       name.toLowerCase().includes(c.nome.toLowerCase()) || c.nome.toLowerCase() === "projetista"
                     );
@@ -733,7 +771,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                   })}
                 </TableBody>
               </Table>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
 
