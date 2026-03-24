@@ -2,9 +2,10 @@ import { memo, useState, useMemo, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Search, MessageCircle, Filter, CalendarDays, X } from "lucide-react";
+import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import { format } from "date-fns";
@@ -15,6 +16,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (conv: ChatConversation) => void;
   loading: boolean;
+  onStartConversation?: () => void;
 }
 
 type TempFilter = LeadTemperature | "all";
@@ -110,7 +112,7 @@ const ConversationItem = memo(function ConversationItem({
   );
 });
 
-export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, loading }: Props) {
+export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, loading, onStartConversation }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -164,14 +166,33 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
             <MessageCircle className="h-4 w-4 text-primary" />
             Conversas
           </h3>
-          <Button
-            variant={hasActiveFilter ? "default" : "ghost"}
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {onStartConversation && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={onStartConversation}
+                  >
+                    <MessageSquarePlus className="h-3.5 w-3.5 text-primary" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">Iniciar nova conversa</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <Button
+              variant={hasActiveFilter ? "default" : "ghost"}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
