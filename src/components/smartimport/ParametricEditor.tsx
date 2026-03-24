@@ -668,6 +668,23 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     toast.info("Módulo resetado");
   };
 
+  // ── Delete selected module ──
+  const deleteSelectedModule = useCallback(() => {
+    if (!selectedModuleId) return;
+    if (selectedModuleId === "__main__") {
+      // Reset main module to default
+      setModule(createDefaultModule());
+      updatePersisted({ moduleOffsetX: 0, moduleOffsetY: 0, selectedModuleId: null });
+      toast.success("Módulo principal removido!");
+    } else {
+      updatePersisted({
+        duplicates: duplicates.filter((d) => d.id !== selectedModuleId),
+        selectedModuleId: null,
+      });
+      toast.success("Módulo duplicado removido!");
+    }
+  }, [selectedModuleId, duplicates, setModule, updatePersisted]);
+
   // ── Drag modules in 3D (main + duplicates) ──
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (!threeRef.current) return;
@@ -680,35 +697,59 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    // Check duplicate groups first (higher priority for overlapping)
-    for (let i = 1; i < moduleGroups.length && i <= duplicates.length; i++) {
-      const grp = moduleGroups[i];
-      if (!grp || grp.name === "dimension_annotations" || grp.name === "wall_group" || grp.name === "floor_group") continue;
-      const intersects = raycaster.intersectObjects(grp.children, true);
-      if (intersects.length > 0) {
-        const dup = duplicates[i - 1];
-        dragRef.current = { id: dup.id, startX: dup.positionX, startY: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
-        isDraggingRef.current = false;
-        threeRef.current.controls.enabled = false;
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
-        return;
+    // Helper to find which module was clicked
+    const findHitModule = (): string | null => {
+      // Check duplicate groups first
+      for (let i = 1; i < moduleGroups.length && i <= duplicates.length; i++) {
+        const grp = moduleGroups[i];
+        if (!grp || grp.name === "dimension_annotations" || grp.name === "wall_group" || grp.name === "floor_group") continue;
+        const intersects = raycaster.intersectObjects(grp.children, true);
+        if (intersects.length > 0) return duplicates[i - 1]?.id || null;
       }
-    }
+      // Check main module
+      const mainIdx = wall.enabled ? 2 : 0;
+      const mainGrp = moduleGroups[mainIdx];
+      if (mainGrp && mainGrp.name !== "dimension_annotations" && mainGrp.name !== "wall_group" && mainGrp.name !== "floor_group") {
+        const intersects = raycaster.intersectObjects(mainGrp.children, true);
+        if (intersects.length > 0) return "__main__";
+      }
+      return null;
+    };
 
-    // Check main module group (wall/floor are first groups, main module comes after)
-    const mainIdx = wall.enabled ? 2 : 0; // wall + floor = 2 groups before main
-    const mainGrp = moduleGroups[mainIdx];
-    if (mainGrp && mainGrp.name !== "dimension_annotations" && mainGrp.name !== "wall_group" && mainGrp.name !== "floor_group") {
-      const intersects = raycaster.intersectObjects(mainGrp.children, true);
-      if (intersects.length > 0) {
-        dragRef.current = { id: "__main__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+    const hitId = findHitModule();
+
+    if (hitId) {
+      // Select the module
+      updatePersisted({ selectedModuleId: hitId });
+
+      // Only start drag if position is NOT locked
+      if (!lockPosition) {
+        if (hitId === "__main__") {
+          if (groupSelect) {
+            // Group drag: store all starting positions
+            dragRef.current = { id: "__group__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+          } else {
+            dragRef.current = { id: "__main__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+          }
+        } else {
+          const dup = duplicates.find((d) => d.id === hitId);
+          if (dup) {
+            if (groupSelect) {
+              dragRef.current = { id: "__group__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+            } else {
+              dragRef.current = { id: dup.id, startX: dup.positionX, startY: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
+            }
+          }
+        }
         isDraggingRef.current = false;
         threeRef.current.controls.enabled = false;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
-        return;
       }
+    } else {
+      // Clicked empty space — deselect
+      updatePersisted({ selectedModuleId: null });
     }
-  }, [duplicates, wall.enabled, moduleOffsetX, moduleOffsetY]);
+  }, [duplicates, wall.enabled, moduleOffsetX, moduleOffsetY, lockPosition, groupSelect, updatePersisted]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !threeRef.current) return;
@@ -718,7 +759,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     if (!isDraggingRef.current && Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
     isDraggingRef.current = true;
     const scale = 5;
-    const SNAP_THRESHOLD = 30; // 30mm magnetic snap
+    const SNAP_THRESHOLD = 30;
 
     const magneticSnap = (val: number, targets: number[]): number => {
       for (const t of targets) {
@@ -727,7 +768,29 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       return val;
     };
 
-    if (dragRef.current.isMain) {
+    if (dragRef.current.id === "__group__") {
+      // Move all modules together
+      const deltaX = snapToGrid(dx * scale);
+      const deltaY = snapToGrid(-dy * scale);
+      let newMainX = dragRef.current.startX + deltaX;
+      let newMainY = dragRef.current.startY + deltaY;
+
+      if (wall.enabled) {
+        const halfWall = wall.width / 2;
+        const halfMod = module.width / 2;
+        const minX = -halfWall + halfMod;
+        const maxX = halfWall - halfMod;
+        newMainX = Math.max(minX, Math.min(maxX, newMainX));
+        newMainY = Math.max(0, Math.min(wall.height - module.height - computedFloorOffset, newMainY));
+      }
+
+      const actualDeltaX = newMainX - persisted.moduleOffsetX;
+      const newDups = duplicates.map((d) => ({
+        ...d,
+        positionX: d.positionX + actualDeltaX,
+      }));
+      updatePersisted({ moduleOffsetX: newMainX, moduleOffsetY: newMainY, duplicates: newDups });
+    } else if (dragRef.current.isMain) {
       let newX = snapToGrid(dragRef.current.startX + dx * scale);
       let newY = snapToGrid(dragRef.current.startY - dy * scale);
 
@@ -736,11 +799,8 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         const halfMod = module.width / 2;
         const minX = -halfWall + halfMod;
         const maxX = halfWall - halfMod;
-
-        // Snap targets: wall edges, center
         const snapTargetsX = [minX, 0, maxX];
         const snapTargetsY = [0, wall.height - module.height - computedFloorOffset];
-
         newX = magneticSnap(newX, snapTargetsX);
         newY = magneticSnap(newY, snapTargetsY);
         newX = Math.max(minX, Math.min(maxX, newX));
@@ -752,15 +812,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       let newX = snapToGrid(dragRef.current.startX + dx * scale);
       const newZ = snapToGrid(dragRef.current.startY + dy * scale);
 
-      // Snap to other module edges
       if (wall.enabled) {
         const mainRight = moduleOffsetX + module.width / 2;
         const mainLeft = moduleOffsetX - module.width / 2;
         const snapTargetsX: number[] = [];
         duplicates.forEach((d) => {
           if (d.id !== dragRef.current!.id) {
-            snapTargetsX.push(d.positionX + d.module.width + 3); // right edge + gap
-            snapTargetsX.push(d.positionX - module.width - 3); // left edge - gap
+            snapTargetsX.push(d.positionX + d.module.width + 3);
+            snapTargetsX.push(d.positionX - module.width - 3);
           }
         });
         snapTargetsX.push(mainRight + 3, mainLeft - module.width - 3);
@@ -772,7 +831,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       );
       updatePersisted({ duplicates: newDups });
     }
-  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX]);
+  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX, persisted.moduleOffsetX]);
 
   const handleCanvasPointerUp = useCallback(() => {
     if (dragRef.current && threeRef.current) {
