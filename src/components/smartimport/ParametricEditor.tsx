@@ -891,7 +891,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
           const dupAbsX = d.positionX + newX;
           const dupHalfW = d.module.width / 2;
           const dupHalfH = d.module.height / 2;
-          const dupFloor = d.module.preset === "caixa_superior" ? 1500 : 200;
+          const dupFloor = computedFloorOffset;
           const dupCenterY = (d.positionZ || 0) + dupFloor + d.module.height / 2;
 
           const overlapX = (newX + mainHalfW > dupAbsX - dupHalfW) && (newX - mainHalfW < dupAbsX + dupHalfW);
