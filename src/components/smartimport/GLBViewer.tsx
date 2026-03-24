@@ -222,6 +222,7 @@ function WebGLViewer({
           canvas: canvasRef.current,
           antialias: quality.antialias,
           alpha: true,
+          preserveDrawingBuffer: true,
           powerPreference: qualityPreset === "low" ? "low-power" : "high-performance",
         });
         canvasElement = canvasRef.current;
@@ -266,6 +267,8 @@ function WebGLViewer({
           controlsRef.current = {
             controls,
             camera,
+            renderer,
+            scene,
             initialPos: camera.position.clone(),
             initialTarget: controls.target.clone(),
           };
@@ -762,6 +765,14 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom"><p>Resetar câmera</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur" onClick={exportAsPNG} disabled={exporting}>
+                  {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom"><p>Exportar PNG (HD)</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
