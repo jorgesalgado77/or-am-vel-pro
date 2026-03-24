@@ -304,10 +304,66 @@ export function ModuleLibraryPanel({
 
   return (
     <div className="flex gap-4">
+      {/* Category Sidebar */}
+      {categories.length > 0 && (
+        <Card className="w-[200px] shrink-0 hidden md:block">
+          <CardContent className="p-2 space-y-1">
+            <div className="flex items-center justify-between px-1 pb-1">
+              <h5 className="text-[11px] font-semibold text-foreground flex items-center gap-1">
+                <FolderTree className="h-3 w-3 text-primary" /> Categorias
+              </h5>
+              <Button variant="ghost" size="icon" className="h-5 w-5"
+                onClick={() => { setAddingCategoryParentId(null); setNewCategoryName(""); }}
+                title="Nova categoria raiz">
+                <FolderPlus className="h-3 w-3" />
+              </Button>
+            </div>
+            <div
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-xs transition-colors ${
+                !selectedCategoryId ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/50 text-foreground"
+              }`}
+              onClick={() => onCategorySelect?.(null)}>
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>Todos</span>
+              <Badge variant="secondary" className="text-[9px] ml-auto">{library.length}</Badge>
+            </div>
+            <Separator className="my-1" />
+            <ScrollArea className="max-h-[300px]">
+              {categories.map((node) => renderCategoryNode(node))}
+            </ScrollArea>
+            {addingCategoryParentId !== undefined && (
+              <div className="pt-1 space-y-1">
+                <Input className="h-7 text-[11px]" placeholder="Nome da categoria..."
+                  value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newCategoryName.trim()) {
+                      onCategoryAdd?.(newCategoryName.trim(), addingCategoryParentId);
+                      setAddingCategoryParentId(undefined); setNewCategoryName("");
+                    }
+                    if (e.key === "Escape") setAddingCategoryParentId(undefined);
+                  }}
+                  autoFocus />
+                <div className="flex gap-1">
+                  <Button size="sm" className="h-6 text-[10px] flex-1" disabled={!newCategoryName.trim()}
+                    onClick={() => { onCategoryAdd?.(newCategoryName.trim(), addingCategoryParentId); setAddingCategoryParentId(undefined); setNewCategoryName(""); }}>
+                    Criar
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => setAddingCategoryParentId(undefined)}>✕</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 space-y-4 min-w-0">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" /> Biblioteca de Módulos
-          <Badge variant="secondary" className="text-[10px]">{library.length} itens</Badge>
+          <Badge variant="secondary" className="text-[10px]">
+            {selectedCategoryId ? `${filtered.length} de ${library.length}` : `${library.length} itens`}
+          </Badge>
         </h4>
         <Button size="sm" className="gap-1.5 text-xs" onClick={() => { resetForm(); setShowAdd(true); }}>
           <Plus className="h-3.5 w-3.5" /> Novo Módulo
