@@ -181,6 +181,15 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
             library={library}
             tenantId={tenantId}
             storeName={settings.company_name}
+            onSendToSimulator={(data) => {
+              // Store in sessionStorage for SimulatorPanel to pick up
+              sessionStorage.setItem("simulator_prefill", JSON.stringify({
+                ambiente: data.projectName,
+                valor: data.totalValue,
+                pecas: data.moduleCount,
+              }));
+              toast.success("Dados enviados para o Simulador! Acesse a aba Simulador para continuar.");
+            }}
           />
         </div>
       </div>

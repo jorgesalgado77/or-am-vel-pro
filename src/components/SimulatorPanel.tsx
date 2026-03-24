@@ -169,6 +169,32 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     }
   }, [client?.id, client?.indicador_id]);
 
+  // Auto-prefill from 3D Smart Import budget
+  useEffect(() => {
+    try {
+      const prefill = sessionStorage.getItem("simulator_prefill");
+      if (!prefill) return;
+      const data = JSON.parse(prefill);
+      if (data.ambiente && data.valor) {
+        setEnvironments(prev => {
+          const exists = prev.some(e => e.environmentName === data.ambiente);
+          if (exists) return prev;
+          const dummyFile = new File([""], "3d-import.json", { type: "application/json" });
+          return [...prev, {
+            id: crypto.randomUUID(),
+            fileName: "3D Smart Import",
+            environmentName: data.ambiente,
+            pieceCount: data.pecas || 1,
+            totalValue: data.valor,
+            importedAt: new Date(),
+            file: dummyFile,
+          } as ImportedEnvironment];
+        });
+        sessionStorage.removeItem("simulator_prefill");
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
     // Restore from saved simulation (DB) if available
     if (init?.ambientes && init.ambientes.length > 0) {

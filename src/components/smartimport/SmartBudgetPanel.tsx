@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   FileText, Download, DollarSign, Package, Wrench, Settings2,
-  Sparkles, Check, Link2, Percent, TrendingUp, Calculator, Hammer,
+  Sparkles, Check, Link2, Percent, TrendingUp, Calculator, Hammer, Send,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { useSmartBudgetEngine, type EnrichedBudgetItem, type PricingRule } from "@/hooks/useSmartBudgetEngine";
 import type { ProjectObject, ModuleLibraryItem } from "@/hooks/useSmartImport3D";
+import type { ModuleBOM } from "@/types/parametricModule";
 import jsPDF from "jspdf";
 
 interface SmartBudgetPanelProps {
@@ -24,6 +25,11 @@ interface SmartBudgetPanelProps {
   tenantId: string | null;
   storeName?: string;
   clientName?: string;
+  /** BOM from parametric builder — merged into budget items */
+  parametricBOM?: ModuleBOM | null;
+  parametricModuleName?: string;
+  /** Callback to send budget to simulator */
+  onSendToSimulator?: (data: { projectName: string; totalValue: number; moduleCount: number }) => void;
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string; icon: any }> = {
@@ -33,7 +39,10 @@ const TYPE_LABELS: Record<string, { label: string; color: string; icon: any }> =
   undefined: { label: "Indefinido", color: "bg-muted text-muted-foreground border-border", icon: Package },
 };
 
-export function SmartBudgetPanel({ projectName, objects, library, tenantId, storeName, clientName }: SmartBudgetPanelProps) {
+export function SmartBudgetPanel({
+  projectName, objects, library, tenantId, storeName, clientName,
+  parametricBOM, parametricModuleName, onSendToSimulator,
+}: SmartBudgetPanelProps) {
   const {
     pricingRules, budgetItems, summary, loadPricingRules,
     savePricingRule, processObjects, updateItem, acceptSuggestion, getRuleForType,
@@ -54,6 +63,43 @@ export function SmartBudgetPanel({ projectName, objects, library, tenantId, stor
       processObjects(objects, library);
     }
   }, [objects, library, pricingRules, processObjects]);
+
+  // Merge parametric BOM into budget items as synthetic objects
+  useEffect(() => {
+    if (!parametricBOM || parametricBOM.parts.length === 0) return;
+
+    const bomObjects: ProjectObject[] = [
+      ...parametricBOM.parts.map((p, i) => ({
+        id: `bom-part-${i}`,
+        name: `${parametricModuleName || "Módulo"} — ${p.name}`,
+        type: "module" as any,
+        cost: 0, // cost comes from pricing rules
+        project_id: "",
+        tenant_id: "",
+        created_at: new Date().toISOString(),
+        quantity: p.quantity,
+        unit_cost: 0,
+        identified_type: "module" as any,
+      } as any)),
+      ...parametricBOM.hardware.map((h, i) => ({
+        id: `bom-hw-${i}`,
+        name: `${parametricModuleName || "Módulo"} — ${h.name}`,
+        type: "ferragem" as any,
+        cost: 0,
+        project_id: "",
+        tenant_id: "",
+        created_at: new Date().toISOString(),
+        quantity: h.quantity,
+        unit_cost: 0,
+        identified_type: "ferragem" as any,
+      } as any)),
+    ];
+
+    if (bomObjects.length > 0) {
+      const allObjects = [...objects, ...bomObjects];
+      processObjects(allObjects, library);
+    }
+  }, [parametricBOM, parametricModuleName, objects, library, processObjects]);
 
   const startEdit = (item: EnrichedBudgetItem) => {
     setEditingItemId(item.id);
@@ -174,7 +220,17 @@ export function SmartBudgetPanel({ projectName, objects, library, tenantId, stor
         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Calculator className="h-4 w-4 text-primary" /> Orçamento Inteligente
         </h4>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {onSendToSimulator && summary.item_count > 0 && (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+              onClick={() => onSendToSimulator({
+                projectName,
+                totalValue: summary.final_total,
+                moduleCount: budgetItems.filter(i => i.identified_type === "module").length,
+              })}>
+              <Send className="h-3.5 w-3.5" /> Enviar para Simulador
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setShowPricingRules(true)}>
             <Settings2 className="h-3.5 w-3.5" /> Regras de Preço
           </Button>
