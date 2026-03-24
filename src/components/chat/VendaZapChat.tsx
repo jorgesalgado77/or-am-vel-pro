@@ -27,6 +27,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
+  const { currentUser } = useCurrentUser();
   const { addon } = useVendaZap(tenantId);
   const addonConfig = addon ? {
     ativo: addon.ativo,
