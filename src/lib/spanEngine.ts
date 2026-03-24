@@ -93,28 +93,36 @@ export function redistributeShelves(module: ParametricModule): InternalComponent
     c.type !== "prateleira" && c.type !== "divisoria" && c.type !== "gaveta"
   );
 
-  // Redistribute shelves
+  // Redistribute shelves evenly
   const updatedShelves = shelves.map((shelf, i) => ({
     ...shelf,
     positionY: spans.shelfPositions[i] ?? shelf.positionY,
   }));
 
-  // Redistribute dividers evenly across internal width
+  // Redistribute dividers evenly across internal width (same logic as shelves but horizontal)
   const updatedDividers = dividers.map((div, i) => {
-    const spacing = internalWidth / (dividers.length + 1);
-    const posX = thickness + spacing * (i + 1);
-    return { ...div, positionY: snapToGrid(posX) };
+    const divThickness = div.thickness || thickness;
+    const totalDivThickness = dividers.reduce((s, d) => s + (d.thickness || thickness), 0);
+    const freeWidth = internalWidth - totalDivThickness;
+    const numSlots = dividers.length + 1;
+    const slotWidth = freeWidth / numSlots;
+
+    // Position: start from left internal edge, add slot + previous dividers
+    let posX = thickness; // start after left side panel
+    for (let j = 0; j <= i; j++) {
+      posX += slotWidth;
+      if (j < i) posX += (dividers[j].thickness || thickness);
+    }
+    // posX is now at the left edge of divider i, add half thickness for center
+    return { ...div, positionY: snapToGrid(posX + divThickness / 2) };
   });
 
-  // Redistribute drawers from bottom up within available space
-  const totalShelfSpace = shelves.reduce((s, sh) => s + sh.thickness, 0);
-  const shelfVaoUsed = shelves.length > 0
-    ? shelves.length * (spans.vaoUnitario + shelves[0].thickness)
-    : 0;
-  const drawerStartY = thickness + baseboardHeight;
+  // Redistribute drawers from TOP down within internal space
   const updatedDrawers = drawers.map((drawer, i) => {
     const fh = drawer.frontHeight || 180;
-    const posY = drawerStartY + i * fh;
+    // Start from the top of the internal space and stack downward
+    const topY = height - thickness; // top internal edge
+    const posY = topY - (i + 1) * fh; // each drawer stacks below the previous
     return { ...drawer, positionY: snapToGrid(posY) };
   });
 
