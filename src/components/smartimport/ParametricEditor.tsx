@@ -563,6 +563,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
           floorOffset: computedFloorOffset,
           moduleOffset: { x: moduleOffsetX, y: moduleOffsetY },
           duplicates: duplicates.map((d) => ({ positionX: d.positionX + moduleOffsetX, positionZ: d.positionZ, module: { width: d.module.width, depth: d.module.depth } })),
+          moduleData: module,
         });
         scene.add(dimGroup);
         threeRef.current.moduleGroups.push(dimGroup);
