@@ -180,6 +180,16 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
+  // Camera animation state
+  const cameraAnimRef = useRef<{
+    startPos: [number, number, number];
+    endPos: [number, number, number];
+    startTarget: [number, number, number];
+    endTarget: [number, number, number];
+    progress: number;
+    active: boolean;
+  }>({ startPos: [0, 0, 0], endPos: [0, 0, 0], startTarget: [0, 0, 0], endTarget: [0, 0, 0], progress: 0, active: false });
+
   const [persisted, updatePersisted, clearPersisted] = usePersistedFormState<PersistedBuilderState>(
     "parametric-builder",
     initialModule ? { ...INITIAL_PERSISTED, module: initialModule } : INITIAL_PERSISTED
