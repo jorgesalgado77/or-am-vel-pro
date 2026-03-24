@@ -1298,7 +1298,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}
             />
-            <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end">
+            <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end max-w-[65%]">
               <Button
                 variant={showCotas ? "default" : "outline"}
                 size="sm"
@@ -1308,6 +1308,28 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 {showCotas ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                 Cotas
               </Button>
+              {doorCount > 0 && (
+                <Button
+                  variant={openDoors ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 text-[10px] px-2 gap-1"
+                  onClick={() => updatePersisted({ openDoors: !openDoors })}
+                >
+                  {openDoors ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  Portas
+                </Button>
+              )}
+              {drawerCount > 0 && (
+                <Button
+                  variant={openDrawers ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 text-[10px] px-2 gap-1"
+                  onClick={() => updatePersisted({ openDrawers: !openDrawers })}
+                >
+                  {openDrawers ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  Gavetas
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
