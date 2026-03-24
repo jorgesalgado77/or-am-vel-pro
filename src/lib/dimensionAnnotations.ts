@@ -316,6 +316,19 @@ export function generateDimensionAnnotations(
         `${leftClearanceMm}mm`, upDir, 0.20, "orange", baseTag * 0.8
       ));
     }
+
+    // ═══ Cota Superior (vertical: module top to wall top) ═══
+    const wallTop = options.wall.height * sc;
+    const topClearanceMm = Math.round((wallTop - top) / sc);
+    if (topClearanceMm > 0) {
+      const xPos = right + 0.30;
+      group.add(createDimensionLine(
+        THREE,
+        new THREE.Vector3(xPos, top, front * 0.3),
+        new THREE.Vector3(xPos, wallTop, front * 0.3),
+        `↑${topClearanceMm}mm`, rightDir, 0.15, "orange", baseTag * 0.8
+      ));
+    }
   }
 
   // ═══ DUPLICATE distances ═══

@@ -1089,6 +1089,100 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                     </p>
                   </div>
 
+                  {/* ── Cotas de Posicionamento (bidirectional) ── */}
+                  {wall.enabled && (
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <Label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                        <RulerIcon className="h-3 w-3" /> Cotas de Posicionamento (mm)
+                      </Label>
+                      {(() => {
+                        const halfWall = wall.width / 2;
+                        const halfMod = module.width / 2;
+                        const cotaEsquerda = Math.round(halfWall + moduleOffsetX - halfMod);
+                        const cotaDireita = Math.round(halfWall - moduleOffsetX - halfMod);
+                        const cotaPiso = Math.round(computedFloorOffset + moduleOffsetY);
+                        const cotaSuperior = Math.round(wall.height - module.height - computedFloorOffset - moduleOffsetY);
+
+                        const handleCotaEsquerda = (val: number) => {
+                          const newX = val - halfWall + halfMod;
+                          const maxX = halfWall - halfMod;
+                          const clampedX = Math.max(-maxX, Math.min(maxX, newX));
+                          updatePersisted({ moduleOffsetX: clampedX });
+                        };
+                        const handleCotaDireita = (val: number) => {
+                          const newX = halfWall - halfMod - val;
+                          const maxX = halfWall - halfMod;
+                          const clampedX = Math.max(-maxX, Math.min(maxX, newX));
+                          updatePersisted({ moduleOffsetX: clampedX });
+                        };
+                        const handleCotaSuperior = (val: number) => {
+                          const newY = wall.height - module.height - computedFloorOffset - val;
+                          const maxY = wall.height - module.height - computedFloorOffset;
+                          const clampedY = Math.max(0, Math.min(maxY, newY));
+                          updatePersisted({ moduleOffsetY: clampedY });
+                        };
+                        const handleCotaPiso = (val: number) => {
+                          const newY = val - computedFloorOffset;
+                          const maxY = wall.height - module.height - computedFloorOffset;
+                          const clampedY = Math.max(0, Math.min(maxY, newY));
+                          updatePersisted({ moduleOffsetY: clampedY });
+                        };
+
+                        return (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-0.5">
+                              <Label className="text-[9px]">← Esquerda</Label>
+                              <Input
+                                type="number"
+                                key={`ce-${cotaEsquerda}`}
+                                defaultValue={Math.max(0, cotaEsquerda)}
+                                onBlur={(e) => handleCotaEsquerda(Math.max(0, Number(e.target.value)))}
+                                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                className="h-6 text-[10px] font-mono bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <Label className="text-[9px]">Direita →</Label>
+                              <Input
+                                type="number"
+                                key={`cd-${cotaDireita}`}
+                                defaultValue={Math.max(0, cotaDireita)}
+                                onBlur={(e) => handleCotaDireita(Math.max(0, Number(e.target.value)))}
+                                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                className="h-6 text-[10px] font-mono bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <Label className="text-[9px]">↓ Piso (total)</Label>
+                              <Input
+                                type="number"
+                                key={`cp-${cotaPiso}`}
+                                defaultValue={Math.max(0, cotaPiso)}
+                                onBlur={(e) => handleCotaPiso(Math.max(0, Number(e.target.value)))}
+                                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                className="h-6 text-[10px] font-mono bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <Label className="text-[9px]">↑ Superior</Label>
+                              <Input
+                                type="number"
+                                key={`cs-${cotaSuperior}`}
+                                defaultValue={Math.max(0, cotaSuperior)}
+                                onBlur={(e) => handleCotaSuperior(Math.max(0, Number(e.target.value)))}
+                                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                                className="h-6 text-[10px] font-mono bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <p className="text-[8px] text-muted-foreground italic">
+                        Valores sincronizam com arraste 3D e cotas visuais
+                      </p>
+                    </div>
+                  )}
+
                   {/* Floor (Piso) color & texture */}
                   <div className="space-y-2 pt-2 border-t border-border">
                     <Label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
