@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       appUser = await Promise.race([
         loadAppUser(sess.user),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
       ]);
 
       if (!appUser) {
