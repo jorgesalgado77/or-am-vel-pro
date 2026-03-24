@@ -588,6 +588,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    currentAuthIdRef.current = null;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -615,6 +616,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       logoutTimer = setTimeout(async () => {
         setShowInactivityWarning(false);
+        currentAuthIdRef.current = null;
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
