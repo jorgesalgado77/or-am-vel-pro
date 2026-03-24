@@ -82,16 +82,43 @@ export function calculateInternalSpans(module: ParametricModule): SpanResult {
  */
 export function redistributeShelves(module: ParametricModule): InternalComponent[] {
   const spans = calculateInternalSpans(module);
+  const { thickness, baseboardHeight = 0, width, height, depth } = module;
+  const internalWidth = width - thickness * 2;
+  const internalHeight = height - thickness * 2 - baseboardHeight;
 
   const shelves = module.components.filter((c) => c.type === "prateleira");
-  const others = module.components.filter((c) => c.type !== "prateleira");
+  const dividers = module.components.filter((c) => c.type === "divisoria");
+  const drawers = module.components.filter((c) => c.type === "gaveta");
+  const others = module.components.filter((c) =>
+    c.type !== "prateleira" && c.type !== "divisoria" && c.type !== "gaveta"
+  );
 
+  // Redistribute shelves
   const updatedShelves = shelves.map((shelf, i) => ({
     ...shelf,
     positionY: spans.shelfPositions[i] ?? shelf.positionY,
   }));
 
-  return [...others, ...updatedShelves];
+  // Redistribute dividers evenly across internal width
+  const updatedDividers = dividers.map((div, i) => {
+    const spacing = internalWidth / (dividers.length + 1);
+    const posX = thickness + spacing * (i + 1);
+    return { ...div, positionY: snapToGrid(posX) };
+  });
+
+  // Redistribute drawers from bottom up within available space
+  const totalShelfSpace = shelves.reduce((s, sh) => s + sh.thickness, 0);
+  const shelfVaoUsed = shelves.length > 0
+    ? shelves.length * (spans.vaoUnitario + shelves[0].thickness)
+    : 0;
+  const drawerStartY = thickness + baseboardHeight;
+  const updatedDrawers = drawers.map((drawer, i) => {
+    const fh = drawer.frontHeight || 180;
+    const posY = drawerStartY + i * fh;
+    return { ...drawer, positionY: snapToGrid(posY) };
+  });
+
+  return [...others, ...updatedShelves, ...updatedDividers, ...updatedDrawers];
 }
 
 /**
