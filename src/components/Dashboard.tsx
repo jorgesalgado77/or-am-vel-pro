@@ -778,12 +778,47 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Detalhes por Indicador</CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <CardTitle className="text-base">Detalhes por Indicador</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar..."
+                    value={indicadorSearch}
+                    onChange={e => setIndicadorSearch(e.target.value)}
+                    className="h-8 w-[140px] pl-7 text-xs"
+                  />
+                </div>
+                <Select value={indicadorSort} onValueChange={(v: any) => setIndicadorSort(v)}>
+                  <SelectTrigger className="h-8 w-[120px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nome">Nome</SelectItem>
+                    <SelectItem value="clientes">Clientes</SelectItem>
+                    <SelectItem value="valor">Valor</SelectItem>
+                    <SelectItem value="comissao">Comissão</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {stats.byIndicador.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Nenhum indicador vinculado no período</p>
-            ) : (
+            ) : (() => {
+              const filtered = stats.byIndicador
+                .filter(([, data]) => data.nome.toLowerCase().includes(indicadorSearch.toLowerCase()))
+                .sort((a, b) => {
+                  if (indicadorSort === "clientes") return b[1].count - a[1].count;
+                  if (indicadorSort === "valor") return b[1].total - a[1].total;
+                  if (indicadorSort === "comissao") return b[1].comissaoTotal - a[1].comissaoTotal;
+                  return a[1].nome.localeCompare(b[1].nome);
+                });
+              return filtered.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum resultado para "{indicadorSearch}"</p>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
@@ -794,7 +829,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stats.byIndicador.map(([id, data]) => (
+                  {filtered.map(([id, data]) => (
                     <TableRow key={id}>
                       <TableCell className="font-medium text-foreground">
                         {data.nome} <span className="text-muted-foreground text-xs">({data.comissao}%)</span>
@@ -806,7 +841,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                   ))}
                 </TableBody>
               </Table>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
