@@ -439,6 +439,15 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     return { matOverrides, wallOv };
   }, [furnitureColors, textureSlots, wall.color]);
 
+  // Compute floor offset based on module type
+  const computedFloorOffset = useMemo(() => {
+    const mt = module.moduleType;
+    if (mt === "caixa_inferior") return floorHeightInferior;
+    if (mt === "caixa_superior") return floorHeightSuperior;
+    // dormitorio, painel, regua, custom = 0
+    return 0;
+  }, [module.moduleType, floorHeightInferior, floorHeightSuperior]);
+
   // ── Rebuild geometry when module/wall/duplicates/colors/textures change ──
   useEffect(() => {
     if (!threeRef.current) return;
@@ -451,7 +460,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       const { matOverrides, wallOv } = await loadTexturesForSlots(THREE);
 
-      const opts: GeometryOptions = {};
+      const opts: GeometryOptions = { floorOffset: computedFloorOffset };
       if (wall.enabled) {
         opts.wall = { width: wall.width, height: wall.height, depth: wall.depth };
         opts.wallOverrides = wallOv;
@@ -463,16 +472,29 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       threeRef.current.moduleGroups.push(mainGrp);
 
       duplicates.forEach((dup) => {
-        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides });
+        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides, floorOffset: computedFloorOffset });
         dupGrp.position.x += dup.positionX * 0.01;
         dupGrp.position.z += dup.positionZ * 0.01;
         scene.add(dupGrp);
         threeRef.current.moduleGroups.push(dupGrp);
       });
 
+      // Dimension annotations (cotas)
+      if (showCotas) {
+        const dimGroup = generateDimensionAnnotations(THREE, module, {
+          wall: wall.enabled ? { width: wall.width, height: wall.height } : undefined,
+          floorOffset: computedFloorOffset,
+          duplicates: duplicates.map((d) => ({ positionX: d.positionX, module: d.module })),
+        });
+        // Position annotations aligned with main module
+        dimGroup.position.copy(mainGrp.position);
+        scene.add(dimGroup);
+        threeRef.current.moduleGroups.push(dimGroup);
+      }
+
       needsRenderRef.current = true;
     })();
-  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots]);
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
