@@ -157,6 +157,7 @@ function createDimensionLine(
 export interface DimensionOptions {
   wall?: { width: number; height: number };
   floorOffset?: number;
+  moduleOffset?: { x: number; y: number };
   duplicates?: Array<{ positionX: number; positionZ?: number; module: { width: number; depth: number } }>;
 }
 
