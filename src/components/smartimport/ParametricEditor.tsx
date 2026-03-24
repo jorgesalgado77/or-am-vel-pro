@@ -300,7 +300,8 @@ export function ParametricEditor({ onSave, initialModule, tenantId }: Parametric
                         size="icon"
                         className="h-5 w-5"
                         onClick={() => {
-                          const comp = module.components.findLast((c) => c.type === type);
+                          const comps = module.components.filter((c) => c.type === type);
+                          const comp = comps.length > 0 ? comps[comps.length - 1] : undefined;
                           if (comp) removeComponent(comp.id);
                         }}
                         disabled={count === 0}
