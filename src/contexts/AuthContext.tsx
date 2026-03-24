@@ -55,6 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const loginInProgressRef = useRef(false);
 
+  // Track latest resolved user outside render cycle to avoid stale closures in auth callbacks
+  const userRef = useRef<AppUser | null>(null);
+
   // Track the auth user ID to avoid unnecessary reloads on token refresh
   const currentAuthIdRef = useRef<string | null>(null);
 
@@ -63,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Don't clear user data on transient null sessions during token refresh
       // Only clear if it's not a token refresh event and user is actually gone
       if (currentAuthIdRef.current && event !== "TOKEN_REFRESHED") {
+        userRef.current = null;
         setUser(null);
         setSession(null);
         currentAuthIdRef.current = null;
@@ -80,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // If the same auth user is already loaded, just update session — don't reload profile
     // This prevents the user from switching to a fallback on TOKEN_REFRESHED events
-    if (currentAuthIdRef.current === sess.user.id && user) {
+    if (currentAuthIdRef.current === sess.user.id && userRef.current) {
       setLoading(false);
       return;
     }
@@ -106,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (appUser) {
       currentAuthIdRef.current = sess.user.id;
+      userRef.current = appUser;
       setUser(appUser);
       syncGlobalState(appUser);
     } else {
@@ -113,10 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (fallbackUser) {
         currentAuthIdRef.current = sess.user.id;
+        userRef.current = fallbackUser;
         setUser(fallbackUser);
         syncGlobalState(fallbackUser);
       } else {
         currentAuthIdRef.current = null;
+        userRef.current = null;
         setUser(null);
         syncGlobalState(null);
         await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
@@ -132,12 +139,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let initialLoaded = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, sess) => {
+      (_event, sess) => {
         if (_event === "INITIAL_SESSION") {
           if (initialLoaded) return;
           initialLoaded = true;
         }
-        await loadFromSession(sess, _event);
+        window.setTimeout(() => {
+          void loadFromSession(sess, _event);
+        }, 0);
       }
     );
 
