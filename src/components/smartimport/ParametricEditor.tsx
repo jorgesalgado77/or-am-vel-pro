@@ -460,12 +460,24 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       moduleGroups.forEach((g: any) => scene.remove(g));
       threeRef.current.moduleGroups = [];
 
+      // Update grid to match wall size
+      const oldGrid = scene.getObjectByName("floor_grid");
+      if (oldGrid) scene.remove(oldGrid);
+      const gridSize = wall.enabled ? Math.max(wall.width, wall.depth + 1000) * 0.01 : 20;
+      const gridDivisions = wall.enabled ? Math.round(gridSize / 0.5) : 20;
+      const THREE = threeRef.current.THREE;
+      const newGrid = new THREE.GridHelper(gridSize, gridDivisions, 0xcccccc, 0xcccccc);
+      (newGrid.material as any).opacity = 0.3;
+      (newGrid.material as any).transparent = true;
+      newGrid.name = "floor_grid";
+      scene.add(newGrid);
+
       const { matOverrides, wallOv } = await loadTexturesForSlots(THREE);
 
       const opts: GeometryOptions = { floorOffset: computedFloorOffset };
       opts.materialOverrides = matOverrides;
 
-      // Wall rendered separately — stays at ground level (Y=0)
+      // Wall rendered separately — stays at ground level (Y=0), behind modules
       if (wall.enabled) {
         const wallGrp = generateWallGeometry(THREE, { width: wall.width, height: wall.height, depth: wall.depth }, wallOv);
         scene.add(wallGrp);
