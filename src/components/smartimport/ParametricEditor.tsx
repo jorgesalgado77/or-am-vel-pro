@@ -951,43 +951,60 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       // Collision with main module and other duplicates
       if (collisionEnabled) {
-        const absX = newX + moduleOffsetX;
-        const dragLeft = absX - dragW / 2;
-        const dragRight = absX + dragW / 2;
+        let absX = newX + moduleOffsetX;
+        const dragHalfW = dragW / 2;
+        const dragH = dragDup?.module.height || module.height;
 
         // Check against main module
-        const mainLeft = moduleOffsetX - module.width / 2;
-        const mainRight = moduleOffsetX + module.width / 2;
-        let adjustedAbsX = absX;
-        if (dragRight > mainLeft && dragLeft < mainRight) {
-          const pushLeft = mainLeft - dragW / 2;
-          const pushRight = mainRight + dragW / 2;
-          adjustedAbsX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
+        const mainCX = moduleOffsetX;
+        const mainHalfW = module.width / 2;
+        const overlapX_main = (absX + dragHalfW > mainCX - mainHalfW) && (absX - dragHalfW < mainCX + mainHalfW);
+        // For simplicity, assume same vertical level (most common case)
+        if (overlapX_main) {
+          const pushLeft = mainCX - mainHalfW - dragHalfW;
+          const pushRight = mainCX + mainHalfW + dragHalfW;
+          absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
         }
 
         // Check against other duplicates
         for (const d of duplicates) {
           if (d.id === dragRef.current!.id) continue;
           const dAbsX = d.positionX + moduleOffsetX;
-          const dLeft = dAbsX - d.module.width / 2;
-          const dRight = dAbsX + d.module.width / 2;
-          const myLeft = adjustedAbsX - dragW / 2;
-          const myRight = adjustedAbsX + dragW / 2;
-          if (myRight > dLeft && myLeft < dRight) {
-            const pushLeft = dLeft - dragW / 2;
-            const pushRight = dRight + dragW / 2;
-            adjustedAbsX = Math.abs(adjustedAbsX - pushLeft) < Math.abs(adjustedAbsX - pushRight) ? pushLeft : pushRight;
+          const dHalfW = d.module.width / 2;
+          const myLeft = absX - dragHalfW;
+          const myRight = absX + dragHalfW;
+          if (myRight > dAbsX - dHalfW && myLeft < dAbsX + dHalfW) {
+            const pushLeft = dAbsX - dHalfW - dragHalfW;
+            const pushRight = dAbsX + dHalfW + dragHalfW;
+            absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
           }
         }
 
-        newX = adjustedAbsX - moduleOffsetX;
+        // Second pass — re-check all after adjustments to prevent chain overlaps
+        for (const d of duplicates) {
+          if (d.id === dragRef.current!.id) continue;
+          const dAbsX = d.positionX + moduleOffsetX;
+          const dHalfW = d.module.width / 2;
+          if (absX + dragHalfW > dAbsX - dHalfW && absX - dragHalfW < dAbsX + dHalfW) {
+            const pushLeft = dAbsX - dHalfW - dragHalfW;
+            const pushRight = dAbsX + dHalfW + dragHalfW;
+            absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
+          }
+        }
+        // Also re-check main
+        if (absX + dragHalfW > mainCX - mainHalfW && absX - dragHalfW < mainCX + mainHalfW) {
+          const pushLeft = mainCX - mainHalfW - dragHalfW;
+          const pushRight = mainCX + mainHalfW + dragHalfW;
+          absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
+        }
+
+        newX = absX - moduleOffsetX;
 
         // Re-clamp to wall after collision
         if (wall.enabled) {
           const halfWall = wall.width / 2;
           const finalAbs = newX + moduleOffsetX;
-          const dupHalf = dragW / 2;
-          const clampedAbs = Math.max(-halfWall + dupHalf, Math.min(halfWall - dupHalf, finalAbs));
+          const clampedAbs = Math.max(-halfWall + dragHalfW, Math.min(halfWall - dragHalfW, finalAbs));
           newX = clampedAbs - moduleOffsetX;
         }
       }
