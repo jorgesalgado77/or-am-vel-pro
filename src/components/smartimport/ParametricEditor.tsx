@@ -1346,22 +1346,27 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   onClick={() => {
                     if (!threeRef.current) return;
                     const { camera, controls } = threeRef.current;
-                    // Calculate distance based on module size
                     const maxDim = Math.max(module.width, module.height, module.depth) * 0.01;
                     const dist = Math.max(maxDim * 2.2, 4);
                     const centerY = (computedFloorOffset * 0.01) + (module.height * 0.01) / 2;
-                    camera.position.set(
+                    const endPos: [number, number, number] = [
                       view.pos[0] * dist,
                       view.pos[1] * dist + (view.label === "Planta" ? dist : 0),
-                      view.pos[2] * dist
-                    );
-                    controls.target.set(
+                      view.pos[2] * dist,
+                    ];
+                    const endTarget: [number, number, number] = [
                       view.target[0],
                       view.label === "Planta" ? 0 : centerY,
-                      view.target[2] * maxDim * 0.3
-                    );
-                    controls.update();
-                    needsRenderRef.current = true;
+                      view.target[2] * maxDim * 0.3,
+                    ];
+                    cameraAnimRef.current = {
+                      startPos: [camera.position.x, camera.position.y, camera.position.z],
+                      endPos,
+                      startTarget: [controls.target.x, controls.target.y, controls.target.z],
+                      endTarget,
+                      progress: 0,
+                      active: true,
+                    };
                   }}
                 >
                   <span className="font-bold text-[9px] w-4 text-center">{view.icon}</span>
