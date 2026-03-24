@@ -112,19 +112,21 @@ export function redistributeShelves(module: ParametricModule): InternalComponent
     return { ...div, positionY: snapToGrid(centerX) };
   });
 
-  const totalDrawerFrontHeight = drawers.reduce((sum, drawer) => sum + (drawer.frontHeight || 180), 0);
-  const freeDrawerGap = Math.max(0, internalHeight - totalDrawerFrontHeight);
-  const drawerGap = drawers.length > 0 ? freeDrawerGap / (drawers.length + 1) : 0;
-  let currentDrawerBottom = baseboardHeight + thickness + drawerGap;
+  // Redistribute drawers: fill entire internal height equally, 3mm gap between fronts
+  const numDrawers = Math.min(drawers.length, 4);
+  const totalGaps = numDrawers > 1 ? (numDrawers - 1) * 3 : 0;
+  const autoFrontHeight = numDrawers > 0 ? Math.floor((internalHeight - totalGaps) / numDrawers) : 180;
+  let currentDrawerY = baseboardHeight + thickness;
 
-  const updatedDrawers = drawers.map((drawer) => {
-    const fh = drawer.frontHeight || 180;
+  const updatedDrawers = drawers.slice(0, 4).map((drawer, i) => {
+    const fh = autoFrontHeight;
     const updatedDrawer = {
       ...drawer,
+      frontHeight: fh,
       bottomThickness: drawer.bottomThickness ?? 3,
-      positionY: snapToGrid(currentDrawerBottom),
+      positionY: snapToGrid(currentDrawerY),
     };
-    currentDrawerBottom += fh + drawerGap;
+    currentDrawerY += fh + 3; // 3mm gap between fronts
     return updatedDrawer;
   });
 
@@ -270,14 +272,16 @@ export function generateBOM(module: ParametricModule): ModuleBOM {
       const bodyThickness = d.thickness || 18;
       const bottomThickness = d.bottomThickness || 3;
 
+      const frontWidth = width - 4; // front = module width - 4mm
+
       parts.push({
         name: `Frente Gaveta ${i + 1}`,
         quantity: 1,
-        width: internalWidth + 2,
+        width: frontWidth,
         height: fh,
         thickness,
-        area: ((internalWidth + 2) * fh) / 1_000_000,
-        edgeBanding: (((internalWidth + 2) + fh) * 2) / 1000,
+        area: (frontWidth * fh) / 1_000_000,
+        edgeBanding: ((frontWidth + fh) * 2) / 1000,
         material: "MDF",
       });
 

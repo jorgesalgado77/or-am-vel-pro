@@ -668,36 +668,61 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     if (!isDraggingRef.current && Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
     isDraggingRef.current = true;
     const scale = 5;
+    const SNAP_THRESHOLD = 30; // 30mm magnetic snap
+
+    const magneticSnap = (val: number, targets: number[]): number => {
+      for (const t of targets) {
+        if (Math.abs(val - t) <= SNAP_THRESHOLD) return t;
+      }
+      return val;
+    };
 
     if (dragRef.current.isMain) {
-      // Main module: move within wall bounds (X = horizontal, Y = vertical)
       let newX = snapToGrid(dragRef.current.startX + dx * scale);
-      let newY = snapToGrid(dragRef.current.startY - dy * scale); // invert Y: screen down = world down
+      let newY = snapToGrid(dragRef.current.startY - dy * scale);
 
-      // Clamp to wall boundaries
       if (wall.enabled) {
         const halfWall = wall.width / 2;
         const halfMod = module.width / 2;
         const minX = -halfWall + halfMod;
         const maxX = halfWall - halfMod;
-        newX = Math.max(minX, Math.min(maxX, newX));
 
-        const minY = 0;
-        const maxY = wall.height - module.height - computedFloorOffset;
-        newY = Math.max(minY, Math.min(maxY, newY));
+        // Snap targets: wall edges, center
+        const snapTargetsX = [minX, 0, maxX];
+        const snapTargetsY = [0, wall.height - module.height - computedFloorOffset];
+
+        newX = magneticSnap(newX, snapTargetsX);
+        newY = magneticSnap(newY, snapTargetsY);
+        newX = Math.max(minX, Math.min(maxX, newX));
+        newY = Math.max(0, Math.min(wall.height - module.height - computedFloorOffset, newY));
       }
 
       updatePersisted({ moduleOffsetX: newX, moduleOffsetY: newY });
     } else {
-      // Duplicate module
-      const newX = snapToGrid(dragRef.current.startX + dx * scale);
+      let newX = snapToGrid(dragRef.current.startX + dx * scale);
       const newZ = snapToGrid(dragRef.current.startY + dy * scale);
+
+      // Snap to other module edges
+      if (wall.enabled) {
+        const mainRight = moduleOffsetX + module.width / 2;
+        const mainLeft = moduleOffsetX - module.width / 2;
+        const snapTargetsX: number[] = [];
+        duplicates.forEach((d) => {
+          if (d.id !== dragRef.current!.id) {
+            snapTargetsX.push(d.positionX + d.module.width + 3); // right edge + gap
+            snapTargetsX.push(d.positionX - module.width - 3); // left edge - gap
+          }
+        });
+        snapTargetsX.push(mainRight + 3, mainLeft - module.width - 3);
+        newX = magneticSnap(newX, snapTargetsX);
+      }
+
       const newDups = duplicates.map((d) =>
         d.id === dragRef.current!.id ? { ...d, positionX: newX, positionZ: newZ } : d
       );
       updatePersisted({ duplicates: newDups });
     }
-  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset]);
+  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX]);
 
   const handleCanvasPointerUp = useCallback(() => {
     if (dragRef.current && threeRef.current) {
@@ -1122,7 +1147,10 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                         <Minus className="h-3 w-3" />
                       </Button>
                       <Badge variant="secondary" className="text-[10px] min-w-[20px] text-center">{count}</Badge>
-                      <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => addComponent(type)}>
+                      <Button variant="ghost" size="icon" className="h-5 w-5"
+                        onClick={() => addComponent(type)}
+                        disabled={type === "gaveta" && count >= MAX_DRAWERS}
+                      >
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>

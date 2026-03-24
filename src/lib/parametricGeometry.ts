@@ -296,16 +296,20 @@ export function generateParametricGeometry(
   const drawerBodyWidth = iw - 35;
   const drawerBodyDepth = D - 50;
   const openDrawers = options?.openDrawers ?? false;
-  const drawerSlideOut = openDrawers ? drawerBodyDepth * 0.6 : 0; // slide out 60%
+  const drawerSlideOut = openDrawers ? drawerBodyDepth * 0.6 : 0;
   drawers.forEach((drawer, i) => {
     const fh = drawer.frontHeight || 180;
     const posY = drawer.positionY;
     const bodyThickness = drawer.thickness || 18;
     const bottomThickness = drawer.bottomThickness || 3;
     const sideInset = bodyThickness / 2 + 2;
-    const bodyHeight = fh - 30;
+    // Body height = front height - 30mm, clamped to not exceed internal space
+    const bodyHeight = Math.min(fh - 30, ih - 10);
+    const frontWidth = W - 4; // front = module width - 4mm
     const frontZ = D + T / 2 + 2 + drawerSlideOut;
-    createPanel(`Frente Gaveta ${i + 1}`, iw + 2, fh, T, W / 2, posY + fh / 2, frontZ, doorMat);
+    // Front panel
+    createPanel(`Frente Gaveta ${i + 1}`, frontWidth, fh, T, W / 2, posY + fh / 2, frontZ, doorMat);
+    // Body panels - clamped inside module
     const bodyY = posY + bodyHeight / 2 + 5;
     const bodyZ = D / 2 + 5 + drawerSlideOut;
     createPanel(`Lateral Gaveta E ${i + 1}`, bodyThickness, bodyHeight, drawerBodyDepth, T + sideInset, bodyY, bodyZ, drawerBodyMat);
