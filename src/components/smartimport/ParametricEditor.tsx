@@ -1452,7 +1452,91 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 }}
               >
                 <Camera className="h-3 w-3" /> PNG
-              </Button>
+               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-[10px] px-2 gap-1"
+                onClick={async () => {
+                  if (!threeRef.current) return;
+                  const { renderer, scene, camera, controls } = threeRef.current;
+                  const maxDim = Math.max(module.width, module.height, module.depth) * 0.01;
+                  const dist = Math.max(maxDim * 2.2, 4);
+                  const centerY = (computedFloorOffset * 0.01) + (module.height * 0.01) / 2;
+                  const views = [
+                    { label: "Frontal", pos: [0, 0.5, 1], target: [0, 0.5, 0] },
+                    { label: "Traseira", pos: [0, 0.5, -1], target: [0, 0.5, 0] },
+                    { label: "Esquerda", pos: [-1, 0.5, 0], target: [0, 0.5, 0] },
+                    { label: "Direita", pos: [1, 0.5, 0], target: [0, 0.5, 0] },
+                    { label: "Planta", pos: [0, 1, 0.01], target: [0, 0, 0] },
+                    { label: "Perspectiva", pos: [1, 0.7, 1], target: [0, 0.3, 0] },
+                  ];
+                  const origW = renderer.domElement.width;
+                  const origH = renderer.domElement.height;
+                  const snapW = 1200;
+                  const snapH = 900;
+                  const snapshots: { label: string; dataUrl: string }[] = [];
+                  // Save original camera state
+                  const origPos = camera.position.clone();
+                  const origTarget = controls.target.clone();
+                  camera.aspect = snapW / snapH;
+                  camera.updateProjectionMatrix();
+                  renderer.setSize(snapW, snapH);
+                  for (const v of views) {
+                    camera.position.set(
+                      v.pos[0] * dist,
+                      v.pos[1] * dist + (v.label === "Planta" ? dist : 0),
+                      v.pos[2] * dist
+                    );
+                    controls.target.set(v.target[0], v.label === "Planta" ? 0 : centerY, v.target[2] * maxDim * 0.3);
+                    controls.update();
+                    renderer.render(scene, camera);
+                    snapshots.push({ label: v.label, dataUrl: renderer.domElement.toDataURL("image/jpeg", 0.92) });
+                  }
+                  // Restore camera
+                  camera.position.copy(origPos);
+                  controls.target.copy(origTarget);
+                  camera.aspect = origW / origH;
+                  camera.updateProjectionMatrix();
+                  renderer.setSize(origW, origH);
+                  controls.update();
+                  renderer.render(scene, camera);
+                  // Build PDF with jsPDF
+                  const { default: jsPDFLib } = await import("jspdf");
+                  const pdf = new jsPDFLib({ orientation: "landscape", unit: "mm", format: "a4" });
+                  const pw = pdf.internal.pageSize.getWidth();
+                  const ph = pdf.internal.pageSize.getHeight();
+                  // Title page
+                  pdf.setFontSize(22);
+                  pdf.setFont("helvetica", "bold");
+                  pdf.text("PROPOSTA COMERCIAL — VISTAS 3D", pw / 2, 40, { align: "center" });
+                  pdf.setFontSize(12);
+                  pdf.setFont("helvetica", "normal");
+                  pdf.text(`Projeto: ${module.name}`, pw / 2, 55, { align: "center" });
+                  pdf.text(`Dimensões: ${module.width}×${module.height}×${module.depth}mm`, pw / 2, 63, { align: "center" });
+                  pdf.text(new Date().toLocaleDateString("pt-BR"), pw / 2, 71, { align: "center" });
+                  // One page per view
+                  for (const snap of snapshots) {
+                    pdf.addPage();
+                    pdf.setFontSize(14);
+                    pdf.setFont("helvetica", "bold");
+                    pdf.text(`Vista: ${snap.label}`, 15, 15);
+                    const imgW = pw - 30;
+                    const imgH = imgW * (snapH / snapW);
+                    const yOff = Math.max(20, (ph - imgH) / 2);
+                    pdf.addImage(snap.dataUrl, "JPEG", 15, yOff, imgW, imgH);
+                    // Footer
+                    pdf.setFontSize(7);
+                    pdf.setFont("helvetica", "normal");
+                    pdf.setTextColor(150);
+                    pdf.text("OrçaMóvel Pro — Proposta gerada automaticamente", pw / 2, ph - 8, { align: "center" });
+                    pdf.setTextColor(0);
+                  }
+                  pdf.save(`Proposta_Vistas_${module.name.replace(/\s+/g, "_")}.pdf`);
+                  toast.success("PDF multi-ângulo exportado com sucesso!");
+                }}
+              >
+                <FileDown className="h-3 w-3" /> PDF Vistas
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
               </Badge>
