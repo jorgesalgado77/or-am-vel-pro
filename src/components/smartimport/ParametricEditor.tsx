@@ -881,24 +881,42 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       // Collision detection with duplicates
       if (collisionEnabled && wall.enabled) {
-        const mainLeft = newX - module.width / 2;
-        const mainRight = newX + module.width / 2;
+        const mainHalfW = module.width / 2;
+        const mainHalfH = module.height / 2;
+        const mainCenterY = newY + computedFloorOffset + module.height / 2;
+
         for (const d of duplicates) {
-          const dupLeft = d.positionX + moduleOffsetX - d.module.width / 2;
-          const dupRight = d.positionX + moduleOffsetX + d.module.width / 2;
-          if (mainRight > dupLeft && mainLeft < dupRight) {
-            // Collision — push to nearest side
-            const pushLeft = dupLeft - module.width / 2;
-            const pushRight = dupRight + module.width / 2;
-            newX = Math.abs(newX - pushLeft) < Math.abs(newX - pushRight) ? pushLeft : pushRight;
+          // Duplicates are relative to moduleOffsetX, but after this update moduleOffsetX = newX
+          // So duplicate absolute pos = d.positionX + newX
+          const dupAbsX = d.positionX + newX;
+          const dupHalfW = d.module.width / 2;
+          const dupHalfH = d.module.height / 2;
+          const dupFloor = computedFloorOffset;
+          const dupCenterY = (d.positionZ || 0) + dupFloor + d.module.height / 2;
+
+          const overlapX = (newX + mainHalfW > dupAbsX - dupHalfW) && (newX - mainHalfW < dupAbsX + dupHalfW);
+          const overlapY = (mainCenterY + mainHalfH > dupCenterY - dupHalfH) && (mainCenterY - mainHalfH < dupCenterY + dupHalfH);
+
+          if (overlapX && overlapY) {
+            // Push horizontally to nearest non-overlapping side
+            const pushLeft = dupAbsX - dupHalfW - mainHalfW;
+            const pushRight = dupAbsX + dupHalfW + mainHalfW;
+            // But since dupAbsX depends on newX (dupAbsX = d.positionX + newX), solve:
+            // pushLeft: newX = (d.positionX + newX) - dupHalfW - mainHalfW → won't work directly
+            // Absolute duplicate position when main is at candidate X: d.positionX + candidateX
+            // We need: candidateX + mainHalfW <= d.positionX + candidateX - dupHalfW → impossible (mainHalfW <= -dupHalfW)
+            // Duplicates move with main! So we can't separate them by moving main alone.
+            // Instead, use the CURRENT absolute positions of duplicates (before main moves)
+            const dupAbsCurrent = d.positionX + moduleOffsetX;
+            const pushL = dupAbsCurrent - dupHalfW - mainHalfW;
+            const pushR = dupAbsCurrent + dupHalfW + mainHalfW;
+            newX = Math.abs(newX - pushL) < Math.abs(newX - pushR) ? pushL : pushR;
           }
         }
         // Re-clamp after collision
-        if (wall.enabled) {
-          const halfWall = wall.width / 2;
-          const halfMod = module.width / 2;
-          newX = Math.max(-halfWall + halfMod, Math.min(halfWall - halfMod, newX));
-        }
+        const halfWall = wall.width / 2;
+        const halfMod = module.width / 2;
+        newX = Math.max(-halfWall + halfMod, Math.min(halfWall - halfMod, newX));
       }
 
       updatePersisted({ moduleOffsetX: newX, moduleOffsetY: newY });
@@ -933,43 +951,60 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       // Collision with main module and other duplicates
       if (collisionEnabled) {
-        const absX = newX + moduleOffsetX;
-        const dragLeft = absX - dragW / 2;
-        const dragRight = absX + dragW / 2;
+        let absX = newX + moduleOffsetX;
+        const dragHalfW = dragW / 2;
+        const dragH = dragDup?.module.height || module.height;
 
         // Check against main module
-        const mainLeft = moduleOffsetX - module.width / 2;
-        const mainRight = moduleOffsetX + module.width / 2;
-        let adjustedAbsX = absX;
-        if (dragRight > mainLeft && dragLeft < mainRight) {
-          const pushLeft = mainLeft - dragW / 2;
-          const pushRight = mainRight + dragW / 2;
-          adjustedAbsX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
+        const mainCX = moduleOffsetX;
+        const mainHalfW = module.width / 2;
+        const overlapX_main = (absX + dragHalfW > mainCX - mainHalfW) && (absX - dragHalfW < mainCX + mainHalfW);
+        // For simplicity, assume same vertical level (most common case)
+        if (overlapX_main) {
+          const pushLeft = mainCX - mainHalfW - dragHalfW;
+          const pushRight = mainCX + mainHalfW + dragHalfW;
+          absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
         }
 
         // Check against other duplicates
         for (const d of duplicates) {
           if (d.id === dragRef.current!.id) continue;
           const dAbsX = d.positionX + moduleOffsetX;
-          const dLeft = dAbsX - d.module.width / 2;
-          const dRight = dAbsX + d.module.width / 2;
-          const myLeft = adjustedAbsX - dragW / 2;
-          const myRight = adjustedAbsX + dragW / 2;
-          if (myRight > dLeft && myLeft < dRight) {
-            const pushLeft = dLeft - dragW / 2;
-            const pushRight = dRight + dragW / 2;
-            adjustedAbsX = Math.abs(adjustedAbsX - pushLeft) < Math.abs(adjustedAbsX - pushRight) ? pushLeft : pushRight;
+          const dHalfW = d.module.width / 2;
+          const myLeft = absX - dragHalfW;
+          const myRight = absX + dragHalfW;
+          if (myRight > dAbsX - dHalfW && myLeft < dAbsX + dHalfW) {
+            const pushLeft = dAbsX - dHalfW - dragHalfW;
+            const pushRight = dAbsX + dHalfW + dragHalfW;
+            absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
           }
         }
 
-        newX = adjustedAbsX - moduleOffsetX;
+        // Second pass — re-check all after adjustments to prevent chain overlaps
+        for (const d of duplicates) {
+          if (d.id === dragRef.current!.id) continue;
+          const dAbsX = d.positionX + moduleOffsetX;
+          const dHalfW = d.module.width / 2;
+          if (absX + dragHalfW > dAbsX - dHalfW && absX - dragHalfW < dAbsX + dHalfW) {
+            const pushLeft = dAbsX - dHalfW - dragHalfW;
+            const pushRight = dAbsX + dHalfW + dragHalfW;
+            absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
+          }
+        }
+        // Also re-check main
+        if (absX + dragHalfW > mainCX - mainHalfW && absX - dragHalfW < mainCX + mainHalfW) {
+          const pushLeft = mainCX - mainHalfW - dragHalfW;
+          const pushRight = mainCX + mainHalfW + dragHalfW;
+          absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
+        }
+
+        newX = absX - moduleOffsetX;
 
         // Re-clamp to wall after collision
         if (wall.enabled) {
           const halfWall = wall.width / 2;
           const finalAbs = newX + moduleOffsetX;
-          const dupHalf = dragW / 2;
-          const clampedAbs = Math.max(-halfWall + dupHalf, Math.min(halfWall - dupHalf, finalAbs));
+          const clampedAbs = Math.max(-halfWall + dragHalfW, Math.min(halfWall - dragHalfW, finalAbs));
           newX = clampedAbs - moduleOffsetX;
         }
       }
