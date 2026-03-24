@@ -501,7 +501,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         const dimGroup = generateDimensionAnnotations(THREE, module, {
           wall: wall.enabled ? { width: wall.width, height: wall.height } : undefined,
           floorOffset: computedFloorOffset,
-          duplicates: duplicates.map((d) => ({ positionX: d.positionX, module: d.module })),
+          duplicates: duplicates.map((d) => ({ positionX: d.positionX, positionZ: d.positionZ, module: { width: d.module.width, depth: d.module.depth } })),
         });
         scene.add(dimGroup);
         threeRef.current.moduleGroups.push(dimGroup);
