@@ -571,6 +571,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const dividerCount = module.components.filter((c) => c.type === "divisoria").length;
 
   return (
+    <>
     <div className="flex gap-3 h-[650px]">
       <Button
         variant="ghost"
