@@ -477,7 +477,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             <CardContent className="p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Brick className="h-3.5 w-3.5 text-primary" /> Parede
+                  <Square className="h-3.5 w-3.5 text-primary" /> Parede
                 </h4>
                 <Button
                   variant={wall.enabled ? "default" : "outline"}
