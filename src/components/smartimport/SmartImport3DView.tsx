@@ -20,6 +20,7 @@ import { ProjectThumbnail } from "./ProjectThumbnail";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GLBViewer } from "./GLBViewer";
 import { ModuleLibraryPanel } from "./ModuleLibraryPanel";
+const ParametricEditorLazy = lazy(() => import("./ParametricEditor").then(m => ({ default: m.ParametricEditor })));
 import { SmartBudgetPanel } from "./SmartBudgetPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
