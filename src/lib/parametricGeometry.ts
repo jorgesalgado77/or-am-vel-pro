@@ -96,8 +96,47 @@ export function generateWallGeometry(
 }
 
 /**
- * Gera um THREE.Group representando o módulo paramétrico completo.
+ * Gera o piso como camada sobre a grade.
+ * Largura = parede, profundidade = 1000mm, espessura = 5mm.
+ * Front face at Z=0 (extends in +Z direction, in front of the wall).
  */
+export function generateFloorGeometry(
+  THREE: typeof import("three"),
+  wallWidth: number,
+  overrides?: FloorOverrides
+): InstanceType<typeof THREE.Group> {
+  const group = new THREE.Group();
+  group.name = "floor_group";
+  const s = 0.01;
+  const floorW = wallWidth;
+  const floorD = 1000; // 1000mm depth
+  const floorH = 5; // 5mm thickness
+
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: overrides?.color ?? 0xd6d3cd,
+    roughness: 0.85,
+    metalness: 0.0,
+  });
+  if (overrides?.texture) applyTextureToMat(floorMat, overrides.texture);
+
+  const floorGeo = new THREE.BoxGeometry(floorW * s, floorH * s, floorD * s);
+  const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+  // Centered on X, top surface at Y=0 (floor level), extends in +Z from wall
+  floorMesh.position.set(0, -(floorH / 2) * s, (floorD / 2) * s);
+  floorMesh.name = "Piso";
+  floorMesh.receiveShadow = true;
+
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0xaaaaaa, linewidth: 1 });
+  const edges = new THREE.EdgesGeometry(floorGeo);
+  const line = new THREE.LineSegments(edges, edgeMat);
+  line.position.copy(floorMesh.position);
+
+  group.add(floorMesh);
+  group.add(line);
+  return group;
+}
+
+
 export function generateParametricGeometry(
   THREE: typeof import("three"),
   module: ParametricModule,
