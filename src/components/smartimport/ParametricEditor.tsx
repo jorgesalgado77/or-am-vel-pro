@@ -1401,6 +1401,18 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 </Badge>
               )}
             </div>
+            {/* Cota color legend */}
+            {showCotas && (
+              <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm rounded-lg border border-border p-2 space-y-0.5 z-10">
+                <p className="text-[9px] font-semibold text-foreground mb-1">Legenda das Cotas</p>
+                {COTA_LEGEND.map((item) => (
+                  <div key={item.color} className="flex items-center gap-1.5">
+                    <span className="w-3 h-2 rounded-sm inline-block" style={{ backgroundColor: item.hex }} />
+                    <span className="text-[8px] text-muted-foreground">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
