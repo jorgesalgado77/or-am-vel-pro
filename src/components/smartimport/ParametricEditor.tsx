@@ -760,54 +760,78 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
           <Card>
             <CardContent className="p-3 space-y-3">
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Palette className="h-3.5 w-3.5 text-primary" /> Cores e Materiais
+                <Palette className="h-3.5 w-3.5 text-primary" /> Cores e Texturas do Móvel
               </h4>
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Cor da Caixa</Label>
-                  {cores.length > 0 ? (
-                    <Select value={corCaixa} onValueChange={setCorCaixa}>
-                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar cor..." /></SelectTrigger>
-                      <SelectContent>
-                        {cores.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input className="h-7 text-xs" placeholder="Ex: Branco TX" value={corCaixa} onChange={(e) => setCorCaixa(e.target.value)} />
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Cor da Porta</Label>
-                  {cores.length > 0 ? (
-                    <Select value={corPorta} onValueChange={setCorPorta}>
-                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar cor..." /></SelectTrigger>
-                      <SelectContent>
-                        {cores.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input className="h-7 text-xs" placeholder="Ex: Cinza Sagrado" value={corPorta} onChange={(e) => setCorPorta(e.target.value)} />
-                  )}
-                </div>
-                {materiais.length > 0 && (
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Material Principal</Label>
-                    <Select
-                      value={module.bodyMaterialId || ""}
-                      onValueChange={(v) => setModule((p) => ({ ...p, bodyMaterialId: v || undefined }))}
-                    >
-                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar material..." /></SelectTrigger>
-                      <SelectContent>
-                        {materiais.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name} {m.cost ? `(R$ ${m.cost.toFixed(2)})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <div className="space-y-2.5">
+                {([
+                  { key: "body" as const, label: "Caixa (corpo)" },
+                  { key: "door" as const, label: "Portas / Frentes" },
+                  { key: "shelf" as const, label: "Prateleiras" },
+                  { key: "back" as const, label: "Fundo" },
+                  { key: "drawer" as const, label: "Corpo Gavetas" },
+                ]).map(({ key, label }) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-[10px] font-medium">{label}</Label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {FURNITURE_COLOR_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setFurnitureColor(key, opt.value)}
+                          className={`w-5 h-5 rounded border transition-all ${
+                            furnitureColors[key] === opt.value ? "border-primary ring-1 ring-primary/30 scale-110" : "border-border"
+                          }`}
+                          style={{ backgroundColor: opt.value }}
+                          title={opt.label}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        value={furnitureColors[key]}
+                        onChange={(e) => setFurnitureColor(key, e.target.value)}
+                        className="w-5 h-5 rounded border border-border cursor-pointer"
+                        title="Cor personalizada"
+                      />
+                      <label className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted/50 border border-border cursor-pointer text-[9px] hover:bg-muted transition-colors">
+                        <Upload className="h-2.5 w-2.5" /> Textura
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleTextureUpload(key, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {textureSlots[key] && (
+                        <div className="flex items-center gap-0.5">
+                          <img src={textureSlots[key]} className="h-5 w-5 rounded border border-border object-cover" alt={`${key} texture`} />
+                          <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => removeTexture(key)}>
+                            <Minus className="h-2.5 w-2.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
+              {/* Catalog materials (if available) */}
+              {materiais.length > 0 && (
+                <div className="space-y-1 pt-1 border-t border-border">
+                  <Label className="text-[11px]">Material do Catálogo</Label>
+                  <Select
+                    value={module.bodyMaterialId || ""}
+                    onValueChange={(v) => setModule((p) => ({ ...p, bodyMaterialId: v || undefined }))}
+                  >
+                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar material..." /></SelectTrigger>
+                    <SelectContent>
+                      {materiais.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name} {m.cost ? `(R$ ${m.cost.toFixed(2)})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </CardContent>
           </Card>
 
