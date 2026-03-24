@@ -311,8 +311,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       slots: [],
       verticalDivisions: 0,
     }));
+    updatePersisted({ moduleOffsetX: 0, moduleOffsetY: 0 });
     toast.success(`Preset "${preset.label}" aplicado!`);
-  }, [setModule]);
+  }, [setModule, updatePersisted]);
 
   // Duplicate module
   const duplicateModule = useCallback(() => {
