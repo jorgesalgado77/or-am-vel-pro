@@ -181,7 +181,7 @@ function applyLODToRoot(THREE: any, root: any) {
         for (let i = 0; i < indices.length; i += 6) {
           // Keep every other triangle
           if (i + 2 < indices.length) {
-            reduced.push(indices[i], indices[i + 1], indices[i + 2]);
+            reduced.push(indices[i] as number, indices[i + 1] as number, indices[i + 2] as number);
           }
         }
         midGeo.setIndex(reduced);
