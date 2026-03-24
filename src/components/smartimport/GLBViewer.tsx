@@ -25,7 +25,7 @@ interface SelectedPieceInfo {
 }
 
 type BackgroundPreset = "dark" | "light" | "studio" | "clean";
-type LightingPreset = "balanced" | "soft" | "contrast";
+type LightingPreset = "balanced" | "soft" | "contrast" | "auto";
 type QualityPreset = "low" | "balanced" | "high";
 
 const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground: number; showGrid: boolean }> = {
@@ -56,6 +56,70 @@ const FORMAT_LOADING_MESSAGES: Record<string, string[]> = {
   dxf: ["Analisando entidades DXF...", "Convertendo coordenadas CAD...", "Montando geometria vetorial DXF..."],
 };
 
+interface AutoLightingResult {
+  lighting: "balanced" | "soft" | "contrast";
+  background: BackgroundPreset;
+  cameraDistance: number;
+  reason: string;
+}
+
+function analyzeModelForAutoLighting(THREE: any, loadedObject: any): AutoLightingResult {
+  const box = new THREE.Box3().setFromObject(loadedObject);
+  const size = box.getSize(new THREE.Vector3());
+  const volume = size.x * size.y * size.z;
+
+  let metallicCount = 0;
+  let totalMeshes = 0;
+  let hasTextures = false;
+  let avgRoughness = 0;
+
+  loadedObject.traverse((child: any) => {
+    if (!child.isMesh) return;
+    totalMeshes++;
+    const mat = child.material;
+    if (!mat) return;
+    if (mat.metalness !== undefined && mat.metalness > 0.4) metallicCount++;
+    if (mat.roughness !== undefined) avgRoughness += mat.roughness;
+    if (mat.map || mat.normalMap || mat.roughnessMap) hasTextures = true;
+  });
+
+  if (totalMeshes > 0) avgRoughness /= totalMeshes;
+  const metallicRatio = totalMeshes > 0 ? metallicCount / totalMeshes : 0;
+
+  // Decide lighting
+  let lighting: "balanced" | "soft" | "contrast" = "balanced";
+  let background: BackgroundPreset = "dark";
+  let reason = "";
+
+  if (metallicRatio > 0.5) {
+    lighting = "contrast";
+    background = "studio";
+    reason = `${Math.round(metallicRatio * 100)}% metálico → contraste alto`;
+  } else if (hasTextures && avgRoughness > 0.6) {
+    lighting = "soft";
+    background = "light";
+    reason = "Texturas com rugosidade alta → luz suave";
+  } else if (totalMeshes > 100) {
+    lighting = "balanced";
+    background = "dark";
+    reason = `${totalMeshes} meshes → iluminação equilibrada`;
+  } else {
+    lighting = "balanced";
+    background = "dark";
+    reason = "Modelo padrão → configuração equilibrada";
+  }
+
+  // Camera distance based on volume
+  let cameraDistance = 8;
+  if (volume < 8) {
+    cameraDistance = 5; // small model, closer camera
+  } else if (volume > 1000) {
+    cameraDistance = 14; // large model, farther camera
+  }
+
+  return { lighting, background, cameraDistance, reason };
+}
+
 function applyBackgroundPreset(THREE: any, scene: any, preset: BackgroundPreset) {
   const palette = BACKGROUND_PRESETS[preset];
   scene.background = new THREE.Color(palette.background);
@@ -63,7 +127,8 @@ function applyBackgroundPreset(THREE: any, scene: any, preset: BackgroundPreset)
 }
 
 function applyLightingPreset(lights: any, preset: LightingPreset) {
-  const config = LIGHTING_PRESETS[preset];
+  const resolvedPreset = preset === "auto" ? "balanced" : preset;
+  const config = LIGHTING_PRESETS[resolvedPreset];
   lights.ambient.intensity = config.ambient;
   lights.dir1.intensity = config.key;
   lights.dir2.intensity = config.fill;
