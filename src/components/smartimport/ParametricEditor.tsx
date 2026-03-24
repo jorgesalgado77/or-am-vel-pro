@@ -52,14 +52,50 @@ interface WallConfig {
   width: number;
   height: number;
   depth: number;
+  color: string; // hex string
 }
 
 interface DuplicatedModule {
   id: string;
   module: ParametricModule;
-  positionX: number; // offset in mm
+  positionX: number;
   positionZ: number;
 }
+
+interface TextureSlots {
+  body?: string; // data URL
+  door?: string;
+  shelf?: string;
+  back?: string;
+  drawer?: string;
+  wall?: string;
+}
+
+interface FurnitureColors {
+  body: string;
+  door: string;
+  shelf: string;
+  back: string;
+  drawer: string;
+}
+
+const WALL_COLOR_OPTIONS = [
+  { label: "Padrão", value: "#e8e0d8" },
+  { label: "Preta", value: "#1a1a1a" },
+  { label: "Cinza Claro", value: "#d4d4d4" },
+  { label: "Cinza Escuro", value: "#525252" },
+];
+
+const FURNITURE_COLOR_OPTIONS = [
+  { label: "Madeira Clara", value: "#d4a574" },
+  { label: "Madeira Escura", value: "#8b6914" },
+  { label: "Branco", value: "#fafafa" },
+  { label: "Preto", value: "#1a1a1a" },
+  { label: "Cinza", value: "#9ca3af" },
+  { label: "Carvalho", value: "#c4a060" },
+  { label: "Tabaco", value: "#6b4226" },
+  { label: "Wengue", value: "#3c2415" },
+];
 
 interface PersistedBuilderState {
   module: ParametricModule;
@@ -67,14 +103,18 @@ interface PersistedBuilderState {
   corPorta: string;
   wall: WallConfig;
   duplicates: DuplicatedModule[];
+  furnitureColors: FurnitureColors;
+  textureSlots: TextureSlots;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
   module: createDefaultModule(),
   corCaixa: "",
   corPorta: "",
-  wall: { enabled: false, width: 3000, height: 2700, depth: 100 },
+  wall: { enabled: false, width: 3000, height: 2700, depth: 100, color: "#e8e0d8" },
   duplicates: [],
+  furnitureColors: { body: "#d4a574", door: "#fafafa", shelf: "#d4a574", back: "#d4a574", drawer: "#c4a060" },
+  textureSlots: {},
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
