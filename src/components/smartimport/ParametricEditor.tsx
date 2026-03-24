@@ -21,8 +21,8 @@ import type {
 } from "@/types/parametricModule";
 import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
-import { generateParametricGeometry, generateWallGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
-import { generateDimensionAnnotations } from "@/lib/dimensionAnnotations";
+import { generateParametricGeometry, generateWallGeometry, generateFloorGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides, type FloorOverrides } from "@/lib/parametricGeometry";
+import { generateDimensionAnnotations, COTA_LEGEND } from "@/lib/dimensionAnnotations";
 import { generateBomPdf } from "@/lib/generateBomPdf";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 import { useModuleCategories, type CategoryTreeNode } from "@/hooks/useModuleCategories";
