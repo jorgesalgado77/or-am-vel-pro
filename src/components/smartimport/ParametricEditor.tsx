@@ -403,7 +403,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   }, []);
 
   // ── Load textures from data URLs ──
-  const loadTexturesForSlots = useCallback(async (THREE: any): Promise<{ matOverrides: MaterialOverrides; wallOv: WallOverrides }> => {
+  const loadTexturesForSlots = useCallback(async (THREE: any): Promise<{ matOverrides: MaterialOverrides; wallOv: WallOverrides; floorOv: FloorOverrides }> => {
     const loader = new THREE.TextureLoader();
     const matOverrides: MaterialOverrides = {};
     const wallOv: WallOverrides = {};
