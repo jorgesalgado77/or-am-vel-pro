@@ -1043,13 +1043,42 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             </CardContent>
           </Card>
 
+          {/* Biblioteca Salva */}
+          {savedModules.length > 0 && (
+            <Card>
+              <CardContent className="p-3 space-y-2">
+                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <BookOpen className="h-3.5 w-3.5 text-primary" /> Módulos da Biblioteca
+                </h4>
+                <div className="space-y-1 max-h-[100px] overflow-y-auto">
+                  {savedModules.map((sm) => (
+                    <button
+                      key={sm.id}
+                      onClick={() => loadModuleFromLibrary(sm)}
+                      className="w-full flex items-center justify-between bg-muted/50 rounded px-2 py-1 hover:bg-muted transition-colors text-left"
+                    >
+                      <span className="text-[10px] font-medium text-foreground truncate">{sm.name}</span>
+                      <FolderOpen className="h-3 w-3 text-muted-foreground shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Ações */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button size="sm" className="flex-1 gap-1.5" onClick={handleSave}>
-              <Save className="h-3.5 w-3.5" /> Salvar Módulo
+              <Save className="h-3.5 w-3.5" /> Salvar
+            </Button>
+            <Button size="sm" variant="secondary" className="gap-1.5" onClick={() => {
+              setSaveLibName(module.name);
+              setShowSaveLibrary(true);
+            }}>
+              <FolderOpen className="h-3.5 w-3.5" /> Biblioteca
             </Button>
             <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5">
-              <RotateCcw className="h-3.5 w-3.5" /> Resetar
+              <RotateCcw className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
