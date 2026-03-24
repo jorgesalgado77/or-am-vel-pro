@@ -356,6 +356,26 @@ function WebGLViewer({
 
         threeRef.current.loadedObject = loadedObject;
 
+        // ── Auto-Lighting IA: analyze model and suggest optimal settings ──
+        if (lightingPreset === "auto") {
+          const autoResult = analyzeModelForAutoLighting(THREE, loadedObject);
+          // Apply auto-detected settings
+          applyLightingPreset(threeRef.current.lights, autoResult.lighting);
+          applyBackgroundPreset(THREE, scene, autoResult.background);
+          const gridP = BACKGROUND_PRESETS[autoResult.background];
+          grid.visible = gridP.showGrid;
+          grid.material.color?.setHex?.(gridP.ground);
+          grid.material.needsUpdate = true;
+          renderer.setClearColor(gridP.background);
+          // Adjust camera distance
+          const camDir = camera.position.clone().normalize();
+          camera.position.copy(camDir.multiplyScalar(autoResult.cameraDistance));
+          controls.update();
+          needsRenderRef.current = true;
+          console.log(`[Auto-Lighting IA] ${autoResult.reason}`);
+          onAutoLighting?.(autoResult);
+        }
+
         // ── Pointer-based selection (supports touch + mouse) ──
         const raycaster = new THREE.Raycaster();
         raycaster.params.Line = { threshold: 0.25 };
