@@ -103,6 +103,44 @@ const FURNITURE_COLOR_OPTIONS = [
   { label: "Wengue", value: "#3c2415" },
 ];
 
+// Pre-loaded texture library
+const TEXTURE_LIBRARY = [
+  { category: "Madeiras", items: [
+    { label: "Carvalho Natural", color: "#c4a060", accent: "#a8854a" },
+    { label: "Nogueira", color: "#5c3a1e", accent: "#7a5230" },
+    { label: "Freijó", color: "#b08850", accent: "#9a7540" },
+    { label: "Cedro Rosa", color: "#b07060", accent: "#985848" },
+    { label: "Imbuia", color: "#6b4226", accent: "#553418" },
+    { label: "Itaúba", color: "#8b6914", accent: "#705510" },
+    { label: "Wengue", color: "#3c2415", accent: "#2a1a0f" },
+    { label: "Teca", color: "#c8a45a", accent: "#b0903e" },
+  ]},
+  { category: "Mármores", items: [
+    { label: "Branco Carrara", color: "#f0ece8", accent: "#d8d4d0" },
+    { label: "Cinza Pulpis", color: "#6b6560", accent: "#585250" },
+    { label: "Nero Marquina", color: "#2a2825", accent: "#3c3a38" },
+    { label: "Travertino", color: "#ddd0b8", accent: "#c8bca5" },
+    { label: "Crema Marfil", color: "#e8dcc8", accent: "#d4c8b0" },
+  ]},
+  { category: "Cores Sólidas", items: [
+    { label: "Branco Neve", color: "#ffffff", accent: "#f0f0f0" },
+    { label: "Off-White", color: "#f5f0e8", accent: "#e8e0d5" },
+    { label: "Grafite", color: "#404040", accent: "#555555" },
+    { label: "Azul Petróleo", color: "#1a4a5a", accent: "#285868" },
+    { label: "Verde Musgo", color: "#3a5a3a", accent: "#4a6a4a" },
+    { label: "Terracota", color: "#c45a3a", accent: "#b04828" },
+    { label: "Areia", color: "#d4c4a8", accent: "#c0b090" },
+  ]},
+];
+
+const MAX_DRAWERS = 4;
+
+interface SavedPalette {
+  id: string;
+  name: string;
+  colors: FurnitureColors;
+}
+
 interface PersistedBuilderState {
   module: ParametricModule;
   corCaixa: string;
@@ -111,6 +149,7 @@ interface PersistedBuilderState {
   duplicates: DuplicatedModule[];
   furnitureColors: FurnitureColors;
   textureSlots: TextureSlots;
+  savedPalettes: SavedPalette[];
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -121,6 +160,7 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   duplicates: [],
   furnitureColors: { body: "#d4a574", door: "#fafafa", shelf: "#d4a574", back: "#d4a574", drawer: "#c4a060" },
   textureSlots: {},
+  savedPalettes: [],
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -170,12 +210,32 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     delete textureCache.current[slot];
   }, [textureSlots, updatePersisted]);
 
+  const savedPalettes = persisted.savedPalettes ?? [];
+
+  const savePalette = useCallback((name: string) => {
+    const palette: SavedPalette = { id: crypto.randomUUID(), name, colors: { ...furnitureColors } };
+    updatePersisted({ savedPalettes: [...savedPalettes, palette] });
+    toast.success(`Paleta "${name}" salva!`);
+  }, [furnitureColors, savedPalettes, updatePersisted]);
+
+  const loadPalette = useCallback((palette: SavedPalette) => {
+    updatePersisted({ furnitureColors: { ...palette.colors } });
+    toast.success(`Paleta "${palette.name}" aplicada!`);
+  }, [updatePersisted]);
+
+  const removePalette = useCallback((id: string) => {
+    updatePersisted({ savedPalettes: savedPalettes.filter((p) => p.id !== id) });
+  }, [savedPalettes, updatePersisted]);
+
   const [showPanel, setShowPanel] = useState(true);
   const [showSaveLibrary, setShowSaveLibrary] = useState(false);
   const [saveLibName, setSaveLibName] = useState("");
   const [saveLibCategory, setSaveLibCategory] = useState("");
   const [saveLibSubcategory, setSaveLibSubcategory] = useState("");
   const [savedModules, setSavedModules] = useState<any[]>([]);
+  const [showTextureLib, setShowTextureLib] = useState(false);
+  const [textureLibTarget, setTextureLibTarget] = useState<keyof FurnitureColors>("body");
+  const [paletteName, setPaletteName] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const threeRef = useRef<any>(null);
