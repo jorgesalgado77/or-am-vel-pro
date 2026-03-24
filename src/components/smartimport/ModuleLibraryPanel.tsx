@@ -690,6 +690,7 @@ export function ModuleLibraryPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>{/* end main content */}
     </div>
   );
 }
