@@ -249,6 +249,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: appUser.tenant_id, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, auth_user_id: authData.user.id, resultado: "sucesso" });
+        userRef.current = appUser;
+        currentAuthIdRef.current = authData.user.id;
         setUser(appUser);
         setSession(authData.session);
         syncGlobalState(appUser);
@@ -259,6 +261,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const refreshedUser = await withTimeout(loadAppUser(authData.user), 1500, null);
 
             if (refreshedUser) {
+              userRef.current = refreshedUser;
+              currentAuthIdRef.current = authData.user.id;
               setUser(refreshedUser);
               syncGlobalState(refreshedUser);
             }
@@ -579,6 +583,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await ensureUserProfile(loginData.user, metadata, password);
         const appUser = await loadAppUser(loginData.user);
         if (appUser) {
+          userRef.current = appUser;
+          currentAuthIdRef.current = loginData.user.id;
           setUser(appUser);
           setSession(loginData.session);
           syncGlobalState(appUser);
@@ -589,6 +595,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await ensureUserProfile(confirmedLogin.user, metadata, password);
           const appUser = await loadAppUser(confirmedLogin.user);
           if (appUser) {
+            userRef.current = appUser;
+            currentAuthIdRef.current = confirmedLogin.user.id;
             setUser(appUser);
             setSession(confirmedLogin.session);
             syncGlobalState(appUser);
@@ -602,6 +610,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     currentAuthIdRef.current = null;
+    userRef.current = null;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -630,6 +639,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logoutTimer = setTimeout(async () => {
         setShowInactivityWarning(false);
         currentAuthIdRef.current = null;
+        userRef.current = null;
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
@@ -658,6 +668,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session?.user) {
       const appUser = await loadAppUser(session.user);
       if (appUser) {
+        userRef.current = appUser;
+        currentAuthIdRef.current = session.user.id;
         setUser(appUser);
         syncGlobalState(appUser);
       }
