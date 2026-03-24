@@ -861,6 +861,19 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                       <TableCell className="text-right tabular-nums font-medium text-primary">{formatCurrency(data.comissaoTotal)}</TableCell>
                     </TableRow>
                   ))}
+                  {(() => {
+                    const totClientes = filtered.reduce((s, [, d]) => s + d.count, 0);
+                    const totValor = filtered.reduce((s, [, d]) => s + d.total, 0);
+                    const totComissao = filtered.reduce((s, [, d]) => s + d.comissaoTotal, 0);
+                    return (
+                      <TableRow className="bg-muted/50 border-t-2 border-border font-semibold">
+                        <TableCell className="text-foreground">Total</TableCell>
+                        <TableCell className="text-center"><Badge variant="secondary">{totClientes}</Badge></TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(totValor)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-primary">{formatCurrency(totComissao)}</TableCell>
+                      </TableRow>
+                    );
+                  })()}
                 </TableBody>
               </Table>
               );
