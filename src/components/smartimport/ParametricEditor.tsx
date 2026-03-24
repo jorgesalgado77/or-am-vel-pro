@@ -403,14 +403,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xf0f0f0);
 
-      const camera = new THREE.PerspectiveCamera(50, w / h, 0.01, 100);
+      const camera = new THREE.PerspectiveCamera(50, w / h, 0.01, 200);
       camera.position.set(4, 3, 5);
 
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.08;
-      controls.minDistance = 1;
-      controls.maxDistance = 30;
+      controls.minDistance = 0.3;
+      controls.maxDistance = 80;
       controls.addEventListener("change", () => { needsRenderRef.current = true; });
 
       scene.add(new THREE.AmbientLight(0xffffff, 1.2));
