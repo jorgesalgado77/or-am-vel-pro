@@ -31,11 +31,12 @@ export function LandingHeader({ primaryColor }: LandingHeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
-            <div
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-              style={{ backgroundColor: primaryColor }}
-            >
-              OM
+            <div className="relative h-10 w-10 rounded-xl overflow-hidden shadow-lg ring-2 ring-white/80" style={{ boxShadow: `0 4px 14px ${primaryColor}40` }}>
+              <img
+                src={iconOrcamovel}
+                alt="OrçaMóvel PRO"
+                className="h-full w-full object-cover drop-shadow-md"
+              />
             </div>
             <span className="text-xl font-bold text-gray-900">
               OrçaMóvel <span style={{ color: primaryColor }}>PRO</span>
