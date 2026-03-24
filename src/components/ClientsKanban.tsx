@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, UserPlus, CalendarIcon, FileText, Calculator } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { playNotificationSound } from "@/lib/notificationSound";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -112,6 +113,37 @@ export function ClientsKanban({
     };
     fetchFollowUpStatuses();
   }, [localClients]);
+
+  // Realtime: listen for new leads sent to the current user
+  useEffect(() => {
+    const userName = currentUser?.nome_completo;
+    if (!userName) return;
+
+    const channel = supabase
+      .channel("kanban-lead-notifications")
+      .on(
+        "postgres_changes" as any,
+        { event: "INSERT", schema: "public", table: "tracking_messages" },
+        (payload: any) => {
+          const msg = payload.new;
+          if (
+            msg?.destinatario === userName &&
+            msg?.tipo === "sistema" &&
+            typeof msg?.conteudo === "string" &&
+            msg.conteudo.includes("enviado para seu atendimento")
+          ) {
+            playNotificationSound();
+            toast.success("🚀 Novo lead recebido!", {
+              description: msg.conteudo.replace(/[🚀✅⚠️]/g, "").trim(),
+              duration: 8000,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser?.nome_completo]);
 
   // Date filter computation
   const effectiveDates = useMemo(() => {
