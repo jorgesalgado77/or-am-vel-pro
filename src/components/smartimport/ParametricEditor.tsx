@@ -78,6 +78,7 @@ interface TextureSlots {
   back?: string;
   drawer?: string;
   wall?: string;
+  floor?: string;
 }
 
 interface FurnitureColors {
