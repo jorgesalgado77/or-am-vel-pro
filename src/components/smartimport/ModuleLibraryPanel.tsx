@@ -10,16 +10,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   BookOpen, Plus, Trash2, Edit2, Save, DollarSign, Package, Ruler, Palette, Wrench, Copy, MessageSquare,
+  FolderTree, ChevronRight, ChevronDown, FolderPlus, Folder, FolderOpen,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import type { ModuleLibraryItem } from "@/hooks/useSmartImport3D";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
+import type { CategoryTreeNode, ModuleCategory } from "@/hooks/useModuleCategories";
 
 interface ModuleLibraryPanelProps {
   library: ModuleLibraryItem[];
   catalogItems?: CatalogItem[];
+  categories?: CategoryTreeNode[];
+  selectedCategoryId?: string | null;
+  onCategorySelect?: (id: string | null) => void;
+  onCategoryAdd?: (name: string, parentId: string | null) => Promise<any>;
+  onCategoryDelete?: (id: string) => Promise<boolean>;
   onAdd: (item: Omit<ModuleLibraryItem, "id" | "tenant_id" | "created_at">) => Promise<any>;
   onUpdate: (id: string, updates: Partial<ModuleLibraryItem>) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
