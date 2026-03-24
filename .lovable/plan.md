@@ -1,145 +1,218 @@
 
 
-# Plano de Auditoria Global + Otimização — OrçaMóvel PRO
+# Plano — Refatoração Total 3D Import + Builder Paramétrico
 
-## Diagnóstico Atual
-
-Após análise completa do código, identifiquei os seguintes pontos de ação organizados por prioridade:
-
-### Estado Atual (o que já está bem)
-- Lazy loading já implementado em todas as views do Index.tsx e tabs do Settings
-- DRACOLoader já integrado no GLBViewer para compressão GLB
-- Renderização on-demand (needsRenderRef) já implementada no 3D viewer
-- FPS monitor com auto-downgrade de pixel ratio já funcional
-- OrbitControls com damping já configurado corretamente
-- Centralização e normalização de modelos 3D já existentes
-- Frustum culling ativado nos objetos 3D
-- Color space (sRGBColorSpace) e tone mapping (ACES) já configurados
-- Preservação de materiais originais já implementada
-- Architecture modular com modules/ barrel exports
-- RLS e tenant isolation já configurados
+Este é um projeto de grande escala que precisa ser executado em fases incrementais para não quebrar o sistema existente. Abaixo está o plano completo organizado por prioridade de execução.
 
 ---
 
-## Fase 1 — Limpeza e Código Morto
+## Estado Atual (auditoria concluída)
 
-### 1.1 Remover console.logs de produção
-- `DealRoomSimulation.tsx` linhas 63, 79: remover `console.log` de debug
+O que já funciona bem e NÃO será tocado:
+- DRACOLoader com CDN decoders
+- sRGBColorSpace + ACESFilmicToneMapping
+- OrbitControls com damping
+- FPS monitor com auto-downgrade de pixel ratio
+- Geometry Instancing (detecta meshes repetidas)
+- PMREMGenerator para reflexos metálicos
+- Frustum culling ativado
+- On-demand rendering (needsRenderRef)
+- Preservação de materiais originais
+- 3 níveis de qualidade (low/balanced/high)
+- Presets de background, iluminação
+- Seleção de peças com emissive glow
+- Thumbnail automático no upload
+- DXF parser com ACI color mapping
+- Motor de orçamento inteligente com sugestões IA
+- Biblioteca de módulos com catálogo de componentes
 
-### 1.2 Padronizar imports do Supabase
-- 11 arquivos importam de `@/integrations/supabase/client` diretamente em vez de `@/lib/supabaseClient`
-- Ambos apontam para o mesmo client, mas padronizar para `@/lib/supabaseClient` em todos
-
-### 1.3 Remover `eslint-disable` desnecessário
-- `ClientsKanban.tsx` linha 1: remover `/* eslint-disable */`
-
----
-
-## Fase 2 — Performance Frontend
-
-### 2.1 React.memo nos componentes de lista
-- `KanbanCard` — componente renderizado dezenas de vezes no Kanban, sem memo
-- `ChatConversationList` items — re-renderiza toda lista ao selecionar conversa
-- `ChatMessageBubble` — memo para evitar re-render de mensagens
-
-### 2.2 useCallback/useMemo em handlers pesados
-- `ClientsKanban`: memoizar handlers de filtro e drag-drop
-- `VendaZapChat`: memoizar `handleSelectConversation`
-
-### 2.3 Virtualização de listas longas (se >50 items)
-- Considerar `react-window` para a lista de conversas do VendaZap se tiver muitas conversas
-
----
-
-## Fase 3 — 3D Smart Import (CRÍTICO)
-
-### 3.1 O que já funciona (NÃO tocar)
-- DRACOLoader com decoders CDN ✅
-- sRGBColorSpace + ACESFilmicToneMapping ✅  
-- enableDamping + dampingFactor ✅
-- Centralização e escala automáticas ✅
-- FPS monitor com auto-downgrade ✅
-- Preservação de materiais originais ✅
-- frustumCulled = true ✅
-- On-demand rendering ✅
-
-### 3.2 Melhorias a implementar
-- **Geometry Instancing**: detectar meshes com geometria idêntica e usar `InstancedMesh`
-- **LOD (Level of Detail)**: para modelos com >50k vértices, criar versões simplificadas
-- **Web Worker para DXF parsing**: mover `parseDxfEntities` para Web Worker para não bloquear UI thread
-- **Texture cache por hash**: criar tabela `textures_cache(id, hash, url, created_at)` no Supabase e reutilizar texturas duplicadas no upload
-
-### 3.3 Qualidade de render adicional
-- Adicionar **Environment Map** sutil (não HDRI pesado) para reflexos realistas em materiais metálicos
-- **Soft shadows** já disponível no preset "high" — apenas ajustar shadow map bias
+Problemas identificados:
+- DXF parser roda na main thread (bloqueia UI em arquivos grandes)
+- Sem LOD para modelos pesados (>50k vértices)
+- Sem suporte touch (pointer events)
+- Sem builder paramétrico
+- Sem sistema de bibliotecas hierárquicas
+- Sem motor de vãos internos
+- Sem integração direta com o simulador de negociação
+- BudgetGenerator.tsx é duplicata parcial do SmartBudgetPanel.tsx
 
 ---
 
-## Fase 4 — Segurança
+## FASE 1 — Performance e Correções Críticas
+**~8 arquivos modificados**
 
-### 4.1 Validação de inputs
-- Adicionar `zod` validation nos formulários de lead capture (já parcialmente implementado em LandingLeadForm)
-- Validar inputs no briefing modal antes de salvar
-- Sanitizar `projectName` no upload 3D contra XSS
+### 1.1 Web Worker para DXF Parsing
+- Criar `src/workers/dxfParserWorker.ts` — mover `parseDxfEntities` para Worker
+- Em `modelPreviewUtils.ts` — chamar o Worker via `new Worker()` com fallback inline
 
-### 4.2 RLS audit
-- Auditoria de RLS já concluída em 41 tabelas (conforme memória)
-- Verificar tabelas novas: `client_briefings`, `lead_attachments` — adicionar RLS se ausente
+### 1.2 LOD (Level of Detail)
+- Em `modelPreviewUtils.ts` — após `prepareObjectForPreview`, detectar meshes com >50k vértices
+- Criar versão simplificada via `THREE.BufferGeometryUtils.mergeVertices()` com tolerance
+- Usar `THREE.LOD` para alternar entre versões baseado na distância da câmera
 
-### 4.3 SQL para segurança adicional (entregar ao usuário)
+### 1.3 Material Cache Global
+- Criar `src/lib/textureCache.ts` — Map global com hash de textura para evitar duplicação
+- Integrar no `prepareObjectForPreview` para reutilizar materiais idênticos
+- Consultar tabela `textures_cache` do Supabase para persistência cross-session
+
+### 1.4 Remover Duplicata
+- `BudgetGenerator.tsx` — já substituído pelo `SmartBudgetPanel.tsx` (mais completo)
+- Verificar se ainda é referenciado; se não, remover o arquivo
+
+---
+
+## FASE 2 — Suporte Touch Completo
+**~2 arquivos modificados**
+
+### 2.1 Pointer Events no GLBViewer
+- Em `GLBViewer.tsx` — substituir `click` listener por `pointerdown`/`pointerup` com detecção de tap vs drag
+- Adicionar threshold de 5px para distinguir tap de pan
+- OrbitControls já suporta touch nativamente (pinch zoom, rotate)
+
+### 2.2 CSS Touch Optimizations
+- Adicionar `touch-action: none` ao canvas para evitar scroll do browser
+- Testar em viewport mobile (767px)
+
+---
+
+## FASE 3 — Builder Paramétrico (Novo Core)
+**~5 novos arquivos**
+
+### 3.1 Tipos e Estrutura
+- Criar `src/types/parametricModule.ts`:
+  - `ParametricModule` (largura, altura, profundidade, prateleiras, divisões, componentes)
+  - `ModuleSlot` (posição, dimensões, conteúdo)
+  - `InternalComponent` (prateleira, gaveta, porta, divisória)
+
+### 3.2 Motor de Vãos Internos
+- Criar `src/lib/spanEngine.ts`:
+  - `calculateInternalSpans(module)` — retorna vãos calculados
+  - Fórmulas: `vaoInterno = alturaTotal - (topo + base)`, `vaoLivre = vaoInterno - (qtdPrateleiras * espessura)`, `vaoUnitario = vaoLivre / (qtdPrateleiras + 1)`
+  - Recálculo automático ao alterar qualquer parâmetro
+
+### 3.3 Gerador de Geometria Paramétrica
+- Criar `src/lib/parametricGeometry.ts`:
+  - Gera `THREE.Group` a partir de `ParametricModule`
+  - Cada peça (lateral, topo, base, prateleira) como mesh individual com metadata
+  - Aplica materiais do catálogo (cor_caixa, cor_porta, etc.)
+
+### 3.4 Componente de Edição
+- Criar `src/components/smartimport/ParametricEditor.tsx`:
+  - Painel lateral com sliders para dimensões (L × A × P)
+  - Controles para adicionar/remover prateleiras, gavetas, portas
+  - Preview 3D em tempo real usando o gerador de geometria
+  - Drag para ajuste manual de posição de prateleiras
+
+### 3.5 Snap System
+- Implementar snap de 10mm para movimentação de componentes internos
+- Grid visual opcional no editor
+
+---
+
+## FASE 4 — Sistema de Bibliotecas Hierárquicas
+**~3 arquivos modificados/criados**
+
+### 4.1 Estrutura de Dados
+- SQL: Criar tabela `module_categories`:
+  ```
+  id, tenant_id, parent_id (nullable), name, icon, sort_order
+  ```
+- Exemplos: Cozinha > Superiores, Dormitório > Roupeiros
+
+### 4.2 Hook de Categorias
+- Criar `src/hooks/useModuleCategories.ts` — CRUD de categorias com hierarquia
+
+### 4.3 UI de Biblioteca com Árvore
+- Refatorar `ModuleLibraryPanel.tsx`:
+  - Adicionar sidebar com árvore de categorias (collapsible)
+  - Filtrar módulos por categoria selecionada
+  - Permitir salvar módulo paramétrico na biblioteca
+  - Drag & drop para reorganizar
+
+---
+
+## FASE 5 — Integração com Orçamento em Tempo Real
+**~2 arquivos modificados**
+
+### 5.1 Lista de Peças do Builder
+- Cada `ParametricModule` gera automaticamente:
+  - Lista de peças (laterais, topo, base, prateleiras, portas)
+  - Ferragens necessárias (dobradiças, corrediças, puxadores)
+  - Materiais consumidos (m² de MDF, fita de borda)
+
+### 5.2 Sync com SmartBudgetPanel
+- Módulos paramétricos alimentam o mesmo `processObjects` do budget engine
+- Atualização em tempo real ao alterar dimensões
+
+---
+
+## FASE 6 — Integração com Simulador de Negociação
+**~2 arquivos modificados**
+
+### 6.1 Exportar Orçamento 3D para Simulador
+- Em `SmartBudgetPanel.tsx` — adicionar botão "Enviar para Simulador"
+- Preencher automaticamente os campos do `SimulatorPanel` com:
+  - Nome do projeto → ambiente
+  - Total final → valor
+  - Quantidade de módulos → peças
+
+---
+
+## FASE 7 — IA para Render (Ajustes Automáticos)
+**~1 arquivo modificado**
+
+### 7.1 Auto-Lighting
+- Em `GLBViewer.tsx` — após carregamento do modelo:
+  - Analisar bounding box e materiais predominantes
+  - Se >50% meshes são metálicas → preset "contrast" automático
+  - Se modelo é pequeno (<2m³) → câmera mais próxima
+  - Sugerir preset de iluminação baseado no conteúdo
+
+---
+
+## FASE 8 — SQL Necessário
+Script para execução manual no Supabase:
+
 ```sql
--- RLS para client_briefings e lead_attachments
+-- Categorias hierárquicas para biblioteca de módulos
+CREATE TABLE IF NOT EXISTS module_categories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid REFERENCES tenants(id) ON DELETE CASCADE NOT NULL,
+  parent_id uuid REFERENCES module_categories(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  icon text,
+  sort_order int DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE module_categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Tenant isolation" ON module_categories
+  FOR ALL TO authenticated
+  USING (tenant_id = (SELECT (auth.jwt()->'user_metadata'->>'tenant_id')::uuid));
+
+-- Adicionar category_id à module_library
+ALTER TABLE module_library ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES module_categories(id) ON DELETE SET NULL;
+
+-- Dados paramétricos nos módulos
+ALTER TABLE module_library ADD COLUMN IF NOT EXISTS parametric_data jsonb;
+ALTER TABLE module_library ADD COLUMN IF NOT EXISTS internal_spans jsonb;
 ```
 
 ---
 
-## Fase 5 — VendaZap AI Otimização
+## Estimativa de Esforço
 
-### 5.1 O que já existe
-- Debounce de 800ms na sugestão AI ✅
-- Auto-pilot com processamento assíncrono ✅
+| Fase | Arquivos | Complexidade |
+|------|----------|-------------|
+| 1 — Performance | 5-8 | Alta |
+| 2 — Touch | 2 | Média |
+| 3 — Builder Paramétrico | 5 novos | Alta |
+| 4 — Bibliotecas | 3 | Média |
+| 5 — Orçamento RT | 2 | Baixa |
+| 6 — Integração Simulador | 2 | Baixa |
+| 7 — IA Render | 1 | Baixa |
+| 8 — SQL | 1 script | Baixa |
 
-### 5.2 Melhorias
-- Cache de sugestões AI recentes em memória (Map com TTL de 5 min) para evitar chamadas repetidas para o mesmo contexto
-- Limitar histórico de mensagens no auto-pilot de 8 para 5 (reduzir tokens)
+**Total: ~20 arquivos, execução recomendada em 3-4 rodadas**
 
----
-
-## Fase 6 — Deal Room Otimização
-
-### 6.1 Remover logs de debug
-- `DealRoomSimulation.tsx`: remover console.logs
-
-### 6.2 Lazy load de componentes pesados
-- Já implementado via lazy loading no Index.tsx ✅
-- Verificar sub-componentes como `DealRoomMeeting` (Jitsi/Daily.co) — lazy load interno
-
----
-
-## Fase 7 — Banco de Dados
-
-### 7.1 SQL de otimização (entregar ao usuário)
-- Índices adicionais para queries frequentes
-- Tabela `textures_cache` para o 3D
-- RLS para tabelas novas
-
----
-
-## Resumo de Arquivos Modificados
-
-| Arquivo | Ação |
-|---------|------|
-| `DealRoomSimulation.tsx` | Remover console.logs |
-| `KanbanCard.tsx` | Adicionar React.memo |
-| `ChatMessageBubble.tsx` | Adicionar React.memo |
-| `ChatConversationList.tsx` | React.memo nos items |
-| `ClientsKanban.tsx` | Remover eslint-disable, memoizar handlers |
-| 11 arquivos com import direto | Padronizar para `@/lib/supabaseClient` |
-| `modelPreviewUtils.ts` | Adicionar instancing detection |
-| `GLBViewer.tsx` | Environment map sutil para qualidade |
-| `VendaZapChat.tsx` | Cache de sugestões AI |
-| `BriefingModal.tsx` | Validação zod nos inputs |
-| SQL script | Textures cache, RLS, índices |
-
-### Estimativa: ~15 edições de código + 1 SQL script
+Recomendo executar Fases 1-2 primeiro (performance + touch), depois Fases 3-5 (builder + bibliotecas + orçamento), e por último Fases 6-8 (integrações + IA).
 
