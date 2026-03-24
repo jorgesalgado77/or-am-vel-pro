@@ -39,7 +39,10 @@ const TYPE_LABELS: Record<string, { label: string; color: string; icon: any }> =
   undefined: { label: "Indefinido", color: "bg-muted text-muted-foreground border-border", icon: Package },
 };
 
-export function SmartBudgetPanel({ projectName, objects, library, tenantId, storeName, clientName }: SmartBudgetPanelProps) {
+export function SmartBudgetPanel({
+  projectName, objects, library, tenantId, storeName, clientName,
+  parametricBOM, parametricModuleName, onSendToSimulator,
+}: SmartBudgetPanelProps) {
   const {
     pricingRules, budgetItems, summary, loadPricingRules,
     savePricingRule, processObjects, updateItem, acceptSuggestion, getRuleForType,
