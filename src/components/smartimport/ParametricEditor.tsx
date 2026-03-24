@@ -19,7 +19,7 @@ import type {
 } from "@/types/parametricModule";
 import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
-import { generateParametricGeometry } from "@/lib/parametricGeometry";
+import { generateParametricGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 
