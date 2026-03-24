@@ -436,8 +436,12 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
     const slots: [keyof TextureSlots, string][] = [
       ["body", "body"], ["door", "door"], ["shelf", "shelf"],
-      ["back", "back"], ["drawer", "drawer"], ["wall", "wall"],
+      ["back", "back"], ["drawer", "drawer"], ["wall", "wall"], ["floor", "floor"],
     ];
+
+    const floorOv: FloorOverrides = {
+      color: parseInt(floorColor.replace("#", ""), 16),
+    };
 
     await Promise.all(slots.map(async ([slot, key]) => {
       const dataUrl = textureSlots[slot];
@@ -445,11 +449,12 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const tex = await loadTex(dataUrl, key);
       if (!tex) return;
       if (slot === "wall") wallOv.texture = tex;
+      else if (slot === "floor") floorOv.texture = tex;
       else (matOverrides as any)[`${key}Texture`] = tex;
     }));
 
-    return { matOverrides, wallOv };
-  }, [furnitureColors, textureSlots, wall.color]);
+    return { matOverrides, wallOv, floorOv };
+  }, [furnitureColors, textureSlots, wall.color, floorColor]);
 
   // Compute floor offset based on module type
   const computedFloorOffset = useMemo(() => {
