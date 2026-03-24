@@ -549,6 +549,31 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     return 0;
   }, [module.moduleType, floorHeightInferior, floorHeightSuperior]);
 
+  // ── Apply selection highlight (emissive glow) to selected module ──
+  const applySelectionHighlight = useCallback(() => {
+    if (!threeRef.current) return;
+    const { moduleGroups, THREE } = threeRef.current;
+    const HIGHLIGHT_COLOR = new THREE.Color(0x00aaff);
+    moduleGroups.forEach((grp: any) => {
+      if (!grp.userData?.moduleId) return;
+      const isSelected = grp.userData.moduleId === selectedModuleId;
+      grp.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          const mat = child.material;
+          if (isSelected) {
+            mat.emissive = HIGHLIGHT_COLOR;
+            mat.emissiveIntensity = 0.25;
+          } else {
+            mat.emissive = new THREE.Color(0x000000);
+            mat.emissiveIntensity = 0;
+          }
+          mat.needsUpdate = true;
+        }
+      });
+    });
+    needsRenderRef.current = true;
+  }, [selectedModuleId]);
+
   // ── Rebuild geometry when module/wall/duplicates/colors/textures change ──
   useEffect(() => {
     if (!threeRef.current) return;
@@ -618,9 +643,17 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         threeRef.current.moduleGroups.push(dimGroup);
       }
 
+      // Apply selection highlight
+      applySelectionHighlight();
+
       needsRenderRef.current = true;
     })();
-  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor, moduleOffsetX, moduleOffsetY]);
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor, moduleOffsetX, moduleOffsetY, selectedModuleId]);
+
+  // ── Update highlight when selection changes (without full rebuild) ──
+  useEffect(() => {
+    applySelectionHighlight();
+  }, [selectedModuleId, applySelectionHighlight]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
