@@ -979,7 +979,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       );
       updatePersisted({ duplicates: newDups });
     }
-  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX, persisted.moduleOffsetX]);
+  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX, persisted.moduleOffsetX, collisionEnabled]);
 
   const handleCanvasPointerUp = useCallback(() => {
     if (dragRef.current && threeRef.current) {
