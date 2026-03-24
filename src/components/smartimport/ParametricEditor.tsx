@@ -195,6 +195,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const showCotas = persisted.showCotas ?? false;
   const floorHeightInferior = persisted.floorHeightInferior ?? 200;
   const floorHeightSuperior = persisted.floorHeightSuperior ?? 1500;
+  const floorColor = persisted.floorColor ?? "#d6d3cd";
+  const openDoors = persisted.openDoors ?? false;
+  const openDrawers = persisted.openDrawers ?? false;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
