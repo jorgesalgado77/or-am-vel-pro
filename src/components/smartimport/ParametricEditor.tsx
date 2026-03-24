@@ -967,6 +967,49 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                       Dormitório, bancadas e outros: 0mm do piso
                     </p>
                   </div>
+
+                  {/* Floor (Piso) color & texture */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <Label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                      <Square className="h-3 w-3" /> Piso
+                    </Label>
+                    <div className="flex gap-1 flex-wrap">
+                      {[
+                        { label: "Cinza Claro", value: "#d6d3cd" },
+                        { label: "Branco", value: "#f0ede8" },
+                        { label: "Madeira", value: "#c4a060" },
+                        { label: "Escuro", value: "#555555" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          className={`w-7 h-7 rounded border-2 transition-all ${floorColor === opt.value ? "border-primary scale-110" : "border-border"}`}
+                          style={{ backgroundColor: opt.value }}
+                          onClick={() => updatePersisted({ floorColor: opt.value })}
+                          title={opt.label}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border cursor-pointer text-[10px] hover:bg-muted transition-colors">
+                        <Upload className="h-3 w-3" /> Textura Piso
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleTextureUpload("floor", f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {textureSlots.floor && (
+                        <div className="flex items-center gap-1">
+                          <img src={textureSlots.floor} className="h-7 w-7 rounded border border-border object-cover" alt="floor texture" />
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => removeTexture("floor")}>
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
