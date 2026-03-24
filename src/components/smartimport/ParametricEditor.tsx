@@ -384,6 +384,25 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const animate = () => {
         if (!mounted) return;
         animFrameRef.current = requestAnimationFrame(animate);
+        // Smooth camera animation
+        const anim = cameraAnimRef.current;
+        if (anim.active) {
+          anim.progress = Math.min(anim.progress + 0.04, 1);
+          const t = 1 - Math.pow(1 - anim.progress, 3); // ease-out cubic
+          camera.position.set(
+            anim.startPos[0] + (anim.endPos[0] - anim.startPos[0]) * t,
+            anim.startPos[1] + (anim.endPos[1] - anim.startPos[1]) * t,
+            anim.startPos[2] + (anim.endPos[2] - anim.startPos[2]) * t
+          );
+          controls.target.set(
+            anim.startTarget[0] + (anim.endTarget[0] - anim.startTarget[0]) * t,
+            anim.startTarget[1] + (anim.endTarget[1] - anim.startTarget[1]) * t,
+            anim.startTarget[2] + (anim.endTarget[2] - anim.startTarget[2]) * t
+          );
+          controls.update();
+          needsRenderRef.current = true;
+          if (anim.progress >= 1) anim.active = false;
+        }
         controls.update();
         if (needsRenderRef.current) {
           renderer.render(scene, camera);
