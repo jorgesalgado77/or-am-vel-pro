@@ -1298,6 +1298,48 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}
             />
+            {/* Camera preset views */}
+            <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+              {([
+                { label: "Frontal", icon: "F", pos: [0, 0.5, 1], target: [0, 0.5, 0] },
+                { label: "Traseira", icon: "T", pos: [0, 0.5, -1], target: [0, 0.5, 0] },
+                { label: "Esquerda", icon: "E", pos: [-1, 0.5, 0], target: [0, 0.5, 0] },
+                { label: "Direita", icon: "D", pos: [1, 0.5, 0], target: [0, 0.5, 0] },
+                { label: "Planta", icon: "P", pos: [0, 1, 0.01], target: [0, 0, 0] },
+                { label: "Perspectiva", icon: "3D", pos: [1, 0.7, 1], target: [0, 0.3, 0] },
+              ] as { label: string; icon: string; pos: number[]; target: number[] }[]).map((view) => (
+                <Button
+                  key={view.label}
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[9px] px-1.5 gap-0.5 bg-background/80 backdrop-blur-sm w-[70px] justify-start"
+                  title={view.label}
+                  onClick={() => {
+                    if (!threeRef.current) return;
+                    const { camera, controls } = threeRef.current;
+                    // Calculate distance based on module size
+                    const maxDim = Math.max(module.width, module.height, module.depth) * 0.01;
+                    const dist = Math.max(maxDim * 2.2, 4);
+                    const centerY = (computedFloorOffset * 0.01) + (module.height * 0.01) / 2;
+                    camera.position.set(
+                      view.pos[0] * dist,
+                      view.pos[1] * dist + (view.label === "Planta" ? dist : 0),
+                      view.pos[2] * dist
+                    );
+                    controls.target.set(
+                      view.target[0],
+                      view.label === "Planta" ? 0 : centerY,
+                      view.target[2] * maxDim * 0.3
+                    );
+                    controls.update();
+                    needsRenderRef.current = true;
+                  }}
+                >
+                  <span className="font-bold text-[9px] w-4 text-center">{view.icon}</span>
+                  <span className="truncate">{view.label}</span>
+                </Button>
+              ))}
+            </div>
             <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end max-w-[65%]">
               <Button
                 variant={showCotas ? "default" : "outline"}
