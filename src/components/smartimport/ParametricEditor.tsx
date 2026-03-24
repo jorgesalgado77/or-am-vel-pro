@@ -1221,9 +1221,23 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               onPointerUp={handleCanvasPointerUp}
             />
             <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end">
+              <Button
+                variant={showCotas ? "default" : "outline"}
+                size="sm"
+                className="h-6 text-[10px] px-2 gap-1"
+                onClick={() => updatePersisted({ showCotas: !showCotas })}
+              >
+                {showCotas ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                Cotas
+              </Button>
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
               </Badge>
+              {computedFloorOffset > 0 && (
+                <Badge variant="outline" className="text-[10px]">
+                  Piso: {computedFloorOffset}mm
+                </Badge>
+              )}
               {module.moduleType !== "custom" && (
                 <Badge className="text-[10px]">
                   {MODULE_PRESETS.find((p) => p.type === module.moduleType)?.label}
