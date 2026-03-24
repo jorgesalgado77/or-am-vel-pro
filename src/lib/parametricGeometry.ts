@@ -170,7 +170,7 @@ export function generateParametricGeometry(
     const box = new THREE.Box3().setFromObject(group);
     const center = box.getCenter(new THREE.Vector3());
     const floorOff = (options?.floorOffset ?? 0) * s;
-    group.position.set(-center.x, -box.min.y + floorOff, -center.z);
+    group.position.set(-center.x, -box.min.y + floorOff, -box.min.z);
     return group;
   }
 
@@ -239,11 +239,14 @@ export function generateParametricGeometry(
     createPanel(`Fundo Gaveta ${i + 1}`, drawerBodyWidth - 30, 3, drawerBodyDepth - 2, W / 2, posY + 3, bodyZ, drawerBodyMat);
   });
 
-  // ── Posicionar com base no Y=0 + floorOffset ──
+  // ── Posicionar: centro em X=0, base em Y=floorOffset, fundo em Z=0 (módulo avança em +Z) ──
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
   const floorOff = (options?.floorOffset ?? 0) * s;
-  group.position.set(-center.x, -box.min.y + floorOff, -center.z);
+  // centerX → center module horizontally
+  // -box.min.y + floorOff → base of module at floor offset height
+  // -box.min.z → back of module at Z=0 (so it sits in front of the wall)
+  group.position.set(-center.x, -box.min.y + floorOff, -box.min.z);
 
   return group;
 }
