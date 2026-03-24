@@ -650,6 +650,11 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     })();
   }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor, moduleOffsetX, moduleOffsetY, selectedModuleId]);
 
+  // ── Update highlight when selection changes (without full rebuild) ──
+  useEffect(() => {
+    applySelectionHighlight();
+  }, [selectedModuleId, applySelectionHighlight]);
+
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
     const clamped = Math.max(60, Math.min(2700, value));
