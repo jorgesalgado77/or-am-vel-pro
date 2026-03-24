@@ -681,11 +681,9 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
     setExporting(true);
     try {
       const { renderer, scene, camera } = refs;
-      // Save original size
       const origSize = renderer.getSize(new (await import("three")).Vector2());
       const origPixelRatio = renderer.getPixelRatio();
 
-      // Render at 2x resolution (up to 3840x2160)
       const scale = 2;
       const w = Math.min(origSize.x * scale, 3840);
       const h = Math.min(origSize.y * scale, 2160);
@@ -693,19 +691,45 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
       renderer.setPixelRatio(1);
       renderer.render(scene, camera);
 
-      const dataUrl = renderer.domElement.toDataURL("image/png");
+      // Compose final image with watermark
+      const offscreen = document.createElement("canvas");
+      offscreen.width = w;
+      offscreen.height = h;
+      const ctx = offscreen.getContext("2d")!;
+      ctx.drawImage(renderer.domElement, 0, 0);
 
-      // Restore original size
+      // Restore renderer immediately
       renderer.setSize(origSize.x, origSize.y);
       renderer.setPixelRatio(origPixelRatio);
       renderer.render(scene, camera);
 
-      // Download
+      // Load company logo as watermark
+      try {
+        const logoModule = await import("@/assets/icone_orcamovel_pro.png");
+        const logoImg = new Image();
+        logoImg.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          logoImg.onload = () => resolve();
+          logoImg.onerror = () => reject(new Error("Logo not found"));
+          logoImg.src = logoModule.default;
+        });
+        // Draw logo in bottom-right corner with opacity
+        const logoH = Math.round(h * 0.06);
+        const logoW = Math.round(logoH * (logoImg.naturalWidth / logoImg.naturalHeight));
+        const padding = Math.round(h * 0.02);
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(logoImg, w - logoW - padding, h - logoH - padding, logoW, logoH);
+        ctx.globalAlpha = 1;
+      } catch {
+        // No logo available — skip watermark silently
+      }
+
+      const dataUrl = offscreen.toDataURL("image/png");
       const link = document.createElement("a");
       link.download = `modelo-3d-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
-      toast.success(`Imagem exportada (${w}x${h}px)`);
+      toast.success(`Imagem exportada com marca d'água (${w}x${h}px)`);
     } catch (err: any) {
       toast.error("Erro ao exportar: " + (err.message || "erro desconhecido"));
     } finally {
