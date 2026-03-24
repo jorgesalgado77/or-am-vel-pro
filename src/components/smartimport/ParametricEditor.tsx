@@ -1088,7 +1088,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       <div className="flex-1 flex flex-col gap-3 min-w-0">
         <Card className="flex-1 relative overflow-hidden min-h-[350px]">
           <CardContent className="p-0 absolute inset-0">
-            <canvas ref={canvasRef} className="w-full h-full block" style={{ minHeight: 350 }} />
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full block"
+              style={{ minHeight: 350, cursor: duplicates.length > 0 ? "grab" : "default" }}
+              onPointerDown={handleCanvasPointerDown}
+              onPointerMove={handleCanvasPointerMove}
+              onPointerUp={handleCanvasPointerUp}
+            />
             <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end">
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
