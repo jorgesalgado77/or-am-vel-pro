@@ -107,11 +107,16 @@ function ColorField({
   );
 }
 
-export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate, onDelete }: ModuleLibraryPanelProps) {
+export function ModuleLibraryPanel({
+  library, catalogItems = [], onAdd, onUpdate, onDelete,
+  categories = [], selectedCategoryId, onCategorySelect, onCategoryAdd, onCategoryDelete,
+}: ModuleLibraryPanelProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ModuleForm>(EMPTY_FORM);
   const [filter, setFilter] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [addingCategoryParentId, setAddingCategoryParentId] = useState<string | null | undefined>(undefined);
 
   const catalogByCategory = useMemo(() => {
     const map: Record<string, CatalogItem[]> = {};
