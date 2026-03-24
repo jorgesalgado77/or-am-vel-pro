@@ -723,6 +723,41 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   </div>
                 ))}
               </div>
+              {/* Per-component thickness */}
+              {module.components.length > 0 && (
+                <div className="space-y-1.5 pt-1 border-t border-border">
+                  <Label className="text-[10px] text-muted-foreground">Espessura por componente</Label>
+                  {module.components.map((comp, idx) => {
+                    const isShelfOrDiv = comp.type === "prateleira" || comp.type === "divisoria";
+                    const isDoorOrFront = comp.type === "porta" || comp.type === "gaveta";
+                    const thicknessOptions = isShelfOrDiv ? SHELF_THICKNESSES : isDoorOrFront ? DOOR_THICKNESSES : SHELF_THICKNESSES;
+                    const typeLabel = comp.type === "prateleira" ? "Prat." : comp.type === "porta" ? "Porta" : comp.type === "gaveta" ? "Gaveta" : comp.type === "divisoria" ? "Div." : comp.type;
+                    return (
+                      <div key={comp.id} className="flex items-center justify-between gap-1">
+                        <span className="text-[9px] text-foreground truncate w-16">{typeLabel} {idx + 1}</span>
+                        <Select
+                          value={String(comp.thickness)}
+                          onValueChange={(v) => {
+                            setModule((p) => {
+                              const comps = p.components.map((c) =>
+                                c.id === comp.id ? { ...c, thickness: Number(v) } : c
+                              );
+                              return { ...p, components: comps };
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="h-5 w-20 text-[9px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {thicknessOptions.map((t) => (
+                              <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
