@@ -130,7 +130,7 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
         </div>
 
         {/* 3D Viewer */}
-        <GLBViewer fileUrl={selectedProject.file_url} onObjectSelect={handleObjectSelect} />
+        <GLBViewer fileUrl={selectedProject.file_url} onObjectSelect={handleObjectSelect} companyLogoUrl={settings.logo_url} />
 
         {/* Selected objects and budget */}
         <div className="space-y-4">
