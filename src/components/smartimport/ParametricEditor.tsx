@@ -569,7 +569,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       needsRenderRef.current = true;
     })();
-  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor]);
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor, moduleOffsetX, moduleOffsetY]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {

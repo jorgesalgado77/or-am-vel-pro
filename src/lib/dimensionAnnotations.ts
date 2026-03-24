@@ -176,12 +176,14 @@ export function generateDimensionAnnotations(
   const sc = 0.01;
   const { width: W, height: H, depth: D, thickness: T, baseboardHeight: BH = 0 } = module;
   const fo = (options?.floorOffset ?? 0) * sc;
+  const ox = (options?.moduleOffset?.x ?? 0) * sc;
+  const oy = (options?.moduleOffset?.y ?? 0) * sc;
 
   const halfW = (W * sc) / 2;
-  const left = -halfW;
-  const right = halfW;
-  const top = fo + H * sc;
-  const bottom = fo;
+  const left = -halfW + ox;
+  const right = halfW + ox;
+  const top = fo + oy + H * sc;
+  const bottom = fo + oy;
   const front = D * sc;
 
   const upDir = new THREE.Vector3(0, 1, 0);
