@@ -58,12 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Track the auth user ID to avoid unnecessary reloads on token refresh
   const currentAuthIdRef = useRef<string | null>(null);
 
-  const loadFromSession = useCallback(async (sess: Session | null) => {
+  const loadFromSession = useCallback(async (sess: Session | null, event?: string) => {
     if (!sess?.user) {
-      setUser(null);
-      setSession(null);
-      currentAuthIdRef.current = null;
-      syncGlobalState(null);
+      // Don't clear user data on transient null sessions during token refresh
+      // Only clear if it's not a token refresh event and user is actually gone
+      if (currentAuthIdRef.current && event !== "TOKEN_REFRESHED") {
+        setUser(null);
+        setSession(null);
+        currentAuthIdRef.current = null;
+        syncGlobalState(null);
+      }
       setLoading(false);
       return;
     }
@@ -76,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // If the same auth user is already loaded, just update session — don't reload profile
     // This prevents the user from switching to a fallback on TOKEN_REFRESHED events
-    if (currentAuthIdRef.current === sess.user.id) {
+    if (currentAuthIdRef.current === sess.user.id && user) {
       setLoading(false);
       return;
     }
@@ -85,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       appUser = await Promise.race([
         loadAppUser(sess.user),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
       ]);
 
       if (!appUser) {
@@ -133,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (initialLoaded) return;
           initialLoaded = true;
         }
-        await loadFromSession(sess);
+        await loadFromSession(sess, _event);
       }
     );
 

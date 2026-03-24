@@ -192,7 +192,7 @@ export async function loadAppUserViaRpc(
   try {
     const { data, error } = await withTimeout(
       (supabase as any).rpc("get_current_app_user"),
-      1200,
+      3000,
       { data: null, error: createTimeoutError("get_current_app_user") } as any,
     );
     const userRow = Array.isArray(data) ? data[0] : data;
