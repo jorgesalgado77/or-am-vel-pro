@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
-  Upload, ImageIcon, FolderOpen, GripVertical, BookOpen,
+  Upload, ImageIcon, FolderOpen, GripVertical, BookOpen, FileDown, Eye, EyeOff,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -21,6 +21,8 @@ import type {
 import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
 import { generateParametricGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
+import { generateDimensionAnnotations } from "@/lib/dimensionAnnotations";
+import { generateBomPdf } from "@/lib/generateBomPdf";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 import { useModuleCategories, type CategoryTreeNode } from "@/hooks/useModuleCategories";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
@@ -150,6 +152,9 @@ interface PersistedBuilderState {
   furnitureColors: FurnitureColors;
   textureSlots: TextureSlots;
   savedPalettes: SavedPalette[];
+  showCotas: boolean;
+  floorHeightInferior: number;
+  floorHeightSuperior: number;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -161,6 +166,9 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   furnitureColors: { body: "#d4a574", door: "#fafafa", shelf: "#d4a574", back: "#d4a574", drawer: "#c4a060" },
   textureSlots: {},
   savedPalettes: [],
+  showCotas: false,
+  floorHeightInferior: 200,
+  floorHeightSuperior: 1500,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -176,6 +184,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const duplicates = persisted.duplicates;
   const furnitureColors = persisted.furnitureColors ?? INITIAL_PERSISTED.furnitureColors;
   const textureSlots = persisted.textureSlots ?? {};
+  const showCotas = persisted.showCotas ?? false;
+  const floorHeightInferior = persisted.floorHeightInferior ?? 200;
+  const floorHeightSuperior = persisted.floorHeightSuperior ?? 1500;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
