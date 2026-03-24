@@ -337,6 +337,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   useEffect(() => {
     let mounted = true;
     let renderer: any = null;
+    let resizeHandler: (() => void) | null = null;
 
     (async () => {
       const THREE = await import("three");
@@ -348,12 +349,47 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const w = container.clientWidth;
       const h = container.clientHeight;
 
-      renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, alpha: false });
+      // Recover from previous context loss
+      const gl = canvasRef.current.getContext("webgl2") || canvasRef.current.getContext("webgl");
+      if (gl && gl.isContextLost()) {
+        // Force a new canvas element to recover
+        const newCanvas = document.createElement("canvas");
+        newCanvas.className = canvasRef.current.className;
+        newCanvas.style.cssText = canvasRef.current.style.cssText;
+        canvasRef.current.parentElement?.replaceChild(newCanvas, canvasRef.current);
+        (canvasRef as any).current = newCanvas;
+      }
+
+      try {
+        renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, alpha: false, powerPreference: "default" });
+      } catch (e) {
+        console.warn("WebGL init failed, retrying with low-power settings...", e);
+        try {
+          renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: false, alpha: false, powerPreference: "low-power" });
+        } catch (e2) {
+          console.error("WebGL context could not be created:", e2);
+          return;
+        }
+      }
       renderer.setSize(w, h);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.4;
+
+      // Handle context loss/restore
+      const handleContextLost = (event: Event) => {
+        event.preventDefault();
+        console.warn("WebGL context lost, will restore...");
+        cancelAnimationFrame(animFrameRef.current);
+      };
+      const handleContextRestored = () => {
+        console.info("WebGL context restored");
+        needsRenderRef.current = true;
+        animate();
+      };
+      canvasRef.current.addEventListener("webglcontextlost", handleContextLost);
+      canvasRef.current.addEventListener("webglcontextrestored", handleContextRestored);
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xf0f0f0);
@@ -418,7 +454,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       };
       animate();
 
-      const onResize = () => {
+      resizeHandler = () => {
         if (!canvasRef.current) return;
         const c = canvasRef.current.parentElement!;
         camera.aspect = c.clientWidth / c.clientHeight;
@@ -426,15 +462,18 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         renderer.setSize(c.clientWidth, c.clientHeight);
         needsRenderRef.current = true;
       };
-      window.addEventListener("resize", onResize);
-
-      return () => { window.removeEventListener("resize", onResize); };
+      window.addEventListener("resize", resizeHandler);
     })();
 
     return () => {
       mounted = false;
       cancelAnimationFrame(animFrameRef.current);
-      renderer?.dispose?.();
+      if (resizeHandler) window.removeEventListener("resize", resizeHandler);
+      if (renderer) {
+        renderer.forceContextLoss();
+        renderer.dispose();
+      }
+      threeRef.current = null;
     };
   }, []);
 
