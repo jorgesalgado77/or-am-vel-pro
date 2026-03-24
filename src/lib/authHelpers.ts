@@ -192,7 +192,7 @@ export async function loadAppUserViaRpc(
   try {
     const { data, error } = await withTimeout(
       (supabase as any).rpc("get_current_app_user"),
-      3000,
+      8000,
       { data: null, error: createTimeoutError("get_current_app_user") } as any,
     );
     const userRow = Array.isArray(data) ? data[0] : data;
@@ -247,7 +247,7 @@ export async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email
 
     const { data, error } = await withTimeout(
       strategy.query(),
-      1800,
+      3000,
       { data: null, error: { message: `timeout_${strategy.label}` } } as any,
     );
     const userList = Array.isArray(data) ? data : data ? [data] : [];
@@ -273,7 +273,7 @@ export async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email
               ...(needsEmailNormalization ? { email: normalizedEmail } : {}),
             } as any)
             .eq("id", userRow.id),
-          1200,
+          2000,
           { error: { message: "timeout_update_usuario" } } as any,
         );
 
