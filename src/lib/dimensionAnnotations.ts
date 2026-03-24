@@ -159,6 +159,8 @@ export interface DimensionOptions {
   floorOffset?: number;
   moduleOffset?: { x: number; y: number };
   duplicates?: Array<{ positionX: number; positionZ?: number; module: { width: number; depth: number } }>;
+  /** Pass the module to read dividers for span annotations */
+  moduleData?: import("@/types/parametricModule").ParametricModule;
 }
 
 /**
