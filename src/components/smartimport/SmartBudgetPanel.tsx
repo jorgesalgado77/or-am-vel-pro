@@ -220,7 +220,17 @@ export function SmartBudgetPanel({
         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Calculator className="h-4 w-4 text-primary" /> Orçamento Inteligente
         </h4>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {onSendToSimulator && summary.item_count > 0 && (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+              onClick={() => onSendToSimulator({
+                projectName,
+                totalValue: summary.final_total,
+                moduleCount: budgetItems.filter(i => i.identified_type === "module").length,
+              })}>
+              <Send className="h-3.5 w-3.5" /> Enviar para Simulador
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setShowPricingRules(true)}>
             <Settings2 className="h-3.5 w-3.5" /> Regras de Preço
           </Button>
