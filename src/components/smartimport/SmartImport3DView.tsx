@@ -19,7 +19,6 @@ import { ProjectThumbnail } from "./ProjectThumbnail";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GLBViewer } from "./GLBViewer";
 import { ModuleLibraryPanel } from "./ModuleLibraryPanel";
-import { BudgetGenerator } from "./BudgetGenerator";
 import { SmartBudgetPanel } from "./SmartBudgetPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
