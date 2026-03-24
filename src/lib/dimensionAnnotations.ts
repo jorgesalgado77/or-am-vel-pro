@@ -176,62 +176,65 @@ export function generateDimensionAnnotations(
   const leftDir = new THREE.Vector3(-1, 0, 0);
   const rightDir = new THREE.Vector3(1, 0, 0);
 
-  // Scale tag size proportional to module (base ~0.25 for a 700mm module)
-  const baseTag = Math.max(0.2, Math.min(0.4, (W * sc) * 0.4));
+  // Scale tag size proportional to module — bigger for better visibility
+  const baseTag = Math.max(0.3, Math.min(0.55, (W * sc) * 0.55));
 
-  // ── Width (bottom, front) ──
+  // Spacing multiplier to keep cotas well separated
+  const sp = Math.max(0.15, front * 0.25);
+
+  // ── Width (bottom, far front — row 1) ──
   group.add(createDimensionLine(
     THREE,
-    new THREE.Vector3(left, bottom, front + 0.05),
-    new THREE.Vector3(right, bottom, front + 0.05),
-    `${W}mm`, forwardDir, 0.12, "blue", baseTag
+    new THREE.Vector3(left, bottom, front + sp),
+    new THREE.Vector3(right, bottom, front + sp),
+    `${W}mm`, forwardDir, 0.15, "blue", baseTag
   ));
 
-  // ── Height (left side) ──
-  group.add(createDimensionLine(
-    THREE,
-    new THREE.Vector3(left - 0.05, bottom, front * 0.5),
-    new THREE.Vector3(left - 0.05, top, front * 0.5),
-    `${H}mm`, leftDir, 0.12, "blue", baseTag
-  ));
-
-  // ── Depth (right side) ──
-  group.add(createDimensionLine(
-    THREE,
-    new THREE.Vector3(right + 0.05, bottom, 0),
-    new THREE.Vector3(right + 0.05, bottom, front),
-    `${D}mm`, rightDir, 0.12, "blue", baseTag
-  ));
-
-  // ── Internal height (vão interno) ──
-  const ih = H - T * 2 - BH;
-  if (ih > 0 && ih !== H) {
-    group.add(createDimensionLine(
-      THREE,
-      new THREE.Vector3(left - 0.05, fo + (BH + T) * sc, front * 0.3),
-      new THREE.Vector3(left - 0.05, fo + (H - T) * sc, front * 0.3),
-      `VI:${ih}mm`, leftDir, 0.25, "green", baseTag * 0.85
-    ));
-  }
-
-  // ── Internal width ──
+  // ── Internal width (bottom, farther front — row 2) ──
   const iw = W - T * 2;
   if (iw > 0 && iw !== W) {
     group.add(createDimensionLine(
       THREE,
-      new THREE.Vector3(left + T * sc, bottom - 0.02, front + 0.05),
-      new THREE.Vector3(right - T * sc, bottom - 0.02, front + 0.05),
-      `LI:${iw}mm`, forwardDir, 0.25, "green", baseTag * 0.85
+      new THREE.Vector3(left + T * sc, bottom, front + sp),
+      new THREE.Vector3(right - T * sc, bottom, front + sp),
+      `LI:${iw}mm`, forwardDir, 0.35, "green", baseTag * 0.9
     ));
   }
 
-  // ── Thickness ──
+  // ── Thickness (bottom, farthest front — row 3) ──
   group.add(createDimensionLine(
     THREE,
-    new THREE.Vector3(left, bottom, front + 0.05),
-    new THREE.Vector3(left + T * sc, bottom, front + 0.05),
-    `${T}mm`, forwardDir, 0.38, "purple", baseTag * 0.7
+    new THREE.Vector3(left, bottom, front + sp),
+    new THREE.Vector3(left + T * sc, bottom, front + sp),
+    `${T}mm`, forwardDir, 0.55, "purple", baseTag * 0.75
   ));
+
+  // ── Height (left side, at front Z) ──
+  group.add(createDimensionLine(
+    THREE,
+    new THREE.Vector3(left, bottom, front + sp * 0.5),
+    new THREE.Vector3(left, top, front + sp * 0.5),
+    `${H}mm`, leftDir, 0.15, "blue", baseTag
+  ));
+
+  // ── Depth (right side, bottom) ──
+  group.add(createDimensionLine(
+    THREE,
+    new THREE.Vector3(right, bottom, 0),
+    new THREE.Vector3(right, bottom, front),
+    `${D}mm`, rightDir, 0.15, "blue", baseTag
+  ));
+
+  // ── Internal height (vão interno — farther left to avoid overlap with height) ──
+  const ih = H - T * 2 - BH;
+  if (ih > 0 && ih !== H) {
+    group.add(createDimensionLine(
+      THREE,
+      new THREE.Vector3(left, fo + (BH + T) * sc, front + sp * 0.5),
+      new THREE.Vector3(left, fo + (H - T) * sc, front + sp * 0.5),
+      `VI:${ih}mm`, leftDir, 0.35, "green", baseTag * 0.9
+    ));
+  }
 
   // ── Baseboard height ──
   if (BH > 0) {
