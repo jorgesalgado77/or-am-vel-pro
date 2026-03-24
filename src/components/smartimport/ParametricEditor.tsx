@@ -458,6 +458,23 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
           needsRenderRef.current = true;
           if (anim.progress >= 1) anim.active = false;
         }
+        // Pulsating outline animation for selected module
+        const moduleGroups = threeRef.current?.moduleGroups || [];
+        let hasPulse = false;
+        const pulseIntensity = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
+        moduleGroups.forEach((grp: any) => {
+          if (!grp.userData?.moduleId) return;
+          grp.traverse((child: any) => {
+            if (child.userData?.__selectionOutline && child.material) {
+              child.material.opacity = 0.4 + 0.6 * pulseIntensity;
+              child.material.transparent = true;
+              child.material.needsUpdate = true;
+              hasPulse = true;
+            }
+          });
+        });
+        if (hasPulse) needsRenderRef.current = true;
+
         controls.update();
         if (needsRenderRef.current) {
           renderer.render(scene, camera);
