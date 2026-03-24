@@ -96,6 +96,7 @@ export function AppSidebar({
     setNotifications(prev => prev.map(n => ({ ...n, lido: true })));
   };
 
+  const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
     { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true, badge: null },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
