@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
+  Upload, ImageIcon,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
