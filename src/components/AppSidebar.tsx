@@ -195,14 +195,64 @@ export function AppSidebar({
           <TooltipContent side="right" className="text-xs">{collapsed ? "Expandir menu" : "Recolher menu"}</TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={cycleTheme}>
-              <ThemeIcon className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="text-xs">Tema: {THEME_LABELS[mode]}</TooltipContent>
-        </Tooltip>
+        <div className={cn("flex items-center", collapsed ? "flex-col gap-1" : "gap-0.5")}>
+          <Popover open={showNotifications} onOpenChange={setShowNotifications}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground relative" onClick={() => setShowNotifications(true)}>
+                <Bell className="h-4 w-4" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full h-4 min-w-[16px] flex items-center justify-center px-0.5">
+                    {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" align="start" className="w-80 p-0 max-h-[400px] flex flex-col">
+              <div className="p-3 border-b border-border flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">Notificações</h4>
+                  <p className="text-[10px] text-muted-foreground">{notifications.length} lead(s) recebido(s)</p>
+                </div>
+                {unreadNotifications > 0 && (
+                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
+                    Marcar lidas
+                  </Button>
+                )}
+              </div>
+              <div className="flex-1 overflow-y-auto max-h-[320px]">
+                {notifications.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-8">Nenhuma notificação</p>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {notifications.map(n => {
+                      const dateStr = (() => { try { return format(new Date(n.created_at), "dd/MM/yy HH:mm"); } catch { return "—"; } })();
+                      return (
+                        <div key={n.id} className={cn("px-3 py-2.5 text-xs hover:bg-secondary/50 transition-colors", !n.lido && "bg-primary/5")}>
+                          <div className="flex items-start gap-2">
+                            {!n.lido && <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-foreground leading-relaxed">{n.conteudo.replace(/[🚀✅⚠️]/g, "").trim()}</p>
+                              <p className="text-muted-foreground mt-1">{dateStr}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={cycleTheme}>
+                <ThemeIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">Tema: {THEME_LABELS[mode]}</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Navigation */}
