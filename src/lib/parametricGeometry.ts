@@ -64,6 +64,53 @@ export function generateParametricGeometry(
   const { width: W, height: H, depth: D, thickness: T, backThickness: BT, baseboardHeight: BH = 0 } = module;
   const mo = options?.materialOverrides;
 
+/**
+ * Gera um THREE.Group representando a parede separadamente (fica no piso).
+ */
+export function generateWallGeometry(
+  THREE: typeof import("three"),
+  wallConfig: { width: number; height: number; depth: number },
+  overrides?: WallOverrides
+): InstanceType<typeof THREE.Group> {
+  const group = new THREE.Group();
+  group.name = "wall_group";
+  const s = 0.01;
+  const { width: ww, height: wh, depth: wd } = wallConfig;
+
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: overrides?.color ?? 0xe8e0d8,
+    roughness: 0.9,
+    metalness: 0.0,
+    transparent: !overrides?.texture,
+    opacity: overrides?.texture ? 1.0 : 0.6,
+  });
+  if (overrides?.texture) applyTextureToMat(wallMat, overrides.texture);
+
+  const wallEdgeMat = new THREE.LineBasicMaterial({ color: 0xbbbbbb, linewidth: 1 });
+  const wallGeo = new THREE.BoxGeometry(ww * s, wh * s, wd * s);
+  const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+  wallMesh.position.set((ww / 2) * s, (wh / 2) * s, -(wd / 2) * s);
+  wallMesh.name = "Parede";
+  const wallEdges = new THREE.EdgesGeometry(wallGeo);
+  const wallLine = new THREE.LineSegments(wallEdges, wallEdgeMat);
+  wallLine.position.copy(wallMesh.position);
+  group.add(wallMesh);
+  group.add(wallLine);
+
+  // Center X and Z, keep bottom at Y=0
+  const box = new THREE.Box3().setFromObject(group);
+  const center = box.getCenter(new THREE.Vector3());
+  group.position.set(-center.x, -box.min.y, -center.z);
+
+  return group;
+}
+  const group = new THREE.Group();
+  group.name = `parametric_${module.name}`;
+
+  const s = 0.01;
+  const { width: W, height: H, depth: D, thickness: T, backThickness: BT, baseboardHeight: BH = 0 } = module;
+  const mo = options?.materialOverrides;
+
   const bodyMat = new THREE.MeshStandardMaterial({
     color: mo?.bodyColor ?? BODY_COLOR,
     roughness: 0.6,
@@ -135,32 +182,7 @@ export function generateParametricGeometry(
     return group;
   }
 
-  // ── Parede ──
-  if (options?.wall) {
-    const ww = options.wall.width;
-    const wh = options.wall.height;
-    const wd = options.wall.depth;
-    const wo = options?.wallOverrides;
-    const wallMat = new THREE.MeshStandardMaterial({
-      color: wo?.color ?? WALL_COLOR,
-      roughness: 0.9,
-      metalness: 0.0,
-      transparent: !wo?.texture,
-      opacity: wo?.texture ? 1.0 : 0.6,
-    });
-    if (wo?.texture) applyTextureToMat(wallMat, wo.texture);
-
-    const wallEdgeMat = new THREE.LineBasicMaterial({ color: 0xbbbbbb, linewidth: 1 });
-    const wallGeo = new THREE.BoxGeometry(ww * s, wh * s, wd * s);
-    const wallMesh = new THREE.Mesh(wallGeo, wallMat);
-    wallMesh.position.set((ww / 2) * s, (wh / 2) * s, -(wd / 2) * s);
-    wallMesh.name = "Parede";
-    const wallEdges = new THREE.EdgesGeometry(wallGeo);
-    const wallLine = new THREE.LineSegments(wallEdges, wallEdgeMat);
-    wallLine.position.copy(wallMesh.position);
-    group.add(wallMesh);
-    group.add(wallLine);
-  }
+  // ── Parede é renderizada separadamente no editor para não herdar floorOffset ──
 
   // ── Rodapé ──
   if (BH > 0) {
