@@ -1666,7 +1666,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             <canvas
               ref={canvasRef}
               className="w-full h-full block"
-              style={{ minHeight: 350, cursor: "grab" }}
+              style={{ minHeight: 350, cursor: lockPosition ? "default" : "grab" }}
               onPointerDown={handleCanvasPointerDown}
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}
