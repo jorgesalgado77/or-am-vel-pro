@@ -12,6 +12,7 @@ import { toast } from "sonner";
 interface GLBViewerProps {
   fileUrl: string;
   onObjectSelect?: (name: string, metadata: any) => void;
+  companyLogoUrl?: string | null;
 }
 
 interface SelectedPieceInfo {
@@ -703,25 +704,33 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
       renderer.setPixelRatio(origPixelRatio);
       renderer.render(scene, camera);
 
-      // Load company logo as watermark
+      // Load watermark: company logo (from settings) → fallback to default logo
+      const logoSources: string[] = [];
+      if (companyLogoUrl) logoSources.push(companyLogoUrl);
       try {
-        const logoModule = await import("@/assets/icone_orcamovel_pro.png");
-        const logoImg = new Image();
-        logoImg.crossOrigin = "anonymous";
-        await new Promise<void>((resolve, reject) => {
-          logoImg.onload = () => resolve();
-          logoImg.onerror = () => reject(new Error("Logo not found"));
-          logoImg.src = logoModule.default;
-        });
-        // Draw logo in bottom-right corner with opacity
-        const logoH = Math.round(h * 0.06);
-        const logoW = Math.round(logoH * (logoImg.naturalWidth / logoImg.naturalHeight));
-        const padding = Math.round(h * 0.02);
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(logoImg, w - logoW - padding, h - logoH - padding, logoW, logoH);
-        ctx.globalAlpha = 1;
-      } catch {
-        // No logo available — skip watermark silently
+        const fallback = await import("@/assets/icone_orcamovel_pro.png");
+        logoSources.push(fallback.default);
+      } catch { /* no fallback */ }
+
+      for (const src of logoSources) {
+        try {
+          const logoImg = new Image();
+          logoImg.crossOrigin = "anonymous";
+          await new Promise<void>((resolve, reject) => {
+            logoImg.onload = () => resolve();
+            logoImg.onerror = () => reject();
+            logoImg.src = src;
+          });
+          const logoH = Math.round(h * 0.06);
+          const logoW = Math.round(logoH * (logoImg.naturalWidth / logoImg.naturalHeight));
+          const padding = Math.round(h * 0.02);
+          ctx.globalAlpha = 0.5;
+          ctx.drawImage(logoImg, w - logoW - padding, h - logoH - padding, logoW, logoH);
+          ctx.globalAlpha = 1;
+          break; // success — stop trying
+        } catch {
+          continue; // try next source
+        }
       }
 
       const dataUrl = offscreen.toDataURL("image/png");
