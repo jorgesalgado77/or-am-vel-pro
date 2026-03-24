@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Suspense, lazy } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   ArrowLeft, Upload, Box, BookOpen, FileText, Trash2, Eye,
-  RefreshCw, Sparkles, Lock, CreditCard, Video,
+  RefreshCw, Sparkles, Lock, CreditCard, Video, Ruler,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AddonPurchaseCard } from "@/components/AddonPurchaseCard";
@@ -19,6 +20,7 @@ import { ProjectThumbnail } from "./ProjectThumbnail";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GLBViewer } from "./GLBViewer";
 import { ModuleLibraryPanel } from "./ModuleLibraryPanel";
+const ParametricEditorLazy = lazy(() => import("./ParametricEditor").then(m => ({ default: m.ParametricEditor })));
 import { SmartBudgetPanel } from "./SmartBudgetPanel";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -205,6 +207,9 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
           <TabsTrigger value="projetos" className="gap-1.5">
             <Box className="h-4 w-4" /> Projetos 3D
           </TabsTrigger>
+          <TabsTrigger value="builder" className="gap-1.5">
+            <Ruler className="h-4 w-4" /> Builder Paramétrico
+          </TabsTrigger>
           <TabsTrigger value="biblioteca" className="gap-1.5">
             <BookOpen className="h-4 w-4" /> Biblioteca
           </TabsTrigger>
@@ -312,6 +317,12 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="builder">
+          <Suspense fallback={<div className="flex items-center justify-center py-20 text-muted-foreground"><RefreshCw className="h-5 w-5 animate-spin mr-2" /> Carregando Builder...</div>}>
+            <ParametricEditorLazy tenantId={tenantId} onSave={(mod) => { toast.success(`Módulo "${mod.name}" pronto para biblioteca`); }} />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="biblioteca">
