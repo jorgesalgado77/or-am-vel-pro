@@ -496,15 +496,13 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         threeRef.current.moduleGroups.push(dupGrp);
       });
 
-      // Dimension annotations (cotas)
+      // Dimension annotations (cotas) — built in world space, no position offset needed
       if (showCotas) {
         const dimGroup = generateDimensionAnnotations(THREE, module, {
           wall: wall.enabled ? { width: wall.width, height: wall.height } : undefined,
           floorOffset: computedFloorOffset,
           duplicates: duplicates.map((d) => ({ positionX: d.positionX, module: d.module })),
         });
-        // Position annotations aligned with main module
-        dimGroup.position.copy(mainGrp.position);
         scene.add(dimGroup);
         threeRef.current.moduleGroups.push(dimGroup);
       }
