@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   FileText, Download, DollarSign, Package, Wrench, Settings2,
-  Sparkles, Check, Link2, Percent, TrendingUp, Calculator, Hammer,
+  Sparkles, Check, Link2, Percent, TrendingUp, Calculator, Hammer, Send,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { useSmartBudgetEngine, type EnrichedBudgetItem, type PricingRule } from "@/hooks/useSmartBudgetEngine";
 import type { ProjectObject, ModuleLibraryItem } from "@/hooks/useSmartImport3D";
+import type { ModuleBOM } from "@/types/parametricModule";
 import jsPDF from "jspdf";
 
 interface SmartBudgetPanelProps {
@@ -24,6 +25,11 @@ interface SmartBudgetPanelProps {
   tenantId: string | null;
   storeName?: string;
   clientName?: string;
+  /** BOM from parametric builder — merged into budget items */
+  parametricBOM?: ModuleBOM | null;
+  parametricModuleName?: string;
+  /** Callback to send budget to simulator */
+  onSendToSimulator?: (data: { projectName: string; totalValue: number; moduleCount: number }) => void;
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string; icon: any }> = {
