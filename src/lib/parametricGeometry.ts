@@ -233,7 +233,17 @@ export function generateParametricGeometry(
 
   // ── Topo ──
   const iw = W - T * 2;
-  createPanel("Topo", iw, T, D, W / 2, H - T / 2, D / 2, bodyMat);
+  const isInferior = module.moduleType === "caixa_inferior";
+  if (isInferior) {
+    // Two rails (réguas) instead of full top panel: front and back, 60mm depth max
+    const railDepth = Math.min(60, D);
+    // Front rail: aligned to the front of the module
+    createPanel("Régua Frontal", iw, T, railDepth, W / 2, H - T / 2, D - railDepth / 2, bodyMat);
+    // Back rail: aligned to the back of the module
+    createPanel("Régua Traseira", iw, T, railDepth, W / 2, H - T / 2, railDepth / 2, bodyMat);
+  } else {
+    createPanel("Topo", iw, T, D, W / 2, H - T / 2, D / 2, bodyMat);
+  }
 
   // ── Base ──
   createPanel("Base", iw, T, D, W / 2, BH + T / 2, D / 2, bodyMat);
