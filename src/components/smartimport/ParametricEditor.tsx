@@ -11,7 +11,7 @@ import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
   Upload, ImageIcon, FolderOpen, GripVertical, BookOpen, FileDown, Eye, EyeOff,
-  Camera, Lock, Unlock, Trash2, MousePointer, Group,
+  Camera, Lock, Unlock, Trash2, MousePointer, Group, Shield, ShieldOff,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -165,6 +165,7 @@ interface PersistedBuilderState {
   lockPosition: boolean;
   selectedModuleId: string | null;
   groupSelect: boolean;
+  collisionEnabled: boolean;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -187,6 +188,7 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   lockPosition: false,
   selectedModuleId: null,
   groupSelect: false,
+  collisionEnabled: true,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
