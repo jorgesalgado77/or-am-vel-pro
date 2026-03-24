@@ -589,9 +589,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       }
 
       const mainGrp = generateParametricGeometry(THREE, module, opts);
-      // Apply module offset (user drag within wall)
       mainGrp.position.x += moduleOffsetX * 0.01;
       mainGrp.position.y += moduleOffsetY * 0.01;
+      mainGrp.userData = { moduleId: "__main__" };
       scene.add(mainGrp);
       threeRef.current.moduleGroups.push(mainGrp);
 
@@ -600,6 +600,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         dupGrp.position.x += (dup.positionX + moduleOffsetX) * 0.01;
         dupGrp.position.y += moduleOffsetY * 0.01;
         dupGrp.position.z += dup.positionZ * 0.01;
+        dupGrp.userData = { moduleId: dup.id };
         scene.add(dupGrp);
         threeRef.current.moduleGroups.push(dupGrp);
       });
