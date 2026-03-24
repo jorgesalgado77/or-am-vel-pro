@@ -272,14 +272,16 @@ export function generateBOM(module: ParametricModule): ModuleBOM {
       const bodyThickness = d.thickness || 18;
       const bottomThickness = d.bottomThickness || 3;
 
+      const frontWidth = width - 4; // front = module width - 4mm
+
       parts.push({
         name: `Frente Gaveta ${i + 1}`,
         quantity: 1,
-        width: internalWidth + 2,
+        width: frontWidth,
         height: fh,
         thickness,
-        area: ((internalWidth + 2) * fh) / 1_000_000,
-        edgeBanding: (((internalWidth + 2) + fh) * 2) / 1000,
+        area: (frontWidth * fh) / 1_000_000,
+        edgeBanding: ((frontWidth + fh) * 2) / 1000,
         material: "MDF",
       });
 
