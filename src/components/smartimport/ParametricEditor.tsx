@@ -42,7 +42,7 @@ function createDefaultModule(): ParametricModule {
   };
 }
 
-export function ParametricEditor({ onSave, initialModule, tenantId }: ParametricEditorProps) {
+export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
   const [module, setModule] = useState<ParametricModule>(initialModule || createDefaultModule);
   const [showPanel, setShowPanel] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
