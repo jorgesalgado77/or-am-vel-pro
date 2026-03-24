@@ -611,22 +611,74 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 </Button>
               </div>
               {wall.enabled && (
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "Largura", key: "width" as const },
-                    { label: "Altura", key: "height" as const },
-                    { label: "Profund.", key: "depth" as const },
-                  ].map(({ label, key }) => (
-                    <div key={key} className="space-y-1">
-                      <Label className="text-[10px]">{label} (mm)</Label>
-                      <Input
-                        type="number"
-                        value={wall[key]}
-                        onChange={(e) => setWall({ [key]: Number(e.target.value) })}
-                        className="h-6 text-[10px] font-mono"
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { label: "Largura", key: "width" as const },
+                      { label: "Altura", key: "height" as const },
+                      { label: "Profund.", key: "depth" as const },
+                    ] as const).map(({ label, key }) => (
+                      <div key={key} className="space-y-1">
+                        <Label className="text-[10px]">{label} (mm)</Label>
+                        <Input
+                          type="number"
+                          value={wall[key]}
+                          onChange={(e) => setWall({ [key]: Number(e.target.value) })}
+                          className="h-6 text-[10px] font-mono"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {/* Wall Color */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Cor da Parede</Label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {WALL_COLOR_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setWall({ color: opt.value })}
+                          className={`w-7 h-7 rounded-md border-2 transition-all ${
+                            wall.color === opt.value ? "border-primary ring-2 ring-primary/30" : "border-border"
+                          }`}
+                          style={{ backgroundColor: opt.value }}
+                          title={opt.label}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        value={wall.color || "#e8e0d8"}
+                        onChange={(e) => setWall({ color: e.target.value })}
+                        className="w-7 h-7 rounded-md border border-border cursor-pointer"
+                        title="Cor personalizada"
                       />
                     </div>
-                  ))}
+                  </div>
+                  {/* Wall Texture */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] flex items-center gap-1">
+                      <ImageIcon className="h-3 w-3" /> Textura da Parede
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border cursor-pointer text-[10px] hover:bg-muted transition-colors">
+                        <Upload className="h-3 w-3" /> Enviar
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleTextureUpload("wall", f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {textureSlots.wall && (
+                        <div className="flex items-center gap-1">
+                          <img src={textureSlots.wall} className="h-7 w-7 rounded border border-border object-cover" alt="wall texture" />
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => removeTexture("wall")}>
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
