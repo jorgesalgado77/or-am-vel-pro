@@ -220,6 +220,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const openDrawers = persisted.openDrawers ?? false;
   const moduleOffsetX = persisted.moduleOffsetX ?? 0;
   const moduleOffsetY = persisted.moduleOffsetY ?? 0;
+  const lockPosition = persisted.lockPosition ?? false;
+  const selectedModuleId = persisted.selectedModuleId ?? null;
+  const groupSelect = persisted.groupSelect ?? false;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
