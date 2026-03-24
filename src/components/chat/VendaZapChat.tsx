@@ -205,6 +205,45 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     }
   };
 
+  const handleStartConversation = useCallback(async (trackingId: string, clientName: string, contractNumber: string) => {
+    setShowStartModal(false);
+
+    // Check if conversation already exists in the list
+    const existing = conversations.find((c) => c.id === trackingId);
+    if (existing) {
+      handleSelectConversation(existing);
+      return;
+    }
+
+    // Send a system message to initialize the conversation
+    const { error } = await supabase.from("tracking_messages").insert({
+      tracking_id: trackingId,
+      mensagem: `Conversa iniciada por ${currentUser?.nome_completo || "Usuário"}`,
+      remetente_tipo: "loja",
+      remetente_nome: currentUser?.nome_completo || "Loja",
+      lida: true,
+    });
+
+    if (error) {
+      toast.error("Erro ao iniciar conversa");
+      return;
+    }
+
+    toast.success(`Conversa com ${clientName} iniciada!`);
+    await fetchConversations();
+
+    // Select the new conversation
+    const newConv: ChatConversation = {
+      id: trackingId,
+      numero_contrato: contractNumber,
+      nome_cliente: clientName,
+      unread_count: 0,
+    };
+    handleSelectConversation(newConv);
+  }, [conversations, currentUser, fetchConversations]);
+
+  const existingConvIds = useMemo(() => new Set(conversations.map((c) => c.id)), [conversations]);
+
   return (
     <div className="flex h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
       {/* Conversation list */}
@@ -214,6 +253,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
           selectedId={selected?.id || null}
           onSelect={handleSelectConversation}
           loading={loading}
+          onStartConversation={() => setShowStartModal(true)}
         />
       </div>
 
@@ -248,6 +288,17 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
           </div>
         )}
       </div>
+
+      {/* Start Conversation Modal */}
+      <StartConversationModal
+        open={showStartModal}
+        onClose={() => setShowStartModal(false)}
+        onSelect={handleStartConversation}
+        tenantId={tenantId}
+        currentUserName={currentUser?.nome_completo || null}
+        currentUserRole={currentUser?.cargo_nome || null}
+        existingConversationIds={existingConvIds}
+      />
     </div>
   );
 }
