@@ -1122,7 +1122,10 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                         <Minus className="h-3 w-3" />
                       </Button>
                       <Badge variant="secondary" className="text-[10px] min-w-[20px] text-center">{count}</Badge>
-                      <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => addComponent(type)}>
+                      <Button variant="ghost" size="icon" className="h-5 w-5"
+                        onClick={() => addComponent(type)}
+                        disabled={type === "gaveta" && count >= MAX_DRAWERS}
+                      >
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
