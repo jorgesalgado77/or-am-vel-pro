@@ -135,6 +135,12 @@ const TEXTURE_LIBRARY = [
 
 const MAX_DRAWERS = 4;
 
+interface SavedPalette {
+  id: string;
+  name: string;
+  colors: FurnitureColors;
+}
+
 interface PersistedBuilderState {
   module: ParametricModule;
   corCaixa: string;
@@ -143,6 +149,7 @@ interface PersistedBuilderState {
   duplicates: DuplicatedModule[];
   furnitureColors: FurnitureColors;
   textureSlots: TextureSlots;
+  savedPalettes: SavedPalette[];
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -153,6 +160,7 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   duplicates: [],
   furnitureColors: { body: "#d4a574", door: "#fafafa", shelf: "#d4a574", back: "#d4a574", drawer: "#c4a060" },
   textureSlots: {},
+  savedPalettes: [],
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
