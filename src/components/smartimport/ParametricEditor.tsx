@@ -9,16 +9,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
-  PanelLeftClose, PanelLeft, Eye, Package, Palette,
+  PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import type {
-  ParametricModule, InternalComponent, ComponentType, DEFAULT_MODULE, ModuleBOM,
+  ParametricModule, InternalComponent, ComponentType, ModuleBOM, ModuleType,
 } from "@/types/parametricModule";
+import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
 import { generateParametricGeometry } from "@/lib/parametricGeometry";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
+import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 
 interface ParametricEditorProps {
   onSave?: (module: ParametricModule) => void;
@@ -31,19 +33,51 @@ function createDefaultModule(): ParametricModule {
   return {
     id: crypto.randomUUID(),
     name: "Novo Módulo",
+    moduleType: "custom",
     width: 600,
     height: 720,
     depth: 500,
     thickness: 18,
     backThickness: 6,
+    baseboardHeight: 0,
     verticalDivisions: 0,
     components: [],
     slots: [],
   };
 }
 
+/** Serializable state for persistence */
+interface PersistedBuilderState {
+  module: ParametricModule;
+  corCaixa: string;
+  corPorta: string;
+}
+
+const INITIAL_PERSISTED: PersistedBuilderState = {
+  module: createDefaultModule(),
+  corCaixa: "",
+  corPorta: "",
+};
+
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
-  const [module, setModule] = useState<ParametricModule>(initialModule || createDefaultModule);
+  const [persisted, updatePersisted, clearPersisted] = usePersistedFormState<PersistedBuilderState>(
+    "parametric-builder",
+    initialModule ? { ...INITIAL_PERSISTED, module: initialModule } : INITIAL_PERSISTED
+  );
+
+  const module = persisted.module;
+  const corCaixa = persisted.corCaixa;
+  const corPorta = persisted.corPorta;
+
+  const setModule = useCallback((updater: ParametricModule | ((prev: ParametricModule) => ParametricModule)) => {
+    updatePersisted({
+      module: typeof updater === "function" ? updater(module) : updater,
+    });
+  }, [module, updatePersisted]);
+
+  const setCorCaixa = useCallback((v: string) => updatePersisted({ corCaixa: v }), [updatePersisted]);
+  const setCorPorta = useCallback((v: string) => updatePersisted({ corPorta: v }), [updatePersisted]);
+
   const [showPanel, setShowPanel] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const threeRef = useRef<any>(null);
@@ -58,9 +92,27 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const cores = useMemo(() => catalogItems.filter((i) => i.category === "cor"), [catalogItems]);
   const materiais = useMemo(() => catalogItems.filter((i) => i.category === "material" || i.category === "acabamento"), [catalogItems]);
 
-  // Material state
-  const [corCaixa, setCorCaixa] = useState("");
-  const [corPorta, setCorPorta] = useState("");
+  // ── Apply Preset ──
+  const applyPreset = useCallback((presetType: ModuleType) => {
+    if (presetType === "custom") return;
+    const preset = MODULE_PRESETS.find((p) => p.type === presetType);
+    if (!preset) return;
+    setModule((prev) => ({
+      ...prev,
+      name: preset.label,
+      moduleType: preset.type,
+      width: preset.width,
+      height: preset.height,
+      depth: preset.depth,
+      thickness: preset.thickness,
+      backThickness: preset.backThickness,
+      baseboardHeight: preset.baseboardHeight,
+      components: [],
+      slots: [],
+      verticalDivisions: 0,
+    }));
+    toast.success(`Preset "${preset.label}" aplicado!`);
+  }, [setModule]);
 
   // ── 3D Preview ──
   useEffect(() => {
@@ -97,7 +149,6 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       controls.maxDistance = 20;
       controls.addEventListener("change", () => { needsRenderRef.current = true; });
 
-      // Lighting — bright and well-distributed
       scene.add(new THREE.AmbientLight(0xffffff, 1.2));
       const dl = new THREE.DirectionalLight(0xffffff, 1.8);
       dl.position.set(5, 10, 7);
@@ -107,7 +158,6 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       scene.add(dl2);
       scene.add(new THREE.HemisphereLight(0xffffff, 0xe0e0e0, 0.8));
 
-      // Grid
       const grid = new THREE.GridHelper(20, 20, 0xcccccc, 0xcccccc);
       (grid.material as any).opacity = 0.3;
       (grid.material as any).transparent = true;
@@ -139,9 +189,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       };
       window.addEventListener("resize", onResize);
 
-      return () => {
-        window.removeEventListener("resize", onResize);
-      };
+      return () => { window.removeEventListener("resize", onResize); };
     })();
 
     return () => {
@@ -156,7 +204,6 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     if (!threeRef.current) return;
     const { THREE, scene } = threeRef.current;
 
-    // Remove old
     if (threeRef.current.moduleGroup) {
       scene.remove(threeRef.current.moduleGroup);
     }
@@ -170,18 +217,19 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
     setModule((prev) => {
-      const updated = { ...prev, [key]: snapToGrid(value) };
+      const updated = { ...prev, [key]: snapToGrid(value), moduleType: "custom" as ModuleType };
       return { ...updated, components: redistributeShelves(updated) };
     });
-  }, []);
+  }, [setModule]);
 
   const addComponent = useCallback((type: ComponentType) => {
     setModule((prev) => {
-      const ih = prev.height - prev.thickness * 2;
+      const baseY = prev.thickness + (prev.baseboardHeight || 0);
+      const ih = prev.height - prev.thickness * 2 - (prev.baseboardHeight || 0);
       const comp: InternalComponent = {
         id: crypto.randomUUID(),
         type,
-        positionY: type === "divisoria" ? prev.width / 2 : ih / 2 + prev.thickness,
+        positionY: type === "divisoria" ? prev.width / 2 : baseY + ih / 2,
         thickness: prev.thickness,
         frontHeight: type === "gaveta" ? 180 : undefined,
       };
@@ -191,22 +239,23 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       }
       return updated;
     });
-  }, []);
+  }, [setModule]);
 
   const removeComponent = useCallback((id: string) => {
     setModule((prev) => {
       const updated = { ...prev, components: prev.components.filter((c) => c.id !== id) };
       return { ...updated, components: redistributeShelves(updated) };
     });
-  }, []);
+  }, [setModule]);
 
   const handleSave = () => {
     onSave?.(module);
+    clearPersisted();
     toast.success("Módulo salvo com sucesso!");
   };
 
   const handleReset = () => {
-    setModule(createDefaultModule());
+    clearPersisted();
     toast.info("Módulo resetado");
   };
 
@@ -230,6 +279,42 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       {/* ── Painel Lateral ── */}
       {showPanel && (
         <div className="w-full md:w-[360px] shrink-0 overflow-y-auto space-y-3">
+          {/* Preset Selector */}
+          <Card>
+            <CardContent className="p-3 space-y-2">
+              <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <LayoutTemplate className="h-3.5 w-3.5 text-primary" /> Tipo de Módulo
+              </h4>
+              <Select
+                value={module.moduleType}
+                onValueChange={(v) => applyPreset(v as ModuleType)}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecionar módulo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">
+                    <span className="font-medium">Personalizado</span>
+                  </SelectItem>
+                  {MODULE_PRESETS.map((p) => (
+                    <SelectItem key={p.type} value={p.type}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{p.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{p.description} — {p.width}×{p.height}×{p.depth}mm</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {module.moduleType !== "custom" && (
+                <Badge variant="outline" className="text-[10px]">
+                  {MODULE_PRESETS.find((p) => p.type === module.moduleType)?.label}
+                  {module.baseboardHeight > 0 && ` • Rodapé ${module.baseboardHeight}mm`}
+                </Badge>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Nome */}
           <Card>
             <CardContent className="p-3 space-y-2">
@@ -250,14 +335,19 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               </h4>
 
               {[
-                { label: "Largura (L)", key: "width" as const, min: 200, max: 1200 },
-                { label: "Altura (A)", key: "height" as const, min: 200, max: 2400 },
+                { label: "Largura (L)", key: "width" as const, min: 200, max: 2400 },
+                { label: "Altura (A)", key: "height" as const, min: 200, max: 2700 },
                 { label: "Profundidade (P)", key: "depth" as const, min: 200, max: 700 },
               ].map(({ label, key, min, max }) => (
                 <div key={key} className="space-y-1">
                   <div className="flex items-center justify-between">
                     <Label className="text-[11px]">{label}</Label>
-                    <span className="text-xs font-mono text-muted-foreground">{module[key]}mm</span>
+                    <Input
+                      type="number"
+                      value={module[key]}
+                      onChange={(e) => updateDimension(key, Number(e.target.value))}
+                      className="h-6 w-20 text-[11px] text-right font-mono"
+                    />
                   </div>
                   <Slider
                     value={[module[key]]}
@@ -272,20 +362,60 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[11px]">Espessura Chapa</Label>
-                  <Input
-                    type="number"
-                    value={module.thickness}
-                    onChange={(e) => setModule((p) => ({ ...p, thickness: Number(e.target.value) }))}
-                    className="h-7 text-xs"
-                  />
+                  <Select
+                    value={String(module.thickness)}
+                    onValueChange={(v) => {
+                      const t = Number(v);
+                      setModule((p) => {
+                        const updated = { ...p, thickness: t, moduleType: "custom" as ModuleType };
+                        // Update component thicknesses too
+                        updated.components = updated.components.map((c) =>
+                          c.type === "prateleira" || c.type === "divisoria"
+                            ? { ...c, thickness: t }
+                            : c
+                        );
+                        return { ...updated, components: redistributeShelves(updated) };
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {SHEET_THICKNESSES.map((t) => (
+                        <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px]">Espessura Fundo</Label>
+                  <Select
+                    value={String(module.backThickness)}
+                    onValueChange={(v) => setModule((p) => ({ ...p, backThickness: Number(v) }))}
+                  >
+                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {BACK_THICKNESSES.map((t) => (
+                        <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Rodapé */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px]">Rodapé (mm)</Label>
                   <Input
                     type="number"
-                    value={module.backThickness}
-                    onChange={(e) => setModule((p) => ({ ...p, backThickness: Number(e.target.value) }))}
-                    className="h-7 text-xs"
+                    value={module.baseboardHeight}
+                    onChange={(e) => setModule((p) => {
+                      const updated = { ...p, baseboardHeight: Math.max(0, Number(e.target.value)) };
+                      return { ...updated, components: redistributeShelves(updated) };
+                    })}
+                    className="h-6 w-20 text-[11px] text-right font-mono"
+                    min={0}
+                    max={200}
                   />
                 </div>
               </div>
@@ -348,8 +478,12 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               </h4>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div className="bg-muted/50 rounded p-2">
-                  <span className="text-muted-foreground">Vão Interno</span>
+                  <span className="text-muted-foreground">Vão Interno (A)</span>
                   <p className="font-mono font-semibold">{spans.vaoInterno}mm</p>
+                </div>
+                <div className="bg-muted/50 rounded p-2">
+                  <span className="text-muted-foreground">Largura Interna</span>
+                  <p className="font-mono font-semibold">{spans.larguraInterna}mm</p>
                 </div>
                 <div className="bg-muted/50 rounded p-2">
                   <span className="text-muted-foreground">Vão Livre</span>
@@ -359,11 +493,16 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   <span className="text-muted-foreground">Vão Unitário</span>
                   <p className="font-mono font-semibold">{spans.vaoUnitario}mm</p>
                 </div>
-                <div className="bg-muted/50 rounded p-2">
+                <div className="bg-muted/50 rounded p-2 col-span-2">
                   <span className="text-muted-foreground">Qtd. Vãos</span>
                   <p className="font-mono font-semibold">{spans.quantidadeVaos}</p>
                 </div>
               </div>
+              {module.baseboardHeight > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  * Rodapé de {module.baseboardHeight}mm já descontado do vão interno
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -448,6 +587,11 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
               </Badge>
+              {module.moduleType !== "custom" && (
+                <Badge className="text-[10px]">
+                  {MODULE_PRESETS.find((p) => p.type === module.moduleType)?.label}
+                </Badge>
+              )}
             </div>
           </CardContent>
         </Card>
