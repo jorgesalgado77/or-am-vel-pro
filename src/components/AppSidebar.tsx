@@ -1,10 +1,12 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
   MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle, Megaphone,
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
-  Box, Loader2,
+  Box, Loader2, Bell,
 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
