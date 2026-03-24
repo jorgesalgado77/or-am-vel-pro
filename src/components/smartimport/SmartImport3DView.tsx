@@ -318,6 +318,12 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
           )}
         </TabsContent>
 
+        <TabsContent value="builder">
+          <Suspense fallback={<div className="flex items-center justify-center py-20 text-muted-foreground"><RefreshCw className="h-5 w-5 animate-spin mr-2" /> Carregando Builder...</div>}>
+            <ParametricEditorLazy tenantId={tenantId} onSave={(mod) => { toast.success(`Módulo "${mod.name}" pronto para biblioteca`); }} />
+          </Suspense>
+        </TabsContent>
+
         <TabsContent value="biblioteca">
           <ModuleLibraryPanel
             library={library}
