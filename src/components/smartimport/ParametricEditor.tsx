@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
+  Upload, ImageIcon,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -18,7 +19,7 @@ import type {
 } from "@/types/parametricModule";
 import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
-import { generateParametricGeometry } from "@/lib/parametricGeometry";
+import { generateParametricGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 
@@ -51,14 +52,50 @@ interface WallConfig {
   width: number;
   height: number;
   depth: number;
+  color: string; // hex string
 }
 
 interface DuplicatedModule {
   id: string;
   module: ParametricModule;
-  positionX: number; // offset in mm
+  positionX: number;
   positionZ: number;
 }
+
+interface TextureSlots {
+  body?: string; // data URL
+  door?: string;
+  shelf?: string;
+  back?: string;
+  drawer?: string;
+  wall?: string;
+}
+
+interface FurnitureColors {
+  body: string;
+  door: string;
+  shelf: string;
+  back: string;
+  drawer: string;
+}
+
+const WALL_COLOR_OPTIONS = [
+  { label: "Padrão", value: "#e8e0d8" },
+  { label: "Preta", value: "#1a1a1a" },
+  { label: "Cinza Claro", value: "#d4d4d4" },
+  { label: "Cinza Escuro", value: "#525252" },
+];
+
+const FURNITURE_COLOR_OPTIONS = [
+  { label: "Madeira Clara", value: "#d4a574" },
+  { label: "Madeira Escura", value: "#8b6914" },
+  { label: "Branco", value: "#fafafa" },
+  { label: "Preto", value: "#1a1a1a" },
+  { label: "Cinza", value: "#9ca3af" },
+  { label: "Carvalho", value: "#c4a060" },
+  { label: "Tabaco", value: "#6b4226" },
+  { label: "Wengue", value: "#3c2415" },
+];
 
 interface PersistedBuilderState {
   module: ParametricModule;
@@ -66,14 +103,18 @@ interface PersistedBuilderState {
   corPorta: string;
   wall: WallConfig;
   duplicates: DuplicatedModule[];
+  furnitureColors: FurnitureColors;
+  textureSlots: TextureSlots;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
   module: createDefaultModule(),
   corCaixa: "",
   corPorta: "",
-  wall: { enabled: false, width: 3000, height: 2700, depth: 100 },
+  wall: { enabled: false, width: 3000, height: 2700, depth: 100, color: "#e8e0d8" },
   duplicates: [],
+  furnitureColors: { body: "#d4a574", door: "#fafafa", shelf: "#d4a574", back: "#d4a574", drawer: "#c4a060" },
+  textureSlots: {},
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -87,16 +128,41 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const corPorta = persisted.corPorta;
   const wall = persisted.wall;
   const duplicates = persisted.duplicates;
+  const furnitureColors = persisted.furnitureColors ?? INITIAL_PERSISTED.furnitureColors;
+  const textureSlots = persisted.textureSlots ?? {};
+
+  // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
+  const textureCache = useRef<Record<string, any>>({});
 
   const setModule = useCallback((updater: ParametricModule | ((prev: ParametricModule) => ParametricModule)) => {
-    updatePersisted({
-      module: typeof updater === "function" ? updater(module) : updater,
-    });
+    updatePersisted({ module: typeof updater === "function" ? updater(module) : updater });
   }, [module, updatePersisted]);
 
   const setCorCaixa = useCallback((v: string) => updatePersisted({ corCaixa: v }), [updatePersisted]);
   const setCorPorta = useCallback((v: string) => updatePersisted({ corPorta: v }), [updatePersisted]);
   const setWall = useCallback((w: Partial<WallConfig>) => updatePersisted({ wall: { ...wall, ...w } }), [wall, updatePersisted]);
+  const setFurnitureColor = useCallback((key: keyof FurnitureColors, value: string) => {
+    updatePersisted({ furnitureColors: { ...furnitureColors, [key]: value } });
+  }, [furnitureColors, updatePersisted]);
+
+  const handleTextureUpload = useCallback((slot: keyof TextureSlots, file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      updatePersisted({ textureSlots: { ...textureSlots, [slot]: dataUrl } });
+      // Invalidate cache so it reloads
+      delete textureCache.current[slot];
+      toast.success(`Textura "${slot}" aplicada!`);
+    };
+    reader.readAsDataURL(file);
+  }, [textureSlots, updatePersisted]);
+
+  const removeTexture = useCallback((slot: keyof TextureSlots) => {
+    const updated = { ...textureSlots };
+    delete updated[slot];
+    updatePersisted({ textureSlots: updated });
+    delete textureCache.current[slot];
+  }, [textureSlots, updatePersisted]);
 
   const [showPanel, setShowPanel] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -238,33 +304,89 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     };
   }, []);
 
-  // ── Rebuild geometry when module/wall/duplicates change ──
+  // ── Load textures from data URLs ──
+  const loadTexturesForSlots = useCallback(async (THREE: any): Promise<{ matOverrides: MaterialOverrides; wallOv: WallOverrides }> => {
+    const loader = new THREE.TextureLoader();
+    const matOverrides: MaterialOverrides = {};
+    const wallOv: WallOverrides = {};
+
+    const hexToNum = (hex: string) => parseInt(hex.replace("#", ""), 16);
+
+    // Furniture colors
+    matOverrides.bodyColor = hexToNum(furnitureColors.body);
+    matOverrides.doorColor = hexToNum(furnitureColors.door);
+    matOverrides.shelfColor = hexToNum(furnitureColors.shelf);
+    matOverrides.backColor = hexToNum(furnitureColors.back);
+    matOverrides.drawerColor = hexToNum(furnitureColors.drawer);
+
+    // Wall color
+    wallOv.color = hexToNum(wall.color || "#e8e0d8");
+
+    // Load textures from dataURLs
+    const loadTex = (dataUrl: string, cacheKey: string): Promise<any> => {
+      if (textureCache.current[cacheKey]) return Promise.resolve(textureCache.current[cacheKey]);
+      return new Promise((resolve) => {
+        loader.load(dataUrl, (tex: any) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          textureCache.current[cacheKey] = tex;
+          resolve(tex);
+        }, undefined, () => resolve(null));
+      });
+    };
+
+    const slots: [keyof TextureSlots, string][] = [
+      ["body", "body"], ["door", "door"], ["shelf", "shelf"],
+      ["back", "back"], ["drawer", "drawer"], ["wall", "wall"],
+    ];
+
+    await Promise.all(slots.map(async ([slot, key]) => {
+      const dataUrl = textureSlots[slot];
+      if (!dataUrl) return;
+      const tex = await loadTex(dataUrl, key);
+      if (!tex) return;
+      if (slot === "wall") wallOv.texture = tex;
+      else (matOverrides as any)[`${key}Texture`] = tex;
+    }));
+
+    return { matOverrides, wallOv };
+  }, [furnitureColors, textureSlots, wall.color]);
+
+  // ── Rebuild geometry when module/wall/duplicates/colors/textures change ──
   useEffect(() => {
     if (!threeRef.current) return;
     const { THREE, scene, moduleGroups } = threeRef.current;
 
-    // Remove old groups
-    moduleGroups.forEach((g: any) => scene.remove(g));
-    threeRef.current.moduleGroups = [];
+    (async () => {
+      // Remove old groups
+      moduleGroups.forEach((g: any) => scene.remove(g));
+      threeRef.current.moduleGroups = [];
 
-    const wallOpts = wall.enabled ? { wall: { width: wall.width, height: wall.height, depth: wall.depth } } : undefined;
+      const { matOverrides, wallOv } = await loadTexturesForSlots(THREE);
 
-    // Main module
-    const mainGrp = generateParametricGeometry(THREE, module, wallOpts);
-    scene.add(mainGrp);
-    threeRef.current.moduleGroups.push(mainGrp);
+      const opts: GeometryOptions = {};
+      if (wall.enabled) {
+        opts.wall = { width: wall.width, height: wall.height, depth: wall.depth };
+        opts.wallOverrides = wallOv;
+      }
+      opts.materialOverrides = matOverrides;
 
-    // Duplicated modules
-    duplicates.forEach((dup) => {
-      const dupGrp = generateParametricGeometry(THREE, dup.module);
-      dupGrp.position.x += dup.positionX * 0.01;
-      dupGrp.position.z += dup.positionZ * 0.01;
-      scene.add(dupGrp);
-      threeRef.current.moduleGroups.push(dupGrp);
-    });
+      const mainGrp = generateParametricGeometry(THREE, module, opts);
+      scene.add(mainGrp);
+      threeRef.current.moduleGroups.push(mainGrp);
 
-    needsRenderRef.current = true;
-  }, [module, wall, duplicates]);
+      duplicates.forEach((dup) => {
+        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides });
+        dupGrp.position.x += dup.positionX * 0.01;
+        dupGrp.position.z += dup.positionZ * 0.01;
+        scene.add(dupGrp);
+        threeRef.current.moduleGroups.push(dupGrp);
+      });
+
+      needsRenderRef.current = true;
+    })();
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
@@ -489,22 +611,74 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 </Button>
               </div>
               {wall.enabled && (
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "Largura", key: "width" as const },
-                    { label: "Altura", key: "height" as const },
-                    { label: "Profund.", key: "depth" as const },
-                  ].map(({ label, key }) => (
-                    <div key={key} className="space-y-1">
-                      <Label className="text-[10px]">{label} (mm)</Label>
-                      <Input
-                        type="number"
-                        value={wall[key]}
-                        onChange={(e) => setWall({ [key]: Number(e.target.value) })}
-                        className="h-6 text-[10px] font-mono"
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { label: "Largura", key: "width" as const },
+                      { label: "Altura", key: "height" as const },
+                      { label: "Profund.", key: "depth" as const },
+                    ] as const).map(({ label, key }) => (
+                      <div key={key} className="space-y-1">
+                        <Label className="text-[10px]">{label} (mm)</Label>
+                        <Input
+                          type="number"
+                          value={wall[key]}
+                          onChange={(e) => setWall({ [key]: Number(e.target.value) })}
+                          className="h-6 text-[10px] font-mono"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {/* Wall Color */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Cor da Parede</Label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {WALL_COLOR_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setWall({ color: opt.value })}
+                          className={`w-7 h-7 rounded-md border-2 transition-all ${
+                            wall.color === opt.value ? "border-primary ring-2 ring-primary/30" : "border-border"
+                          }`}
+                          style={{ backgroundColor: opt.value }}
+                          title={opt.label}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        value={wall.color || "#e8e0d8"}
+                        onChange={(e) => setWall({ color: e.target.value })}
+                        className="w-7 h-7 rounded-md border border-border cursor-pointer"
+                        title="Cor personalizada"
                       />
                     </div>
-                  ))}
+                  </div>
+                  {/* Wall Texture */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] flex items-center gap-1">
+                      <ImageIcon className="h-3 w-3" /> Textura da Parede
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border cursor-pointer text-[10px] hover:bg-muted transition-colors">
+                        <Upload className="h-3 w-3" /> Enviar
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleTextureUpload("wall", f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {textureSlots.wall && (
+                        <div className="flex items-center gap-1">
+                          <img src={textureSlots.wall} className="h-7 w-7 rounded border border-border object-cover" alt="wall texture" />
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => removeTexture("wall")}>
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -586,54 +760,78 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
           <Card>
             <CardContent className="p-3 space-y-3">
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Palette className="h-3.5 w-3.5 text-primary" /> Cores e Materiais
+                <Palette className="h-3.5 w-3.5 text-primary" /> Cores e Texturas do Móvel
               </h4>
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Cor da Caixa</Label>
-                  {cores.length > 0 ? (
-                    <Select value={corCaixa} onValueChange={setCorCaixa}>
-                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar cor..." /></SelectTrigger>
-                      <SelectContent>
-                        {cores.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input className="h-7 text-xs" placeholder="Ex: Branco TX" value={corCaixa} onChange={(e) => setCorCaixa(e.target.value)} />
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Cor da Porta</Label>
-                  {cores.length > 0 ? (
-                    <Select value={corPorta} onValueChange={setCorPorta}>
-                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar cor..." /></SelectTrigger>
-                      <SelectContent>
-                        {cores.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input className="h-7 text-xs" placeholder="Ex: Cinza Sagrado" value={corPorta} onChange={(e) => setCorPorta(e.target.value)} />
-                  )}
-                </div>
-                {materiais.length > 0 && (
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Material Principal</Label>
-                    <Select
-                      value={module.bodyMaterialId || ""}
-                      onValueChange={(v) => setModule((p) => ({ ...p, bodyMaterialId: v || undefined }))}
-                    >
-                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar material..." /></SelectTrigger>
-                      <SelectContent>
-                        {materiais.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name} {m.cost ? `(R$ ${m.cost.toFixed(2)})` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              <div className="space-y-2.5">
+                {([
+                  { key: "body" as const, label: "Caixa (corpo)" },
+                  { key: "door" as const, label: "Portas / Frentes" },
+                  { key: "shelf" as const, label: "Prateleiras" },
+                  { key: "back" as const, label: "Fundo" },
+                  { key: "drawer" as const, label: "Corpo Gavetas" },
+                ]).map(({ key, label }) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-[10px] font-medium">{label}</Label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {FURNITURE_COLOR_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setFurnitureColor(key, opt.value)}
+                          className={`w-5 h-5 rounded border transition-all ${
+                            furnitureColors[key] === opt.value ? "border-primary ring-1 ring-primary/30 scale-110" : "border-border"
+                          }`}
+                          style={{ backgroundColor: opt.value }}
+                          title={opt.label}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        value={furnitureColors[key]}
+                        onChange={(e) => setFurnitureColor(key, e.target.value)}
+                        className="w-5 h-5 rounded border border-border cursor-pointer"
+                        title="Cor personalizada"
+                      />
+                      <label className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted/50 border border-border cursor-pointer text-[9px] hover:bg-muted transition-colors">
+                        <Upload className="h-2.5 w-2.5" /> Textura
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleTextureUpload(key, f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {textureSlots[key] && (
+                        <div className="flex items-center gap-0.5">
+                          <img src={textureSlots[key]} className="h-5 w-5 rounded border border-border object-cover" alt={`${key} texture`} />
+                          <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => removeTexture(key)}>
+                            <Minus className="h-2.5 w-2.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
+              {/* Catalog materials (if available) */}
+              {materiais.length > 0 && (
+                <div className="space-y-1 pt-1 border-t border-border">
+                  <Label className="text-[11px]">Material do Catálogo</Label>
+                  <Select
+                    value={module.bodyMaterialId || ""}
+                    onValueChange={(v) => setModule((p) => ({ ...p, bodyMaterialId: v || undefined }))}
+                  >
+                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar material..." /></SelectTrigger>
+                    <SelectContent>
+                      {materiais.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name} {m.cost ? `(R$ ${m.cost.toFixed(2)})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </CardContent>
           </Card>
 
