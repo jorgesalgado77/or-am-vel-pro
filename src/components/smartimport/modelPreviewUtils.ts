@@ -1,3 +1,5 @@
+import { getCachedMaterial, clearMaterialCache } from "@/lib/textureCache";
+
 const PREVIEW_FALLBACK_COLOR = 0x94a3b8;
 
 interface DxfEntity {
@@ -92,6 +94,7 @@ function ensureMaterialVisibility(THREE: any, material: any): any {
 /**
  * CRITICAL: Preserve original materials from the file.
  * Only apply minimal fixes (double-side, texture color space, compute normals).
+ * Now also applies material caching to deduplicate identical materials.
  */
 function prepareObjectForPreview(THREE: any, root: any) {
   let meshIndex = 0;
@@ -109,6 +112,9 @@ function prepareObjectForPreview(THREE: any, root: any) {
       fixTextureColorSpaces(THREE, child.material);
       child.material = ensureMaterialVisibility(THREE, child.material);
 
+      // Deduplicate materials via global cache
+      child.material = getCachedMaterial(child.material);
+
       // Store reference for selection highlight/restore
       child.userData.originalMaterial = child.material;
       child.castShadow = false;
@@ -125,7 +131,73 @@ function prepareObjectForPreview(THREE: any, root: any) {
   // ── Geometry Instancing: merge duplicate geometries ──
   applyGeometryInstancing(THREE, root);
 
+  // ── LOD for heavy meshes ──
+  applyLODToRoot(THREE, root);
+
   return root;
+}
+
+/**
+ * Apply LOD to meshes with >50k vertices.
+ */
+function applyLODToRoot(THREE: any, root: any) {
+  const HIGH_POLY_THRESHOLD = 50000;
+  const heavyMeshes: any[] = [];
+
+  root.traverse((child: any) => {
+    if (!child.isMesh || !child.geometry?.attributes?.position) return;
+    if (child.geometry.attributes.position.count > HIGH_POLY_THRESHOLD) {
+      heavyMeshes.push(child);
+    }
+  });
+
+  if (heavyMeshes.length === 0) return;
+
+  for (const mesh of heavyMeshes) {
+    const parent = mesh.parent;
+    if (!parent) continue;
+
+    const lod = new THREE.LOD();
+    lod.name = mesh.name;
+    lod.position.copy(mesh.position);
+    lod.rotation.copy(mesh.rotation);
+    lod.scale.copy(mesh.scale);
+    lod.userData = { ...mesh.userData };
+
+    // Level 0: Original
+    const highDetail = mesh.clone();
+    highDetail.position.set(0, 0, 0);
+    highDetail.rotation.set(0, 0, 0);
+    highDetail.scale.set(1, 1, 1);
+    lod.addLevel(highDetail, 0);
+
+    // Level 1: Simplified via decimation
+    try {
+      const midGeo = mesh.geometry.clone();
+      // Reduce index count by skipping triangles
+      if (midGeo.index) {
+        const indices = Array.from(midGeo.index.array);
+        const reduced: number[] = [];
+        for (let i = 0; i < indices.length; i += 6) {
+          // Keep every other triangle
+          if (i + 2 < indices.length) {
+            reduced.push(indices[i], indices[i + 1], indices[i + 2]);
+          }
+        }
+        midGeo.setIndex(reduced);
+      }
+      midGeo.computeVertexNormals();
+      const midMesh = new THREE.Mesh(midGeo, mesh.material);
+      midMesh.name = `${mesh.name}_mid`;
+      midMesh.userData = { ...mesh.userData };
+      lod.addLevel(midMesh, 15);
+    } catch {
+      lod.addLevel(highDetail.clone(), 15);
+    }
+
+    parent.add(lod);
+    parent.remove(mesh);
+  }
 }
 
 /**
@@ -178,6 +250,7 @@ function applyGeometryInstancing(THREE: any, root: any) {
 
 /**
  * Dispose all geometries, materials and textures in a scene graph.
+ * Also clears the material cache.
  */
 export function disposeSceneGraph(object: any) {
   if (!object) return;
@@ -194,11 +267,12 @@ export function disposeSceneGraph(object: any) {
       mat.dispose?.();
     }
   });
+  clearMaterialCache();
 }
 
-// ── DXF Parser ──────────────────────────────────────────────
+// ── DXF Parser (inline fallback when Worker unavailable) ──
 
-function parseDxfEntities(dxfText: string): DxfEntity[] {
+function parseDxfEntitiesInline(dxfText: string): DxfEntity[] {
   const lines = dxfText.split(/\r?\n/).map((line) => line.trim());
   const entities: DxfEntity[] = [];
   let i = 0;
@@ -258,6 +332,44 @@ function parseDxfEntities(dxfText: string): DxfEntity[] {
 
   if (currentEntity && currentEntity.vertices.length > 0) entities.push(currentEntity);
   return entities;
+}
+
+/**
+ * Parse DXF using Web Worker (with inline fallback).
+ */
+async function parseDxfWithWorker(dxfText: string): Promise<DxfEntity[]> {
+  try {
+    const workerUrl = new URL("../workers/dxfParserWorker.ts", import.meta.url);
+    const worker = new Worker(workerUrl, { type: "module" });
+
+    return new Promise<DxfEntity[]>((resolve) => {
+      const timeout = setTimeout(() => {
+        worker.terminate();
+        resolve(parseDxfEntitiesInline(dxfText));
+      }, 10000);
+
+      worker.onmessage = (event) => {
+        clearTimeout(timeout);
+        worker.terminate();
+        if (event.data.success) {
+          resolve(event.data.entities);
+        } else {
+          resolve(parseDxfEntitiesInline(dxfText));
+        }
+      };
+
+      worker.onerror = () => {
+        clearTimeout(timeout);
+        worker.terminate();
+        resolve(parseDxfEntitiesInline(dxfText));
+      };
+
+      worker.postMessage({ dxfText });
+    });
+  } catch {
+    // Worker not supported — fallback to inline
+    return parseDxfEntitiesInline(dxfText);
+  }
 }
 
 function buildDxfScene(THREE: any, entities: DxfEntity[]) {
@@ -378,7 +490,9 @@ export async function loadModelForPreview(THREE: any, fileUrl: string, onProgres
   } else if (ext === "dxf") {
     const response = await fetch(fileUrl);
     const text = await response.text();
-    loadedObject = buildDxfScene(THREE, parseDxfEntities(text));
+    // Use Web Worker for parsing (with inline fallback)
+    const entities = await parseDxfWithWorker(text);
+    loadedObject = buildDxfScene(THREE, entities);
   }
 
   if (!loadedObject) {

@@ -359,7 +359,9 @@ function WebGLViewer({
           });
         };
 
-        renderer.domElement.addEventListener("click", clickHandler);
+        // Use pointer events for touch support
+        renderer.domElement.addEventListener("pointerdown", pointerDownHandler);
+        renderer.domElement.addEventListener("pointerup", pointerUpHandler);
 
         setProgress(100);
         setProgressLabel("Concluído!");
