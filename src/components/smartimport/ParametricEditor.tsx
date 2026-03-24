@@ -10,9 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
-  Upload, ImageIcon,
+  Upload, ImageIcon, FolderOpen, GripVertical, BookOpen,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type {
   ParametricModule, InternalComponent, ComponentType, ModuleBOM, ModuleType,
@@ -21,7 +22,12 @@ import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/par
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
 import { generateParametricGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
+import { useModuleCategories, type CategoryTreeNode } from "@/hooks/useModuleCategories";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
+import { supabase } from "@/lib/supabaseClient";
+
+const SHELF_THICKNESSES = [15, 18, 25, 36] as const;
+const DOOR_THICKNESSES = [15, 18] as const;
 
 interface ParametricEditorProps {
   onSave?: (module: ParametricModule) => void;
