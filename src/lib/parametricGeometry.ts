@@ -50,7 +50,9 @@ function applyTextureToMat(
 }
 
 /**
- * Gera um THREE.Group representando o módulo paramétrico completo.
+ * Gera a parede como grupo independente.
+ * A face frontal fica em Z=0, parede se estende para Z negativo.
+ * Base no Y=0 (piso).
  */
 export function generateWallGeometry(
   THREE: typeof import("three"),
@@ -74,18 +76,14 @@ export function generateWallGeometry(
   const wallEdgeMat = new THREE.LineBasicMaterial({ color: 0xbbbbbb, linewidth: 1 });
   const wallGeo = new THREE.BoxGeometry(ww * s, wh * s, wd * s);
   const wallMesh = new THREE.Mesh(wallGeo, wallMat);
-  wallMesh.position.set((ww / 2) * s, (wh / 2) * s, -(wd / 2) * s);
+  // Wall centered on X, bottom at Y=0, front face at Z=0 (extends to -Z)
+  wallMesh.position.set(0, (wh / 2) * s, -(wd / 2) * s);
   wallMesh.name = "Parede";
   const wallEdges = new THREE.EdgesGeometry(wallGeo);
   const wallLine = new THREE.LineSegments(wallEdges, wallEdgeMat);
   wallLine.position.copy(wallMesh.position);
   group.add(wallMesh);
   group.add(wallLine);
-
-  // Center only X, keep Y at floor and Z behind modules (front face at Z=0)
-  const box = new THREE.Box3().setFromObject(group);
-  const center = box.getCenter(new THREE.Vector3());
-  group.position.set(-center.x, -box.min.y, -box.max.z);
 
   return group;
 }
@@ -172,7 +170,7 @@ export function generateParametricGeometry(
     const box = new THREE.Box3().setFromObject(group);
     const center = box.getCenter(new THREE.Vector3());
     const floorOff = (options?.floorOffset ?? 0) * s;
-    group.position.set(-center.x, -box.min.y + floorOff, -center.z);
+    group.position.set(-center.x, -box.min.y + floorOff, -box.min.z);
     return group;
   }
 
@@ -241,11 +239,14 @@ export function generateParametricGeometry(
     createPanel(`Fundo Gaveta ${i + 1}`, drawerBodyWidth - 30, 3, drawerBodyDepth - 2, W / 2, posY + 3, bodyZ, drawerBodyMat);
   });
 
-  // ── Posicionar com base no Y=0 + floorOffset ──
+  // ── Posicionar: centro em X=0, base em Y=floorOffset, fundo em Z=0 (módulo avança em +Z) ──
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
   const floorOff = (options?.floorOffset ?? 0) * s;
-  group.position.set(-center.x, -box.min.y + floorOff, -center.z);
+  // centerX → center module horizontally
+  // -box.min.y + floorOff → base of module at floor offset height
+  // -box.min.z → back of module at Z=0 (so it sits in front of the wall)
+  group.position.set(-center.x, -box.min.y + floorOff, -box.min.z);
 
   return group;
 }
