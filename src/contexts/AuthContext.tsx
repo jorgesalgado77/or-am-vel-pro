@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (initialLoaded) return;
           initialLoaded = true;
         }
-        await loadFromSession(sess);
+        await loadFromSession(sess, _event);
       }
     );
 
