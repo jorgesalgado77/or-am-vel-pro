@@ -905,6 +905,33 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                       )}
                     </div>
                   </div>
+                  {/* Floor Height Offsets */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <Label className="text-[10px] font-semibold text-muted-foreground">Altura do Piso (mm)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[9px]">Inferior Cozinha</Label>
+                        <Input
+                          type="number"
+                          value={floorHeightInferior}
+                          onChange={(e) => updatePersisted({ floorHeightInferior: Math.max(0, Number(e.target.value)) })}
+                          className="h-6 text-[10px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[9px]">Superior Cozinha</Label>
+                        <Input
+                          type="number"
+                          value={floorHeightSuperior}
+                          onChange={(e) => updatePersisted({ floorHeightSuperior: Math.max(0, Number(e.target.value)) })}
+                          className="h-6 text-[10px] font-mono"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground">
+                      Dormitório, bancadas e outros: 0mm do piso
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1170,6 +1197,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               setShowSaveLibrary(true);
             }}>
               <FolderOpen className="h-3.5 w-3.5" /> Biblioteca
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => generateBomPdf(module, bom)}>
+              <FileDown className="h-3.5 w-3.5" /> PDF
             </Button>
             <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5">
               <RotateCcw className="h-3.5 w-3.5" />
