@@ -52,21 +52,6 @@ function applyTextureToMat(
 /**
  * Gera um THREE.Group representando o módulo paramétrico completo.
  */
-export function generateParametricGeometry(
-  THREE: typeof import("three"),
-  module: ParametricModule,
-  options?: GeometryOptions
-): InstanceType<typeof THREE.Group> {
-  const group = new THREE.Group();
-  group.name = `parametric_${module.name}`;
-
-  const s = 0.01;
-  const { width: W, height: H, depth: D, thickness: T, backThickness: BT, baseboardHeight: BH = 0 } = module;
-  const mo = options?.materialOverrides;
-
-/**
- * Gera um THREE.Group representando a parede separadamente (fica no piso).
- */
 export function generateWallGeometry(
   THREE: typeof import("three"),
   wallConfig: { width: number; height: number; depth: number },
@@ -97,13 +82,21 @@ export function generateWallGeometry(
   group.add(wallMesh);
   group.add(wallLine);
 
-  // Center X and Z, keep bottom at Y=0
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
   group.position.set(-center.x, -box.min.y, -center.z);
 
   return group;
 }
+
+/**
+ * Gera um THREE.Group representando o módulo paramétrico completo.
+ */
+export function generateParametricGeometry(
+  THREE: typeof import("three"),
+  module: ParametricModule,
+  options?: GeometryOptions
+): InstanceType<typeof THREE.Group> {
   const group = new THREE.Group();
   group.name = `parametric_${module.name}`;
 
