@@ -81,39 +81,9 @@ Deno.serve(async (req) => {
     let leadTemperature: string | null = null;
 
     if (tenant_id) {
-      let existingClient: { id: string; numero_orcamento: string | null } | null = null;
-
-      const byPhone = await supabaseAdmin
-        .from("clients")
-        .select("id, numero_orcamento")
-        .eq("tenant_id", tenant_id)
-        .eq("telefone1", telefone)
-        .maybeSingle();
-
-      if (byPhone.data) {
-        existingClient = byPhone.data;
-      } else if (email) {
-        const byEmail = await supabaseAdmin
-          .from("clients")
-          .select("id, numero_orcamento")
-          .eq("tenant_id", tenant_id)
-          .eq("email", email)
-          .maybeSingle();
-
-        if (byEmail.data) {
-          existingClient = byEmail.data;
-        }
-      }
-
-      if (existingClient?.id) {
-        duplicado = true;
-        clientId = existingClient.id;
-
-        // NUNCA sobrescrever dados de clientes existentes
-        // Apenas registrar a nova interação no log de origem
-        console.log(`[lead-capture] Duplicate client detected: ${existingClient.id}, skipping update`);
-
-      } else {
+      // REGRA: Cada lead/cliente é SEMPRE único — NUNCA reutilizar ou sobrescrever
+      // Mesmo com telefone ou email igual, criar um novo registro
+      {
         const { data: tenantData, error: tenantError } = await supabaseAdmin
           .from("tenants")
           .select("codigo_loja")
@@ -174,23 +144,11 @@ Deno.serve(async (req) => {
         console.error("Lead lookup error:", existingLeadError);
       }
 
+      // REGRA: Leads na tabela leads também são sempre únicos — nunca sobrescrever
       if (existingLead?.id) {
         leadId = existingLead.id;
         duplicado = true;
-
-        const { error: leadUpdateError } = await supabaseAdmin
-          .from("leads")
-          .update({
-            nome,
-            email: email || "",
-            notas: interesse || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingLead.id);
-
-        if (leadUpdateError) {
-          console.error("Lead update error:", leadUpdateError);
-        }
+        console.log(`[lead-capture] Existing lead found: ${existingLead.id}, NOT overwriting data`);
       } else {
         const { data: newLead, error: leadInsertError } = await supabaseAdmin
           .from("leads")
