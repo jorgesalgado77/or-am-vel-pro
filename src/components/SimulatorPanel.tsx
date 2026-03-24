@@ -155,6 +155,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeMsg, setUpgradeMsg] = useState("");
+  const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
