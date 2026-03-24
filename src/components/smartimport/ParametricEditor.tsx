@@ -11,7 +11,7 @@ import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
   Upload, ImageIcon, FolderOpen, GripVertical, BookOpen, FileDown, Eye, EyeOff,
-  Camera, Lock, Unlock, Trash2, MousePointer, Group,
+  Camera, Lock, Unlock, Trash2, MousePointer, Group, Shield, ShieldOff,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -165,6 +165,7 @@ interface PersistedBuilderState {
   lockPosition: boolean;
   selectedModuleId: string | null;
   groupSelect: boolean;
+  collisionEnabled: boolean;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -187,6 +188,7 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   lockPosition: false,
   selectedModuleId: null,
   groupSelect: false,
+  collisionEnabled: true,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -223,6 +225,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const lockPosition = persisted.lockPosition ?? false;
   const selectedModuleId = persisted.selectedModuleId ?? null;
   const groupSelect = persisted.groupSelect ?? false;
+  const collisionEnabled = persisted.collisionEnabled ?? true;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
@@ -455,6 +458,23 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
           needsRenderRef.current = true;
           if (anim.progress >= 1) anim.active = false;
         }
+        // Pulsating outline animation for selected module
+        const moduleGroups = threeRef.current?.moduleGroups || [];
+        let hasPulse = false;
+        const pulseIntensity = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
+        moduleGroups.forEach((grp: any) => {
+          if (!grp.userData?.moduleId) return;
+          grp.traverse((child: any) => {
+            if (child.userData?.__selectionOutline && child.material) {
+              child.material.opacity = 0.4 + 0.6 * pulseIntensity;
+              child.material.transparent = true;
+              child.material.needsUpdate = true;
+              hasPulse = true;
+            }
+          });
+        });
+        if (hasPulse) needsRenderRef.current = true;
+
         controls.update();
         if (needsRenderRef.current) {
           renderer.render(scene, camera);
@@ -859,10 +879,34 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         newY = Math.max(0, Math.min(wall.height - module.height - computedFloorOffset, newY));
       }
 
+      // Collision detection with duplicates
+      if (collisionEnabled && wall.enabled) {
+        const mainLeft = newX - module.width / 2;
+        const mainRight = newX + module.width / 2;
+        for (const d of duplicates) {
+          const dupLeft = d.positionX + moduleOffsetX - d.module.width / 2;
+          const dupRight = d.positionX + moduleOffsetX + d.module.width / 2;
+          if (mainRight > dupLeft && mainLeft < dupRight) {
+            // Collision — push to nearest side
+            const pushLeft = dupLeft - module.width / 2;
+            const pushRight = dupRight + module.width / 2;
+            newX = Math.abs(newX - pushLeft) < Math.abs(newX - pushRight) ? pushLeft : pushRight;
+          }
+        }
+        // Re-clamp after collision
+        if (wall.enabled) {
+          const halfWall = wall.width / 2;
+          const halfMod = module.width / 2;
+          newX = Math.max(-halfWall + halfMod, Math.min(halfWall - halfMod, newX));
+        }
+      }
+
       updatePersisted({ moduleOffsetX: newX, moduleOffsetY: newY });
     } else {
       let newX = snapToGrid(dragRef.current.startX + dx * scale);
       const newZ = snapToGrid(dragRef.current.startY + dy * scale);
+      const dragDup = duplicates.find((d) => d.id === dragRef.current!.id);
+      const dragW = dragDup?.module.width || module.width;
 
       if (wall.enabled) {
         const mainRight = moduleOffsetX + module.width / 2;
@@ -871,11 +915,63 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         duplicates.forEach((d) => {
           if (d.id !== dragRef.current!.id) {
             snapTargetsX.push(d.positionX + d.module.width + 3);
-            snapTargetsX.push(d.positionX - module.width - 3);
+            snapTargetsX.push(d.positionX - dragW - 3);
           }
         });
-        snapTargetsX.push(mainRight + 3, mainLeft - module.width - 3);
+        snapTargetsX.push(mainRight + 3, mainLeft - dragW - 3);
         newX = magneticSnap(newX, snapTargetsX);
+
+        // Collision with wall limits for duplicates
+        if (collisionEnabled) {
+          const halfWall = wall.width / 2;
+          const absX = newX + moduleOffsetX;
+          const dupHalf = dragW / 2;
+          const clampedAbs = Math.max(-halfWall + dupHalf, Math.min(halfWall - dupHalf, absX));
+          newX = clampedAbs - moduleOffsetX;
+        }
+      }
+
+      // Collision with main module and other duplicates
+      if (collisionEnabled) {
+        const absX = newX + moduleOffsetX;
+        const dragLeft = absX - dragW / 2;
+        const dragRight = absX + dragW / 2;
+
+        // Check against main module
+        const mainLeft = moduleOffsetX - module.width / 2;
+        const mainRight = moduleOffsetX + module.width / 2;
+        let adjustedAbsX = absX;
+        if (dragRight > mainLeft && dragLeft < mainRight) {
+          const pushLeft = mainLeft - dragW / 2;
+          const pushRight = mainRight + dragW / 2;
+          adjustedAbsX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
+        }
+
+        // Check against other duplicates
+        for (const d of duplicates) {
+          if (d.id === dragRef.current!.id) continue;
+          const dAbsX = d.positionX + moduleOffsetX;
+          const dLeft = dAbsX - d.module.width / 2;
+          const dRight = dAbsX + d.module.width / 2;
+          const myLeft = adjustedAbsX - dragW / 2;
+          const myRight = adjustedAbsX + dragW / 2;
+          if (myRight > dLeft && myLeft < dRight) {
+            const pushLeft = dLeft - dragW / 2;
+            const pushRight = dRight + dragW / 2;
+            adjustedAbsX = Math.abs(adjustedAbsX - pushLeft) < Math.abs(adjustedAbsX - pushRight) ? pushLeft : pushRight;
+          }
+        }
+
+        newX = adjustedAbsX - moduleOffsetX;
+
+        // Re-clamp to wall after collision
+        if (wall.enabled) {
+          const halfWall = wall.width / 2;
+          const finalAbs = newX + moduleOffsetX;
+          const dupHalf = dragW / 2;
+          const clampedAbs = Math.max(-halfWall + dupHalf, Math.min(halfWall - dupHalf, finalAbs));
+          newX = clampedAbs - moduleOffsetX;
+        }
       }
 
       const newDups = duplicates.map((d) =>
@@ -883,7 +979,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       );
       updatePersisted({ duplicates: newDups });
     }
-  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX, persisted.moduleOffsetX]);
+  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX, persisted.moduleOffsetX, collisionEnabled]);
 
   const handleCanvasPointerUp = useCallback(() => {
     if (dragRef.current && threeRef.current) {
@@ -1792,6 +1888,16 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               >
                 <Group className="h-3 w-3" />
                 {groupSelect ? "Grupo" : "Individual"}
+              </Button>
+              <Button
+                variant={collisionEnabled ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
+                onClick={() => updatePersisted({ collisionEnabled: !collisionEnabled })}
+                title={collisionEnabled ? "Desativar colisão" : "Ativar colisão"}
+              >
+                {collisionEnabled ? <Shield className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+                {collisionEnabled ? "Colisão" : "Livre"}
               </Button>
               {selectedModuleId && (
                 <Button
