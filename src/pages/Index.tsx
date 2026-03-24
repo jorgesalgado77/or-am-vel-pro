@@ -249,7 +249,7 @@ export default function Index() {
             "flex-1 transition-all duration-300",
             isMobile ? "ml-[60px] p-3" : sidebarCollapsed ? "ml-[60px] p-6" : "ml-60 p-6"
           )}>
-            <PlanBanner />
+            <PlanBanner onNavigateToPlans={() => setActiveView("plans")} />
             <div className="mb-4 md:mb-6">
               <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                 <h2 className="text-base md:text-xl font-semibold text-foreground">{currentTitle}</h2>
