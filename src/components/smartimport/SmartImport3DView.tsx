@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { AddonPurchaseCard } from "@/components/AddonPurchaseCard";
 import { useSmartImport3D } from "@/hooks/useSmartImport3D";
 import { useModuleCatalog } from "@/hooks/useModuleCatalog";
+import { useModuleCategories } from "@/hooks/useModuleCategories";
 import { ProjectThumbnail } from "./ProjectThumbnail";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { GLBViewer } from "./GLBViewer";
@@ -40,11 +41,13 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
   } = useSmartImport3D(tenantId);
   const { settings } = useCompanySettings();
   const { catalogItems, addItem: addCatalogItem, updateItem: updateCatalogItem, deleteItem: deleteCatalogItem } = useModuleCatalog(tenantId);
+  const { tree: categoryTree, addCategory, deleteCategory: deleteCategoryFn } = useModuleCategories(tenantId);
 
   const [uploading, setUploading] = useState(false);
   const [projectName, setProjectName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedObjects, setSelectedObjects] = useState<any[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   if (checkingAccess) {
     return (
@@ -329,6 +332,11 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
           <ModuleLibraryPanel
             library={library}
             catalogItems={catalogItems}
+            categories={categoryTree}
+            selectedCategoryId={selectedCategoryId}
+            onCategorySelect={setSelectedCategoryId}
+            onCategoryAdd={addCategory}
+            onCategoryDelete={deleteCategoryFn}
             onAdd={addToLibrary}
             onUpdate={updateLibraryItem}
             onDelete={deleteLibraryItem}

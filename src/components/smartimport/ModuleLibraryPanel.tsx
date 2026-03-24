@@ -10,16 +10,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   BookOpen, Plus, Trash2, Edit2, Save, DollarSign, Package, Ruler, Palette, Wrench, Copy, MessageSquare,
+  FolderTree, ChevronRight, ChevronDown, FolderPlus, Folder, FolderOpen,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import type { ModuleLibraryItem } from "@/hooks/useSmartImport3D";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
+import type { CategoryTreeNode, ModuleCategory } from "@/hooks/useModuleCategories";
 
 interface ModuleLibraryPanelProps {
   library: ModuleLibraryItem[];
   catalogItems?: CatalogItem[];
+  categories?: CategoryTreeNode[];
+  selectedCategoryId?: string | null;
+  onCategorySelect?: (id: string | null) => void;
+  onCategoryAdd?: (name: string, parentId: string | null) => Promise<any>;
+  onCategoryDelete?: (id: string) => Promise<boolean>;
   onAdd: (item: Omit<ModuleLibraryItem, "id" | "tenant_id" | "created_at">) => Promise<any>;
   onUpdate: (id: string, updates: Partial<ModuleLibraryItem>) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
@@ -99,11 +107,16 @@ function ColorField({
   );
 }
 
-export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate, onDelete }: ModuleLibraryPanelProps) {
+export function ModuleLibraryPanel({
+  library, catalogItems = [], onAdd, onUpdate, onDelete,
+  categories = [], selectedCategoryId, onCategorySelect, onCategoryAdd, onCategoryDelete,
+}: ModuleLibraryPanelProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ModuleForm>(EMPTY_FORM);
   const [filter, setFilter] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [addingCategoryParentId, setAddingCategoryParentId] = useState<string | null | undefined>(undefined);
 
   const catalogByCategory = useMemo(() => {
     const map: Record<string, CatalogItem[]> = {};
@@ -219,19 +232,138 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
     }));
   };
 
-  const filtered = library.filter(item =>
-    item.name.toLowerCase().includes(filter.toLowerCase()) ||
-    item.type.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filtered = library.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(filter.toLowerCase()) ||
+      item.type.toLowerCase().includes(filter.toLowerCase());
+    const matchesCategory = !selectedCategoryId || (item as any).category_id === selectedCategoryId;
+    return matchesSearch && matchesCategory;
+  });
 
   const totalValue = library.reduce((sum, item) => sum + item.cost, 0);
 
+  // Category tree renderer
+  const renderCategoryNode = (node: CategoryTreeNode, depth: number = 0) => {
+    const isSelected = selectedCategoryId === node.id;
+    const hasChildren = node.children.length > 0;
+
+    return (
+      <div key={node.id}>
+        <Collapsible defaultOpen={depth === 0}>
+          <div
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer text-xs transition-colors group ${
+              isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/50 text-foreground"
+            }`}
+            style={{ paddingLeft: `${8 + depth * 14}px` }}
+            onClick={() => onCategorySelect?.(isSelected ? null : node.id)}
+          >
+            {hasChildren ? (
+              <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
+                  <ChevronRight className="h-3 w-3 transition-transform data-[state=open]:rotate-90" />
+                </Button>
+              </CollapsibleTrigger>
+            ) : (
+              <span className="w-4" />
+            )}
+            {isSelected ? (
+              <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+            ) : (
+              <Folder className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            )}
+            <span className="truncate flex-1">{node.name}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+              onClick={(e) => { e.stopPropagation(); setAddingCategoryParentId(node.id); setNewCategoryName(""); }}
+              title="Adicionar subcategoria"
+            >
+              <FolderPlus className="h-3 w-3" />
+            </Button>
+            {onCategoryDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); onCategoryDelete(node.id); }}
+                title="Remover categoria"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          {hasChildren && (
+            <CollapsibleContent>
+              {node.children.map((child) => renderCategoryNode(child, depth + 1))}
+            </CollapsibleContent>
+          )}
+        </Collapsible>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="flex gap-4">
+      {/* Category Sidebar */}
+      {categories.length > 0 && (
+        <Card className="w-[200px] shrink-0 hidden md:block">
+          <CardContent className="p-2 space-y-1">
+            <div className="flex items-center justify-between px-1 pb-1">
+              <h5 className="text-[11px] font-semibold text-foreground flex items-center gap-1">
+                <FolderTree className="h-3 w-3 text-primary" /> Categorias
+              </h5>
+              <Button variant="ghost" size="icon" className="h-5 w-5"
+                onClick={() => { setAddingCategoryParentId(null); setNewCategoryName(""); }}
+                title="Nova categoria raiz">
+                <FolderPlus className="h-3 w-3" />
+              </Button>
+            </div>
+            <div
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-xs transition-colors ${
+                !selectedCategoryId ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/50 text-foreground"
+              }`}
+              onClick={() => onCategorySelect?.(null)}>
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>Todos</span>
+              <Badge variant="secondary" className="text-[9px] ml-auto">{library.length}</Badge>
+            </div>
+            <Separator className="my-1" />
+            <ScrollArea className="max-h-[300px]">
+              {categories.map((node) => renderCategoryNode(node))}
+            </ScrollArea>
+            {addingCategoryParentId !== undefined && (
+              <div className="pt-1 space-y-1">
+                <Input className="h-7 text-[11px]" placeholder="Nome da categoria..."
+                  value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newCategoryName.trim()) {
+                      onCategoryAdd?.(newCategoryName.trim(), addingCategoryParentId);
+                      setAddingCategoryParentId(undefined); setNewCategoryName("");
+                    }
+                    if (e.key === "Escape") setAddingCategoryParentId(undefined);
+                  }}
+                  autoFocus />
+                <div className="flex gap-1">
+                  <Button size="sm" className="h-6 text-[10px] flex-1" disabled={!newCategoryName.trim()}
+                    onClick={() => { onCategoryAdd?.(newCategoryName.trim(), addingCategoryParentId); setAddingCategoryParentId(undefined); setNewCategoryName(""); }}>
+                    Criar
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => setAddingCategoryParentId(undefined)}>✕</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 space-y-4 min-w-0">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" /> Biblioteca de Módulos
-          <Badge variant="secondary" className="text-[10px]">{library.length} itens</Badge>
+          <Badge variant="secondary" className="text-[10px]">
+            {selectedCategoryId ? `${filtered.length} de ${library.length}` : `${library.length} itens`}
+          </Badge>
         </h4>
         <Button size="sm" className="gap-1.5 text-xs" onClick={() => { resetForm(); setShowAdd(true); }}>
           <Plus className="h-3.5 w-3.5" /> Novo Módulo
@@ -558,6 +690,7 @@ export function ModuleLibraryPanel({ library, catalogItems = [], onAdd, onUpdate
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>{/* end main content */}
     </div>
   );
 }
