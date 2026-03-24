@@ -575,8 +575,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
+    const clamped = Math.max(60, Math.min(2700, value));
     setModule((prev) => {
-      const updated = { ...prev, [key]: snapToGrid(value), moduleType: "custom" as ModuleType };
+      const updated = { ...prev, [key]: clamped, moduleType: "custom" as ModuleType };
       return { ...updated, components: redistributeShelves(updated) };
     });
   }, [setModule]);
@@ -874,17 +875,30 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               </h4>
 
               {[
-                { label: "Largura (L)", key: "width" as const, min: 200, max: 2400 },
-                { label: "Altura (A)", key: "height" as const, min: 200, max: 2700 },
-                { label: "Profundidade (P)", key: "depth" as const, min: 200, max: 700 },
+                { label: "Largura (L)", key: "width" as const, min: 60, max: 2700 },
+                { label: "Altura (A)", key: "height" as const, min: 60, max: 2700 },
+                { label: "Profundidade (P)", key: "depth" as const, min: 60, max: 2700 },
               ].map(({ label, key, min, max }) => (
                 <div key={key} className="space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <Label className="text-[11px] whitespace-nowrap">{label}</Label>
                     <Input
                       type="number"
-                      value={module[key]}
-                      onChange={(e) => updateDimension(key, Number(e.target.value))}
+                      defaultValue={module[key]}
+                      key={`${key}-${module.id}-${module.moduleType}`}
+                      onBlur={(e) => {
+                        const v = Number(e.target.value);
+                        if (!isNaN(v) && v >= min && v <= max) {
+                          updateDimension(key, v);
+                        } else {
+                          e.target.value = String(module[key]);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
                       className="h-6 w-20 text-[11px] text-right font-mono"
                       min={min}
                       max={max}
@@ -894,7 +908,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                     value={[module[key]]}
                     min={min}
                     max={max}
-                    step={10}
+                    step={1}
                     onValueChange={([v]) => updateDimension(key, v)}
                   />
                 </div>

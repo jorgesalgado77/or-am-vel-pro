@@ -114,23 +114,29 @@ export function redistributeShelves(module: ParametricModule): InternalComponent
 
   // Redistribute drawers: N drawers have (N+1) gaps of 4mm
   // frontHeight = (moduleHeight - (N+1)*4) / N  (uses full module height for fronts)
-  // frontWidth = moduleWidth - 4mm (calculated at render/BOM time)
+  // Clamp: drawers must not exceed internal height
   const numDrawers = Math.min(drawers.length, 4);
-  const totalGaps4mm = (numDrawers + 1) * 4; // gaps between fronts AND top/bottom of module
+  const totalGaps4mm = (numDrawers + 1) * 4;
   const moduleH = height;
   const autoFrontHeight = numDrawers > 0 ? Math.floor((moduleH - totalGaps4mm) / numDrawers) : 180;
+  
+  // Clamp auto front height to not exceed internal space
+  const maxFrontHeight = internalHeight;
+  const clampedAutoFH = Math.min(autoFrontHeight, maxFrontHeight);
+  
   let currentDrawerY = baseboardHeight + thickness;
-
   const updatedDrawers = drawers.slice(0, 4).map((drawer, i) => {
-    // Use individual frontHeight if manually set, otherwise auto-calculate
-    const fh = drawer.manualFrontHeight ?? autoFrontHeight;
+    const fh = Math.min(drawer.manualFrontHeight ?? clampedAutoFH, maxFrontHeight);
+    // Don't let drawer exceed the top of internal space
+    const maxY = height - thickness; // top panel position
+    const clampedY = Math.min(snapToGrid(currentDrawerY), maxY - fh);
     const updatedDrawer = {
       ...drawer,
       frontHeight: fh,
       bottomThickness: drawer.bottomThickness ?? 3,
-      positionY: snapToGrid(currentDrawerY),
+      positionY: clampedY,
     };
-    currentDrawerY += fh + 4; // 4mm gap between fronts
+    currentDrawerY = clampedY + fh + 4; // 4mm gap between fronts
     return updatedDrawer;
   });
 
