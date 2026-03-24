@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Handshake, Pencil, Trash2, History, FileText, Phone, Mail, User, Hash, Clock,
   AlertTriangle, CalendarIcon, FileQuestion, Paperclip, ExternalLink, Download, ArrowRight,
+  Send, ClipboardList, Calculator,
 } from "lucide-react";
 import { BriefingModal } from "@/components/BriefingModal";
 import { supabase } from "@/lib/supabaseClient";
@@ -30,6 +31,17 @@ interface LeadAttachment {
   file_size: number;
   file_type: string | null;
   created_at: string;
+}
+
+interface BriefingInfo {
+  exists: boolean;
+  created_at: string | null;
+}
+
+interface SimulationInfo {
+  exists: boolean;
+  last_date: string | null;
+  count: number;
 }
 
 interface KanbanClientDialogProps {
@@ -56,9 +68,18 @@ export function KanbanClientDialog({
 }: KanbanClientDialogProps) {
   const [showBriefing, setShowBriefing] = useState(false);
   const [attachments, setAttachments] = useState<LeadAttachment[]>([]);
+  const [briefingInfo, setBriefingInfo] = useState<BriefingInfo>({ exists: false, created_at: null });
+  const [simInfo, setSimInfo] = useState<SimulationInfo>({ exists: false, last_date: null, count: 0 });
+  const [sending, setSending] = useState(false);
+
+  const isAdminOrManager = cargoNome.includes("administrador") || cargoNome.includes("gerente");
+  const status = (client as any)?.status || "novo";
+  const isNovo = status === "novo";
 
   useEffect(() => {
-    if (!client?.id) { setAttachments([]); return; }
+    if (!client?.id) { setAttachments([]); setBriefingInfo({ exists: false, created_at: null }); setSimInfo({ exists: false, last_date: null, count: 0 }); return; }
+
+    // Load attachments
     supabase
       .from("lead_attachments" as any)
       .select("id, file_name, file_url, file_size, file_type, created_at")
@@ -67,12 +88,40 @@ export function KanbanClientDialog({
       .then(({ data }: any) => {
         if (data) setAttachments(data as LeadAttachment[]);
       });
+
+    // Load briefing info
+    supabase
+      .from("client_briefings" as any)
+      .select("created_at")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => {
+        if (data && data.length > 0) {
+          setBriefingInfo({ exists: true, created_at: data[0].created_at });
+        } else {
+          setBriefingInfo({ exists: false, created_at: null });
+        }
+      });
+
+    // Load simulation info
+    supabase
+      .from("simulations" as any)
+      .select("created_at")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }: any) => {
+        if (data && data.length > 0) {
+          setSimInfo({ exists: true, last_date: data[0].created_at, count: data.length });
+        } else {
+          setSimInfo({ exists: false, last_date: null, count: 0 });
+        }
+      });
   }, [client?.id, client?.nome]);
 
   if (!client) return null;
 
   const isExpired = lastSim ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
-  const status = (client as any).status || "novo";
   const colCfg = KANBAN_COLUMNS.find(c => c.id === status);
   const daysInColumn = differenceInDays(new Date(), new Date((client as any).updated_at || client.created_at));
 
@@ -109,13 +158,49 @@ export function KanbanClientDialog({
       { duration: 5000 }
     );
 
-    const shouldMove = !!newVendedor && status === "novo";
-    const updatedClient = { ...client, vendedor: newVendedor, ...(shouldMove ? { status: "em_negociacao" } : {}) } as any;
-    onClientUpdate(updatedClient, shouldMove);
+    // Don't auto-move when just assigning - let "Enviar ao Responsável" handle it
+    const updatedClient = { ...client, vendedor: newVendedor } as any;
+    onClientUpdate(updatedClient, false);
+  };
 
-    if (shouldMove) {
-      await supabase.from("clients").update({ status: "em_negociacao" } as any).eq("id", client.id);
-      toast.success(`📋 "${client.nome}" movido para "Em Negociação"`, { duration: 3000 });
+  const handleSendToResponsavel = async () => {
+    if (!client.vendedor) {
+      toast.error("Selecione um responsável antes de enviar");
+      return;
+    }
+    setSending(true);
+    try {
+      // Keep status as "novo" so it appears in the responsible's kanban "Novo" column
+      const { error } = await supabase
+        .from("clients")
+        .update({ vendedor: client.vendedor, status: "novo" } as any)
+        .eq("id", client.id);
+      if (error) throw error;
+
+      const userInfo = getAuditUserInfo();
+      const tenantId = await getResolvedTenantId();
+
+      // Send notification to the responsible user
+      await supabase.from("tracking_messages").insert({
+        tenant_id: tenantId, tipo: "sistema", canal: "interno",
+        remetente: userInfo.usuario_nome || "Sistema",
+        conteudo: `🚀 O lead "${client.nome}" foi enviado para seu atendimento por ${userInfo.usuario_nome || "um administrador"}. ${briefingInfo.exists ? "✅ Briefing preenchido." : "⚠️ Sem briefing."} ${simInfo.exists ? `✅ ${simInfo.count} simulação(ões).` : "⚠️ Sem simulações."}`,
+        destinatario: client.vendedor,
+      } as any);
+
+      logAudit({
+        acao: "lead_enviado_responsavel", entidade: "client", entidade_id: client.id,
+        detalhes: { cliente: client.nome, responsavel: client.vendedor },
+        ...userInfo,
+      });
+
+      toast.success(`🚀 "${client.nome}" enviado para ${client.vendedor}!`, { duration: 5000 });
+      onClientUpdate({ ...client } as any, false);
+      onClose();
+    } catch (err: any) {
+      toast.error("Erro ao enviar: " + (err.message || "erro desconhecido"));
+    } finally {
+      setSending(false);
     }
   };
 
@@ -208,6 +293,46 @@ export function KanbanClientDialog({
               </div>
             )}
 
+            {/* Briefing & Simulation Status - highlighted indicators */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className={cn(
+                "rounded-lg p-3 border flex items-start gap-2.5",
+                briefingInfo.exists
+                  ? "bg-emerald-500/10 border-emerald-500/30"
+                  : "bg-amber-500/10 border-amber-500/30"
+              )}>
+                <ClipboardList className={cn("h-4 w-4 mt-0.5 shrink-0", briefingInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <div className="min-w-0">
+                  <p className={cn("text-xs font-semibold", briefingInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                    {briefingInfo.exists ? "✅ Briefing Preenchido" : "⚠️ Sem Briefing"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {briefingInfo.exists && briefingInfo.created_at
+                      ? `Criado em ${format(new Date(briefingInfo.created_at), "dd/MM/yyyy", { locale: ptBR })}`
+                      : "Nenhum briefing salvo para este cliente"}
+                  </p>
+                </div>
+              </div>
+              <div className={cn(
+                "rounded-lg p-3 border flex items-start gap-2.5",
+                simInfo.exists
+                  ? "bg-emerald-500/10 border-emerald-500/30"
+                  : "bg-amber-500/10 border-amber-500/30"
+              )}>
+                <Calculator className={cn("h-4 w-4 mt-0.5 shrink-0", simInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <div className="min-w-0">
+                  <p className={cn("text-xs font-semibold", simInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                    {simInfo.exists ? `✅ ${simInfo.count} Simulação(ões)` : "⚠️ Sem Simulações"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {simInfo.exists && simInfo.last_date
+                      ? `Última em ${format(new Date(simInfo.last_date), "dd/MM/yyyy", { locale: ptBR })}`
+                      : "Nenhuma simulação salva para este cliente"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Datas e tempo */}
             <div className="bg-muted/30 rounded-lg p-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
@@ -237,7 +362,7 @@ export function KanbanClientDialog({
             <div className="space-y-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-sm">
                 <span className="text-muted-foreground">Responsável</span>
-                {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) ? (
+                {isAdminOrManager ? (
                   <Select value={client.vendedor || "__none__"} onValueChange={handleAssignVendedor}>
                     <SelectTrigger className="w-full sm:w-[200px] h-8 text-xs">
                       <SelectValue>{client.vendedor || "Atribuir responsável"}</SelectValue>
@@ -258,6 +383,20 @@ export function KanbanClientDialog({
                   <span className="text-foreground font-medium">{client.vendedor || "—"}</span>
                 )}
               </div>
+
+              {/* Enviar ao Responsável button - only for admin/manager when in "Novo" and has a responsável */}
+              {isAdminOrManager && isNovo && client.vendedor && (
+                <Button
+                  className="w-full gap-2 mt-1"
+                  variant="default"
+                  onClick={handleSendToResponsavel}
+                  disabled={sending}
+                >
+                  <Send className="h-4 w-4" />
+                  {sending ? "Enviando..." : "Enviar ao Responsável"}
+                </Button>
+              )}
+
               {client.indicador_id && indicadorMap[client.indicador_id] && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Indicador</span>
