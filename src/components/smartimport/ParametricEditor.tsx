@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
-  PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate,
+  PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Brick,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -46,17 +46,34 @@ function createDefaultModule(): ParametricModule {
   };
 }
 
-/** Serializable state for persistence */
+interface WallConfig {
+  enabled: boolean;
+  width: number;
+  height: number;
+  depth: number;
+}
+
+interface DuplicatedModule {
+  id: string;
+  module: ParametricModule;
+  positionX: number; // offset in mm
+  positionZ: number;
+}
+
 interface PersistedBuilderState {
   module: ParametricModule;
   corCaixa: string;
   corPorta: string;
+  wall: WallConfig;
+  duplicates: DuplicatedModule[];
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
   module: createDefaultModule(),
   corCaixa: "",
   corPorta: "",
+  wall: { enabled: false, width: 3000, height: 2700, depth: 100 },
+  duplicates: [],
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -68,6 +85,8 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const module = persisted.module;
   const corCaixa = persisted.corCaixa;
   const corPorta = persisted.corPorta;
+  const wall = persisted.wall;
+  const duplicates = persisted.duplicates;
 
   const setModule = useCallback((updater: ParametricModule | ((prev: ParametricModule) => ParametricModule)) => {
     updatePersisted({
@@ -77,12 +96,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
   const setCorCaixa = useCallback((v: string) => updatePersisted({ corCaixa: v }), [updatePersisted]);
   const setCorPorta = useCallback((v: string) => updatePersisted({ corPorta: v }), [updatePersisted]);
+  const setWall = useCallback((w: Partial<WallConfig>) => updatePersisted({ wall: { ...wall, ...w } }), [wall, updatePersisted]);
 
   const [showPanel, setShowPanel] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const threeRef = useRef<any>(null);
   const needsRenderRef = useRef(true);
   const animFrameRef = useRef(0);
+  const dragRef = useRef<{ id: string; startX: number; startZ: number; mouseX: number; mouseY: number } | null>(null);
 
   // Computed values
   const spans = useMemo(() => calculateInternalSpans(module), [module]);
@@ -92,7 +113,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const cores = useMemo(() => catalogItems.filter((i) => i.category === "cor"), [catalogItems]);
   const materiais = useMemo(() => catalogItems.filter((i) => i.category === "material" || i.category === "acabamento"), [catalogItems]);
 
-  // ── Apply Preset ──
+  // Apply Preset
   const applyPreset = useCallback((presetType: ModuleType) => {
     if (presetType === "custom") return;
     const preset = MODULE_PRESETS.find((p) => p.type === presetType);
@@ -113,6 +134,24 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     }));
     toast.success(`Preset "${preset.label}" aplicado!`);
   }, [setModule]);
+
+  // Duplicate module
+  const duplicateModule = useCallback(() => {
+    const lastDup = duplicates.length > 0 ? duplicates[duplicates.length - 1] : null;
+    const offsetX = lastDup ? lastDup.positionX + module.width + 50 : module.width + 50;
+    const dup: DuplicatedModule = {
+      id: crypto.randomUUID(),
+      module: { ...module, id: crypto.randomUUID(), name: `${module.name} (cópia)` },
+      positionX: offsetX,
+      positionZ: 0,
+    };
+    updatePersisted({ duplicates: [...duplicates, dup] });
+    toast.success("Módulo duplicado!");
+  }, [module, duplicates, updatePersisted]);
+
+  const removeDuplicate = useCallback((id: string) => {
+    updatePersisted({ duplicates: duplicates.filter((d) => d.id !== id) });
+  }, [duplicates, updatePersisted]);
 
   // ── 3D Preview ──
   useEffect(() => {
@@ -146,7 +185,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       controls.enableDamping = true;
       controls.dampingFactor = 0.08;
       controls.minDistance = 1;
-      controls.maxDistance = 20;
+      controls.maxDistance = 30;
       controls.addEventListener("change", () => { needsRenderRef.current = true; });
 
       scene.add(new THREE.AmbientLight(0xffffff, 1.2));
@@ -163,7 +202,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       (grid.material as any).transparent = true;
       scene.add(grid);
 
-      threeRef.current = { THREE, scene, renderer, camera, controls, moduleGroup: null };
+      threeRef.current = { THREE, scene, renderer, camera, controls, moduleGroups: [] as any[] };
       needsRenderRef.current = true;
 
       renderer.domElement.style.touchAction = "none";
@@ -199,20 +238,33 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     };
   }, []);
 
-  // ── Rebuild geometry when module changes ──
+  // ── Rebuild geometry when module/wall/duplicates change ──
   useEffect(() => {
     if (!threeRef.current) return;
-    const { THREE, scene } = threeRef.current;
+    const { THREE, scene, moduleGroups } = threeRef.current;
 
-    if (threeRef.current.moduleGroup) {
-      scene.remove(threeRef.current.moduleGroup);
-    }
+    // Remove old groups
+    moduleGroups.forEach((g: any) => scene.remove(g));
+    threeRef.current.moduleGroups = [];
 
-    const grp = generateParametricGeometry(THREE, module);
-    scene.add(grp);
-    threeRef.current.moduleGroup = grp;
+    const wallOpts = wall.enabled ? { wall: { width: wall.width, height: wall.height, depth: wall.depth } } : undefined;
+
+    // Main module
+    const mainGrp = generateParametricGeometry(THREE, module, wallOpts);
+    scene.add(mainGrp);
+    threeRef.current.moduleGroups.push(mainGrp);
+
+    // Duplicated modules
+    duplicates.forEach((dup) => {
+      const dupGrp = generateParametricGeometry(THREE, dup.module);
+      dupGrp.position.x += dup.positionX * 0.01;
+      dupGrp.position.z += dup.positionZ * 0.01;
+      scene.add(dupGrp);
+      threeRef.current.moduleGroups.push(dupGrp);
+    });
+
     needsRenderRef.current = true;
-  }, [module]);
+  }, [module, wall, duplicates]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
@@ -265,8 +317,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const dividerCount = module.components.filter((c) => c.type === "divisoria").length;
 
   return (
-    <div className="flex gap-3 h-[600px]">
-      {/* Panel toggle for mobile */}
+    <div className="flex gap-3 h-[650px]">
       <Button
         variant="ghost"
         size="icon"
@@ -278,7 +329,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       {/* ── Painel Lateral ── */}
       {showPanel && (
-        <div className="w-full md:w-[360px] shrink-0 overflow-y-auto space-y-3">
+        <div className="w-full md:w-[360px] shrink-0 overflow-y-auto space-y-3 pr-1">
           {/* Preset Selector */}
           <Card>
             <CardContent className="p-3 space-y-2">
@@ -293,9 +344,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   <SelectValue placeholder="Selecionar módulo..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="custom">
-                    <span className="font-medium">Personalizado</span>
-                  </SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
                   {MODULE_PRESETS.map((p) => (
                     <SelectItem key={p.type} value={p.type}>
                       <div className="flex flex-col">
@@ -340,13 +389,15 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 { label: "Profundidade (P)", key: "depth" as const, min: 200, max: 700 },
               ].map(({ label, key, min, max }) => (
                 <div key={key} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[11px]">{label}</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-[11px] whitespace-nowrap">{label}</Label>
                     <Input
                       type="number"
                       value={module[key]}
                       onChange={(e) => updateDimension(key, Number(e.target.value))}
                       className="h-6 w-20 text-[11px] text-right font-mono"
+                      min={min}
+                      max={max}
                     />
                   </div>
                   <Slider
@@ -368,7 +419,6 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                       const t = Number(v);
                       setModule((p) => {
                         const updated = { ...p, thickness: t, moduleType: "custom" as ModuleType };
-                        // Update component thicknesses too
                         updated.components = updated.components.map((c) =>
                           c.type === "prateleira" || c.type === "divisoria"
                             ? { ...c, thickness: t }
@@ -422,13 +472,50 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             </CardContent>
           </Card>
 
+          {/* Parede */}
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Brick className="h-3.5 w-3.5 text-primary" /> Parede
+                </h4>
+                <Button
+                  variant={wall.enabled ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 text-[10px] px-2"
+                  onClick={() => setWall({ enabled: !wall.enabled })}
+                >
+                  {wall.enabled ? "Ativa" : "Inativa"}
+                </Button>
+              </div>
+              {wall.enabled && (
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "Largura", key: "width" as const },
+                    { label: "Altura", key: "height" as const },
+                    { label: "Profund.", key: "depth" as const },
+                  ].map(({ label, key }) => (
+                    <div key={key} className="space-y-1">
+                      <Label className="text-[10px]">{label} (mm)</Label>
+                      <Input
+                        type="number"
+                        value={wall[key]}
+                        onChange={(e) => setWall({ [key]: Number(e.target.value) })}
+                        className="h-6 text-[10px] font-mono"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Componentes Internos */}
           <Card>
             <CardContent className="p-3 space-y-3">
               <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Layers className="h-3.5 w-3.5 text-primary" /> Componentes Internos
               </h4>
-
               <div className="grid grid-cols-2 gap-2">
                 {([
                   { type: "prateleira" as ComponentType, label: "Prateleira", count: shelfCount },
@@ -439,28 +526,17 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   <div key={type} className="flex items-center justify-between bg-muted/50 rounded-md px-2 py-1.5">
                     <span className="text-[11px] font-medium text-foreground">{label}</span>
                     <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5"
+                      <Button variant="ghost" size="icon" className="h-5 w-5"
                         onClick={() => {
                           const comps = module.components.filter((c) => c.type === type);
-                          const comp = comps.length > 0 ? comps[comps.length - 1] : undefined;
-                          if (comp) removeComponent(comp.id);
+                          if (comps.length > 0) removeComponent(comps[comps.length - 1].id);
                         }}
                         disabled={count === 0}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <Badge variant="secondary" className="text-[10px] min-w-[20px] text-center">
-                        {count}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5"
-                        onClick={() => addComponent(type)}
-                      >
+                      <Badge variant="secondary" className="text-[10px] min-w-[20px] text-center">{count}</Badge>
+                      <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => addComponent(type)}>
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
@@ -500,7 +576,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               </div>
               {module.baseboardHeight > 0 && (
                 <p className="text-[10px] text-muted-foreground">
-                  * Rodapé de {module.baseboardHeight}mm já descontado do vão interno
+                  * Rodapé de {module.baseboardHeight}mm descontado do vão interno
                 </p>
               )}
             </CardContent>
@@ -519,9 +595,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                     <Select value={corCaixa} onValueChange={setCorCaixa}>
                       <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar cor..." /></SelectTrigger>
                       <SelectContent>
-                        {cores.map((c) => (
-                          <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                        ))}
+                        {cores.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   ) : (
@@ -534,9 +608,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                     <Select value={corPorta} onValueChange={setCorPorta}>
                       <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar cor..." /></SelectTrigger>
                       <SelectContent>
-                        {cores.map((c) => (
-                          <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                        ))}
+                        {cores.map((c) => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   ) : (
@@ -565,6 +637,47 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             </CardContent>
           </Card>
 
+          {/* Duplicação */}
+          <Card>
+            <CardContent className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Copy className="h-3.5 w-3.5 text-primary" /> Módulos Duplicados ({duplicates.length})
+                </h4>
+                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 px-2" onClick={duplicateModule}>
+                  <Plus className="h-3 w-3" /> Duplicar
+                </Button>
+              </div>
+              {duplicates.length > 0 && (
+                <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+                  {duplicates.map((dup, i) => (
+                    <div key={dup.id} className="flex items-center justify-between bg-muted/50 rounded px-2 py-1">
+                      <span className="text-[10px] font-medium truncate">{dup.module.name}</span>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          value={dup.positionX}
+                          onChange={(e) => {
+                            const newDups = duplicates.map((d) =>
+                              d.id === dup.id ? { ...d, positionX: Number(e.target.value) } : d
+                            );
+                            updatePersisted({ duplicates: newDups });
+                          }}
+                          className="h-5 w-16 text-[9px] font-mono"
+                          title="Posição X (mm)"
+                        />
+                        <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive"
+                          onClick={() => removeDuplicate(dup.id)}>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Ações */}
           <div className="flex gap-2">
             <Button size="sm" className="flex-1 gap-1.5" onClick={handleSave}>
@@ -579,17 +692,26 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       {/* ── Área de Preview 3D + BOM ── */}
       <div className="flex-1 flex flex-col gap-3 min-w-0">
-        {/* 3D Canvas */}
         <Card className="flex-1 relative overflow-hidden min-h-[350px]">
           <CardContent className="p-0 absolute inset-0">
             <canvas ref={canvasRef} className="w-full h-full block" style={{ minHeight: 350 }} />
-            <div className="absolute top-2 right-2 flex gap-1.5">
+            <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end">
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
               </Badge>
               {module.moduleType !== "custom" && (
                 <Badge className="text-[10px]">
                   {MODULE_PRESETS.find((p) => p.type === module.moduleType)?.label}
+                </Badge>
+              )}
+              {wall.enabled && (
+                <Badge variant="outline" className="text-[10px]">
+                  Parede {wall.width}×{wall.height}mm
+                </Badge>
+              )}
+              {duplicates.length > 0 && (
+                <Badge variant="outline" className="text-[10px]">
+                  +{duplicates.length} cópia{duplicates.length > 1 ? "s" : ""}
                 </Badge>
               )}
             </div>
@@ -607,7 +729,6 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 <Wrench className="h-3 w-3" /> Ferragens ({bom.hardware.length})
               </TabsTrigger>
             </TabsList>
-
             <TabsContent value="pecas" className="m-0 overflow-auto max-h-[150px]">
               <Table>
                 <TableHeader>
@@ -623,26 +744,19 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                     <TableRow key={i}>
                       <TableCell className="text-[10px] py-1">{p.name}</TableCell>
                       <TableCell className="text-[10px] py-1 text-right">{p.quantity}</TableCell>
-                      <TableCell className="text-[10px] py-1 text-right font-mono">
-                        {p.width.toFixed(0)}×{p.height.toFixed(0)}
-                      </TableCell>
-                      <TableCell className="text-[10px] py-1 text-right font-mono">
-                        {p.area.toFixed(3)}
-                      </TableCell>
+                      <TableCell className="text-[10px] py-1 text-right font-mono">{p.width.toFixed(0)}×{p.height.toFixed(0)}</TableCell>
+                      <TableCell className="text-[10px] py-1 text-right font-mono">{p.area.toFixed(3)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/30">
                     <TableCell className="text-[10px] py-1 font-semibold">Total</TableCell>
                     <TableCell className="text-[10px] py-1" />
                     <TableCell className="text-[10px] py-1" />
-                    <TableCell className="text-[10px] py-1 text-right font-mono font-semibold">
-                      {bom.totalArea.toFixed(3)} m²
-                    </TableCell>
+                    <TableCell className="text-[10px] py-1 text-right font-mono font-semibold">{bom.totalArea.toFixed(3)} m²</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
             </TabsContent>
-
             <TabsContent value="ferragens" className="m-0 overflow-auto max-h-[150px]">
               <Table>
                 <TableHeader>
