@@ -744,7 +744,7 @@ export function GLBViewer({ fileUrl, onObjectSelect, companyLogoUrl }: GLBViewer
     } finally {
       setExporting(false);
     }
-  }, []);
+  }, [companyLogoUrl]);
 
   return (
     <Card className="overflow-hidden">
