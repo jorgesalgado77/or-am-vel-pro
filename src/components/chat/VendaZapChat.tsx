@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
