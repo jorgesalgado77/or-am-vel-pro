@@ -1889,6 +1889,16 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 <Group className="h-3 w-3" />
                 {groupSelect ? "Grupo" : "Individual"}
               </Button>
+              <Button
+                variant={collisionEnabled ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
+                onClick={() => updatePersisted({ collisionEnabled: !collisionEnabled })}
+                title={collisionEnabled ? "Desativar colisão" : "Ativar colisão"}
+              >
+                {collisionEnabled ? <Shield className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+                {collisionEnabled ? "Colisão" : "Livre"}
+              </Button>
               {selectedModuleId && (
                 <Button
                   variant="destructive"
