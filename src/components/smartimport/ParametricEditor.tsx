@@ -212,6 +212,8 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const floorColor = persisted.floorColor ?? "#d6d3cd";
   const openDoors = persisted.openDoors ?? false;
   const openDrawers = persisted.openDrawers ?? false;
+  const moduleOffsetX = persisted.moduleOffsetX ?? 0;
+  const moduleOffsetY = persisted.moduleOffsetY ?? 0;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
