@@ -77,18 +77,18 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const w = container.clientWidth;
       const h = container.clientHeight;
 
-      renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, alpha: true });
+      renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, alpha: false });
       renderer.setSize(w, h);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.1;
+      renderer.toneMappingExposure = 1.4;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x1e293b);
+      scene.background = new THREE.Color(0xf0f0f0);
 
       const camera = new THREE.PerspectiveCamera(50, w / h, 0.01, 100);
-      camera.position.set(5, 4, 5);
+      camera.position.set(4, 3, 5);
 
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
@@ -97,16 +97,19 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       controls.maxDistance = 20;
       controls.addEventListener("change", () => { needsRenderRef.current = true; });
 
-      // Lighting
-      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-      const dl = new THREE.DirectionalLight(0xffffff, 1.2);
-      dl.position.set(5, 8, 5);
+      // Lighting — bright and well-distributed
+      scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+      const dl = new THREE.DirectionalLight(0xffffff, 1.8);
+      dl.position.set(5, 10, 7);
       scene.add(dl);
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.5));
+      const dl2 = new THREE.DirectionalLight(0xffffff, 0.6);
+      dl2.position.set(-4, 6, -3);
+      scene.add(dl2);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xe0e0e0, 0.8));
 
       // Grid
-      const grid = new THREE.GridHelper(20, 20, 0x334155, 0x334155);
-      (grid.material as any).opacity = 0.4;
+      const grid = new THREE.GridHelper(20, 20, 0xcccccc, 0xcccccc);
+      (grid.material as any).opacity = 0.3;
       (grid.material as any).transparent = true;
       scene.add(grid);
 
@@ -438,9 +441,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       {/* ── Área de Preview 3D + BOM ── */}
       <div className="flex-1 flex flex-col gap-3 min-w-0">
         {/* 3D Canvas */}
-        <Card className="flex-1 relative overflow-hidden">
-          <CardContent className="p-0 h-full">
-            <canvas ref={canvasRef} className="w-full h-full block" />
+        <Card className="flex-1 relative overflow-hidden min-h-[350px]">
+          <CardContent className="p-0 absolute inset-0">
+            <canvas ref={canvasRef} className="w-full h-full block" style={{ minHeight: 350 }} />
             <div className="absolute top-2 right-2 flex gap-1.5">
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
