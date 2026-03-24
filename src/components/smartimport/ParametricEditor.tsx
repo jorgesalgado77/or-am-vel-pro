@@ -448,6 +448,123 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     toast.info("Módulo resetado");
   };
 
+  // ── Drag duplicates in 3D ──
+  const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
+    if (!threeRef.current || duplicates.length === 0) return;
+    const { THREE, camera, renderer, moduleGroups } = threeRef.current;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    // Check duplicate groups (index 1+)
+    for (let i = 1; i < moduleGroups.length && i <= duplicates.length; i++) {
+      const grp = moduleGroups[i];
+      const intersects = raycaster.intersectObjects(grp.children, true);
+      if (intersects.length > 0) {
+        const dup = duplicates[i - 1];
+        dragRef.current = { id: dup.id, startX: dup.positionX, startZ: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
+        isDraggingRef.current = false;
+        threeRef.current.controls.enabled = false;
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        break;
+      }
+    }
+  }, [duplicates]);
+
+  const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current || !threeRef.current) return;
+    isDraggingRef.current = true;
+    const dx = e.clientX - dragRef.current.mouseX;
+    const dy = e.clientY - dragRef.current.mouseY;
+    // Convert screen px to mm (approx: 1px ≈ 5mm at typical zoom)
+    const scale = 5;
+    const newX = snapToGrid(dragRef.current.startX + dx * scale);
+    const newZ = snapToGrid(dragRef.current.startZ + dy * scale);
+    const newDups = duplicates.map((d) =>
+      d.id === dragRef.current!.id ? { ...d, positionX: newX, positionZ: newZ } : d
+    );
+    updatePersisted({ duplicates: newDups });
+  }, [duplicates, updatePersisted]);
+
+  const handleCanvasPointerUp = useCallback(() => {
+    if (dragRef.current && threeRef.current) {
+      threeRef.current.controls.enabled = true;
+    }
+    dragRef.current = null;
+    isDraggingRef.current = false;
+  }, []);
+
+  // ── Save to Library ──
+  const handleSaveToLibrary = useCallback(async () => {
+    if (!tenantId || !saveLibName.trim()) {
+      toast.error("Informe um nome para o módulo");
+      return;
+    }
+    const parametricData = {
+      ...module,
+      furnitureColors: persisted.furnitureColors,
+    };
+    const { error } = await supabase.from("module_library" as any).insert({
+      tenant_id: tenantId,
+      name: saveLibName.trim(),
+      category_id: saveLibSubcategory || saveLibCategory || null,
+      parametric_data: parametricData,
+    });
+    if (error) {
+      toast.error("Erro ao salvar na biblioteca");
+      console.error(error);
+    } else {
+      toast.success(`Módulo "${saveLibName}" salvo na biblioteca!`);
+      setShowSaveLibrary(false);
+      setSaveLibName("");
+      loadSavedModules();
+    }
+  }, [tenantId, saveLibName, saveLibCategory, saveLibSubcategory, module, persisted.furnitureColors]);
+
+  // ── Load saved modules ──
+  const loadSavedModules = useCallback(async () => {
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("module_library" as any)
+      .select("id, name, category_id, parametric_data")
+      .eq("tenant_id", tenantId)
+      .not("parametric_data", "is", null)
+      .order("name");
+    setSavedModules((data as any[]) || []);
+  }, [tenantId]);
+
+  useEffect(() => { loadSavedModules(); }, [loadSavedModules]);
+
+  const loadModuleFromLibrary = useCallback((saved: any) => {
+    if (!saved.parametric_data) return;
+    const pd = saved.parametric_data;
+    setModule({
+      ...pd,
+      id: crypto.randomUUID(),
+    });
+    if (pd.furnitureColors) {
+      updatePersisted({ furnitureColors: pd.furnitureColors });
+    }
+    toast.success(`Módulo "${saved.name}" carregado!`);
+  }, [setModule, updatePersisted]);
+
+  // Flatten categories for select
+  const flatCategories = useMemo(() => {
+    const result: { id: string; name: string; depth: number; parentId: string | null }[] = [];
+    const walk = (nodes: CategoryTreeNode[], depth: number) => {
+      nodes.forEach((n) => {
+        result.push({ id: n.id, name: n.name, depth, parentId: n.parent_id });
+        walk(n.children, depth + 1);
+      });
+    };
+    walk(categoryTree, 0);
+    return result;
+  }, [categoryTree]);
+
   const shelfCount = module.components.filter((c) => c.type === "prateleira").length;
   const doorCount = module.components.filter((c) => c.type === "porta").length;
   const drawerCount = module.components.filter((c) => c.type === "gaveta").length;
