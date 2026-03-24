@@ -540,23 +540,28 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       }
 
       const mainGrp = generateParametricGeometry(THREE, module, opts);
+      // Apply module offset (user drag within wall)
+      mainGrp.position.x += moduleOffsetX * 0.01;
+      mainGrp.position.y += moduleOffsetY * 0.01;
       scene.add(mainGrp);
       threeRef.current.moduleGroups.push(mainGrp);
 
       duplicates.forEach((dup) => {
         const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides, floorOffset: computedFloorOffset, openDoors, openDrawers });
-        dupGrp.position.x += dup.positionX * 0.01;
+        dupGrp.position.x += (dup.positionX + moduleOffsetX) * 0.01;
+        dupGrp.position.y += moduleOffsetY * 0.01;
         dupGrp.position.z += dup.positionZ * 0.01;
         scene.add(dupGrp);
         threeRef.current.moduleGroups.push(dupGrp);
       });
 
-      // Dimension annotations (cotas) — built in world space, no position offset needed
+      // Dimension annotations — offset to match module position
       if (showCotas) {
         const dimGroup = generateDimensionAnnotations(THREE, module, {
           wall: wall.enabled ? { width: wall.width, height: wall.height } : undefined,
           floorOffset: computedFloorOffset,
-          duplicates: duplicates.map((d) => ({ positionX: d.positionX, positionZ: d.positionZ, module: { width: d.module.width, depth: d.module.depth } })),
+          moduleOffset: { x: moduleOffsetX, y: moduleOffsetY },
+          duplicates: duplicates.map((d) => ({ positionX: d.positionX + moduleOffsetX, positionZ: d.positionZ, module: { width: d.module.width, depth: d.module.depth } })),
         });
         scene.add(dimGroup);
         threeRef.current.moduleGroups.push(dimGroup);
