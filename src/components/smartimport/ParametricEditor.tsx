@@ -11,7 +11,7 @@ import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
   Upload, ImageIcon, FolderOpen, GripVertical, BookOpen, FileDown, Eye, EyeOff,
-  Camera,
+  Camera, Lock, Unlock, Trash2, MousePointer, Group,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -162,6 +162,9 @@ interface PersistedBuilderState {
   openDrawers: boolean;
   moduleOffsetX: number;
   moduleOffsetY: number;
+  lockPosition: boolean;
+  selectedModuleId: string | null;
+  groupSelect: boolean;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -181,6 +184,9 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   openDrawers: false,
   moduleOffsetX: 0,
   moduleOffsetY: 0,
+  lockPosition: false,
+  selectedModuleId: null,
+  groupSelect: false,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -214,6 +220,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const openDrawers = persisted.openDrawers ?? false;
   const moduleOffsetX = persisted.moduleOffsetX ?? 0;
   const moduleOffsetY = persisted.moduleOffsetY ?? 0;
+  const lockPosition = persisted.lockPosition ?? false;
+  const selectedModuleId = persisted.selectedModuleId ?? null;
+  const groupSelect = persisted.groupSelect ?? false;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
@@ -659,6 +668,23 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     toast.info("Módulo resetado");
   };
 
+  // ── Delete selected module ──
+  const deleteSelectedModule = useCallback(() => {
+    if (!selectedModuleId) return;
+    if (selectedModuleId === "__main__") {
+      // Reset main module to default
+      setModule(createDefaultModule());
+      updatePersisted({ moduleOffsetX: 0, moduleOffsetY: 0, selectedModuleId: null });
+      toast.success("Módulo principal removido!");
+    } else {
+      updatePersisted({
+        duplicates: duplicates.filter((d) => d.id !== selectedModuleId),
+        selectedModuleId: null,
+      });
+      toast.success("Módulo duplicado removido!");
+    }
+  }, [selectedModuleId, duplicates, setModule, updatePersisted]);
+
   // ── Drag modules in 3D (main + duplicates) ──
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (!threeRef.current) return;
@@ -671,35 +697,59 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    // Check duplicate groups first (higher priority for overlapping)
-    for (let i = 1; i < moduleGroups.length && i <= duplicates.length; i++) {
-      const grp = moduleGroups[i];
-      if (!grp || grp.name === "dimension_annotations" || grp.name === "wall_group" || grp.name === "floor_group") continue;
-      const intersects = raycaster.intersectObjects(grp.children, true);
-      if (intersects.length > 0) {
-        const dup = duplicates[i - 1];
-        dragRef.current = { id: dup.id, startX: dup.positionX, startY: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
-        isDraggingRef.current = false;
-        threeRef.current.controls.enabled = false;
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
-        return;
+    // Helper to find which module was clicked
+    const findHitModule = (): string | null => {
+      // Check duplicate groups first
+      for (let i = 1; i < moduleGroups.length && i <= duplicates.length; i++) {
+        const grp = moduleGroups[i];
+        if (!grp || grp.name === "dimension_annotations" || grp.name === "wall_group" || grp.name === "floor_group") continue;
+        const intersects = raycaster.intersectObjects(grp.children, true);
+        if (intersects.length > 0) return duplicates[i - 1]?.id || null;
       }
-    }
+      // Check main module
+      const mainIdx = wall.enabled ? 2 : 0;
+      const mainGrp = moduleGroups[mainIdx];
+      if (mainGrp && mainGrp.name !== "dimension_annotations" && mainGrp.name !== "wall_group" && mainGrp.name !== "floor_group") {
+        const intersects = raycaster.intersectObjects(mainGrp.children, true);
+        if (intersects.length > 0) return "__main__";
+      }
+      return null;
+    };
 
-    // Check main module group (wall/floor are first groups, main module comes after)
-    const mainIdx = wall.enabled ? 2 : 0; // wall + floor = 2 groups before main
-    const mainGrp = moduleGroups[mainIdx];
-    if (mainGrp && mainGrp.name !== "dimension_annotations" && mainGrp.name !== "wall_group" && mainGrp.name !== "floor_group") {
-      const intersects = raycaster.intersectObjects(mainGrp.children, true);
-      if (intersects.length > 0) {
-        dragRef.current = { id: "__main__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+    const hitId = findHitModule();
+
+    if (hitId) {
+      // Select the module
+      updatePersisted({ selectedModuleId: hitId });
+
+      // Only start drag if position is NOT locked
+      if (!lockPosition) {
+        if (hitId === "__main__") {
+          if (groupSelect) {
+            // Group drag: store all starting positions
+            dragRef.current = { id: "__group__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+          } else {
+            dragRef.current = { id: "__main__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+          }
+        } else {
+          const dup = duplicates.find((d) => d.id === hitId);
+          if (dup) {
+            if (groupSelect) {
+              dragRef.current = { id: "__group__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+            } else {
+              dragRef.current = { id: dup.id, startX: dup.positionX, startY: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
+            }
+          }
+        }
         isDraggingRef.current = false;
         threeRef.current.controls.enabled = false;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
-        return;
       }
+    } else {
+      // Clicked empty space — deselect
+      updatePersisted({ selectedModuleId: null });
     }
-  }, [duplicates, wall.enabled, moduleOffsetX, moduleOffsetY]);
+  }, [duplicates, wall.enabled, moduleOffsetX, moduleOffsetY, lockPosition, groupSelect, updatePersisted]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !threeRef.current) return;
@@ -709,7 +759,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     if (!isDraggingRef.current && Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
     isDraggingRef.current = true;
     const scale = 5;
-    const SNAP_THRESHOLD = 30; // 30mm magnetic snap
+    const SNAP_THRESHOLD = 30;
 
     const magneticSnap = (val: number, targets: number[]): number => {
       for (const t of targets) {
@@ -718,7 +768,29 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       return val;
     };
 
-    if (dragRef.current.isMain) {
+    if (dragRef.current.id === "__group__") {
+      // Move all modules together
+      const deltaX = snapToGrid(dx * scale);
+      const deltaY = snapToGrid(-dy * scale);
+      let newMainX = dragRef.current.startX + deltaX;
+      let newMainY = dragRef.current.startY + deltaY;
+
+      if (wall.enabled) {
+        const halfWall = wall.width / 2;
+        const halfMod = module.width / 2;
+        const minX = -halfWall + halfMod;
+        const maxX = halfWall - halfMod;
+        newMainX = Math.max(minX, Math.min(maxX, newMainX));
+        newMainY = Math.max(0, Math.min(wall.height - module.height - computedFloorOffset, newMainY));
+      }
+
+      const actualDeltaX = newMainX - persisted.moduleOffsetX;
+      const newDups = duplicates.map((d) => ({
+        ...d,
+        positionX: d.positionX + actualDeltaX,
+      }));
+      updatePersisted({ moduleOffsetX: newMainX, moduleOffsetY: newMainY, duplicates: newDups });
+    } else if (dragRef.current.isMain) {
       let newX = snapToGrid(dragRef.current.startX + dx * scale);
       let newY = snapToGrid(dragRef.current.startY - dy * scale);
 
@@ -727,11 +799,8 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         const halfMod = module.width / 2;
         const minX = -halfWall + halfMod;
         const maxX = halfWall - halfMod;
-
-        // Snap targets: wall edges, center
         const snapTargetsX = [minX, 0, maxX];
         const snapTargetsY = [0, wall.height - module.height - computedFloorOffset];
-
         newX = magneticSnap(newX, snapTargetsX);
         newY = magneticSnap(newY, snapTargetsY);
         newX = Math.max(minX, Math.min(maxX, newX));
@@ -743,15 +812,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       let newX = snapToGrid(dragRef.current.startX + dx * scale);
       const newZ = snapToGrid(dragRef.current.startY + dy * scale);
 
-      // Snap to other module edges
       if (wall.enabled) {
         const mainRight = moduleOffsetX + module.width / 2;
         const mainLeft = moduleOffsetX - module.width / 2;
         const snapTargetsX: number[] = [];
         duplicates.forEach((d) => {
           if (d.id !== dragRef.current!.id) {
-            snapTargetsX.push(d.positionX + d.module.width + 3); // right edge + gap
-            snapTargetsX.push(d.positionX - module.width - 3); // left edge - gap
+            snapTargetsX.push(d.positionX + d.module.width + 3);
+            snapTargetsX.push(d.positionX - module.width - 3);
           }
         });
         snapTargetsX.push(mainRight + 3, mainLeft - module.width - 3);
@@ -763,7 +831,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       );
       updatePersisted({ duplicates: newDups });
     }
-  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX]);
+  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX, persisted.moduleOffsetX]);
 
   const handleCanvasPointerUp = useCallback(() => {
     if (dragRef.current && threeRef.current) {
@@ -1598,7 +1666,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             <canvas
               ref={canvasRef}
               className="w-full h-full block"
-              style={{ minHeight: 350, cursor: "grab" }}
+              style={{ minHeight: 350, cursor: lockPosition ? "default" : "grab" }}
               onPointerDown={handleCanvasPointerDown}
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}
@@ -1649,6 +1717,47 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   <span className="truncate">{view.label}</span>
                 </Button>
               ))}
+            </div>
+            {/* Module controls: lock, group, delete */}
+            <div className="absolute bottom-2 right-2 flex gap-1 z-10">
+              <Button
+                variant={lockPosition ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
+                onClick={() => updatePersisted({ lockPosition: !lockPosition })}
+                title={lockPosition ? "Desbloquear arraste" : "Travar posição"}
+              >
+                {lockPosition ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                {lockPosition ? "Travado" : "Livre"}
+              </Button>
+              <Button
+                variant={groupSelect ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
+                onClick={() => updatePersisted({ groupSelect: !groupSelect })}
+                title={groupSelect ? "Mover individualmente" : "Mover todos juntos"}
+                disabled={duplicates.length === 0}
+              >
+                <Group className="h-3 w-3" />
+                {groupSelect ? "Grupo" : "Individual"}
+              </Button>
+              {selectedModuleId && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-7 text-[9px] px-2 gap-1"
+                  onClick={deleteSelectedModule}
+                  title="Excluir módulo selecionado"
+                >
+                  <Trash2 className="h-3 w-3" /> Excluir
+                </Button>
+              )}
+              {selectedModuleId && (
+                <Badge variant="secondary" className="text-[9px] h-7 flex items-center">
+                  <MousePointer className="h-3 w-3 mr-1" />
+                  {selectedModuleId === "__main__" ? module.name : duplicates.find((d) => d.id === selectedModuleId)?.module.name || ""}
+                </Badge>
+              )}
             </div>
             <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end max-w-[65%]">
               <Button
