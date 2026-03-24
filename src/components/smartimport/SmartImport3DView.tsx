@@ -206,6 +206,9 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
           <TabsTrigger value="projetos" className="gap-1.5">
             <Box className="h-4 w-4" /> Projetos 3D
           </TabsTrigger>
+          <TabsTrigger value="builder" className="gap-1.5">
+            <Ruler className="h-4 w-4" /> Builder Paramétrico
+          </TabsTrigger>
           <TabsTrigger value="biblioteca" className="gap-1.5">
             <BookOpen className="h-4 w-4" /> Biblioteca
           </TabsTrigger>
