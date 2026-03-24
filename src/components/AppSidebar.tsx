@@ -7,6 +7,7 @@ import {
   Box, Loader2, Bell,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
