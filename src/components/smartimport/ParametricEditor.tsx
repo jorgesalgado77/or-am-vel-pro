@@ -9,19 +9,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
-  PanelLeftClose, PanelLeft, Eye, Package,
+  PanelLeftClose, PanelLeft, Eye, Package, Palette,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import type {
   ParametricModule, InternalComponent, ComponentType, DEFAULT_MODULE, ModuleBOM,
 } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
 import { generateParametricGeometry } from "@/lib/parametricGeometry";
+import type { CatalogItem } from "@/hooks/useModuleCatalog";
 
 interface ParametricEditorProps {
   onSave?: (module: ParametricModule) => void;
   initialModule?: ParametricModule | null;
   tenantId?: string | null;
+  catalogItems?: CatalogItem[];
 }
 
 function createDefaultModule(): ParametricModule {
