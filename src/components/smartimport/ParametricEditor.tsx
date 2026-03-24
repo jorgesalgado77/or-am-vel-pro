@@ -160,6 +160,8 @@ interface PersistedBuilderState {
   floorColor: string;
   openDoors: boolean;
   openDrawers: boolean;
+  moduleOffsetX: number;
+  moduleOffsetY: number;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -177,6 +179,8 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   floorColor: "#d6d3cd",
   openDoors: false,
   openDrawers: false,
+  moduleOffsetX: 0,
+  moduleOffsetY: 0,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -208,6 +212,8 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const floorColor = persisted.floorColor ?? "#d6d3cd";
   const openDoors = persisted.openDoors ?? false;
   const openDrawers = persisted.openDrawers ?? false;
+  const moduleOffsetX = persisted.moduleOffsetX ?? 0;
+  const moduleOffsetY = persisted.moduleOffsetY ?? 0;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
@@ -273,7 +279,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const threeRef = useRef<any>(null);
   const needsRenderRef = useRef(true);
   const animFrameRef = useRef(0);
-  const dragRef = useRef<{ id: string; startX: number; startZ: number; mouseX: number; mouseY: number } | null>(null);
+  const dragRef = useRef<{ id: string; startX: number; startY: number; mouseX: number; mouseY: number; isMain?: boolean } | null>(null);
   const isDraggingRef = useRef(false);
 
   const { tree: categoryTree, categories, addCategory, loadCategories } = useModuleCategories(tenantId ?? null);
@@ -305,8 +311,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       slots: [],
       verticalDivisions: 0,
     }));
+    updatePersisted({ moduleOffsetX: 0, moduleOffsetY: 0 });
     toast.success(`Preset "${preset.label}" aplicado!`);
-  }, [setModule]);
+  }, [setModule, updatePersisted]);
 
   // Duplicate module
   const duplicateModule = useCallback(() => {
@@ -534,23 +541,28 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       }
 
       const mainGrp = generateParametricGeometry(THREE, module, opts);
+      // Apply module offset (user drag within wall)
+      mainGrp.position.x += moduleOffsetX * 0.01;
+      mainGrp.position.y += moduleOffsetY * 0.01;
       scene.add(mainGrp);
       threeRef.current.moduleGroups.push(mainGrp);
 
       duplicates.forEach((dup) => {
         const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides, floorOffset: computedFloorOffset, openDoors, openDrawers });
-        dupGrp.position.x += dup.positionX * 0.01;
+        dupGrp.position.x += (dup.positionX + moduleOffsetX) * 0.01;
+        dupGrp.position.y += moduleOffsetY * 0.01;
         dupGrp.position.z += dup.positionZ * 0.01;
         scene.add(dupGrp);
         threeRef.current.moduleGroups.push(dupGrp);
       });
 
-      // Dimension annotations (cotas) — built in world space, no position offset needed
+      // Dimension annotations — offset to match module position
       if (showCotas) {
         const dimGroup = generateDimensionAnnotations(THREE, module, {
           wall: wall.enabled ? { width: wall.width, height: wall.height } : undefined,
           floorOffset: computedFloorOffset,
-          duplicates: duplicates.map((d) => ({ positionX: d.positionX, positionZ: d.positionZ, module: { width: d.module.width, depth: d.module.depth } })),
+          moduleOffset: { x: moduleOffsetX, y: moduleOffsetY },
+          duplicates: duplicates.map((d) => ({ positionX: d.positionX + moduleOffsetX, positionZ: d.positionZ, module: { width: d.module.width, depth: d.module.depth } })),
         });
         scene.add(dimGroup);
         threeRef.current.moduleGroups.push(dimGroup);
@@ -558,7 +570,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       needsRenderRef.current = true;
     })();
-  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor]);
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor, moduleOffsetX, moduleOffsetY]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
@@ -605,9 +617,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     toast.info("Módulo resetado");
   };
 
-  // ── Drag duplicates in 3D ──
+  // ── Drag modules in 3D (main + duplicates) ──
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!threeRef.current || duplicates.length === 0) return;
+    if (!threeRef.current) return;
     const { THREE, camera, renderer, moduleGroups } = threeRef.current;
     const rect = renderer.domElement.getBoundingClientRect();
     const mouse = new THREE.Vector2(
@@ -617,35 +629,74 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    // Check duplicate groups (index 1+)
+    // Check duplicate groups first (higher priority for overlapping)
     for (let i = 1; i < moduleGroups.length && i <= duplicates.length; i++) {
       const grp = moduleGroups[i];
+      if (!grp || grp.name === "dimension_annotations" || grp.name === "wall_group" || grp.name === "floor_group") continue;
       const intersects = raycaster.intersectObjects(grp.children, true);
       if (intersects.length > 0) {
         const dup = duplicates[i - 1];
-        dragRef.current = { id: dup.id, startX: dup.positionX, startZ: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
+        dragRef.current = { id: dup.id, startX: dup.positionX, startY: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
         isDraggingRef.current = false;
         threeRef.current.controls.enabled = false;
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
-        break;
+        return;
       }
     }
-  }, [duplicates]);
+
+    // Check main module group (wall/floor are first groups, main module comes after)
+    const mainIdx = wall.enabled ? 2 : 0; // wall + floor = 2 groups before main
+    const mainGrp = moduleGroups[mainIdx];
+    if (mainGrp && mainGrp.name !== "dimension_annotations" && mainGrp.name !== "wall_group" && mainGrp.name !== "floor_group") {
+      const intersects = raycaster.intersectObjects(mainGrp.children, true);
+      if (intersects.length > 0) {
+        dragRef.current = { id: "__main__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
+        isDraggingRef.current = false;
+        threeRef.current.controls.enabled = false;
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        return;
+      }
+    }
+  }, [duplicates, wall.enabled, moduleOffsetX, moduleOffsetY]);
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !threeRef.current) return;
-    isDraggingRef.current = true;
     const dx = e.clientX - dragRef.current.mouseX;
     const dy = e.clientY - dragRef.current.mouseY;
-    // Convert screen px to mm (approx: 1px ≈ 5mm at typical zoom)
+    const threshold = 8;
+    if (!isDraggingRef.current && Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+    isDraggingRef.current = true;
     const scale = 5;
-    const newX = snapToGrid(dragRef.current.startX + dx * scale);
-    const newZ = snapToGrid(dragRef.current.startZ + dy * scale);
-    const newDups = duplicates.map((d) =>
-      d.id === dragRef.current!.id ? { ...d, positionX: newX, positionZ: newZ } : d
-    );
-    updatePersisted({ duplicates: newDups });
-  }, [duplicates, updatePersisted]);
+
+    if (dragRef.current.isMain) {
+      // Main module: move within wall bounds (X = horizontal, Y = vertical)
+      let newX = snapToGrid(dragRef.current.startX + dx * scale);
+      let newY = snapToGrid(dragRef.current.startY - dy * scale); // invert Y: screen down = world down
+
+      // Clamp to wall boundaries
+      if (wall.enabled) {
+        const halfWall = wall.width / 2;
+        const halfMod = module.width / 2;
+        const minX = -halfWall + halfMod;
+        const maxX = halfWall - halfMod;
+        newX = Math.max(minX, Math.min(maxX, newX));
+
+        const minY = 0;
+        const maxY = wall.height - module.height - computedFloorOffset;
+        newY = Math.max(minY, Math.min(maxY, newY));
+      }
+
+      updatePersisted({ moduleOffsetX: newX, moduleOffsetY: newY });
+    } else {
+      // Duplicate module
+      const newX = snapToGrid(dragRef.current.startX + dx * scale);
+      const newZ = snapToGrid(dragRef.current.startY + dy * scale);
+      const newDups = duplicates.map((d) =>
+        d.id === dragRef.current!.id ? { ...d, positionX: newX, positionZ: newZ } : d
+      );
+      updatePersisted({ duplicates: newDups });
+    }
+  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset]);
 
   const handleCanvasPointerUp = useCallback(() => {
     if (dragRef.current && threeRef.current) {
@@ -1322,7 +1373,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             <canvas
               ref={canvasRef}
               className="w-full h-full block"
-              style={{ minHeight: 350, cursor: duplicates.length > 0 ? "grab" : "default" }}
+              style={{ minHeight: 350, cursor: "grab" }}
               onPointerDown={handleCanvasPointerDown}
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}
