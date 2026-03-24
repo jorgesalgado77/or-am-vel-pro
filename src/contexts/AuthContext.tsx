@@ -55,6 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const loginInProgressRef = useRef(false);
 
+  // Track latest resolved user outside render cycle to avoid stale closures in auth callbacks
+  const userRef = useRef<AppUser | null>(null);
+
   // Track the auth user ID to avoid unnecessary reloads on token refresh
   const currentAuthIdRef = useRef<string | null>(null);
 
@@ -63,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Don't clear user data on transient null sessions during token refresh
       // Only clear if it's not a token refresh event and user is actually gone
       if (currentAuthIdRef.current && event !== "TOKEN_REFRESHED") {
+        userRef.current = null;
         setUser(null);
         setSession(null);
         currentAuthIdRef.current = null;
@@ -80,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // If the same auth user is already loaded, just update session — don't reload profile
     // This prevents the user from switching to a fallback on TOKEN_REFRESHED events
-    if (currentAuthIdRef.current === sess.user.id && user) {
+    if (currentAuthIdRef.current === sess.user.id && userRef.current) {
       setLoading(false);
       return;
     }
@@ -106,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (appUser) {
       currentAuthIdRef.current = sess.user.id;
+      userRef.current = appUser;
       setUser(appUser);
       syncGlobalState(appUser);
     } else {
@@ -113,10 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (fallbackUser) {
         currentAuthIdRef.current = sess.user.id;
+        userRef.current = fallbackUser;
         setUser(fallbackUser);
         syncGlobalState(fallbackUser);
       } else {
         currentAuthIdRef.current = null;
+        userRef.current = null;
         setUser(null);
         syncGlobalState(null);
         await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
@@ -132,12 +139,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let initialLoaded = false;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, sess) => {
+      (_event, sess) => {
         if (_event === "INITIAL_SESSION") {
           if (initialLoaded) return;
           initialLoaded = true;
         }
-        await loadFromSession(sess, _event);
+        window.setTimeout(() => {
+          void loadFromSession(sess, _event);
+        }, 0);
       }
     );
 
@@ -240,6 +249,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         logLoginDiagnostic({ email: normalizedEmail_, codigo_loja: normalizedStoreCode, tenant_id: appUser.tenant_id, usuario_id: appUser.id, cargo_nome: appUser.cargo_nome, auth_user_id: authData.user.id, resultado: "sucesso" });
+        userRef.current = appUser;
+        currentAuthIdRef.current = authData.user.id;
         setUser(appUser);
         setSession(authData.session);
         syncGlobalState(appUser);
@@ -250,6 +261,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const refreshedUser = await withTimeout(loadAppUser(authData.user), 1500, null);
 
             if (refreshedUser) {
+              userRef.current = refreshedUser;
+              currentAuthIdRef.current = authData.user.id;
               setUser(refreshedUser);
               syncGlobalState(refreshedUser);
             }
@@ -570,6 +583,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await ensureUserProfile(loginData.user, metadata, password);
         const appUser = await loadAppUser(loginData.user);
         if (appUser) {
+          userRef.current = appUser;
+          currentAuthIdRef.current = loginData.user.id;
           setUser(appUser);
           setSession(loginData.session);
           syncGlobalState(appUser);
@@ -580,6 +595,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await ensureUserProfile(confirmedLogin.user, metadata, password);
           const appUser = await loadAppUser(confirmedLogin.user);
           if (appUser) {
+            userRef.current = appUser;
+            currentAuthIdRef.current = confirmedLogin.user.id;
             setUser(appUser);
             setSession(confirmedLogin.session);
             syncGlobalState(appUser);
@@ -593,6 +610,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     currentAuthIdRef.current = null;
+    userRef.current = null;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -621,6 +639,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logoutTimer = setTimeout(async () => {
         setShowInactivityWarning(false);
         currentAuthIdRef.current = null;
+        userRef.current = null;
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
@@ -649,6 +668,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session?.user) {
       const appUser = await loadAppUser(session.user);
       if (appUser) {
+        userRef.current = appUser;
+        currentAuthIdRef.current = session.user.id;
         setUser(appUser);
         syncGlobalState(appUser);
       }
