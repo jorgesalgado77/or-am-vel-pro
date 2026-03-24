@@ -487,9 +487,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       newGrid.name = "floor_grid";
       scene.add(newGrid);
 
-      const { matOverrides, wallOv } = await loadTexturesForSlots(THREE);
+      const { matOverrides, wallOv, floorOv } = await loadTexturesForSlots(THREE);
 
-      const opts: GeometryOptions = { floorOffset: computedFloorOffset };
+      const opts: GeometryOptions = { floorOffset: computedFloorOffset, openDoors, openDrawers };
       opts.materialOverrides = matOverrides;
 
       // Wall rendered separately — stays at ground level (Y=0), behind modules
@@ -497,6 +497,11 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         const wallGrp = generateWallGeometry(THREE, { width: wall.width, height: wall.height, depth: wall.depth }, wallOv);
         scene.add(wallGrp);
         threeRef.current.moduleGroups.push(wallGrp);
+
+        // Floor layer on top of grid
+        const floorGrp = generateFloorGeometry(THREE, wall.width, floorOv);
+        scene.add(floorGrp);
+        threeRef.current.moduleGroups.push(floorGrp);
       }
 
       const mainGrp = generateParametricGeometry(THREE, module, opts);
@@ -504,7 +509,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       threeRef.current.moduleGroups.push(mainGrp);
 
       duplicates.forEach((dup) => {
-        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides, floorOffset: computedFloorOffset });
+        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides, floorOffset: computedFloorOffset, openDoors, openDrawers });
         dupGrp.position.x += dup.positionX * 0.01;
         dupGrp.position.z += dup.positionZ * 0.01;
         scene.add(dupGrp);
@@ -524,7 +529,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       needsRenderRef.current = true;
     })();
-  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset]);
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
