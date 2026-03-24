@@ -300,15 +300,18 @@ export function generateParametricGeometry(
   drawers.forEach((drawer, i) => {
     const fh = drawer.frontHeight || 180;
     const posY = drawer.positionY;
+    const bodyThickness = drawer.thickness || 18;
+    const bottomThickness = drawer.bottomThickness || 3;
+    const sideInset = bodyThickness / 2 + 2;
     const bodyHeight = fh - 30;
     const frontZ = D + T / 2 + 2 + drawerSlideOut;
     createPanel(`Frente Gaveta ${i + 1}`, iw + 2, fh, T, W / 2, posY + fh / 2, frontZ, doorMat);
     const bodyY = posY + bodyHeight / 2 + 5;
     const bodyZ = D / 2 + 5 + drawerSlideOut;
-    createPanel(`Lateral Gaveta E ${i + 1}`, 15, bodyHeight, drawerBodyDepth, T + 10, bodyY, bodyZ, drawerBodyMat);
-    createPanel(`Lateral Gaveta D ${i + 1}`, 15, bodyHeight, drawerBodyDepth, W - T - 10, bodyY, bodyZ, drawerBodyMat);
-    createPanel(`Traseira Gaveta ${i + 1}`, drawerBodyWidth - 30, bodyHeight, 15, W / 2, bodyY, 25 + drawerSlideOut, drawerBodyMat);
-    createPanel(`Fundo Gaveta ${i + 1}`, drawerBodyWidth - 30, 3, drawerBodyDepth - 2, W / 2, posY + 3, bodyZ, drawerBodyMat);
+    createPanel(`Lateral Gaveta E ${i + 1}`, bodyThickness, bodyHeight, drawerBodyDepth, T + sideInset, bodyY, bodyZ, drawerBodyMat);
+    createPanel(`Lateral Gaveta D ${i + 1}`, bodyThickness, bodyHeight, drawerBodyDepth, W - T - sideInset, bodyY, bodyZ, drawerBodyMat);
+    createPanel(`Traseira Gaveta ${i + 1}`, drawerBodyWidth - bodyThickness * 2, bodyHeight, bodyThickness, W / 2, bodyY, bodyThickness / 2 + 10 + drawerSlideOut, drawerBodyMat);
+    createPanel(`Fundo Gaveta ${i + 1}`, drawerBodyWidth - bodyThickness * 2, bottomThickness, drawerBodyDepth - 2, W / 2, posY + bottomThickness / 2, bodyZ, drawerBodyMat);
   });
 
   // ── Posicionar: centro em X=0, base em Y=floorOffset, fundo em Z=0 (módulo avança em +Z) ──
