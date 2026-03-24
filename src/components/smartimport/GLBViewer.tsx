@@ -634,7 +634,7 @@ function FallbackView({ message, fileUrl }: { message: string; fileUrl: string }
   );
 }
 
-export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
+export function GLBViewer({ fileUrl, onObjectSelect, companyLogoUrl }: GLBViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [backgroundPreset, setBackgroundPreset] = useState<BackgroundPreset>("dark");
