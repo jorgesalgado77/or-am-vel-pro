@@ -10,9 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
-  Upload, ImageIcon,
+  Upload, ImageIcon, FolderOpen, GripVertical, BookOpen,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type {
   ParametricModule, InternalComponent, ComponentType, ModuleBOM, ModuleType,
@@ -21,7 +22,12 @@ import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/par
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
 import { generateParametricGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
+import { useModuleCategories, type CategoryTreeNode } from "@/hooks/useModuleCategories";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
+import { supabase } from "@/lib/supabaseClient";
+
+const SHELF_THICKNESSES = [15, 18, 25, 36] as const;
+const DOOR_THICKNESSES = [15, 18] as const;
 
 interface ParametricEditorProps {
   onSave?: (module: ParametricModule) => void;
@@ -165,11 +171,20 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   }, [textureSlots, updatePersisted]);
 
   const [showPanel, setShowPanel] = useState(true);
+  const [showSaveLibrary, setShowSaveLibrary] = useState(false);
+  const [saveLibName, setSaveLibName] = useState("");
+  const [saveLibCategory, setSaveLibCategory] = useState("");
+  const [saveLibSubcategory, setSaveLibSubcategory] = useState("");
+  const [savedModules, setSavedModules] = useState<any[]>([]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const threeRef = useRef<any>(null);
   const needsRenderRef = useRef(true);
   const animFrameRef = useRef(0);
   const dragRef = useRef<{ id: string; startX: number; startZ: number; mouseX: number; mouseY: number } | null>(null);
+  const isDraggingRef = useRef(false);
+
+  const { tree: categoryTree, categories, addCategory, loadCategories } = useModuleCategories(tenantId ?? null);
 
   // Computed values
   const spans = useMemo(() => calculateInternalSpans(module), [module]);
@@ -433,12 +448,130 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     toast.info("Módulo resetado");
   };
 
+  // ── Drag duplicates in 3D ──
+  const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
+    if (!threeRef.current || duplicates.length === 0) return;
+    const { THREE, camera, renderer, moduleGroups } = threeRef.current;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    // Check duplicate groups (index 1+)
+    for (let i = 1; i < moduleGroups.length && i <= duplicates.length; i++) {
+      const grp = moduleGroups[i];
+      const intersects = raycaster.intersectObjects(grp.children, true);
+      if (intersects.length > 0) {
+        const dup = duplicates[i - 1];
+        dragRef.current = { id: dup.id, startX: dup.positionX, startZ: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
+        isDraggingRef.current = false;
+        threeRef.current.controls.enabled = false;
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        break;
+      }
+    }
+  }, [duplicates]);
+
+  const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current || !threeRef.current) return;
+    isDraggingRef.current = true;
+    const dx = e.clientX - dragRef.current.mouseX;
+    const dy = e.clientY - dragRef.current.mouseY;
+    // Convert screen px to mm (approx: 1px ≈ 5mm at typical zoom)
+    const scale = 5;
+    const newX = snapToGrid(dragRef.current.startX + dx * scale);
+    const newZ = snapToGrid(dragRef.current.startZ + dy * scale);
+    const newDups = duplicates.map((d) =>
+      d.id === dragRef.current!.id ? { ...d, positionX: newX, positionZ: newZ } : d
+    );
+    updatePersisted({ duplicates: newDups });
+  }, [duplicates, updatePersisted]);
+
+  const handleCanvasPointerUp = useCallback(() => {
+    if (dragRef.current && threeRef.current) {
+      threeRef.current.controls.enabled = true;
+    }
+    dragRef.current = null;
+    isDraggingRef.current = false;
+  }, []);
+
+  // ── Save to Library ──
+  const handleSaveToLibrary = useCallback(async () => {
+    if (!tenantId || !saveLibName.trim()) {
+      toast.error("Informe um nome para o módulo");
+      return;
+    }
+    const parametricData = {
+      ...module,
+      furnitureColors: persisted.furnitureColors,
+    };
+    const { error } = await supabase.from("module_library" as any).insert({
+      tenant_id: tenantId,
+      name: saveLibName.trim(),
+      category_id: saveLibSubcategory || saveLibCategory || null,
+      parametric_data: parametricData,
+    });
+    if (error) {
+      toast.error("Erro ao salvar na biblioteca");
+      console.error(error);
+    } else {
+      toast.success(`Módulo "${saveLibName}" salvo na biblioteca!`);
+      setShowSaveLibrary(false);
+      setSaveLibName("");
+      loadSavedModules();
+    }
+  }, [tenantId, saveLibName, saveLibCategory, saveLibSubcategory, module, persisted.furnitureColors]);
+
+  // ── Load saved modules ──
+  const loadSavedModules = useCallback(async () => {
+    if (!tenantId) return;
+    const { data } = await supabase
+      .from("module_library" as any)
+      .select("id, name, category_id, parametric_data")
+      .eq("tenant_id", tenantId)
+      .not("parametric_data", "is", null)
+      .order("name");
+    setSavedModules((data as any[]) || []);
+  }, [tenantId]);
+
+  useEffect(() => { loadSavedModules(); }, [loadSavedModules]);
+
+  const loadModuleFromLibrary = useCallback((saved: any) => {
+    if (!saved.parametric_data) return;
+    const pd = saved.parametric_data;
+    setModule({
+      ...pd,
+      id: crypto.randomUUID(),
+    });
+    if (pd.furnitureColors) {
+      updatePersisted({ furnitureColors: pd.furnitureColors });
+    }
+    toast.success(`Módulo "${saved.name}" carregado!`);
+  }, [setModule, updatePersisted]);
+
+  // Flatten categories for select
+  const flatCategories = useMemo(() => {
+    const result: { id: string; name: string; depth: number; parentId: string | null }[] = [];
+    const walk = (nodes: CategoryTreeNode[], depth: number) => {
+      nodes.forEach((n) => {
+        result.push({ id: n.id, name: n.name, depth, parentId: n.parent_id });
+        walk(n.children, depth + 1);
+      });
+    };
+    walk(categoryTree, 0);
+    return result;
+  }, [categoryTree]);
+
   const shelfCount = module.components.filter((c) => c.type === "prateleira").length;
   const doorCount = module.components.filter((c) => c.type === "porta").length;
   const drawerCount = module.components.filter((c) => c.type === "gaveta").length;
   const dividerCount = module.components.filter((c) => c.type === "divisoria").length;
 
   return (
+    <>
     <div className="flex gap-3 h-[650px]">
       <Button
         variant="ghost"
@@ -717,6 +850,41 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   </div>
                 ))}
               </div>
+              {/* Per-component thickness */}
+              {module.components.length > 0 && (
+                <div className="space-y-1.5 pt-1 border-t border-border">
+                  <Label className="text-[10px] text-muted-foreground">Espessura por componente</Label>
+                  {module.components.map((comp, idx) => {
+                    const isShelfOrDiv = comp.type === "prateleira" || comp.type === "divisoria";
+                    const isDoorOrFront = comp.type === "porta" || comp.type === "gaveta";
+                    const thicknessOptions = isShelfOrDiv ? SHELF_THICKNESSES : isDoorOrFront ? DOOR_THICKNESSES : SHELF_THICKNESSES;
+                    const typeLabel = comp.type === "prateleira" ? "Prat." : comp.type === "porta" ? "Porta" : comp.type === "gaveta" ? "Gaveta" : comp.type === "divisoria" ? "Div." : comp.type;
+                    return (
+                      <div key={comp.id} className="flex items-center justify-between gap-1">
+                        <span className="text-[9px] text-foreground truncate w-16">{typeLabel} {idx + 1}</span>
+                        <Select
+                          value={String(comp.thickness)}
+                          onValueChange={(v) => {
+                            setModule((p) => {
+                              const comps = p.components.map((c) =>
+                                c.id === comp.id ? { ...c, thickness: Number(v) } : c
+                              );
+                              return { ...p, components: comps };
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="h-5 w-20 text-[9px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {thicknessOptions.map((t) => (
+                              <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -876,13 +1044,42 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             </CardContent>
           </Card>
 
+          {/* Biblioteca Salva */}
+          {savedModules.length > 0 && (
+            <Card>
+              <CardContent className="p-3 space-y-2">
+                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <BookOpen className="h-3.5 w-3.5 text-primary" /> Módulos da Biblioteca
+                </h4>
+                <div className="space-y-1 max-h-[100px] overflow-y-auto">
+                  {savedModules.map((sm) => (
+                    <button
+                      key={sm.id}
+                      onClick={() => loadModuleFromLibrary(sm)}
+                      className="w-full flex items-center justify-between bg-muted/50 rounded px-2 py-1 hover:bg-muted transition-colors text-left"
+                    >
+                      <span className="text-[10px] font-medium text-foreground truncate">{sm.name}</span>
+                      <FolderOpen className="h-3 w-3 text-muted-foreground shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Ações */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button size="sm" className="flex-1 gap-1.5" onClick={handleSave}>
-              <Save className="h-3.5 w-3.5" /> Salvar Módulo
+              <Save className="h-3.5 w-3.5" /> Salvar
+            </Button>
+            <Button size="sm" variant="secondary" className="gap-1.5" onClick={() => {
+              setSaveLibName(module.name);
+              setShowSaveLibrary(true);
+            }}>
+              <FolderOpen className="h-3.5 w-3.5" /> Biblioteca
             </Button>
             <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5">
-              <RotateCcw className="h-3.5 w-3.5" /> Resetar
+              <RotateCcw className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
@@ -892,7 +1089,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       <div className="flex-1 flex flex-col gap-3 min-w-0">
         <Card className="flex-1 relative overflow-hidden min-h-[350px]">
           <CardContent className="p-0 absolute inset-0">
-            <canvas ref={canvasRef} className="w-full h-full block" style={{ minHeight: 350 }} />
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full block"
+              style={{ minHeight: 350, cursor: duplicates.length > 0 ? "grab" : "default" }}
+              onPointerDown={handleCanvasPointerDown}
+              onPointerMove={handleCanvasPointerMove}
+              onPointerUp={handleCanvasPointerUp}
+            />
             <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end">
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
@@ -979,5 +1183,62 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         </Card>
       </div>
     </div>
+
+      {/* Save to Library Dialog */}
+      <Dialog open={showSaveLibrary} onOpenChange={setShowSaveLibrary}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-primary" /> Salvar na Biblioteca
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome do Módulo</Label>
+              <Input
+                value={saveLibName}
+                onChange={(e) => setSaveLibName(e.target.value)}
+                placeholder="Ex: Inferior 3 Gavetas"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Categoria</Label>
+              <Select value={saveLibCategory} onValueChange={(v) => { setSaveLibCategory(v); setSaveLibSubcategory(""); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar categoria..." /></SelectTrigger>
+                <SelectContent>
+                  {flatCategories.filter((c) => !c.parentId).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {saveLibCategory && flatCategories.filter((c) => c.parentId === saveLibCategory).length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">Subcategoria</Label>
+                <Select value={saveLibSubcategory} onValueChange={setSaveLibSubcategory}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar subcategoria..." /></SelectTrigger>
+                  <SelectContent>
+                    {flatCategories.filter((c) => c.parentId === saveLibCategory).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{"  ".repeat(c.depth)}{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              O módulo será salvo com todas as dimensões, componentes e cores atuais.
+              Poderá ser reutilizado em novos projetos.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowSaveLibrary(false)}>Cancelar</Button>
+            <Button size="sm" onClick={handleSaveToLibrary} className="gap-1.5">
+              <Save className="h-3.5 w-3.5" /> Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
