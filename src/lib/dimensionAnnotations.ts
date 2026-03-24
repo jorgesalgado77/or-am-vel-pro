@@ -263,11 +263,12 @@ export function generateDimensionAnnotations(
   // Layer 4: Floor offset
   if (options?.floorOffset && options.floorOffset > 0) {
     const xLayer4 = left - 0.15;
+    const floorBase = (options.floorOffset * sc) + oy; // actual base position with Y offset
     group.add(createDimensionLine(
       THREE,
       new THREE.Vector3(xLayer4, 0, front * 0.6),
-      new THREE.Vector3(xLayer4, fo, front * 0.6),
-      `Piso:${options.floorOffset}mm`, leftDir, 1.0, "red", baseTag * 0.8
+      new THREE.Vector3(xLayer4, floorBase, front * 0.6),
+      `Piso:${options.floorOffset + (options?.moduleOffset?.y ?? 0)}mm`, leftDir, 1.0, "red", baseTag * 0.8
     ));
   }
 
