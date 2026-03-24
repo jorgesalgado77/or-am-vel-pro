@@ -403,14 +403,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xf0f0f0);
 
-      const camera = new THREE.PerspectiveCamera(50, w / h, 0.01, 100);
+      const camera = new THREE.PerspectiveCamera(50, w / h, 0.01, 200);
       camera.position.set(4, 3, 5);
 
       const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.08;
-      controls.minDistance = 1;
-      controls.maxDistance = 30;
+      controls.minDistance = 0.3;
+      controls.maxDistance = 80;
       controls.addEventListener("change", () => { needsRenderRef.current = true; });
 
       scene.add(new THREE.AmbientLight(0xffffff, 1.2));
@@ -589,9 +589,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       }
 
       const mainGrp = generateParametricGeometry(THREE, module, opts);
-      // Apply module offset (user drag within wall)
       mainGrp.position.x += moduleOffsetX * 0.01;
       mainGrp.position.y += moduleOffsetY * 0.01;
+      mainGrp.userData = { moduleId: "__main__" };
       scene.add(mainGrp);
       threeRef.current.moduleGroups.push(mainGrp);
 
@@ -600,6 +600,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         dupGrp.position.x += (dup.positionX + moduleOffsetX) * 0.01;
         dupGrp.position.y += moduleOffsetY * 0.01;
         dupGrp.position.z += dup.positionZ * 0.01;
+        dupGrp.userData = { moduleId: dup.id };
         scene.add(dupGrp);
         threeRef.current.moduleGroups.push(dupGrp);
       });
@@ -697,21 +698,19 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    // Helper to find which module was clicked
+    // Helper to find which module was clicked using userData tags
     const findHitModule = (): string | null => {
-      // Check duplicate groups first
-      for (let i = 1; i < moduleGroups.length && i <= duplicates.length; i++) {
-        const grp = moduleGroups[i];
-        if (!grp || grp.name === "dimension_annotations" || grp.name === "wall_group" || grp.name === "floor_group") continue;
+      // Collect all module groups (those with moduleId in userData)
+      const taggedGroups = moduleGroups.filter((g: any) => g.userData?.moduleId);
+      // Sort: duplicates first so they get priority on overlap
+      const sorted = taggedGroups.sort((a: any, b: any) => {
+        if (a.userData.moduleId === "__main__") return 1;
+        if (b.userData.moduleId === "__main__") return -1;
+        return 0;
+      });
+      for (const grp of sorted) {
         const intersects = raycaster.intersectObjects(grp.children, true);
-        if (intersects.length > 0) return duplicates[i - 1]?.id || null;
-      }
-      // Check main module
-      const mainIdx = wall.enabled ? 2 : 0;
-      const mainGrp = moduleGroups[mainIdx];
-      if (mainGrp && mainGrp.name !== "dimension_annotations" && mainGrp.name !== "wall_group" && mainGrp.name !== "floor_group") {
-        const intersects = raycaster.intersectObjects(mainGrp.children, true);
-        if (intersects.length > 0) return "__main__";
+        if (intersects.length > 0) return grp.userData.moduleId;
       }
       return null;
     };
