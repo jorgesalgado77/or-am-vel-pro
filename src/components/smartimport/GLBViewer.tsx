@@ -3,10 +3,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw } from "lucide-react";
+import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { loadModelForPreview, disposeSceneGraph } from "./modelPreviewUtils";
+import { loadModelForPreview, disposeSceneGraph, getFileExtension } from "./modelPreviewUtils";
+import { toast } from "sonner";
 
 interface GLBViewerProps {
   fileUrl: string;
@@ -136,14 +137,7 @@ function applyLightingPreset(lights: any, preset: LightingPreset) {
   lights.hemi.intensity = config.hemi;
 }
 
-function getFileExtension(url: string): string {
-  try {
-    const path = new URL(url).pathname;
-    return path.split(".").pop()?.toLowerCase() || "";
-  } catch {
-    return url.split(".").pop()?.toLowerCase() || "";
-  }
-}
+// getFileExtension imported from modelPreviewUtils
 
 function LoadingOverlay({ progress, label }: { progress: number; label: string }) {
   return (
