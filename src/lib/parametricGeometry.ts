@@ -36,6 +36,7 @@ export interface GeometryOptions {
   wall?: { width: number; height: number; depth: number };
   wallOverrides?: WallOverrides;
   materialOverrides?: MaterialOverrides;
+  floorOffset?: number; // mm offset from ground
 }
 
 function applyTextureToMat(
