@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
-  Upload, ImageIcon, FolderOpen, GripVertical, BookOpen,
+  Upload, ImageIcon, FolderOpen, GripVertical, BookOpen, FileDown, Eye, EyeOff,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -21,6 +21,8 @@ import type {
 import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
 import { generateParametricGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
+import { generateDimensionAnnotations } from "@/lib/dimensionAnnotations";
+import { generateBomPdf } from "@/lib/generateBomPdf";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 import { useModuleCategories, type CategoryTreeNode } from "@/hooks/useModuleCategories";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
@@ -150,6 +152,9 @@ interface PersistedBuilderState {
   furnitureColors: FurnitureColors;
   textureSlots: TextureSlots;
   savedPalettes: SavedPalette[];
+  showCotas: boolean;
+  floorHeightInferior: number;
+  floorHeightSuperior: number;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -161,6 +166,9 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   furnitureColors: { body: "#d4a574", door: "#fafafa", shelf: "#d4a574", back: "#d4a574", drawer: "#c4a060" },
   textureSlots: {},
   savedPalettes: [],
+  showCotas: false,
+  floorHeightInferior: 200,
+  floorHeightSuperior: 1500,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -176,6 +184,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const duplicates = persisted.duplicates;
   const furnitureColors = persisted.furnitureColors ?? INITIAL_PERSISTED.furnitureColors;
   const textureSlots = persisted.textureSlots ?? {};
+  const showCotas = persisted.showCotas ?? false;
+  const floorHeightInferior = persisted.floorHeightInferior ?? 200;
+  const floorHeightSuperior = persisted.floorHeightSuperior ?? 1500;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
@@ -428,6 +439,15 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     return { matOverrides, wallOv };
   }, [furnitureColors, textureSlots, wall.color]);
 
+  // Compute floor offset based on module type
+  const computedFloorOffset = useMemo(() => {
+    const mt = module.moduleType;
+    if (mt === "caixa_inferior") return floorHeightInferior;
+    if (mt === "caixa_superior") return floorHeightSuperior;
+    // dormitorio, painel, regua, custom = 0
+    return 0;
+  }, [module.moduleType, floorHeightInferior, floorHeightSuperior]);
+
   // ── Rebuild geometry when module/wall/duplicates/colors/textures change ──
   useEffect(() => {
     if (!threeRef.current) return;
@@ -440,7 +460,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       const { matOverrides, wallOv } = await loadTexturesForSlots(THREE);
 
-      const opts: GeometryOptions = {};
+      const opts: GeometryOptions = { floorOffset: computedFloorOffset };
       if (wall.enabled) {
         opts.wall = { width: wall.width, height: wall.height, depth: wall.depth };
         opts.wallOverrides = wallOv;
@@ -452,16 +472,29 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       threeRef.current.moduleGroups.push(mainGrp);
 
       duplicates.forEach((dup) => {
-        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides });
+        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides, floorOffset: computedFloorOffset });
         dupGrp.position.x += dup.positionX * 0.01;
         dupGrp.position.z += dup.positionZ * 0.01;
         scene.add(dupGrp);
         threeRef.current.moduleGroups.push(dupGrp);
       });
 
+      // Dimension annotations (cotas)
+      if (showCotas) {
+        const dimGroup = generateDimensionAnnotations(THREE, module, {
+          wall: wall.enabled ? { width: wall.width, height: wall.height } : undefined,
+          floorOffset: computedFloorOffset,
+          duplicates: duplicates.map((d) => ({ positionX: d.positionX, module: d.module })),
+        });
+        // Position annotations aligned with main module
+        dimGroup.position.copy(mainGrp.position);
+        scene.add(dimGroup);
+        threeRef.current.moduleGroups.push(dimGroup);
+      }
+
       needsRenderRef.current = true;
     })();
-  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots]);
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
@@ -872,6 +905,33 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                       )}
                     </div>
                   </div>
+                  {/* Floor Height Offsets */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <Label className="text-[10px] font-semibold text-muted-foreground">Altura do Piso (mm)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[9px]">Inferior Cozinha</Label>
+                        <Input
+                          type="number"
+                          value={floorHeightInferior}
+                          onChange={(e) => updatePersisted({ floorHeightInferior: Math.max(0, Number(e.target.value)) })}
+                          className="h-6 text-[10px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[9px]">Superior Cozinha</Label>
+                        <Input
+                          type="number"
+                          value={floorHeightSuperior}
+                          onChange={(e) => updatePersisted({ floorHeightSuperior: Math.max(0, Number(e.target.value)) })}
+                          className="h-6 text-[10px] font-mono"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground">
+                      Dormitório, bancadas e outros: 0mm do piso
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1138,6 +1198,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             }}>
               <FolderOpen className="h-3.5 w-3.5" /> Biblioteca
             </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => generateBomPdf(module, bom)}>
+              <FileDown className="h-3.5 w-3.5" /> PDF
+            </Button>
             <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5">
               <RotateCcw className="h-3.5 w-3.5" />
             </Button>
@@ -1158,9 +1221,23 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               onPointerUp={handleCanvasPointerUp}
             />
             <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end">
+              <Button
+                variant={showCotas ? "default" : "outline"}
+                size="sm"
+                className="h-6 text-[10px] px-2 gap-1"
+                onClick={() => updatePersisted({ showCotas: !showCotas })}
+              >
+                {showCotas ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                Cotas
+              </Button>
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
               </Badge>
+              {computedFloorOffset > 0 && (
+                <Badge variant="outline" className="text-[10px]">
+                  Piso: {computedFloorOffset}mm
+                </Badge>
+              )}
               {module.moduleType !== "custom" && (
                 <Badge className="text-[10px]">
                   {MODULE_PRESETS.find((p) => p.type === module.moduleType)?.label}

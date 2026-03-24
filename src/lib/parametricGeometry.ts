@@ -36,6 +36,7 @@ export interface GeometryOptions {
   wall?: { width: number; height: number; depth: number };
   wallOverrides?: WallOverrides;
   materialOverrides?: MaterialOverrides;
+  floorOffset?: number; // mm offset from ground
 }
 
 function applyTextureToMat(
@@ -121,6 +122,17 @@ export function generateParametricGeometry(
     group.add(mesh);
     group.add(line);
     return mesh;
+  }
+
+  // ── Régua: apenas um painel plano ──
+  if (module.moduleType === "regua") {
+    createPanel("Painel Régua", W, H, D, W / 2, H / 2, D / 2, bodyMat);
+
+    const box = new THREE.Box3().setFromObject(group);
+    const center = box.getCenter(new THREE.Vector3());
+    const floorOff = (options?.floorOffset ?? 0) * s;
+    group.position.set(-center.x, -box.min.y + floorOff, -center.z);
+    return group;
   }
 
   // ── Parede ──
@@ -213,10 +225,11 @@ export function generateParametricGeometry(
     createPanel(`Fundo Gaveta ${i + 1}`, drawerBodyWidth - 30, 3, drawerBodyDepth - 2, W / 2, posY + 3, bodyZ, drawerBodyMat);
   });
 
-  // ── Posicionar com base no Y=0 ──
+  // ── Posicionar com base no Y=0 + floorOffset ──
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
-  group.position.set(-center.x, -box.min.y, -center.z);
+  const floorOff = (options?.floorOffset ?? 0) * s;
+  group.position.set(-center.x, -box.min.y + floorOff, -center.z);
 
   return group;
 }
