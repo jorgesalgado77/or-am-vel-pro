@@ -49,6 +49,43 @@ const AuthContext = createContext<AuthContextType>({
   refreshUser: async () => {},
 });
 
+const EXPLICIT_SIGN_OUT_EVENTS = new Set(["SIGNED_OUT", "USER_DELETED"]);
+
+function normalizeProfileLabel(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function isGenericProfileLabel(value: string | null | undefined) {
+  const normalized = normalizeProfileLabel(value);
+  return !normalized || normalized === "admin" || normalized === "admin master" || normalized === "usuário" || normalized === "usuario";
+}
+
+function getProfileCompletenessScore(appUser: AppUser | null | undefined) {
+  if (!appUser) return 0;
+
+  let score = 0;
+  if (appUser.tenant_id) score += 2;
+  if (appUser.cargo_id) score += 2;
+  if (appUser.cargo_nome && !isGenericProfileLabel(appUser.cargo_nome)) score += 1;
+  if (appUser.foto_url) score += 3;
+  if (appUser.email) score += 1;
+  if (appUser.telefone) score += 1;
+  if (!isGenericProfileLabel(appUser.nome_completo)) score += 3;
+  if (appUser.apelido && !isGenericProfileLabel(appUser.apelido)) score += 2;
+
+  return score;
+}
+
+function shouldKeepExistingResolvedUser(existingUser: AppUser | null, incomingUser: AppUser | null) {
+  if (!existingUser || !incomingUser) return false;
+
+  const existingAuthId = existingUser.auth_user_id ?? existingUser.id;
+  const incomingAuthId = incomingUser.auth_user_id ?? incomingUser.id;
+  if (!existingAuthId || existingAuthId !== incomingAuthId) return false;
+
+  return getProfileCompletenessScore(existingUser) > getProfileCompletenessScore(incomingUser);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -61,19 +98,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Track the auth user ID to avoid unnecessary reloads on token refresh
   const currentAuthIdRef = useRef<string | null>(null);
 
+  const hydrateUserFromDatabase = useCallback(async (authUser: SupabaseAuthUser, reason: string) => {
+    const retryTimeouts = [2500, 5000];
+
+    for (const timeoutMs of retryTimeouts) {
+      const resolvedUser = await withTimeout(loadAppUser(authUser), timeoutMs, null);
+      if (!resolvedUser) continue;
+      if (currentAuthIdRef.current !== authUser.id) return null;
+
+      const stableUser = shouldKeepExistingResolvedUser(userRef.current, resolvedUser)
+        ? userRef.current
+        : resolvedUser;
+
+      if (!stableUser) return null;
+
+      console.log("[Auth] ✅ User re-hydrated from DB:", stableUser.nome_completo, "reason:", reason);
+      currentAuthIdRef.current = authUser.id;
+      userRef.current = stableUser;
+      setUser(stableUser);
+      syncGlobalState(stableUser);
+      return stableUser;
+    }
+
+    return null;
+  }, []);
+
   const loadFromSession = useCallback(async (sess: Session | null, event?: string) => {
     console.log("[Auth] loadFromSession called", { event, hasSession: !!sess?.user, currentRef: currentAuthIdRef.current, currentUserRef: userRef.current?.nome_completo });
 
     if (!sess?.user) {
-      if (currentAuthIdRef.current && event !== "TOKEN_REFRESHED") {
-        console.log("[Auth] ⛔ Clearing user (no session, event:", event, ")");
+      if (currentAuthIdRef.current && event && EXPLICIT_SIGN_OUT_EVENTS.has(event)) {
+        console.log("[Auth] ⛔ Clearing user after explicit sign-out event:", event);
         userRef.current = null;
         setUser(null);
         setSession(null);
         currentAuthIdRef.current = null;
         syncGlobalState(null);
       } else {
-        console.log("[Auth] ✅ Ignoring null session (token refresh or no ref)");
+        console.log("[Auth] ✅ Ignoring transient null session", { event });
       }
       setLoading(false);
       return;
@@ -104,30 +166,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!appUser) {
         await withTimeout(
           ensureUserProfile(sess.user, (sess.user.user_metadata as Record<string, unknown>) ?? undefined),
-          1200,
+          1800,
           undefined,
         );
-        appUser = await withTimeout(loadAppUser(sess.user), 1500, null);
+        appUser = await withTimeout(loadAppUser(sess.user), 2500, null);
       }
     } catch (e) {
       console.warn("[Auth] ⚠️ loadAppUser falhou:", e);
     }
 
     if (appUser) {
-      console.log("[Auth] ✅ User loaded from DB:", appUser.nome_completo, "cargo:", appUser.cargo_nome);
+      const stableUser = shouldKeepExistingResolvedUser(userRef.current, appUser)
+        ? userRef.current
+        : appUser;
+
+      console.log("[Auth] ✅ User loaded from DB:", stableUser?.nome_completo, "cargo:", stableUser?.cargo_nome);
       currentAuthIdRef.current = sess.user.id;
-      userRef.current = appUser;
-      setUser(appUser);
-      syncGlobalState(appUser);
+      userRef.current = stableUser;
+      setUser(stableUser);
+      syncGlobalState(stableUser);
     } else {
       const fallbackUser = await buildFallbackUserFromAuth(sess.user);
 
       if (fallbackUser) {
-        console.warn("[Auth] ⚠️ Using FALLBACK user:", fallbackUser.nome_completo, "— DB lookup failed");
+        const stableUser = shouldKeepExistingResolvedUser(userRef.current, fallbackUser)
+          ? userRef.current
+          : fallbackUser;
+
+        console.warn("[Auth] ⚠️ Using FALLBACK user:", stableUser?.nome_completo, "— DB lookup failed");
         currentAuthIdRef.current = sess.user.id;
-        userRef.current = fallbackUser;
-        setUser(fallbackUser);
-        syncGlobalState(fallbackUser);
+        userRef.current = stableUser;
+        setUser(stableUser);
+        syncGlobalState(stableUser);
+        void hydrateUserFromDatabase(sess.user, "fallback_recovery");
       } else {
         currentAuthIdRef.current = null;
         userRef.current = null;
@@ -140,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hydrateUserFromDatabase]);
 
   useEffect(() => {
     let initialLoaded = false;
@@ -160,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: sess } }) => {
       if (!initialLoaded) {
         initialLoaded = true;
-        loadFromSession(sess);
+        void loadFromSession(sess);
       }
     });
 
@@ -169,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (prev) console.warn("[Auth] ⏰ Safety timeout: forçando fim do loading");
         return false;
       });
-    }, 5000);
+    }, 12000);
 
     return () => {
       subscription.unsubscribe();
@@ -672,15 +743,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const refreshUser = useCallback(async () => {
-    if (session?.user) {
-      const appUser = await loadAppUser(session.user);
-      if (appUser) {
-        userRef.current = appUser;
-        currentAuthIdRef.current = session.user.id;
-        setUser(appUser);
-        syncGlobalState(appUser);
-      }
-    }
+    if (!session?.user) return;
+
+    const appUser = await withTimeout(loadAppUser(session.user), 5000, null);
+    if (!appUser) return;
+
+    const stableUser = shouldKeepExistingResolvedUser(userRef.current, appUser)
+      ? userRef.current
+      : appUser;
+
+    if (!stableUser) return;
+
+    userRef.current = stableUser;
+    currentAuthIdRef.current = session.user.id;
+    setUser(stableUser);
+    syncGlobalState(stableUser);
   }, [session]);
 
   const handleStayConnected = useCallback(() => {
