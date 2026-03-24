@@ -25,7 +25,7 @@ interface SelectedPieceInfo {
 }
 
 type BackgroundPreset = "dark" | "light" | "studio" | "clean";
-type LightingPreset = "balanced" | "soft" | "contrast";
+type LightingPreset = "balanced" | "soft" | "contrast" | "auto";
 type QualityPreset = "low" | "balanced" | "high";
 
 const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground: number; showGrid: boolean }> = {
@@ -35,7 +35,7 @@ const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground:
   clean: { background: 0xffffff, ground: 0xffffff, showGrid: false },
 };
 
-const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; fill: number; rim: number; hemi: number }> = {
+const LIGHTING_PRESETS: Record<string, { ambient: number; key: number; fill: number; rim: number; hemi: number }> = {
   balanced: { ambient: 0.6, key: 1.2, fill: 0.5, rim: 0.3, hemi: 0.5 },
   soft: { ambient: 0.9, key: 0.8, fill: 0.7, rim: 0.15, hemi: 0.6 },
   contrast: { ambient: 0.35, key: 1.6, fill: 0.3, rim: 0.6, hemi: 0.25 },
@@ -56,6 +56,70 @@ const FORMAT_LOADING_MESSAGES: Record<string, string[]> = {
   dxf: ["Analisando entidades DXF...", "Convertendo coordenadas CAD...", "Montando geometria vetorial DXF..."],
 };
 
+interface AutoLightingResult {
+  lighting: "balanced" | "soft" | "contrast";
+  background: BackgroundPreset;
+  cameraDistance: number;
+  reason: string;
+}
+
+function analyzeModelForAutoLighting(THREE: any, loadedObject: any): AutoLightingResult {
+  const box = new THREE.Box3().setFromObject(loadedObject);
+  const size = box.getSize(new THREE.Vector3());
+  const volume = size.x * size.y * size.z;
+
+  let metallicCount = 0;
+  let totalMeshes = 0;
+  let hasTextures = false;
+  let avgRoughness = 0;
+
+  loadedObject.traverse((child: any) => {
+    if (!child.isMesh) return;
+    totalMeshes++;
+    const mat = child.material;
+    if (!mat) return;
+    if (mat.metalness !== undefined && mat.metalness > 0.4) metallicCount++;
+    if (mat.roughness !== undefined) avgRoughness += mat.roughness;
+    if (mat.map || mat.normalMap || mat.roughnessMap) hasTextures = true;
+  });
+
+  if (totalMeshes > 0) avgRoughness /= totalMeshes;
+  const metallicRatio = totalMeshes > 0 ? metallicCount / totalMeshes : 0;
+
+  // Decide lighting
+  let lighting: "balanced" | "soft" | "contrast" = "balanced";
+  let background: BackgroundPreset = "dark";
+  let reason = "";
+
+  if (metallicRatio > 0.5) {
+    lighting = "contrast";
+    background = "studio";
+    reason = `${Math.round(metallicRatio * 100)}% metálico → contraste alto`;
+  } else if (hasTextures && avgRoughness > 0.6) {
+    lighting = "soft";
+    background = "light";
+    reason = "Texturas com rugosidade alta → luz suave";
+  } else if (totalMeshes > 100) {
+    lighting = "balanced";
+    background = "dark";
+    reason = `${totalMeshes} meshes → iluminação equilibrada`;
+  } else {
+    lighting = "balanced";
+    background = "dark";
+    reason = "Modelo padrão → configuração equilibrada";
+  }
+
+  // Camera distance based on volume
+  let cameraDistance = 8;
+  if (volume < 8) {
+    cameraDistance = 5; // small model, closer camera
+  } else if (volume > 1000) {
+    cameraDistance = 14; // large model, farther camera
+  }
+
+  return { lighting, background, cameraDistance, reason };
+}
+
 function applyBackgroundPreset(THREE: any, scene: any, preset: BackgroundPreset) {
   const palette = BACKGROUND_PRESETS[preset];
   scene.background = new THREE.Color(palette.background);
@@ -63,7 +127,8 @@ function applyBackgroundPreset(THREE: any, scene: any, preset: BackgroundPreset)
 }
 
 function applyLightingPreset(lights: any, preset: LightingPreset) {
-  const config = LIGHTING_PRESETS[preset];
+  const resolvedPreset = preset === "auto" ? "balanced" : preset;
+  const config = LIGHTING_PRESETS[resolvedPreset];
   lights.ambient.intensity = config.ambient;
   lights.dir1.intensity = config.key;
   lights.dir2.intensity = config.fill;
@@ -99,11 +164,13 @@ function WebGLViewer({
   backgroundPreset,
   lightingPreset,
   qualityPreset,
+  onAutoLighting,
 }: GLBViewerProps & {
   controlsRef?: React.MutableRefObject<any>;
   backgroundPreset: BackgroundPreset;
   lightingPreset: LightingPreset;
   qualityPreset: QualityPreset;
+  onAutoLighting?: (result: AutoLightingResult) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -288,6 +355,26 @@ function WebGLViewer({
         }
 
         threeRef.current.loadedObject = loadedObject;
+
+        // ── Auto-Lighting IA: analyze model and suggest optimal settings ──
+        if (lightingPreset === "auto") {
+          const autoResult = analyzeModelForAutoLighting(THREE, loadedObject);
+          // Apply auto-detected settings
+          applyLightingPreset(threeRef.current.lights, autoResult.lighting);
+          applyBackgroundPreset(THREE, scene, autoResult.background);
+          const gridP = BACKGROUND_PRESETS[autoResult.background];
+          grid.visible = gridP.showGrid;
+          grid.material.color?.setHex?.(gridP.ground);
+          grid.material.needsUpdate = true;
+          renderer.setClearColor(gridP.background);
+          // Adjust camera distance
+          const camDir = camera.position.clone().normalize();
+          camera.position.copy(camDir.multiplyScalar(autoResult.cameraDistance));
+          controls.update();
+          needsRenderRef.current = true;
+          console.log(`[Auto-Lighting IA] ${autoResult.reason}`);
+          onAutoLighting?.(autoResult);
+        }
 
         // ── Pointer-based selection (supports touch + mouse) ──
         const raycaster = new THREE.Raycaster();
@@ -553,8 +640,9 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [backgroundPreset, setBackgroundPreset] = useState<BackgroundPreset>("dark");
-  const [lightingPreset, setLightingPreset] = useState<LightingPreset>("balanced");
+  const [lightingPreset, setLightingPreset] = useState<LightingPreset>("auto");
   const [qualityPreset, setQualityPreset] = useState<QualityPreset>("balanced");
+  const [autoReason, setAutoReason] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
 
@@ -602,11 +690,12 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
                 <SelectItem value="clean">Limpo (sem grade)</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={lightingPreset} onValueChange={(value: LightingPreset) => setLightingPreset(value)}>
-              <SelectTrigger className="h-8 w-[128px] bg-background/80 backdrop-blur text-xs">
+            <Select value={lightingPreset} onValueChange={(value: LightingPreset) => { setLightingPreset(value); if (value !== "auto") setAutoReason(null); }}>
+              <SelectTrigger className="h-8 w-[140px] bg-background/80 backdrop-blur text-xs">
                 <SelectValue placeholder="Iluminação" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="auto">✨ Auto (IA)</SelectItem>
                 <SelectItem value="balanced">Luz balanceada</SelectItem>
                 <SelectItem value="soft">Luz suave</SelectItem>
                 <SelectItem value="contrast">Alto contraste</SelectItem>
@@ -647,6 +736,13 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
               <TooltipContent side="bottom"><p>{isFullscreen ? "Sair da tela cheia" : "Tela cheia"}</p></TooltipContent>
             </Tooltip>
           </div>
+          {autoReason && lightingPreset === "auto" && (
+            <div className="absolute top-12 right-3 z-10">
+              <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur gap-1">
+                ✨ {autoReason}
+              </Badge>
+            </div>
+          )}
           <WebGLViewer
             fileUrl={fileUrl}
             onObjectSelect={onObjectSelect}
@@ -654,6 +750,10 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             backgroundPreset={backgroundPreset}
             lightingPreset={lightingPreset}
             qualityPreset={qualityPreset}
+            onAutoLighting={(result) => {
+              setAutoReason(result.reason);
+              setBackgroundPreset(result.background);
+            }}
           />
         </div>
       </CardContent>
