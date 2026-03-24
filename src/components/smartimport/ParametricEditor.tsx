@@ -128,16 +128,41 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const corPorta = persisted.corPorta;
   const wall = persisted.wall;
   const duplicates = persisted.duplicates;
+  const furnitureColors = persisted.furnitureColors ?? INITIAL_PERSISTED.furnitureColors;
+  const textureSlots = persisted.textureSlots ?? {};
+
+  // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
+  const textureCache = useRef<Record<string, any>>({});
 
   const setModule = useCallback((updater: ParametricModule | ((prev: ParametricModule) => ParametricModule)) => {
-    updatePersisted({
-      module: typeof updater === "function" ? updater(module) : updater,
-    });
+    updatePersisted({ module: typeof updater === "function" ? updater(module) : updater });
   }, [module, updatePersisted]);
 
   const setCorCaixa = useCallback((v: string) => updatePersisted({ corCaixa: v }), [updatePersisted]);
   const setCorPorta = useCallback((v: string) => updatePersisted({ corPorta: v }), [updatePersisted]);
   const setWall = useCallback((w: Partial<WallConfig>) => updatePersisted({ wall: { ...wall, ...w } }), [wall, updatePersisted]);
+  const setFurnitureColor = useCallback((key: keyof FurnitureColors, value: string) => {
+    updatePersisted({ furnitureColors: { ...furnitureColors, [key]: value } });
+  }, [furnitureColors, updatePersisted]);
+
+  const handleTextureUpload = useCallback((slot: keyof TextureSlots, file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      updatePersisted({ textureSlots: { ...textureSlots, [slot]: dataUrl } });
+      // Invalidate cache so it reloads
+      delete textureCache.current[slot];
+      toast.success(`Textura "${slot}" aplicada!`);
+    };
+    reader.readAsDataURL(file);
+  }, [textureSlots, updatePersisted]);
+
+  const removeTexture = useCallback((slot: keyof TextureSlots) => {
+    const updated = { ...textureSlots };
+    delete updated[slot];
+    updatePersisted({ textureSlots: updated });
+    delete textureCache.current[slot];
+  }, [textureSlots, updatePersisted]);
 
   const [showPanel, setShowPanel] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
