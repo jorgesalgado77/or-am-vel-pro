@@ -64,6 +64,43 @@ export function SmartBudgetPanel({
     }
   }, [objects, library, pricingRules, processObjects]);
 
+  // Merge parametric BOM into budget items as synthetic objects
+  useEffect(() => {
+    if (!parametricBOM || parametricBOM.parts.length === 0) return;
+
+    const bomObjects: ProjectObject[] = [
+      ...parametricBOM.parts.map((p, i) => ({
+        id: `bom-part-${i}`,
+        name: `${parametricModuleName || "Módulo"} — ${p.name}`,
+        type: "module" as any,
+        cost: 0, // cost comes from pricing rules
+        project_id: "",
+        tenant_id: "",
+        created_at: new Date().toISOString(),
+        quantity: p.quantity,
+        unit_cost: 0,
+        identified_type: "module" as any,
+      } as any)),
+      ...parametricBOM.hardware.map((h, i) => ({
+        id: `bom-hw-${i}`,
+        name: `${parametricModuleName || "Módulo"} — ${h.name}`,
+        type: "ferragem" as any,
+        cost: 0,
+        project_id: "",
+        tenant_id: "",
+        created_at: new Date().toISOString(),
+        quantity: h.quantity,
+        unit_cost: 0,
+        identified_type: "ferragem" as any,
+      } as any)),
+    ];
+
+    if (bomObjects.length > 0) {
+      const allObjects = [...objects, ...bomObjects];
+      processObjects(allObjects, library);
+    }
+  }, [parametricBOM, parametricModuleName, objects, library, processObjects]);
+
   const startEdit = (item: EnrichedBudgetItem) => {
     setEditingItemId(item.id);
     setEditForm({
