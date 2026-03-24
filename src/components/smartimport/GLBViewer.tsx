@@ -637,6 +637,7 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>("auto");
   const [qualityPreset, setQualityPreset] = useState<QualityPreset>("balanced");
   const [autoReason, setAutoReason] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
 
@@ -667,6 +668,47 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
       controls.update();
     }
   };
+
+  const exportAsPNG = useCallback(async () => {
+    const refs = controlsRef.current;
+    if (!refs?.renderer || !refs?.scene || !refs?.camera) {
+      toast.error("Viewer não está pronto para exportação");
+      return;
+    }
+    setExporting(true);
+    try {
+      const { renderer, scene, camera } = refs;
+      // Save original size
+      const origSize = renderer.getSize(new (await import("three")).Vector2());
+      const origPixelRatio = renderer.getPixelRatio();
+
+      // Render at 2x resolution (up to 3840x2160)
+      const scale = 2;
+      const w = Math.min(origSize.x * scale, 3840);
+      const h = Math.min(origSize.y * scale, 2160);
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(1);
+      renderer.render(scene, camera);
+
+      const dataUrl = renderer.domElement.toDataURL("image/png");
+
+      // Restore original size
+      renderer.setSize(origSize.x, origSize.y);
+      renderer.setPixelRatio(origPixelRatio);
+      renderer.render(scene, camera);
+
+      // Download
+      const link = document.createElement("a");
+      link.download = `modelo-3d-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success(`Imagem exportada (${w}x${h}px)`);
+    } catch (err: any) {
+      toast.error("Erro ao exportar: " + (err.message || "erro desconhecido"));
+    } finally {
+      setExporting(false);
+    }
+  }, []);
 
   return (
     <Card className="overflow-hidden">
