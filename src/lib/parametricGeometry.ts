@@ -11,15 +11,18 @@ const BODY_COLOR = 0xd4a574; // madeira clara
 const DOOR_COLOR = 0xfafafa; // branco
 const DRAWER_BODY_COLOR = 0xc4a060; // madeira mais escura para corpo gaveta
 const BASEBOARD_COLOR = 0x8b7355; // rodapé
+const WALL_COLOR = 0xe8e0d8; // parede
 const EDGE_COLOR = 0x222222;
 
 /**
  * Gera um THREE.Group representando o módulo paramétrico completo.
  * Todas as medidas convertidas de mm → unidades 3D (1 unidade = 100mm).
+ * O módulo é posicionado com a base no Y=0 (sobre o grid).
  */
 export function generateParametricGeometry(
   THREE: typeof import("three"),
-  module: ParametricModule
+  module: ParametricModule,
+  options?: { wall?: { width: number; height: number; depth: number } }
 ): InstanceType<typeof THREE.Group> {
   const group = new THREE.Group();
   group.name = `parametric_${module.name}`;
@@ -70,6 +73,35 @@ export function generateParametricGeometry(
     group.add(mesh);
     group.add(line);
     return mesh;
+  }
+
+  // ── Parede (se configurada) ──
+  if (options?.wall) {
+    const ww = options.wall.width;
+    const wh = options.wall.height;
+    const wd = options.wall.depth;
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: WALL_COLOR,
+      roughness: 0.9,
+      metalness: 0.0,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const wallEdgeMat = new THREE.LineBasicMaterial({ color: 0xbbbbbb, linewidth: 1 });
+    const wallGeo = new THREE.BoxGeometry(ww * s, wh * s, wd * s);
+    const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+    // Parede centralizada atrás do módulo
+    wallMesh.position.set(
+      (ww / 2) * s,
+      (wh / 2) * s,
+      -(wd / 2) * s
+    );
+    wallMesh.name = "Parede";
+    const wallEdges = new THREE.EdgesGeometry(wallGeo);
+    const wallLine = new THREE.LineSegments(wallEdges, wallEdgeMat);
+    wallLine.position.copy(wallMesh.position);
+    group.add(wallMesh);
+    group.add(wallLine);
   }
 
   // ── Rodapé (se existir) ──
@@ -140,8 +172,8 @@ export function generateParametricGeometry(
 
   // ── Gavetas (frente + corpo completo) ──
   const drawers = module.components.filter((c) => c.type === "gaveta");
-  const drawerBodyWidth = iw - 35; // -35mm para corrediças telescópicas
-  const drawerBodyDepth = D - 50;  // -50mm profundidade
+  const drawerBodyWidth = iw - 35;
+  const drawerBodyDepth = D - 50;
 
   drawers.forEach((drawer, i) => {
     const fh = drawer.frontHeight || 180;
@@ -156,11 +188,10 @@ export function generateParametricGeometry(
       doorMat
     );
 
-    // Corpo da gaveta — laterais (2x)
+    // Corpo da gaveta
     const bodyY = posY + bodyHeight / 2 + 5;
     const bodyZ = D / 2 + 5;
 
-    // Lateral esquerda corpo
     createPanel(
       `Lateral Gaveta E ${i + 1}`,
       15, bodyHeight, drawerBodyDepth,
@@ -168,7 +199,6 @@ export function generateParametricGeometry(
       drawerBodyMat
     );
 
-    // Lateral direita corpo
     createPanel(
       `Lateral Gaveta D ${i + 1}`,
       15, bodyHeight, drawerBodyDepth,
@@ -176,7 +206,6 @@ export function generateParametricGeometry(
       drawerBodyMat
     );
 
-    // Traseira corpo
     createPanel(
       `Traseira Gaveta ${i + 1}`,
       drawerBodyWidth - 30, bodyHeight, 15,
@@ -184,7 +213,6 @@ export function generateParametricGeometry(
       drawerBodyMat
     );
 
-    // Fundo corpo gaveta
     createPanel(
       `Fundo Gaveta ${i + 1}`,
       drawerBodyWidth - 30, 3, drawerBodyDepth - 2,
@@ -193,10 +221,12 @@ export function generateParametricGeometry(
     );
   });
 
-  // Center the group
+  // ── Posicionar módulo com base no Y=0 (sobre o grid) ──
+  // Centralizar apenas em X e Z, manter Y com base no chão
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
-  group.position.sub(center);
+  // Offset: centralize X/Z mas coloque a base (minY) em Y=0
+  group.position.set(-center.x, -box.min.y, -center.z);
 
   return group;
 }
