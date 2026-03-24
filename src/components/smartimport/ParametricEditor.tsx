@@ -1182,5 +1182,62 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         </Card>
       </div>
     </div>
+
+      {/* Save to Library Dialog */}
+      <Dialog open={showSaveLibrary} onOpenChange={setShowSaveLibrary}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-primary" /> Salvar na Biblioteca
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome do Módulo</Label>
+              <Input
+                value={saveLibName}
+                onChange={(e) => setSaveLibName(e.target.value)}
+                placeholder="Ex: Inferior 3 Gavetas"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Categoria</Label>
+              <Select value={saveLibCategory} onValueChange={(v) => { setSaveLibCategory(v); setSaveLibSubcategory(""); }}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar categoria..." /></SelectTrigger>
+                <SelectContent>
+                  {flatCategories.filter((c) => !c.parentId).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {saveLibCategory && flatCategories.filter((c) => c.parentId === saveLibCategory).length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">Subcategoria</Label>
+                <Select value={saveLibSubcategory} onValueChange={setSaveLibSubcategory}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar subcategoria..." /></SelectTrigger>
+                  <SelectContent>
+                    {flatCategories.filter((c) => c.parentId === saveLibCategory).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{"  ".repeat(c.depth)}{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              O módulo será salvo com todas as dimensões, componentes e cores atuais.
+              Poderá ser reutilizado em novos projetos.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowSaveLibrary(false)}>Cancelar</Button>
+            <Button size="sm" onClick={handleSaveToLibrary} className="gap-1.5">
+              <Save className="h-3.5 w-3.5" /> Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
