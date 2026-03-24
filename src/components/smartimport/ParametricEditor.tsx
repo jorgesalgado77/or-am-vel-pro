@@ -21,7 +21,7 @@ import type {
 } from "@/types/parametricModule";
 import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
-import { generateParametricGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
+import { generateParametricGeometry, generateWallGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
 import { generateDimensionAnnotations } from "@/lib/dimensionAnnotations";
 import { generateBomPdf } from "@/lib/generateBomPdf";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
@@ -462,11 +462,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const { matOverrides, wallOv } = await loadTexturesForSlots(THREE);
 
       const opts: GeometryOptions = { floorOffset: computedFloorOffset };
-      if (wall.enabled) {
-        opts.wall = { width: wall.width, height: wall.height, depth: wall.depth };
-        opts.wallOverrides = wallOv;
-      }
       opts.materialOverrides = matOverrides;
+
+      // Wall rendered separately — stays at ground level (Y=0)
+      if (wall.enabled) {
+        const wallGrp = generateWallGeometry(THREE, { width: wall.width, height: wall.height, depth: wall.depth }, wallOv);
+        scene.add(wallGrp);
+        threeRef.current.moduleGroups.push(wallGrp);
+      }
 
       const mainGrp = generateParametricGeometry(THREE, module, opts);
       scene.add(mainGrp);
