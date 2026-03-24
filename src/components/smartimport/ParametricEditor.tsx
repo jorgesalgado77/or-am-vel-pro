@@ -588,11 +588,12 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         id: crypto.randomUUID(),
         type,
         positionY: type === "divisoria" ? prev.width / 2 : baseY + ih / 2,
-        thickness: prev.thickness,
+        thickness: type === "gaveta" ? 18 : prev.thickness,
         frontHeight: type === "gaveta" ? 180 : undefined,
+        bottomThickness: type === "gaveta" ? 3 : undefined,
       };
       const updated = { ...prev, components: [...prev.components, comp] };
-      if (type === "prateleira") {
+      if (type === "prateleira" || type === "divisoria" || type === "gaveta") {
         return { ...updated, components: redistributeShelves(updated) };
       }
       return updated;
@@ -1128,7 +1129,6 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   </div>
                 ))}
               </div>
-              {/* Per-component thickness */}
               {module.components.length > 0 && (
                 <div className="space-y-1.5 pt-1 border-t border-border">
                   <Label className="text-[10px] text-muted-foreground">Espessura por componente</Label>
@@ -1138,26 +1138,54 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                     const thicknessOptions = isShelfOrDiv ? SHELF_THICKNESSES : isDoorOrFront ? DOOR_THICKNESSES : SHELF_THICKNESSES;
                     const typeLabel = comp.type === "prateleira" ? "Prat." : comp.type === "porta" ? "Porta" : comp.type === "gaveta" ? "Gaveta" : comp.type === "divisoria" ? "Div." : comp.type;
                     return (
-                      <div key={comp.id} className="flex items-center justify-between gap-1">
-                        <span className="text-[9px] text-foreground truncate w-16">{typeLabel} {idx + 1}</span>
-                        <Select
-                          value={String(comp.thickness)}
-                          onValueChange={(v) => {
-                            setModule((p) => {
-                              const comps = p.components.map((c) =>
-                                c.id === comp.id ? { ...c, thickness: Number(v) } : c
-                              );
-                              return { ...p, components: comps };
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="h-5 w-20 text-[9px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {thicknessOptions.map((t) => (
-                              <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div key={comp.id} className="space-y-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[9px] text-foreground truncate w-16">{typeLabel} {idx + 1}</span>
+                          <Select
+                            value={String(comp.thickness)}
+                            onValueChange={(v) => {
+                              setModule((p) => {
+                                const comps = p.components.map((c) =>
+                                  c.id === comp.id ? { ...c, thickness: Number(v) } : c
+                                );
+                                const updated = { ...p, components: comps };
+                                return comp.type === "prateleira" || comp.type === "divisoria" || comp.type === "gaveta"
+                                  ? { ...updated, components: redistributeShelves(updated) }
+                                  : updated;
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-5 w-20 text-[9px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {thicknessOptions.map((t) => (
+                                <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {comp.type === "gaveta" && (
+                          <div className="flex items-center justify-between gap-1 pl-2">
+                            <span className="text-[9px] text-muted-foreground truncate w-16">Fundo</span>
+                            <Select
+                              value={String(comp.bottomThickness ?? 3)}
+                              onValueChange={(v) => {
+                                setModule((p) => ({
+                                  ...p,
+                                  components: p.components.map((c) =>
+                                    c.id === comp.id ? { ...c, bottomThickness: Number(v) } : c
+                                  ),
+                                }));
+                              }}
+                            >
+                              <SelectTrigger className="h-5 w-20 text-[9px]"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {[3, 6, 15].map((t) => (
+                                  <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

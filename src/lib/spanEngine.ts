@@ -82,7 +82,7 @@ export function calculateInternalSpans(module: ParametricModule): SpanResult {
  */
 export function redistributeShelves(module: ParametricModule): InternalComponent[] {
   const spans = calculateInternalSpans(module);
-  const { thickness, baseboardHeight = 0, width, height, depth } = module;
+  const { thickness, baseboardHeight = 0, width, height } = module;
   const internalWidth = width - thickness * 2;
   const internalHeight = height - thickness * 2 - baseboardHeight;
 
@@ -93,37 +93,39 @@ export function redistributeShelves(module: ParametricModule): InternalComponent
     c.type !== "prateleira" && c.type !== "divisoria" && c.type !== "gaveta"
   );
 
-  // Redistribute shelves evenly
   const updatedShelves = shelves.map((shelf, i) => ({
     ...shelf,
     positionY: spans.shelfPositions[i] ?? shelf.positionY,
   }));
 
-  // Redistribute dividers evenly across internal width (same logic as shelves but horizontal)
-  const updatedDividers = dividers.map((div, i) => {
-    const divThickness = div.thickness || thickness;
-    const totalDivThickness = dividers.reduce((s, d) => s + (d.thickness || thickness), 0);
-    const freeWidth = internalWidth - totalDivThickness;
-    const numSlots = dividers.length + 1;
-    const slotWidth = freeWidth / numSlots;
+  const totalDivThickness = dividers.reduce((sum, div) => sum + (div.thickness || thickness), 0);
+  const dividerSpanCount = dividers.length + 1;
+  const freeWidth = Math.max(0, internalWidth - totalDivThickness);
+  const slotWidth = dividerSpanCount > 0 ? freeWidth / dividerSpanCount : freeWidth;
+  let currentX = thickness;
 
-    // Position: start from left internal edge, add slot + previous dividers
-    let posX = thickness; // start after left side panel
-    for (let j = 0; j <= i; j++) {
-      posX += slotWidth;
-      if (j < i) posX += (dividers[j].thickness || thickness);
-    }
-    // posX is now at the left edge of divider i, add half thickness for center
-    return { ...div, positionY: snapToGrid(posX + divThickness / 2) };
+  const updatedDividers = dividers.map((div) => {
+    currentX += slotWidth;
+    const divThickness = div.thickness || thickness;
+    const centerX = currentX + divThickness / 2;
+    currentX += divThickness;
+    return { ...div, positionY: snapToGrid(centerX) };
   });
 
-  // Redistribute drawers from TOP down within internal space
-  const updatedDrawers = drawers.map((drawer, i) => {
+  const totalDrawerFrontHeight = drawers.reduce((sum, drawer) => sum + (drawer.frontHeight || 180), 0);
+  const freeDrawerGap = Math.max(0, internalHeight - totalDrawerFrontHeight);
+  const drawerGap = drawers.length > 0 ? freeDrawerGap / (drawers.length + 1) : 0;
+  let currentDrawerBottom = baseboardHeight + thickness + drawerGap;
+
+  const updatedDrawers = drawers.map((drawer) => {
     const fh = drawer.frontHeight || 180;
-    // Start from the top of the internal space and stack downward
-    const topY = height - thickness; // top internal edge
-    const posY = topY - (i + 1) * fh; // each drawer stacks below the previous
-    return { ...drawer, positionY: snapToGrid(posY) };
+    const updatedDrawer = {
+      ...drawer,
+      bottomThickness: drawer.bottomThickness ?? 3,
+      positionY: snapToGrid(currentDrawerBottom),
+    };
+    currentDrawerBottom += fh + drawerGap;
+    return updatedDrawer;
   });
 
   return [...others, ...updatedShelves, ...updatedDividers, ...updatedDrawers];
@@ -265,8 +267,9 @@ export function generateBOM(module: ParametricModule): ModuleBOM {
 
     drawers.forEach((d, i) => {
       const fh = d.frontHeight || 180;
+      const bodyThickness = d.thickness || 18;
+      const bottomThickness = d.bottomThickness || 3;
 
-      // Frente da gaveta (sobreposta)
       parts.push({
         name: `Frente Gaveta ${i + 1}`,
         quantity: 1,
@@ -278,41 +281,38 @@ export function generateBOM(module: ParametricModule): ModuleBOM {
         material: "MDF",
       });
 
-      // Laterais do corpo (2x)
-      const bodyHeight = fh - 30; // corpo menor que a frente
+      const bodyHeight = fh - 30;
       parts.push({
         name: `Lateral Gaveta ${i + 1}`,
         quantity: 2,
         width: drawerBodyDepth,
         height: bodyHeight,
-        thickness: 15,
+        thickness: bodyThickness,
         area: (drawerBodyDepth * bodyHeight * 2) / 1_000_000,
         edgeBanding: ((drawerBodyDepth + bodyHeight) * 2 * 2) / 1000,
         material: "MDF",
       });
 
-      // Frente e traseira do corpo (2x)
       parts.push({
         name: `Frente/Tras Corpo Gaveta ${i + 1}`,
         quantity: 2,
-        width: drawerBodyWidth - 30, // descontar laterais do corpo
+        width: drawerBodyWidth - bodyThickness * 2,
         height: bodyHeight,
-        thickness: 15,
-        area: ((drawerBodyWidth - 30) * bodyHeight * 2) / 1_000_000,
-        edgeBanding: (((drawerBodyWidth - 30) + bodyHeight) * 2 * 2) / 1000,
+        thickness: bodyThickness,
+        area: ((drawerBodyWidth - bodyThickness * 2) * bodyHeight * 2) / 1_000_000,
+        edgeBanding: (((drawerBodyWidth - bodyThickness * 2) + bodyHeight) * 2 * 2) / 1000,
         material: "MDF",
       });
 
-      // Fundo da gaveta
       parts.push({
         name: `Fundo Gaveta ${i + 1}`,
         quantity: 1,
-        width: drawerBodyWidth - 30,
+        width: drawerBodyWidth - bodyThickness * 2,
         height: drawerBodyDepth - 2,
-        thickness: 3,
-        area: ((drawerBodyWidth - 30) * (drawerBodyDepth - 2)) / 1_000_000,
+        thickness: bottomThickness,
+        area: ((drawerBodyWidth - bodyThickness * 2) * (drawerBodyDepth - 2)) / 1_000_000,
         edgeBanding: 0,
-        material: "HDF",
+        material: bottomThickness <= 6 ? "HDF" : "MDF",
       });
     });
 
