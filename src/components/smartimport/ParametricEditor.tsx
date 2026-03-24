@@ -364,6 +364,65 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
             </CardContent>
           </Card>
 
+          {/* Cores e Materiais */}
+          <Card>
+            <CardContent className="p-3 space-y-3">
+              <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Palette className="h-3.5 w-3.5 text-primary" /> Cores e Materiais
+              </h4>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Cor da Caixa</Label>
+                  {cores.length > 0 ? (
+                    <Select value={corCaixa} onValueChange={setCorCaixa}>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar cor..." /></SelectTrigger>
+                      <SelectContent>
+                        {cores.map((c) => (
+                          <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input className="h-7 text-xs" placeholder="Ex: Branco TX" value={corCaixa} onChange={(e) => setCorCaixa(e.target.value)} />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px]">Cor da Porta</Label>
+                  {cores.length > 0 ? (
+                    <Select value={corPorta} onValueChange={setCorPorta}>
+                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar cor..." /></SelectTrigger>
+                      <SelectContent>
+                        {cores.map((c) => (
+                          <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input className="h-7 text-xs" placeholder="Ex: Cinza Sagrado" value={corPorta} onChange={(e) => setCorPorta(e.target.value)} />
+                  )}
+                </div>
+                {materiais.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Material Principal</Label>
+                    <Select
+                      value={module.bodyMaterialId || ""}
+                      onValueChange={(v) => setModule((p) => ({ ...p, bodyMaterialId: v || undefined }))}
+                    >
+                      <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar material..." /></SelectTrigger>
+                      <SelectContent>
+                        {materiais.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name} {m.cost ? `(R$ ${m.cost.toFixed(2)})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Ações */}
           <div className="flex gap-2">
             <Button size="sm" className="flex-1 gap-1.5" onClick={handleSave}>
