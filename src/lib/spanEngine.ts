@@ -10,7 +10,6 @@ import type {
   PartListItem,
   HardwareItem,
   ModuleBOM,
-  SNAP_GRID_MM,
 } from "@/types/parametricModule";
 
 /**
@@ -22,12 +21,16 @@ export function snapToGrid(value: number, grid: number = 10): number {
 
 /**
  * Calcula os vãos internos de um módulo baseado nas prateleiras.
+ * Considera rodapé (baseboardHeight) e espessura das chapas.
  */
 export function calculateInternalSpans(module: ParametricModule): SpanResult {
-  const { height, thickness } = module;
+  const { height, width, thickness, baseboardHeight = 0 } = module;
 
-  // Altura interna = altura total - topo - base
-  const vaoInterno = height - thickness * 2;
+  // Altura interna = altura total - topo - base - rodapé
+  const vaoInterno = height - thickness * 2 - baseboardHeight;
+
+  // Largura interna = largura total - lateral esquerda - lateral direita
+  const larguraInterna = width - thickness * 2;
 
   // Filtra apenas prateleiras
   const shelves = module.components.filter((c) => c.type === "prateleira");
@@ -36,6 +39,7 @@ export function calculateInternalSpans(module: ParametricModule): SpanResult {
   if (qtdPrateleiras === 0) {
     return {
       vaoInterno,
+      larguraInterna,
       vaoLivre: vaoInterno,
       vaoUnitario: vaoInterno,
       quantidadeVaos: 1,
@@ -55,7 +59,7 @@ export function calculateInternalSpans(module: ParametricModule): SpanResult {
 
   // Calcula posições Y automáticas (distribuição uniforme)
   const shelfPositions: number[] = [];
-  let currentY = thickness; // começa após a base
+  let currentY = thickness + baseboardHeight; // começa após a base + rodapé
 
   for (let i = 0; i < qtdPrateleiras; i++) {
     currentY += vaoUnitario;
@@ -65,6 +69,7 @@ export function calculateInternalSpans(module: ParametricModule): SpanResult {
 
   return {
     vaoInterno,
+    larguraInterna,
     vaoLivre,
     vaoUnitario: snapToGrid(vaoUnitario),
     quantidadeVaos,
@@ -91,15 +96,20 @@ export function redistributeShelves(module: ParametricModule): InternalComponent
 
 /**
  * Gera a lista de peças (BOM) de um módulo paramétrico.
+ * Regras de marcenaria:
+ * - Portas: altura = alturaTotal - 7mm, largura = (larguraTotal / qtdPortas) - 4mm por porta
+ * - Prateleiras: profundidade = profundidadeTotal - 70mm
+ * - Gavetas corpo: largura = larguraInterna - 35mm (para corrediças), profundidade = profundidadeTotal - 50mm
+ * - Fundo: largura = larguraTotal, altura = alturaTotal (fixo por trás)
  */
 export function generateBOM(module: ParametricModule): ModuleBOM {
-  const { width, height, depth, thickness, backThickness } = module;
+  const { width, height, depth, thickness, backThickness, baseboardHeight = 0 } = module;
   const parts: PartListItem[] = [];
   const hardware: HardwareItem[] = [];
 
   // Dimensões internas
   const internalWidth = width - thickness * 2;
-  const internalHeight = height - thickness * 2;
+  const internalHeight = height - thickness * 2 - baseboardHeight;
 
   // ── Corpo (caixa) ──
 
@@ -127,14 +137,28 @@ export function generateBOM(module: ParametricModule): ModuleBOM {
     material: "MDF",
   });
 
-  // Fundo
+  // Rodapé (se existir)
+  if (baseboardHeight > 0) {
+    parts.push({
+      name: "Rodapé",
+      quantity: 1,
+      width: internalWidth,
+      height: baseboardHeight,
+      thickness,
+      area: (internalWidth * baseboardHeight) / 1_000_000,
+      edgeBanding: (internalWidth) / 1000,
+      material: "MDF",
+    });
+  }
+
+  // Fundo — largura total × altura total (fixo por trás)
   parts.push({
     name: "Fundo",
     quantity: 1,
-    width: width - 4,
-    height: height - 4,
+    width: width,
+    height: height,
     thickness: backThickness,
-    area: ((width - 4) * (height - 4)) / 1_000_000,
+    area: (width * height) / 1_000_000,
     edgeBanding: 0,
     material: "HDF",
   });
@@ -154,9 +178,10 @@ export function generateBOM(module: ParametricModule): ModuleBOM {
     });
   }
 
-  // ── Prateleiras ──
+  // ── Prateleiras (profundidade = total - 70mm) ──
   const shelves = module.components.filter((c) => c.type === "prateleira");
   if (shelves.length > 0) {
+    const shelfDepth = depth - 70;
     const shelfWidth = divs.length > 0
       ? (internalWidth - divs.length * thickness) / (divs.length + 1)
       : internalWidth;
@@ -165,25 +190,28 @@ export function generateBOM(module: ParametricModule): ModuleBOM {
       name: "Prateleira",
       quantity: shelves.length * (divs.length + 1),
       width: shelfWidth,
-      height: depth - 20,
+      height: shelfDepth,
       thickness,
-      area: (shelfWidth * (depth - 20) * shelves.length * (divs.length + 1)) / 1_000_000,
+      area: (shelfWidth * shelfDepth * shelves.length * (divs.length + 1)) / 1_000_000,
       edgeBanding: (shelfWidth * shelves.length * (divs.length + 1)) / 1000,
       material: "MDF",
     });
   }
 
-  // ── Portas ──
+  // ── Portas (altura = total - 7mm, largura = total/qtd - 4mm por porta) ──
   const doors = module.components.filter((c) => c.type === "porta");
   if (doors.length > 0) {
+    const doorHeight = height - 7;
+    const doorWidth = (width / doors.length) - 4;
+
     parts.push({
       name: "Porta",
       quantity: doors.length,
-      width: width / doors.length - 3,
-      height: height - 3,
+      width: doorWidth,
+      height: doorHeight,
       thickness,
-      area: ((width / doors.length - 3) * (height - 3) * doors.length) / 1_000_000,
-      edgeBanding: (((width / doors.length - 3) + (height - 3)) * 2 * doors.length) / 1000,
+      area: (doorWidth * doorHeight * doors.length) / 1_000_000,
+      edgeBanding: ((doorWidth + doorHeight) * 2 * doors.length) / 1000,
       material: "MDF",
     });
 
@@ -192,21 +220,64 @@ export function generateBOM(module: ParametricModule): ModuleBOM {
     hardware.push({ name: "Puxador", quantity: doors.length, unit: "pç" });
   }
 
-  // ── Gavetas ──
+  // ── Gavetas (frente + corpo) ──
   const drawers = module.components.filter((c) => c.type === "gaveta");
   if (drawers.length > 0) {
-    const drawerWidth = internalWidth - 26;
-    drawers.forEach((d) => {
+    // Corpo da gaveta: largura = interna - 35mm (corrediças telescópicas)
+    // Profundidade do corpo = profundidade total - 50mm
+    const drawerBodyWidth = internalWidth - 35;
+    const drawerBodyDepth = depth - 50;
+
+    drawers.forEach((d, i) => {
       const fh = d.frontHeight || 180;
+
+      // Frente da gaveta (sobreposta)
       parts.push({
-        name: "Frente de Gaveta",
+        name: `Frente Gaveta ${i + 1}`,
         quantity: 1,
-        width: drawerWidth + 26,
+        width: internalWidth + 2,
         height: fh,
         thickness,
-        area: ((drawerWidth + 26) * fh) / 1_000_000,
-        edgeBanding: (((drawerWidth + 26) + fh) * 2) / 1000,
+        area: ((internalWidth + 2) * fh) / 1_000_000,
+        edgeBanding: (((internalWidth + 2) + fh) * 2) / 1000,
         material: "MDF",
+      });
+
+      // Laterais do corpo (2x)
+      const bodyHeight = fh - 30; // corpo menor que a frente
+      parts.push({
+        name: `Lateral Gaveta ${i + 1}`,
+        quantity: 2,
+        width: drawerBodyDepth,
+        height: bodyHeight,
+        thickness: 15,
+        area: (drawerBodyDepth * bodyHeight * 2) / 1_000_000,
+        edgeBanding: ((drawerBodyDepth + bodyHeight) * 2 * 2) / 1000,
+        material: "MDF",
+      });
+
+      // Frente e traseira do corpo (2x)
+      parts.push({
+        name: `Frente/Tras Corpo Gaveta ${i + 1}`,
+        quantity: 2,
+        width: drawerBodyWidth - 30, // descontar laterais do corpo
+        height: bodyHeight,
+        thickness: 15,
+        area: ((drawerBodyWidth - 30) * bodyHeight * 2) / 1_000_000,
+        edgeBanding: (((drawerBodyWidth - 30) + bodyHeight) * 2 * 2) / 1000,
+        material: "MDF",
+      });
+
+      // Fundo da gaveta
+      parts.push({
+        name: `Fundo Gaveta ${i + 1}`,
+        quantity: 1,
+        width: drawerBodyWidth - 30,
+        height: drawerBodyDepth - 2,
+        thickness: 3,
+        area: ((drawerBodyWidth - 30) * (drawerBodyDepth - 2)) / 1_000_000,
+        edgeBanding: 0,
+        material: "HDF",
       });
     });
 
