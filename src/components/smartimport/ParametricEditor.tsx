@@ -21,8 +21,8 @@ import type {
 } from "@/types/parametricModule";
 import { MODULE_PRESETS, SHEET_THICKNESSES, BACK_THICKNESSES } from "@/types/parametricModule";
 import { calculateInternalSpans, generateBOM, redistributeShelves, snapToGrid } from "@/lib/spanEngine";
-import { generateParametricGeometry, generateWallGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides } from "@/lib/parametricGeometry";
-import { generateDimensionAnnotations } from "@/lib/dimensionAnnotations";
+import { generateParametricGeometry, generateWallGeometry, generateFloorGeometry, type GeometryOptions, type MaterialOverrides, type WallOverrides, type FloorOverrides } from "@/lib/parametricGeometry";
+import { generateDimensionAnnotations, COTA_LEGEND } from "@/lib/dimensionAnnotations";
 import { generateBomPdf } from "@/lib/generateBomPdf";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 import { useModuleCategories, type CategoryTreeNode } from "@/hooks/useModuleCategories";
@@ -78,6 +78,7 @@ interface TextureSlots {
   back?: string;
   drawer?: string;
   wall?: string;
+  floor?: string;
 }
 
 interface FurnitureColors {
@@ -156,6 +157,9 @@ interface PersistedBuilderState {
   showCotas: boolean;
   floorHeightInferior: number;
   floorHeightSuperior: number;
+  floorColor: string;
+  openDoors: boolean;
+  openDrawers: boolean;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -170,6 +174,9 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   showCotas: false,
   floorHeightInferior: 200,
   floorHeightSuperior: 1500,
+  floorColor: "#d6d3cd",
+  openDoors: false,
+  openDrawers: false,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
@@ -188,6 +195,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const showCotas = persisted.showCotas ?? false;
   const floorHeightInferior = persisted.floorHeightInferior ?? 200;
   const floorHeightSuperior = persisted.floorHeightSuperior ?? 1500;
+  const floorColor = persisted.floorColor ?? "#d6d3cd";
+  const openDoors = persisted.openDoors ?? false;
+  const openDrawers = persisted.openDrawers ?? false;
 
   // Loaded THREE.Texture cache (not persisted, rebuilt from dataURLs)
   const textureCache = useRef<Record<string, any>>({});
@@ -393,7 +403,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   }, []);
 
   // ── Load textures from data URLs ──
-  const loadTexturesForSlots = useCallback(async (THREE: any): Promise<{ matOverrides: MaterialOverrides; wallOv: WallOverrides }> => {
+  const loadTexturesForSlots = useCallback(async (THREE: any): Promise<{ matOverrides: MaterialOverrides; wallOv: WallOverrides; floorOv: FloorOverrides }> => {
     const loader = new THREE.TextureLoader();
     const matOverrides: MaterialOverrides = {};
     const wallOv: WallOverrides = {};
@@ -426,8 +436,12 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
     const slots: [keyof TextureSlots, string][] = [
       ["body", "body"], ["door", "door"], ["shelf", "shelf"],
-      ["back", "back"], ["drawer", "drawer"], ["wall", "wall"],
+      ["back", "back"], ["drawer", "drawer"], ["wall", "wall"], ["floor", "floor"],
     ];
+
+    const floorOv: FloorOverrides = {
+      color: parseInt(floorColor.replace("#", ""), 16),
+    };
 
     await Promise.all(slots.map(async ([slot, key]) => {
       const dataUrl = textureSlots[slot];
@@ -435,11 +449,12 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const tex = await loadTex(dataUrl, key);
       if (!tex) return;
       if (slot === "wall") wallOv.texture = tex;
+      else if (slot === "floor") floorOv.texture = tex;
       else (matOverrides as any)[`${key}Texture`] = tex;
     }));
 
-    return { matOverrides, wallOv };
-  }, [furnitureColors, textureSlots, wall.color]);
+    return { matOverrides, wallOv, floorOv };
+  }, [furnitureColors, textureSlots, wall.color, floorColor]);
 
   // Compute floor offset based on module type
   const computedFloorOffset = useMemo(() => {
@@ -472,9 +487,9 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       newGrid.name = "floor_grid";
       scene.add(newGrid);
 
-      const { matOverrides, wallOv } = await loadTexturesForSlots(THREE);
+      const { matOverrides, wallOv, floorOv } = await loadTexturesForSlots(THREE);
 
-      const opts: GeometryOptions = { floorOffset: computedFloorOffset };
+      const opts: GeometryOptions = { floorOffset: computedFloorOffset, openDoors, openDrawers };
       opts.materialOverrides = matOverrides;
 
       // Wall rendered separately — stays at ground level (Y=0), behind modules
@@ -482,6 +497,11 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         const wallGrp = generateWallGeometry(THREE, { width: wall.width, height: wall.height, depth: wall.depth }, wallOv);
         scene.add(wallGrp);
         threeRef.current.moduleGroups.push(wallGrp);
+
+        // Floor layer on top of grid
+        const floorGrp = generateFloorGeometry(THREE, wall.width, floorOv);
+        scene.add(floorGrp);
+        threeRef.current.moduleGroups.push(floorGrp);
       }
 
       const mainGrp = generateParametricGeometry(THREE, module, opts);
@@ -489,7 +509,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       threeRef.current.moduleGroups.push(mainGrp);
 
       duplicates.forEach((dup) => {
-        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides, floorOffset: computedFloorOffset });
+        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides, floorOffset: computedFloorOffset, openDoors, openDrawers });
         dupGrp.position.x += dup.positionX * 0.01;
         dupGrp.position.z += dup.positionZ * 0.01;
         scene.add(dupGrp);
@@ -509,7 +529,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       needsRenderRef.current = true;
     })();
-  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset]);
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
@@ -947,6 +967,49 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                       Dormitório, bancadas e outros: 0mm do piso
                     </p>
                   </div>
+
+                  {/* Floor (Piso) color & texture */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <Label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                      <Square className="h-3 w-3" /> Piso
+                    </Label>
+                    <div className="flex gap-1 flex-wrap">
+                      {[
+                        { label: "Cinza Claro", value: "#d6d3cd" },
+                        { label: "Branco", value: "#f0ede8" },
+                        { label: "Madeira", value: "#c4a060" },
+                        { label: "Escuro", value: "#555555" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          className={`w-7 h-7 rounded border-2 transition-all ${floorColor === opt.value ? "border-primary scale-110" : "border-border"}`}
+                          style={{ backgroundColor: opt.value }}
+                          onClick={() => updatePersisted({ floorColor: opt.value })}
+                          title={opt.label}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border cursor-pointer text-[10px] hover:bg-muted transition-colors">
+                        <Upload className="h-3 w-3" /> Textura Piso
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleTextureUpload("floor", f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {textureSlots.floor && (
+                        <div className="flex items-center gap-1">
+                          <img src={textureSlots.floor} className="h-7 w-7 rounded border border-border object-cover" alt="floor texture" />
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => removeTexture("floor")}>
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1235,7 +1298,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}
             />
-            <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end">
+            <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end max-w-[65%]">
               <Button
                 variant={showCotas ? "default" : "outline"}
                 size="sm"
@@ -1245,6 +1308,28 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 {showCotas ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                 Cotas
               </Button>
+              {doorCount > 0 && (
+                <Button
+                  variant={openDoors ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 text-[10px] px-2 gap-1"
+                  onClick={() => updatePersisted({ openDoors: !openDoors })}
+                >
+                  {openDoors ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  Portas
+                </Button>
+              )}
+              {drawerCount > 0 && (
+                <Button
+                  variant={openDrawers ? "default" : "outline"}
+                  size="sm"
+                  className="h-6 text-[10px] px-2 gap-1"
+                  onClick={() => updatePersisted({ openDrawers: !openDrawers })}
+                >
+                  {openDrawers ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  Gavetas
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -1316,6 +1401,18 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 </Badge>
               )}
             </div>
+            {/* Cota color legend */}
+            {showCotas && (
+              <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm rounded-lg border border-border p-2 space-y-0.5 z-10">
+                <p className="text-[9px] font-semibold text-foreground mb-1">Legenda das Cotas</p>
+                {COTA_LEGEND.map((item) => (
+                  <div key={item.color} className="flex items-center gap-1.5">
+                    <span className="w-3 h-2 rounded-sm inline-block" style={{ backgroundColor: item.hex }} />
+                    <span className="text-[8px] text-muted-foreground">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
