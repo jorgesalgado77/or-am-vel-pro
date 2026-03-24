@@ -28,6 +28,8 @@ export interface InternalComponent {
   opening?: "left" | "right" | "up" | "down";
   /** Para gavetas: altura da frente (mm) */
   frontHeight?: number;
+  /** Para gavetas: altura manual da frente definida pelo usuário (mm) */
+  manualFrontHeight?: number;
   /** Para gavetas: espessura do fundo (mm) */
   bottomThickness?: number;
   /** Cor/material override (se diferente do corpo) */

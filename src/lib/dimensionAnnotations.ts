@@ -159,6 +159,8 @@ export interface DimensionOptions {
   floorOffset?: number;
   moduleOffset?: { x: number; y: number };
   duplicates?: Array<{ positionX: number; positionZ?: number; module: { width: number; depth: number } }>;
+  /** Pass the module to read dividers for span annotations */
+  moduleData?: import("@/types/parametricModule").ParametricModule;
 }
 
 /**
@@ -353,6 +355,56 @@ export function generateDimensionAnnotations(
       new THREE.Vector3(totalRight, top + 0.25, front * 0.3),
       `Total:${totalMm}mm`, upDir, 0.20, "purple", baseTag * 0.9
     ));
+  }
+
+  // ═══ DIVIDER SPAN WIDTHS ═══
+  if (options?.moduleData) {
+    const dividers = options.moduleData.components.filter((c) => c.type === "divisoria");
+    if (dividers.length > 0) {
+      const iw = W - T * 2;
+      const totalDivThick = dividers.reduce((sum, d) => sum + (d.thickness || T), 0);
+      const freeW = iw - totalDivThick;
+      const slotCount = dividers.length + 1;
+      const slotW = freeW / slotCount;
+
+      // Calculate divider X positions (same logic as redistributeShelves)
+      const divPositions: number[] = [];
+      let cx = T;
+      for (const div of dividers) {
+        cx += slotW;
+        const dt = div.thickness || T;
+        divPositions.push(cx + dt / 2);
+        cx += dt;
+      }
+
+      // Build edges: left wall, each divider center, right wall
+      const edges: number[] = [T];
+      divPositions.forEach((pos, i) => {
+        const dt = dividers[i].thickness || T;
+        edges.push(pos - dt / 2); // left edge of divider
+        edges.push(pos + dt / 2); // right edge of divider
+      });
+      edges.push(W - T);
+
+      // Annotate each slot width at mid-height of module
+      const midY = bottom + (H * sc) / 2;
+      const zPos = front + 0.15;
+      for (let i = 0; i < edges.length - 1; i += 2) {
+        const slotLeft = edges[i];
+        const slotRight = edges[i + 1];
+        const slotMm = Math.round(slotRight - slotLeft);
+        if (slotMm > 0) {
+          const xL = left + slotLeft * sc;
+          const xR = left + slotRight * sc;
+          group.add(createDimensionLine(
+            THREE,
+            new THREE.Vector3(xL, midY, zPos),
+            new THREE.Vector3(xR, midY, zPos),
+            `V:${slotMm}mm`, forwardDir, 0.05, "green", baseTag * 0.75
+          ));
+        }
+      }
+    }
   }
 
   return group;

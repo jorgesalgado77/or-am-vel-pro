@@ -112,21 +112,25 @@ export function redistributeShelves(module: ParametricModule): InternalComponent
     return { ...div, positionY: snapToGrid(centerX) };
   });
 
-  // Redistribute drawers: fill entire internal height equally, 3mm gap between fronts
+  // Redistribute drawers: N drawers have (N+1) gaps of 4mm
+  // frontHeight = (moduleHeight - (N+1)*4) / N  (uses full module height for fronts)
+  // frontWidth = moduleWidth - 4mm (calculated at render/BOM time)
   const numDrawers = Math.min(drawers.length, 4);
-  const totalGaps = numDrawers > 1 ? (numDrawers - 1) * 3 : 0;
-  const autoFrontHeight = numDrawers > 0 ? Math.floor((internalHeight - totalGaps) / numDrawers) : 180;
+  const totalGaps4mm = (numDrawers + 1) * 4; // gaps between fronts AND top/bottom of module
+  const moduleH = height;
+  const autoFrontHeight = numDrawers > 0 ? Math.floor((moduleH - totalGaps4mm) / numDrawers) : 180;
   let currentDrawerY = baseboardHeight + thickness;
 
   const updatedDrawers = drawers.slice(0, 4).map((drawer, i) => {
-    const fh = autoFrontHeight;
+    // Use individual frontHeight if manually set, otherwise auto-calculate
+    const fh = drawer.manualFrontHeight ?? autoFrontHeight;
     const updatedDrawer = {
       ...drawer,
       frontHeight: fh,
       bottomThickness: drawer.bottomThickness ?? 3,
       positionY: snapToGrid(currentDrawerY),
     };
-    currentDrawerY += fh + 3; // 3mm gap between fronts
+    currentDrawerY += fh + 4; // 4mm gap between fronts
     return updatedDrawer;
   });
 

@@ -563,6 +563,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
           floorOffset: computedFloorOffset,
           moduleOffset: { x: moduleOffsetX, y: moduleOffsetY },
           duplicates: duplicates.map((d) => ({ positionX: d.positionX + moduleOffsetX, positionZ: d.positionZ, module: { width: d.module.width, depth: d.module.depth } })),
+          moduleData: module,
         });
         scene.add(dimGroup);
         threeRef.current.moduleGroups.push(dimGroup);
@@ -1192,27 +1193,48 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                           </Select>
                         </div>
                         {comp.type === "gaveta" && (
-                          <div className="flex items-center justify-between gap-1 pl-2">
-                            <span className="text-[9px] text-muted-foreground truncate w-16">Fundo</span>
-                            <Select
-                              value={String(comp.bottomThickness ?? 3)}
-                              onValueChange={(v) => {
-                                setModule((p) => ({
-                                  ...p,
-                                  components: p.components.map((c) =>
-                                    c.id === comp.id ? { ...c, bottomThickness: Number(v) } : c
-                                  ),
-                                }));
-                              }}
-                            >
-                              <SelectTrigger className="h-5 w-20 text-[9px]"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {[3, 6, 15].map((t) => (
-                                  <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <>
+                            <div className="flex items-center justify-between gap-1 pl-2">
+                              <span className="text-[9px] text-muted-foreground truncate w-16">Frente Alt.</span>
+                              <Input
+                                type="number"
+                                className="h-5 w-20 text-[9px] px-1"
+                                value={comp.manualFrontHeight ?? comp.frontHeight ?? ""}
+                                placeholder="Auto"
+                                onChange={(e) => {
+                                  const val = e.target.value ? Number(e.target.value) : undefined;
+                                  setModule((p) => {
+                                    const comps = p.components.map((c) =>
+                                      c.id === comp.id ? { ...c, manualFrontHeight: val } : c
+                                    );
+                                    const updated = { ...p, components: comps };
+                                    return { ...updated, components: redistributeShelves(updated) };
+                                  });
+                                }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between gap-1 pl-2">
+                              <span className="text-[9px] text-muted-foreground truncate w-16">Fundo</span>
+                              <Select
+                                value={String(comp.bottomThickness ?? 3)}
+                                onValueChange={(v) => {
+                                  setModule((p) => ({
+                                    ...p,
+                                    components: p.components.map((c) =>
+                                      c.id === comp.id ? { ...c, bottomThickness: Number(v) } : c
+                                    ),
+                                  }));
+                                }}
+                              >
+                                <SelectTrigger className="h-5 w-20 text-[9px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {[3, 6, 15].map((t) => (
+                                    <SelectItem key={t} value={String(t)}>{t}mm</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </>
                         )}
                       </div>
                     );
