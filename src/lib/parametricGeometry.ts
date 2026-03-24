@@ -82,9 +82,10 @@ export function generateWallGeometry(
   group.add(wallMesh);
   group.add(wallLine);
 
+  // Center only X, keep Y at floor and Z behind modules (front face at Z=0)
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
-  group.position.set(-center.x, -box.min.y, -center.z);
+  group.position.set(-center.x, -box.min.y, -box.max.z);
 
   return group;
 }
