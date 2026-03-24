@@ -879,10 +879,34 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         newY = Math.max(0, Math.min(wall.height - module.height - computedFloorOffset, newY));
       }
 
+      // Collision detection with duplicates
+      if (collisionEnabled && wall.enabled) {
+        const mainLeft = newX - module.width / 2;
+        const mainRight = newX + module.width / 2;
+        for (const d of duplicates) {
+          const dupLeft = d.positionX + moduleOffsetX - d.module.width / 2;
+          const dupRight = d.positionX + moduleOffsetX + d.module.width / 2;
+          if (mainRight > dupLeft && mainLeft < dupRight) {
+            // Collision — push to nearest side
+            const pushLeft = dupLeft - module.width / 2;
+            const pushRight = dupRight + module.width / 2;
+            newX = Math.abs(newX - pushLeft) < Math.abs(newX - pushRight) ? pushLeft : pushRight;
+          }
+        }
+        // Re-clamp after collision
+        if (wall.enabled) {
+          const halfWall = wall.width / 2;
+          const halfMod = module.width / 2;
+          newX = Math.max(-halfWall + halfMod, Math.min(halfWall - halfMod, newX));
+        }
+      }
+
       updatePersisted({ moduleOffsetX: newX, moduleOffsetY: newY });
     } else {
       let newX = snapToGrid(dragRef.current.startX + dx * scale);
       const newZ = snapToGrid(dragRef.current.startY + dy * scale);
+      const dragDup = duplicates.find((d) => d.id === dragRef.current!.id);
+      const dragW = dragDup?.module.width || module.width;
 
       if (wall.enabled) {
         const mainRight = moduleOffsetX + module.width / 2;
@@ -891,11 +915,63 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         duplicates.forEach((d) => {
           if (d.id !== dragRef.current!.id) {
             snapTargetsX.push(d.positionX + d.module.width + 3);
-            snapTargetsX.push(d.positionX - module.width - 3);
+            snapTargetsX.push(d.positionX - dragW - 3);
           }
         });
-        snapTargetsX.push(mainRight + 3, mainLeft - module.width - 3);
+        snapTargetsX.push(mainRight + 3, mainLeft - dragW - 3);
         newX = magneticSnap(newX, snapTargetsX);
+
+        // Collision with wall limits for duplicates
+        if (collisionEnabled) {
+          const halfWall = wall.width / 2;
+          const absX = newX + moduleOffsetX;
+          const dupHalf = dragW / 2;
+          const clampedAbs = Math.max(-halfWall + dupHalf, Math.min(halfWall - dupHalf, absX));
+          newX = clampedAbs - moduleOffsetX;
+        }
+      }
+
+      // Collision with main module and other duplicates
+      if (collisionEnabled) {
+        const absX = newX + moduleOffsetX;
+        const dragLeft = absX - dragW / 2;
+        const dragRight = absX + dragW / 2;
+
+        // Check against main module
+        const mainLeft = moduleOffsetX - module.width / 2;
+        const mainRight = moduleOffsetX + module.width / 2;
+        let adjustedAbsX = absX;
+        if (dragRight > mainLeft && dragLeft < mainRight) {
+          const pushLeft = mainLeft - dragW / 2;
+          const pushRight = mainRight + dragW / 2;
+          adjustedAbsX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
+        }
+
+        // Check against other duplicates
+        for (const d of duplicates) {
+          if (d.id === dragRef.current!.id) continue;
+          const dAbsX = d.positionX + moduleOffsetX;
+          const dLeft = dAbsX - d.module.width / 2;
+          const dRight = dAbsX + d.module.width / 2;
+          const myLeft = adjustedAbsX - dragW / 2;
+          const myRight = adjustedAbsX + dragW / 2;
+          if (myRight > dLeft && myLeft < dRight) {
+            const pushLeft = dLeft - dragW / 2;
+            const pushRight = dRight + dragW / 2;
+            adjustedAbsX = Math.abs(adjustedAbsX - pushLeft) < Math.abs(adjustedAbsX - pushRight) ? pushLeft : pushRight;
+          }
+        }
+
+        newX = adjustedAbsX - moduleOffsetX;
+
+        // Re-clamp to wall after collision
+        if (wall.enabled) {
+          const halfWall = wall.width / 2;
+          const finalAbs = newX + moduleOffsetX;
+          const dupHalf = dragW / 2;
+          const clampedAbs = Math.max(-halfWall + dupHalf, Math.min(halfWall - dupHalf, finalAbs));
+          newX = clampedAbs - moduleOffsetX;
+        }
       }
 
       const newDups = duplicates.map((d) =>
