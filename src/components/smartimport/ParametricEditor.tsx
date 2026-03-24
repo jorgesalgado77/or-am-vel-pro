@@ -1718,6 +1718,47 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 </Button>
               ))}
             </div>
+            {/* Module controls: lock, group, delete */}
+            <div className="absolute bottom-2 right-2 flex gap-1 z-10">
+              <Button
+                variant={lockPosition ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
+                onClick={() => updatePersisted({ lockPosition: !lockPosition })}
+                title={lockPosition ? "Desbloquear arraste" : "Travar posição"}
+              >
+                {lockPosition ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                {lockPosition ? "Travado" : "Livre"}
+              </Button>
+              <Button
+                variant={groupSelect ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
+                onClick={() => updatePersisted({ groupSelect: !groupSelect })}
+                title={groupSelect ? "Mover individualmente" : "Mover todos juntos"}
+                disabled={duplicates.length === 0}
+              >
+                <Group className="h-3 w-3" />
+                {groupSelect ? "Grupo" : "Individual"}
+              </Button>
+              {selectedModuleId && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-7 text-[9px] px-2 gap-1"
+                  onClick={deleteSelectedModule}
+                  title="Excluir módulo selecionado"
+                >
+                  <Trash2 className="h-3 w-3" /> Excluir
+                </Button>
+              )}
+              {selectedModuleId && (
+                <Badge variant="secondary" className="text-[9px] h-7 flex items-center">
+                  <MousePointer className="h-3 w-3 mr-1" />
+                  {selectedModuleId === "__main__" ? module.name : duplicates.find((d) => d.id === selectedModuleId)?.module.name || ""}
+                </Badge>
+              )}
+            </div>
             <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end max-w-[65%]">
               <Button
                 variant={showCotas ? "default" : "outline"}
