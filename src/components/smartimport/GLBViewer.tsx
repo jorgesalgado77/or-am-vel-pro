@@ -3,10 +3,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw } from "lucide-react";
+import { Maximize2, Minimize2, FileBox, Loader2, Pause, Play, RotateCcw, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { loadModelForPreview, disposeSceneGraph } from "./modelPreviewUtils";
+import { loadModelForPreview, disposeSceneGraph, getFileExtension } from "./modelPreviewUtils";
+import { toast } from "sonner";
 
 interface GLBViewerProps {
   fileUrl: string;
@@ -136,14 +137,7 @@ function applyLightingPreset(lights: any, preset: LightingPreset) {
   lights.hemi.intensity = config.hemi;
 }
 
-function getFileExtension(url: string): string {
-  try {
-    const path = new URL(url).pathname;
-    return path.split(".").pop()?.toLowerCase() || "";
-  } catch {
-    return url.split(".").pop()?.toLowerCase() || "";
-  }
-}
+// getFileExtension imported from modelPreviewUtils
 
 function LoadingOverlay({ progress, label }: { progress: number; label: string }) {
   return (
@@ -228,6 +222,7 @@ function WebGLViewer({
           canvas: canvasRef.current,
           antialias: quality.antialias,
           alpha: true,
+          preserveDrawingBuffer: true,
           powerPreference: qualityPreset === "low" ? "low-power" : "high-performance",
         });
         canvasElement = canvasRef.current;
@@ -272,6 +267,8 @@ function WebGLViewer({
           controlsRef.current = {
             controls,
             camera,
+            renderer,
+            scene,
             initialPos: camera.position.clone(),
             initialTarget: controls.target.clone(),
           };
@@ -643,6 +640,7 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>("auto");
   const [qualityPreset, setQualityPreset] = useState<QualityPreset>("balanced");
   const [autoReason, setAutoReason] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<any>(null);
 
@@ -673,6 +671,47 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
       controls.update();
     }
   };
+
+  const exportAsPNG = useCallback(async () => {
+    const refs = controlsRef.current;
+    if (!refs?.renderer || !refs?.scene || !refs?.camera) {
+      toast.error("Viewer não está pronto para exportação");
+      return;
+    }
+    setExporting(true);
+    try {
+      const { renderer, scene, camera } = refs;
+      // Save original size
+      const origSize = renderer.getSize(new (await import("three")).Vector2());
+      const origPixelRatio = renderer.getPixelRatio();
+
+      // Render at 2x resolution (up to 3840x2160)
+      const scale = 2;
+      const w = Math.min(origSize.x * scale, 3840);
+      const h = Math.min(origSize.y * scale, 2160);
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(1);
+      renderer.render(scene, camera);
+
+      const dataUrl = renderer.domElement.toDataURL("image/png");
+
+      // Restore original size
+      renderer.setSize(origSize.x, origSize.y);
+      renderer.setPixelRatio(origPixelRatio);
+      renderer.render(scene, camera);
+
+      // Download
+      const link = document.createElement("a");
+      link.download = `modelo-3d-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success(`Imagem exportada (${w}x${h}px)`);
+    } catch (err: any) {
+      toast.error("Erro ao exportar: " + (err.message || "erro desconhecido"));
+    } finally {
+      setExporting(false);
+    }
+  }, []);
 
   return (
     <Card className="overflow-hidden">
@@ -726,6 +765,14 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom"><p>Resetar câmera</p></TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="secondary" size="icon" className="h-8 w-8 bg-background/80 backdrop-blur" onClick={exportAsPNG} disabled={exporting}>
+                  {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom"><p>Exportar PNG (HD)</p></TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
