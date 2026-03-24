@@ -332,6 +332,11 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
           <ModuleLibraryPanel
             library={library}
             catalogItems={catalogItems}
+            categories={categoryTree}
+            selectedCategoryId={selectedCategoryId}
+            onCategorySelect={setSelectedCategoryId}
+            onCategoryAdd={addCategory}
+            onCategoryDelete={deleteCategoryFn}
             onAdd={addToLibrary}
             onUpdate={updateLibraryItem}
             onDelete={deleteLibraryItem}
