@@ -160,6 +160,8 @@ interface PersistedBuilderState {
   floorColor: string;
   openDoors: boolean;
   openDrawers: boolean;
+  moduleOffsetX: number;
+  moduleOffsetY: number;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -177,6 +179,8 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   floorColor: "#d6d3cd",
   openDoors: false,
   openDrawers: false,
+  moduleOffsetX: 0,
+  moduleOffsetY: 0,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
