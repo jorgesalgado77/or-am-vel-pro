@@ -23,6 +23,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const [selected, setSelected] = useState<ChatConversation | null>(null);
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
+  const [showStartModal, setShowStartModal] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
