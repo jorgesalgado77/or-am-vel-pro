@@ -35,7 +35,7 @@ const BACKGROUND_PRESETS: Record<BackgroundPreset, { background: number; ground:
   clean: { background: 0xffffff, ground: 0xffffff, showGrid: false },
 };
 
-const LIGHTING_PRESETS: Record<LightingPreset, { ambient: number; key: number; fill: number; rim: number; hemi: number }> = {
+const LIGHTING_PRESETS: Record<string, { ambient: number; key: number; fill: number; rim: number; hemi: number }> = {
   balanced: { ambient: 0.6, key: 1.2, fill: 0.5, rim: 0.3, hemi: 0.5 },
   soft: { ambient: 0.9, key: 0.8, fill: 0.7, rim: 0.15, hemi: 0.6 },
   contrast: { ambient: 0.35, key: 1.6, fill: 0.3, rim: 0.6, hemi: 0.25 },
