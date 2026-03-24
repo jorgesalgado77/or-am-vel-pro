@@ -62,15 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentAuthIdRef = useRef<string | null>(null);
 
   const loadFromSession = useCallback(async (sess: Session | null, event?: string) => {
+    console.log("[Auth] loadFromSession called", { event, hasSession: !!sess?.user, currentRef: currentAuthIdRef.current, currentUserRef: userRef.current?.nome_completo });
+
     if (!sess?.user) {
-      // Don't clear user data on transient null sessions during token refresh
-      // Only clear if it's not a token refresh event and user is actually gone
       if (currentAuthIdRef.current && event !== "TOKEN_REFRESHED") {
+        console.log("[Auth] ⛔ Clearing user (no session, event:", event, ")");
         userRef.current = null;
         setUser(null);
         setSession(null);
         currentAuthIdRef.current = null;
         syncGlobalState(null);
+      } else {
+        console.log("[Auth] ✅ Ignoring null session (token refresh or no ref)");
       }
       setLoading(false);
       return;
@@ -79,15 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(sess);
 
     if (loginInProgressRef.current) {
+      console.log("[Auth] ⏳ Login in progress, skipping");
       return;
     }
 
-    // If the same auth user is already loaded, just update session — don't reload profile
-    // This prevents the user from switching to a fallback on TOKEN_REFRESHED events
     if (currentAuthIdRef.current === sess.user.id && userRef.current) {
+      console.log("[Auth] ✅ Same user already loaded:", userRef.current.nome_completo, "— skipping reload");
       setLoading(false);
       return;
     }
+
+    console.log("[Auth] 🔄 Loading user profile for:", sess.user.email);
 
     let appUser: AppUser | null = null;
     try {
@@ -109,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (appUser) {
+      console.log("[Auth] ✅ User loaded from DB:", appUser.nome_completo, "cargo:", appUser.cargo_nome);
       currentAuthIdRef.current = sess.user.id;
       userRef.current = appUser;
       setUser(appUser);
@@ -117,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const fallbackUser = await buildFallbackUserFromAuth(sess.user);
 
       if (fallbackUser) {
+        console.warn("[Auth] ⚠️ Using FALLBACK user:", fallbackUser.nome_completo, "— DB lookup failed");
         currentAuthIdRef.current = sess.user.id;
         userRef.current = fallbackUser;
         setUser(fallbackUser);
