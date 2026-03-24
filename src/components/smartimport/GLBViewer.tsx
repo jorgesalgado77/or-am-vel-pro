@@ -690,11 +690,12 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
                 <SelectItem value="clean">Limpo (sem grade)</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={lightingPreset} onValueChange={(value: LightingPreset) => setLightingPreset(value)}>
-              <SelectTrigger className="h-8 w-[128px] bg-background/80 backdrop-blur text-xs">
+            <Select value={lightingPreset} onValueChange={(value: LightingPreset) => { setLightingPreset(value); if (value !== "auto") setAutoReason(null); }}>
+              <SelectTrigger className="h-8 w-[140px] bg-background/80 backdrop-blur text-xs">
                 <SelectValue placeholder="Iluminação" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="auto">✨ Auto (IA)</SelectItem>
                 <SelectItem value="balanced">Luz balanceada</SelectItem>
                 <SelectItem value="soft">Luz suave</SelectItem>
                 <SelectItem value="contrast">Alto contraste</SelectItem>
@@ -735,6 +736,13 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
               <TooltipContent side="bottom"><p>{isFullscreen ? "Sair da tela cheia" : "Tela cheia"}</p></TooltipContent>
             </Tooltip>
           </div>
+          {autoReason && lightingPreset === "auto" && (
+            <div className="absolute top-12 right-3 z-10">
+              <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur gap-1">
+                ✨ {autoReason}
+              </Badge>
+            </div>
+          )}
           <WebGLViewer
             fileUrl={fileUrl}
             onObjectSelect={onObjectSelect}
@@ -742,6 +750,10 @@ export function GLBViewer({ fileUrl, onObjectSelect }: GLBViewerProps) {
             backgroundPreset={backgroundPreset}
             lightingPreset={lightingPreset}
             qualityPreset={qualityPreset}
+            onAutoLighting={(result) => {
+              setAutoReason(result.reason);
+              setBackgroundPreset(result.background);
+            }}
           />
         </div>
       </CardContent>
