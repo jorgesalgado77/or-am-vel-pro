@@ -133,7 +133,8 @@ function WebGLViewer({
     let renderer: any = null;
     let controls: any = null;
     let resizeHandler: (() => void) | null = null;
-    let clickHandler: ((e: MouseEvent) => void) | null = null;
+    let pointerDownHandler: ((e: PointerEvent) => void) | null = null;
+    let pointerUpHandler: ((e: PointerEvent) => void) | null = null;
     let canvasElement: HTMLCanvasElement | null = null;
 
     (async () => {
@@ -288,13 +289,25 @@ function WebGLViewer({
 
         threeRef.current.loadedObject = loadedObject;
 
-        // ── Click selection ──
+        // ── Pointer-based selection (supports touch + mouse) ──
         const raycaster = new THREE.Raycaster();
         raycaster.params.Line = { threshold: 0.25 };
         const mouse = new THREE.Vector2();
         let selectedObj: any = null;
+        let pointerStartX = 0;
+        let pointerStartY = 0;
+        const TAP_THRESHOLD = 8; // px — distinguish tap from drag
 
-        clickHandler = (event: MouseEvent) => {
+        pointerDownHandler = (event: PointerEvent) => {
+          pointerStartX = event.clientX;
+          pointerStartY = event.clientY;
+        };
+
+        pointerUpHandler = (event: PointerEvent) => {
+          const dx = Math.abs(event.clientX - pointerStartX);
+          const dy = Math.abs(event.clientY - pointerStartY);
+          if (dx > TAP_THRESHOLD || dy > TAP_THRESHOLD) return; // was a drag, not a tap
+
           const rect = renderer.domElement.getBoundingClientRect();
           mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
           mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -318,7 +331,7 @@ function WebGLViewer({
           selectedObj = hit;
           const origMat = hit.userData?.originalMaterial || hit.material;
 
-          // Lightweight highlight: add emissive glow without replacing material properties
+          // Lightweight highlight: add emissive glow
           if (hit.isMesh && origMat?.clone) {
             const hl = origMat.clone();
             if ("emissive" in hl) {
@@ -359,7 +372,8 @@ function WebGLViewer({
           });
         };
 
-        // Use pointer events for touch support
+        // Use pointer events for touch + mouse support
+        renderer.domElement.style.touchAction = "none";
         renderer.domElement.addEventListener("pointerdown", pointerDownHandler);
         renderer.domElement.addEventListener("pointerup", pointerUpHandler);
 
@@ -424,7 +438,8 @@ function WebGLViewer({
       mounted = false;
       cancelAnimationFrame(animationFrameId);
       if (resizeHandler) window.removeEventListener("resize", resizeHandler);
-      if (clickHandler && canvasElement) canvasElement.removeEventListener("click", clickHandler);
+      if (pointerDownHandler && canvasElement) canvasElement.removeEventListener("pointerdown", pointerDownHandler);
+      if (pointerUpHandler && canvasElement) canvasElement.removeEventListener("pointerup", pointerUpHandler);
       // Dispose scene graph (geometries, materials, textures)
       if (threeRef.current?.loadedObject) {
         disposeSceneGraph(threeRef.current.loadedObject);
