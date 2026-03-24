@@ -1,26 +1,36 @@
 /**
  * Gerador de Cotas/Dimensões 3D — OrçaMóvel Pro
  * Annotations built in WORLD SPACE (module centered at X=0, base at Y=floorOffset, back at Z=0).
+ * Each dimension category uses a distinct color and offset layer to prevent overlap.
  */
 
 const LINE_COLOR = 0x0066cc;
-const TICK_SIZE = 0.04;
+const TICK_SIZE = 0.05;
 
 type ColorPreset = "blue" | "green" | "orange" | "red" | "purple";
 
 const TAG_COLORS: Record<ColorPreset, { bg: string; border: string; text: string }> = {
-  blue:   { bg: "#1e40afee", border: "#3b82f6", text: "#ffffff" },
-  green:  { bg: "#166534ee", border: "#22c55e", text: "#ffffff" },
-  orange: { bg: "#9a3412ee", border: "#f97316", text: "#ffffff" },
-  red:    { bg: "#991b1bee", border: "#ef4444", text: "#ffffff" },
-  purple: { bg: "#6b21a8ee", border: "#a855f7", text: "#ffffff" },
+  blue:   { bg: "#1e40afee", border: "#60a5fa", text: "#ffffff" },
+  green:  { bg: "#166534ee", border: "#4ade80", text: "#ffffff" },
+  orange: { bg: "#9a3412ee", border: "#fb923c", text: "#ffffff" },
+  red:    { bg: "#991b1bee", border: "#f87171", text: "#ffffff" },
+  purple: { bg: "#6b21a8ee", border: "#c084fc", text: "#ffffff" },
 };
+
+/** Color legend data exported for UI */
+export const COTA_LEGEND: { color: ColorPreset; label: string; hex: string }[] = [
+  { color: "blue",   label: "Dimensões externas (L×A×P)", hex: "#3b82f6" },
+  { color: "green",  label: "Vãos internos livres", hex: "#22c55e" },
+  { color: "purple", label: "Espessura / Total", hex: "#a855f7" },
+  { color: "orange", label: "Rodapé / Folga parede", hex: "#f97316" },
+  { color: "red",    label: "Piso / Distância módulos", hex: "#ef4444" },
+];
 
 function createTextSprite(
   THREE: typeof import("three"),
   text: string,
   position: InstanceType<typeof THREE.Vector3>,
-  scale = 0.25,
+  scale = 0.3,
   color: ColorPreset = "blue"
 ): InstanceType<typeof THREE.Sprite> {
   const canvas = document.createElement("canvas");
@@ -30,7 +40,7 @@ function createTextSprite(
   const c = TAG_COLORS[color];
 
   // Rounded rect background
-  const r = 16;
+  const r = 20;
   ctx.beginPath();
   ctx.moveTo(r, 0);
   ctx.lineTo(512 - r, 0);
@@ -45,12 +55,14 @@ function createTextSprite(
   ctx.fillStyle = c.bg;
   ctx.fill();
   ctx.strokeStyle = c.border;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5;
   ctx.stroke();
 
-  // Text
+  // Text with shadow for readability
+  ctx.shadowColor = "rgba(0,0,0,0.4)";
+  ctx.shadowBlur = 4;
   ctx.fillStyle = c.text;
-  ctx.font = "bold 52px Arial";
+  ctx.font = "bold 54px Arial";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, 256, 64);
@@ -78,12 +90,13 @@ function createDimensionLine(
   offsetDir: InstanceType<typeof THREE.Vector3>,
   offsetDist: number = 0.08,
   tagColor: ColorPreset = "blue",
-  tagScale: number = 0.25
+  tagScale: number = 0.35
 ): InstanceType<typeof THREE.Group> {
   const group = new THREE.Group();
   group.name = `cota_${label}`;
 
-  const lineMat = new THREE.LineBasicMaterial({ color: LINE_COLOR, linewidth: 2, depthTest: false });
+  const lineColor = parseInt(TAG_COLORS[tagColor].border.replace("#", ""), 16);
+  const lineMat = new THREE.LineBasicMaterial({ color: lineColor, linewidth: 2, depthTest: false });
 
   const s = start.clone().add(offsetDir.clone().multiplyScalar(offsetDist));
   const e = end.clone().add(offsetDir.clone().multiplyScalar(offsetDist));
@@ -133,8 +146,8 @@ function createDimensionLine(
     group.add(t2);
   }
 
-  // Label sprite at midpoint
-  const mid = s.clone().add(e).multiplyScalar(0.5).add(offsetDir.clone().multiplyScalar(0.06));
+  // Label sprite at midpoint — offset further from the line
+  const mid = s.clone().add(e).multiplyScalar(0.5).add(offsetDir.clone().multiplyScalar(0.08));
   const sprite = createTextSprite(THREE, label, mid, tagScale, tagColor);
   group.add(sprite);
 
@@ -149,7 +162,7 @@ export interface DimensionOptions {
 
 /**
  * Generates dimension annotations in WORLD SPACE.
- * Do NOT apply additional position offsets after calling this.
+ * Each category placed on a distinct offset layer to prevent overlap.
  */
 export function generateDimensionAnnotations(
   THREE: typeof import("three"),
@@ -163,7 +176,6 @@ export function generateDimensionAnnotations(
   const { width: W, height: H, depth: D, thickness: T, baseboardHeight: BH = 0 } = module;
   const fo = (options?.floorOffset ?? 0) * sc;
 
-  // Module world-space bounds
   const halfW = (W * sc) / 2;
   const left = -halfW;
   const right = halfW;
@@ -176,98 +188,106 @@ export function generateDimensionAnnotations(
   const leftDir = new THREE.Vector3(-1, 0, 0);
   const rightDir = new THREE.Vector3(1, 0, 0);
 
-  // Scale tag size proportional to module — bigger for better visibility
-  const baseTag = Math.max(0.3, Math.min(0.55, (W * sc) * 0.55));
+  // Tag scale proportional to module
+  const baseTag = Math.max(0.35, Math.min(0.6, (W * sc) * 0.6));
 
-  // Spacing multiplier to keep cotas well separated
-  const sp = Math.max(0.15, front * 0.25);
+  // ═══ FRONT COTAS (Z axis) — each on a different Z layer ═══
 
-  // ── Width (bottom, far front — row 1) ──
+  // Layer 1: Width (external) — closest to module
+  const zLayer1 = front + 0.20;
   group.add(createDimensionLine(
     THREE,
-    new THREE.Vector3(left, bottom, front + sp),
-    new THREE.Vector3(right, bottom, front + sp),
-    `${W}mm`, forwardDir, 0.15, "blue", baseTag
+    new THREE.Vector3(left, bottom, zLayer1),
+    new THREE.Vector3(right, bottom, zLayer1),
+    `${W}mm`, forwardDir, 0.10, "blue", baseTag
   ));
 
-  // ── Internal width (bottom, farther front — row 2) ──
+  // Layer 2: Internal width — farther out
   const iw = W - T * 2;
+  const zLayer2 = front + 0.20;
   if (iw > 0 && iw !== W) {
     group.add(createDimensionLine(
       THREE,
-      new THREE.Vector3(left + T * sc, bottom, front + sp),
-      new THREE.Vector3(right - T * sc, bottom, front + sp),
-      `LI:${iw}mm`, forwardDir, 0.35, "green", baseTag * 0.9
+      new THREE.Vector3(left + T * sc, bottom, zLayer2),
+      new THREE.Vector3(right - T * sc, bottom, zLayer2),
+      `LI:${iw}mm`, forwardDir, 0.40, "green", baseTag * 0.9
     ));
   }
 
-  // ── Thickness (bottom, farthest front — row 3) ──
+  // Layer 3: Thickness — farthest out
+  const zLayer3 = front + 0.20;
   group.add(createDimensionLine(
     THREE,
-    new THREE.Vector3(left, bottom, front + sp),
-    new THREE.Vector3(left + T * sc, bottom, front + sp),
-    `${T}mm`, forwardDir, 0.55, "purple", baseTag * 0.75
+    new THREE.Vector3(left, bottom, zLayer3),
+    new THREE.Vector3(left + T * sc, bottom, zLayer3),
+    `${T}mm`, forwardDir, 0.70, "purple", baseTag * 0.75
   ));
 
-  // ── Height (left side, at front Z) ──
+  // ═══ LEFT SIDE COTAS (X axis) — each at a different X offset ═══
+
+  // Layer 1: Height (external) — closest
+  const xLayer1 = left - 0.15;
   group.add(createDimensionLine(
     THREE,
-    new THREE.Vector3(left, bottom, front + sp * 0.5),
-    new THREE.Vector3(left, top, front + sp * 0.5),
-    `${H}mm`, leftDir, 0.15, "blue", baseTag
+    new THREE.Vector3(xLayer1, bottom, front * 0.6),
+    new THREE.Vector3(xLayer1, top, front * 0.6),
+    `${H}mm`, leftDir, 0.10, "blue", baseTag
   ));
 
-  // ── Depth (right side, bottom) ──
-  group.add(createDimensionLine(
-    THREE,
-    new THREE.Vector3(right, bottom, 0),
-    new THREE.Vector3(right, bottom, front),
-    `${D}mm`, rightDir, 0.15, "blue", baseTag
-  ));
-
-  // ── Internal height (vão interno — farther left to avoid overlap with height) ──
+  // Layer 2: Internal height — farther
   const ih = H - T * 2 - BH;
   if (ih > 0 && ih !== H) {
+    const xLayer2 = left - 0.15;
     group.add(createDimensionLine(
       THREE,
-      new THREE.Vector3(left, fo + (BH + T) * sc, front + sp * 0.5),
-      new THREE.Vector3(left, fo + (H - T) * sc, front + sp * 0.5),
-      `VI:${ih}mm`, leftDir, 0.35, "green", baseTag * 0.9
+      new THREE.Vector3(xLayer2, fo + (BH + T) * sc, front * 0.6),
+      new THREE.Vector3(xLayer2, fo + (H - T) * sc, front * 0.6),
+      `VI:${ih}mm`, leftDir, 0.40, "green", baseTag * 0.9
     ));
   }
 
-  // ── Baseboard height (far left — row 3) ──
+  // Layer 3: Baseboard
   if (BH > 0) {
+    const xLayer3 = left - 0.15;
     group.add(createDimensionLine(
       THREE,
-      new THREE.Vector3(left, fo, front + sp * 0.5),
-      new THREE.Vector3(left, fo + BH * sc, front + sp * 0.5),
-      `R:${BH}mm`, leftDir, 0.55, "orange", baseTag * 0.8
+      new THREE.Vector3(xLayer3, fo, front * 0.6),
+      new THREE.Vector3(xLayer3, fo + BH * sc, front * 0.6),
+      `R:${BH}mm`, leftDir, 0.70, "orange", baseTag * 0.8
     ));
   }
 
-  // ── Floor offset (farthest left — row 4) ──
+  // Layer 4: Floor offset
   if (options?.floorOffset && options.floorOffset > 0) {
+    const xLayer4 = left - 0.15;
     group.add(createDimensionLine(
       THREE,
-      new THREE.Vector3(left, 0, front + sp * 0.5),
-      new THREE.Vector3(left, fo, front + sp * 0.5),
-      `Piso:${options.floorOffset}mm`, leftDir, 0.75, "red", baseTag * 0.8
+      new THREE.Vector3(xLayer4, 0, front * 0.6),
+      new THREE.Vector3(xLayer4, fo, front * 0.6),
+      `Piso:${options.floorOffset}mm`, leftDir, 1.0, "red", baseTag * 0.8
     ));
   }
 
-  // ── Wall clearance ──
+  // ═══ RIGHT SIDE: Depth ═══
+  group.add(createDimensionLine(
+    THREE,
+    new THREE.Vector3(right + 0.15, bottom, 0),
+    new THREE.Vector3(right + 0.15, bottom, front),
+    `${D}mm`, rightDir, 0.10, "blue", baseTag
+  ));
+
+  // ═══ TOP: Wall clearance ═══
   if (options?.wall) {
     const wallHalfW = (options.wall.width * sc) / 2;
-    const clearanceRight = Math.round(options.wall.width / 2 - W / 2);
 
-    // Right side clearance (from last module or main module to wall edge)
     let lastRightEdge = right;
-    // If duplicates exist, find the rightmost edge
+    let firstLeftEdge = left;
     if (options?.duplicates && options.duplicates.length > 0) {
       options.duplicates.forEach((dup) => {
         const dupRight = (dup.positionX + dup.module.width / 2 - W / 2) * sc;
+        const dupLeft = (dup.positionX - W / 2) * sc;
         if (dupRight > lastRightEdge) lastRightEdge = dupRight;
+        if (dupLeft < firstLeftEdge) firstLeftEdge = dupLeft;
       });
     }
 
@@ -275,54 +295,36 @@ export function generateDimensionAnnotations(
     if (rightClearanceMm > 0) {
       group.add(createDimensionLine(
         THREE,
-        new THREE.Vector3(lastRightEdge, top + 0.05, 0),
-        new THREE.Vector3(wallHalfW, top + 0.05, 0),
-        `${rightClearanceMm}mm`, upDir, 0.1, "orange", baseTag * 0.8
+        new THREE.Vector3(lastRightEdge, top + 0.10, 0),
+        new THREE.Vector3(wallHalfW, top + 0.10, 0),
+        `${rightClearanceMm}mm`, upDir, 0.10, "orange", baseTag * 0.8
       ));
-    }
-
-    // Left side clearance
-    let firstLeftEdge = left;
-    if (options?.duplicates && options.duplicates.length > 0) {
-      options.duplicates.forEach((dup) => {
-        const dupLeft = (dup.positionX - W / 2) * sc;
-        if (dupLeft < firstLeftEdge) firstLeftEdge = dupLeft;
-      });
     }
 
     const leftClearanceMm = Math.round((firstLeftEdge + wallHalfW) / sc);
     if (leftClearanceMm > 0) {
       group.add(createDimensionLine(
         THREE,
-        new THREE.Vector3(-wallHalfW, top + 0.05, 0),
-        new THREE.Vector3(firstLeftEdge, top + 0.05, 0),
-        `${leftClearanceMm}mm`, upDir, 0.18, "orange", baseTag * 0.8
+        new THREE.Vector3(-wallHalfW, top + 0.10, 0),
+        new THREE.Vector3(firstLeftEdge, top + 0.10, 0),
+        `${leftClearanceMm}mm`, upDir, 0.20, "orange", baseTag * 0.8
       ));
     }
   }
 
-  // ── Duplicate distances (automatic distance between each module) ──
+  // ═══ DUPLICATE distances ═══
   if (options?.duplicates && options.duplicates.length > 0) {
-    // Build list of all modules with their world-space X bounds
-    interface ModuleBounds { leftX: number; rightX: number; label: string }
-    const allModules: ModuleBounds[] = [
-      { leftX: left, rightX: right, label: "Principal" }
-    ];
+    interface ModuleBounds { leftX: number; rightX: number }
+    const allModules: ModuleBounds[] = [{ leftX: left, rightX: right }];
 
-    options.duplicates.forEach((dup, i) => {
+    options.duplicates.forEach((dup) => {
       const dupCenterX = (dup.positionX + dup.module.width / 2 - W / 2) * sc;
       const dupHalfW = (dup.module.width * sc) / 2;
-      allModules.push({
-        leftX: dupCenterX - dupHalfW,
-        rightX: dupCenterX + dupHalfW,
-        label: `Dup${i + 1}`
-      });
+      allModules.push({ leftX: dupCenterX - dupHalfW, rightX: dupCenterX + dupHalfW });
     });
 
-    // Sort by leftX
     allModules.sort((a, b) => a.leftX - b.leftX);
 
-    // Draw distance between consecutive modules
     for (let i = 0; i < allModules.length - 1; i++) {
       const gapStart = allModules[i].rightX;
       const gapEnd = allModules[i + 1].leftX;
@@ -330,22 +332,22 @@ export function generateDimensionAnnotations(
       if (gapMm > 0) {
         group.add(createDimensionLine(
           THREE,
-          new THREE.Vector3(gapStart, top + 0.08, front * 0.5),
-          new THREE.Vector3(gapEnd, top + 0.08, front * 0.5),
+          new THREE.Vector3(gapStart, top + 0.15, front * 0.5),
+          new THREE.Vector3(gapEnd, top + 0.15, front * 0.5),
           `${gapMm}mm`, upDir, 0.12, "red", baseTag * 0.85
         ));
       }
     }
 
-    // Total span of all modules
+    // Total span
     const totalLeft = allModules[0].leftX;
     const totalRight = allModules[allModules.length - 1].rightX;
     const totalMm = Math.round((totalRight - totalLeft) / sc);
     group.add(createDimensionLine(
       THREE,
-      new THREE.Vector3(totalLeft, top + 0.15, front * 0.3),
-      new THREE.Vector3(totalRight, top + 0.15, front * 0.3),
-      `Total:${totalMm}mm`, upDir, 0.2, "purple", baseTag * 0.9
+      new THREE.Vector3(totalLeft, top + 0.25, front * 0.3),
+      new THREE.Vector3(totalRight, top + 0.25, front * 0.3),
+      `Total:${totalMm}mm`, upDir, 0.20, "purple", baseTag * 0.9
     ));
   }
 
