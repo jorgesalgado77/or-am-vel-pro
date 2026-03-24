@@ -11,6 +11,7 @@ import {
   Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
   PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
   Upload, ImageIcon, FolderOpen, GripVertical, BookOpen, FileDown, Eye, EyeOff,
+  Camera,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -1229,6 +1230,53 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
               >
                 {showCotas ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                 Cotas
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-[10px] px-2 gap-1"
+                onClick={() => {
+                  if (!threeRef.current) return;
+                  const { renderer, scene, camera } = threeRef.current;
+                  // Render at 2x resolution
+                  const origW = renderer.domElement.width;
+                  const origH = renderer.domElement.height;
+                  renderer.setSize(origW * 2, origH * 2);
+                  renderer.render(scene, camera);
+                  const dataUrl = renderer.domElement.toDataURL("image/png");
+                  renderer.setSize(origW, origH);
+                  renderer.render(scene, camera);
+                  // Add watermark via canvas
+                  const img = new Image();
+                  img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext("2d")!;
+                    ctx.drawImage(img, 0, 0);
+                    // Watermark text
+                    ctx.globalAlpha = 0.3;
+                    ctx.fillStyle = "#333333";
+                    ctx.font = `bold ${Math.max(16, canvas.height * 0.025)}px Arial`;
+                    ctx.textAlign = "right";
+                    ctx.fillText(`OrçaMóvel Pro • ${module.name}`, canvas.width - 20, canvas.height - 20);
+                    ctx.fillText(
+                      `${module.width}×${module.height}×${module.depth}mm`,
+                      canvas.width - 20,
+                      canvas.height - 45
+                    );
+                    ctx.globalAlpha = 1;
+                    // Download
+                    const link = document.createElement("a");
+                    link.download = `Projeto_3D_${module.name.replace(/\s+/g, "_")}.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    toast.success("Imagem PNG exportada em alta resolução!");
+                  };
+                  img.src = dataUrl;
+                }}
+              >
+                <Camera className="h-3 w-3" /> PNG
               </Button>
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
