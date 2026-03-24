@@ -55,10 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const loginInProgressRef = useRef(false);
 
+  // Track the auth user ID to avoid unnecessary reloads on token refresh
+  const currentAuthIdRef = useRef<string | null>(null);
+
   const loadFromSession = useCallback(async (sess: Session | null) => {
     if (!sess?.user) {
       setUser(null);
       setSession(null);
+      currentAuthIdRef.current = null;
       syncGlobalState(null);
       setLoading(false);
       return;
@@ -67,6 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(sess);
 
     if (loginInProgressRef.current) {
+      return;
+    }
+
+    // If the same auth user is already loaded, just update session — don't reload profile
+    // This prevents the user from switching to a fallback on TOKEN_REFRESHED events
+    if (currentAuthIdRef.current === sess.user.id) {
+      setLoading(false);
       return;
     }
 
@@ -90,15 +101,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (appUser) {
+      currentAuthIdRef.current = sess.user.id;
       setUser(appUser);
       syncGlobalState(appUser);
     } else {
       const fallbackUser = await buildFallbackUserFromAuth(sess.user);
 
       if (fallbackUser) {
+        currentAuthIdRef.current = sess.user.id;
         setUser(fallbackUser);
         syncGlobalState(fallbackUser);
       } else {
+        currentAuthIdRef.current = null;
         setUser(null);
         syncGlobalState(null);
         await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
@@ -574,6 +588,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    currentAuthIdRef.current = null;
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -601,6 +616,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       logoutTimer = setTimeout(async () => {
         setShowInactivityWarning(false);
+        currentAuthIdRef.current = null;
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
