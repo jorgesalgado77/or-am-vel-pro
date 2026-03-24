@@ -54,6 +54,14 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const spans = useMemo(() => calculateInternalSpans(module), [module]);
   const bom = useMemo(() => generateBOM(module), [module]);
 
+  // Catalog items by category
+  const cores = useMemo(() => catalogItems.filter((i) => i.category === "cor"), [catalogItems]);
+  const materiais = useMemo(() => catalogItems.filter((i) => i.category === "material" || i.category === "acabamento"), [catalogItems]);
+
+  // Material state
+  const [corCaixa, setCorCaixa] = useState("");
+  const [corPorta, setCorPorta] = useState("");
+
   // ── 3D Preview ──
   useEffect(() => {
     let mounted = true;
