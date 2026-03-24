@@ -79,15 +79,18 @@ export function useFinancialData() {
       setAccounts(updated as FinancialAccount[]);
     }
 
-    const { data: pf } = await supabase
-      .from("payroll_fixed" as any)
-      .select("*, usuarios!inner(nome_completo)")
-      .eq("tenant_id", tenantId);
-    if (pf) {
-      setPayrollFixed((pf as any[]).map(p => ({
-        id: p.id, usuario_id: p.usuario_id,
-        usuario_nome: p.usuarios?.nome_completo || "—",
-        salary: p.salary, type: p.type
+    // Buscar salários da tabela usuarios (mesma fonte que PayrollReport)
+    const { data: usersData } = await supabase
+      .from("usuarios")
+      .select("id, nome_completo, salario_fixo, tipo_regime, cargo_id, ativo, cargos(nome, salario_base)")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true);
+    if (usersData) {
+      setPayrollFixed((usersData as any[]).map(u => ({
+        id: u.id, usuario_id: u.id,
+        usuario_nome: u.nome_completo || "—",
+        salary: u.salario_fixo || (u.cargos as any)?.salario_base || 0,
+        type: u.tipo_regime || "—"
       })));
     }
 
