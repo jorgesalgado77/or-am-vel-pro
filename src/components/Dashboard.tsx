@@ -77,6 +77,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   // Lead filter by projetista
   const [leadProjetistaFilter, setLeadProjetistaFilter] = useState<string>("todos");
 
+  // Table filters
+  const [projetistaSearch, setProjetistaSearch] = useState("");
+  const [projetistaSort, setProjetistaSort] = useState<"nome" | "clientes" | "valor" | "conversao">("nome");
+  const [indicadorSearch, setIndicadorSearch] = useState("");
+  const [indicadorSort, setIndicadorSort] = useState<"nome" | "clientes" | "valor" | "comissao">("nome");
+
   // Date filter state
   const [datePreset, setDatePreset] = useState<DateFilterPreset>("mes_atual");
   const [customStart, setCustomStart] = useState("");
