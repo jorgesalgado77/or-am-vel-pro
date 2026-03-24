@@ -257,31 +257,57 @@ export function generateParametricGeometry(
     createPanel(`Prateleira ${i + 1}`, iw, shelf.thickness, shelfDepth, W / 2, posY + shelf.thickness / 2, shelfDepth / 2 + 10, shelfMat);
   });
 
-  // ── Portas ──
+  // ── Portas (com abertura opcional) ──
   const doors = module.components.filter((c) => c.type === "porta");
+  const openDoors = options?.openDoors ?? false;
   if (doors.length > 0) {
     const doorHeight = H - 7;
     const doorWidth = (W / doors.length) - 4;
-    doors.forEach((_, i) => {
+    doors.forEach((door, i) => {
       const xPos = (doorWidth / 2) + 2 + i * (doorWidth + 4);
-      createPanel(`Porta ${i + 1}`, doorWidth, doorHeight, T, xPos, H / 2 - 0.5, D + T / 2 + 2, doorMat);
+      if (openDoors) {
+        // Create a pivot group for door rotation
+        const pivotGroup = new THREE.Group();
+        // Determine hinge side: even = left, odd = right
+        const hingeLeft = i % 2 === 0;
+        const hingeX = hingeLeft ? (2 + i * (doorWidth + 4)) : (2 + i * (doorWidth + 4) + doorWidth);
+        pivotGroup.position.set(hingeX * s, (H / 2 - 0.5) * s, (D + T / 2 + 2) * s);
+        // Door panel relative to pivot
+        const geo = new THREE.BoxGeometry(doorWidth * s, doorHeight * s, T * s);
+        const mesh = new THREE.Mesh(geo, doorMat.clone());
+        mesh.position.set(hingeLeft ? (doorWidth / 2) * s : -(doorWidth / 2) * s, 0, 0);
+        mesh.name = `Porta ${i + 1}`;
+        const edges = new THREE.EdgesGeometry(geo);
+        const line = new THREE.LineSegments(edges, edgeMat);
+        line.position.copy(mesh.position);
+        pivotGroup.add(mesh);
+        pivotGroup.add(line);
+        // Rotate open (90 degrees)
+        pivotGroup.rotation.y = hingeLeft ? -Math.PI / 2.5 : Math.PI / 2.5;
+        group.add(pivotGroup);
+      } else {
+        createPanel(`Porta ${i + 1}`, doorWidth, doorHeight, T, xPos, H / 2 - 0.5, D + T / 2 + 2, doorMat);
+      }
     });
   }
 
-  // ── Gavetas ──
+  // ── Gavetas (com abertura opcional) ──
   const drawers = module.components.filter((c) => c.type === "gaveta");
   const drawerBodyWidth = iw - 35;
   const drawerBodyDepth = D - 50;
+  const openDrawers = options?.openDrawers ?? false;
+  const drawerSlideOut = openDrawers ? drawerBodyDepth * 0.6 : 0; // slide out 60%
   drawers.forEach((drawer, i) => {
     const fh = drawer.frontHeight || 180;
     const posY = drawer.positionY;
     const bodyHeight = fh - 30;
-    createPanel(`Frente Gaveta ${i + 1}`, iw + 2, fh, T, W / 2, posY + fh / 2, D + T / 2 + 2, doorMat);
+    const frontZ = D + T / 2 + 2 + drawerSlideOut;
+    createPanel(`Frente Gaveta ${i + 1}`, iw + 2, fh, T, W / 2, posY + fh / 2, frontZ, doorMat);
     const bodyY = posY + bodyHeight / 2 + 5;
-    const bodyZ = D / 2 + 5;
+    const bodyZ = D / 2 + 5 + drawerSlideOut;
     createPanel(`Lateral Gaveta E ${i + 1}`, 15, bodyHeight, drawerBodyDepth, T + 10, bodyY, bodyZ, drawerBodyMat);
     createPanel(`Lateral Gaveta D ${i + 1}`, 15, bodyHeight, drawerBodyDepth, W - T - 10, bodyY, bodyZ, drawerBodyMat);
-    createPanel(`Traseira Gaveta ${i + 1}`, drawerBodyWidth - 30, bodyHeight, 15, W / 2, bodyY, 25, drawerBodyMat);
+    createPanel(`Traseira Gaveta ${i + 1}`, drawerBodyWidth - 30, bodyHeight, 15, W / 2, bodyY, 25 + drawerSlideOut, drawerBodyMat);
     createPanel(`Fundo Gaveta ${i + 1}`, drawerBodyWidth - 30, 3, drawerBodyDepth - 2, W / 2, posY + 3, bodyZ, drawerBodyMat);
   });
 
