@@ -618,9 +618,12 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
         threeRef.current.moduleGroups.push(dimGroup);
       }
 
+      // Apply selection highlight
+      applySelectionHighlight();
+
       needsRenderRef.current = true;
     })();
-  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor, moduleOffsetX, moduleOffsetY]);
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots, showCotas, computedFloorOffset, openDoors, openDrawers, floorColor, moduleOffsetX, moduleOffsetY, selectedModuleId]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
