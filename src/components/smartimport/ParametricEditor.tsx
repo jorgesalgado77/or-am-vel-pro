@@ -549,20 +549,40 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     return 0;
   }, [module.moduleType, floorHeightInferior, floorHeightSuperior]);
 
-  // ── Apply selection highlight (emissive glow) to selected module ──
+  // ── Apply selection highlight (emissive glow + white outline) to selected module ──
   const applySelectionHighlight = useCallback(() => {
     if (!threeRef.current) return;
     const { moduleGroups, THREE } = threeRef.current;
     const HIGHLIGHT_COLOR = new THREE.Color(0x00aaff);
+    const OUTLINE_MAT = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 });
+
     moduleGroups.forEach((grp: any) => {
       if (!grp.userData?.moduleId) return;
       const isSelected = grp.userData.moduleId === selectedModuleId;
+
+      // Remove previous outline lines
+      const toRemove: any[] = [];
+      grp.traverse((child: any) => {
+        if (child.userData?.__selectionOutline) toRemove.push(child);
+      });
+      toRemove.forEach((c) => { c.parent?.remove(c); c.geometry?.dispose(); });
+
       grp.traverse((child: any) => {
         if (child.isMesh && child.material) {
           const mat = child.material;
           if (isSelected) {
             mat.emissive = HIGHLIGHT_COLOR;
             mat.emissiveIntensity = 0.25;
+
+            // Add white outline
+            const edges = new THREE.EdgesGeometry(child.geometry);
+            const outline = new THREE.LineSegments(edges, OUTLINE_MAT);
+            outline.position.copy(child.position);
+            outline.rotation.copy(child.rotation);
+            outline.scale.copy(child.scale);
+            outline.userData = { __selectionOutline: true };
+            outline.renderOrder = 999;
+            grp.add(outline);
           } else {
             mat.emissive = new THREE.Color(0x000000);
             mat.emissiveIntensity = 0;
