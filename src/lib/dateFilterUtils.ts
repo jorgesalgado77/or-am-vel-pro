@@ -1,9 +1,10 @@
-import { startOfDay, endOfDay, startOfMonth, subDays, subMonths, isAfter, isBefore } from "date-fns";
+import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, subMonths, isAfter, isBefore } from "date-fns";
 
-export type DateFilterPreset = "mes_atual" | "30dias" | "60dias" | "90dias" | "6meses" | "personalizado";
+export type DateFilterPreset = "mes_atual" | "mes_anterior" | "30dias" | "60dias" | "90dias" | "6meses" | "personalizado";
 
 export const DATE_FILTER_OPTIONS: { value: DateFilterPreset; label: string }[] = [
   { value: "mes_atual", label: "Mês Atual" },
+  { value: "mes_anterior", label: "Mês Anterior" },
   { value: "30dias", label: "Últimos 30 dias" },
   { value: "60dias", label: "Últimos 60 dias" },
   { value: "90dias", label: "Últimos 90 dias" },
@@ -18,6 +19,10 @@ export function getDateRange(preset: DateFilterPreset, customStart?: string, cus
   switch (preset) {
     case "mes_atual":
       return { start: startOfMonth(now), end };
+    case "mes_anterior": {
+      const prevMonth = subMonths(now, 1);
+      return { start: startOfMonth(prevMonth), end: endOfDay(endOfMonth(prevMonth)) };
+    }
     case "30dias":
       return { start: startOfDay(subDays(now, 30)), end };
     case "60dias":
