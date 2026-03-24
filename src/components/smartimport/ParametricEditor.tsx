@@ -1537,6 +1537,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 }}
               >
                 <FileDown className="h-3 w-3" /> PDF Vistas
+              </Button>
               <Badge variant="secondary" className="text-[10px]">
                 {module.width}×{module.height}×{module.depth}mm
               </Badge>
