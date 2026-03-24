@@ -232,15 +232,78 @@ export function ModuleLibraryPanel({
     }));
   };
 
-  const filtered = library.filter(item =>
-    item.name.toLowerCase().includes(filter.toLowerCase()) ||
-    item.type.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filtered = library.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(filter.toLowerCase()) ||
+      item.type.toLowerCase().includes(filter.toLowerCase());
+    const matchesCategory = !selectedCategoryId || (item as any).category_id === selectedCategoryId;
+    return matchesSearch && matchesCategory;
+  });
 
   const totalValue = library.reduce((sum, item) => sum + item.cost, 0);
 
+  // Category tree renderer
+  const renderCategoryNode = (node: CategoryTreeNode, depth: number = 0) => {
+    const isSelected = selectedCategoryId === node.id;
+    const hasChildren = node.children.length > 0;
+
+    return (
+      <div key={node.id}>
+        <Collapsible defaultOpen={depth === 0}>
+          <div
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer text-xs transition-colors group ${
+              isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/50 text-foreground"
+            }`}
+            style={{ paddingLeft: `${8 + depth * 14}px` }}
+            onClick={() => onCategorySelect?.(isSelected ? null : node.id)}
+          >
+            {hasChildren ? (
+              <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-4 w-4 p-0">
+                  <ChevronRight className="h-3 w-3 transition-transform data-[state=open]:rotate-90" />
+                </Button>
+              </CollapsibleTrigger>
+            ) : (
+              <span className="w-4" />
+            )}
+            {isSelected ? (
+              <FolderOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+            ) : (
+              <Folder className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            )}
+            <span className="truncate flex-1">{node.name}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+              onClick={(e) => { e.stopPropagation(); setAddingCategoryParentId(node.id); setNewCategoryName(""); }}
+              title="Adicionar subcategoria"
+            >
+              <FolderPlus className="h-3 w-3" />
+            </Button>
+            {onCategoryDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); onCategoryDelete(node.id); }}
+                title="Remover categoria"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          {hasChildren && (
+            <CollapsibleContent>
+              {node.children.map((child) => renderCategoryNode(child, depth + 1))}
+            </CollapsibleContent>
+          )}
+        </Collapsible>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="flex gap-4">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" /> Biblioteca de Módulos
