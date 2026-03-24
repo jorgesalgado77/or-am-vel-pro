@@ -41,11 +41,13 @@ export function SmartImport3DView({ tenantId, onBack }: SmartImport3DViewProps) 
   } = useSmartImport3D(tenantId);
   const { settings } = useCompanySettings();
   const { catalogItems, addItem: addCatalogItem, updateItem: updateCatalogItem, deleteItem: deleteCatalogItem } = useModuleCatalog(tenantId);
+  const { tree: categoryTree, addCategory, deleteCategory: deleteCategoryFn } = useModuleCategories(tenantId);
 
   const [uploading, setUploading] = useState(false);
   const [projectName, setProjectName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedObjects, setSelectedObjects] = useState<any[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   if (checkingAccess) {
     return (
