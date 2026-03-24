@@ -304,33 +304,89 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     };
   }, []);
 
-  // ── Rebuild geometry when module/wall/duplicates change ──
+  // ── Load textures from data URLs ──
+  const loadTexturesForSlots = useCallback(async (THREE: any): Promise<{ matOverrides: MaterialOverrides; wallOv: WallOverrides }> => {
+    const loader = new THREE.TextureLoader();
+    const matOverrides: MaterialOverrides = {};
+    const wallOv: WallOverrides = {};
+
+    const hexToNum = (hex: string) => parseInt(hex.replace("#", ""), 16);
+
+    // Furniture colors
+    matOverrides.bodyColor = hexToNum(furnitureColors.body);
+    matOverrides.doorColor = hexToNum(furnitureColors.door);
+    matOverrides.shelfColor = hexToNum(furnitureColors.shelf);
+    matOverrides.backColor = hexToNum(furnitureColors.back);
+    matOverrides.drawerColor = hexToNum(furnitureColors.drawer);
+
+    // Wall color
+    wallOv.color = hexToNum(wall.color || "#e8e0d8");
+
+    // Load textures from dataURLs
+    const loadTex = (dataUrl: string, cacheKey: string): Promise<any> => {
+      if (textureCache.current[cacheKey]) return Promise.resolve(textureCache.current[cacheKey]);
+      return new Promise((resolve) => {
+        loader.load(dataUrl, (tex: any) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          textureCache.current[cacheKey] = tex;
+          resolve(tex);
+        }, undefined, () => resolve(null));
+      });
+    };
+
+    const slots: [keyof TextureSlots, string][] = [
+      ["body", "body"], ["door", "door"], ["shelf", "shelf"],
+      ["back", "back"], ["drawer", "drawer"], ["wall", "wall"],
+    ];
+
+    await Promise.all(slots.map(async ([slot, key]) => {
+      const dataUrl = textureSlots[slot];
+      if (!dataUrl) return;
+      const tex = await loadTex(dataUrl, key);
+      if (!tex) return;
+      if (slot === "wall") wallOv.texture = tex;
+      else (matOverrides as any)[`${key}Texture`] = tex;
+    }));
+
+    return { matOverrides, wallOv };
+  }, [furnitureColors, textureSlots, wall.color]);
+
+  // ── Rebuild geometry when module/wall/duplicates/colors/textures change ──
   useEffect(() => {
     if (!threeRef.current) return;
     const { THREE, scene, moduleGroups } = threeRef.current;
 
-    // Remove old groups
-    moduleGroups.forEach((g: any) => scene.remove(g));
-    threeRef.current.moduleGroups = [];
+    (async () => {
+      // Remove old groups
+      moduleGroups.forEach((g: any) => scene.remove(g));
+      threeRef.current.moduleGroups = [];
 
-    const wallOpts = wall.enabled ? { wall: { width: wall.width, height: wall.height, depth: wall.depth } } : undefined;
+      const { matOverrides, wallOv } = await loadTexturesForSlots(THREE);
 
-    // Main module
-    const mainGrp = generateParametricGeometry(THREE, module, wallOpts);
-    scene.add(mainGrp);
-    threeRef.current.moduleGroups.push(mainGrp);
+      const opts: GeometryOptions = {};
+      if (wall.enabled) {
+        opts.wall = { width: wall.width, height: wall.height, depth: wall.depth };
+        opts.wallOverrides = wallOv;
+      }
+      opts.materialOverrides = matOverrides;
 
-    // Duplicated modules
-    duplicates.forEach((dup) => {
-      const dupGrp = generateParametricGeometry(THREE, dup.module);
-      dupGrp.position.x += dup.positionX * 0.01;
-      dupGrp.position.z += dup.positionZ * 0.01;
-      scene.add(dupGrp);
-      threeRef.current.moduleGroups.push(dupGrp);
-    });
+      const mainGrp = generateParametricGeometry(THREE, module, opts);
+      scene.add(mainGrp);
+      threeRef.current.moduleGroups.push(mainGrp);
 
-    needsRenderRef.current = true;
-  }, [module, wall, duplicates]);
+      duplicates.forEach((dup) => {
+        const dupGrp = generateParametricGeometry(THREE, dup.module, { materialOverrides: matOverrides });
+        dupGrp.position.x += dup.positionX * 0.01;
+        dupGrp.position.z += dup.positionZ * 0.01;
+        scene.add(dupGrp);
+        threeRef.current.moduleGroups.push(dupGrp);
+      });
+
+      needsRenderRef.current = true;
+    })();
+  }, [module, wall, duplicates, furnitureColors, textureSlots, loadTexturesForSlots]);
 
   // ── Module update helpers ──
   const updateDimension = useCallback((key: "width" | "height" | "depth", value: number) => {
