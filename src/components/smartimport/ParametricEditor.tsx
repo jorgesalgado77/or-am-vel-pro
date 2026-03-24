@@ -353,6 +353,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
       const grid = new THREE.GridHelper(20, 20, 0xcccccc, 0xcccccc);
       (grid.material as any).opacity = 0.3;
       (grid.material as any).transparent = true;
+      grid.name = "floor_grid";
       scene.add(grid);
 
       threeRef.current = { THREE, scene, renderer, camera, controls, moduleGroups: [] as any[] };
