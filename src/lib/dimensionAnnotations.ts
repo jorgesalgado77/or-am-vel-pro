@@ -367,7 +367,6 @@ export function generateDimensionAnnotations(
       const slotCount = dividers.length + 1;
       const slotW = freeW / slotCount;
 
-      // Calculate divider X positions (same logic as redistributeShelves)
       const divPositions: number[] = [];
       let cx = T;
       for (const div of dividers) {
@@ -377,16 +376,14 @@ export function generateDimensionAnnotations(
         cx += dt;
       }
 
-      // Build edges: left wall, each divider center, right wall
       const edges: number[] = [T];
       divPositions.forEach((pos, i) => {
         const dt = dividers[i].thickness || T;
-        edges.push(pos - dt / 2); // left edge of divider
-        edges.push(pos + dt / 2); // right edge of divider
+        edges.push(pos - dt / 2);
+        edges.push(pos + dt / 2);
       });
       edges.push(W - T);
 
-      // Annotate each slot width at mid-height of module
       const midY = bottom + (H * sc) / 2;
       const zPos = front + 0.15;
       for (let i = 0; i < edges.length - 1; i += 2) {
@@ -404,6 +401,25 @@ export function generateDimensionAnnotations(
           ));
         }
       }
+    }
+
+    // ═══ DRAWER FRONT HEIGHT ANNOTATIONS ═══
+    const drawers = options.moduleData.components.filter((c) => c.type === "gaveta");
+    if (drawers.length > 0) {
+      const frontWidth = W - 4;
+      drawers.forEach((drawer, i) => {
+        const fh = drawer.frontHeight || 180;
+        const posY = drawer.positionY;
+        const yBottom = fo + oy + posY * sc;
+        const yTop = yBottom + fh * sc;
+        const xPos = right + 0.20;
+        group.add(createDimensionLine(
+          THREE,
+          new THREE.Vector3(xPos, yBottom, front + 0.10),
+          new THREE.Vector3(xPos, yTop, front + 0.10),
+          `G${i + 1}:${fh}mm`, rightDir, 0.15, "purple", baseTag * 0.75
+        ));
+      });
     }
   }
 
