@@ -3,15 +3,14 @@
  * Gera um THREE.Group a partir de um ParametricModule para preview 3D em tempo real.
  */
 
-import type { ParametricModule, InternalComponent } from "@/types/parametricModule";
+import type { ParametricModule } from "@/types/parametricModule";
 import { calculateInternalSpans } from "./spanEngine";
 
-// Cores padrão (HSL → hex)
+// Cores padrão
 const BODY_COLOR = 0xd4a574; // madeira clara
 const DOOR_COLOR = 0xfafafa; // branco
-const SHELF_COLOR = 0xd4a574;
-const DRAWER_COLOR = 0xfafafa;
-const DIVIDER_COLOR = 0xd4a574;
+const DRAWER_BODY_COLOR = 0xc4a060; // madeira mais escura para corpo gaveta
+const BASEBOARD_COLOR = 0x8b7355; // rodapé
 const EDGE_COLOR = 0x222222;
 
 /**
@@ -25,8 +24,8 @@ export function generateParametricGeometry(
   const group = new THREE.Group();
   group.name = `parametric_${module.name}`;
 
-  const s = 0.01; // mm → unidades 3D (1 unit = 100mm)
-  const { width: W, height: H, depth: D, thickness: T, backThickness: BT } = module;
+  const s = 0.01; // mm → unidades 3D
+  const { width: W, height: H, depth: D, thickness: T, backThickness: BT, baseboardHeight: BH = 0 } = module;
 
   const bodyMat = new THREE.MeshStandardMaterial({
     color: BODY_COLOR,
@@ -36,6 +35,16 @@ export function generateParametricGeometry(
   const doorMat = new THREE.MeshStandardMaterial({
     color: DOOR_COLOR,
     roughness: 0.3,
+    metalness: 0.02,
+  });
+  const drawerBodyMat = new THREE.MeshStandardMaterial({
+    color: DRAWER_BODY_COLOR,
+    roughness: 0.7,
+    metalness: 0.03,
+  });
+  const baseboardMat = new THREE.MeshStandardMaterial({
+    color: BASEBOARD_COLOR,
+    roughness: 0.8,
     metalness: 0.02,
   });
   const edgeMat = new THREE.LineBasicMaterial({ color: EDGE_COLOR, linewidth: 1 });
@@ -53,7 +62,6 @@ export function generateParametricGeometry(
     mesh.name = name;
     mesh.userData = { partName: name, width: w, height: h, depth: d, type: "panel" };
 
-    // Wireframe edges for visibility
     const edges = new THREE.EdgesGeometry(geo);
     const line = new THREE.LineSegments(edges, edgeMat);
     line.position.copy(mesh.position);
@@ -64,6 +72,11 @@ export function generateParametricGeometry(
     return mesh;
   }
 
+  // ── Rodapé (se existir) ──
+  if (BH > 0) {
+    createPanel("Rodapé", W - T * 2, BH, T, W / 2, BH / 2, T / 2, baseboardMat);
+  }
+
   // ── Lateral Esquerda ──
   createPanel("Lateral Esquerda", T, H, D, T / 2, H / 2, D / 2, bodyMat);
 
@@ -71,67 +84,112 @@ export function generateParametricGeometry(
   createPanel("Lateral Direita", T, H, D, W - T / 2, H / 2, D / 2, bodyMat);
 
   // ── Topo ──
-  const iw = W - T * 2; // largura interna
+  const iw = W - T * 2;
   createPanel("Topo", iw, T, D, W / 2, H - T / 2, D / 2, bodyMat);
 
-  // ── Base ──
-  createPanel("Base", iw, T, D, W / 2, T / 2, D / 2, bodyMat);
+  // ── Base (acima do rodapé) ──
+  createPanel("Base", iw, T, D, W / 2, BH + T / 2, D / 2, bodyMat);
 
-  // ── Fundo ──
-  createPanel("Fundo", W - 4, H - 4, BT, W / 2, H / 2, BT / 2, bodyMat);
+  // ── Fundo (largura total × altura total, fixo por trás) ──
+  createPanel("Fundo", W, H, BT, W / 2, H / 2, BT / 2, bodyMat);
 
   // ── Divisórias verticais ──
   const dividers = module.components.filter((c) => c.type === "divisoria");
-  const ih = H - T * 2; // altura interna
+  const ih = H - T * 2 - BH;
 
   dividers.forEach((div, i) => {
-    const posX = div.positionY; // positionY is repurposed as positionX for dividers
+    const posX = div.positionY;
     createPanel(
       `Divisória ${i + 1}`,
       T, ih, D - 20,
-      posX, H / 2, (D - 20) / 2 + 10,
+      posX, BH + T + ih / 2, (D - 20) / 2 + 10,
       bodyMat
     );
   });
 
-  // ── Prateleiras ──
+  // ── Prateleiras (profundidade = total - 70mm) ──
   const spans = calculateInternalSpans(module);
   const shelves = module.components.filter((c) => c.type === "prateleira");
+  const shelfDepth = D - 70;
 
   shelves.forEach((shelf, i) => {
     const posY = spans.shelfPositions[i] ?? shelf.positionY;
     createPanel(
       `Prateleira ${i + 1}`,
-      iw, shelf.thickness, D - 20,
-      W / 2, posY + shelf.thickness / 2, (D - 20) / 2 + 10,
+      iw, shelf.thickness, shelfDepth,
+      W / 2, posY + shelf.thickness / 2, shelfDepth / 2 + 10,
       bodyMat
     );
   });
 
-  // ── Portas ──
+  // ── Portas (altura = total - 7mm, largura = total/qtd - 4mm por porta) ──
   const doors = module.components.filter((c) => c.type === "porta");
   if (doors.length > 0) {
-    const doorWidth = (W - 3) / doors.length;
+    const doorHeight = H - 7;
+    const doorWidth = (W / doors.length) - 4;
     doors.forEach((door, i) => {
+      const xPos = (doorWidth / 2) + 2 + i * (doorWidth + 4);
       createPanel(
         `Porta ${i + 1}`,
-        doorWidth - 2, H - 3, T,
-        doorWidth / 2 + i * doorWidth + 1.5, H / 2, D + T / 2 + 2,
+        doorWidth, doorHeight, T,
+        xPos, H / 2 - 0.5, D + T / 2 + 2,
         doorMat
       );
     });
   }
 
-  // ── Gavetas ──
+  // ── Gavetas (frente + corpo completo) ──
   const drawers = module.components.filter((c) => c.type === "gaveta");
+  const drawerBodyWidth = iw - 35; // -35mm para corrediças telescópicas
+  const drawerBodyDepth = D - 50;  // -50mm profundidade
+
   drawers.forEach((drawer, i) => {
     const fh = drawer.frontHeight || 180;
     const posY = drawer.positionY;
+    const bodyHeight = fh - 30;
+
+    // Frente da gaveta (visível, sobreposta)
     createPanel(
-      `Gaveta ${i + 1}`,
-      iw - 4, fh, T,
+      `Frente Gaveta ${i + 1}`,
+      iw + 2, fh, T,
       W / 2, posY + fh / 2, D + T / 2 + 2,
       doorMat
+    );
+
+    // Corpo da gaveta — laterais (2x)
+    const bodyY = posY + bodyHeight / 2 + 5;
+    const bodyZ = D / 2 + 5;
+
+    // Lateral esquerda corpo
+    createPanel(
+      `Lateral Gaveta E ${i + 1}`,
+      15, bodyHeight, drawerBodyDepth,
+      T + 10, bodyY, bodyZ,
+      drawerBodyMat
+    );
+
+    // Lateral direita corpo
+    createPanel(
+      `Lateral Gaveta D ${i + 1}`,
+      15, bodyHeight, drawerBodyDepth,
+      W - T - 10, bodyY, bodyZ,
+      drawerBodyMat
+    );
+
+    // Traseira corpo
+    createPanel(
+      `Traseira Gaveta ${i + 1}`,
+      drawerBodyWidth - 30, bodyHeight, 15,
+      W / 2, bodyY, 25,
+      drawerBodyMat
+    );
+
+    // Fundo corpo gaveta
+    createPanel(
+      `Fundo Gaveta ${i + 1}`,
+      drawerBodyWidth - 30, 3, drawerBodyDepth - 2,
+      W / 2, posY + 3, bodyZ,
+      drawerBodyMat
     );
   });
 

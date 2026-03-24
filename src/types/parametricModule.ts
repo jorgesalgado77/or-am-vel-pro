@@ -4,6 +4,15 @@
 
 export type ComponentType = "prateleira" | "gaveta" | "porta" | "divisoria" | "nicho";
 
+export type ModuleType =
+  | "caixa_inferior"
+  | "caixa_superior"
+  | "painel"
+  | "regua"
+  | "dormitorio_giro"
+  | "dormitorio_correr"
+  | "custom";
+
 export interface InternalComponent {
   id: string;
   type: ComponentType;
@@ -38,6 +47,8 @@ export interface ModuleSlot {
 export interface ParametricModule {
   id: string;
   name: string;
+  /** Tipo de módulo pré-definido */
+  moduleType: ModuleType;
   /** Dimensões externas em mm */
   width: number;
   height: number;
@@ -46,6 +57,8 @@ export interface ParametricModule {
   thickness: number;
   /** Espessura do fundo (mm) — geralmente mais fino */
   backThickness: number;
+  /** Altura do rodapé inferior (mm) — 0 se não houver */
+  baseboardHeight: number;
   /** Número de divisões verticais (cria slots) */
   verticalDivisions: number;
   /** Componentes internos */
@@ -64,6 +77,8 @@ export interface ParametricModule {
 export interface SpanResult {
   /** Altura interna total (mm) */
   vaoInterno: number;
+  /** Largura interna livre (mm) */
+  larguraInterna: number;
   /** Altura livre após descontar prateleiras (mm) */
   vaoLivre: number;
   /** Altura de cada vão unitário (mm) */
@@ -100,13 +115,102 @@ export interface ModuleBOM {
   totalEdgeBanding: number;
 }
 
+/** Espessuras de chapa disponíveis (mm) */
+export const SHEET_THICKNESSES = [15, 18, 25, 36] as const;
+
+/** Espessuras de fundo disponíveis (mm) */
+export const BACK_THICKNESSES = [3, 6, 15, 18] as const;
+
+export interface ModulePreset {
+  type: ModuleType;
+  label: string;
+  description: string;
+  width: number;
+  height: number;
+  depth: number;
+  thickness: number;
+  backThickness: number;
+  baseboardHeight: number;
+}
+
+export const MODULE_PRESETS: ModulePreset[] = [
+  {
+    type: "caixa_inferior",
+    label: "Caixa Inferior",
+    description: "Armário base de cozinha/banheiro",
+    width: 700,
+    height: 700,
+    depth: 580,
+    thickness: 18,
+    backThickness: 3,
+    baseboardHeight: 0,
+  },
+  {
+    type: "caixa_superior",
+    label: "Caixa Superior",
+    description: "Armário aéreo de cozinha",
+    width: 700,
+    height: 350,
+    depth: 330,
+    thickness: 18,
+    backThickness: 3,
+    baseboardHeight: 0,
+  },
+  {
+    type: "painel",
+    label: "Painel",
+    description: "Painel vertical decorativo ou divisor",
+    width: 600,
+    height: 2100,
+    depth: 18,
+    thickness: 18,
+    backThickness: 3,
+    baseboardHeight: 0,
+  },
+  {
+    type: "regua",
+    label: "Régua",
+    description: "Régua ou acabamento superior",
+    width: 600,
+    height: 100,
+    depth: 330,
+    thickness: 18,
+    backThickness: 3,
+    baseboardHeight: 0,
+  },
+  {
+    type: "dormitorio_giro",
+    label: "Dormitório Giro",
+    description: "Roupeiro com portas de giro e rodapé de 85mm",
+    width: 1000,
+    height: 2100,
+    depth: 580,
+    thickness: 18,
+    backThickness: 3,
+    baseboardHeight: 85,
+  },
+  {
+    type: "dormitorio_correr",
+    label: "Dormitório Correr",
+    description: "Roupeiro com portas de correr, sem rodapé",
+    width: 1800,
+    height: 2400,
+    depth: 620,
+    thickness: 18,
+    backThickness: 3,
+    baseboardHeight: 0,
+  },
+];
+
 export const DEFAULT_MODULE: Omit<ParametricModule, "id"> = {
   name: "Novo Módulo",
+  moduleType: "custom",
   width: 600,
   height: 720,
   depth: 500,
   thickness: 18,
   backThickness: 6,
+  baseboardHeight: 0,
   verticalDivisions: 0,
   components: [],
   slots: [],
