@@ -236,23 +236,23 @@ export function generateDimensionAnnotations(
     ));
   }
 
-  // ── Baseboard height ──
+  // ── Baseboard height (far left — row 3) ──
   if (BH > 0) {
     group.add(createDimensionLine(
       THREE,
-      new THREE.Vector3(left - 0.05, fo, front * 0.7),
-      new THREE.Vector3(left - 0.05, fo + BH * sc, front * 0.7),
-      `R:${BH}mm`, leftDir, 0.35, "orange", baseTag * 0.8
+      new THREE.Vector3(left, fo, front + sp * 0.5),
+      new THREE.Vector3(left, fo + BH * sc, front + sp * 0.5),
+      `R:${BH}mm`, leftDir, 0.55, "orange", baseTag * 0.8
     ));
   }
 
-  // ── Floor offset ──
+  // ── Floor offset (farthest left — row 4) ──
   if (options?.floorOffset && options.floorOffset > 0) {
     group.add(createDimensionLine(
       THREE,
-      new THREE.Vector3(left - 0.05, 0, front * 0.9),
-      new THREE.Vector3(left - 0.05, fo, front * 0.9),
-      `Piso:${options.floorOffset}mm`, leftDir, 0.4, "red", baseTag * 0.8
+      new THREE.Vector3(left, 0, front + sp * 0.5),
+      new THREE.Vector3(left, fo, front + sp * 0.5),
+      `Piso:${options.floorOffset}mm`, leftDir, 0.75, "red", baseTag * 0.8
     ));
   }
 
