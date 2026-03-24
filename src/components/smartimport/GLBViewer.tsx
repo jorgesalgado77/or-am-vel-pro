@@ -164,11 +164,13 @@ function WebGLViewer({
   backgroundPreset,
   lightingPreset,
   qualityPreset,
+  onAutoLighting,
 }: GLBViewerProps & {
   controlsRef?: React.MutableRefObject<any>;
   backgroundPreset: BackgroundPreset;
   lightingPreset: LightingPreset;
   qualityPreset: QualityPreset;
+  onAutoLighting?: (result: AutoLightingResult) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
