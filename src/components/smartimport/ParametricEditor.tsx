@@ -171,11 +171,20 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   }, [textureSlots, updatePersisted]);
 
   const [showPanel, setShowPanel] = useState(true);
+  const [showSaveLibrary, setShowSaveLibrary] = useState(false);
+  const [saveLibName, setSaveLibName] = useState("");
+  const [saveLibCategory, setSaveLibCategory] = useState("");
+  const [saveLibSubcategory, setSaveLibSubcategory] = useState("");
+  const [savedModules, setSavedModules] = useState<any[]>([]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const threeRef = useRef<any>(null);
   const needsRenderRef = useRef(true);
   const animFrameRef = useRef(0);
   const dragRef = useRef<{ id: string; startX: number; startZ: number; mouseX: number; mouseY: number } | null>(null);
+  const isDraggingRef = useRef(false);
+
+  const { tree: categoryTree, categories, addCategory, loadCategories } = useModuleCategories(tenantId ?? null);
 
   // Computed values
   const spans = useMemo(() => calculateInternalSpans(module), [module]);
