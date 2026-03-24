@@ -157,6 +157,9 @@ interface PersistedBuilderState {
   showCotas: boolean;
   floorHeightInferior: number;
   floorHeightSuperior: number;
+  floorColor: string;
+  openDoors: boolean;
+  openDrawers: boolean;
 }
 
 const INITIAL_PERSISTED: PersistedBuilderState = {
@@ -171,6 +174,9 @@ const INITIAL_PERSISTED: PersistedBuilderState = {
   showCotas: false,
   floorHeightInferior: 200,
   floorHeightSuperior: 1500,
+  floorColor: "#d6d3cd",
+  openDoors: false,
+  openDrawers: false,
 };
 
 export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems = [] }: ParametricEditorProps) {
