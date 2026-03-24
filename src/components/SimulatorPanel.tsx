@@ -7,7 +7,8 @@ import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
-import {Lock, LockOpen, Upload, EyeOff, Eye} from "lucide-react";
+import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen} from "lucide-react";
+import {LoadSimulationModal} from "@/components/simulator/LoadSimulationModal";
 import {SimulatorEnvironmentsTable, type ImportedEnvironment} from "@/components/simulator/SimulatorEnvironmentsTable";
 import {SimulatorResultCard} from "@/components/simulator/SimulatorResultCard";
 import {SimulatorClientForm} from "@/components/simulator/SimulatorClientForm";
@@ -154,6 +155,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeMsg, setUpgradeMsg] = useState("");
+  const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
@@ -871,7 +873,14 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader className="pb-4"><CardTitle className="text-base">Parâmetros da Negociação</CardTitle></CardHeader>
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Parâmetros da Negociação</CardTitle>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => setLoadSimModalOpen(true)}>
+                <FolderOpen className="h-3.5 w-3.5" /> Carregar Simulação
+              </Button>
+            </div>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <Label>Valor de Tela</Label>
@@ -1248,6 +1257,40 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
         />
       )}
       <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
+      <LoadSimulationModal
+        open={loadSimModalOpen}
+        onClose={() => setLoadSimModalOpen(false)}
+        onSelect={(sim) => {
+          setValorTela(sim.valor_tela);
+          setDesconto1(sim.desconto1);
+          setDesconto2(sim.desconto2);
+          setDesconto3(sim.desconto3);
+          setFormaPagamento(sim.forma_pagamento as FormaPagamento);
+          setParcelas(sim.parcelas);
+          setValorEntrada(sim.valor_entrada);
+          setPlusPercentual(sim.plus_percentual);
+          if (sim.desconto3 > 0) setDesconto3Unlocked(true);
+          if (sim.plus_percentual > 0) setPlusUnlocked(true);
+          // Restore environments if available
+          if (sim.arquivo_nome) {
+            try {
+              const envs = JSON.parse(sim.arquivo_nome);
+              if (Array.isArray(envs) && envs.length > 0) {
+                setEnvironments(envs.map((e: any) => ({
+                  id: e.id || crypto.randomUUID(),
+                  fileName: e.fileName || e.name || "",
+                  environmentName: e.environmentName || e.name || "",
+                  pieceCount: e.pieceCount || 0,
+                  totalValue: e.totalValue || Number(e.value) || 0,
+                  importedAt: new Date(e.importedAt || Date.now()),
+                  file: new File([], e.fileName || ""),
+                })));
+              }
+            } catch {}
+          }
+          toast.success(`Simulação de ${sim.client_name} carregada!`);
+        }}
+      />
     </div>
   );
 }
