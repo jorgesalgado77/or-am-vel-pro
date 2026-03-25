@@ -43,16 +43,17 @@ export const FORMAS_PAGAMENTO_LABELS: Record<string, string> = {
  * Generates the next sequential budget (orçamento) number.
  * Used in both Index.tsx and SimulatorPanel.tsx — now centralized.
  */
-export async function generateOrcamentoNumber(): Promise<{
+export async function generateOrcamentoNumber(tenantId?: string | null): Promise<{
   numero_orcamento: string;
   numero_orcamento_seq: number;
 }> {
-  const { data: maxData } = await supabase
+  let maxQuery = supabase
     .from("clients")
     .select("numero_orcamento_seq")
     .order("numero_orcamento_seq", { ascending: false })
-    .limit(1)
-    .single() as any;
+    .limit(1);
+  if (tenantId) maxQuery = maxQuery.eq("tenant_id", tenantId);
+  const { data: maxData } = await maxQuery.single() as any;
 
   let nextSeq: number;
   if (!maxData?.numero_orcamento_seq) {

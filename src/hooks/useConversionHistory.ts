@@ -31,12 +31,14 @@ export function useConversionHistory(tenantId: string | null): ConversionStats {
         // Total simulations
         const { count: simCount } = await supabase
           .from("simulations")
-          .select("*", { count: "exact", head: true });
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", tenantId);
 
         // Closed deals (clients with status 'ganho' or 'fechado')
         const { data: closedClients } = await supabase
           .from("clients")
           .select("id")
+          .eq("tenant_id", tenantId)
           .or("status.eq.ganho,status.eq.fechado");
 
         // Get simulations for closed clients to find avg discount

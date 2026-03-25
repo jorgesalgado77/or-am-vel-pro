@@ -57,10 +57,12 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
 
-    const { data: trackings } = await supabase
+    let trackingQuery = supabase
       .from("client_tracking")
       .select("id, numero_contrato, nome_cliente")
       .order("updated_at", { ascending: false });
+    if (tenantId) trackingQuery = trackingQuery.eq("tenant_id", tenantId);
+    const { data: trackings } = await trackingQuery;
 
     if (!trackings) { setLoading(false); return; }
 
