@@ -108,25 +108,53 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
     });
   };
 
+  const handleCurrencyChange = (field: "valor_tela" | "valor_entrada") => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = unmaskCurrency(e.target.value);
+    if (raw > VALOR_MAX) {
+      toast.error(`Valor máximo: ${formatCurrency(VALOR_MAX)}`);
+      setEditForm(p => ({ ...p, [field]: maskCurrency(String(Math.round(VALOR_MAX * 100))) }));
+      return;
+    }
+    setEditForm(p => ({ ...p, [field]: maskCurrency(e.target.value) }));
+  };
+
   const saveEdit = async () => {
     if (!selectedSim) return;
-    setSaving(true);
+
+    const valorTela = unmaskCurrency(editForm.valor_tela);
+    const valorEntrada = unmaskCurrency(editForm.valor_entrada);
+
+    if (valorTela <= 0) {
+      toast.error("Valor de Tela deve ser maior que zero");
+      return;
+    }
+
     const valorComDesconto = calcValorComDesconto(editForm);
-    const entrada = Number(editForm.valor_entrada) || 0;
-    const saldo = valorComDesconto - entrada;
+
+    if (valorEntrada < 0) {
+      toast.error("Valor de Entrada não pode ser negativo");
+      return;
+    }
+    if (valorEntrada > valorComDesconto) {
+      toast.error("Valor de Entrada não pode ser maior que o valor com desconto");
+      return;
+    }
+
+    setSaving(true);
+    const saldo = valorComDesconto - valorEntrada;
     const parcelas = Number(editForm.parcelas) || 1;
     const valorParcela = parcelas > 0 ? saldo / parcelas : saldo;
 
     const { error } = await supabase
       .from("simulations")
       .update({
-        valor_tela: Number(editForm.valor_tela) || 0,
+        valor_tela: valorTela,
         desconto1: Number(editForm.desconto1) || 0,
         desconto2: Number(editForm.desconto2) || 0,
         desconto3: Number(editForm.desconto3) || 0,
         forma_pagamento: editForm.forma_pagamento,
-        parcelas: Number(editForm.parcelas) || 1,
-        valor_entrada: entrada,
+        parcelas,
+        valor_entrada: valorEntrada,
         valor_final: valorComDesconto,
         valor_parcela: valorParcela,
       })
@@ -139,16 +167,15 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
       toast.success("Simulação atualizada!");
       setEditing(false);
       loadSimulations();
-      // Update selected sim locally
       setSelectedSim(prev => prev ? {
         ...prev,
-        valor_tela: Number(editForm.valor_tela) || 0,
+        valor_tela: valorTela,
         desconto1: Number(editForm.desconto1) || 0,
         desconto2: Number(editForm.desconto2) || 0,
         desconto3: Number(editForm.desconto3) || 0,
         forma_pagamento: editForm.forma_pagamento,
-        parcelas: Number(editForm.parcelas) || 1,
-        valor_entrada: entrada,
+        parcelas,
+        valor_entrada: valorEntrada,
         valor_final: valorComDesconto,
         valor_parcela: valorParcela,
       } : null);
@@ -216,7 +243,7 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
       desconto2: String(editing ? editForm.desconto2 : (selectedSim.desconto2 || 0)),
       desconto3: String(editing ? editForm.desconto3 : (selectedSim.desconto3 || 0)),
     });
-    const entrada = editing ? Number(editForm.valor_entrada) || 0 : Number(selectedSim.valor_entrada) || 0;
+    const entrada = editing ? unmaskCurrency(editForm.valor_entrada) : Number(selectedSim.valor_entrada) || 0;
     const saldo = valorDesc - entrada;
 
     return (
@@ -252,9 +279,9 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
           <ScrollArea className="h-[320px]">
             <div className="space-y-3 pr-2">
               <div>
-                <Label className="text-xs">Valor de Tela (R$)</Label>
-                <Input type="number" className="h-8 text-sm mt-1" value={editForm.valor_tela}
-                  onChange={e => setEditForm(p => ({ ...p, valor_tela: e.target.value }))} />
+                <Label className="text-xs">Valor de Tela</Label>
+                <Input inputMode="numeric" className="h-8 text-sm mt-1" value={editForm.valor_tela}
+                  onChange={handleCurrencyChange("valor_tela")} />
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
@@ -293,9 +320,9 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
                     onChange={e => setEditForm(p => ({ ...p, parcelas: e.target.value }))} />
                 </div>
                 <div>
-                  <Label className="text-xs">Entrada (R$)</Label>
-                  <Input type="number" className="h-8 text-sm mt-1" value={editForm.valor_entrada}
-                    onChange={e => setEditForm(p => ({ ...p, valor_entrada: e.target.value }))} />
+                  <Label className="text-xs">Entrada</Label>
+                  <Input inputMode="numeric" className="h-8 text-sm mt-1" value={editForm.valor_entrada}
+                    onChange={handleCurrencyChange("valor_entrada")} />
                 </div>
               </div>
 
