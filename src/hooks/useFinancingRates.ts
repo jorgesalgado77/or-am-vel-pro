@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { getResolvedTenantId } from "@/lib/tenantState";
+import { getTenantId } from "@/lib/tenantState";
 
 export interface FinancingRate {
   id: string;
@@ -20,7 +20,7 @@ export function useFinancingRates(providerType?: "boleto" | "credito") {
 
   const fetchRates = async () => {
     setLoading(true);
-    const tenantId = await getResolvedTenantId();
+    const tenantId = getTenantId();
     let query = supabase.from("financing_rates").select("*").order("provider_name").order("installments");
     if (tenantId) query = query.eq("tenant_id", tenantId);
     if (providerType) query = query.eq("provider_type", providerType);
