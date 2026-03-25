@@ -96,6 +96,7 @@ export function AIStrategyPanel({
   maxParcelas,
   currentFormaPagamento,
   onApplyStrategy,
+  calculateResult,
   canAccess,
   historicalConversionRate = 0,
 }: AIStrategyPanelProps) {
