@@ -8,7 +8,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {Plus, Trash2, Save, Handshake} from "lucide-react";
+import {Plus, Trash2, Save, Handshake, Loader2} from "lucide-react";
 import {maskCpfCnpj, maskPhone} from "@/lib/masks";
 import {formatCurrency} from "@/lib/financing";
 import {FORMAS_PAGAMENTO_LABELS} from "@/services/financialService";
@@ -120,6 +120,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
   const [items, setItems] = useState<SaleItem[]>([]);
   const [itemDetails, setItemDetails] = useState<SaleItemDetail[]>([]);
+  const [cepLoading, setCepLoading] = useState<"" | "_entrega" | null>(null);
 
   // Prefill from client and simulation data
   useEffect(() => {
@@ -158,17 +159,26 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const fetchCep = async (cep: string, prefix: "" | "_entrega") => {
     const digits = cep.replace(/\D/g, "");
     if (digits.length !== 8) return;
+    setCepLoading(prefix);
     try {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
-      if (data.erro) return;
+      if (data.erro) {
+        toast.error("CEP não encontrado");
+        return;
+      }
       updateForm({
         [`endereco${prefix}`]: data.logradouro || form[`endereco${prefix}` as keyof CloseSaleFormData],
         [`bairro${prefix}`]: data.bairro || form[`bairro${prefix}` as keyof CloseSaleFormData],
         [`cidade${prefix}`]: data.localidade || form[`cidade${prefix}` as keyof CloseSaleFormData],
         [`uf${prefix}`]: data.uf || form[`uf${prefix}` as keyof CloseSaleFormData],
       } as Partial<CloseSaleFormData>);
-    } catch {}
+      toast.success("Endereço preenchido pelo CEP!");
+    } catch {
+      toast.error("Erro ao buscar CEP");
+    } finally {
+      setCepLoading(null);
+    }
   };
 
   const handleCepChange = (field: "cep" | "cep_entrega", value: string) => {
