@@ -243,7 +243,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <CardTitle className="text-sm">Dados do Contrato</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">Nº do Contrato</Label>
                     <Input value={form.numero_contrato} onChange={e => updateField("numero_contrato", e.target.value)} className="mt-1 h-9 text-sm" />
@@ -266,7 +266,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <CardTitle className="text-sm">Dados Pessoais do Cliente</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Nome Completo *</Label>
                     <Input value={form.nome_completo} onChange={e => updateField("nome_completo", e.target.value)} className="mt-1 h-9 text-sm" />
@@ -276,7 +276,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <Input type="date" value={form.data_nascimento} onChange={e => updateField("data_nascimento", e.target.value)} className="mt-1 h-9 text-sm" />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">CPF/CNPJ</Label>
                     <Input value={form.cpf_cnpj} onChange={e => updateField("cpf_cnpj", maskCpfCnpj(e.target.value))} className="mt-1 h-9 text-sm" />
@@ -290,7 +290,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <Input value={form.profissao} onChange={e => updateField("profissao", e.target.value)} className="mt-1 h-9 text-sm" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Telefone</Label>
                     <Input value={form.telefone} onChange={e => updateField("telefone", maskPhone(e.target.value))} className="mt-1 h-9 text-sm" placeholder="(00) 00000-0000" />
@@ -309,17 +309,17 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <CardTitle className="text-sm">Endereço Atual</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">CEP</Label>
                     <Input value={form.cep} onChange={e => handleCepChange("cep", e.target.value)} className="mt-1 h-9 text-sm" placeholder="00000-000" />
                   </div>
-                  <div className="col-span-3">
+                  <div className="sm:col-span-3">
                     <Label className="text-xs">Endereço</Label>
                     <Input value={form.endereco} onChange={e => updateField("endereco", e.target.value)} className="mt-1 h-9 text-sm" />
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">Bairro</Label>
                     <Input value={form.bairro} onChange={e => updateField("bairro", e.target.value)} className="mt-1 h-9 text-sm" />
@@ -347,12 +347,12 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <CardTitle className="text-sm">Endereço de Entrega</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">CEP</Label>
                     <Input value={form.cep_entrega} onChange={e => handleCepChange("cep_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="00000-000" />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <Label className="text-xs">Endereço de Entrega</Label>
                     <Input value={form.endereco_entrega} onChange={e => updateField("endereco_entrega", e.target.value)} className="mt-1 h-9 text-sm" />
                   </div>
@@ -361,7 +361,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <Input value={form.prazo_entrega} onChange={e => updateField("prazo_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="Ex: 45 dias" />
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">Bairro</Label>
                     <Input value={form.bairro_entrega} onChange={e => updateField("bairro_entrega", e.target.value)} className="mt-1 h-9 text-sm" />
