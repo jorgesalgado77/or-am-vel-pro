@@ -124,18 +124,31 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   // Prefill from client and simulation data
   useEffect(() => {
     if (!open) return;
-    updateForm({
+    const prefill: Partial<CloseSaleFormData> = {
       nome_completo: client?.nome || "",
       cpf_cnpj: client?.cpf ? maskCpfCnpj(client.cpf) : "",
+      rg_insc_estadual: (client as any)?.rg || "",
+      profissao: (client as any)?.profissao || "",
       telefone: client?.telefone1 ? maskPhone(client.telefone1) : "",
       email: client?.email || "",
+      endereco: (client as any)?.endereco || "",
+      bairro: (client as any)?.bairro || "",
+      cidade: (client as any)?.cidade || "",
+      uf: (client as any)?.uf || "",
+      cep: (client as any)?.cep || "",
+      data_nascimento: (client as any)?.data_nascimento || "",
       responsavel_venda: simulationData?.vendedor || client?.vendedor || "",
       numero_contrato: simulationData?.numeroOrcamento || client?.numero_orcamento || "",
       valor_entrada: simulationData?.valorEntrada || 0,
       qtd_parcelas: simulationData?.parcelas || 1,
       valor_parcelas: simulationData?.valorParcela || 0,
       data_fechamento: format(new Date(), "yyyy-MM-dd"),
-    });
+    };
+    // Only set fields that have values, preserving previously persisted data
+    const filtered = Object.fromEntries(
+      Object.entries(prefill).filter(([_, v]) => v !== "" && v !== 0 && v !== undefined)
+    ) as Partial<CloseSaleFormData>;
+    if (Object.keys(filtered).length > 0) updateForm(filtered);
   }, [open, client, simulationData]);
 
   const updateField = (field: keyof CloseSaleFormData, value: string | number) => {
