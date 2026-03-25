@@ -772,7 +772,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     if (!session?.user) return;
 
-    const appUser = await withTimeout(loadAppUser(session.user), 5000, null);
+    const preferTenant = (session.user.user_metadata as any)?.tenant_id as string | undefined ?? null;
+    const appUser = await withTimeout(loadAppUser(session.user, preferTenant), 5000, null);
     if (!appUser) return;
 
     const stableUser = shouldKeepExistingResolvedUser(userRef.current, appUser)
