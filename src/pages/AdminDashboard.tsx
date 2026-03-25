@@ -365,24 +365,26 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       // Final uniqueness check before insert
       const { data: existing } = await supabase.from("tenants").select("id").eq("codigo_loja", tCodigo.trim()).maybeSingle();
       if (existing) { toast.error("Código da loja já existe. Gerando novo..."); const c = await generateUniqueCode(); setTCodigo(c); return; }
-      // Try admin RPC first (SECURITY DEFINER bypasses RLS)
-      const { error: rpcError } = await (supabase.rpc as any)("admin_create_tenant", {
-        p_nome_loja: payload.nome_loja,
-        p_codigo_loja: payload.codigo_loja,
-        p_email_contato: payload.email_contato,
-        p_telefone_contato: payload.telefone_contato,
-        p_plano: payload.plano,
-        p_plano_periodo: payload.plano_periodo,
-        p_max_usuarios: payload.max_usuarios,
-        p_ativo: payload.ativo,
-        p_recursos_vip: payload.recursos_vip,
-      });
-      if (rpcError) {
-        // Fallback to direct insert (requires INSERT RLS policy for admin_master)
-        const { error: insertError } = await supabase.from("tenants").insert(payload);
-        if (insertError) {
-          toast.error("Erro ao criar loja. Execute o SQL de setup da RPC admin_create_tenant no Supabase.");
-          console.error("Insert error:", insertError.message, "RPC error:", rpcError.message);
+      
+      // Try direct insert (requires INSERT RLS policy for admin_master)
+      const { data: newTenant, error: insertError } = await supabase.from("tenants").insert(payload).select().single();
+      if (insertError) {
+        console.error("Insert error:", insertError.message);
+        // If RLS blocks, try via admin RPC as fallback
+        const { error: rpcError } = await (supabase.rpc as any)("admin_create_tenant", {
+          p_nome_loja: payload.nome_loja,
+          p_codigo_loja: payload.codigo_loja,
+          p_email_contato: payload.email_contato,
+          p_telefone_contato: payload.telefone_contato,
+          p_plano: payload.plano,
+          p_plano_periodo: payload.plano_periodo,
+          p_max_usuarios: payload.max_usuarios,
+          p_ativo: payload.ativo,
+          p_recursos_vip: payload.recursos_vip,
+        });
+        if (rpcError) {
+          toast.error("Erro ao criar loja. Verifique se a política de INSERT para admin_master existe na tabela tenants.");
+          console.error("RPC fallback error:", rpcError.message);
           return;
         }
       }
