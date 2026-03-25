@@ -284,8 +284,25 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     return acc + price;
   }, 0);
 
+  // Generate unique 6-digit store code (format: 999.999)
+  const generateUniqueCode = async (): Promise<string> => {
+    const existingCodes = new Set(tenants.map(t => t.codigo_loja).filter(Boolean));
+    let code = "";
+    let attempts = 0;
+    do {
+      const num = Math.floor(100000 + Math.random() * 900000);
+      code = `${String(num).slice(0, 3)}.${String(num).slice(3)}`;
+      attempts++;
+    } while (existingCodes.has(code) && attempts < 100);
+
+    // Double-check in DB to avoid race conditions
+    const { data } = await supabase.from("tenants").select("id").eq("codigo_loja", code).maybeSingle();
+    if (data) return generateUniqueCode(); // retry if collision
+    return code;
+  };
+
   // Tenant CRUD
-  const openNewTenant = () => {
+  const openNewTenant = async () => {
     setEditingTenant(null);
     setTNome(""); setTCodigo(""); setTEmail(""); setTTelefone("");
     setTPlano("trial"); setTPeriodo("mensal"); setTAtivo(true);
@@ -294,6 +311,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTVendaZap(false);
     setT3dImport(false);
     setShowTenantDialog(true);
+    // Auto-generate unique code
+    const code = await generateUniqueCode();
+    setTCodigo(code);
   };
 
   const openEditTenant = (t: Tenant) => {
@@ -311,10 +331,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
   const saveTenant = async () => {
     if (!tNome.trim()) { toast.error("Nome da loja é obrigatório"); return; }
+    if (!tCodigo.trim()) { toast.error("Código da loja é obrigatório"); return; }
     const maxUsers = tPlano === "basico" ? 3 : tPlano === "premium" ? 999 : 999;
     const payload: any = {
       nome_loja: tNome.trim(),
-      codigo_loja: tCodigo.trim() || null,
+      codigo_loja: tCodigo.trim(),
       email_contato: tEmail.trim() || null,
       telefone_contato: tTelefone.trim() || null,
       plano: tPlano,
@@ -329,6 +350,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       if (error) toast.error("Erro ao atualizar loja");
       else toast.success("Loja atualizada!");
     } else {
+      // Final uniqueness check before insert
+      const { data: existing } = await supabase.from("tenants").select("id").eq("codigo_loja", tCodigo.trim()).maybeSingle();
+      if (existing) { toast.error("Código da loja já existe. Gerando novo..."); const c = await generateUniqueCode(); setTCodigo(c); return; }
       const { error } = await supabase.from("tenants").insert(payload);
       if (error) toast.error("Erro ao criar loja");
       else toast.success("Loja criada!");
@@ -849,7 +873,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </div>
             <div>
               <Label className="text-xs">Código da Loja</Label>
-              <Input value={tCodigo} onChange={(e) => setTCodigo(e.target.value)} className="mt-1 h-9 text-sm" placeholder="000.000" />
+              <Input value={tCodigo} readOnly disabled className="mt-1 h-9 text-sm font-mono bg-muted" placeholder="Gerando..." />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
