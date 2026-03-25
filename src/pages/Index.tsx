@@ -388,7 +388,11 @@ export default function Index() {
               <ChangePasswordDialog
                 open={showChangePassword}
                 userId={authUser.id}
-                onClose={() => setShowChangePassword(false)}
+                forced={forcedPasswordChange}
+                onClose={() => {
+                  setShowChangePassword(false);
+                  setForcedPasswordChange(false);
+                }}
               />
             )}
             <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
