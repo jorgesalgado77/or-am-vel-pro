@@ -363,10 +363,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { user: appUser, error: null };
       };
 
+      // Start tenant resolution from store code early
+      if (normalizedStoreCode.length === 6) {
+        const tenantFromCode = await withTimeout(tenantResolutionPromise, 2000, null);
+        if (tenantFromCode) {
+          resolvedTenantId = tenantFromCode;
+        }
+      }
+
       const { data, error } = await signInWithPasswordFast(normalizedEmail_, password);
 
       if (!error && data.user) {
-        resolvedTenantId = (data.user.user_metadata as any)?.tenant_id ?? null;
+        // Only use metadata tenant if we didn't resolve from store code
+        if (!resolvedTenantId) {
+          resolvedTenantId = (data.user.user_metadata as any)?.tenant_id ?? null;
+        }
         return finalizeLogin(data);
       }
 
