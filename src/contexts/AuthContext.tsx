@@ -336,6 +336,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(authData.session);
         syncGlobalState(appUser);
 
+        // Sync Auth user metadata with correct tenant_id for session restore
+        if (appUser.tenant_id) {
+          const currentMetaTenant = (authData.user.user_metadata as any)?.tenant_id;
+          if (currentMetaTenant !== appUser.tenant_id) {
+            void supabase.auth.updateUser({
+              data: { tenant_id: appUser.tenant_id },
+            }).catch(() => { /* best effort */ });
+          }
+        }
+
         if (usedFallbackUser) {
           void (async () => {
             await withTimeout(ensureUserProfile(authData.user, metadata, password), 1500, undefined);
