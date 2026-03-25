@@ -42,10 +42,13 @@ export function PayrollDeductions({ usuarios, cargos, mesReferencia, getRegimeEf
   }, [mesReferencia, usuarios]);
 
   const loadDeductions = async () => {
-    const { data } = await supabase
+    const tenantId = getTenantId();
+    let query = supabase
       .from("payroll_deductions" as any)
       .select("*")
       .eq("mes_referencia", mesReferencia);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
 
     const map: Record<string, EmployeeDeduction> = {};
     activeUsers.forEach(u => {

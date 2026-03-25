@@ -62,8 +62,10 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
   const activeUsers = usuarios.filter((u) => u.ativo);
 
   const fetchCommissions = async () => {
+    const tenantId = getTenantId();
     let query = supabase.from("payroll_commissions").select("*");
 
+    if (tenantId) query = query.eq("tenant_id", tenantId);
     if (filterMode === "mes") {
       query = query.eq("mes_referencia", mesReferencia);
     } else {
@@ -76,10 +78,13 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
   };
 
   const fetchDeductions = async () => {
-    const { data } = await supabase
+    const tenantId = getTenantId();
+    let query = supabase
       .from("payroll_deductions" as any)
       .select("*")
       .eq("mes_referencia", mesReferencia);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
     const map: Record<string, EmployeeDeduction> = {};
     (data as any[] || []).forEach((d: any) => { map[d.usuario_id] = d; });
     setDeductionsData(map);
