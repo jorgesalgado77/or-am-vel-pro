@@ -1022,7 +1022,7 @@ function ContractTrackingList() {
 
     const comissaoResult = calcularComissao(form.valor_contrato, 0, comissaoPolicy, null);
 
-    const tenantId = await getResolvedTenantId();
+    
     const { error } = await supabase.from("client_tracking").insert({
       client_id: clientData?.id || "00000000-0000-0000-0000-000000000000",
       numero_contrato: form.numero_contrato.trim(),
