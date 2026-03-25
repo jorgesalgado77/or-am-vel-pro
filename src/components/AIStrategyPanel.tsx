@@ -32,6 +32,23 @@ interface StrategyScenario {
   descricao: string;
 }
 
+interface StrategyParams {
+  desconto1: number;
+  desconto2: number;
+  desconto3: number;
+  plusPercentual: number;
+  formaPagamento: string;
+  parcelas: number;
+  valorEntrada: number;
+}
+
+interface CalculatedResult {
+  valorComDesconto: number;
+  valorFinal: number;
+  valorParcela: number;
+  saldo: number;
+}
+
 interface AIStrategyPanelProps {
   valorTela: number;
   valorTelaComComissao: number;
@@ -43,15 +60,8 @@ interface AIStrategyPanelProps {
   };
   maxParcelas: number;
   currentFormaPagamento: string;
-  onApplyStrategy: (strategy: {
-    desconto1: number;
-    desconto2: number;
-    desconto3: number;
-    plusPercentual: number;
-    formaPagamento: string;
-    parcelas: number;
-    valorEntrada: number;
-  }) => void;
+  onApplyStrategy: (strategy: StrategyParams) => void;
+  calculateResult: (strategy: StrategyParams) => CalculatedResult;
   canAccess: boolean;
   historicalConversionRate?: number;
 }
