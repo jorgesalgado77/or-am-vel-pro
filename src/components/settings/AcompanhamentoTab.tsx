@@ -115,6 +115,7 @@ export function AcompanhamentoTab() {
       (user as any)?.cargo_nome || null
     );
 
+    const tenantId = getTenantId();
     const { error } = await supabase.from("client_tracking").insert({
       client_id: clientData?.id || "00000000-0000-0000-0000-000000000000",
       numero_contrato: form.numero_contrato.trim(),
@@ -128,6 +129,7 @@ export function AcompanhamentoTab() {
       comissao_percentual: comissaoResult.percentual,
       comissao_valor: Math.round((form.valor_contrato * comissaoResult.percentual / 100) * 100) / 100,
       comissao_status: "pendente",
+      ...(tenantId ? { tenant_id: tenantId } : {}),
     } as any);
 
     setSaving(false);

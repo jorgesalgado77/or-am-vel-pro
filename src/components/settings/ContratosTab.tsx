@@ -147,9 +147,10 @@ export function ContratosTab() {
       if (error) toast.error("Erro ao salvar");
       else toast.success("Contrato atualizado!");
     } else {
+      const tenantId = getTenantId();
       const { error } = await supabase
         .from("contract_templates")
-        .insert({ nome, conteudo_html: finalHtml } as never);
+        .insert({ nome, conteudo_html: finalHtml, ...(tenantId ? { tenant_id: tenantId } : {}) } as never);
       if (error) toast.error("Erro ao criar");
       else toast.success("Contrato criado!");
     }
