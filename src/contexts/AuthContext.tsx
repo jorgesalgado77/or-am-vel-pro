@@ -336,7 +336,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (usedFallbackUser) {
           void (async () => {
             await withTimeout(ensureUserProfile(authData.user, metadata, password), 1500, undefined);
-            const refreshedUser = await withTimeout(loadAppUser(authData.user), 1500, null);
+            const refreshedUser = await withTimeout(loadAppUser(authData.user, resolvedTenantId), 1500, null);
 
             if (refreshedUser) {
               userRef.current = refreshedUser;
