@@ -507,7 +507,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <CardTitle className="text-sm">Resumo Financeiro</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Valor Total do Contrato</span>
@@ -519,7 +519,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                       <Label className="text-xs">Forma de Pagamento</Label>
                       <p className="text-sm font-medium mt-1">{formaLabel[simulationData?.formaPagamento || ""] || simulationData?.formaPagamento || "—"}</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <Label className="text-xs">Entrada</Label>
                         <Input type="number" min={0} step={0.01} value={form.valor_entrada || ""} onChange={e => updateField("valor_entrada", Number(e.target.value))} className="mt-1 h-9 text-sm" />
@@ -539,7 +539,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             </Card>
 
             {/* Actions */}
-            <div className="flex gap-3 pb-4">
+            <div className="flex flex-col sm:flex-row gap-3 pb-4">
               <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
               <Button onClick={handleSubmit} disabled={saving} className="flex-1 gap-2">
                 <Save className="h-4 w-4" />
