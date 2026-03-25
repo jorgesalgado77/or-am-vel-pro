@@ -922,7 +922,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                     inputMode="numeric"
                     value={valorTela ? maskCurrency(String(Math.round(valorTela * 100))) : ""}
                     onChange={(e) => {
-                      setValorTela(unmaskCurrency(e.target.value));
+                      const raw = unmaskCurrency(e.target.value);
+                      if (raw > VALOR_TELA_MAX) {
+                        toast.error(`Valor máximo: ${formatCurrency(VALOR_TELA_MAX)}`);
+                        setValorTela(VALOR_TELA_MAX);
+                        return;
+                      }
+                      setValorTela(raw);
                     }}
                     className="pl-10"
                     placeholder="R$ 0,00"
@@ -1116,7 +1122,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                   inputMode="numeric"
                   value={valorEntrada ? maskCurrency(String(Math.round(valorEntrada * 100))) : ""}
                   onChange={(e) => {
-                    setValorEntrada(unmaskCurrency(e.target.value));
+                    const raw = unmaskCurrency(e.target.value);
+                    if (raw > VALOR_ENTRADA_MAX) {
+                      toast.error(`Valor máximo de entrada: ${formatCurrency(VALOR_ENTRADA_MAX)}`);
+                      setValorEntrada(VALOR_ENTRADA_MAX);
+                      return;
+                    }
+                    setValorEntrada(raw);
                   }}
                   className="pl-10"
                   placeholder="R$ 0,00"
