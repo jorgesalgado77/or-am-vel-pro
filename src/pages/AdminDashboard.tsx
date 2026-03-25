@@ -112,6 +112,10 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [showClientsModal, setShowClientsModal] = useState(false);
   const [showInactiveModal, setShowInactiveModal] = useState(false);
+  const [repairDialogOpen, setRepairDialogOpen] = useState(false);
+  const [repairTenant, setRepairTenant] = useState<Tenant | null>(null);
+  const [repairPassword, setRepairPassword] = useState("123456");
+  const [repairingAccess, setRepairingAccess] = useState(false);
 
   // Tenant form
   const [tNome, setTNome] = useState("");
@@ -531,26 +535,34 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     await fetchData();
   };
 
-  const repairTenantAccess = async (tenant: Tenant) => {
-    const email = tenant.email_contato?.trim().toLowerCase();
+  const openRepairTenantAccess = (tenant: Tenant) => {
+    setRepairTenant(tenant);
+    setRepairPassword("123456");
+    setRepairDialogOpen(true);
+  };
+
+  const repairTenantAccess = async () => {
+    if (!repairTenant) return;
+
+    const email = repairTenant.email_contato?.trim().toLowerCase();
     if (!email) {
       toast.error("Esta loja não possui email de contato cadastrado.");
       return;
     }
 
-    const tempPassword = window.prompt(`Defina a senha temporária para ${email}`, "123456");
-    if (!tempPassword) return;
-    if (tempPassword.trim().length < 6) {
+    if (repairPassword.trim().length < 6) {
       toast.error("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
 
+    setRepairingAccess(true);
+
     try {
-      const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: tempPassword.trim() }) as any;
+      const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: repairPassword.trim() }) as any;
       const { data: existingUsers, error: existingUsersError } = await (supabase as any)
         .from("usuarios")
         .select("id")
-        .eq("tenant_id", tenant.id)
+        .eq("tenant_id", repairTenant.id)
         .ilike("email", email)
         .limit(1);
 
@@ -575,8 +587,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         const { error: insertError } = await (supabase as any)
           .from("usuarios")
           .insert({
-            tenant_id: tenant.id,
-            nome_completo: tenant.nome_loja,
+            tenant_id: repairTenant.id,
+            nome_completo: repairTenant.nome_loja,
             apelido: "Admin",
             email,
             senha: hashedSenha,
@@ -591,8 +603,13 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       }
 
       toast.success(`Acesso reparado para ${email}. O usuário deverá trocar a senha no primeiro login.`);
+      setRepairDialogOpen(false);
+      setRepairTenant(null);
+      setRepairPassword("123456");
     } catch (error: any) {
       toast.error("Não foi possível reparar o acesso: " + (error?.message || "erro desconhecido"));
+    } finally {
+      setRepairingAccess(false);
     }
   };
 
@@ -926,7 +943,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTenant(t)} title="Editar loja">
                                 <Edit className="h-3 w-3" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => repairTenantAccess(t)} title="Reparar acesso do administrador">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openRepairTenantAccess(t)} title="Reparar acesso do administrador">
                                 <KeyRound className="h-3 w-3" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteTenant(t.id)} title="Excluir loja">
@@ -1164,6 +1181,42 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <DialogFooter className="px-4 pb-4 pt-2 sm:px-6 sm:pb-6 shrink-0 border-t border-border">
             <Button variant="outline" size="sm" onClick={() => setShowTenantDialog(false)}>Cancelar</Button>
             <Button size="sm" onClick={saveTenant}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={repairDialogOpen} onOpenChange={(open) => {
+        setRepairDialogOpen(open);
+        if (!open) {
+          setRepairTenant(null);
+          setRepairPassword("123456");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reparar acesso do administrador</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Loja</Label>
+              <div className="text-sm text-foreground font-medium">{repairTenant?.nome_loja || "—"}</div>
+              <div className="text-xs text-muted-foreground">{repairTenant?.codigo_loja || "—"} • {repairTenant?.email_contato || "Sem email"}</div>
+            </div>
+            <div>
+              <Label className="text-xs">Senha temporária</Label>
+              <Input
+                value={repairPassword}
+                onChange={(e) => setRepairPassword(e.target.value)}
+                type="password"
+                className="mt-1 h-9 text-sm"
+                placeholder="Mínimo 6 caracteres"
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">O usuário será obrigado a trocar a senha no primeiro acesso.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRepairDialogOpen(false)} disabled={repairingAccess}>Cancelar</Button>
+            <Button onClick={repairTenantAccess} disabled={repairingAccess}>{repairingAccess ? "Reparando..." : "Reparar acesso"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
