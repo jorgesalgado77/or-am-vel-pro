@@ -228,15 +228,15 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle className="flex items-center gap-2 text-lg">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Handshake className="h-5 w-5 text-primary" />
             Fechar Venda — Dados do Contrato
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6 pb-6">
-          <div className="space-y-6 pr-2">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-4 sm:pb-6" style={{ maxHeight: "calc(92vh - 80px)" }}>
+          <div className="space-y-4 sm:space-y-6">
             {/* Dados do Contrato */}
             <Card>
               <CardHeader className="pb-3">
