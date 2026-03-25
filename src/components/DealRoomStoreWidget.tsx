@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   recusada: { label: "Recusada", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200", icon: XCircle },
 };
 
-export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
+export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidgetProps>(function DealRoomStoreWidget({ tenantId }, ref) {
   const { getMetrics, listProposals, createProposal, trackProposalEvent, loading: hookLoading } = useDealRoom();
   const { showOnboarding, setShowOnboarding } = useOnboarding("dealroom");
 
@@ -177,7 +177,7 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Handshake className="h-6 w-6 text-primary" />
@@ -493,4 +493,4 @@ export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
       <OnboardingDialog featureKey="dealroom" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
     </div>
   );
-}
+});
