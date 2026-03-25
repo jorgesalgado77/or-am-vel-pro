@@ -748,10 +748,14 @@ export function UsuariosTab() {
       </Card>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Editar Usuário</DialogTitle></DialogHeader>
-          {renderForm(true)}
-          <DialogFooter>
+        <DialogContent className="max-w-lg max-h-[90dvh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-4 pt-4 pb-2 shrink-0 sm:px-6 sm:pt-6">
+            <DialogTitle>Editar Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-2 sm:px-6 min-h-0">
+            {renderForm(true)}
+          </div>
+          <DialogFooter className="px-4 pb-4 pt-2 shrink-0 sm:px-6 sm:pb-6 border-t border-border">
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleEditSave}>Salvar</Button>
           </DialogFooter>
