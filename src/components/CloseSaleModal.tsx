@@ -121,6 +121,22 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [items, setItems] = useState<SaleItem[]>([]);
   const [itemDetails, setItemDetails] = useState<SaleItemDetail[]>([]);
   const [cepLoading, setCepLoading] = useState<"" | "_entrega" | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
+
+  const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
+    { key: "nome_completo", label: "Nome Completo" },
+    { key: "cpf_cnpj", label: "CPF/CNPJ" },
+    { key: "telefone", label: "Telefone" },
+    { key: "endereco", label: "Endereço" },
+    { key: "cidade", label: "Cidade" },
+    { key: "uf", label: "UF" },
+    { key: "cep", label: "CEP" },
+    { key: "data_fechamento", label: "Data Fechamento" },
+    { key: "responsavel_venda", label: "Responsável pela Venda" },
+  ];
+
+  const errorClass = (field: keyof CloseSaleFormData) =>
+    fieldErrors.has(field) ? "border-destructive ring-1 ring-destructive/30" : "";
 
   // Prefill from client and simulation data
   useEffect(() => {
@@ -227,8 +243,15 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
   const handleSubmit = () => {
-    if (!form.nome_completo.trim()) {
-      toast.error("Nome completo é obrigatório");
+    const errors = new Set<string>();
+    for (const { key } of REQUIRED_FIELDS) {
+      const val = form[key];
+      if (typeof val === "string" && !val.trim()) errors.add(key);
+    }
+    setFieldErrors(errors);
+    if (errors.size > 0) {
+      const missing = REQUIRED_FIELDS.filter(f => errors.has(f.key)).map(f => f.label);
+      toast.error(`Preencha os campos obrigatórios: ${missing.join(", ")}`);
       return;
     }
     onConfirm(form, items, itemDetails);
