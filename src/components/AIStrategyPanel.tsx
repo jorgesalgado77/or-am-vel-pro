@@ -59,6 +59,7 @@ interface AIStrategyPanelProps {
     plus: number[];
   };
   maxParcelas: number;
+  availableParcelas: number[];
   currentFormaPagamento: string;
   onApplyStrategy: (strategy: StrategyParams) => void;
   calculateResult: (strategy: StrategyParams) => CalculatedResult;
