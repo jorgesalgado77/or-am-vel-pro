@@ -139,6 +139,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
 
   const savedRef = useRef(false);
 
+  const VALOR_TELA_MAX = 50_000_000; // R$ 50.000.000
+  const VALOR_ENTRADA_MAX = 50_000_000;
+
   const [valorTela, setValorTela] = useState(init?.valor_tela ?? stored.valorTela ?? 0);
   const [desconto1, setDesconto1] = useState(init?.desconto1 ?? stored.desconto1 ?? 0);
   const [desconto2, setDesconto2] = useState(init?.desconto2 ?? stored.desconto2 ?? 0);
@@ -575,6 +578,24 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   };
 
   const handleSave = async () => {
+    // Validação de valores
+    if (valorTela <= 0) {
+      toast.error("Informe um Valor de Tela maior que zero");
+      return;
+    }
+    if (valorTela > VALOR_TELA_MAX) {
+      toast.error(`Valor de Tela não pode exceder ${formatCurrency(VALOR_TELA_MAX)}`);
+      return;
+    }
+    if (valorEntrada < 0) {
+      toast.error("Valor de Entrada não pode ser negativo");
+      return;
+    }
+    if (valorEntrada > result.valorComDesconto) {
+      toast.error("Valor de Entrada não pode ser maior que o valor com desconto");
+      return;
+    }
+
     let clientId = client?.id;
 
     // If no client, create one first
@@ -919,7 +940,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                     inputMode="numeric"
                     value={valorTela ? maskCurrency(String(Math.round(valorTela * 100))) : ""}
                     onChange={(e) => {
-                      setValorTela(unmaskCurrency(e.target.value));
+                      const raw = unmaskCurrency(e.target.value);
+                      if (raw > VALOR_TELA_MAX) {
+                        toast.error(`Valor máximo: ${formatCurrency(VALOR_TELA_MAX)}`);
+                        setValorTela(VALOR_TELA_MAX);
+                        return;
+                      }
+                      setValorTela(raw);
                     }}
                     className="pl-10"
                     placeholder="R$ 0,00"
@@ -1113,7 +1140,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                   inputMode="numeric"
                   value={valorEntrada ? maskCurrency(String(Math.round(valorEntrada * 100))) : ""}
                   onChange={(e) => {
-                    setValorEntrada(unmaskCurrency(e.target.value));
+                    const raw = unmaskCurrency(e.target.value);
+                    if (raw > VALOR_ENTRADA_MAX) {
+                      toast.error(`Valor máximo de entrada: ${formatCurrency(VALOR_ENTRADA_MAX)}`);
+                      setValorEntrada(VALOR_ENTRADA_MAX);
+                      return;
+                    }
+                    setValorEntrada(raw);
                   }}
                   className="pl-10"
                   placeholder="R$ 0,00"
