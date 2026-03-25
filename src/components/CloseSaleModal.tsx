@@ -488,7 +488,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                                 <Input value={item.prazo} onChange={e => updateItem(idx, "prazo", e.target.value)} className="h-8 text-xs" />
                               </TableCell>
                               <TableCell>
-                                <Input type="number" min={0} step={0.01} value={item.valor_ambiente || ""} onChange={e => updateItem(idx, "valor_ambiente", Number(e.target.value))} className="h-8 text-xs" />
+                                <Input value={item.valor_ambiente ? maskCurrency(String(Math.round(item.valor_ambiente * 100))) : ""} onChange={e => updateItem(idx, "valor_ambiente", unmaskCurrency(e.target.value))} className="h-8 text-xs" placeholder="R$ 0,00" />
                               </TableCell>
                               <TableCell>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}>
@@ -582,7 +582,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <Label className="text-xs">Entrada</Label>
-                        <Input type="number" min={0} step={0.01} value={form.valor_entrada || ""} onChange={e => updateField("valor_entrada", Number(e.target.value))} className="mt-1 h-9 text-sm" />
+                        <Input value={form.valor_entrada} onChange={e => updateField("valor_entrada", maskCurrency(e.target.value))} className="mt-1 h-9 text-sm" placeholder="R$ 0,00" />
                       </div>
                       <div>
                         <Label className="text-xs">Parcelas</Label>
@@ -590,7 +590,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                       </div>
                       <div>
                         <Label className="text-xs">Valor Parcela</Label>
-                        <Input type="number" min={0} step={0.01} value={form.valor_parcelas || ""} onChange={e => updateField("valor_parcelas", Number(e.target.value))} className="mt-1 h-9 text-sm" />
+                        <Input value={form.valor_parcelas} onChange={e => updateField("valor_parcelas", maskCurrency(e.target.value))} className="mt-1 h-9 text-sm" placeholder="R$ 0,00" />
                       </div>
                     </div>
                   </div>
