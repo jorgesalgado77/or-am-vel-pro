@@ -287,6 +287,36 @@ export function AdminPlans() {
     setFFeatures(prev => prev.map((f, i) => i === index ? { ...f, included: !f.included } : f));
   };
 
+  const startEditFeature = (index: number) => {
+    setEditingFeatureIndex(index);
+    setEditingFeatureLabel(fFeatures[index].label);
+  };
+
+  const saveEditFeature = () => {
+    if (editingFeatureIndex === null || !editingFeatureLabel.trim()) return;
+    setFFeatures(prev => prev.map((f, i) => i === editingFeatureIndex ? { ...f, label: editingFeatureLabel.trim() } : f));
+    setEditingFeatureIndex(null);
+    setEditingFeatureLabel("");
+  };
+
+  const handlePrecoMensalChange = (value: string) => {
+    setFPrecoMensal(value);
+    const mensal = parseFloat(value) || 0;
+    const desconto = parseFloat(fDescontoAnual) || 0;
+    if (mensal > 0 && desconto > 0) {
+      setFPrecoAnual((mensal * (1 - desconto / 100)).toFixed(2));
+    }
+  };
+
+  const handleDescontoAnualChange = (value: string) => {
+    const num = Math.min(100, Math.max(0, parseFloat(value) || 0));
+    setFDescontoAnual(String(num));
+    const mensal = parseFloat(fPrecoMensal) || 0;
+    if (mensal > 0) {
+      setFPrecoAnual((mensal * (1 - num / 100)).toFixed(2));
+    }
+  };
+
   const quickToggleFeature = async (plan: SubscriptionPlan, featureKey: string) => {
     const newFuncs = { ...plan.funcionalidades, [featureKey]: !plan.funcionalidades[featureKey] };
     const { error } = await supabase
