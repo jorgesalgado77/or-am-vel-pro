@@ -304,7 +304,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!appUser) {
           await withTimeout(ensureUserProfile(authData.user, metadata, password), 1200, undefined);
-          appUser = await withTimeout(loadAppUser(authData.user), 1200, null);
+          appUser = await withTimeout(loadAppUser(authData.user, resolvedTenantId), 1200, null);
 
           if (!appUser) {
             appUser = await buildFallbackUserFromAuth({
