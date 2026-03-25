@@ -290,7 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
         };
 
-        let appUser = await withTimeout(loadAppUser(authData.user), 1500, null);
+        let appUser = await withTimeout(loadAppUser(authData.user, resolvedTenantId), 1500, null);
         let usedFallbackUser = false;
 
         if (!appUser) {
