@@ -353,9 +353,24 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       // Final uniqueness check before insert
       const { data: existing } = await supabase.from("tenants").select("id").eq("codigo_loja", tCodigo.trim()).maybeSingle();
       if (existing) { toast.error("Código da loja já existe. Gerando novo..."); const c = await generateUniqueCode(); setTCodigo(c); return; }
-      const { error } = await supabase.from("tenants").insert(payload);
-      if (error) toast.error("Erro ao criar loja");
-      else toast.success("Loja criada!");
+      // Try RPC first (bypasses RLS), fallback to direct insert
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("admin_create_tenant", {
+        p_nome_loja: payload.nome_loja,
+        p_codigo_loja: payload.codigo_loja,
+        p_email_contato: payload.email_contato,
+        p_telefone_contato: payload.telefone_contato,
+        p_plano: payload.plano,
+        p_plano_periodo: payload.plano_periodo,
+        p_max_usuarios: payload.max_usuarios,
+        p_ativo: payload.ativo,
+        p_recursos_vip: payload.recursos_vip,
+      });
+      if (rpcError) {
+        // Fallback to direct insert if RPC doesn't exist
+        const { error } = await supabase.from("tenants").insert(payload);
+        if (error) { toast.error("Erro ao criar loja: " + error.message); return; }
+      }
+      toast.success("Loja criada!");
     }
     setShowTenantDialog(false);
     fetchData();
