@@ -873,7 +873,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </div>
             <div>
               <Label className="text-xs">Código da Loja</Label>
-              <Input value={tCodigo} onChange={(e) => setTCodigo(e.target.value)} className="mt-1 h-9 text-sm" placeholder="000.000" />
+              <Input value={tCodigo} readOnly disabled className="mt-1 h-9 text-sm font-mono bg-muted" placeholder="Gerando..." />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
