@@ -95,6 +95,7 @@ export function AIStrategyPanel({
   valorTelaComComissao,
   discountOptions,
   maxParcelas,
+  availableParcelas,
   currentFormaPagamento,
   onApplyStrategy,
   calculateResult,
