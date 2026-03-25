@@ -62,8 +62,8 @@ export async function fetchClients(): Promise<FetchClientsResult> {
 export async function createClient(
   data: Omit<ClientInsert, "numero_orcamento" | "numero_orcamento_seq">
 ): Promise<{ client: Client | null; error: string | null }> {
-  const orcamento = await generateOrcamentoNumber();
   const tenantId = await getResolvedTenantId();
+  const orcamento = await generateOrcamentoNumber(tenantId);
   // Auto-set status to em_negociacao if vendedor is assigned
   const autoStatus = (data as any).vendedor ? { status: "em_negociacao" } : {};
   const insertData = { ...data, ...orcamento, ...autoStatus, ...(tenantId ? { tenant_id: tenantId } : {}) };

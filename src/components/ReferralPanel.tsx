@@ -162,6 +162,7 @@ export function ReferralPanel() {
     supabase
       .from("clients")
       .select("id, nome, telefone1, telefone2")
+      .eq("tenant_id", tenantId)
       .order("nome")
       .then(({ data }) => {
         if (data) setExistingClients(data as any);
