@@ -383,6 +383,29 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     }
 
     const normalizedEmail = tEmail.trim().toLowerCase();
+    const senhaInicial = tSenhaInicial.trim();
+
+    // 1. Create user in Supabase Auth first so signInWithPassword works
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password: senhaInicial,
+      options: {
+        data: {
+          nome_completo: tNome.trim(),
+        },
+      },
+    });
+
+    if (authError) {
+      console.error("Auth signUp error:", authError.message);
+      // If already registered, proceed anyway — they may exist in auth already
+      if (!authError.message?.toLowerCase().includes("already")) {
+        toast.error("Erro ao criar conta de autenticação: " + authError.message);
+        return;
+      }
+    }
+
+    // 2. Provision the store (creates tenant, settings, cargo, usuario row)
     const { data: provisionedStore, error: provisionError } = await (supabase.rpc as any)("provision_new_store", {
       p_email: normalizedEmail,
     });
@@ -420,19 +443,35 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       setTenants((prev) => [createdTenant as Tenant, ...prev.filter((tenant) => tenant.id !== createdTenant.id)]);
     }
 
-    // Set the initial password for the admin user
-    if (tSenhaInicial.trim()) {
+    // 3. Link auth user to usuario row and set hashed password + primeiro_login
+    const authUserId = authData?.user?.id;
+    try {
+      const { data: hashedSenha } = await supabase.rpc("hash_password" as any, { plain_text: senhaInicial }) as any;
+      const updatePayload: Record<string, unknown> = {
+        primeiro_login: true,
+        tenant_id: tenantId,
+      };
+      if (hashedSenha) updatePayload.senha = hashedSenha;
+      if (authUserId) updatePayload.auth_user_id = authUserId;
+
+      await (supabase as any)
+        .from("usuarios")
+        .update(updatePayload)
+        .eq("tenant_id", tenantId)
+        .ilike("email", normalizedEmail);
+    } catch (e) {
+      console.warn("Erro ao vincular senha/auth:", e);
+    }
+
+    // 4. Update auth user metadata with tenant_id
+    if (authUserId) {
       try {
-        const { data: hashedSenha } = await supabase.rpc("hash_password" as any, { plain_text: tSenhaInicial.trim() }) as any;
-        if (hashedSenha) {
-          await (supabase as any)
-            .from("usuarios")
-            .update({ senha: hashedSenha, primeiro_login: true })
-            .eq("tenant_id", tenantId)
-            .ilike("email", normalizedEmail);
-        }
+        await (supabase as any).rpc("admin_update_user_metadata" as any, {
+          p_user_id: authUserId,
+          p_metadata: { tenant_id: tenantId, nome_completo: tNome.trim() },
+        });
       } catch (e) {
-        console.warn("Erro ao definir senha inicial:", e);
+        console.warn("Erro ao atualizar metadata do auth user:", e);
       }
     }
 
