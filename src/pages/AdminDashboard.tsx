@@ -429,50 +429,31 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     try {
       const { data: hashedSenha } = await supabase.rpc("hash_password" as any, { plain_text: senhaInicial }) as any;
 
-      const usuarioPayload: Record<string, unknown> = {
-        tenant_id: tenantId,
-        nome_completo: tNome.trim(),
-        apelido: "Admin",
-        email: normalizedEmail,
-        cargo_id: cargoId,
-        telefone: tTelefone.trim() || null,
-        telefone_whatsapp: tTelefone.trim() || null,
-        primeiro_login: true,
-        ativo: true,
-      };
+      // Use Edge Function with service_role to bypass RLS
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      if (hashedSenha) usuarioPayload.senha = hashedSenha;
-
-      const { data: existingUsers, error: existingUsersError } = await (supabase as any)
-        .from("usuarios")
-        .select("id, email")
-        .eq("tenant_id", tenantId)
-        .ilike("email", normalizedEmail)
-        .limit(1);
-
-      if (existingUsersError) {
-        console.warn("Erro ao buscar usuário admin provisionado:", existingUsersError.message);
-      }
-
-      const existingUser = Array.isArray(existingUsers) ? existingUsers[0] : existingUsers;
-
-      if (existingUser?.id) {
-        const { error: updateUsuarioError } = await (supabase as any)
-          .from("usuarios")
-          .update(usuarioPayload)
-          .eq("id", existingUser.id);
-
-        if (updateUsuarioError) {
-          console.warn("Erro ao atualizar usuário admin provisionado:", updateUsuarioError.message);
+      const response = await fetch(
+        `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/admin-store`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: "repair_access",
+            tenant_id: tenantId,
+            email: normalizedEmail,
+            senha_hash: hashedSenha || senhaInicial,
+            nome: tNome.trim(),
+          }),
         }
-      } else {
-        const { error: insertUsuarioError } = await (supabase as any)
-          .from("usuarios")
-          .insert(usuarioPayload);
+      );
 
-        if (insertUsuarioError) {
-          console.warn("Erro ao criar usuário admin legado:", insertUsuarioError.message);
-        }
+      const result = await response.json();
+      if (!response.ok) {
+        console.warn("Erro ao garantir usuário admin da loja:", result.error);
       }
     } catch (e) {
       console.warn("Erro ao garantir usuário admin da loja:", e);
@@ -559,50 +540,43 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
     try {
       const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: repairPassword.trim() }) as any;
-      const { data: existingUsers, error: existingUsersError } = await (supabase as any)
-        .from("usuarios")
-        .select("id")
-        .eq("tenant_id", repairTenant.id)
-        .ilike("email", email)
-        .limit(1);
 
-      if (existingUsersError) {
-        toast.error("Erro ao localizar usuário da loja: " + existingUsersError.message);
+      if (!hashedSenha) {
+        toast.error("Erro ao gerar hash da senha.");
         return;
       }
 
-      const existingUser = Array.isArray(existingUsers) ? existingUsers[0] : existingUsers;
+      // Call Edge Function with service_role to bypass RLS
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      if (existingUser?.id) {
-        const { error: updateError } = await (supabase as any)
-          .from("usuarios")
-          .update({ senha: hashedSenha, primeiro_login: true, ativo: true })
-          .eq("id", existingUser.id);
-
-        if (updateError) {
-          toast.error("Erro ao reparar acesso: " + updateError.message);
-          return;
-        }
-      } else {
-        const { error: insertError } = await (supabase as any)
-          .from("usuarios")
-          .insert({
+      const response = await fetch(
+        `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/admin-store`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: "repair_access",
             tenant_id: repairTenant.id,
-            nome_completo: repairTenant.nome_loja,
-            apelido: "Admin",
             email,
-            senha: hashedSenha,
-            primeiro_login: true,
-            ativo: true,
-          });
-
-        if (insertError) {
-          toast.error("Erro ao recriar usuário admin: " + insertError.message);
-          return;
+            senha_hash: hashedSenha,
+            nome: repairTenant.nome_loja,
+          }),
         }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast.error("Erro ao reparar acesso: " + (result.error || "Erro desconhecido"));
+        return;
       }
 
-      toast.success(`Acesso reparado para ${email}. O usuário deverá trocar a senha no primeiro login.`);
+      const actionLabel = result.action === "created" ? "criado" : "atualizado";
+      toast.success(`Acesso reparado (${actionLabel}) para ${email}. O usuário deverá trocar a senha no primeiro login.`);
       setRepairDialogOpen(false);
       setRepairTenant(null);
       setRepairPassword("123456");
