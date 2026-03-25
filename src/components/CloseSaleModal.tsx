@@ -547,7 +547,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
               </Button>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
