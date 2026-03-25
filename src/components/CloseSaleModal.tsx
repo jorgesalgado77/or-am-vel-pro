@@ -322,7 +322,10 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">CEP</Label>
-                    <Input value={form.cep} onChange={e => handleCepChange("cep", e.target.value)} className="mt-1 h-9 text-sm" placeholder="00000-000" />
+                    <div className="relative">
+                      <Input value={form.cep} onChange={e => handleCepChange("cep", e.target.value)} className="mt-1 h-9 text-sm pr-8" placeholder="00000-000" />
+                      {cepLoading === "" && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                    </div>
                   </div>
                   <div className="sm:col-span-3">
                     <Label className="text-xs">Endereço</Label>
@@ -360,7 +363,10 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">CEP</Label>
-                    <Input value={form.cep_entrega} onChange={e => handleCepChange("cep_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="00000-000" />
+                    <div className="relative">
+                      <Input value={form.cep_entrega} onChange={e => handleCepChange("cep_entrega", e.target.value)} className="mt-1 h-9 text-sm pr-8" placeholder="00000-000" />
+                      {cepLoading === "_entrega" && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <Label className="text-xs">Endereço de Entrega</Label>
