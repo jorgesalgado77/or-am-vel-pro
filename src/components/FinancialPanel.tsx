@@ -43,18 +43,18 @@ export function FinancialPanel() {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const [form, setForm] = useState({
-    name: "", description: "", amount: 0, due_date: format(new Date(), "yyyy-MM-dd"),
+    name: "", description: "", amount: "", due_date: format(new Date(), "yyyy-MM-dd"),
     status: "pendente" as "pendente" | "pago" | "atrasado", is_fixed: false, recurrence_type: "", category: ""
   });
 
   const resetForm = () => setForm({
-    name: "", description: "", amount: 0, due_date: format(new Date(), "yyyy-MM-dd"),
+    name: "", description: "", amount: "", due_date: format(new Date(), "yyyy-MM-dd"),
     status: "pendente", is_fixed: false, recurrence_type: "", category: ""
   });
 
   const startEdit = (acc: FinancialAccount) => {
     setForm({
-      name: acc.name, description: acc.description || "", amount: acc.amount,
+      name: acc.name, description: acc.description || "", amount: maskCurrency(String(Math.round(acc.amount * 100))),
       due_date: acc.due_date, status: acc.status, is_fixed: acc.is_fixed,
       recurrence_type: acc.recurrence_type || "", category: acc.category || ""
     });
@@ -63,10 +63,11 @@ export function FinancialPanel() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim() || form.amount <= 0) { toast.error("Nome e valor são obrigatórios"); return; }
+    const amountNum = unmaskCurrency(form.amount);
+    if (!form.name.trim() || amountNum <= 0) { toast.error("Nome e valor são obrigatórios"); return; }
     const payload = {
       tenant_id: fin.tenantId, name: form.name.trim(), description: form.description || null,
-      amount: form.amount, due_date: form.due_date, status: form.status,
+      amount: amountNum, due_date: form.due_date, status: form.status,
       is_fixed: form.is_fixed, recurrence_type: form.recurrence_type || null, category: form.category || null,
     };
     if (editing) {
@@ -686,7 +687,7 @@ export function FinancialPanel() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Valor (R$)</Label>
-                <Input type="number" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: Number(e.target.value) }))} className="mt-1" />
+                <Input value={form.amount} onChange={e => setForm(p => ({ ...p, amount: maskCurrency(e.target.value) }))} className="mt-1" placeholder="R$ 0,00" />
               </div>
               <div>
                 <Label>Vencimento</Label>
