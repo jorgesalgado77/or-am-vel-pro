@@ -16,7 +16,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminClientsModal} from "@/components/admin/AdminClientsModal";
@@ -531,6 +531,71 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     await fetchData();
   };
 
+  const repairTenantAccess = async (tenant: Tenant) => {
+    const email = tenant.email_contato?.trim().toLowerCase();
+    if (!email) {
+      toast.error("Esta loja não possui email de contato cadastrado.");
+      return;
+    }
+
+    const tempPassword = window.prompt(`Defina a senha temporária para ${email}`, "123456");
+    if (!tempPassword) return;
+    if (tempPassword.trim().length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    try {
+      const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: tempPassword.trim() }) as any;
+      const { data: existingUsers, error: existingUsersError } = await (supabase as any)
+        .from("usuarios")
+        .select("id")
+        .eq("tenant_id", tenant.id)
+        .ilike("email", email)
+        .limit(1);
+
+      if (existingUsersError) {
+        toast.error("Erro ao localizar usuário da loja: " + existingUsersError.message);
+        return;
+      }
+
+      const existingUser = Array.isArray(existingUsers) ? existingUsers[0] : existingUsers;
+
+      if (existingUser?.id) {
+        const { error: updateError } = await (supabase as any)
+          .from("usuarios")
+          .update({ senha: hashedSenha, primeiro_login: true, ativo: true })
+          .eq("id", existingUser.id);
+
+        if (updateError) {
+          toast.error("Erro ao reparar acesso: " + updateError.message);
+          return;
+        }
+      } else {
+        const { error: insertError } = await (supabase as any)
+          .from("usuarios")
+          .insert({
+            tenant_id: tenant.id,
+            nome_completo: tenant.nome_loja,
+            apelido: "Admin",
+            email,
+            senha: hashedSenha,
+            primeiro_login: true,
+            ativo: true,
+          });
+
+        if (insertError) {
+          toast.error("Erro ao recriar usuário admin: " + insertError.message);
+          return;
+        }
+      }
+
+      toast.success(`Acesso reparado para ${email}. O usuário deverá trocar a senha no primeiro login.`);
+    } catch (error: any) {
+      toast.error("Não foi possível reparar o acesso: " + (error?.message || "erro desconhecido"));
+    }
+  };
+
   // Payment CRUD
   const openNewPayment = () => {
     setEditingPayment(null);
@@ -858,10 +923,13 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTenant(t)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTenant(t)} title="Editar loja">
                                 <Edit className="h-3 w-3" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteTenant(t.id)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => repairTenantAccess(t)} title="Reparar acesso do administrador">
+                                <KeyRound className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteTenant(t.id)} title="Excluir loja">
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>
