@@ -42,7 +42,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   recusada: { label: "Recusada", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200", icon: XCircle },
 };
 
-export function DealRoomStoreWidget({ tenantId }: DealRoomStoreWidgetProps) {
+export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidgetProps>(function DealRoomStoreWidget({ tenantId }, ref) {
   const { getMetrics, listProposals, createProposal, trackProposalEvent, loading: hookLoading } = useDealRoom();
   const { showOnboarding, setShowOnboarding } = useOnboarding("dealroom");
 
