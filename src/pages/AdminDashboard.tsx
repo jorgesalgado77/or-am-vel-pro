@@ -16,7 +16,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminClientsModal} from "@/components/admin/AdminClientsModal";
@@ -385,27 +385,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const normalizedEmail = tEmail.trim().toLowerCase();
     const senhaInicial = tSenhaInicial.trim();
 
-    // 1. Create user in Supabase Auth first so signInWithPassword works
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password: senhaInicial,
-      options: {
-        data: {
-          nome_completo: tNome.trim(),
-        },
-      },
-    });
-
-    if (authError) {
-      console.error("Auth signUp error:", authError.message);
-      // If already registered, proceed anyway — they may exist in auth already
-      if (!authError.message?.toLowerCase().includes("already")) {
-        toast.error("Erro ao criar conta de autenticação: " + authError.message);
-        return;
-      }
-    }
-
-    // 2. Provision the store (creates tenant, settings, cargo, usuario row)
+    // 1. Provision the store first using the existing SECURITY DEFINER RPC
     const { data: provisionedStore, error: provisionError } = await (supabase.rpc as any)("provision_new_store", {
       p_email: normalizedEmail,
     });
@@ -417,11 +397,13 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     }
 
     const tenantId = provisionedStore?.tenant_id;
+    const cargoId = provisionedStore?.cargo_id ?? null;
     if (!tenantId) {
       toast.error("Erro ao criar loja: resposta inválida da RPC provision_new_store.");
       return;
     }
 
+    // 2. Apply tenant data edited in the dialog
     const { data: createdTenant, error: updateError } = await supabase
       .from("tenants")
       .update({
@@ -439,40 +421,61 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       return;
     }
 
-    if (createdTenant) {
-      setTenants((prev) => [createdTenant as Tenant, ...prev.filter((tenant) => tenant.id !== createdTenant.id)]);
-    }
-
-    // 3. Link auth user to usuario row and set hashed password + primeiro_login
-    const authUserId = authData?.user?.id;
+    // 3. Guarantee the admin legacy profile exists and has the initial password
     try {
       const { data: hashedSenha } = await supabase.rpc("hash_password" as any, { plain_text: senhaInicial }) as any;
-      const updatePayload: Record<string, unknown> = {
-        primeiro_login: true,
-        tenant_id: tenantId,
-      };
-      if (hashedSenha) updatePayload.senha = hashedSenha;
-      if (authUserId) updatePayload.auth_user_id = authUserId;
 
-      await (supabase as any)
+      const usuarioPayload: Record<string, unknown> = {
+        tenant_id: tenantId,
+        nome_completo: tNome.trim(),
+        apelido: "Admin",
+        email: normalizedEmail,
+        cargo_id: cargoId,
+        telefone: tTelefone.trim() || null,
+        telefone_whatsapp: tTelefone.trim() || null,
+        primeiro_login: true,
+        ativo: true,
+      };
+
+      if (hashedSenha) usuarioPayload.senha = hashedSenha;
+
+      const { data: existingUsers, error: existingUsersError } = await (supabase as any)
         .from("usuarios")
-        .update(updatePayload)
+        .select("id, email")
         .eq("tenant_id", tenantId)
-        .ilike("email", normalizedEmail);
+        .ilike("email", normalizedEmail)
+        .limit(1);
+
+      if (existingUsersError) {
+        console.warn("Erro ao buscar usuário admin provisionado:", existingUsersError.message);
+      }
+
+      const existingUser = Array.isArray(existingUsers) ? existingUsers[0] : existingUsers;
+
+      if (existingUser?.id) {
+        const { error: updateUsuarioError } = await (supabase as any)
+          .from("usuarios")
+          .update(usuarioPayload)
+          .eq("id", existingUser.id);
+
+        if (updateUsuarioError) {
+          console.warn("Erro ao atualizar usuário admin provisionado:", updateUsuarioError.message);
+        }
+      } else {
+        const { error: insertUsuarioError } = await (supabase as any)
+          .from("usuarios")
+          .insert(usuarioPayload);
+
+        if (insertUsuarioError) {
+          console.warn("Erro ao criar usuário admin legado:", insertUsuarioError.message);
+        }
+      }
     } catch (e) {
-      console.warn("Erro ao vincular senha/auth:", e);
+      console.warn("Erro ao garantir usuário admin da loja:", e);
     }
 
-    // 4. Update auth user metadata with tenant_id
-    if (authUserId) {
-      try {
-        await (supabase as any).rpc("admin_update_user_metadata" as any, {
-          p_user_id: authUserId,
-          p_metadata: { tenant_id: tenantId, nome_completo: tNome.trim() },
-        });
-      } catch (e) {
-        console.warn("Erro ao atualizar metadata do auth user:", e);
-      }
+    if (createdTenant) {
+      setTenants((prev) => [createdTenant as Tenant, ...prev.filter((tenant) => tenant.id !== createdTenant.id)]);
     }
 
     toast.success("Loja criada!");
@@ -526,6 +529,71 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       detalhes: { loja_id: id, loja_nome: lojaLabel },
     });
     await fetchData();
+  };
+
+  const repairTenantAccess = async (tenant: Tenant) => {
+    const email = tenant.email_contato?.trim().toLowerCase();
+    if (!email) {
+      toast.error("Esta loja não possui email de contato cadastrado.");
+      return;
+    }
+
+    const tempPassword = window.prompt(`Defina a senha temporária para ${email}`, "123456");
+    if (!tempPassword) return;
+    if (tempPassword.trim().length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    try {
+      const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: tempPassword.trim() }) as any;
+      const { data: existingUsers, error: existingUsersError } = await (supabase as any)
+        .from("usuarios")
+        .select("id")
+        .eq("tenant_id", tenant.id)
+        .ilike("email", email)
+        .limit(1);
+
+      if (existingUsersError) {
+        toast.error("Erro ao localizar usuário da loja: " + existingUsersError.message);
+        return;
+      }
+
+      const existingUser = Array.isArray(existingUsers) ? existingUsers[0] : existingUsers;
+
+      if (existingUser?.id) {
+        const { error: updateError } = await (supabase as any)
+          .from("usuarios")
+          .update({ senha: hashedSenha, primeiro_login: true, ativo: true })
+          .eq("id", existingUser.id);
+
+        if (updateError) {
+          toast.error("Erro ao reparar acesso: " + updateError.message);
+          return;
+        }
+      } else {
+        const { error: insertError } = await (supabase as any)
+          .from("usuarios")
+          .insert({
+            tenant_id: tenant.id,
+            nome_completo: tenant.nome_loja,
+            apelido: "Admin",
+            email,
+            senha: hashedSenha,
+            primeiro_login: true,
+            ativo: true,
+          });
+
+        if (insertError) {
+          toast.error("Erro ao recriar usuário admin: " + insertError.message);
+          return;
+        }
+      }
+
+      toast.success(`Acesso reparado para ${email}. O usuário deverá trocar a senha no primeiro login.`);
+    } catch (error: any) {
+      toast.error("Não foi possível reparar o acesso: " + (error?.message || "erro desconhecido"));
+    }
   };
 
   // Payment CRUD
@@ -855,10 +923,13 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTenant(t)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTenant(t)} title="Editar loja">
                                 <Edit className="h-3 w-3" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteTenant(t.id)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => repairTenantAccess(t)} title="Reparar acesso do administrador">
+                                <KeyRound className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteTenant(t.id)} title="Excluir loja">
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>

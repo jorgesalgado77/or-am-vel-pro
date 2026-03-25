@@ -429,21 +429,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           if (legacyUsers.length === 0) {
-            const { data: directData, error: directErr } = await withTimeout(
-              (supabase as any)
-                .from("usuarios")
-                .select("*")
-                .eq("email", normalizedEmail_)
-                .limit(10),
-              1400,
-              { data: null, error: createTimeoutError("legacy_user_lookup") } as any,
-            );
+            const directLookups = await Promise.all([
+              withTimeout(
+                (supabase as any)
+                  .from("usuarios")
+                  .select("*")
+                  .eq("email", normalizedEmail_)
+                  .limit(10),
+                1400,
+                { data: null, error: createTimeoutError("legacy_user_lookup_email_eq") } as any,
+              ),
+              withTimeout(
+                (supabase as any)
+                  .from("usuarios")
+                  .select("*")
+                  .ilike("email", normalizedEmail_)
+                  .limit(10),
+                1400,
+                { data: null, error: createTimeoutError("legacy_user_lookup_email_ilike") } as any,
+              ),
+            ]);
 
-            if (directErr) {
-              console.warn("[Auth] Lookup direto de usuários falhou:", directErr.message);
-              if (!legacyUsersError) legacyUsersError = directErr;
-            } else {
-              legacyUsers = Array.isArray(directData) ? directData : directData ? [directData] : [];
+            for (const lookup of directLookups) {
+              if (lookup.error) {
+                console.warn("[Auth] Lookup direto de usuários falhou:", lookup.error.message);
+                if (!legacyUsersError) legacyUsersError = lookup.error;
+                continue;
+              }
+              const rows = Array.isArray(lookup.data) ? lookup.data : lookup.data ? [lookup.data] : [];
+              if (rows.length > 0) {
+                legacyUsers = rows;
+                break;
+              }
             }
           }
 
@@ -601,7 +618,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const senhaHash = await hashLegacyPassword(password);
               await (supabase as any)
                 .from("usuarios")
-                .update({ auth_user_id: signUpData.user.id, senha: senhaHash })
+                .update({
+                  auth_user_id: signUpData.user.id,
+                  senha: senhaHash,
+                  email: normalizedEmail_,
+                  tenant_id: legacyUser.tenant_id,
+                  primeiro_login: legacyUser.primeiro_login ?? true,
+                  ativo: legacyUser.ativo ?? true,
+                })
                 .eq("id", legacyUser.id);
             } catch { /* best effort */ }
           }
