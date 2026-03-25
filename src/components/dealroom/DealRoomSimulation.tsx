@@ -12,11 +12,14 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
+import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { generateSimulationPdf } from "@/lib/generatePdf";
 import type { Database } from "@/integrations/supabase/types";
+
+const VALOR_MAX = 50_000_000;
 
 type Simulation = Database["public"]["Tables"]["simulations"]["Row"];
 
