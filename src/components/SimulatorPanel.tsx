@@ -627,6 +627,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           indicador_id: newClient.indicador_id || null,
           numero_orcamento: numeroOrcamento,
           numero_orcamento_seq: nextSeq,
+          ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
         } as any)
         .select("id")
         .single();
@@ -847,6 +848,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       simulation_id: pendingSimId,
       template_id: pendingTemplateId,
       conteudo_html: finalHtml,
+      ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
     } as any);
 
     if (contractError) { toast.error("Erro ao salvar contrato"); setClosingSale(false); return; }

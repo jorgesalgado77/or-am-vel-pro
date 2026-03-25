@@ -14,6 +14,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {useUsuarios} from "@/hooks/useUsuarios";
 import {useCargos} from "@/hooks/useCargos";
 import {supabase} from "@/lib/supabaseClient";
+import {getTenantId} from "@/lib/tenantState";
 import {toast} from "sonner";
 import {format, startOfMonth, endOfMonth} from "date-fns";
 
@@ -61,8 +62,10 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
   const activeUsers = usuarios.filter((u) => u.ativo);
 
   const fetchCommissions = async () => {
+    const tenantId = getTenantId();
     let query = supabase.from("payroll_commissions").select("*");
 
+    if (tenantId) query = query.eq("tenant_id", tenantId);
     if (filterMode === "mes") {
       query = query.eq("mes_referencia", mesReferencia);
     } else {
@@ -75,10 +78,13 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
   };
 
   const fetchDeductions = async () => {
-    const { data } = await supabase
+    const tenantId = getTenantId();
+    let query = supabase
       .from("payroll_deductions" as any)
       .select("*")
       .eq("mes_referencia", mesReferencia);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
     const map: Record<string, EmployeeDeduction> = {};
     (data as any[] || []).forEach((d: any) => { map[d.usuario_id] = d; });
     setDeductionsData(map);
@@ -147,12 +153,14 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
     if (!newCommission.usuario_id || !newCommission.valor_comissao) {
       toast.error("Preencha usuário e valor"); return;
     }
+    const tenantId = getTenantId();
     const { error } = await supabase.from("payroll_commissions").insert({
       usuario_id: newCommission.usuario_id,
       mes_referencia: mesReferencia,
       valor_comissao: parseFloat(newCommission.valor_comissao.replace(/[^\d.,]/g, "").replace(",", ".")),
       observacao: newCommission.observacao || null,
       status: "pendente",
+      ...(tenantId ? { tenant_id: tenantId } : {}),
     } as any);
     if (error) toast.error("Erro ao adicionar");
     else { toast.success("Comissão adicionada!"); setAddDialogOpen(false); setNewCommission({ usuario_id: "", valor_comissao: "", observacao: "" }); fetchCommissions(); }
