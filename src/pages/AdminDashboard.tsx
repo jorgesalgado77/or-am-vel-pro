@@ -1,5 +1,6 @@
 import {useState, useEffect} from "react";
 import {supabase} from "@/lib/supabaseClient";
+import {maskPhone} from "@/lib/masks";
 import {toast} from "sonner";
 import {logAudit} from "@/services/auditService";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
@@ -893,11 +894,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Email</Label>
-                <Input value={tEmail} onChange={(e) => setTEmail(e.target.value)} className="mt-1 h-9 text-sm" type="email" />
+                <Input value={tEmail} onChange={(e) => setTEmail(e.target.value)} className="mt-1 h-9 text-sm" type="email" placeholder="email@exemplo.com" />
               </div>
               <div>
                 <Label className="text-xs">Telefone</Label>
-                <Input value={tTelefone} onChange={(e) => setTTelefone(e.target.value)} className="mt-1 h-9 text-sm" />
+                <Input value={tTelefone} onChange={(e) => setTTelefone(maskPhone(e.target.value))} className="mt-1 h-9 text-sm" inputMode="numeric" placeholder="(00) 00000-0000" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
