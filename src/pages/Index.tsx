@@ -79,6 +79,7 @@ export default function Index() {
   }, [authUser?.id, authUser?.apelido, authUser?.nome_completo, authUser?.cargo_nome, authUser?.foto_url]);
 
   const isAdmin = authUser?.cargo_nome?.toUpperCase().includes("ADMIN") ?? false;
+  const canAccessSettings = Boolean(authUser) && (isAdmin || hasPermission("configuracoes"));
   const { onlineUsers } = useOnlinePresence(authUser?.id ?? null, presenceInfo);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -124,20 +125,20 @@ export default function Index() {
 
   useEffect(() => {
     if (authUser) {
-      if (activeView === "clients" && !hasPermission("clientes")) {
+        if (activeView === "clients" && !hasPermission("clientes")) {
         if (hasPermission("simulador")) setActiveView("simulator");
-        else if (isAdmin && hasPermission("configuracoes")) setActiveView("settings");
+          else if (canAccessSettings) setActiveView("settings");
       }
       if (activeView === "simulator" && !hasPermission("simulador")) {
         if (hasPermission("clientes")) setActiveView("clients");
-        else if (isAdmin && hasPermission("configuracoes")) setActiveView("settings");
+          else if (canAccessSettings) setActiveView("settings");
       }
-      if (activeView === "settings" && (!hasPermission("configuracoes") || !isAdmin)) {
+        if (activeView === "settings" && !canAccessSettings) {
         if (hasPermission("clientes")) setActiveView("clients");
         else if (hasPermission("simulador")) setActiveView("simulator");
       }
     }
-  }, [activeView, authUser, hasPermission, isAdmin]);
+  }, [activeView, authUser, canAccessSettings, hasPermission]);
 
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeMsg, setUpgradeMsg] = useState("");

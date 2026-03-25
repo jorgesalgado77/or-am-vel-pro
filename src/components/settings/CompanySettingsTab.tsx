@@ -1,7 +1,7 @@
 /**
  * Company settings tab - extracted from SettingsPanel.tsx
  */
-import { useState, useEffect } from "react";
+import { forwardRef, useEffect, useState, type ComponentPropsWithoutRef } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,12 +16,12 @@ import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled, getNotificationVolume, setNotificationVolume, playNotificationSound } from "@/lib/notificationSound";
 
-function NotificationSoundToggle() {
+const NotificationSoundToggle = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<"div">>(function NotificationSoundToggle({ className, ...props }, ref) {
   const [enabled, setEnabled] = useState(isNotificationSoundEnabled());
   const [volume, setVolume] = useState(getNotificationVolume());
 
   return (
-    <div className="space-y-3 max-w-[600px]">
+    <div ref={ref} className={className ?? "space-y-3 max-w-[600px]"} {...props}>
       <div className="flex items-center justify-between">
         <div>
           <Label>Som de Notificação</Label>
@@ -39,16 +39,16 @@ function NotificationSoundToggle() {
       )}
     </div>
   );
-}
+});
 
-function InactivitySoundToggle() {
+const InactivitySoundToggle = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<"div">>(function InactivitySoundToggle({ className, ...props }, ref) {
   const [enabled, setEnabled] = useState(() => {
     const val = localStorage.getItem("inactivity_sound_enabled");
     return val === null ? true : val === "true";
   });
 
   return (
-    <div className="flex items-center justify-between max-w-[600px]">
+    <div ref={ref} className={className ?? "flex items-center justify-between max-w-[600px]"} {...props}>
       <div>
         <Label>Som de Alerta de Inatividade</Label>
         <p className="text-xs text-muted-foreground">Toca um som quando a sessão está prestes a expirar por inatividade</p>
@@ -56,7 +56,7 @@ function InactivitySoundToggle() {
       <Switch checked={enabled} onCheckedChange={(val) => { setEnabled(val); localStorage.setItem("inactivity_sound_enabled", String(val)); toast.success(val ? "Ativado" : "Desativado"); }} />
     </div>
   );
-}
+});
 
 export function CompanySettingsTab() {
   const { settings, refresh } = useCompanySettings();
