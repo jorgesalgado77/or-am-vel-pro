@@ -86,7 +86,9 @@ async function resolveAuditTenantId(explicit?: string | null): Promise<string | 
  * Logs an audit event. Fire-and-forget — never blocks the UI.
  */
 export function logAudit(input: AuditLogInput): void {
-  const { acao, entidade, entidade_id, usuario_id, usuario_nome, detalhes } = input;
+  const { acao, entidade, entidade_id, usuario_id, usuario_nome, detalhes, tenant_id } = input;
+
+  const tenantId = tenant_id || getTenantId();
 
   const payload: Record<string, unknown> = {
     acao,
@@ -95,6 +97,7 @@ export function logAudit(input: AuditLogInput): void {
     usuario_id: usuario_id || null,
     usuario_nome: usuario_nome || null,
     detalhes: detalhes || {},
+    ...(tenantId ? { tenant_id: tenantId } : {}),
   };
 
   supabase
