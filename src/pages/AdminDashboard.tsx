@@ -559,50 +559,27 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
     try {
       const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: repairPassword.trim() }) as any;
-      const { data: existingUsers, error: existingUsersError } = await (supabase as any)
-        .from("usuarios")
-        .select("id")
-        .eq("tenant_id", repairTenant.id)
-        .ilike("email", email)
-        .limit(1);
 
-      if (existingUsersError) {
-        toast.error("Erro ao localizar usuário da loja: " + existingUsersError.message);
+      if (!hashedSenha) {
+        toast.error("Erro ao gerar hash da senha.");
         return;
       }
 
-      const existingUser = Array.isArray(existingUsers) ? existingUsers[0] : existingUsers;
+      // Use SECURITY DEFINER RPC to bypass RLS
+      const { data: result, error: rpcError } = await (supabase as any).rpc("admin_repair_user_access", {
+        p_tenant_id: repairTenant.id,
+        p_email: email,
+        p_senha_hash: hashedSenha,
+        p_nome: repairTenant.nome_loja,
+      });
 
-      if (existingUser?.id) {
-        const { error: updateError } = await (supabase as any)
-          .from("usuarios")
-          .update({ senha: hashedSenha, primeiro_login: true, ativo: true })
-          .eq("id", existingUser.id);
-
-        if (updateError) {
-          toast.error("Erro ao reparar acesso: " + updateError.message);
-          return;
-        }
-      } else {
-        const { error: insertError } = await (supabase as any)
-          .from("usuarios")
-          .insert({
-            tenant_id: repairTenant.id,
-            nome_completo: repairTenant.nome_loja,
-            apelido: "Admin",
-            email,
-            senha: hashedSenha,
-            primeiro_login: true,
-            ativo: true,
-          });
-
-        if (insertError) {
-          toast.error("Erro ao recriar usuário admin: " + insertError.message);
-          return;
-        }
+      if (rpcError) {
+        toast.error("Erro ao reparar acesso: " + rpcError.message);
+        return;
       }
 
-      toast.success(`Acesso reparado para ${email}. O usuário deverá trocar a senha no primeiro login.`);
+      const action = result?.action === "created" ? "criado" : "atualizado";
+      toast.success(`Acesso reparado (${action}) para ${email}. O usuário deverá trocar a senha no primeiro login.`);
       setRepairDialogOpen(false);
       setRepairTenant(null);
       setRepairPassword("123456");
