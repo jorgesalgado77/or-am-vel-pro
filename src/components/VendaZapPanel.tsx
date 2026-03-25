@@ -52,8 +52,9 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const [clients, setClients] = useState<Client[]>([]);
 
   useEffect(() => {
-    supabase.from("clients").select("*").order("created_at", { ascending: false }).then(({ data }) => { if (data) setClients(data); });
-  }, []);
+    if (!tenantId) return;
+    supabase.from("clients").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }).then(({ data }) => { if (data) setClients(data); });
+  }, [tenantId]);
 
   const handleCopy = (text: string) => { navigator.clipboard.writeText(text); toast.success("Mensagem copiada!"); };
   const handleCopyAndOpenWhatsApp = (text: string, phone?: string | null) => {

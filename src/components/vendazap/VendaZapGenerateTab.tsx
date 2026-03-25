@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -66,7 +67,10 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [lastSim, setLastSim] = useState<any>(null);
 
   useEffect(() => {
-    supabase.from("clients").select("*").order("created_at", { ascending: false }).then(({ data }) => { if (data) setClients(data); });
+    const tenantId = getTenantId();
+    let query = supabase.from("clients").select("*").order("created_at", { ascending: false });
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    query.then(({ data }) => { if (data) setClients(data); });
   }, []);
 
   useEffect(() => {

@@ -37,12 +37,17 @@ export async function generateSaleCommissions(input: CommissionInput): Promise<{
     });
   }
 
-  // 2. Fetch all cargos with commission > 0
-  const { data: cargosData } = await supabase.from("cargos").select("id, nome, comissao_percentual");
+  // 2. Fetch all cargos with commission > 0 (filtered by tenant)
+  const tenantId = getTenantId();
+  let cargosQuery = supabase.from("cargos").select("id, nome, comissao_percentual");
+  if (tenantId) cargosQuery = cargosQuery.eq("tenant_id", tenantId);
+  const { data: cargosData } = await cargosQuery;
   const cargosComComissao = (cargosData || []).filter((c: any) => Number(c.comissao_percentual) > 0);
 
   if (cargosComComissao.length > 0) {
-    const { data: usersData } = await supabase.from("usuarios").select("id, nome_completo, apelido, cargo_id, ativo").eq("ativo", true);
+    let usersQuery = supabase.from("usuarios").select("id, nome_completo, apelido, cargo_id, ativo").eq("ativo", true);
+    if (tenantId) usersQuery = usersQuery.eq("tenant_id", tenantId);
+    const { data: usersData } = await usersQuery;
     const activeUsers = usersData || [];
 
     for (const cargo of cargosComComissao) {
