@@ -119,7 +119,7 @@ export function AppSidebar({
       id: "messages", label: "Mensagens", icon: MessageCircle, show: hasPermission("mensagens"),
       badge: unreadMessages > 0 ? unreadMessages : null,
     },
-    { id: "settings", label: "Configurações", icon: Settings, show: isAdmin && hasPermission("configuracoes") },
+    { id: "settings", label: "Configurações", icon: Settings, show: isAdmin || hasPermission("configuracoes") },
   ];
 
   const NavButton = ({ id, label, icon: Icon, badge: itemBadge, destructive, onClick }: {
