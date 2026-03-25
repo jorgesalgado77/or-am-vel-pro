@@ -105,6 +105,22 @@ export default function Index() {
     fetchClients, handleSaveClient, handleDeleteClient,
   } = useClientManager();
 
+  // Check primeiro_login to force password change
+  useEffect(() => {
+    if (!authUser?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("usuarios")
+        .select("primeiro_login")
+        .eq("id", authUser.id)
+        .maybeSingle();
+      if (data?.primeiro_login) {
+        setForcedPasswordChange(true);
+        setShowChangePassword(true);
+      }
+    })();
+  }, [authUser?.id]);
+
   useEffect(() => {
     if (authUser) {
       if (activeView === "clients" && !hasPermission("clientes")) {
