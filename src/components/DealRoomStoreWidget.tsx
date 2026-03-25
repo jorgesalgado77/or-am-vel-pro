@@ -177,7 +177,7 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={ref} className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Handshake className="h-6 w-6 text-primary" />
