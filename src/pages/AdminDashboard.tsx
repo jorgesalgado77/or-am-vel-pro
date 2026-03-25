@@ -565,21 +565,37 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         return;
       }
 
-      // Use SECURITY DEFINER RPC to bypass RLS
-      const { data: result, error: rpcError } = await (supabase as any).rpc("admin_repair_user_access", {
-        p_tenant_id: repairTenant.id,
-        p_email: email,
-        p_senha_hash: hashedSenha,
-        p_nome: repairTenant.nome_loja,
-      });
+      // Call Edge Function with service_role to bypass RLS
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      if (rpcError) {
-        toast.error("Erro ao reparar acesso: " + rpcError.message);
+      const response = await fetch(
+        `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/admin-store`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: "repair_access",
+            tenant_id: repairTenant.id,
+            email,
+            senha_hash: hashedSenha,
+            nome: repairTenant.nome_loja,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast.error("Erro ao reparar acesso: " + (result.error || "Erro desconhecido"));
         return;
       }
 
-      const action = result?.action === "created" ? "criado" : "atualizado";
-      toast.success(`Acesso reparado (${action}) para ${email}. O usuário deverá trocar a senha no primeiro login.`);
+      const actionLabel = result.action === "created" ? "criado" : "atualizado";
+      toast.success(`Acesso reparado (${actionLabel}) para ${email}. O usuário deverá trocar a senha no primeiro login.`);
       setRepairDialogOpen(false);
       setRepairTenant(null);
       setRepairPassword("123456");
