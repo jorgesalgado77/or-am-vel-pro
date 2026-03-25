@@ -111,9 +111,9 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     uf_entrega: "",
     cep_entrega: "",
     observacoes: "",
-    valor_entrada: 0,
+    valor_entrada: "",
     qtd_parcelas: 1,
-    valor_parcelas: 0,
+    valor_parcelas: "",
   };
 
   const [form, updateForm, clearForm] = usePersistedFormState<CloseSaleFormData>("close-sale-form", defaultForm);
