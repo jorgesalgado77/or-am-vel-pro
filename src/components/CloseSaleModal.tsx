@@ -9,7 +9,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Plus, Trash2, Save, Handshake, Loader2} from "lucide-react";
-import {maskCpfCnpj, maskPhone} from "@/lib/masks";
+import {maskCpfCnpj, maskPhone, validateCpfCnpj} from "@/lib/masks";
 import {formatCurrency} from "@/lib/financing";
 import {FORMAS_PAGAMENTO_LABELS} from "@/services/financialService";
 import {toast} from "sonner";
@@ -122,6 +122,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [itemDetails, setItemDetails] = useState<SaleItemDetail[]>([]);
   const [cepLoading, setCepLoading] = useState<"" | "_entrega" | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
+  const [cpfCnpjError, setCpfCnpjError] = useState<string>("");
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
@@ -251,10 +252,26 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       const val = form[key];
       if (typeof val === "string" && !val.trim()) errors.add(key);
     }
+
+    // Validate CPF/CNPJ digits
+    let cpfErr = "";
+    if (form.cpf_cnpj.trim()) {
+      const result = validateCpfCnpj(form.cpf_cnpj);
+      if (!result.valid) {
+        cpfErr = result.message || "CPF/CNPJ inválido";
+        errors.add("cpf_cnpj");
+      }
+    }
+    setCpfCnpjError(cpfErr);
+
     setFieldErrors(errors);
     if (errors.size > 0) {
       const missing = REQUIRED_FIELDS.filter(f => errors.has(f.key)).map(f => f.label);
-      toast.error(`Preencha os campos obrigatórios: ${missing.join(", ")}`);
+      if (cpfErr) {
+        toast.error(cpfErr);
+      } else {
+        toast.error(`Preencha os campos obrigatórios: ${missing.join(", ")}`);
+      }
       return;
     }
     onConfirm(form, items, itemDetails);
@@ -315,7 +332,8 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">CPF/CNPJ *</Label>
-                    <Input value={form.cpf_cnpj} onChange={e => updateField("cpf_cnpj", maskCpfCnpj(e.target.value))} className={`mt-1 h-9 text-sm ${errorClass("cpf_cnpj")}`} />
+                    <Input value={form.cpf_cnpj} onChange={e => { updateField("cpf_cnpj", maskCpfCnpj(e.target.value)); setCpfCnpjError(""); }} className={`mt-1 h-9 text-sm ${errorClass("cpf_cnpj")}`} />
+                    {cpfCnpjError && <p className="text-xs text-destructive mt-1">{cpfCnpjError}</p>}
                   </div>
                   <div>
                     <Label className="text-xs">RG / Insc. Estadual</Label>
