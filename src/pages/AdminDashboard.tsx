@@ -344,6 +344,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const saveTenant = async () => {
     if (!tNome.trim()) { toast.error("Nome da loja é obrigatório"); return; }
     if (!tCodigo.trim()) { toast.error("Código da loja é obrigatório"); return; }
+    if (!editingTenant && !tEmail.trim()) { toast.error("Email é obrigatório para criar a loja"); return; }
+
     const maxUsers = tPlano === "basico" ? 3 : tPlano === "premium" ? 999 : 999;
     const payload: any = {
       nome_loja: tNome.trim(),
@@ -359,37 +361,63 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
     if (editingTenant) {
       const { error } = await supabase.from("tenants").update(payload).eq("id", editingTenant.id);
-      if (error) toast.error("Erro ao atualizar loja: " + error.message);
-      else toast.success("Loja atualizada!");
-    } else {
-      // Final uniqueness check before insert
-      const { data: existing } = await supabase.from("tenants").select("id").eq("codigo_loja", tCodigo.trim()).maybeSingle();
-      if (existing) { toast.error("Código da loja já existe. Gerando novo..."); const c = await generateUniqueCode(); setTCodigo(c); return; }
-      
-      // Try direct insert (requires INSERT RLS policy for admin_master)
-      const { data: newTenant, error: insertError } = await supabase.from("tenants").insert(payload).select().single();
-      if (insertError) {
-        console.error("Insert error:", insertError.message);
-        // If RLS blocks, try via admin RPC as fallback
-        const { error: rpcError } = await (supabase.rpc as any)("admin_create_tenant", {
-          p_nome_loja: payload.nome_loja,
-          p_codigo_loja: payload.codigo_loja,
-          p_email_contato: payload.email_contato,
-          p_telefone_contato: payload.telefone_contato,
-          p_plano: payload.plano,
-          p_plano_periodo: payload.plano_periodo,
-          p_max_usuarios: payload.max_usuarios,
-          p_ativo: payload.ativo,
-          p_recursos_vip: payload.recursos_vip,
-        });
-        if (rpcError) {
-          toast.error("Erro ao criar loja. Verifique se a política de INSERT para admin_master existe na tabela tenants.");
-          console.error("RPC fallback error:", rpcError.message);
-          return;
-        }
+      if (error) {
+        toast.error("Erro ao atualizar loja: " + error.message);
+        return;
       }
-      toast.success("Loja criada!");
+      toast.success("Loja atualizada!");
+      setShowTenantDialog(false);
+      fetchData();
+      return;
     }
+
+    const { data: existing } = await supabase.from("tenants").select("id").eq("codigo_loja", tCodigo.trim()).maybeSingle();
+    if (existing) {
+      toast.error("Código da loja já existe. Gerando novo...");
+      const c = await generateUniqueCode();
+      setTCodigo(c);
+      return;
+    }
+
+    const normalizedEmail = tEmail.trim().toLowerCase();
+    const { data: provisionedStore, error: provisionError } = await (supabase.rpc as any)("provision_new_store", {
+      p_email: normalizedEmail,
+    });
+
+    if (provisionError) {
+      console.error("Provision error:", provisionError.message);
+      toast.error("Erro ao criar loja: " + provisionError.message);
+      return;
+    }
+
+    const tenantId = provisionedStore?.tenant_id;
+    if (!tenantId) {
+      toast.error("Erro ao criar loja: resposta inválida da RPC provision_new_store.");
+      return;
+    }
+
+    const { data: createdTenant, error: updateError } = await supabase
+      .from("tenants")
+      .update({
+        ...payload,
+        codigo_loja: payload.codigo_loja || provisionedStore?.codigo_loja,
+      })
+      .eq("id", tenantId)
+      .select("*")
+      .single();
+
+    if (updateError) {
+      console.error("Tenant update after provision error:", updateError.message);
+      toast.error("A loja foi provisionada, mas houve erro ao aplicar os dados: " + updateError.message);
+      fetchData();
+      return;
+    }
+
+    if (createdTenant) {
+      setTenants((prev) => [createdTenant as Tenant, ...prev.filter((tenant) => tenant.id !== createdTenant.id)]);
+    }
+
+    toast.success("Loja criada!");
     setShowTenantDialog(false);
     fetchData();
   };
