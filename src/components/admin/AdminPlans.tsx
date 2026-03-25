@@ -661,9 +661,26 @@ export function AdminPlans() {
                     >
                       {feat.included ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
                     </button>
-                    <span className={`text-sm flex-1 ${feat.included ? "text-foreground" : "text-muted-foreground line-through"}`}>
-                      {feat.label}
-                    </span>
+                    {editingFeatureIndex === i ? (
+                      <Input
+                        value={editingFeatureLabel}
+                        onChange={e => setEditingFeatureLabel(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); saveEditFeature(); } if (e.key === "Escape") setEditingFeatureIndex(null); }}
+                        onBlur={saveEditFeature}
+                        className="h-7 text-sm flex-1"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className={`text-sm flex-1 cursor-pointer hover:underline ${feat.included ? "text-foreground" : "text-muted-foreground line-through"}`}
+                        onDoubleClick={() => startEditFeature(i)}
+                      >
+                        {feat.label}
+                      </span>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => startEditFeature(i)}>
+                      <Edit className="h-3 w-3" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeDisplayFeature(i)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
