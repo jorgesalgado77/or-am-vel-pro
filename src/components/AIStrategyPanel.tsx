@@ -98,6 +98,7 @@ export function AIStrategyPanel({
   maxParcelas,
   availableParcelas,
   currentFormaPagamento,
+  boletoProviderName,
   onApplyStrategy,
   calculateResult,
   canAccess,
