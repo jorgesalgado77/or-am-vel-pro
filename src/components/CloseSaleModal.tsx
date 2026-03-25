@@ -9,7 +9,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Plus, Trash2, Save, Handshake, Loader2} from "lucide-react";
-import {maskCpfCnpj, maskPhone, validateCpfCnpj} from "@/lib/masks";
+import {maskCpfCnpj, maskPhone, maskCurrency, unmaskCurrency, validateCpfCnpj} from "@/lib/masks";
 import {formatCurrency} from "@/lib/financing";
 import {FORMAS_PAGAMENTO_LABELS} from "@/services/financialService";
 import {toast} from "sonner";
@@ -60,9 +60,9 @@ interface CloseSaleFormData {
   uf_entrega: string;
   cep_entrega: string;
   observacoes: string;
-  valor_entrada: number;
+  valor_entrada: string;
   qtd_parcelas: number;
-  valor_parcelas: number;
+  valor_parcelas: string;
 }
 
 interface CloseSaleModalProps {
@@ -111,9 +111,9 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     uf_entrega: "",
     cep_entrega: "",
     observacoes: "",
-    valor_entrada: 0,
+    valor_entrada: "",
     qtd_parcelas: 1,
-    valor_parcelas: 0,
+    valor_parcelas: "",
   };
 
   const [form, updateForm, clearForm] = usePersistedFormState<CloseSaleFormData>("close-sale-form", defaultForm);
@@ -153,13 +153,13 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       bairro: (client as any)?.bairro || "",
       cidade: (client as any)?.cidade || "",
       uf: (client as any)?.uf || "",
-      cep: (client as any)?.cep || "",
+      cep: (client as any)?.cep ? ((client as any).cep.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2")) : "",
       data_nascimento: (client as any)?.data_nascimento || "",
       responsavel_venda: simulationData?.vendedor || client?.vendedor || "",
       numero_contrato: simulationData?.numeroOrcamento || client?.numero_orcamento || "",
-      valor_entrada: simulationData?.valorEntrada || 0,
+      valor_entrada: simulationData?.valorEntrada ? maskCurrency(String(Math.round(simulationData.valorEntrada * 100))) : "",
       qtd_parcelas: simulationData?.parcelas || 1,
-      valor_parcelas: simulationData?.valorParcela || 0,
+      valor_parcelas: simulationData?.valorParcela ? maskCurrency(String(Math.round(simulationData.valorParcela * 100))) : "",
       data_fechamento: format(new Date(), "yyyy-MM-dd"),
     };
     // Only set fields that have values, preserving previously persisted data
@@ -488,7 +488,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                                 <Input value={item.prazo} onChange={e => updateItem(idx, "prazo", e.target.value)} className="h-8 text-xs" />
                               </TableCell>
                               <TableCell>
-                                <Input type="number" min={0} step={0.01} value={item.valor_ambiente || ""} onChange={e => updateItem(idx, "valor_ambiente", Number(e.target.value))} className="h-8 text-xs" />
+                                <Input value={item.valor_ambiente ? maskCurrency(String(Math.round(item.valor_ambiente * 100))) : ""} onChange={e => updateItem(idx, "valor_ambiente", unmaskCurrency(e.target.value))} className="h-8 text-xs" placeholder="R$ 0,00" />
                               </TableCell>
                               <TableCell>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}>
@@ -582,7 +582,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <Label className="text-xs">Entrada</Label>
-                        <Input type="number" min={0} step={0.01} value={form.valor_entrada || ""} onChange={e => updateField("valor_entrada", Number(e.target.value))} className="mt-1 h-9 text-sm" />
+                        <Input value={form.valor_entrada} onChange={e => updateField("valor_entrada", maskCurrency(e.target.value))} className="mt-1 h-9 text-sm" placeholder="R$ 0,00" />
                       </div>
                       <div>
                         <Label className="text-xs">Parcelas</Label>
@@ -590,7 +590,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                       </div>
                       <div>
                         <Label className="text-xs">Valor Parcela</Label>
-                        <Input type="number" min={0} step={0.01} value={form.valor_parcelas || ""} onChange={e => updateField("valor_parcelas", Number(e.target.value))} className="mt-1 h-9 text-sm" />
+                        <Input value={form.valor_parcelas} onChange={e => updateField("valor_parcelas", maskCurrency(e.target.value))} className="mt-1 h-9 text-sm" placeholder="R$ 0,00" />
                       </div>
                     </div>
                   </div>
