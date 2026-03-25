@@ -578,6 +578,24 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   };
 
   const handleSave = async () => {
+    // Validação de valores
+    if (valorTela <= 0) {
+      toast.error("Informe um Valor de Tela maior que zero");
+      return;
+    }
+    if (valorTela > VALOR_TELA_MAX) {
+      toast.error(`Valor de Tela não pode exceder ${formatCurrency(VALOR_TELA_MAX)}`);
+      return;
+    }
+    if (valorEntrada < 0) {
+      toast.error("Valor de Entrada não pode ser negativo");
+      return;
+    }
+    if (valorEntrada > result.valorComDesconto) {
+      toast.error("Valor de Entrada não pode ser maior que o valor com desconto");
+      return;
+    }
+
     let clientId = client?.id;
 
     // If no client, create one first
