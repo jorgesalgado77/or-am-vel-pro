@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/financing";
+import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import {
   DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Trash2,
   Save, Pencil, Search, RefreshCw, Receipt, Users, Target,
