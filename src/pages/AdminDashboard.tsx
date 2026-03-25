@@ -118,6 +118,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tCodigo, setTCodigo] = useState("");
   const [tEmail, setTEmail] = useState("");
   const [tTelefone, setTTelefone] = useState("");
+  const [tSenhaInicial, setTSenhaInicial] = useState("");
   const [tPlano, setTPlano] = useState("trial");
   const [tPeriodo, setTPeriodo] = useState("mensal");
   const [tAtivo, setTAtivo] = useState(true);
@@ -316,7 +317,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   // Tenant CRUD
   const openNewTenant = async () => {
     setEditingTenant(null);
-    setTNome(""); setTCodigo(""); setTEmail(""); setTTelefone("");
+    setTNome(""); setTCodigo(""); setTEmail(""); setTTelefone(""); setTSenhaInicial("");
     setTPlano("trial"); setTPeriodo("mensal"); setTAtivo(true);
     setTOcultarIndicador(false);
     setTDealRoom(false);
@@ -345,6 +346,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     if (!tNome.trim()) { toast.error("Nome da loja é obrigatório"); return; }
     if (!tCodigo.trim()) { toast.error("Código da loja é obrigatório"); return; }
     if (!editingTenant && !tEmail.trim()) { toast.error("Email é obrigatório para criar a loja"); return; }
+    if (!editingTenant && !tSenhaInicial.trim()) { toast.error("Senha inicial é obrigatória para criar a loja"); return; }
+    if (!editingTenant && tSenhaInicial.trim().length < 6) { toast.error("A senha deve ter pelo menos 6 caracteres"); return; }
 
     const maxUsers = tPlano === "basico" ? 3 : tPlano === "premium" ? 999 : 999;
     const payload: any = {
@@ -415,6 +418,22 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
     if (createdTenant) {
       setTenants((prev) => [createdTenant as Tenant, ...prev.filter((tenant) => tenant.id !== createdTenant.id)]);
+    }
+
+    // Set the initial password for the admin user
+    if (tSenhaInicial.trim()) {
+      try {
+        const { data: hashedSenha } = await supabase.rpc("hash_password" as any, { plain_text: tSenhaInicial.trim() }) as any;
+        if (hashedSenha) {
+          await (supabase as any)
+            .from("usuarios")
+            .update({ senha: hashedSenha, primeiro_login: true })
+            .eq("tenant_id", tenantId)
+            .ilike("email", normalizedEmail);
+        }
+      } catch (e) {
+        console.warn("Erro ao definir senha inicial:", e);
+      }
     }
 
     toast.success("Loja criada!");
@@ -946,6 +965,19 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 <Input value={tTelefone} onChange={(e) => setTTelefone(maskPhone(e.target.value))} className="mt-1 h-9 text-sm" inputMode="numeric" placeholder="(00) 00000-0000" />
               </div>
             </div>
+            {!editingTenant && (
+              <div>
+                <Label className="text-xs">Senha Inicial do Administrador *</Label>
+                <Input
+                  value={tSenhaInicial}
+                  onChange={(e) => setTSenhaInicial(e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">O usuário será obrigado a trocar a senha no primeiro acesso.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Plano</Label>
