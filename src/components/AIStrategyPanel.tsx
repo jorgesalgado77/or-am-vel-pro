@@ -203,7 +203,7 @@ export function AIStrategyPanel({
         descricao: "Máximo desconto + parcelamento. Para fechar negócios difíceis.",
       },
     ];
-  }, [enabled, valorTela, valorTelaComComissao, discountOptions, maxParcelas, historicalConversionRate, calculateResult]);
+  }, [enabled, valorTela, valorTelaComComissao, discountOptions, maxParcelas, availableParcelas, historicalConversionRate, calculateResult]);
 
   const handleApply = useCallback((scenario: StrategyScenario) => {
     onApplyStrategy({
