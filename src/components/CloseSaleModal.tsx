@@ -9,7 +9,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Plus, Trash2, Save, Handshake, Loader2} from "lucide-react";
-import {maskCpfCnpj, maskPhone, validateCpfCnpj} from "@/lib/masks";
+import {maskCpfCnpj, maskPhone, maskCurrency, unmaskCurrency, validateCpfCnpj} from "@/lib/masks";
 import {formatCurrency} from "@/lib/financing";
 import {FORMAS_PAGAMENTO_LABELS} from "@/services/financialService";
 import {toast} from "sonner";
