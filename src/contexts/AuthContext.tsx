@@ -156,10 +156,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     console.log("[Auth] 🔄 Loading user profile for:", sess.user.email);
 
+    const sessionTenantId = (sess.user.user_metadata as any)?.tenant_id as string | undefined ?? null;
+
     let appUser: AppUser | null = null;
     try {
       appUser = await Promise.race([
-        loadAppUser(sess.user),
+        loadAppUser(sess.user, sessionTenantId),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
       ]);
 
@@ -169,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           1800,
           undefined,
         );
-        appUser = await withTimeout(loadAppUser(sess.user), 2500, null);
+        appUser = await withTimeout(loadAppUser(sess.user, sessionTenantId), 2500, null);
       }
     } catch (e) {
       console.warn("[Auth] ⚠️ loadAppUser falhou:", e);
