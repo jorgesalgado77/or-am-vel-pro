@@ -61,6 +61,7 @@ interface AIStrategyPanelProps {
   maxParcelas: number;
   availableParcelas: number[];
   currentFormaPagamento: string;
+  boletoProviderName?: string;
   onApplyStrategy: (strategy: StrategyParams) => void;
   calculateResult: (strategy: StrategyParams) => CalculatedResult;
   canAccess: boolean;
