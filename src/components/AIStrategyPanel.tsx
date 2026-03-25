@@ -119,12 +119,14 @@ export function AIStrategyPanel({
 
     const comD1 = d1Options.length > 1 ? d1Options[Math.floor(d1Options.length / 2)] : (d1Options[0] || 0);
     const comD2 = d2Options.length > 1 ? d2Options[Math.floor(d2Options.length / 2)] : (d2Options[0] || 0);
-    const comParcelas = Math.min(Math.ceil(maxParcelas / 2), maxParcelas);
+    // Pick middle available installment for Comercial, max for Agressiva
+    const midIdx = Math.floor(availableParcelas.length / 2);
+    const comParcelas = availableParcelas.length > 0 ? availableParcelas[midIdx] : 1;
 
     const agrD1 = d1Options.length > 0 ? Math.max(...d1Options) : 0;
     const agrD2 = d2Options.length > 0 ? Math.max(...d2Options) : 0;
     const agrD3 = d3Options.length > 0 ? Math.max(...d3Options) : 0;
-    const agrParcelas = maxParcelas;
+    const agrParcelas = availableParcelas.length > 0 ? availableParcelas[availableParcelas.length - 1] : maxParcelas;
 
     // Define strategy params
     const conservParams: StrategyParams = {
