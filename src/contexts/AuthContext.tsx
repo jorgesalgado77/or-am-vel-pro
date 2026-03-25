@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const retryTimeouts = [2500, 5000];
 
     for (const timeoutMs of retryTimeouts) {
-      const resolvedUser = await withTimeout(loadAppUser(authUser), timeoutMs, null);
+      const preferTenant = (authUser.user_metadata as any)?.tenant_id as string | undefined ?? null;
+      const resolvedUser = await withTimeout(loadAppUser(authUser, preferTenant), timeoutMs, null);
       if (!resolvedUser) continue;
       if (currentAuthIdRef.current !== authUser.id) return null;
 
