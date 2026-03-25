@@ -198,6 +198,14 @@ export function AdminPlans() {
     setFAtivo(plan.ativo);
     setFOrdem(String(plan.ordem));
     setFTrialDias(String(plan.trial_dias));
+    // Calculate discount from existing prices
+    const mensal = plan.preco_mensal;
+    const anual = plan.preco_anual_mensal;
+    if (mensal > 0 && anual > 0 && anual < mensal) {
+      setFDescontoAnual(String(Math.round((1 - anual / mensal) * 100)));
+    } else {
+      setFDescontoAnual("20");
+    }
     const funcs: Record<string, boolean> = {};
     ALL_FEATURES.forEach(f => {
       funcs[f.key] = plan.funcionalidades?.[f.key] ?? false;
@@ -205,6 +213,7 @@ export function AdminPlans() {
     setFFuncionalidades(funcs);
     setFFeatures(plan.features_display || []);
     setNewFeatureLabel("");
+    setEditingFeatureIndex(null);
     setShowDialog(true);
   };
 
