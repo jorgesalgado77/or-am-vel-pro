@@ -79,14 +79,21 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
       responsesRef.current = r;
       setReadOnly(true);
     } else {
-      const initial = { client_1_name: clientName };
+      // Pre-fill from client DB data
+      const initial: Record<string, any> = { client_1_name: clientName };
+      if (clientData?.telefone1) initial.client_1_phone = clientData.telefone1;
+      if (clientData?.email) initial.client_1_email = clientData.email;
+      if (clientData?.vendedor) initial.seller_name = clientData.vendedor;
+      if (clientData?.created_at) {
+        initial.initial_date = clientData.created_at.substring(0, 10);
+      }
       setResponses(initial);
       responsesRef.current = initial;
       setExistingId(null);
       setReadOnly(false);
     }
     setLoading(false);
-  }, [clientId, clientName]);
+  }, [clientId, clientName, clientData]);
 
   useEffect(() => {
     if (open) fetchBriefing();
