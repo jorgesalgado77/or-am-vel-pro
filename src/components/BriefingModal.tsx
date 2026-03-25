@@ -14,12 +14,22 @@ import { toast } from "sonner";
 import { BriefingStructuredForm } from "@/components/briefing/BriefingStructuredForm";
 import { BriefingPrintButton } from "@/components/briefing/BriefingPrintButton";
 
+interface ClientData {
+  nome: string;
+  telefone1?: string | null;
+  email?: string | null;
+  vendedor?: string | null;
+  created_at?: string;
+  descricao_ambientes?: string | null;
+}
+
 interface BriefingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string;
   clientName: string;
   orcamentoNumero?: string;
+  clientData?: ClientData;
   onSendToSimulator?: (data: { environments: string[]; descricaoAmbientes: string; quantidadeAmbientes: number; budgetExpectation: string }) => void;
 }
 
