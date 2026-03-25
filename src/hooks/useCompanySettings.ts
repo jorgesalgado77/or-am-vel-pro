@@ -89,7 +89,7 @@ async function fetchCompanySettingsForTenant(tenantId: string | null): Promise<C
     if (isDefault && tenantData?.nome_loja) {
       normalized.company_name = tenantData.nome_loja;
     }
-    if (!normalized.codigo_loja && tenantData?.codigo_loja) {
+    if (tenantData?.codigo_loja) {
       normalized.codigo_loja = tenantData.codigo_loja;
     }
     return normalized;
