@@ -288,6 +288,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        // Sync Auth metadata with the correct tenant BEFORE loading the user profile.
+        // This ensures the JWT (used by RLS policies via get_my_tenant_id()) reflects
+        // the correct store when the same email exists in multiple tenants.
+        const currentMetaTenant = (authData.user.user_metadata as any)?.tenant_id;
+        if (resolvedTenantId && currentMetaTenant !== resolvedTenantId) {
+          try {
+            await supabase.auth.updateUser({ data: { tenant_id: resolvedTenantId } });
+            // Refresh session so the new JWT with updated tenant_id is used by RLS
+            const { data: refreshed } = await supabase.auth.refreshSession();
+            if (refreshed?.user) {
+              authData = { user: refreshed.user, session: refreshed.session };
+            }
+          } catch (e) {
+            console.warn("[Auth] Failed to sync tenant metadata before user load:", e);
+          }
+        }
+
         const metadata = {
           ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
           ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
@@ -336,15 +353,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(authData.session);
         syncGlobalState(appUser);
 
-        // Sync Auth user metadata with correct tenant_id for session restore
-        if (appUser.tenant_id) {
-          const currentMetaTenant = (authData.user.user_metadata as any)?.tenant_id;
-          if (currentMetaTenant !== appUser.tenant_id) {
-            void supabase.auth.updateUser({
-              data: { tenant_id: appUser.tenant_id },
-            }).catch(() => { /* best effort */ });
-          }
-        }
+        // tenant_id metadata already synced above before loadAppUser
 
         if (usedFallbackUser) {
           void (async () => {
@@ -363,10 +372,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { user: appUser, error: null };
       };
 
+      // Start tenant resolution from store code early
+      if (normalizedStoreCode.length === 6) {
+        const tenantFromCode = await withTimeout(tenantResolutionPromise, 2000, null);
+        if (tenantFromCode) {
+          resolvedTenantId = tenantFromCode;
+        }
+      }
+
       const { data, error } = await signInWithPasswordFast(normalizedEmail_, password);
 
       if (!error && data.user) {
-        resolvedTenantId = (data.user.user_metadata as any)?.tenant_id ?? null;
+        // Only use metadata tenant if we didn't resolve from store code
+        if (!resolvedTenantId) {
+          resolvedTenantId = (data.user.user_metadata as any)?.tenant_id ?? null;
+        }
         return finalizeLogin(data);
       }
 
