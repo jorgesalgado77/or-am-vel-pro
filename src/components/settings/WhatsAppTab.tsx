@@ -104,7 +104,7 @@ export function WhatsAppTab() {
     } else {
       const { data: created } = await supabase
         .from("whatsapp_settings")
-        .insert({} as any)
+        .insert({ tenant_id: tenantId } as any)
         .select("*")
         .single();
       if (created) setSettings(created as unknown as WhatsAppSettings);
