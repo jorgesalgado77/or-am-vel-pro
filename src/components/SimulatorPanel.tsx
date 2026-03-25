@@ -1191,6 +1191,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               plus: getOptionsForField("plus"),
             }}
             maxParcelas={maxParcelas}
+            availableParcelas={availableParcelas}
             currentFormaPagamento={formaPagamento}
             onApplyStrategy={(s) => {
               setDesconto1(s.desconto1);
