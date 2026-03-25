@@ -227,7 +227,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col p-0">
+      <DialogContent className="max-w-5xl w-[98vw] sm:w-auto max-h-[92vh] flex flex-col p-0">
         <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <Handshake className="h-5 w-5 text-primary" />
