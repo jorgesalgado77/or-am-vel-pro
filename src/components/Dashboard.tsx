@@ -1015,8 +1015,10 @@ function ContractTrackingList() {
       toast.error("Preencha número do contrato e nome do cliente"); return;
     }
     setSaving(true);
-    const { data: clientData } = await supabase
-      .from("clients").select("id").ilike("nome", `%${form.nome_cliente.trim()}%`).limit(1).single();
+    const tenantId = await getResolvedTenantId();
+    let clientQuery = supabase.from("clients").select("id").ilike("nome", `%${form.nome_cliente.trim()}%`).limit(1);
+    if (tenantId) clientQuery = clientQuery.eq("tenant_id", tenantId);
+    const { data: clientData } = await clientQuery.single();
 
     const comissaoResult = calcularComissao(form.valor_contrato, 0, comissaoPolicy, null);
 
