@@ -16,6 +16,7 @@ import {AIStrategyPanel} from "@/components/AIStrategyPanel";
 import {useConversionHistory} from "@/hooks/useConversionHistory";
 
 import {calculateSimulation, formatCurrency, type FormaPagamento, type SimulationInput, type BoletoRateData} from "@/lib/financing";
+import {maskCurrency, unmaskCurrency} from "@/lib/masks";
 import {generateOrcamentoNumber, applyDiscounts} from "@/services/financialService";
 import {parseProjectFile} from "@/services/fileImportService";
 import {buildContractHtml} from "@/services/contractService";
@@ -916,12 +917,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                   <Input
                     type="text"
                     inputMode="numeric"
-                    value={valorTela ? valorTela.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}
+                    value={valorTela ? maskCurrency(String(Math.round(valorTela * 100))) : ""}
                     onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, "");
-                      setValorTela(parseInt(raw || "0") / 100);
+                      setValorTela(unmaskCurrency(e.target.value));
                     }}
                     className="pl-10"
+                    placeholder="R$ 0,00"
                   />
                 </div>
                 <Button
@@ -1110,12 +1111,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                 <Input
                   type="text"
                   inputMode="numeric"
-                  value={valorEntrada ? valorEntrada.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}
+                  value={valorEntrada ? maskCurrency(String(Math.round(valorEntrada * 100))) : ""}
                   onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, "");
-                    setValorEntrada(parseInt(raw || "0") / 100);
+                    setValorEntrada(unmaskCurrency(e.target.value));
                   }}
                   className="pl-10"
+                  placeholder="R$ 0,00"
                 />
               </div>
             </div>
