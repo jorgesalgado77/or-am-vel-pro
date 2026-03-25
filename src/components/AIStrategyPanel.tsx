@@ -111,39 +111,49 @@ export function AIStrategyPanel({
     const d3Options = discountOptions.desconto3;
     const plusOptions = discountOptions.plus;
 
-    // CONSERVADORA: menor desconto, maior margem
+    // Build strategy params
     const conservD1 = d1Options.length > 0 ? Math.min(...d1Options.filter(v => v > 0)) || 0 : 0;
-    const conservD2 = 0;
-    const conservD3 = 0;
     const conservPlus = plusOptions.length > 0 ? Math.max(...plusOptions) : 0;
-    const conservValor = valorTelaComComissao * (1 - conservD1 / 100);
-    const conservMargem = ((valorTelaComComissao - conservValor + (conservValor * conservPlus / 100)) / valorTelaComComissao) * 100;
-    const conservFinal = conservValor * (1 + conservPlus / 100);
-    const conservProb = calculateClosingProbability(conservD1, false, historicalConversionRate, conservFinal);
 
-    // COMERCIAL: desconto médio, equilíbrio
     const comD1 = d1Options.length > 1 ? d1Options[Math.floor(d1Options.length / 2)] : (d1Options[0] || 0);
     const comD2 = d2Options.length > 1 ? d2Options[Math.floor(d2Options.length / 2)] : (d2Options[0] || 0);
-    const comD3 = 0;
-    const comValor = valorTelaComComissao * (1 - comD1 / 100) * (1 - comD2 / 100);
-    const totalDiscountCom = ((valorTelaComComissao - comValor) / valorTelaComComissao) * 100;
-    const comMargem = 100 - totalDiscountCom;
     const comParcelas = Math.min(Math.ceil(maxParcelas / 2), maxParcelas);
-    const comFinal = comValor;
-    const comParcela = comFinal / comParcelas;
-    const comProb = calculateClosingProbability(totalDiscountCom, true, historicalConversionRate, comFinal);
 
-    // AGRESSIVA: maior desconto, condições facilitadas
     const agrD1 = d1Options.length > 0 ? Math.max(...d1Options) : 0;
     const agrD2 = d2Options.length > 0 ? Math.max(...d2Options) : 0;
     const agrD3 = d3Options.length > 0 ? Math.max(...d3Options) : 0;
-    const agrValor = valorTelaComComissao * (1 - agrD1 / 100) * (1 - agrD2 / 100) * (1 - agrD3 / 100);
-    const totalDiscountAgr = ((valorTelaComComissao - agrValor) / valorTelaComComissao) * 100;
-    const agrMargem = 100 - totalDiscountAgr;
     const agrParcelas = maxParcelas;
-    const agrFinal = agrValor;
-    const agrParcela = agrFinal / agrParcelas;
-    const agrProb = calculateClosingProbability(totalDiscountAgr, true, historicalConversionRate, agrFinal);
+
+    // Define strategy params
+    const conservParams: StrategyParams = {
+      desconto1: conservD1, desconto2: 0, desconto3: 0,
+      plusPercentual: conservPlus, formaPagamento: "A vista", parcelas: 1, valorEntrada: 0,
+    };
+    const comParams: StrategyParams = {
+      desconto1: comD1, desconto2: comD2, desconto3: 0,
+      plusPercentual: 0, formaPagamento: "Boleto", parcelas: comParcelas, valorEntrada: 0,
+    };
+    const agrParams: StrategyParams = {
+      desconto1: agrD1, desconto2: agrD2, desconto3: agrD3,
+      plusPercentual: 0, formaPagamento: "Boleto", parcelas: agrParcelas, valorEntrada: 0,
+    };
+
+    // Use the real calculation engine for accurate values
+    const conservResult = calculateResult(conservParams);
+    const comResult = calculateResult(comParams);
+    const agrResult = calculateResult(agrParams);
+
+    const totalDiscountConserv = ((valorTelaComComissao - conservResult.valorComDesconto) / valorTelaComComissao) * 100;
+    const totalDiscountCom = ((valorTelaComComissao - comResult.valorComDesconto) / valorTelaComComissao) * 100;
+    const totalDiscountAgr = ((valorTelaComComissao - agrResult.valorComDesconto) / valorTelaComComissao) * 100;
+
+    const conservMargem = 100 - totalDiscountConserv + conservPlus;
+    const comMargem = 100 - totalDiscountCom;
+    const agrMargem = 100 - totalDiscountAgr;
+
+    const conservProb = calculateClosingProbability(totalDiscountConserv, false, historicalConversionRate, conservResult.valorFinal);
+    const comProb = calculateClosingProbability(totalDiscountCom, true, historicalConversionRate, comResult.valorFinal);
+    const agrProb = calculateClosingProbability(totalDiscountAgr, true, historicalConversionRate, agrResult.valorFinal);
 
     return [
       {
@@ -153,15 +163,9 @@ export function AIStrategyPanel({
         color: "text-emerald-700",
         bgColor: "bg-emerald-50",
         borderColor: "border-emerald-200 hover:border-emerald-400",
-        desconto1: conservD1,
-        desconto2: conservD2,
-        desconto3: conservD3,
-        plusPercentual: conservPlus,
-        formaPagamento: "A vista",
-        parcelas: 1,
-        valorEntrada: 0,
-        valorFinal: conservFinal,
-        valorParcela: conservFinal,
+        ...conservParams,
+        valorFinal: conservResult.valorFinal,
+        valorParcela: conservResult.valorParcela,
         margemEstimada: conservMargem,
         probabilidadeFechamento: conservProb,
         descricao: "Menor desconto, máxima margem de lucro. Ideal para clientes já decididos.",
@@ -173,15 +177,9 @@ export function AIStrategyPanel({
         color: "text-amber-700",
         bgColor: "bg-amber-50",
         borderColor: "border-amber-200 hover:border-amber-400",
-        desconto1: comD1,
-        desconto2: comD2,
-        desconto3: comD3,
-        plusPercentual: 0,
-        formaPagamento: "Boleto",
-        parcelas: comParcelas,
-        valorEntrada: 0,
-        valorFinal: comFinal,
-        valorParcela: comParcela,
+        ...comParams,
+        valorFinal: comResult.valorFinal,
+        valorParcela: comResult.valorParcela,
         margemEstimada: comMargem,
         probabilidadeFechamento: comProb,
         descricao: "Equilíbrio entre desconto e lucro. Bom para negociações em andamento.",
@@ -193,21 +191,15 @@ export function AIStrategyPanel({
         color: "text-red-700",
         bgColor: "bg-red-50",
         borderColor: "border-red-200 hover:border-red-400",
-        desconto1: agrD1,
-        desconto2: agrD2,
-        desconto3: agrD3,
-        plusPercentual: 0,
-        formaPagamento: "Boleto",
-        parcelas: agrParcelas,
-        valorEntrada: 0,
-        valorFinal: agrFinal,
-        valorParcela: agrParcela,
+        ...agrParams,
+        valorFinal: agrResult.valorFinal,
+        valorParcela: agrResult.valorParcela,
         margemEstimada: agrMargem,
         probabilidadeFechamento: agrProb,
         descricao: "Máximo desconto + parcelamento. Para fechar negócios difíceis.",
       },
     ];
-  }, [enabled, valorTela, valorTelaComComissao, discountOptions, maxParcelas, historicalConversionRate]);
+  }, [enabled, valorTela, valorTelaComComissao, discountOptions, maxParcelas, historicalConversionRate, calculateResult]);
 
   const handleApply = useCallback((scenario: StrategyScenario) => {
     onApplyStrategy({
