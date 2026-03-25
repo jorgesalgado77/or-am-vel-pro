@@ -1203,6 +1203,22 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               if (s.desconto3 > 0) setDesconto3Unlocked(true);
               if (s.plusPercentual > 0) setPlusUnlocked(true);
             }}
+            calculateResult={(s) => {
+              const input: SimulationInput = {
+                valorTela: valorTelaComComissao,
+                desconto1: s.desconto1, desconto2: s.desconto2, desconto3: s.desconto3,
+                formaPagamento: s.formaPagamento as FormaPagamento,
+                parcelas: s.parcelas, valorEntrada: s.valorEntrada,
+                plusPercentual: s.plusPercentual,
+                creditRates: creditoCoeffMap,
+                creditRatesFull: creditoRatesFullMap,
+                boletoRates: boletoCoeffMap,
+                boletoRatesFull: boletoRatesFullMap,
+                carenciaDias,
+              };
+              const r = calculateSimulation(input);
+              return { valorComDesconto: r.valorComDesconto, valorFinal: r.valorFinal, valorParcela: r.valorParcela, saldo: r.saldo };
+            }}
             canAccess={(() => {
               const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
               return cargo.includes("ADMIN") || cargo.includes("GERENTE") || cargo.includes("PROJETISTA");
