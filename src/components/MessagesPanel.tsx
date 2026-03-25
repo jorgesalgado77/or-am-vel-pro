@@ -6,6 +6,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {Badge} from "@/components/ui/badge";
 import {ArrowLeft, Send, RefreshCw, MessageCircle} from "lucide-react";
 import {supabase} from "@/lib/supabaseClient";
+import {getTenantId} from "@/lib/tenantState";
 import {toast} from "sonner";
 import {format} from "date-fns";
 
@@ -42,10 +43,13 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
     setLoading(true);
 
     // Get all trackings that have messages
-    const { data: allTrackings } = await supabase
+    const tenantId = getTenantId();
+    let trackQuery = supabase
       .from("client_tracking")
       .select("id, numero_contrato, nome_cliente")
       .order("updated_at", { ascending: false });
+    if (tenantId) trackQuery = trackQuery.eq("tenant_id", tenantId);
+    const { data: allTrackings } = await trackQuery;
 
     if (!allTrackings) { setLoading(false); return; }
 
