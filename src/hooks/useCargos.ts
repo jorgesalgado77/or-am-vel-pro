@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 
 export interface CargoPermissoes {
   clientes: boolean;
@@ -61,7 +62,10 @@ export function useCargos() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data } = await supabase.from("cargos").select("*").order("nome");
+    const tenantId = await getResolvedTenantId();
+    let query = supabase.from("cargos").select("*").order("nome");
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
     if (data) setCargos(data.map(c => ({
       ...c,
       permissoes: c.permissoes as unknown as CargoPermissoes,

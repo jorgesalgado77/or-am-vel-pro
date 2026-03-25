@@ -21,10 +21,13 @@ export function useDiscountOptions() {
 
   const fetchOptions = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const tenantId = await getResolvedTenantId();
+    let query = supabase
       .from("discount_options")
       .select("*")
       .order("field_name");
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
     setOptions((data as DiscountOption[]) || []);
     setLoading(false);
   };

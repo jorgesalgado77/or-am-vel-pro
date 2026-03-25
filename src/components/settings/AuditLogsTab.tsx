@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getTenantId } from "@/lib/tenantState";
 
 
 interface AuditLog {
@@ -62,12 +63,14 @@ export function AuditLogsTab() {
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
+    const tenantId = getTenantId();
     let query = supabase
       .from("audit_logs")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(1000);
 
+    if (tenantId) query = query.eq("tenant_id", tenantId);
     if (filterAction !== "all") {
       query = query.eq("acao", filterAction);
     }

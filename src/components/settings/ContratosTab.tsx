@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
+import { getTenantId } from "@/lib/tenantState";
 
 interface ContractTemplate {
   id: string;
@@ -89,10 +90,13 @@ export function ContratosTab() {
   );
 
   const fetchTemplates = async () => {
-    const { data } = await supabase
+    const tenantId = getTenantId();
+    let query = supabase
       .from("contract_templates")
       .select("*")
       .order("created_at", { ascending: false });
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
     setTemplates((data as ContractTemplate[]) || []);
     setLoading(false);
   };

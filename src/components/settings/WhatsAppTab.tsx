@@ -81,11 +81,12 @@ export function WhatsAppTab() {
   const tenantId = getTenantId();
 
   const fetchSettings = async () => {
-    const { data } = await supabase
+    if (!tenantId) { setLoading(false); return; }
+    let query = supabase
       .from("whatsapp_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
+      .select("*");
+    query = query.eq("tenant_id", tenantId);
+    const { data } = await query.limit(1).maybeSingle();
 
     if (data) {
       const s = data as unknown as WhatsAppSettings;

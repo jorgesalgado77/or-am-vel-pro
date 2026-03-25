@@ -13,6 +13,7 @@ import {toast} from "sonner";
 import {format} from "date-fns";
 import {useComissaoPolicy, calcularComissao} from "@/hooks/useComissaoPolicy";
 import {useAuth} from "@/contexts/AuthContext";
+import {getTenantId} from "@/lib/tenantState";
 
 const STATUS_OPTIONS = [
   { value: "medicao", label: "Medição" },
@@ -64,10 +65,13 @@ export function AcompanhamentoTab() {
 
   const fetchTrackings = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const tenantId = getTenantId();
+    let query = supabase
       .from("client_tracking")
       .select("*")
       .order("created_at", { ascending: false });
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data, error } = await query;
     if (!error && data) setTrackings(data as any);
     setLoading(false);
   };
