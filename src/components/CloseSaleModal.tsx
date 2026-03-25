@@ -170,6 +170,9 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
   const updateField = (field: keyof CloseSaleFormData, value: string | number) => {
     updateForm({ [field]: value } as Partial<CloseSaleFormData>);
+    if (fieldErrors.has(field)) {
+      setFieldErrors(prev => { const n = new Set(prev); n.delete(field); return n; });
+    }
   };
 
   const fetchCep = async (cep: string, prefix: "" | "_entrega") => {
