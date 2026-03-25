@@ -78,7 +78,9 @@ export function AdminPlans() {
   const [fFuncionalidades, setFFuncionalidades] = useState<Record<string, boolean>>({});
   const [fFeatures, setFFeatures] = useState<{ label: string; included: boolean }[]>([]);
   const [newFeatureLabel, setNewFeatureLabel] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [editingFeatureIndex, setEditingFeatureIndex] = useState<number | null>(null);
+  const [editingFeatureLabel, setEditingFeatureLabel] = useState("");
+  const [fDescontoAnual, setFDescontoAnual] = useState("20");
   const [generatingDesc, setGeneratingDesc] = useState(false);
   const [suggestingFeatures, setSuggestingFeatures] = useState(false);
 
