@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Save } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/financing";
 import type { Usuario } from "@/hooks/useUsuarios";
@@ -73,9 +74,11 @@ export function PayrollDeductions({ usuarios, cargos, mesReferencia, getRegimeEf
 
   const handleSave = async () => {
     setSaving(true);
+    const tenantId = getTenantId();
     const records = Object.values(deductions).map(d => ({
       ...d,
       mes_referencia: mesReferencia,
+      ...(tenantId ? { tenant_id: tenantId } : {}),
     }));
 
     for (const record of records) {

@@ -3,6 +3,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 import { format } from "date-fns";
 
 interface CommissionInput {
@@ -98,7 +99,9 @@ export async function generateSaleCommissions(input: CommissionInput): Promise<{
   }
 
   if (commissions.length > 0) {
-    const { error } = await supabase.from("payroll_commissions").insert(commissions as any);
+    const tenantId = getTenantId();
+    const withTenant = tenantId ? commissions.map(c => ({ ...c, tenant_id: tenantId })) : commissions;
+    const { error } = await supabase.from("payroll_commissions").insert(withTenant as any);
     if (error) {
       console.error("Erro ao inserir comissões:", error);
       return { count: 0, error: "Erro ao gerar comissões automáticas" };

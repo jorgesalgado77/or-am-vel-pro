@@ -1020,6 +1020,7 @@ function ContractTrackingList() {
 
     const comissaoResult = calcularComissao(form.valor_contrato, 0, comissaoPolicy, null);
 
+    const tenantId = await getResolvedTenantId();
     const { error } = await supabase.from("client_tracking").insert({
       client_id: clientData?.id || "00000000-0000-0000-0000-000000000000",
       numero_contrato: form.numero_contrato.trim(),
@@ -1033,6 +1034,7 @@ function ContractTrackingList() {
       comissao_percentual: comissaoResult.percentual,
       comissao_valor: Math.round((form.valor_contrato * comissaoResult.percentual / 100) * 100) / 100,
       comissao_status: "pendente",
+      ...(tenantId ? { tenant_id: tenantId } : {}),
     } as any);
     setSaving(false);
     if (error) toast.error("Erro ao adicionar");

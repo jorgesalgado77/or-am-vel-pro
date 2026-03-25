@@ -14,6 +14,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {useUsuarios} from "@/hooks/useUsuarios";
 import {useCargos} from "@/hooks/useCargos";
 import {supabase} from "@/lib/supabaseClient";
+import {getTenantId} from "@/lib/tenantState";
 import {toast} from "sonner";
 import {format, startOfMonth, endOfMonth} from "date-fns";
 
@@ -147,12 +148,14 @@ export function PayrollReport({ onBack }: PayrollReportProps) {
     if (!newCommission.usuario_id || !newCommission.valor_comissao) {
       toast.error("Preencha usuário e valor"); return;
     }
+    const tenantId = getTenantId();
     const { error } = await supabase.from("payroll_commissions").insert({
       usuario_id: newCommission.usuario_id,
       mes_referencia: mesReferencia,
       valor_comissao: parseFloat(newCommission.valor_comissao.replace(/[^\d.,]/g, "").replace(",", ".")),
       observacao: newCommission.observacao || null,
       status: "pendente",
+      ...(tenantId ? { tenant_id: tenantId } : {}),
     } as any);
     if (error) toast.error("Erro ao adicionar");
     else { toast.success("Comissão adicionada!"); setAddDialogOpen(false); setNewCommission({ usuario_id: "", valor_comissao: "", observacao: "" }); fetchCommissions(); }
