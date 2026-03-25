@@ -85,7 +85,7 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
   useEffect(() => { loadSimulations(); }, [clientId, tenantId]);
 
   const calcValorComDesconto = (s: { valor_tela: string; desconto1: string; desconto2: string; desconto3: string }) => {
-    const vt = Number(s.valor_tela) || 0;
+    const vt = typeof s.valor_tela === "string" && s.valor_tela.includes("R$") ? unmaskCurrency(s.valor_tela) : (Number(s.valor_tela) || 0);
     const d1 = Number(s.desconto1) || 0;
     const d2 = Number(s.desconto2) || 0;
     const d3 = Number(s.desconto3) || 0;
@@ -98,13 +98,13 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
     setSelectedSim(sim);
     setEditing(true);
     setEditForm({
-      valor_tela: String(sim.valor_tela || 0),
+      valor_tela: maskCurrency(String(Math.round((Number(sim.valor_tela) || 0) * 100))),
       desconto1: String(sim.desconto1 || 0),
       desconto2: String(sim.desconto2 || 0),
       desconto3: String(sim.desconto3 || 0),
       forma_pagamento: sim.forma_pagamento || "A vista",
       parcelas: String(sim.parcelas || 1),
-      valor_entrada: String(sim.valor_entrada || 0),
+      valor_entrada: maskCurrency(String(Math.round((Number(sim.valor_entrada) || 0) * 100))),
     });
   };
 
