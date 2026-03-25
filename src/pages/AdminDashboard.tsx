@@ -354,7 +354,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       const { data: existing } = await supabase.from("tenants").select("id").eq("codigo_loja", tCodigo.trim()).maybeSingle();
       if (existing) { toast.error("Código da loja já existe. Gerando novo..."); const c = await generateUniqueCode(); setTCodigo(c); return; }
       // Try RPC first (bypasses RLS), fallback to direct insert
-      const { data: rpcResult, error: rpcError } = await supabase.rpc("admin_create_tenant", {
+      const { data: rpcResult, error: rpcError } = await (supabase.rpc as any)("admin_create_tenant", {
         p_nome_loja: payload.nome_loja,
         p_codigo_loja: payload.codigo_loja,
         p_email_contato: payload.email_contato,
