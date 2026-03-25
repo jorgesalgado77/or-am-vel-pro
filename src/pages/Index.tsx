@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { UpgradePlanDialog, parsePlanLimitError } from "@/components/shared/UpgradePlanDialog";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PlanBanner } from "@/components/PlanBanner";
@@ -81,6 +82,7 @@ export default function Index() {
   const { onlineUsers } = useOnlinePresence(authUser?.id ?? null, presenceInfo);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const { unreadCount: unreadMessages } = useRealtimeMessages();
@@ -103,6 +105,22 @@ export default function Index() {
     clients, loading, lastSims, allSimulations, saving,
     fetchClients, handleSaveClient, handleDeleteClient,
   } = useClientManager();
+
+  // Check primeiro_login to force password change
+  useEffect(() => {
+    if (!authUser?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("usuarios")
+        .select("primeiro_login")
+        .eq("id", authUser.id)
+        .maybeSingle();
+      if (data?.primeiro_login) {
+        setForcedPasswordChange(true);
+        setShowChangePassword(true);
+      }
+    })();
+  }, [authUser?.id]);
 
   useEffect(() => {
     if (authUser) {
@@ -370,7 +388,11 @@ export default function Index() {
               <ChangePasswordDialog
                 open={showChangePassword}
                 userId={authUser.id}
-                onClose={() => setShowChangePassword(false)}
+                forced={forcedPasswordChange}
+                onClose={() => {
+                  setShowChangePassword(false);
+                  setForcedPasswordChange(false);
+                }}
               />
             )}
             <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
