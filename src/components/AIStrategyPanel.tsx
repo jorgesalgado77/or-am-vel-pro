@@ -4,7 +4,7 @@ import {Badge} from "@/components/ui/badge";
 import {Switch} from "@/components/ui/switch";
 import {Label} from "@/components/ui/label";
 import {Separator} from "@/components/ui/separator";
-import {Brain, Shield, TrendingUp, Zap, Check, Target} from "lucide-react";
+import {Brain, Shield, TrendingUp, Zap, Check, Target, Building2} from "lucide-react";
 import {formatCurrency} from "@/lib/financing";
 import {toast} from "sonner";
 import {
@@ -61,6 +61,7 @@ interface AIStrategyPanelProps {
   maxParcelas: number;
   availableParcelas: number[];
   currentFormaPagamento: string;
+  boletoProviderName?: string;
   onApplyStrategy: (strategy: StrategyParams) => void;
   calculateResult: (strategy: StrategyParams) => CalculatedResult;
   canAccess: boolean;
@@ -97,6 +98,7 @@ export function AIStrategyPanel({
   maxParcelas,
   availableParcelas,
   currentFormaPagamento,
+  boletoProviderName,
   onApplyStrategy,
   calculateResult,
   canAccess,
@@ -284,9 +286,16 @@ export function AIStrategyPanel({
                   </h4>
                 </div>
 
-                <p className="text-xs text-muted-foreground mb-3">
+                <p className="text-xs text-muted-foreground mb-2">
                   {scenario.descricao}
                 </p>
+
+                {scenario.formaPagamento === "Boleto" && boletoProviderName && (
+                  <div className="flex items-center gap-1.5 mb-3 text-[10px] text-muted-foreground">
+                    <Building2 className="h-3 w-3" />
+                    <span>Financeira: <span className="font-semibold text-foreground">{boletoProviderName}</span></span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <div className="flex justify-between">
