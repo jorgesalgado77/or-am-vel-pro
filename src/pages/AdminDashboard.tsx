@@ -1,5 +1,6 @@
 import {useState, useEffect} from "react";
 import {supabase} from "@/lib/supabaseClient";
+import {maskPhone} from "@/lib/masks";
 import {toast} from "sonner";
 import {logAudit} from "@/services/auditService";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
@@ -231,7 +232,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     fetchAddonInterestCount();
     fetchDealRoomCommissions();
 
-    const channel = supabase
+    const addonChannel = supabase
       .channel("admin-addon-interest")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_tickets", filter: "tipo=eq.addon_interesse" },
         (payload) => {
@@ -244,7 +245,18 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         }
       ).subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Realtime tenant list updates
+    const tenantChannel = supabase
+      .channel("admin-tenants-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tenants" }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(addonChannel);
+      supabase.removeChannel(tenantChannel);
+    };
   }, []);
 
   const toggleTenantActive = async (tenant: Tenant) => {
@@ -347,14 +359,14 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
     if (editingTenant) {
       const { error } = await supabase.from("tenants").update(payload).eq("id", editingTenant.id);
-      if (error) toast.error("Erro ao atualizar loja");
+      if (error) toast.error("Erro ao atualizar loja: " + error.message);
       else toast.success("Loja atualizada!");
     } else {
       // Final uniqueness check before insert
       const { data: existing } = await supabase.from("tenants").select("id").eq("codigo_loja", tCodigo.trim()).maybeSingle();
       if (existing) { toast.error("Código da loja já existe. Gerando novo..."); const c = await generateUniqueCode(); setTCodigo(c); return; }
-      // Try RPC first (bypasses RLS), fallback to direct insert
-      const { data: rpcResult, error: rpcError } = await (supabase.rpc as any)("admin_create_tenant", {
+      // Try admin RPC first (SECURITY DEFINER bypasses RLS)
+      const { error: rpcError } = await (supabase.rpc as any)("admin_create_tenant", {
         p_nome_loja: payload.nome_loja,
         p_codigo_loja: payload.codigo_loja,
         p_email_contato: payload.email_contato,
@@ -366,9 +378,13 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         p_recursos_vip: payload.recursos_vip,
       });
       if (rpcError) {
-        // Fallback to direct insert if RPC doesn't exist
-        const { error } = await supabase.from("tenants").insert(payload);
-        if (error) { toast.error("Erro ao criar loja: " + error.message); return; }
+        // Fallback to direct insert (requires INSERT RLS policy for admin_master)
+        const { error: insertError } = await supabase.from("tenants").insert(payload);
+        if (insertError) {
+          toast.error("Erro ao criar loja. Execute o SQL de setup da RPC admin_create_tenant no Supabase.");
+          console.error("Insert error:", insertError.message, "RPC error:", rpcError.message);
+          return;
+        }
       }
       toast.success("Loja criada!");
     }
@@ -893,11 +909,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Email</Label>
-                <Input value={tEmail} onChange={(e) => setTEmail(e.target.value)} className="mt-1 h-9 text-sm" type="email" />
+                <Input value={tEmail} onChange={(e) => setTEmail(e.target.value)} className="mt-1 h-9 text-sm" type="email" placeholder="email@exemplo.com" />
               </div>
               <div>
                 <Label className="text-xs">Telefone</Label>
-                <Input value={tTelefone} onChange={(e) => setTTelefone(e.target.value)} className="mt-1 h-9 text-sm" />
+                <Input value={tTelefone} onChange={(e) => setTTelefone(maskPhone(e.target.value))} className="mt-1 h-9 text-sm" inputMode="numeric" placeholder="(00) 00000-0000" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">

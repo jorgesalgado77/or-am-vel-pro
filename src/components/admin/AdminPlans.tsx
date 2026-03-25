@@ -78,6 +78,9 @@ export function AdminPlans() {
   const [fFuncionalidades, setFFuncionalidades] = useState<Record<string, boolean>>({});
   const [fFeatures, setFFeatures] = useState<{ label: string; included: boolean }[]>([]);
   const [newFeatureLabel, setNewFeatureLabel] = useState("");
+  const [editingFeatureIndex, setEditingFeatureIndex] = useState<number | null>(null);
+  const [editingFeatureLabel, setEditingFeatureLabel] = useState("");
+  const [fDescontoAnual, setFDescontoAnual] = useState("20");
   const [saving, setSaving] = useState(false);
   const [generatingDesc, setGeneratingDesc] = useState(false);
   const [suggestingFeatures, setSuggestingFeatures] = useState(false);
@@ -173,11 +176,13 @@ export function AdminPlans() {
     setFPrecoMensal("0"); setFPrecoAnual("0");
     setFMaxUsers("999"); setFDestaque(false); setFAtivo(true);
     setFOrdem(String(plans.length)); setFTrialDias("0");
+    setFDescontoAnual("20");
     const defaultFuncs: Record<string, boolean> = {};
     ALL_FEATURES.forEach(f => { defaultFuncs[f.key] = false; });
     setFFuncionalidades(defaultFuncs);
     setFFeatures([]);
     setNewFeatureLabel("");
+    setEditingFeatureIndex(null);
     setShowDialog(true);
   };
 
@@ -193,6 +198,14 @@ export function AdminPlans() {
     setFAtivo(plan.ativo);
     setFOrdem(String(plan.ordem));
     setFTrialDias(String(plan.trial_dias));
+    // Calculate discount from existing prices
+    const mensal = plan.preco_mensal;
+    const anual = plan.preco_anual_mensal;
+    if (mensal > 0 && anual > 0 && anual < mensal) {
+      setFDescontoAnual(String(Math.round((1 - anual / mensal) * 100)));
+    } else {
+      setFDescontoAnual("20");
+    }
     const funcs: Record<string, boolean> = {};
     ALL_FEATURES.forEach(f => {
       funcs[f.key] = plan.funcionalidades?.[f.key] ?? false;
@@ -200,6 +213,7 @@ export function AdminPlans() {
     setFFuncionalidades(funcs);
     setFFeatures(plan.features_display || []);
     setNewFeatureLabel("");
+    setEditingFeatureIndex(null);
     setShowDialog(true);
   };
 
@@ -271,6 +285,36 @@ export function AdminPlans() {
 
   const toggleDisplayFeature = (index: number) => {
     setFFeatures(prev => prev.map((f, i) => i === index ? { ...f, included: !f.included } : f));
+  };
+
+  const startEditFeature = (index: number) => {
+    setEditingFeatureIndex(index);
+    setEditingFeatureLabel(fFeatures[index].label);
+  };
+
+  const saveEditFeature = () => {
+    if (editingFeatureIndex === null || !editingFeatureLabel.trim()) return;
+    setFFeatures(prev => prev.map((f, i) => i === editingFeatureIndex ? { ...f, label: editingFeatureLabel.trim() } : f));
+    setEditingFeatureIndex(null);
+    setEditingFeatureLabel("");
+  };
+
+  const handlePrecoMensalChange = (value: string) => {
+    setFPrecoMensal(value);
+    const mensal = parseFloat(value) || 0;
+    const desconto = parseFloat(fDescontoAnual) || 0;
+    if (mensal > 0 && desconto > 0) {
+      setFPrecoAnual((mensal * (1 - desconto / 100)).toFixed(2));
+    }
+  };
+
+  const handleDescontoAnualChange = (value: string) => {
+    const num = Math.min(100, Math.max(0, parseFloat(value) || 0));
+    setFDescontoAnual(String(num));
+    const mensal = parseFloat(fPrecoMensal) || 0;
+    if (mensal > 0) {
+      setFPrecoAnual((mensal * (1 - num / 100)).toFixed(2));
+    }
   };
 
   const quickToggleFeature = async (plan: SubscriptionPlan, featureKey: string) => {
@@ -520,14 +564,23 @@ export function AdminPlans() {
               <Textarea value={fDescricao} onChange={e => setFDescricao(e.target.value)} placeholder="Descrição curta do plano" rows={2} />
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div>
                 <Label>Preço Mensal (R$)</Label>
-                <Input type="number" step="0.01" value={fPrecoMensal} onChange={e => setFPrecoMensal(e.target.value)} className="mt-1" />
+                <Input type="number" step="0.01" value={fPrecoMensal} onChange={e => handlePrecoMensalChange(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label>Desconto Anual (%)</Label>
+                <Input type="number" min="0" max="100" value={fDescontoAnual} onChange={e => handleDescontoAnualChange(e.target.value)} className="mt-1" placeholder="20" />
               </div>
               <div>
                 <Label>Preço Anual/mês (R$)</Label>
-                <Input type="number" step="0.01" value={fPrecoAnual} onChange={e => setFPrecoAnual(e.target.value)} className="mt-1" />
+                <Input type="number" step="0.01" value={fPrecoAnual} onChange={e => setFPrecoAnual(e.target.value)} className="mt-1 bg-muted/50" />
+                {parseFloat(fPrecoMensal) > 0 && parseFloat(fPrecoAnual) > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Economia: {((1 - parseFloat(fPrecoAnual) / parseFloat(fPrecoMensal)) * 100).toFixed(0)}%
+                  </p>
+                )}
               </div>
               <div>
                 <Label>Máx. Usuários</Label>
@@ -608,9 +661,26 @@ export function AdminPlans() {
                     >
                       {feat.included ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
                     </button>
-                    <span className={`text-sm flex-1 ${feat.included ? "text-foreground" : "text-muted-foreground line-through"}`}>
-                      {feat.label}
-                    </span>
+                    {editingFeatureIndex === i ? (
+                      <Input
+                        value={editingFeatureLabel}
+                        onChange={e => setEditingFeatureLabel(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); saveEditFeature(); } if (e.key === "Escape") setEditingFeatureIndex(null); }}
+                        onBlur={saveEditFeature}
+                        className="h-7 text-sm flex-1"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className={`text-sm flex-1 cursor-pointer hover:underline ${feat.included ? "text-foreground" : "text-muted-foreground line-through"}`}
+                        onDoubleClick={() => startEditFeature(i)}
+                      >
+                        {feat.label}
+                      </span>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => startEditFeature(i)}>
+                      <Edit className="h-3 w-3" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeDisplayFeature(i)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
