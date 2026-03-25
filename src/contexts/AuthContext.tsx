@@ -683,7 +683,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (!loginError && loginData.user) {
         await ensureUserProfile(loginData.user, metadata, password);
-        const appUser = await loadAppUser(loginData.user);
+        const appUser = await loadAppUser(loginData.user, metadata.tenant_id as string);
         if (appUser) {
           userRef.current = appUser;
           currentAuthIdRef.current = loginData.user.id;
@@ -695,7 +695,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const confirmedLogin = await attemptConfirmedLogin(data.user.id, normalizedEmail_, password);
         if (confirmedLogin) {
           await ensureUserProfile(confirmedLogin.user, metadata, password);
-          const appUser = await loadAppUser(confirmedLogin.user);
+          const appUser = await loadAppUser(confirmedLogin.user, metadata.tenant_id as string);
           if (appUser) {
             userRef.current = appUser;
             currentAuthIdRef.current = confirmedLogin.user.id;
