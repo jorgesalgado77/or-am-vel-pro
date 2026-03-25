@@ -176,11 +176,13 @@ export function AdminPlans() {
     setFPrecoMensal("0"); setFPrecoAnual("0");
     setFMaxUsers("999"); setFDestaque(false); setFAtivo(true);
     setFOrdem(String(plans.length)); setFTrialDias("0");
+    setFDescontoAnual("20");
     const defaultFuncs: Record<string, boolean> = {};
     ALL_FEATURES.forEach(f => { defaultFuncs[f.key] = false; });
     setFFuncionalidades(defaultFuncs);
     setFFeatures([]);
     setNewFeatureLabel("");
+    setEditingFeatureIndex(null);
     setShowDialog(true);
   };
 
