@@ -153,13 +153,13 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       bairro: (client as any)?.bairro || "",
       cidade: (client as any)?.cidade || "",
       uf: (client as any)?.uf || "",
-      cep: (client as any)?.cep || "",
+      cep: (client as any)?.cep ? ((client as any).cep.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2")) : "",
       data_nascimento: (client as any)?.data_nascimento || "",
       responsavel_venda: simulationData?.vendedor || client?.vendedor || "",
       numero_contrato: simulationData?.numeroOrcamento || client?.numero_orcamento || "",
-      valor_entrada: simulationData?.valorEntrada || 0,
+      valor_entrada: simulationData?.valorEntrada ? maskCurrency(String(Math.round(simulationData.valorEntrada * 100))) : "",
       qtd_parcelas: simulationData?.parcelas || 1,
-      valor_parcelas: simulationData?.valorParcela || 0,
+      valor_parcelas: simulationData?.valorParcela ? maskCurrency(String(Math.round(simulationData.valorParcela * 100))) : "",
       data_fechamento: format(new Date(), "yyyy-MM-dd"),
     };
     // Only set fields that have values, preserving previously persisted data
