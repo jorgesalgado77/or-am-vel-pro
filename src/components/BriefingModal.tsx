@@ -14,16 +14,26 @@ import { toast } from "sonner";
 import { BriefingStructuredForm } from "@/components/briefing/BriefingStructuredForm";
 import { BriefingPrintButton } from "@/components/briefing/BriefingPrintButton";
 
+interface ClientData {
+  nome: string;
+  telefone1?: string | null;
+  email?: string | null;
+  vendedor?: string | null;
+  created_at?: string;
+  descricao_ambientes?: string | null;
+}
+
 interface BriefingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string;
   clientName: string;
   orcamentoNumero?: string;
+  clientData?: ClientData;
   onSendToSimulator?: (data: { environments: string[]; descricaoAmbientes: string; quantidadeAmbientes: number; budgetExpectation: string }) => void;
 }
 
-export function BriefingModal({ open, onOpenChange, clientId, clientName, orcamentoNumero, onSendToSimulator }: BriefingModalProps) {
+export function BriefingModal({ open, onOpenChange, clientId, clientName, orcamentoNumero, clientData, onSendToSimulator }: BriefingModalProps) {
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,14 +79,21 @@ export function BriefingModal({ open, onOpenChange, clientId, clientName, orcame
       responsesRef.current = r;
       setReadOnly(true);
     } else {
-      const initial = { client_1_name: clientName };
+      // Pre-fill from client DB data
+      const initial: Record<string, any> = { client_1_name: clientName };
+      if (clientData?.telefone1) initial.client_1_phone = clientData.telefone1;
+      if (clientData?.email) initial.client_1_email = clientData.email;
+      if (clientData?.vendedor) initial.seller_name = clientData.vendedor;
+      if (clientData?.created_at) {
+        initial.initial_date = clientData.created_at.substring(0, 10);
+      }
       setResponses(initial);
       responsesRef.current = initial;
       setExistingId(null);
       setReadOnly(false);
     }
     setLoading(false);
-  }, [clientId, clientName]);
+  }, [clientId, clientName, clientData]);
 
   useEffect(() => {
     if (open) fetchBriefing();

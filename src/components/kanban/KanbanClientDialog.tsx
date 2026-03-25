@@ -552,6 +552,14 @@ export function KanbanClientDialog({
           clientId={client.id}
           clientName={client.nome}
           orcamentoNumero={(client as any).numero_orcamento}
+          clientData={{
+            nome: client.nome,
+            telefone1: client.telefone1,
+            email: client.email,
+            vendedor: client.vendedor,
+            created_at: client.created_at,
+            descricao_ambientes: client.descricao_ambientes,
+          }}
           onSendToSimulator={(data) => {
             // Update client with briefing environments data then open simulator
             supabase.from("clients").update({
