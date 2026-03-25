@@ -288,6 +288,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        // Sync Auth metadata with the correct tenant BEFORE loading the user profile.
+        // This ensures the JWT (used by RLS policies via get_my_tenant_id()) reflects
+        // the correct store when the same email exists in multiple tenants.
+        const currentMetaTenant = (authData.user.user_metadata as any)?.tenant_id;
+        if (resolvedTenantId && currentMetaTenant !== resolvedTenantId) {
+          try {
+            await supabase.auth.updateUser({ data: { tenant_id: resolvedTenantId } });
+            // Refresh session so the new JWT with updated tenant_id is used by RLS
+            const { data: refreshed } = await supabase.auth.refreshSession();
+            if (refreshed?.user) {
+              authData = { user: refreshed.user, session: refreshed.session };
+            }
+          } catch (e) {
+            console.warn("[Auth] Failed to sync tenant metadata before user load:", e);
+          }
+        }
+
         const metadata = {
           ...((authData.user.user_metadata as Record<string, unknown>) ?? {}),
           ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
