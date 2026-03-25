@@ -8,7 +8,6 @@ import {Textarea} from "@/components/ui/textarea";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {ScrollArea} from "@/components/ui/scroll-area";
 import {Plus, Trash2, Save, Handshake} from "lucide-react";
 import {maskCpfCnpj, maskPhone} from "@/lib/masks";
 import {formatCurrency} from "@/lib/financing";
