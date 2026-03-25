@@ -611,7 +611,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       setSaving(true);
 
       // Generate orçamento number
-      const { numero_orcamento: numeroOrcamento, numero_orcamento_seq: nextSeq } = await generateOrcamentoNumber(tenantId);
+      const { numero_orcamento: numeroOrcamento, numero_orcamento_seq: nextSeq } = await generateOrcamentoNumber(resolvedTenantId);
 
       const { data: created, error: clientError } = await supabase
         .from("clients")
