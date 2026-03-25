@@ -8,7 +8,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-import {Plus, Trash2, Save, Handshake} from "lucide-react";
+import {Plus, Trash2, Save, Handshake, Loader2} from "lucide-react";
 import {maskCpfCnpj, maskPhone} from "@/lib/masks";
 import {formatCurrency} from "@/lib/financing";
 import {FORMAS_PAGAMENTO_LABELS} from "@/services/financialService";
@@ -120,6 +120,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
   const [items, setItems] = useState<SaleItem[]>([]);
   const [itemDetails, setItemDetails] = useState<SaleItemDetail[]>([]);
+  const [cepLoading, setCepLoading] = useState<"" | "_entrega" | null>(null);
 
   // Prefill from client and simulation data
   useEffect(() => {
@@ -158,17 +159,26 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const fetchCep = async (cep: string, prefix: "" | "_entrega") => {
     const digits = cep.replace(/\D/g, "");
     if (digits.length !== 8) return;
+    setCepLoading(prefix);
     try {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
-      if (data.erro) return;
+      if (data.erro) {
+        toast.error("CEP não encontrado");
+        return;
+      }
       updateForm({
         [`endereco${prefix}`]: data.logradouro || form[`endereco${prefix}` as keyof CloseSaleFormData],
         [`bairro${prefix}`]: data.bairro || form[`bairro${prefix}` as keyof CloseSaleFormData],
         [`cidade${prefix}`]: data.localidade || form[`cidade${prefix}` as keyof CloseSaleFormData],
         [`uf${prefix}`]: data.uf || form[`uf${prefix}` as keyof CloseSaleFormData],
       } as Partial<CloseSaleFormData>);
-    } catch {}
+      toast.success("Endereço preenchido pelo CEP!");
+    } catch {
+      toast.error("Erro ao buscar CEP");
+    } finally {
+      setCepLoading(null);
+    }
   };
 
   const handleCepChange = (field: "cep" | "cep_entrega", value: string) => {
@@ -312,7 +322,10 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">CEP</Label>
-                    <Input value={form.cep} onChange={e => handleCepChange("cep", e.target.value)} className="mt-1 h-9 text-sm" placeholder="00000-000" />
+                    <div className="relative">
+                      <Input value={form.cep} onChange={e => handleCepChange("cep", e.target.value)} className="mt-1 h-9 text-sm pr-8" placeholder="00000-000" />
+                      {cepLoading === "" && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                    </div>
                   </div>
                   <div className="sm:col-span-3">
                     <Label className="text-xs">Endereço</Label>
@@ -350,7 +363,10 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">CEP</Label>
-                    <Input value={form.cep_entrega} onChange={e => handleCepChange("cep_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="00000-000" />
+                    <div className="relative">
+                      <Input value={form.cep_entrega} onChange={e => handleCepChange("cep_entrega", e.target.value)} className="mt-1 h-9 text-sm pr-8" placeholder="00000-000" />
+                      {cepLoading === "_entrega" && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <Label className="text-xs">Endereço de Entrega</Label>
