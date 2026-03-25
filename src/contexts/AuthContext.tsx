@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const retryTimeouts = [2500, 5000];
 
     for (const timeoutMs of retryTimeouts) {
-      const resolvedUser = await withTimeout(loadAppUser(authUser), timeoutMs, null);
+      const preferTenant = (authUser.user_metadata as any)?.tenant_id as string | undefined ?? null;
+      const resolvedUser = await withTimeout(loadAppUser(authUser, preferTenant), timeoutMs, null);
       if (!resolvedUser) continue;
       if (currentAuthIdRef.current !== authUser.id) return null;
 
@@ -156,10 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     console.log("[Auth] 🔄 Loading user profile for:", sess.user.email);
 
+    const sessionTenantId = (sess.user.user_metadata as any)?.tenant_id as string | undefined ?? null;
+
     let appUser: AppUser | null = null;
     try {
       appUser = await Promise.race([
-        loadAppUser(sess.user),
+        loadAppUser(sess.user, sessionTenantId),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
       ]);
 
@@ -169,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           1800,
           undefined,
         );
-        appUser = await withTimeout(loadAppUser(sess.user), 2500, null);
+        appUser = await withTimeout(loadAppUser(sess.user, sessionTenantId), 2500, null);
       }
     } catch (e) {
       console.warn("[Auth] ⚠️ loadAppUser falhou:", e);
@@ -290,7 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
         };
 
-        let appUser = await withTimeout(loadAppUser(authData.user), 1500, null);
+        let appUser = await withTimeout(loadAppUser(authData.user, resolvedTenantId), 1500, null);
         let usedFallbackUser = false;
 
         if (!appUser) {
@@ -304,7 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!appUser) {
           await withTimeout(ensureUserProfile(authData.user, metadata, password), 1200, undefined);
-          appUser = await withTimeout(loadAppUser(authData.user), 1200, null);
+          appUser = await withTimeout(loadAppUser(authData.user, resolvedTenantId), 1200, null);
 
           if (!appUser) {
             appUser = await buildFallbackUserFromAuth({
@@ -333,10 +336,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(authData.session);
         syncGlobalState(appUser);
 
+        // Sync Auth user metadata with correct tenant_id for session restore
+        if (appUser.tenant_id) {
+          const currentMetaTenant = (authData.user.user_metadata as any)?.tenant_id;
+          if (currentMetaTenant !== appUser.tenant_id) {
+            void supabase.auth.updateUser({
+              data: { tenant_id: appUser.tenant_id },
+            }).catch(() => { /* best effort */ });
+          }
+        }
+
         if (usedFallbackUser) {
           void (async () => {
             await withTimeout(ensureUserProfile(authData.user, metadata, password), 1500, undefined);
-            const refreshedUser = await withTimeout(loadAppUser(authData.user), 1500, null);
+            const refreshedUser = await withTimeout(loadAppUser(authData.user, resolvedTenantId), 1500, null);
 
             if (refreshedUser) {
               userRef.current = refreshedUser;
@@ -683,7 +696,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (!loginError && loginData.user) {
         await ensureUserProfile(loginData.user, metadata, password);
-        const appUser = await loadAppUser(loginData.user);
+        const appUser = await loadAppUser(loginData.user, metadata.tenant_id as string);
         if (appUser) {
           userRef.current = appUser;
           currentAuthIdRef.current = loginData.user.id;
@@ -695,7 +708,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const confirmedLogin = await attemptConfirmedLogin(data.user.id, normalizedEmail_, password);
         if (confirmedLogin) {
           await ensureUserProfile(confirmedLogin.user, metadata, password);
-          const appUser = await loadAppUser(confirmedLogin.user);
+          const appUser = await loadAppUser(confirmedLogin.user, metadata.tenant_id as string);
           if (appUser) {
             userRef.current = appUser;
             currentAuthIdRef.current = confirmedLogin.user.id;
@@ -769,7 +782,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     if (!session?.user) return;
 
-    const appUser = await withTimeout(loadAppUser(session.user), 5000, null);
+    const preferTenant = (session.user.user_metadata as any)?.tenant_id as string | undefined ?? null;
+    const appUser = await withTimeout(loadAppUser(session.user, preferTenant), 5000, null);
     if (!appUser) return;
 
     const stableUser = shouldKeepExistingResolvedUser(userRef.current, appUser)

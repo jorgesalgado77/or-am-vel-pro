@@ -210,9 +210,16 @@ export async function loadAppUserViaRpc(
   }
 }
 
-export async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email" | "user_metadata">): Promise<AppUser | null> {
+export async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email" | "user_metadata">, preferTenantId?: string | null): Promise<AppUser | null> {
   const rpcUser = await loadAppUserViaRpc(authUser);
-  if (rpcUser) return rpcUser;
+  if (rpcUser) {
+    // If we have a preferred tenant and the RPC user is from a different tenant, skip it
+    if (preferTenantId && rpcUser.tenant_id && rpcUser.tenant_id !== preferTenantId) {
+      console.warn("[Auth] RPC user tenant mismatch, falling back to direct lookup");
+    } else {
+      return rpcUser;
+    }
+  }
 
   const normalizedEmail = normalizeEmail(authUser.email);
   const lookupStrategies: Array<{ label: string; query: (() => Promise<{ data: any; error: any }>) | null }> = [
@@ -230,7 +237,7 @@ export async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email
         .from("usuarios")
         .select("*")
         .eq("auth_user_id", authUser.id)
-        .limit(1),
+        .limit(10),
     },
     normalizedEmail ? {
       label: "email",
@@ -251,16 +258,32 @@ export async function loadAppUser(authUser: Pick<SupabaseAuthUser, "id" | "email
       { data: null, error: { message: `timeout_${strategy.label}` } } as any,
     );
     const userList = Array.isArray(data) ? data : data ? [data] : [];
-    const userRow = strategy.label === "email"
-      ? userList.find((candidate) => normalizeEmail(candidate?.email) === normalizedEmail) ?? userList[0]
-      : userList[0];
 
     if (error) {
       console.warn(`[Auth] Failed to load user by ${strategy.label}:`, error.message);
       continue;
     }
 
+    if (userList.length === 0) continue;
+
+    // When we have a preferred tenant, always try to find the matching record first
+    let userRow: any = null;
+    if (preferTenantId) {
+      userRow = userList.find((c: any) => c.tenant_id === preferTenantId) ?? null;
+    }
+    if (!userRow) {
+      userRow = strategy.label === "email"
+        ? userList.find((candidate: any) => normalizeEmail(candidate?.email) === normalizedEmail) ?? userList[0]
+        : userList[0];
+    }
+
     if (userRow) {
+      // If we found the user but it's from a different tenant and we have a preferred one, skip to next strategy
+      if (preferTenantId && userRow.tenant_id && userRow.tenant_id !== preferTenantId) {
+        console.warn(`[Auth] Found user by ${strategy.label} but tenant mismatch (${userRow.tenant_id} vs ${preferTenantId}), trying next strategy`);
+        continue;
+      }
+
       const needsAuthLink = userRow.auth_user_id !== authUser.id;
       const needsEmailNormalization = normalizedEmail && normalizeEmail(userRow.email) !== normalizedEmail;
 
