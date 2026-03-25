@@ -81,6 +81,7 @@ export default function Index() {
   const { onlineUsers } = useOnlinePresence(authUser?.id ?? null, presenceInfo);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const { unreadCount: unreadMessages } = useRealtimeMessages();
