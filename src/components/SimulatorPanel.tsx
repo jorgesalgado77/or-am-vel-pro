@@ -139,6 +139,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
 
   const savedRef = useRef(false);
 
+  const VALOR_TELA_MAX = 50_000_000; // R$ 50.000.000
+  const VALOR_ENTRADA_MAX = 50_000_000;
+
   const [valorTela, setValorTela] = useState(init?.valor_tela ?? stored.valorTela ?? 0);
   const [desconto1, setDesconto1] = useState(init?.desconto1 ?? stored.desconto1 ?? 0);
   const [desconto2, setDesconto2] = useState(init?.desconto2 ?? stored.desconto2 ?? 0);
