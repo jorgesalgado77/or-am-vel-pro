@@ -30,3 +30,6 @@ verify_jwt = false
 
 [functions.whatsapp-bot]
 verify_jwt = false
+
+[functions.admin-store]
+verify_jwt = false
