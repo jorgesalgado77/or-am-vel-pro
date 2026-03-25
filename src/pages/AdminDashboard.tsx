@@ -348,14 +348,14 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
     if (editingTenant) {
       const { error } = await supabase.from("tenants").update(payload).eq("id", editingTenant.id);
-      if (error) toast.error("Erro ao atualizar loja");
+      if (error) toast.error("Erro ao atualizar loja: " + error.message);
       else toast.success("Loja atualizada!");
     } else {
       // Final uniqueness check before insert
       const { data: existing } = await supabase.from("tenants").select("id").eq("codigo_loja", tCodigo.trim()).maybeSingle();
       if (existing) { toast.error("Código da loja já existe. Gerando novo..."); const c = await generateUniqueCode(); setTCodigo(c); return; }
-      // Try RPC first (bypasses RLS), fallback to direct insert
-      const { data: rpcResult, error: rpcError } = await (supabase.rpc as any)("admin_create_tenant", {
+      // Try admin RPC first (SECURITY DEFINER bypasses RLS)
+      const { error: rpcError } = await (supabase.rpc as any)("admin_create_tenant", {
         p_nome_loja: payload.nome_loja,
         p_codigo_loja: payload.codigo_loja,
         p_email_contato: payload.email_contato,
@@ -367,9 +367,13 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         p_recursos_vip: payload.recursos_vip,
       });
       if (rpcError) {
-        // Fallback to direct insert if RPC doesn't exist
-        const { error } = await supabase.from("tenants").insert(payload);
-        if (error) { toast.error("Erro ao criar loja: " + error.message); return; }
+        // Fallback to direct insert (requires INSERT RLS policy for admin_master)
+        const { error: insertError } = await supabase.from("tenants").insert(payload);
+        if (insertError) {
+          toast.error("Erro ao criar loja. Execute o SQL de setup da RPC admin_create_tenant no Supabase.");
+          console.error("Insert error:", insertError.message, "RPC error:", rpcError.message);
+          return;
+        }
       }
       toast.success("Loja criada!");
     }
