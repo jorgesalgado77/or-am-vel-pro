@@ -232,7 +232,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     fetchAddonInterestCount();
     fetchDealRoomCommissions();
 
-    const channel = supabase
+    const addonChannel = supabase
       .channel("admin-addon-interest")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_tickets", filter: "tipo=eq.addon_interesse" },
         (payload) => {
@@ -245,7 +245,18 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         }
       ).subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Realtime tenant list updates
+    const tenantChannel = supabase
+      .channel("admin-tenants-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tenants" }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(addonChannel);
+      supabase.removeChannel(tenantChannel);
+    };
   }, []);
 
   const toggleTenantActive = async (tenant: Tenant) => {
