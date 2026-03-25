@@ -60,9 +60,9 @@ interface CloseSaleFormData {
   uf_entrega: string;
   cep_entrega: string;
   observacoes: string;
-  valor_entrada: number;
+  valor_entrada: string;
   qtd_parcelas: number;
-  valor_parcelas: number;
+  valor_parcelas: string;
 }
 
 interface CloseSaleModalProps {
