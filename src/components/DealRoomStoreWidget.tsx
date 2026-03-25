@@ -490,10 +490,6 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
         </DialogContent>
       </Dialog>
 
-      <OnboardingDialog featureKey="dealroom" open={showOnboarding} onClose={() => setShowOnboarding(false)} />
-    <div ref={ref}>
-      {/* wrapper for ref */}
-    </div>
     </div>
   );
 });
