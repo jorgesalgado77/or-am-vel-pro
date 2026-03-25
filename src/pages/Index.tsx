@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { UpgradePlanDialog, parsePlanLimitError } from "@/components/shared/UpgradePlanDialog";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PlanBanner } from "@/components/PlanBanner";
