@@ -285,12 +285,12 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <Input value={form.numero_contrato} onChange={e => updateField("numero_contrato", e.target.value)} className="mt-1 h-9 text-sm" />
                   </div>
                   <div>
-                    <Label className="text-xs">Data Fechamento</Label>
-                    <Input type="date" value={form.data_fechamento} onChange={e => updateField("data_fechamento", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Label className="text-xs">Data Fechamento *</Label>
+                    <Input type="date" value={form.data_fechamento} onChange={e => updateField("data_fechamento", e.target.value)} className={`mt-1 h-9 text-sm ${errorClass("data_fechamento")}`} />
                   </div>
                   <div>
-                    <Label className="text-xs">Responsável pela Venda</Label>
-                    <Input value={form.responsavel_venda} onChange={e => updateField("responsavel_venda", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Label className="text-xs">Responsável pela Venda *</Label>
+                    <Input value={form.responsavel_venda} onChange={e => updateField("responsavel_venda", e.target.value)} className={`mt-1 h-9 text-sm ${errorClass("responsavel_venda")}`} />
                   </div>
                 </div>
               </CardContent>
@@ -305,7 +305,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Nome Completo *</Label>
-                    <Input value={form.nome_completo} onChange={e => updateField("nome_completo", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Input value={form.nome_completo} onChange={e => updateField("nome_completo", e.target.value)} className={`mt-1 h-9 text-sm ${errorClass("nome_completo")}`} />
                   </div>
                   <div>
                     <Label className="text-xs">Data de Nascimento</Label>
@@ -314,8 +314,8 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <Label className="text-xs">CPF/CNPJ</Label>
-                    <Input value={form.cpf_cnpj} onChange={e => updateField("cpf_cnpj", maskCpfCnpj(e.target.value))} className="mt-1 h-9 text-sm" />
+                    <Label className="text-xs">CPF/CNPJ *</Label>
+                    <Input value={form.cpf_cnpj} onChange={e => updateField("cpf_cnpj", maskCpfCnpj(e.target.value))} className={`mt-1 h-9 text-sm ${errorClass("cpf_cnpj")}`} />
                   </div>
                   <div>
                     <Label className="text-xs">RG / Insc. Estadual</Label>
@@ -328,8 +328,8 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs">Telefone</Label>
-                    <Input value={form.telefone} onChange={e => updateField("telefone", maskPhone(e.target.value))} className="mt-1 h-9 text-sm" placeholder="(00) 00000-0000" />
+                    <Label className="text-xs">Telefone *</Label>
+                    <Input value={form.telefone} onChange={e => updateField("telefone", maskPhone(e.target.value))} className={`mt-1 h-9 text-sm ${errorClass("telefone")}`} placeholder="(00) 00000-0000" />
                   </div>
                   <div>
                     <Label className="text-xs">Email</Label>
@@ -347,15 +347,15 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
-                    <Label className="text-xs">CEP</Label>
+                    <Label className="text-xs">CEP *</Label>
                     <div className="relative">
-                      <Input value={form.cep} onChange={e => handleCepChange("cep", e.target.value)} className="mt-1 h-9 text-sm pr-8" placeholder="00000-000" />
+                      <Input value={form.cep} onChange={e => handleCepChange("cep", e.target.value)} className={`mt-1 h-9 text-sm pr-8 ${errorClass("cep")}`} placeholder="00000-000" />
                       {cepLoading === "" && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 h-4 w-4 animate-spin text-muted-foreground" />}
                     </div>
                   </div>
                   <div className="sm:col-span-3">
-                    <Label className="text-xs">Endereço</Label>
-                    <Input value={form.endereco} onChange={e => updateField("endereco", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Label className="text-xs">Endereço *</Label>
+                    <Input value={form.endereco} onChange={e => updateField("endereco", e.target.value)} className={`mt-1 h-9 text-sm ${errorClass("endereco")}`} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -364,13 +364,13 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <Input value={form.bairro} onChange={e => updateField("bairro", e.target.value)} className="mt-1 h-9 text-sm" />
                   </div>
                   <div>
-                    <Label className="text-xs">Cidade</Label>
-                    <Input value={form.cidade} onChange={e => updateField("cidade", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Label className="text-xs">Cidade *</Label>
+                    <Input value={form.cidade} onChange={e => updateField("cidade", e.target.value)} className={`mt-1 h-9 text-sm ${errorClass("cidade")}`} />
                   </div>
                   <div>
-                    <Label className="text-xs">UF</Label>
+                    <Label className="text-xs">UF *</Label>
                     <Select value={form.uf} onValueChange={v => updateField("uf", v)}>
-                      <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="UF" /></SelectTrigger>
+                      <SelectTrigger className={`mt-1 h-9 text-sm ${errorClass("uf")}`}><SelectValue placeholder="UF" /></SelectTrigger>
                       <SelectContent>
                         {UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
                       </SelectContent>
