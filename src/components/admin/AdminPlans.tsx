@@ -81,6 +81,7 @@ export function AdminPlans() {
   const [editingFeatureIndex, setEditingFeatureIndex] = useState<number | null>(null);
   const [editingFeatureLabel, setEditingFeatureLabel] = useState("");
   const [fDescontoAnual, setFDescontoAnual] = useState("20");
+  const [saving, setSaving] = useState(false);
   const [generatingDesc, setGeneratingDesc] = useState(false);
   const [suggestingFeatures, setSuggestingFeatures] = useState(false);
 
