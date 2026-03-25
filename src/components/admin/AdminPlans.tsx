@@ -564,14 +564,23 @@ export function AdminPlans() {
               <Textarea value={fDescricao} onChange={e => setFDescricao(e.target.value)} placeholder="Descrição curta do plano" rows={2} />
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div>
                 <Label>Preço Mensal (R$)</Label>
-                <Input type="number" step="0.01" value={fPrecoMensal} onChange={e => setFPrecoMensal(e.target.value)} className="mt-1" />
+                <Input type="number" step="0.01" value={fPrecoMensal} onChange={e => handlePrecoMensalChange(e.target.value)} className="mt-1" />
+              </div>
+              <div>
+                <Label>Desconto Anual (%)</Label>
+                <Input type="number" min="0" max="100" value={fDescontoAnual} onChange={e => handleDescontoAnualChange(e.target.value)} className="mt-1" placeholder="20" />
               </div>
               <div>
                 <Label>Preço Anual/mês (R$)</Label>
-                <Input type="number" step="0.01" value={fPrecoAnual} onChange={e => setFPrecoAnual(e.target.value)} className="mt-1" />
+                <Input type="number" step="0.01" value={fPrecoAnual} onChange={e => setFPrecoAnual(e.target.value)} className="mt-1 bg-muted/50" />
+                {parseFloat(fPrecoMensal) > 0 && parseFloat(fPrecoAnual) > 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Economia: {((1 - parseFloat(fPrecoAnual) / parseFloat(fPrecoMensal)) * 100).toFixed(0)}%
+                  </p>
+                )}
               </div>
               <div>
                 <Label>Máx. Usuários</Label>
