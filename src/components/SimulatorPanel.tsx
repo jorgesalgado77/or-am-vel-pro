@@ -1193,6 +1193,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             maxParcelas={maxParcelas}
             availableParcelas={availableBoletoInstallments.length > 0 ? availableBoletoInstallments : availableParcelas}
             currentFormaPagamento={formaPagamento}
+            boletoProviderName={selectedBoletoProvider || undefined}
             onApplyStrategy={(s) => {
               setDesconto1(s.desconto1);
               setDesconto2(s.desconto2);
