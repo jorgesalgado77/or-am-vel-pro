@@ -275,7 +275,9 @@ Você tem conhecimento profundo sobre materiais (MDF, MDP, ferragens Blum/Hafele
           { role: "user", content: userPrompt },
         ],
         max_tokens,
-        temperature: 0.7,
+        temperature,
+        presence_penalty: 0.6,
+        frequency_penalty: 0.5,
       }),
     });
 
