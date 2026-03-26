@@ -433,22 +433,29 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           <CardContent className="space-y-3">
             <Input placeholder="Buscar cliente por nome ou orçamento..." value={searchClient} onChange={(e) => setSearchClient(e.target.value)} />
             {!selectedClient && (
-              <ScrollArea className="h-40 border rounded-md">
-                {(searchClient ? filteredClients : clients).slice(0, 15).map(c => {
-                  const days = Math.floor((Date.now() - new Date(c.updated_at).getTime()) / (1000 * 60 * 60 * 24));
-                  const score = getClientScore(c, days);
-                  return (
-                    <button key={c.id} onClick={() => { setSelectedClient(c); updateForm({ selectedClientId: c.id, searchClient: "", mensagemGerada: "" }); setClosingScore(null); }}
-                      className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors text-sm flex items-center justify-between">
-                      <div>
-                        <span className="font-medium text-foreground">{c.nome}</span>
-                        {c.numero_orcamento && <span className="text-muted-foreground ml-2">#{c.numero_orcamento}</span>}
-                      </div>
-                      <span className="text-xs">{score.emoji} {score.label}</span>
-                    </button>
-                  );
-                })}
-              </ScrollArea>
+              <div className="border rounded-md">
+                <ScrollArea className="h-[180px]">
+                  <div className="divide-y divide-border">
+                    {(searchClient ? filteredClients : clients).slice(0, 30).map(c => {
+                      const days = Math.floor((Date.now() - new Date(c.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+                      const score = getClientScore(c, days);
+                      return (
+                        <button key={c.id} onClick={() => { setSelectedClient(c); updateForm({ selectedClientId: c.id, searchClient: "", mensagemGerada: "" }); setClosingScore(null); }}
+                          className="w-full text-left px-3 py-2.5 hover:bg-secondary/80 transition-colors text-sm flex items-center justify-between cursor-pointer">
+                          <div className="min-w-0">
+                            <span className="font-medium text-foreground block truncate">{c.nome}</span>
+                            {c.numero_orcamento && <span className="text-[11px] text-muted-foreground">#{c.numero_orcamento}</span>}
+                          </div>
+                          <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{score.emoji} {score.label}</Badge>
+                        </button>
+                      );
+                    })}
+                    {(searchClient ? filteredClients : clients).length === 0 && (
+                      <div className="px-3 py-6 text-center text-xs text-muted-foreground">Nenhum cliente encontrado</div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
             )}
             {selectedClient && (
               <div className="bg-secondary/50 rounded-lg p-3 space-y-1">
@@ -458,7 +465,6 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                     {clientScore && <Badge variant="outline" className={`text-[10px] ${clientScore.color}`}>{clientScore.emoji} {clientScore.label}</Badge>}
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => {
-                    // Record session before clearing
                     if (historico.entries.length > 0) {
                       const scores = historico.entries.filter(e => e.score !== undefined).map(e => e.score || 0);
                       recordSession({
@@ -693,15 +699,12 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                 toast.error("Selecione um cliente primeiro.");
                 return;
               }
-              const roomId = crypto.randomUUID();
-              const dealRoomUrl = `${window.location.origin}/sala/${roomId}`;
-              navigator.clipboard.writeText(dealRoomUrl);
               window.dispatchEvent(new CustomEvent("navigate-to-dealroom", {
-                detail: { clientId: selectedClient.id, clientName: selectedClient.nome, roomId },
+                detail: { clientId: selectedClient.id, clientName: selectedClient.nome },
               }));
-              toast.success("Link gerado e copiado! Abrindo Deal Room...");
+              toast.success("Abrindo Deal Room...");
             }} className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground">
-              <Video className="h-4 w-4" />Gerar Link + Abrir Deal Room
+              <Video className="h-4 w-4" />Abrir Deal Room
             </Button>
           </div>
         )}
