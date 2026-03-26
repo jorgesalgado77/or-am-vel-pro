@@ -26,7 +26,6 @@ const INTENT_PATTERNS: Record<string, RegExp[]> = {
 function detectIntent(message: string): string {
   if (!message) return "outro";
   
-  // Priority order: fechamento > orcamento > preco > objecao > duvida > saudacao
   const priority = ["fechamento", "orcamento", "preco", "objecao", "duvida", "saudacao"];
   
   for (const intent of priority) {
@@ -75,14 +74,13 @@ serve(async (req) => {
     const tom = typeof body.tom === "string" ? body.tom.slice(0, 50) : "persuasivo";
     const deal_room_link = typeof body.deal_room_link === "string" ? body.deal_room_link.slice(0, 500) : "";
     const prompt_sistema = typeof body.prompt_sistema === "string" ? body.prompt_sistema.slice(0, 2000) : "";
-    const openai_model = typeof body.openai_model === "string" ? body.openai_model.slice(0, 50) : "gpt-4o-mini";
     const max_tokens = typeof body.max_tokens === "number" ? Math.min(body.max_tokens, 2000) : 500;
     const modo = typeof body.modo === "string" ? body.modo : "sugestao";
     const historico = Array.isArray(body.historico) ? body.historico.slice(-10) : [];
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      return respond({ error: "OPENAI_API_KEY não configurada" }, 500);
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      return respond({ error: "LOVABLE_API_KEY não configurada" }, 500);
     }
 
     // Detect intent from client message
@@ -116,14 +114,14 @@ Seja profissional, amigável e direto.`) +
       }
     }
 
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: openai_model,
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -133,15 +131,23 @@ Seja profissional, amigável e direto.`) +
       }),
     });
 
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text();
-      console.error("OpenAI error:", openaiRes.status, errText);
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      console.error("AI gateway error:", aiRes.status, errText);
+
+      if (aiRes.status === 429) {
+        return respond({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }, 429);
+      }
+      if (aiRes.status === 402) {
+        return respond({ error: "Créditos de IA esgotados. Adicione créditos no painel." }, 402);
+      }
+
       return respond({ error: "Erro na API de IA" }, 502);
     }
 
-    const openaiData = await openaiRes.json();
-    const mensagem = openaiData.choices?.[0]?.message?.content || "";
-    const tokens_usados = openaiData.usage?.total_tokens || 0;
+    const aiData = await aiRes.json();
+    const mensagem = aiData.choices?.[0]?.message?.content || "";
+    const tokens_usados = aiData.usage?.total_tokens || 0;
 
     return respond({ mensagem, tokens_usados, intencao, modo });
   } catch (e) {
