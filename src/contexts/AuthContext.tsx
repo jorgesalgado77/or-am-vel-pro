@@ -652,8 +652,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.warn("[Auth] Legacy migration signUp failed:", signUpError.message);
 
             if (isAlreadyRegisteredError(signUpError)) {
-              const authUserId = legacyUser.auth_user_id || legacyUser.id;
-              const confirmedLogin = await attemptConfirmedLogin(authUserId, normalizedEmail_, password);
+              const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
               if (confirmedLogin) {
                 return finalizeLogin(confirmedLogin);
               }
