@@ -1,8 +1,9 @@
-import {memo} from "react";
+import {memo, useMemo} from "react";
 import {format} from "date-fns";
 import {FileIcon} from "lucide-react";
 import {cn} from "@/lib/utils";
 import type {ChatMessage} from "./types";
+import {ClosingThermometer, analyzeClientMessage} from "@/components/vendazap/ClosingThermometer";
 
 interface Props {
   message: ChatMessage;
