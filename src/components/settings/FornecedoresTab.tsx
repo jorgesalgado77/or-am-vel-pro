@@ -318,7 +318,7 @@ export function FornecedoresTab() {
                 <Textarea value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} className="mt-1 text-sm min-h-[60px]" />
               </div>
             </div>
-          </ScrollArea>
+          </div>
 
           <DialogFooter className="px-4 sm:px-6 py-3 border-t shrink-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
