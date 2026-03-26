@@ -2,10 +2,12 @@
  * Negotiation Learning Engine — accumulates patterns from conversations
  * and provides insights to improve AI responses over time.
  */
-import { TrendingUp, TrendingDown, Brain, BarChart3, Zap, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, Brain, BarChart3, Zap, Target, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 
 // ---- Learning Data Types ----
 
@@ -64,6 +66,11 @@ function saveLearningData(data: LearningData) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch { /* quota exceeded — ignore */ }
+}
+
+/** Reset all learning data */
+export function resetLearningData() {
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 // ---- Learning Functions ----
@@ -222,15 +229,33 @@ export function NegotiationEvolutionPanel({ currentEntries }: EvolutionPanelProp
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Brain className="h-4 w-4 text-primary" />
-          Evolução da Negociação
-          {data.totalNegotiations > 0 && (
-            <Badge variant="outline" className="text-[10px] ml-auto">
-              {data.totalNegotiations} negociações aprendidas
-            </Badge>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Brain className="h-4 w-4 text-primary" />
+            Evolução da Negociação
+            {data.totalNegotiations > 0 && (
+              <Badge variant="outline" className="text-[10px]">
+                {data.totalNegotiations} aprendidas
+              </Badge>
+            )}
+          </CardTitle>
+          {(data.totalNegotiations > 0 || data.patterns.length > 0) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[10px] gap-1 text-destructive hover:text-destructive"
+              onClick={() => {
+                resetLearningData();
+                toast.success("Aprendizado da IA resetado com sucesso!");
+                // Force re-render
+                window.dispatchEvent(new Event("storage"));
+              }}
+            >
+              <RotateCcw className="h-3 w-3" />
+              Resetar
+            </Button>
           )}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Current session metrics */}
