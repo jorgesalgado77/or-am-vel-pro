@@ -118,7 +118,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       mensagem_cliente: mensagemCliente || undefined, tipo_copy: tipoCopy, tom,
       client_id: selectedClient?.id, usuario_id: currentUserId,
     });
-    if (result) setMensagemGerada(result);
+    if (result) updateForm({ mensagemGerada: result });
   };
 
   const handleCopy = (text: string) => { navigator.clipboard.writeText(text); toast.success("Mensagem copiada!"); };
