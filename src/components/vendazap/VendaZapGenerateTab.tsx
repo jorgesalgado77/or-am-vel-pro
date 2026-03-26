@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
-  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame, Download,
+  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame, Download, Video,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
@@ -638,9 +638,26 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           </CardHeader>
           <CardContent>
             {mensagemGerada ? (
-              <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 rounded-xl p-4 relative">
-                <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"><MessageSquare className="h-3 w-3 text-white" /></div>
-                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{mensagemGerada}</p>
+              <div className="space-y-3">
+                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 rounded-xl p-4 relative">
+                  <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"><MessageSquare className="h-3 w-3 text-white" /></div>
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{mensagemGerada}</p>
+                </div>
+                {clientAnalysis?.intent === "enviar_preco" && (
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 animate-fade-in">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Video className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold text-primary">💡 Convide para a Deal Room</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mb-2">
+                      Em vez de enviar preço por mensagem, convide o cliente para uma sala exclusiva onde ele pode ver o projeto ao vivo, pedir ajustes e fechar com contrato imediato.
+                    </p>
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                      onClick={() => { window.dispatchEvent(new CustomEvent("navigate-to-dealroom")); }}>
+                      <Video className="h-3 w-3" /> Abrir Deal Room
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
