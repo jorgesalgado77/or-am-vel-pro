@@ -37,7 +37,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     max_tokens_mensagem: addon.max_tokens_mensagem,
   } : null;
 
-  const { suggestion, loading: aiLoading, tipoCopy, generate, clear, markUsed } = useAutoSuggestion({
+  const { suggestion, loading: aiLoading, tipoCopy, discProfile, generate, clear, markUsed } = useAutoSuggestion({
     tenantId,
     addon: addonConfig,
     userId,
