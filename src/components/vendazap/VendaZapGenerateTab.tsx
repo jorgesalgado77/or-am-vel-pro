@@ -83,7 +83,16 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     const tenantId = getTenantId();
     let query = supabase.from("clients").select("*").order("created_at", { ascending: false });
     if (tenantId) query = query.eq("tenant_id", tenantId);
-    query.then(({ data }) => { if (data) setClients(data); });
+    query.then(({ data }) => {
+      if (data) {
+        setClients(data);
+        // Restore persisted selected client
+        if (formState.selectedClientId && !selectedClient) {
+          const restored = data.find(c => c.id === formState.selectedClientId);
+          if (restored) setSelectedClient(restored);
+        }
+      }
+    });
   }, []);
 
   useEffect(() => {
