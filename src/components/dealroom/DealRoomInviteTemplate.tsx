@@ -70,13 +70,9 @@ export function DealRoomInviteTemplate({ tenantId, clientName, proposalValue, se
   );
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(generatedMessage);
-    toast.success("Convite copiado!");
-  };
-
-  const handleCopyForWhatsApp = () => {
-    navigator.clipboard.writeText(generatedMessage);
-    toast.success("Texto copiado! Cole no WhatsApp.");
+    const fullMessage = `${generatedMessage}\n\n🔗 Link direto: ${dealRoomLink}`;
+    navigator.clipboard.writeText(fullMessage);
+    toast.success("Convite completo copiado (texto + link)!");
   };
 
   const handleDownloadQR = async () => {
