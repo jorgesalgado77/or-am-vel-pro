@@ -393,9 +393,14 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                   <MessageSquare className="h-4 w-4 text-primary" />
                   Memória da Conversa ({historico.entries.length} msgs)
                 </CardTitle>
-                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => setHistorico({ entries: [], clientId: selectedClient?.id || null })}>
-                  Limpar
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-primary" onClick={handleExportPDF}>
+                    <Download className="h-3 w-3" />PDF
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => setHistorico({ entries: [], clientId: selectedClient?.id || null })}>
+                    Limpar
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
