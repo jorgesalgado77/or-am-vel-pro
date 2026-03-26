@@ -171,7 +171,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess]);
+  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess, triggerAI]);
 
   // AI auto-suggestion with debounce — now fetches recent messages for context
   const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
