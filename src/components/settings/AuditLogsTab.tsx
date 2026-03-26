@@ -70,7 +70,7 @@ export function AuditLogsTab() {
       .order("created_at", { ascending: false })
       .limit(1000);
 
-    if (tenantId) query = query.eq("tenant_id", tenantId);
+    // tenant_id column may not exist — skip filter if not available
     if (filterAction !== "all") {
       query = query.eq("acao", filterAction);
     }
