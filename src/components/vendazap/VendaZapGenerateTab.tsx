@@ -182,6 +182,104 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     toast.success("Mensagem copiada e WhatsApp aberto!");
   };
 
+  const handleExportPDF = () => {
+    if (historico.entries.length === 0) {
+      toast.error("Nenhuma conversa na memória para exportar.");
+      return;
+    }
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const maxWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    const checkPage = (needed: number) => { if (y + needed > 275) { doc.addPage(); y = 20; } };
+
+    const addText = (text: string, x: number, fontSize: number, color: [number, number, number], bold = false) => {
+      doc.setFontSize(fontSize);
+      doc.setTextColor(...color);
+      doc.setFont("helvetica", bold ? "bold" : "normal");
+      const lines = doc.splitTextToSize(text, maxWidth - (x - margin));
+      for (const line of lines) {
+        checkPage(fontSize * 0.5 + 2);
+        doc.text(line, x, y);
+        y += fontSize * 0.5;
+      }
+    };
+
+    addText("Relatório de Análise de Conversação — VendaZap AI", margin, 14, [0, 100, 60], true);
+    y += 4;
+    addText(`Cliente: ${selectedClient?.nome || "Não selecionado"}`, margin, 10, [60, 60, 60]);
+    addText(`Data: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, margin, 10, [60, 60, 60]);
+    addText(`Total de interações: ${historico.entries.length}`, margin, 10, [60, 60, 60]);
+    y += 6;
+    doc.setDrawColor(0, 150, 80);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    historico.entries.forEach((entry, i) => {
+      checkPage(20);
+      const isIA = entry.remetente_tipo === "ia";
+      const label = isIA ? "Resposta da IA" : "Mensagem do Cliente";
+      const intentLabel = entry.intent ? ` (Intencao: ${entry.intent})` : "";
+      const scoreLabel = entry.score !== undefined ? ` - Score: ${entry.score}%` : "";
+
+      addText(`${i + 1}. ${label}${intentLabel}${scoreLabel}`, margin, 9, isIA ? [0, 100, 60] : [180, 80, 0], true);
+      y += 1;
+
+      const msgLines = doc.splitTextToSize(entry.mensagem, maxWidth - 10);
+      const blockHeight = msgLines.length * 4.5 + 6;
+      checkPage(blockHeight + 4);
+
+      doc.setFillColor(isIA ? 240 : 255, isIA ? 250 : 245, isIA ? 245 : 235);
+      doc.roundedRect(margin, y - 2, maxWidth, blockHeight, 2, 2, "F");
+
+      doc.setFontSize(9);
+      doc.setTextColor(30, 30, 30);
+      doc.setFont("helvetica", "normal");
+      for (const line of msgLines) {
+        doc.text(line, margin + 5, y + 3);
+        y += 4.5;
+      }
+      y += 6;
+    });
+
+    checkPage(30);
+    y += 4;
+    doc.setDrawColor(0, 150, 80);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+    addText("Analise de Pontos de Falha", margin, 12, [0, 0, 0], true);
+    y += 2;
+
+    const objections = historico.entries.filter(e => e.remetente_tipo === "cliente" && (e.intent === "objecao" || e.intent === "resistencia"));
+    if (objections.length > 0) {
+      addText(`${objections.length} objecao(oes) detectada(s):`, margin, 9, [180, 80, 0], true);
+      objections.forEach((obj, idx) => {
+        addText(`  ${idx + 1}. "${obj.mensagem.substring(0, 100)}..." - Intencao: ${obj.intent} (${obj.score}%)`, margin + 5, 8, [100, 60, 0]);
+      });
+      y += 2;
+    } else {
+      addText("Nenhuma objecao critica detectada.", margin, 9, [0, 120, 60]);
+    }
+
+    const scored = historico.entries.filter(e => e.score !== undefined);
+    const avgScore = scored.length > 0 ? scored.reduce((sum, e) => sum + (e.score || 0), 0) / scored.length : 0;
+    addText(`Score medio de fechamento: ${Math.round(avgScore)}%`, margin, 9, [0, 0, 0]);
+
+    const trend = historico.entries.filter(e => e.remetente_tipo === "cliente" && e.score !== undefined);
+    if (trend.length >= 2) {
+      const first = trend[0].score || 0;
+      const last = trend[trend.length - 1].score || 0;
+      const dir = last > first ? "Tendencia positiva" : last < first ? "Tendencia negativa" : "Estavel";
+      addText(`${dir}: de ${first}% para ${last}%`, margin, 9, last >= first ? [0, 120, 60] : [200, 50, 0]);
+    }
+
+    doc.save(`conversacao-${selectedClient?.nome?.replace(/\s+/g, "_") || "cliente"}-${new Date().toISOString().split("T")[0]}.pdf`);
+    toast.success("PDF exportado com sucesso!");
+  };
+
   const filteredClients = clients.filter(c =>
     c.nome.toLowerCase().includes(searchClient.toLowerCase()) ||
     c.numero_orcamento?.toLowerCase().includes(searchClient.toLowerCase())
