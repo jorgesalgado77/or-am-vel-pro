@@ -618,6 +618,30 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           </Card>
         )}
 
+        {/* DISC Profile Badge — auto-detected */}
+        {autoSugg.discProfile && (() => {
+          const DISC_DATA: Record<string, { label: string; emoji: string; color: string; tips: string }> = {
+            D: { label: "Dominante", emoji: "🔴", color: "border-red-300 bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800", tips: "Seja objetivo • Mostre ROI e resultados rápidos • Conduza com autoridade" },
+            I: { label: "Influente", emoji: "🟡", color: "border-yellow-300 bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300 dark:border-yellow-800", tips: "Use entusiasmo • Depoimentos e exclusividade • Apele para emoção" },
+            S: { label: "Estável", emoji: "🟢", color: "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300 dark:border-green-800", tips: "Ofereça garantias • Prazos claros e suporte • Reduza percepção de risco" },
+            C: { label: "Conforme", emoji: "🔵", color: "border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800", tips: "Dados e especificações • Comparativos técnicos • Use lógica e fatos" },
+          };
+          const disc = DISC_DATA[autoSugg.discProfile];
+          if (!disc) return null;
+          return (
+            <div className={`rounded-lg border-2 px-3 py-2.5 flex items-start gap-2.5 animate-in fade-in slide-in-from-bottom-1 duration-300 ${disc.color}`}>
+              <span className="text-lg mt-0.5">{disc.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-xs font-bold tracking-wide">DISC: {disc.label}</span>
+                  <Badge variant="outline" className="text-[8px] h-4 border-current/30">Auto-detectado</Badge>
+                </div>
+                <p className="text-[11px] opacity-80 leading-snug">{disc.tips}</p>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Client Message */}
         <Card>
           <CardHeader className="pb-3">
