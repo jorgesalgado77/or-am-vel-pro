@@ -110,6 +110,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       "dúvida": "reuniao",
       "objeção": "objecao",
       "resistência": "reversao",
+      "enviar_preco": "reuniao",
       "saudação": "fechamento",
       "neutro": "urgencia",
     };
@@ -120,6 +121,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       "dúvida": "consultivo",
       "objeção": "persuasivo",
       "resistência": "direto",
+      "enviar_preco": "consultivo",
       "saudação": "consultivo",
       "neutro": "persuasivo",
     };

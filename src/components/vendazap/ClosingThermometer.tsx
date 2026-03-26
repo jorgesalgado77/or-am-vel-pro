@@ -91,6 +91,10 @@ export function analyzeClientMessage(message: string): { score: number; intent: 
   if (/fechar|quero comprar|vou levar|aceito|pode fazer|fechado|manda o contrato|vamos nessa/i.test(lower)) {
     return { score: 90, intent: "fechamento" };
   }
+  // Client wants price by message/WhatsApp/email → redirect to meeting/Deal Room
+  if (/manda.*pre[çc]o|envia.*pre[çc]o|envia.*valor|manda.*valor|envia.*or[çc]amento|manda.*or[çc]amento|por whats|pelo whats|por e-?mail|pelo e-?mail|por mensagem|pela mensagem|me envia|pode mandar|pode enviar|passa.*pre[çc]o|passa.*valor|manda.*por aqui|envia.*por aqui/i.test(lower)) {
+    return { score: 50, intent: "enviar_preco" };
+  }
   if (/or[çc]amento|quanto custa|valor|pre[çc]o|proposta|me passa/i.test(lower)) {
     return { score: 65, intent: "orçamento" };
   }
