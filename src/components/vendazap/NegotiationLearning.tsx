@@ -2,10 +2,12 @@
  * Negotiation Learning Engine — accumulates patterns from conversations
  * and provides insights to improve AI responses over time.
  */
-import { TrendingUp, TrendingDown, Brain, BarChart3, Zap, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, Brain, BarChart3, Zap, Target, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 
 // ---- Learning Data Types ----
 

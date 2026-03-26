@@ -98,7 +98,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   // Analyze client message for thermometer + auto-select copy type
   const clientAnalysis = mensagemCliente ? analyzeClientMessage(mensagemCliente) : null;
 
-  // Auto-detect and select appropriate copy type based on client message intent
+  // Auto-detect and select appropriate copy type AND tone based on client message intent
   useEffect(() => {
     if (!clientAnalysis || !mensagemCliente || mensagemCliente.trim().length < 4) return;
     const intentToCopy: Record<string, string> = {
@@ -111,10 +111,20 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       "saudação": "fechamento",
       "neutro": "urgencia",
     };
-    const suggested = intentToCopy[clientAnalysis.intent];
-    if (suggested && suggested !== tipoCopy) {
-      setTipoCopy(suggested);
-    }
+    const intentToTone: Record<string, string> = {
+      "fechamento": "urgente",
+      "orçamento": "consultivo",
+      "negociação": "persuasivo",
+      "dúvida": "consultivo",
+      "objeção": "persuasivo",
+      "resistência": "direto",
+      "saudação": "consultivo",
+      "neutro": "persuasivo",
+    };
+    const suggestedCopy = intentToCopy[clientAnalysis.intent];
+    const suggestedTone = intentToTone[clientAnalysis.intent];
+    if (suggestedCopy && suggestedCopy !== tipoCopy) setTipoCopy(suggestedCopy);
+    if (suggestedTone && suggestedTone !== tom) setTom(suggestedTone);
   }, [clientAnalysis?.intent]);
 
   useEffect(() => {
