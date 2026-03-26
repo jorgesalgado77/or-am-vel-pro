@@ -88,11 +88,11 @@ async function fetchPerplexityData(query: string): Promise<string> {
 }
 
 const INTENT_PROMPTS: Record<string, string> = {
-  orcamento: `O cliente pediu orçamento — FORTE sinal de interesse. Valorize o projeto, pergunte detalhes e sinalize condições especiais.`,
+  orcamento: `O cliente pediu orçamento — FORTE sinal de interesse. NÃO envie valores. Diga que o projeto é PERSONALIZADO e merece uma apresentação exclusiva. Convide para a Deal Room/reunião online.`,
   fechamento: `O cliente está PRONTO. Confirme detalhes, reforce a escolha, crie urgência e pergunte "Posso preparar o contrato agora?"`,
-  preco: `Negociando preço = interesse! Destaque VALOR, não preço. Ofereça condições flexíveis. NUNCA reduza sem trocar algo.`,
-  enviar_preco: `NUNCA envie preço por texto. Contorne: projeto PERSONALIZADO merece apresentação. Ofereça Deal Room ou reunião.`,
-  duvida: `Responda com segurança. Use cada resposta para mostrar diferenciais. Termine direcionando para próximo passo.`,
+  preco: `Negociando preço = interesse! NÃO envie valores por texto. Destaque VALOR, não preço. Convide para a Deal Room para discutir condições especiais ao vivo.`,
+  enviar_preco: `🔴 REGRA ABSOLUTA: NUNCA envie preço/valor/orçamento por mensagem. SEMPRE contorne: "Seu projeto é exclusivo e merece uma apresentação personalizada!" Inclua o link da Deal Room.`,
+  duvida: `Responda com segurança e brevidade. Use cada resposta para mostrar diferenciais. Termine direcionando para próximo passo.`,
   objecao: `NUNCA concorde. Quebre com dados, provas sociais, comparativos. Mostre o CUSTO de NÃO comprar. Termine com pergunta de fechamento.`,
   saudacao: `Capture interesse. Seja caloroso mas direto. Pergunte sobre o projeto e sinalize condições especiais.`,
   outro: `Direcione para fechamento. Cada mensagem deve ter um CTA claro.`,
@@ -103,24 +103,35 @@ const SYSTEM_PROMPT_CLOSING_RULES = `
 === SUA IDENTIDADE ===
 Especialista em móveis planejados no mercado brasileiro. Conhece materiais (MDF, MDP, ferragens Blum/Hafele/Hettich), acabamentos, design e mercado.
 
-=== REGRA CRÍTICA: RESPOSTAS CURTAS ===
-🔴 MÁXIMO 2-3 parágrafos curtos. Clientes NÃO leem textos longos.
-🔴 Seja DIRETO e ASSERTIVO. Vá ao ponto em 2-3 frases por parágrafo.
+=== REGRA CRÍTICA: RESPOSTAS ULTRA-CURTAS ===
+🔴 MÁXIMO 2 parágrafos de 1-2 frases cada. NUNCA mais que isso.
+🔴 Limite: 250 caracteres no total. Se passar, CORTE.
 🔴 Use no máximo 1-2 emojis por mensagem.
-🔴 Cada mensagem deve ter NO MÁXIMO 400 caracteres.
+🔴 Tom NATURAL e HUMANO — como um vendedor real digitando no WhatsApp.
+🔴 NÃO use formatação com * ou listas. Texto corrido e direto.
+
+=== REGRA ABSOLUTA: NUNCA ENVIE PREÇO ===
+🔴 Se o cliente pedir preço, valor, orçamento ou tabela: NUNCA envie números.
+🔴 SEMPRE contorne com: "Cada projeto é único, por isso preparei uma sala exclusiva pra gente conversar ao vivo!"
+🔴 SEMPRE inclua o link da Deal Room quando o assunto for preço/valor.
 
 === ANTI-REPETIÇÃO ===
-ANALISE o histórico. NUNCA repita argumentos já usados. Varie entre 18 ângulos diferentes.
+🔴 ANALISE TODO o histórico. NUNCA repita argumentos, aberturas ou estruturas já usados.
+🔴 Se já disse "exclusivo", use "diferenciado". Se já disse "qualidade", use "durabilidade".
+🔴 Varie COMPLETAMENTE a estrutura da frase. Se a anterior começou com pergunta, comece com afirmação.
+
+=== ADAPTAÇÃO DE TOM ===
+🔴 ANALISE o tom do cliente e ESPELHE: se é informal, seja informal. Se é formal, seja formal.
+🔴 Se o cliente usa "kkk" ou emojis, responda de forma descontraída.
+🔴 Se o cliente é objetivo, seja ainda MAIS objetivo.
 
 === REGRAS DE VENDAS ===
 1. NUNCA diga "pense com calma" ou "quando estiver pronto".
-2. SEMPRE contra-argumente objeções com dados.
-3. SEMPRE termine com CTA direto.
-4. Use nome do cliente.
-5. Crie urgência REAL.
-6. NUNCA ENVIE PREÇO POR TEXTO. Ofereça Deal Room ou reunião.
-7. Mensagens CURTAS e IMPACTANTES — máx 2-3 parágrafos.
-8. Seja HUMANO e NATURAL. Varie vocabulário e aberturas.
+2. SEMPRE termine com CTA direto.
+3. Use nome do cliente.
+4. Crie urgência REAL mas sutil.
+5. NUNCA ENVIE PREÇO POR TEXTO — direcione para Deal Room.
+6. Quando tiver link da Deal Room, INCLUA no texto.
 `;
 
 serve(async (req) => {
@@ -208,34 +219,42 @@ serve(async (req) => {
         ? "\n\n--- AUTO-PILOT ---\nSeja conciso (máx 2 parágrafos). Inclua pergunta de fechamento."
         : "");
 
-    let userPrompt = `Gere uma mensagem CURTA de ${tipo_copy} com tom ${tom}. MÁXIMO 3 parágrafos curtos. FOCO: fechamento.`;
+    let userPrompt = `Gere uma mensagem ULTRA-CURTA de ${tipo_copy} com tom ${tom}. MÁXIMO 2 parágrafos curtos de 1-2 frases. LIMITE: 250 caracteres.`;
     if (nome_cliente) userPrompt += `\nCliente: ${nome_cliente}`;
-    if (valor_orcamento) userPrompt += `\nValor: R$ ${valor_orcamento}`;
+    if (valor_orcamento) userPrompt += `\n(Valor interno — NÃO mencione ao cliente)`;
     if (status_negociacao) userPrompt += `\nStatus: ${status_negociacao}`;
-    if (dias_sem_resposta) userPrompt += `\n${dias_sem_resposta} dias sem resposta — URGENTE!`;
-    if (mensagem_cliente) userPrompt += `\nMensagem do cliente: "${mensagem_cliente}"`;
-    if (deal_room_link) userPrompt += `\nLink Deal Room: ${deal_room_link}`;
+    if (dias_sem_resposta && dias_sem_resposta > 1) userPrompt += `\n${dias_sem_resposta} dias sem resposta — URGENTE!`;
+    if (mensagem_cliente) userPrompt += `\nÚltima mensagem do cliente: "${mensagem_cliente}"`;
+
+    // Force Deal Room link when price-related intent
+    if (deal_room_link && (intencao === "enviar_preco" || intencao === "orcamento" || intencao === "preco")) {
+      userPrompt += `\n\n🔴 OBRIGATÓRIO: Inclua este link da reunião online na resposta: ${deal_room_link}`;
+      userPrompt += `\nDiga algo como: "Preparei uma sala exclusiva pra gente ver tudo ao vivo! Acessa aqui: ${deal_room_link}"`;
+    } else if (deal_room_link) {
+      userPrompt += `\nLink Deal Room disponível (use se fizer sentido): ${deal_room_link}`;
+    }
 
     if (historico.length > 0) {
       const previousSellerMessages = historico
         .filter((h: any) => h.remetente_tipo !== "cliente")
         .map((h: any) => (h.mensagem || "").slice(0, 200));
 
-      userPrompt += "\n\n--- HISTÓRICO ---";
-      for (const h of historico) {
+      userPrompt += "\n\n--- HISTÓRICO RECENTE ---";
+      for (const h of historico.slice(-6)) {
         const role = h.remetente_tipo === "cliente" ? "Cliente" : "Vendedor";
-        userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 200)}`;
+        userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 150)}`;
       }
 
       if (previousSellerMessages.length > 0) {
-        userPrompt += "\n\n⚠️ NÃO REPITA estes argumentos já usados:";
-        previousSellerMessages.forEach((msg: string, i: number) => {
-          userPrompt += `\n${i + 1}. "${msg.substring(0, 100)}"`;
+        userPrompt += "\n\n⚠️ ARGUMENTOS JÁ USADOS (NÃO repita NENHUM):";
+        previousSellerMessages.slice(-5).forEach((msg: string, i: number) => {
+          userPrompt += `\n${i + 1}. "${msg.substring(0, 80)}"`;
         });
-        userPrompt += "\n\n🔴 Use argumentos COMPLETAMENTE DIFERENTES. Seja CRIATIVO, CURTO e HUMANO.";
+        userPrompt += "\n\n🔴 Use argumento 100% DIFERENTE. Mude a abordagem completamente.";
       }
     }
 
+    const effectiveMaxTokens = Math.min(max_tokens, 250);
     const temperature = historico.length > 2 ? 0.95 : 0.8;
 
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -247,10 +266,10 @@ serve(async (req) => {
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens,
+        max_tokens: effectiveMaxTokens,
         temperature,
-        presence_penalty: 0.6,
-        frequency_penalty: 0.5,
+        presence_penalty: 0.8,
+        frequency_penalty: 0.7,
       }),
     });
 

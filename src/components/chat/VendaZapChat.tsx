@@ -113,6 +113,35 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
+  // AI auto-suggestion with debounce — now fetches recent messages for context
+  const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
+    if (!addon?.ativo) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      // Fetch recent messages for context
+      const { data: recentMsgs } = await supabase
+        .from("tracking_messages")
+        .select("mensagem, remetente_tipo")
+        .eq("tracking_id", conv.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const messages = ((recentMsgs as any[]) || []).reverse();
+
+      generate(
+        {
+          id: conv.id,
+          nome: conv.nome_cliente,
+          status: "em_negociacao",
+          updated_at: conv.last_message_at || new Date().toISOString(),
+        },
+        null,
+        messages,
+        { forceRefresh },
+      );
+    }, forceRefresh ? 300 : 800);
+  }, [addon, generate]);
+
   // Realtime: new client messages → notify + auto-pilot
   useEffect(() => {
     const channel = supabase
@@ -134,9 +163,13 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               });
             }
 
+            // Re-trigger AI with fresh context for the selected conversation
+            if (selected && selected.id === msg.tracking_id) {
+              triggerAI(selected, true);
+            }
+
             // AUTO-PILOT: process the message automatically
             if (autoPilotActive && conv) {
-              // Get recent messages for context
               const { data: recentMsgs } = await supabase
                 .from("tracking_messages")
                 .select("mensagem, remetente_tipo")
@@ -167,24 +200,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess]);
-
-  // AI auto-suggestion with debounce
-  const triggerAI = useCallback((conv: ChatConversation) => {
-    if (!addon?.ativo) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      generate(
-        {
-          id: conv.id,
-          nome: conv.nome_cliente,
-          status: "em_negociacao",
-          updated_at: conv.last_message_at || new Date().toISOString(),
-        },
-        null
-      );
-    }, 800);
-  }, [addon, generate]);
+  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess, triggerAI]);
 
   const handleSelectConversation = (conv: ChatConversation) => {
     setSelected(conv);
