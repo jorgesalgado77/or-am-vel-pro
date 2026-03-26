@@ -58,6 +58,13 @@ interface VendaZapGenerateTabProps {
   currentUserId?: string;
 }
 
+interface HistoricoEntry {
+  remetente_tipo: "cliente" | "ia";
+  mensagem: string;
+  intent?: string;
+  score?: number;
+}
+
 export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId }: VendaZapGenerateTabProps) {
   const [formState, updateForm, clearForm] = usePersistedFormState("vendazap-generate", {
     tipoCopy: "geral",
@@ -72,6 +79,12 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [clients, setClients] = useState<Client[]>([]);
   const [lastSim, setLastSim] = useState<any>(null);
   const [closingScore, setClosingScore] = useState<number | null>(null);
+
+  // Conversation memory — persisted in sessionStorage
+  const [historico, setHistorico] = usePersistedFormState("vendazap-historico", {
+    entries: [] as HistoricoEntry[],
+    clientId: null as string | null,
+  });
 
   // Derived from persisted state
   const { tipoCopy, tom, mensagemCliente, mensagemGerada, searchClient } = formState;
@@ -114,19 +127,47 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const diasSemResposta = selectedClient ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
 
+  // Reset historico when client changes
+  useEffect(() => {
+    if (selectedClient && historico.clientId !== selectedClient.id) {
+      setHistorico({ entries: [], clientId: selectedClient.id });
+    }
+  }, [selectedClient?.id]);
+
   const handleGenerate = async () => {
+    // Build historico array from memory for the edge function
+    const historicoPayload = historico.entries.map(e => ({
+      remetente_tipo: e.remetente_tipo === "ia" ? "loja" : "cliente",
+      mensagem: e.mensagem,
+    }));
+
     const result = await generateMessage({
       nome_cliente: selectedClient?.nome, valor_orcamento: lastSim?.valor_final || lastSim?.valor_tela,
       status_negociacao: selectedClient?.status || "novo", dias_sem_resposta: diasSemResposta,
       mensagem_cliente: mensagemCliente || undefined, tipo_copy: tipoCopy, tom,
       client_id: selectedClient?.id, usuario_id: currentUserId,
+      historico: historicoPayload.length > 0 ? historicoPayload : undefined,
     });
     if (result) {
       updateForm({ mensagemGerada: result });
-      // Calculate closing score based on response context
+
+      // Add to conversation memory
+      const newEntries = [...historico.entries];
+      if (mensagemCliente?.trim()) {
+        const analysis = analyzeClientMessage(mensagemCliente);
+        newEntries.push({ remetente_tipo: "cliente", mensagem: mensagemCliente.trim(), intent: analysis.intent, score: analysis.score });
+      }
+      newEntries.push({ remetente_tipo: "ia", mensagem: result });
+      // Keep last 20 entries
+      setHistorico({ entries: newEntries.slice(-20), clientId: selectedClient?.id || null });
+
+      // Calculate closing score
       const baseScore = clientAnalysis ? clientAnalysis.score : 50;
       const copyBonus = tipoCopy === "fechamento" ? 20 : tipoCopy === "urgencia" ? 15 : tipoCopy === "objecao" ? 10 : tipoCopy === "reversao" ? 5 : 0;
-      setClosingScore(Math.min(100, baseScore + copyBonus + 15)); // +15 because AI response always pushes toward closing
+      setClosingScore(Math.min(100, baseScore + copyBonus + 15));
+
+      // Clear client message field for next round
+      updateForm({ mensagemCliente: "" });
     }
   };
 
