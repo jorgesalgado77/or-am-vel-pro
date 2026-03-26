@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
-  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame, Download,
+  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame, Download, Video,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
@@ -82,6 +82,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [lastSim, setLastSim] = useState<any>(null);
   const [closingScore, setClosingScore] = useState<number | null>(null);
 
+  const [autoChanged, setAutoChanged] = useState<{ copy?: string; tone?: string }>({});
+
   // Conversation memory — persisted in sessionStorage
   const [historico, setHistorico] = usePersistedFormState("vendazap-historico", {
     entries: [] as HistoricoEntry[],
@@ -127,8 +129,11 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     };
     const suggestedCopy = intentToCopy[analysis.intent];
     const suggestedTone = intentToTone[analysis.intent];
-    if (suggestedCopy) setTipoCopy(suggestedCopy);
-    if (suggestedTone) setTom(suggestedTone);
+    if (suggestedCopy) { setTipoCopy(suggestedCopy); setAutoChanged(prev => ({ ...prev, copy: suggestedCopy })); }
+    if (suggestedTone) { setTom(suggestedTone); setAutoChanged(prev => ({ ...prev, tone: suggestedTone })); }
+    // Clear animation after 1.5s
+    const timer = setTimeout(() => setAutoChanged({}), 1500);
+    return () => clearTimeout(timer);
   }, [mensagemCliente]);
 
   useEffect(() => {
@@ -487,17 +492,19 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
             <div className="grid grid-cols-2 gap-2">
               {COPY_TYPES.map(ct => {
                 const Icon = ct.icon;
+                const isSelected = tipoCopy === ct.value;
+                const justAutoSelected = autoChanged.copy === ct.value;
                 return (
-                  <button key={ct.value} onClick={() => setTipoCopy(ct.value)}
-                    className={`p-2.5 rounded-lg border-2 text-left transition-all duration-300 ${
-                      tipoCopy === ct.value
-                        ? "border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02]"
+                  <button key={ct.value} onClick={() => { setTipoCopy(ct.value); setAutoChanged(prev => ({ ...prev, copy: undefined })); }}
+                    className={`p-2.5 rounded-lg border-2 text-left transition-all duration-500 ease-out ${
+                      isSelected
+                        ? `border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02] ${justAutoSelected ? "animate-scale-in" : ""}`
                         : "border-border hover:border-muted-foreground/30 bg-background"
                     }`}>
                     <div className="flex items-center gap-2">
-                      <Icon className={`h-3.5 w-3.5 shrink-0 ${tipoCopy === ct.value ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className={`text-xs font-medium ${tipoCopy === ct.value ? "text-primary" : "text-foreground"}`}>{ct.label}</span>
-                      {tipoCopy === ct.value && clientAnalysis && <Badge className="text-[8px] h-4 bg-primary/20 text-primary border-0 ml-auto">Auto</Badge>}
+                      <Icon className={`h-3.5 w-3.5 shrink-0 transition-colors duration-300 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`text-xs font-medium transition-colors duration-300 ${isSelected ? "text-primary" : "text-foreground"}`}>{ct.label}</span>
+                      {isSelected && clientAnalysis && <Badge className="text-[8px] h-4 bg-primary/20 text-primary border-0 ml-auto animate-fade-in">Auto</Badge>}
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-0.5">{ct.description}</p>
                   </button>
@@ -519,16 +526,20 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-2">
-              {TONES.map(t => (
-                <button key={t.value} onClick={() => setTom(t.value)}
-                  className={`p-2 rounded-lg border-2 text-left transition-all duration-300 ${
-                    tom === t.value
-                      ? "border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02]"
-                      : "border-border hover:border-muted-foreground/30 bg-background"
-                  }`}>
-                  <span className={`text-xs font-medium ${tom === t.value ? "text-primary" : "text-foreground"}`}>{t.label}</span>
-                </button>
-              ))}
+              {TONES.map(t => {
+                const isSelected = tom === t.value;
+                const justAutoSelected = autoChanged.tone === t.value;
+                return (
+                  <button key={t.value} onClick={() => { setTom(t.value); setAutoChanged(prev => ({ ...prev, tone: undefined })); }}
+                    className={`p-2 rounded-lg border-2 text-left transition-all duration-500 ease-out ${
+                      isSelected
+                        ? `border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02] ${justAutoSelected ? "animate-scale-in" : ""}`
+                        : "border-border hover:border-muted-foreground/30 bg-background"
+                    }`}>
+                    <span className={`text-xs font-medium transition-colors duration-300 ${isSelected ? "text-primary" : "text-foreground"}`}>{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -627,9 +638,26 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           </CardHeader>
           <CardContent>
             {mensagemGerada ? (
-              <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 rounded-xl p-4 relative">
-                <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"><MessageSquare className="h-3 w-3 text-white" /></div>
-                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{mensagemGerada}</p>
+              <div className="space-y-3">
+                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 rounded-xl p-4 relative">
+                  <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"><MessageSquare className="h-3 w-3 text-white" /></div>
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{mensagemGerada}</p>
+                </div>
+                {clientAnalysis?.intent === "enviar_preco" && (
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 animate-fade-in">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Video className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold text-primary">💡 Convide para a Deal Room</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mb-2">
+                      Em vez de enviar preço por mensagem, convide o cliente para uma sala exclusiva onde ele pode ver o projeto ao vivo, pedir ajustes e fechar com contrato imediato.
+                    </p>
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                      onClick={() => { window.dispatchEvent(new CustomEvent("navigate-to-dealroom")); }}>
+                      <Video className="h-3 w-3" /> Abrir Deal Room
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
