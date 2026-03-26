@@ -74,11 +74,9 @@ export function DealRoomInviteTemplate({ tenantId, clientName, proposalValue, se
     toast.success("Convite copiado!");
   };
 
-  const handleCopyAndWhatsApp = () => {
+  const handleCopyForWhatsApp = () => {
     navigator.clipboard.writeText(generatedMessage);
-    const waUrl = `https://wa.me/?text=${encodeURIComponent(generatedMessage)}`;
-    window.open(waUrl, "_blank");
-    toast.success("Convite copiado e WhatsApp aberto!");
+    toast.success("Texto copiado! Cole no WhatsApp.");
   };
 
   const handleDownloadQR = async () => {
@@ -180,8 +178,8 @@ export function DealRoomInviteTemplate({ tenantId, clientName, proposalValue, se
           <Button size="sm" variant="outline" className="flex-1 gap-1.5 h-8 text-xs" onClick={handleCopy}>
             <Copy className="h-3 w-3" /> Copiar
           </Button>
-          <Button size="sm" className="flex-1 gap-1.5 h-8 text-xs bg-green-600 hover:bg-green-700 text-white" onClick={handleCopyAndWhatsApp}>
-            <ExternalLink className="h-3 w-3" /> WhatsApp
+          <Button size="sm" className="flex-1 gap-1.5 h-8 text-xs bg-green-600 hover:bg-green-700 text-white" onClick={handleCopyForWhatsApp}>
+            <Copy className="h-3 w-3" /> WhatsApp
           </Button>
         </div>
 
