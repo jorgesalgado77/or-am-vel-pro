@@ -527,7 +527,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           if (isEmailNotConfirmedError(error)) {
-            const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+            const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
             if (confirmedLogin) {
               return finalizeLogin(confirmedLogin);
             }
@@ -584,7 +584,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             if (signUpError && isAlreadyRegisteredError(signUpError)) {
-              const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+              const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
               if (confirmedLogin) {
                 return finalizeLogin(confirmedLogin);
               }
@@ -621,7 +621,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             if (isEmailNotConfirmedError(retryProvision.error)) {
-              const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+              const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
               if (confirmedLogin) {
                 return finalizeLogin(confirmedLogin);
               }
@@ -702,7 +702,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           if (isEmailNotConfirmedError(retryError)) {
-            const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+            const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
             if (confirmedLogin) {
               return finalizeLogin(confirmedLogin);
             }
