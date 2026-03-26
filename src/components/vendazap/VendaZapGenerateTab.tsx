@@ -150,7 +150,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                   const days = Math.floor((Date.now() - new Date(c.updated_at).getTime()) / (1000 * 60 * 60 * 24));
                   const score = getClientScore(c, days);
                   return (
-                    <button key={c.id} onClick={() => { setSelectedClient(c); setSearchClient(""); setMensagemGerada(""); }}
+                    <button key={c.id} onClick={() => { setSelectedClient(c); updateForm({ selectedClientId: c.id, searchClient: "", mensagemGerada: "" }); }}
                       className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors text-sm flex items-center justify-between">
                       <div>
                         <span className="font-medium text-foreground">{c.nome}</span>
