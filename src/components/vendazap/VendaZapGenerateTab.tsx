@@ -143,24 +143,29 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       mensagem: e.mensagem,
     }));
 
+    // Include learning context for the AI
+    const learningContext = buildLearningContext();
+
     const result = await generateMessage({
       nome_cliente: selectedClient?.nome, valor_orcamento: lastSim?.valor_final || lastSim?.valor_tela,
       status_negociacao: selectedClient?.status || "novo", dias_sem_resposta: diasSemResposta,
       mensagem_cliente: mensagemCliente || undefined, tipo_copy: tipoCopy, tom,
       client_id: selectedClient?.id, usuario_id: currentUserId,
       historico: historicoPayload.length > 0 ? historicoPayload : undefined,
+      learning_context: learningContext || undefined,
     });
     if (result) {
       updateForm({ mensagemGerada: result });
 
-      // Add to conversation memory
+      // Add to conversation memory + learn from this interaction
       const newEntries = [...historico.entries];
       if (mensagemCliente?.trim()) {
         const analysis = analyzeClientMessage(mensagemCliente);
         newEntries.push({ remetente_tipo: "cliente", mensagem: mensagemCliente.trim(), intent: analysis.intent, score: analysis.score });
+        // Teach the learning engine
+        learnFromMessage(analysis.intent, mensagemCliente.trim(), analysis.score);
       }
       newEntries.push({ remetente_tipo: "ia", mensagem: result });
-      // Keep last 20 entries
       setHistorico({ entries: newEntries.slice(-20), clientId: selectedClient?.id || null });
 
       // Calculate closing score
@@ -173,7 +178,15 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     }
   };
 
-  const handleCopy = (text: string) => { navigator.clipboard.writeText(text); toast.success("Mensagem copiada!"); };
+  // Learn when user copies a generated message (signals it was good)
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Mensagem copiada!");
+    // Record as good response
+    if (mensagemGerada && clientAnalysis) {
+      learnGoodResponse(clientAnalysis.intent, formState.mensagemCliente || "", text);
+    }
+  };
 
   const handleCopyAndOpenWhatsApp = (text: string, phone?: string | null) => {
     navigator.clipboard.writeText(text);
