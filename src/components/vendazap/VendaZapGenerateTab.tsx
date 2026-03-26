@@ -492,17 +492,19 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
             <div className="grid grid-cols-2 gap-2">
               {COPY_TYPES.map(ct => {
                 const Icon = ct.icon;
+                const isSelected = tipoCopy === ct.value;
+                const justAutoSelected = autoChanged.copy === ct.value;
                 return (
-                  <button key={ct.value} onClick={() => setTipoCopy(ct.value)}
-                    className={`p-2.5 rounded-lg border-2 text-left transition-all duration-300 ${
-                      tipoCopy === ct.value
-                        ? "border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02]"
+                  <button key={ct.value} onClick={() => { setTipoCopy(ct.value); setAutoChanged(prev => ({ ...prev, copy: undefined })); }}
+                    className={`p-2.5 rounded-lg border-2 text-left transition-all duration-500 ease-out ${
+                      isSelected
+                        ? `border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02] ${justAutoSelected ? "animate-scale-in" : ""}`
                         : "border-border hover:border-muted-foreground/30 bg-background"
                     }`}>
                     <div className="flex items-center gap-2">
-                      <Icon className={`h-3.5 w-3.5 shrink-0 ${tipoCopy === ct.value ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className={`text-xs font-medium ${tipoCopy === ct.value ? "text-primary" : "text-foreground"}`}>{ct.label}</span>
-                      {tipoCopy === ct.value && clientAnalysis && <Badge className="text-[8px] h-4 bg-primary/20 text-primary border-0 ml-auto">Auto</Badge>}
+                      <Icon className={`h-3.5 w-3.5 shrink-0 transition-colors duration-300 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`text-xs font-medium transition-colors duration-300 ${isSelected ? "text-primary" : "text-foreground"}`}>{ct.label}</span>
+                      {isSelected && clientAnalysis && <Badge className="text-[8px] h-4 bg-primary/20 text-primary border-0 ml-auto animate-fade-in">Auto</Badge>}
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-0.5">{ct.description}</p>
                   </button>
