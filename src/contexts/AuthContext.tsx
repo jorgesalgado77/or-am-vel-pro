@@ -421,7 +421,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
 
           if (signUpRetryErr && isAlreadyRegisteredError(signUpRetryErr)) {
-            // already registered — expected
+            // already registered — try syncing password
+            const synced = await syncLegacyAuthPassword(normalizedEmail_, password, "");
+            if (synced) {
+              const retryAfterSync = await signInWithPasswordFast(normalizedEmail_, password);
+              if (!retryAfterSync.error && retryAfterSync.data.user) {
+                return finalizeLogin(retryAfterSync.data);
+              }
+            }
           }
 
           if (signUpRetry?.user) {
