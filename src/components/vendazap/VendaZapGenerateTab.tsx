@@ -22,6 +22,7 @@ import { getTenantId } from "@/lib/tenantState";
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { ClosingThermometer, analyzeClientMessage } from "./ClosingThermometer";
 import { NegotiationEvolutionPanel, learnFromMessage, learnGoodResponse, recordSession, buildLearningContext } from "./NegotiationLearning";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -69,6 +70,8 @@ interface HistoricoEntry {
 }
 
 export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId }: VendaZapGenerateTabProps) {
+  const { currentUser } = useCurrentUser();
+  const isManagerOrAdmin = currentUser?.cargo_nome === "Administrador" || currentUser?.cargo_nome === "Gerente";
   const [formState, updateForm, clearForm] = usePersistedFormState("vendazap-generate", {
     tipoCopy: "geral",
     tom: "persuasivo",
@@ -140,17 +143,24 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
   useEffect(() => {
     const tenantId = getTenantId();
-    let query = supabase.from("clients").select("*").order("created_at", { ascending: false });
-    if (tenantId) query = query.eq("tenant_id", tenantId);
-    query.then(({ data }) => {
+    const loadClients = async () => {
+      let q = supabase.from("clients").select("*").order("created_at", { ascending: false }) as any;
+      if (tenantId) q = q.eq("tenant_id", tenantId);
+      if (!isManagerOrAdmin && currentUserId) {
+        q = q.eq("vendedor_id", currentUserId);
+      } else {
+        q = q.not("status", "in", '("fechado","perdido")');
+      }
+      const { data } = await q;
       if (data) {
-        setClients(data);
+        setClients(data as Client[]);
         if (formState.selectedClientId && !selectedClient) {
-          const restored = data.find(c => c.id === formState.selectedClientId);
+          const restored = (data as Client[]).find((c: Client) => c.id === formState.selectedClientId);
           if (restored) setSelectedClient(restored);
         }
       }
-    });
+    };
+    loadClients();
     // Load custom arguments from argument bank
     if (tenantId) {
       supabase.from("argument_bank" as any).select("titulo, argumento, dados_reais, categoria").eq("tenant_id", tenantId)
@@ -422,9 +432,9 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           <CardHeader className="pb-3"><CardTitle className="text-sm">Cliente</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <Input placeholder="Buscar cliente por nome ou orçamento..." value={searchClient} onChange={(e) => setSearchClient(e.target.value)} />
-            {searchClient && !selectedClient && (
-              <ScrollArea className="h-32 border rounded-md">
-                {filteredClients.slice(0, 8).map(c => {
+            {!selectedClient && (
+              <ScrollArea className="h-40 border rounded-md">
+                {(searchClient ? filteredClients : clients).slice(0, 15).map(c => {
                   const days = Math.floor((Date.now() - new Date(c.updated_at).getTime()) / (1000 * 60 * 60 * 24));
                   const score = getClientScore(c, days);
                   return (
@@ -657,13 +667,11 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                   <div className="absolute -top-2 -left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"><MessageSquare className="h-3 w-3 text-white" /></div>
                   <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{mensagemGerada}</p>
                 </div>
-                {clientAnalysis?.intent === "enviar_preco" && (
-                  <DealRoomInviteTemplate
-                    tenantId={getTenantId() || ""}
-                    clientName={selectedClient?.nome}
-                    sellerName=""
-                  />
-                )}
+              <DealRoomInviteTemplate
+                tenantId={getTenantId() || ""}
+                clientName={selectedClient?.nome}
+                sellerName={currentUser?.nome_completo || ""}
+              />
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -680,7 +688,19 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
               <Button variant="outline" onClick={handleGenerate} disabled={generating} className="flex-1 gap-2"><RefreshCw className="h-4 w-4" />Regenerar</Button>
               <Button variant="outline" onClick={() => handleCopy(mensagemGerada)} className="flex-1 gap-2"><Copy className="h-4 w-4" />Copiar</Button>
             </div>
-            <Button onClick={() => handleCopyAndOpenDealRoom(mensagemGerada)} className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground">
+            <Button onClick={() => {
+              if (!selectedClient) {
+                toast.error("Selecione um cliente primeiro.");
+                return;
+              }
+              const roomId = crypto.randomUUID();
+              const dealRoomUrl = `${window.location.origin}/sala/${roomId}`;
+              navigator.clipboard.writeText(dealRoomUrl);
+              window.dispatchEvent(new CustomEvent("navigate-to-dealroom", {
+                detail: { clientId: selectedClient.id, clientName: selectedClient.nome, roomId },
+              }));
+              toast.success("Link gerado e copiado! Abrindo Deal Room...");
+            }} className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground">
               <Video className="h-4 w-4" />Gerar Link + Abrir Deal Room
             </Button>
           </div>
