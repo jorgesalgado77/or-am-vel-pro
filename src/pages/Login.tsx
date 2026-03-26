@@ -39,6 +39,7 @@ export default function Login() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
   const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string } | null>(null);
+  const [highlightForgotPassword, setHighlightForgotPassword] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Detect low-end device for reduced effects
