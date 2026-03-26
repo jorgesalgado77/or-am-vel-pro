@@ -134,9 +134,13 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               });
             }
 
+            // Re-trigger AI with fresh context for the selected conversation
+            if (selected && selected.id === msg.tracking_id) {
+              triggerAI(selected, true);
+            }
+
             // AUTO-PILOT: process the message automatically
             if (autoPilotActive && conv) {
-              // Get recent messages for context
               const { data: recentMsgs } = await supabase
                 .from("tracking_messages")
                 .select("mensagem, remetente_tipo")
