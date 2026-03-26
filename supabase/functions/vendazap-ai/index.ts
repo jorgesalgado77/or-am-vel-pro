@@ -19,34 +19,74 @@ const INTENT_PATTERNS: Record<string, RegExp[]> = {
   fechamento: [/fechar/i, /quero comprar/i, /vamos fechar/i, /aceito/i, /pode fazer/i, /fechado/i, /vou levar/i],
   preco: [/desconto/i, /mais barato/i, /negocia/i, /condi[çc][ãa]o/i, /parcel/i, /pagamento/i],
   duvida: [/como funciona/i, /dúvida/i, /explica/i, /qual a diferen/i, /tem garantia/i, /prazo/i],
-  objecao: [/caro/i, /n[ãa]o sei/i, /vou pensar/i, /depois/i, /outro lugar/i, /concorr/i],
+  objecao: [/caro/i, /n[ãa]o sei/i, /vou pensar/i, /depois/i, /outro lugar/i, /concorr/i, /n[ãa]o quero/i, /desist/i, /cancel/i],
   saudacao: [/bom dia/i, /boa tarde/i, /boa noite/i, /oi/i, /ol[áa]/i, /tudo bem/i],
 };
 
 function detectIntent(message: string): string {
   if (!message) return "outro";
-  
   const priority = ["fechamento", "orcamento", "preco", "objecao", "duvida", "saudacao"];
-  
   for (const intent of priority) {
     const patterns = INTENT_PATTERNS[intent];
-    if (patterns.some((p) => p.test(message))) {
-      return intent;
-    }
+    if (patterns.some((p) => p.test(message))) return intent;
   }
-  
   return "outro";
 }
 
+// Closing proximity score (0-100) based on intent
+function calcClosingScore(intent: string, tipoCopy: string): number {
+  const intentScores: Record<string, number> = {
+    fechamento: 95,
+    orcamento: 60,
+    preco: 50,
+    duvida: 40,
+    objecao: 30,
+    saudacao: 20,
+    outro: 35,
+  };
+  const copyBonus: Record<string, number> = {
+    fechamento: 15,
+    urgencia: 10,
+    objecao: 5,
+    reuniao: 5,
+    reativacao: -5,
+    geral: 0,
+  };
+  const base = intentScores[intent] || 35;
+  const bonus = copyBonus[tipoCopy] || 0;
+  return Math.max(5, Math.min(100, base + bonus));
+}
+
 const INTENT_PROMPTS: Record<string, string> = {
-  orcamento: "O cliente está pedindo um orçamento. Responda de forma profissional, pergunte detalhes do projeto e demonstre expertise.",
-  fechamento: "O cliente está pronto para fechar! Confirme os detalhes, reforce o valor e facilite o fechamento.",
-  preco: "O cliente está negociando preço. Destaque o valor agregado, ofereça condições e mantenha a margem.",
-  duvida: "O cliente tem dúvidas. Responda de forma clara, didática e aproveite para mostrar diferenciais.",
-  objecao: "O cliente tem objeções. Contorne com empatia, apresente provas sociais e benefícios exclusivos.",
-  saudacao: "O cliente está iniciando contato. Seja caloroso, apresente-se brevemente e pergunte como pode ajudar.",
-  outro: "Responda de forma atenciosa e tente identificar a necessidade do cliente.",
+  orcamento: `O cliente pediu orçamento — isso é um FORTE sinal de interesse. Responda com entusiasmo, valorize o projeto, pergunte detalhes técnicos e já sinalize que você tem condições especiais para fechamento rápido. Direcione para agendar uma apresentação ou enviar proposta completa.`,
+  fechamento: `O cliente está PRONTO para fechar! NÃO hesite. Confirme os detalhes rapidamente, reforce que ele está fazendo a melhor escolha, crie senso de urgência positiva e facilite o fechamento IMEDIATAMENTE. Pergunte "Posso preparar o contrato agora?"`,
+  preco: `O cliente está negociando preço — isso NÃO é rejeição, é interesse! Destaque o VALOR (não o preço): durabilidade, qualidade, garantia, personalização. Ofereça condições de pagamento flexíveis. Mostre que o investimento se paga. NUNCA reduza o preço sem trocar por algo (prazo, forma de pagamento). Sempre termine com uma proposta concreta de fechamento.`,
+  duvida: `O cliente tem dúvidas — ÓTIMO, significa que está considerando! Responda com segurança e autoridade. Use cada resposta como oportunidade para mostrar diferenciais exclusivos. Termine SEMPRE direcionando para o próximo passo concreto (visita, simulação, proposta).`,
+  objecao: `O cliente apresentou objeção — isso é NORMAL e contornável. NUNCA concorde com a objeção. NUNCA sugira desistência ou diga "sem problemas, quando estiver pronto". Quebre a objeção com firmeza e dados: provas sociais, comparativos, garantias, cases de sucesso. Mostre o CUSTO de NÃO comprar (perda das condições, aumento de preço, indisponibilidade). Termine com uma pergunta que leve ao fechamento.`,
+  saudacao: `O cliente iniciou contato — CAPTURE o interesse imediatamente. Seja caloroso mas direto. Apresente-se, pergunte sobre o projeto e JÁ sinalize que tem condições especiais. Não perca tempo com banalidades — direcione para a necessidade do cliente.`,
+  outro: `Identifique a necessidade do cliente e direcione a conversa SEMPRE para o fechamento. Cada mensagem deve ter um CTA (call-to-action) claro.`,
 };
+
+const SYSTEM_PROMPT_CLOSING_RULES = `
+
+=== REGRAS ABSOLUTAS DE VENDAS ===
+1. NUNCA sugira que o cliente "pense com calma", "não tem pressa" ou "quando estiver pronto me avise". Isso MATA vendas.
+2. NUNCA aceite objeções passivamente. SEMPRE contra-argumente com dados, provas e benefícios.
+3. NUNCA mencione concorrentes de forma positiva ou sugira que o cliente "compare com outros".
+4. SEMPRE termine a mensagem com um CTA direto que leve ao PRÓXIMO PASSO do fechamento.
+5. SEMPRE use o nome do cliente para criar conexão pessoal.
+6. SEMPRE crie senso de urgência REAL (condições limitadas, prazo, disponibilidade).
+7. SEMPRE mostre o CUSTO DA INAÇÃO — o que o cliente PERDE ao não fechar agora.
+8. Use emojis com moderação (máx 2-3 por mensagem) para humanizar.
+9. Mensagens devem ser concisas e impactantes — máximo 4 parágrafos.
+10. Se o cliente disse "vou pensar", responda: "Entendo que é importante! Justamente por isso, que tal resolvermos agora as dúvidas que ficaram? Assim você decide com total segurança."
+
+=== ESTRUTURA IDEAL DA RESPOSTA ===
+- Linha 1: Conexão pessoal (nome + empatia ativa, NÃO passiva)
+- Linha 2-3: Contra-argumento forte com dados/provas
+- Linha 4: Benefício exclusivo ou condição especial
+- Linha 5: CTA direto para fechamento
+`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
@@ -118,22 +158,24 @@ serve(async (req) => {
     // Standard VendaZap flow with intent detection
     const intencao = detectIntent(mensagem_cliente);
     const intentContext = INTENT_PROMPTS[intencao] || INTENT_PROMPTS.outro;
+    const closingScore = calcClosingScore(intencao, tipo_copy);
 
     const systemPrompt =
       (prompt_sistema ||
-      `Você é um assistente de vendas especializado em móveis planejados. 
-Gere mensagens persuasivas para WhatsApp em português brasileiro.
-Seja profissional, amigável e direto.`) +
+      `Você é um CLOSER de elite especializado em móveis planejados. 
+Sua missão é FECHAR VENDAS. Cada mensagem deve aproximar o cliente do SIM.
+Seja profissional, confiante e assertivo. Nunca seja passivo.`) +
       `\n\n--- CONTEXTO DA INTENÇÃO ---\n${intentContext}` +
+      SYSTEM_PROMPT_CLOSING_RULES +
       (modo === "autopilot"
-        ? "\n\n--- MODO AUTO-PILOT ---\nVocê está respondendo AUTOMATICAMENTE. Seja conciso (máx 3 parágrafos). Inclua uma pergunta para manter a conversa. NÃO use saudações formais excessivas."
+        ? "\n\n--- MODO AUTO-PILOT ---\nVocê está respondendo AUTOMATICAMENTE. Seja conciso (máx 3 parágrafos). Inclua uma pergunta de fechamento. NÃO use saudações formais excessivas."
         : "");
 
-    let userPrompt = `Gere uma mensagem de ${tipo_copy} com tom ${tom}.`;
+    let userPrompt = `Gere uma mensagem de ${tipo_copy} com tom ${tom}. FOCO: levar ao FECHAMENTO.`;
     if (nome_cliente) userPrompt += `\nNome do cliente: ${nome_cliente}`;
     if (valor_orcamento) userPrompt += `\nValor do orçamento: R$ ${valor_orcamento}`;
     if (status_negociacao) userPrompt += `\nStatus da negociação: ${status_negociacao}`;
-    if (dias_sem_resposta) userPrompt += `\nDias sem resposta: ${dias_sem_resposta}`;
+    if (dias_sem_resposta) userPrompt += `\nDias sem resposta: ${dias_sem_resposta} — URGENTE, reative com firmeza!`;
     if (mensagem_cliente) userPrompt += `\nMensagem do cliente: "${mensagem_cliente}"`;
     if (deal_room_link) userPrompt += `\nLink da sala de negociação: ${deal_room_link}`;
 
@@ -174,7 +216,7 @@ Seja profissional, amigável e direto.`) +
     const mensagem = aiData.choices?.[0]?.message?.content || "";
     const tokens_usados = aiData.usage?.total_tokens || 0;
 
-    return respond({ mensagem, tokens_usados, intencao, modo });
+    return respond({ mensagem, tokens_usados, intencao, modo, closing_score: closingScore });
   } catch (e) {
     console.error("vendazap-ai error:", e);
     return respond({ error: "Erro interno" }, 500);
