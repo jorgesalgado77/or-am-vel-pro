@@ -153,13 +153,14 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       }
       const { data } = await q;
       if (data) {
-        setClients(data);
+        setClients(data as Client[]);
         if (formState.selectedClientId && !selectedClient) {
-          const restored = data.find(c => c.id === formState.selectedClientId);
+          const restored = (data as Client[]).find((c: Client) => c.id === formState.selectedClientId);
           if (restored) setSelectedClient(restored);
         }
       }
-    });
+    };
+    loadClients();
     // Load custom arguments from argument bank
     if (tenantId) {
       supabase.from("argument_bank" as any).select("titulo, argumento, dados_reais, categoria").eq("tenant_id", tenantId)
