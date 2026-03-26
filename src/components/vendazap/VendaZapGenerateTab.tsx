@@ -95,8 +95,27 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const setMensagemCliente = useCallback((v: string) => updateForm({ mensagemCliente: v }), [updateForm]);
   const setSearchClient = useCallback((v: string) => updateForm({ searchClient: v }), [updateForm]);
 
-  // Analyze client message for thermometer
+  // Analyze client message for thermometer + auto-select copy type
   const clientAnalysis = mensagemCliente ? analyzeClientMessage(mensagemCliente) : null;
+
+  // Auto-detect and select appropriate copy type based on client message intent
+  useEffect(() => {
+    if (!clientAnalysis || !mensagemCliente || mensagemCliente.trim().length < 4) return;
+    const intentToCopy: Record<string, string> = {
+      "fechamento": "fechamento",
+      "orçamento": "urgencia",
+      "negociação": "objecao",
+      "dúvida": "reuniao",
+      "objeção": "objecao",
+      "resistência": "reversao",
+      "saudação": "fechamento",
+      "neutro": "urgencia",
+    };
+    const suggested = intentToCopy[clientAnalysis.intent];
+    if (suggested && suggested !== tipoCopy) {
+      setTipoCopy(suggested);
+    }
+  }, [clientAnalysis?.intent]);
 
   useEffect(() => {
     const tenantId = getTenantId();
@@ -290,6 +309,69 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       addText(`${dir}: de ${first}% para ${last}%`, margin, 9, last >= first ? [0, 120, 60] : [200, 50, 0]);
     }
 
+    // === AI Improvement Suggestions ===
+    checkPage(40);
+    y += 6;
+    doc.setDrawColor(0, 100, 180);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+    addText("Sugestoes da IA para Melhorar a Abordagem", margin, 12, [0, 80, 160], true);
+    y += 4;
+
+    const improvementTips: string[] = [];
+
+    const priceObj = objections.filter(o => /caro|preco|valor|desconto|barato/i.test(o.mensagem));
+    const thinkObj = objections.filter(o => /pensar|depois|calma|ver/i.test(o.mensagem));
+    const competitorObj = objections.filter(o => /concorr|outro lugar|outra loja/i.test(o.mensagem));
+    const rejectObj = objections.filter(o => /nao quero|desist|cancel/i.test(o.mensagem));
+
+    if (priceObj.length > 0) {
+      improvementTips.push("PRECO/VALOR: O cliente questionou preco " + priceObj.length + " vez(es). Sugestao: Apresente o ROI do investimento, compare com o custo de nao ter o produto, ofereça condicoes de pagamento diferenciadas ANTES da objecao surgir.");
+    }
+    if (thinkObj.length > 0) {
+      improvementTips.push("INDECISAO: O cliente pediu tempo " + thinkObj.length + " vez(es). Sugestao: Antecipe criando urgencia real (prazo de validade, disponibilidade limitada). Pergunte 'O que falta para decidirmos agora?'");
+    }
+    if (competitorObj.length > 0) {
+      improvementTips.push("CONCORRENCIA: Mencionou concorrentes " + competitorObj.length + " vez(es). Sugestao: Prepare comparativo de diferenciais exclusivos. Destaque garantias, pos-venda e personalizacao.");
+    }
+    if (rejectObj.length > 0) {
+      improvementTips.push("REJEICAO DIRETA: Houve " + rejectObj.length + " tentativa(s) de desistencia. Sugestao: Identifique o motivo REAL. Use perguntas abertas e ofereça algo exclusivo e limitado.");
+    }
+    if (avgScore < 30) {
+      improvementTips.push("SCORE BAIXO (media " + Math.round(avgScore) + "%): Qualifique melhor o lead antes de iniciar a venda. Leads frios precisam de aquecimento com conteudo de valor antes da oferta.");
+    } else if (avgScore < 50) {
+      improvementTips.push("SCORE MEDIO (media " + Math.round(avgScore) + "%): Aumente a frequencia de CTAs diretos. Cada mensagem deve ter uma acao clara.");
+    }
+    if (trend.length >= 2) {
+      const f = trend[0].score || 0;
+      const l = trend[trend.length - 1].score || 0;
+      if (l < f) {
+        improvementTips.push("TENDENCIA NEGATIVA: Interesse caiu de " + f + "% para " + l + "%. Mude a abordagem — se usou logica, use emocao. A repeticao da mesma estrategia em queda so acelera a perda.");
+      }
+    }
+    if (historico.entries.filter(e => e.remetente_tipo === "ia").length > 4 && avgScore < 60) {
+      improvementTips.push("MUITAS MENSAGENS SEM AVANCO: Considere contato presencial (ligacao, video-chamada, visita). Negociacoes longas por texto tendem a esfriar.");
+    }
+    if (improvementTips.length === 0) {
+      improvementTips.push("Negociacao bem conduzida! Mantenha a assertividade e continue evoluindo a argumentacao a cada interacao.");
+    }
+
+    improvementTips.forEach((tip, idx) => {
+      const tipLines = doc.splitTextToSize(`${idx + 1}. ${tip}`, maxWidth - 10);
+      const blockH = tipLines.length * 4.5 + 6;
+      checkPage(blockH + 4);
+      doc.setFillColor(235, 245, 255);
+      doc.roundedRect(margin, y - 2, maxWidth, blockH, 2, 2, "F");
+      doc.setFontSize(8);
+      doc.setTextColor(0, 60, 120);
+      doc.setFont("helvetica", "normal");
+      for (const line of tipLines) {
+        doc.text(line, margin + 5, y + 3);
+        y += 4.5;
+      }
+      y += 6;
+    });
+
     doc.save(`conversacao-${selectedClient?.nome?.replace(/\s+/g, "_") || "cliente"}-${new Date().toISOString().split("T")[0]}.pdf`);
     toast.success("PDF exportado com sucesso!");
   };
@@ -393,8 +475,16 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                 const Icon = ct.icon;
                 return (
                   <button key={ct.value} onClick={() => setTipoCopy(ct.value)}
-                    className={`p-2.5 rounded-lg border text-left transition-all ${tipoCopy === ct.value ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
-                    <div className="flex items-center gap-2"><Icon className="h-3.5 w-3.5 text-primary shrink-0" /><span className="text-xs font-medium text-foreground">{ct.label}</span></div>
+                    className={`p-2.5 rounded-lg border-2 text-left transition-all duration-300 ${
+                      tipoCopy === ct.value
+                        ? "border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02]"
+                        : "border-border hover:border-muted-foreground/30 bg-background"
+                    }`}>
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${tipoCopy === ct.value ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`text-xs font-medium ${tipoCopy === ct.value ? "text-primary" : "text-foreground"}`}>{ct.label}</span>
+                      {tipoCopy === ct.value && clientAnalysis && <Badge className="text-[8px] h-4 bg-primary/20 text-primary border-0 ml-auto">Auto</Badge>}
+                    </div>
                     <p className="text-[10px] text-muted-foreground mt-0.5">{ct.description}</p>
                   </button>
                 );
