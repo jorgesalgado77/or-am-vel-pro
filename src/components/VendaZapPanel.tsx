@@ -31,12 +31,14 @@ const FollowUpPanelLazy = lazy(() => import("@/components/chat/FollowUpPanel").t
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 const READY_COPIES = [
-  { label: "Reativação", tipo: "reativacao", mensagem: "Olá [NOME]! 👋 Tudo bem? Estive revendo seu projeto e percebi que ficou muito especial. Ainda tem interesse? Consigo manter as condições por mais alguns dias. Me avise! 😊" },
-  { label: "Objeção de preço", tipo: "objecao", mensagem: "Entendo sua preocupação com o valor, [NOME]. Mas pense assim: o investimento se dilui ao longo de anos de uso diário. Posso simular condições de pagamento que caibam no seu orçamento? 💡" },
-  { label: "Indecisão", tipo: "objecao", mensagem: "[NOME], sei que é uma decisão importante! Por isso quero te ajudar. Que tal agendarmos uma conversa rápida para tirar todas as suas dúvidas? Sem compromisso! 🤝" },
-  { label: "Concorrência", tipo: "objecao", mensagem: "[NOME], antes de decidir, compare não só o preço, mas a qualidade do material, o prazo de entrega e a garantia. Posso te mostrar nossos diferenciais? Vai se surpreender! ✨" },
-  { label: "Urgência", tipo: "urgencia", mensagem: "[NOME], seu orçamento expira em breve e as condições especiais que conseguimos podem mudar. Que tal fecharmos essa semana? Garanto o melhor cenário pra você! ⏰" },
-  { label: "Convite p/ fechamento", tipo: "fechamento", mensagem: "[NOME], está tudo pronto para o seu projeto! Vamos finalizar? Preparei condições especiais e consigo encaixar a entrega no prazo ideal pra você. Posso enviar o contrato? 📋✅" },
+  { label: "Reativação Firme", tipo: "reativacao", mensagem: "[NOME], seu projeto ficou incrível e as condições especiais que preparei ainda estão válidas — mas por pouco tempo. Seria uma pena perder essa oportunidade! Posso te enviar a proposta atualizada agora? ⏰🔥" },
+  { label: "Objeção de Preço", tipo: "objecao", mensagem: "[NOME], entendo a preocupação com o valor. Mas veja: nossos móveis duram mais de 15 anos — isso dá menos de R$ 3 por dia de uso! Além disso, temos condições de pagamento que facilitam muito. Posso montar uma simulação personalizada pra você agora? 💡" },
+  { label: "Cliente Indeciso", tipo: "objecao", mensagem: "[NOME], a indecisão é o maior inimigo de um bom negócio. 95% dos nossos clientes dizem que se arrependem de não ter fechado antes! Vamos resolver suas dúvidas agora? Tenho 15 minutos disponíveis pra te mostrar exatamente por que vale a pena. 📞" },
+  { label: "Contra Concorrência", tipo: "objecao", mensagem: "[NOME], preço baixo sem qualidade sai caro! Nossos clientes já testaram outras marcas e voltaram. Temos [X] anos de mercado, garantia estendida e montagem inclusa. Que tal eu te mostrar um comparativo real? Vai ficar impressionado(a) com a diferença! 🏆" },
+  { label: "Urgência Máxima", tipo: "urgencia", mensagem: "[NOME], preciso ser direto: essas condições especiais vencem em 48h e os preços dos fornecedores já subiram. Se fecharmos agora, garanto o valor atual + um bônus exclusivo. Posso preparar o contrato? ⚡" },
+  { label: "Fechamento Direto", tipo: "fechamento", mensagem: "[NOME], está tudo pronto! Projeto aprovado, condições especiais garantidas e prazo de entrega ideal. Só falta sua confirmação para começarmos. Envio o contrato agora ou prefere que eu ligue pra acertarmos os últimos detalhes? ✅📋" },
+  { label: "Reversão de Desistência", tipo: "reversao", mensagem: "[NOME], antes de desistir, me dá 2 minutos? Tenho uma condição ESPECIAL que ainda não te apresentei. Muitos clientes que estavam na mesma situação ficaram surpresos quando viram essa proposta. Posso te mostrar? Não custa nada ouvir 😉🔑" },
+  { label: "Pós-Silêncio", tipo: "reativacao", mensagem: "[NOME], percebi que ficamos sem conversar. Quero ser transparente: reservei seu projeto com condições diferenciadas, mas preciso de uma posição até [DATA]. Outros clientes já demonstraram interesse no mesmo modelo. Me dá um retorno? 🎯" },
 ];
 
 interface VendaZapPanelProps {
