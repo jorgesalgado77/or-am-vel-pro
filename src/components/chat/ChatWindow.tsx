@@ -277,6 +277,11 @@ export function ChatWindow({
       {/* Auto-Pilot History */}
       <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId ?? null} />
 
+      {/* DISC Profile Indicator */}
+      {aiDiscProfile && (
+        <DISCProfileBadge profile={aiDiscProfile} />
+      )}
+
       {/* AI Suggestion */}
       <ChatAISuggestion
         suggestion={aiSuggestion}
