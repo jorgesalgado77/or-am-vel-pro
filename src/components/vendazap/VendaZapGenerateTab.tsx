@@ -526,16 +526,20 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-2">
-              {TONES.map(t => (
-                <button key={t.value} onClick={() => setTom(t.value)}
-                  className={`p-2 rounded-lg border-2 text-left transition-all duration-300 ${
-                    tom === t.value
-                      ? "border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02]"
-                      : "border-border hover:border-muted-foreground/30 bg-background"
-                  }`}>
-                  <span className={`text-xs font-medium ${tom === t.value ? "text-primary" : "text-foreground"}`}>{t.label}</span>
-                </button>
-              ))}
+              {TONES.map(t => {
+                const isSelected = tom === t.value;
+                const justAutoSelected = autoChanged.tone === t.value;
+                return (
+                  <button key={t.value} onClick={() => { setTom(t.value); setAutoChanged(prev => ({ ...prev, tone: undefined })); }}
+                    className={`p-2 rounded-lg border-2 text-left transition-all duration-500 ease-out ${
+                      isSelected
+                        ? `border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02] ${justAutoSelected ? "animate-scale-in" : ""}`
+                        : "border-border hover:border-muted-foreground/30 bg-background"
+                    }`}>
+                    <span className={`text-xs font-medium transition-colors duration-300 ${isSelected ? "text-primary" : "text-foreground"}`}>{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
