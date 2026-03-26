@@ -68,6 +68,11 @@ function saveLearningData(data: LearningData) {
   } catch { /* quota exceeded — ignore */ }
 }
 
+/** Reset all learning data */
+export function resetLearningData() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 // ---- Learning Functions ----
 
 /** Record a client message pattern */
