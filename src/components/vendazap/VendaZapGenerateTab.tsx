@@ -98,9 +98,11 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   // Analyze client message for thermometer + auto-select copy type
   const clientAnalysis = mensagemCliente ? analyzeClientMessage(mensagemCliente) : null;
 
-  // Auto-detect and select appropriate copy type AND tone based on client message intent
+  // Auto-detect and select appropriate copy type AND tone based on client message — real-time on every keystroke
   useEffect(() => {
-    if (!clientAnalysis || !mensagemCliente || mensagemCliente.trim().length < 4) return;
+    if (!mensagemCliente || mensagemCliente.trim().length < 3) return;
+    const analysis = analyzeClientMessage(mensagemCliente);
+    if (!analysis) return;
     const intentToCopy: Record<string, string> = {
       "fechamento": "fechamento",
       "orçamento": "urgencia",
@@ -121,11 +123,11 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       "saudação": "consultivo",
       "neutro": "persuasivo",
     };
-    const suggestedCopy = intentToCopy[clientAnalysis.intent];
-    const suggestedTone = intentToTone[clientAnalysis.intent];
-    if (suggestedCopy && suggestedCopy !== tipoCopy) setTipoCopy(suggestedCopy);
-    if (suggestedTone && suggestedTone !== tom) setTom(suggestedTone);
-  }, [clientAnalysis?.intent]);
+    const suggestedCopy = intentToCopy[analysis.intent];
+    const suggestedTone = intentToTone[analysis.intent];
+    if (suggestedCopy) setTipoCopy(suggestedCopy);
+    if (suggestedTone) setTom(suggestedTone);
+  }, [mensagemCliente]);
 
   useEffect(() => {
     const tenantId = getTenantId();
@@ -549,7 +551,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
               </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="max-h-40">
+              <div className="max-h-48 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <style>{`.scrollbar-none::-webkit-scrollbar { display: none; }`}</style>
                 <div className="space-y-1.5">
                   {historico.entries.map((entry, i) => (
                     <div key={i} className={`flex ${entry.remetente_tipo === "ia" ? "justify-end" : "justify-start"}`}>
@@ -562,12 +565,12 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                           {entry.remetente_tipo === "ia" ? "🤖 IA" : "👤 Cliente"}
                           {entry.intent && <span className="ml-1 opacity-70">({entry.intent})</span>}
                         </span>
-                        <p className="line-clamp-2">{entry.mensagem}</p>
+                        <p>{entry.mensagem}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         )}
