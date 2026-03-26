@@ -1284,7 +1284,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
               setDesconto3Unlocked(false); setPlusUnlocked(false);
-              setEnvironments([]); setImportedFile(null);
+              setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
               sessionStorage.removeItem(SIM_STORAGE_KEY);
               toast.success("Simulação limpa");
             }}
