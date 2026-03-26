@@ -285,16 +285,63 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           </CardContent>
         </Card>
 
+        {/* Conversation History */}
+        {historico.entries.length > 0 && (
+          <Card className="border-primary/20">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  Memória da Conversa ({historico.entries.length} msgs)
+                </CardTitle>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => setHistorico({ entries: [], clientId: selectedClient?.id || null })}>
+                  Limpar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="max-h-40">
+                <div className="space-y-1.5">
+                  {historico.entries.map((entry, i) => (
+                    <div key={i} className={`flex ${entry.remetente_tipo === "ia" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-[11px] ${
+                        entry.remetente_tipo === "ia"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-foreground"
+                      }`}>
+                        <span className="font-semibold text-[10px] block mb-0.5">
+                          {entry.remetente_tipo === "ia" ? "🤖 IA" : "👤 Cliente"}
+                          {entry.intent && <span className="ml-1 opacity-70">({entry.intent})</span>}
+                        </span>
+                        <p className="line-clamp-2">{entry.mensagem}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Client Message */}
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm">Mensagem do Cliente (opcional)</CardTitle></CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">
+              {historico.entries.length > 0 ? "Réplica do Cliente" : "Mensagem do Cliente (opcional)"}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
-            <Textarea placeholder="Cole aqui a mensagem do cliente para a IA analisar e contra-argumentar..." value={mensagemCliente} onChange={(e) => setMensagemCliente(e.target.value)} rows={3} />
-            {/* Client message thermometer */}
+            <Textarea
+              placeholder={historico.entries.length > 0
+                ? "Cole a réplica do cliente — a IA usará todo o contexto anterior para contra-argumentar..."
+                : "Cole aqui a mensagem do cliente para a IA analisar e contra-argumentar..."
+              }
+              value={mensagemCliente}
+              onChange={(e) => setMensagemCliente(e.target.value)}
+              rows={3}
+            />
             {clientAnalysis && mensagemCliente.length > 3 && (
-              <div className="space-y-2">
-                <ClosingThermometer score={clientAnalysis.score} label={`Análise da mensagem do cliente — Intenção: ${clientAnalysis.intent}`} />
-              </div>
+              <ClosingThermometer score={clientAnalysis.score} label={`Análise da mensagem do cliente — Intenção: ${clientAnalysis.intent}`} />
             )}
           </CardContent>
         </Card>
