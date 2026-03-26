@@ -2,6 +2,7 @@
  * VendaZapPanel - refactored to use sub-components.
  */
 import { useState, useEffect, lazy, Suspense } from "react";
+import { usePersistedValue } from "@/hooks/usePersistedFormState";
 import { AddonPurchaseCard } from "@/components/AddonPurchaseCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
