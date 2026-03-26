@@ -505,12 +505,27 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
         {/* Tone */}
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm">Tom da Mensagem</CardTitle></CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              Tom da Mensagem
+              {clientAnalysis && mensagemCliente.length > 3 && (
+                <Badge className="text-[8px] h-4 bg-primary/20 text-primary border-0">Auto</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            <Select value={tom} onValueChange={setTom}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{TONES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 gap-2">
+              {TONES.map(t => (
+                <button key={t.value} onClick={() => setTom(t.value)}
+                  className={`p-2 rounded-lg border-2 text-left transition-all duration-300 ${
+                    tom === t.value
+                      ? "border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02]"
+                      : "border-border hover:border-muted-foreground/30 bg-background"
+                  }`}>
+                  <span className={`text-xs font-medium ${tom === t.value ? "text-primary" : "text-foreground"}`}>{t.label}</span>
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
