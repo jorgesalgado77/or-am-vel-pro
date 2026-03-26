@@ -227,12 +227,13 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     }
   };
 
-  const handleCopyAndOpenWhatsApp = (text: string, phone?: string | null) => {
+  const handleCopyAndOpenDealRoom = (text: string) => {
     navigator.clipboard.writeText(text);
-    const cleanPhone = phone?.replace(/\D/g, "") || "";
-    const waUrl = cleanPhone ? `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(waUrl, "_blank");
-    toast.success("Mensagem copiada e WhatsApp aberto!");
+    // Navigate to Deal Room
+    window.dispatchEvent(new CustomEvent("navigate-to-dealroom", {
+      detail: { clientId: selectedClient?.id, clientName: selectedClient?.nome },
+    }));
+    toast.success("Mensagem copiada! Abrindo Deal Room...");
   };
 
   const handleExportPDF = () => {
@@ -667,8 +668,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
               <Button variant="outline" onClick={handleGenerate} disabled={generating} className="flex-1 gap-2"><RefreshCw className="h-4 w-4" />Regenerar</Button>
               <Button variant="outline" onClick={() => handleCopy(mensagemGerada)} className="flex-1 gap-2"><Copy className="h-4 w-4" />Copiar</Button>
             </div>
-            <Button onClick={() => handleCopyAndOpenWhatsApp(mensagemGerada, selectedClient?.telefone1)} className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white">
-              <ExternalLink className="h-4 w-4" />Copiar + Abrir WhatsApp
+            <Button onClick={() => handleCopyAndOpenDealRoom(mensagemGerada)} className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground">
+              <Video className="h-4 w-4" />Gerar Link + Abrir Deal Room
             </Button>
           </div>
         )}
