@@ -8,12 +8,15 @@ import {Textarea} from "@/components/ui/textarea";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Checkbox} from "@/components/ui/checkbox";
 import {Plus, Trash2, Save, Handshake, Loader2} from "lucide-react";
-import {maskCpfCnpj, maskPhone, maskCurrency, unmaskCurrency, validateCpfCnpj} from "@/lib/masks";
+import {maskCpfCnpj, maskPhone, maskCurrency, unmaskCurrency, validateCpfCnpj, maskRgIe, maskCep, isCnpj} from "@/lib/masks";
 import {formatCurrency} from "@/lib/financing";
 import {FORMAS_PAGAMENTO_LABELS} from "@/services/financialService";
 import {toast} from "sonner";
 import {format} from "date-fns";
+import {supabase} from "@/lib/supabaseClient";
+import {getTenantId} from "@/lib/tenantState";
 import type {Database} from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -78,6 +81,7 @@ interface CloseSaleModalProps {
     formaPagamento: string;
     vendedor?: string;
     numeroOrcamento?: string;
+    ambientes?: { nome: string; fornecedor?: string; corpo?: string; porta?: string; puxador?: string; complemento?: string; modelo?: string; valor?: number }[];
   };
   saving?: boolean;
 }
@@ -123,6 +127,8 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [cepLoading, setCepLoading] = useState<"" | "_entrega" | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [cpfCnpjError, setCpfCnpjError] = useState<string>("");
+  const [sameAddress, setSameAddress] = useState(false);
+  const [deliveryDeadlines, setDeliveryDeadlines] = useState<{id: string; label: string; dias: number}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
@@ -139,13 +145,40 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const errorClass = (field: keyof CloseSaleFormData) =>
     fieldErrors.has(field) ? "border-destructive ring-1 ring-destructive/30" : "";
 
+  // Detect CPF vs CNPJ for dynamic label
+  const docType = isCnpj(form.cpf_cnpj) ? "CNPJ" : "CPF";
+  const rgLabel = isCnpj(form.cpf_cnpj) ? "Inscrição Estadual" : "RG";
+
+  // Load delivery deadlines from settings
+  useEffect(() => {
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    supabase.from("tenant_settings" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("chave", "prazos_entrega")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && (data as any).valor) {
+          try { setDeliveryDeadlines(JSON.parse((data as any).valor)); } catch {}
+        } else {
+          setDeliveryDeadlines([
+            { id: "1", label: "30 dias úteis", dias: 30 },
+            { id: "2", label: "45 dias úteis", dias: 45 },
+            { id: "3", label: "60 dias úteis", dias: 60 },
+            { id: "4", label: "90 dias úteis", dias: 90 },
+          ]);
+        }
+      });
+  }, [open]);
+
   // Prefill from client and simulation data
   useEffect(() => {
     if (!open) return;
     const prefill: Partial<CloseSaleFormData> = {
       nome_completo: client?.nome || "",
       cpf_cnpj: client?.cpf ? maskCpfCnpj(client.cpf) : "",
-      rg_insc_estadual: (client as any)?.rg || "",
+      rg_insc_estadual: (client as any)?.rg ? maskRgIe((client as any).rg) : "",
       profissao: (client as any)?.profissao || "",
       telefone: client?.telefone1 ? maskPhone(client.telefone1) : "",
       email: client?.email || "",
@@ -153,7 +186,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       bairro: (client as any)?.bairro || "",
       cidade: (client as any)?.cidade || "",
       uf: (client as any)?.uf || "",
-      cep: (client as any)?.cep ? ((client as any).cep.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2")) : "",
+      cep: (client as any)?.cep ? maskCep((client as any).cep) : "",
       data_nascimento: (client as any)?.data_nascimento || "",
       responsavel_venda: simulationData?.vendedor || client?.vendedor || "",
       numero_contrato: simulationData?.numeroOrcamento || client?.numero_orcamento || "",
@@ -162,12 +195,47 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       valor_parcelas: simulationData?.valorParcela ? maskCurrency(String(Math.round(simulationData.valorParcela * 100))) : "",
       data_fechamento: format(new Date(), "yyyy-MM-dd"),
     };
-    // Only set fields that have values, preserving previously persisted data
     const filtered = Object.fromEntries(
       Object.entries(prefill).filter(([_, v]) => v !== "" && v !== 0 && v !== undefined)
     ) as Partial<CloseSaleFormData>;
     if (Object.keys(filtered).length > 0) updateForm(filtered);
+
+    // Load environments from simulation data
+    if (simulationData?.ambientes && simulationData.ambientes.length > 0) {
+      const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => ({
+        id: crypto.randomUUID(),
+        quantidade: 1,
+        descricao_ambiente: amb.nome || `Ambiente ${idx + 1}`,
+        fornecedor: amb.fornecedor || "",
+        prazo: "",
+        valor_ambiente: amb.valor || 0,
+      }));
+      const simDetails: SaleItemDetail[] = simulationData.ambientes.map((amb, idx) => ({
+        item_num: idx + 1,
+        titulos: amb.nome || "",
+        corpo: amb.corpo || "",
+        porta: amb.porta || "",
+        puxador: amb.puxador || "",
+        complemento: amb.complemento || "",
+        modelo: amb.modelo || "",
+      }));
+      setItems(simItems);
+      setItemDetails(simDetails);
+    }
   }, [open, client, simulationData]);
+
+  // Same address checkbox handler
+  useEffect(() => {
+    if (sameAddress) {
+      updateForm({
+        endereco_entrega: form.endereco,
+        bairro_entrega: form.bairro,
+        cidade_entrega: form.cidade,
+        uf_entrega: form.uf,
+        cep_entrega: form.cep,
+      });
+    }
+  }, [sameAddress, form.endereco, form.bairro, form.cidade, form.uf, form.cep]);
 
   const updateField = (field: keyof CloseSaleFormData, value: string | number) => {
     updateForm({ [field]: value } as Partial<CloseSaleFormData>);
@@ -183,10 +251,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     try {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
-      if (data.erro) {
-        toast.error("CEP não encontrado");
-        return;
-      }
+      if (data.erro) { toast.error("CEP não encontrado"); return; }
       updateForm({
         [`endereco${prefix}`]: data.logradouro || form[`endereco${prefix}` as keyof CloseSaleFormData],
         [`bairro${prefix}`]: data.bairro || form[`bairro${prefix}` as keyof CloseSaleFormData],
@@ -194,15 +259,11 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
         [`uf${prefix}`]: data.uf || form[`uf${prefix}` as keyof CloseSaleFormData],
       } as Partial<CloseSaleFormData>);
       toast.success("Endereço preenchido pelo CEP!");
-    } catch {
-      toast.error("Erro ao buscar CEP");
-    } finally {
-      setCepLoading(null);
-    }
+    } catch { toast.error("Erro ao buscar CEP"); } finally { setCepLoading(null); }
   };
 
   const handleCepChange = (field: "cep" | "cep_entrega", value: string) => {
-    const masked = value.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+    const masked = maskCep(value);
     updateField(field, masked);
     if (masked.replace(/\D/g, "").length === 8) {
       fetchCep(masked, field === "cep" ? "" : "_entrega");
@@ -211,27 +272,13 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
   const addItem = () => {
     const newNum = items.length + 1;
-    const newItem: SaleItem = {
-      id: crypto.randomUUID(),
-      quantidade: 1,
-      descricao_ambiente: "",
-      fornecedor: "",
-      prazo: "",
-      valor_ambiente: 0,
-    };
-    setItems(prev => [...prev, newItem]);
-    setItemDetails(prev => [...prev, {
-      item_num: newNum,
-      titulos: "", corpo: "", porta: "", puxador: "", complemento: "", modelo: "",
-    }]);
+    setItems(prev => [...prev, { id: crypto.randomUUID(), quantidade: 1, descricao_ambiente: "", fornecedor: "", prazo: "", valor_ambiente: 0 }]);
+    setItemDetails(prev => [...prev, { item_num: newNum, titulos: "", corpo: "", porta: "", puxador: "", complemento: "", modelo: "" }]);
   };
 
   const removeItem = (index: number) => {
     setItems(prev => prev.filter((_, i) => i !== index));
-    setItemDetails(prev => {
-      const updated = prev.filter((_, i) => i !== index);
-      return updated.map((d, i) => ({ ...d, item_num: i + 1 }));
-    });
+    setItemDetails(prev => prev.filter((_, i) => i !== index).map((d, i) => ({ ...d, item_num: i + 1 })));
   };
 
   const updateItem = (index: number, field: keyof SaleItem, value: string | number) => {
@@ -243,7 +290,6 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   };
 
   const totalAmbientes = useMemo(() => items.reduce((acc, item) => acc + item.valor_ambiente, 0), [items]);
-
   const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
   const handleSubmit = () => {
@@ -252,26 +298,16 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       const val = form[key];
       if (typeof val === "string" && !val.trim()) errors.add(key);
     }
-
-    // Validate CPF/CNPJ digits
     let cpfErr = "";
     if (form.cpf_cnpj.trim()) {
       const result = validateCpfCnpj(form.cpf_cnpj);
-      if (!result.valid) {
-        cpfErr = result.message || "CPF/CNPJ inválido";
-        errors.add("cpf_cnpj");
-      }
+      if (!result.valid) { cpfErr = result.message || "CPF/CNPJ inválido"; errors.add("cpf_cnpj"); }
     }
     setCpfCnpjError(cpfErr);
-
     setFieldErrors(errors);
     if (errors.size > 0) {
       const missing = REQUIRED_FIELDS.filter(f => errors.has(f.key)).map(f => f.label);
-      if (cpfErr) {
-        toast.error(cpfErr);
-      } else {
-        toast.error(`Preencha os campos obrigatórios: ${missing.join(", ")}`);
-      }
+      toast.error(cpfErr || `Preencha: ${missing.join(", ")}`);
       return;
     }
     onConfirm(form, items, itemDetails);
@@ -292,9 +328,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
           <div className="space-y-4 sm:space-y-6">
             {/* Dados do Contrato */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Dados do Contrato</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Dados do Contrato</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
@@ -315,9 +349,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
             {/* Dados Pessoais */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Dados Pessoais do Cliente</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Dados Pessoais do Cliente</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -331,17 +363,27 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <Label className="text-xs">CPF/CNPJ *</Label>
-                    <Input value={form.cpf_cnpj} onChange={e => { updateField("cpf_cnpj", maskCpfCnpj(e.target.value)); setCpfCnpjError(""); }} className={`mt-1 h-9 text-sm ${errorClass("cpf_cnpj")}`} />
+                    <Label className="text-xs">{docType} *</Label>
+                    <Input
+                      value={form.cpf_cnpj}
+                      onChange={e => { updateField("cpf_cnpj", maskCpfCnpj(e.target.value)); setCpfCnpjError(""); }}
+                      className={`mt-1 h-9 text-sm ${errorClass("cpf_cnpj")}`}
+                      placeholder={docType === "CNPJ" ? "00.000.000/0000-00" : "000.000.000-00"}
+                    />
                     {cpfCnpjError && <p className="text-xs text-destructive mt-1">{cpfCnpjError}</p>}
                   </div>
                   <div>
-                    <Label className="text-xs">RG / Insc. Estadual</Label>
-                    <Input value={form.rg_insc_estadual} onChange={e => updateField("rg_insc_estadual", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Label className="text-xs">{rgLabel}</Label>
+                    <Input
+                      value={form.rg_insc_estadual}
+                      onChange={e => updateField("rg_insc_estadual", maskRgIe(e.target.value))}
+                      className="mt-1 h-9 text-sm"
+                      placeholder={isCnpj(form.cpf_cnpj) ? "Inscrição Estadual" : "00.000.000-0"}
+                    />
                   </div>
                   <div>
                     <Label className="text-xs">Profissão</Label>
-                    <Input value={form.profissao} onChange={e => updateField("profissao", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Input value={form.profissao} onChange={e => updateField("profissao", e.target.value.toUpperCase())} className="mt-1 h-9 text-sm" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -359,9 +401,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
             {/* Endereço Atual */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Endereço Atual</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Endereço Atual</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
@@ -389,9 +429,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                     <Label className="text-xs">UF *</Label>
                     <Select value={form.uf} onValueChange={v => updateField("uf", v)}>
                       <SelectTrigger className={`mt-1 h-9 text-sm ${errorClass("uf")}`}><SelectValue placeholder="UF" /></SelectTrigger>
-                      <SelectContent>
-                        {UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
-                      </SelectContent>
+                      <SelectContent>{UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -401,42 +439,63 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             {/* Endereço de Entrega */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Endereço de Entrega</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Endereço de Entrega</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="same-address"
+                      checked={sameAddress}
+                      onCheckedChange={(checked) => setSameAddress(!!checked)}
+                    />
+                    <label htmlFor="same-address" className="text-xs text-muted-foreground cursor-pointer">
+                      Mesmo endereço atual
+                    </label>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">CEP</Label>
                     <div className="relative">
-                      <Input value={form.cep_entrega} onChange={e => handleCepChange("cep_entrega", e.target.value)} className="mt-1 h-9 text-sm pr-8" placeholder="00000-000" />
+                      <Input value={form.cep_entrega} onChange={e => handleCepChange("cep_entrega", e.target.value)} className="mt-1 h-9 text-sm pr-8" placeholder="00000-000" disabled={sameAddress} />
                       {cepLoading === "_entrega" && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 h-4 w-4 animate-spin text-muted-foreground" />}
                     </div>
                   </div>
                   <div className="sm:col-span-2">
                     <Label className="text-xs">Endereço de Entrega</Label>
-                    <Input value={form.endereco_entrega} onChange={e => updateField("endereco_entrega", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Input value={form.endereco_entrega} onChange={e => updateField("endereco_entrega", e.target.value)} className="mt-1 h-9 text-sm" disabled={sameAddress} />
                   </div>
                   <div>
                     <Label className="text-xs">Prazo de Entrega</Label>
-                    <Input value={form.prazo_entrega} onChange={e => updateField("prazo_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="Ex: 45 dias" />
+                    {deliveryDeadlines.length > 0 ? (
+                      <Select value={form.prazo_entrega} onValueChange={v => updateField("prazo_entrega", v)}>
+                        <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          {deliveryDeadlines.map(d => (
+                            <SelectItem key={d.id} value={d.label}>{d.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={form.prazo_entrega} onChange={e => updateField("prazo_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="Ex: 45 dias" />
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <Label className="text-xs">Bairro</Label>
-                    <Input value={form.bairro_entrega} onChange={e => updateField("bairro_entrega", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Input value={form.bairro_entrega} onChange={e => updateField("bairro_entrega", e.target.value)} className="mt-1 h-9 text-sm" disabled={sameAddress} />
                   </div>
                   <div>
                     <Label className="text-xs">Cidade</Label>
-                    <Input value={form.cidade_entrega} onChange={e => updateField("cidade_entrega", e.target.value)} className="mt-1 h-9 text-sm" />
+                    <Input value={form.cidade_entrega} onChange={e => updateField("cidade_entrega", e.target.value)} className="mt-1 h-9 text-sm" disabled={sameAddress} />
                   </div>
                   <div>
                     <Label className="text-xs">UF</Label>
-                    <Select value={form.uf_entrega} onValueChange={v => updateField("uf_entrega", v)}>
+                    <Select value={form.uf_entrega} onValueChange={v => updateField("uf_entrega", v)} disabled={sameAddress}>
                       <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="UF" /></SelectTrigger>
-                      <SelectContent>
-                        {UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
-                      </SelectContent>
+                      <SelectContent>{UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -475,32 +534,17 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                           {items.map((item, idx) => (
                             <TableRow key={item.id}>
                               <TableCell className="text-xs font-medium text-center">{idx + 1}</TableCell>
-                              <TableCell>
-                                <Input type="number" min={1} value={item.quantidade} onChange={e => updateItem(idx, "quantidade", Number(e.target.value))} className="h-8 text-xs w-14" />
-                              </TableCell>
-                              <TableCell>
-                                <Input value={item.descricao_ambiente} onChange={e => updateItem(idx, "descricao_ambiente", e.target.value)} className="h-8 text-xs" placeholder="Ex: Cozinha" />
-                              </TableCell>
-                              <TableCell>
-                                <Input value={item.fornecedor} onChange={e => updateItem(idx, "fornecedor", e.target.value)} className="h-8 text-xs" />
-                              </TableCell>
-                              <TableCell>
-                                <Input value={item.prazo} onChange={e => updateItem(idx, "prazo", e.target.value)} className="h-8 text-xs" />
-                              </TableCell>
-                              <TableCell>
-                                <Input value={item.valor_ambiente ? maskCurrency(String(Math.round(item.valor_ambiente * 100))) : ""} onChange={e => updateItem(idx, "valor_ambiente", unmaskCurrency(e.target.value))} className="h-8 text-xs" placeholder="R$ 0,00" />
-                              </TableCell>
-                              <TableCell>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </TableCell>
+                              <TableCell><Input type="number" min={1} value={item.quantidade} onChange={e => updateItem(idx, "quantidade", Number(e.target.value))} className="h-8 text-xs w-14" /></TableCell>
+                              <TableCell><Input value={item.descricao_ambiente} onChange={e => updateItem(idx, "descricao_ambiente", e.target.value)} className="h-8 text-xs" placeholder="Ex: Cozinha" /></TableCell>
+                              <TableCell><Input value={item.fornecedor} onChange={e => updateItem(idx, "fornecedor", e.target.value)} className="h-8 text-xs" /></TableCell>
+                              <TableCell><Input value={item.prazo} onChange={e => updateItem(idx, "prazo", e.target.value)} className="h-8 text-xs" /></TableCell>
+                              <TableCell><Input value={item.valor_ambiente ? maskCurrency(String(Math.round(item.valor_ambiente * 100))) : ""} onChange={e => updateItem(idx, "valor_ambiente", unmaskCurrency(e.target.value))} className="h-8 text-xs" placeholder="R$ 0,00" /></TableCell>
+                              <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     </div>
-
                     <div className="flex justify-end mt-3">
                       <div className="bg-primary/5 rounded-md px-4 py-2">
                         <span className="text-xs text-muted-foreground mr-2">Total Ambientes:</span>
@@ -515,18 +559,16 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             {/* Detalhes dos Itens */}
             {items.length > 0 && (
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Detalhes dos Itens</CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-3"><CardTitle className="text-sm">Detalhes dos Ambientes</CardTitle></CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-12 text-xs">Item</TableHead>
-                          <TableHead className="text-xs">Títulos</TableHead>
-                          <TableHead className="text-xs">Corpo</TableHead>
-                          <TableHead className="text-xs">Porta</TableHead>
+                          <TableHead className="text-xs">Ambiente</TableHead>
+                          <TableHead className="text-xs">Corpo (esp./cor)</TableHead>
+                          <TableHead className="text-xs">Porta (esp./cor)</TableHead>
                           <TableHead className="text-xs">Puxador</TableHead>
                           <TableHead className="text-xs">Complemento</TableHead>
                           <TableHead className="text-xs">Modelo</TableHead>
@@ -536,11 +578,11 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                         {itemDetails.map((detail, idx) => (
                           <TableRow key={idx}>
                             <TableCell className="text-xs font-medium text-center">{detail.item_num}</TableCell>
-                            <TableCell><Input value={detail.titulos} onChange={e => updateDetail(idx, "titulos", e.target.value)} className="h-8 text-xs" /></TableCell>
-                            <TableCell><Input value={detail.corpo} onChange={e => updateDetail(idx, "corpo", e.target.value)} className="h-8 text-xs" /></TableCell>
-                            <TableCell><Input value={detail.porta} onChange={e => updateDetail(idx, "porta", e.target.value)} className="h-8 text-xs" /></TableCell>
+                            <TableCell><Input value={detail.titulos} onChange={e => updateDetail(idx, "titulos", e.target.value)} className="h-8 text-xs" placeholder={items[idx]?.descricao_ambiente || ""} /></TableCell>
+                            <TableCell><Input value={detail.corpo} onChange={e => updateDetail(idx, "corpo", e.target.value)} className="h-8 text-xs" placeholder="15mm BRANCO" /></TableCell>
+                            <TableCell><Input value={detail.porta} onChange={e => updateDetail(idx, "porta", e.target.value)} className="h-8 text-xs" placeholder="18mm Preto" /></TableCell>
                             <TableCell><Input value={detail.puxador} onChange={e => updateDetail(idx, "puxador", e.target.value)} className="h-8 text-xs" /></TableCell>
-                            <TableCell><Input value={detail.complemento} onChange={e => updateDetail(idx, "complemento", e.target.value)} className="h-8 text-xs" /></TableCell>
+                            <TableCell><Input value={detail.complemento} onChange={e => updateDetail(idx, "complemento", e.target.value)} className="h-8 text-xs" placeholder="Dobradiças, corrediças" /></TableCell>
                             <TableCell><Input value={detail.modelo} onChange={e => updateDetail(idx, "modelo", e.target.value)} className="h-8 text-xs" /></TableCell>
                           </TableRow>
                         ))}
@@ -553,9 +595,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
             {/* Observações */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Observações</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Observações</CardTitle></CardHeader>
               <CardContent>
                 <Textarea value={form.observacoes} onChange={e => updateField("observacoes", e.target.value)} rows={3} placeholder="Observações gerais sobre o contrato..." className="text-sm" />
               </CardContent>
@@ -563,14 +603,16 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
             {/* Resumo Financeiro */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Resumo Financeiro</CardTitle>
-              </CardHeader>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Resumo Financeiro</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Valor Total do Contrato</span>
+                      <span className="text-sm text-muted-foreground">Total Ambientes</span>
+                      <span className="text-sm font-medium">{formatCurrency(totalAmbientes)}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t pt-2">
+                      <span className="text-sm font-medium">Valor Total do Contrato</span>
                       <span className="text-lg font-bold text-primary">{formatCurrency(simulationData?.valorFinal || totalAmbientes)}</span>
                     </div>
                   </div>
