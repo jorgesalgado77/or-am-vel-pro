@@ -19,9 +19,43 @@ export interface ParsedFileResult {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-/** Parse a Brazilian decimal (1.234,56 → 1234.56) */
+/** Parse a number that may be in Brazilian (1.234,56) or US (1,234.56 / 1234.56) format */
 function parseBRL(raw: string): number {
-  return parseFloat(raw.replace(/\./g, "").replace(",", "."));
+  if (!raw) return NaN;
+  const cleaned = raw.trim();
+
+  // Detect format by looking at the last separator
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+
+  if (lastComma > lastDot) {
+    // Brazilian format: 1.234,56 or 1234,56 — comma is decimal
+    return parseFloat(cleaned.replace(/\./g, "").replace(",", "."));
+  } else if (lastDot > lastComma) {
+    // Could be US format (1,234.56) or BR without decimals (636.175)
+    // Check: if there are exactly 3 digits after the last dot AND no comma, it's ambiguous
+    const afterDot = cleaned.slice(lastDot + 1);
+    if (afterDot.length === 3 && lastComma === -1 && cleaned.indexOf(".") === lastDot) {
+      // Ambiguous: 636.175 — could be BR thousands or US 636.175
+      // In furniture context, values like 636.175 (636 thousand) are unlikely for a single item
+      // Heuristic: if value > 100k when treated as BR thousands, treat as US decimal instead
+      const asBR = parseFloat(cleaned.replace(/\./g, ""));
+      const asUS = parseFloat(cleaned);
+      // If the number before dot is <= 999 and treating as BR gives > 100k, use US format
+      const beforeDot = cleaned.slice(0, lastDot).replace(/,/g, "");
+      if (parseInt(beforeDot) <= 999 && asBR > 50000) {
+        return asUS; // 636.175 → 636.175 (US decimal)
+      }
+      return asBR; // Treat as BR thousands: 1.234 → 1234
+    }
+    // Standard US/international format: 1,234.56 or 1234.56
+    return parseFloat(cleaned.replace(/,/g, ""));
+  } else if (lastComma >= 0) {
+    // Only comma, no dot: 1234,56
+    return parseFloat(cleaned.replace(",", "."));
+  }
+  // No separators: plain integer
+  return parseFloat(cleaned);
 }
 
 /** First capturing-group match or fallback */
