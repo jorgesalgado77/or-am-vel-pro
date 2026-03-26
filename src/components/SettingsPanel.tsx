@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion } from "lucide-react";
+import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion, Lightbulb } from "lucide-react";
 
 // Lazy load each tab to reduce initial chunk from 1.5MB
 const CompanySettingsTab = lazy(() => import("@/components/settings/CompanySettingsTab").then(m => ({ default: m.CompanySettingsTab })));
@@ -18,6 +18,7 @@ const AcompanhamentoTab = lazy(() => import("@/components/settings/Acompanhament
 const AuditLogsTab = lazy(() => import("@/components/settings/AuditLogsTab").then(m => ({ default: m.AuditLogsTab })));
 const CanvaIntegrationTab = lazy(() => import("@/components/settings/CanvaIntegrationTab").then(m => ({ default: m.CanvaIntegrationTab })));
 const BriefingTab = lazy(() => import("@/components/settings/BriefingTab").then(m => ({ default: m.BriefingTab })));
+const ArgumentBankTab = lazy(() => import("@/components/settings/ArgumentBankTab").then(m => ({ default: m.ArgumentBankTab })));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-12">
@@ -47,6 +48,7 @@ export function SettingsPanel() {
           <TabsTrigger value="auditoria" className="gap-2"><ScrollText className="h-4 w-4" />Auditoria</TabsTrigger>
           <TabsTrigger value="canva" className="gap-2"><Palette className="h-4 w-4" />Canva</TabsTrigger>
           <TabsTrigger value="briefing" className="gap-2"><FileQuestion className="h-4 w-4" />Briefing</TabsTrigger>
+          <TabsTrigger value="argumentos" className="gap-2"><Lightbulb className="h-4 w-4" />Argumentos</TabsTrigger>
         </TabsList>
 
         <Suspense fallback={<TabLoader />}>
@@ -65,6 +67,7 @@ export function SettingsPanel() {
           {activeTab === "auditoria" && <TabsContent value="auditoria" forceMount><AuditLogsTab /></TabsContent>}
           {activeTab === "canva" && <TabsContent value="canva" forceMount><CanvaIntegrationTab /></TabsContent>}
           {activeTab === "briefing" && <TabsContent value="briefing" forceMount><BriefingTab /></TabsContent>}
+          {activeTab === "argumentos" && <TabsContent value="argumentos" forceMount><ArgumentBankTab /></TabsContent>}
         </Suspense>
       </Tabs>
     </div>
