@@ -169,11 +169,21 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     return () => { supabase.removeChannel(channel); };
   }, [selected, fetchConversations, autoPilotActive, autoPilotProcess]);
 
-  // AI auto-suggestion with debounce
-  const triggerAI = useCallback((conv: ChatConversation) => {
+  // AI auto-suggestion with debounce — now fetches recent messages for context
+  const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
     if (!addon?.ativo) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
+    debounceRef.current = setTimeout(async () => {
+      // Fetch recent messages for context
+      const { data: recentMsgs } = await supabase
+        .from("tracking_messages")
+        .select("mensagem, remetente_tipo")
+        .eq("tracking_id", conv.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const messages = ((recentMsgs as any[]) || []).reverse();
+
       generate(
         {
           id: conv.id,
@@ -181,9 +191,11 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
           status: "em_negociacao",
           updated_at: conv.last_message_at || new Date().toISOString(),
         },
-        null
+        null,
+        messages,
+        { forceRefresh },
       );
-    }, 800);
+    }, forceRefresh ? 300 : 800);
   }, [addon, generate]);
 
   const handleSelectConversation = (conv: ChatConversation) => {
