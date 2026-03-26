@@ -18,6 +18,7 @@ const INTENT_PATTERNS: Record<string, RegExp[]> = {
   orcamento: [/or[çc]amento/i, /quanto custa/i, /valor/i, /pre[çc]o/i, /tabela/i, /proposta/i],
   fechamento: [/fechar/i, /quero comprar/i, /vamos fechar/i, /aceito/i, /pode fazer/i, /fechado/i, /vou levar/i],
   preco: [/desconto/i, /mais barato/i, /negocia/i, /condi[çc][ãa]o/i, /parcel/i, /pagamento/i],
+  enviar_preco: [/manda.*pre[çc]o/i, /envia.*pre[çc]o/i, /envia.*valor/i, /manda.*valor/i, /manda.*or[çc]amento/i, /envia.*or[çc]amento/i, /envia.*whats/i, /manda.*whats/i, /por whats/i, /pelo whats/i, /por e-?mail/i, /pelo e-?mail/i, /por mensagem/i, /pela mensagem/i, /manda.*por aqui/i, /envia.*por aqui/i, /passa.*pre[çc]o/i, /passa.*valor/i, /me envia/i, /pode mandar/i, /pode enviar/i],
   duvida: [/como funciona/i, /dúvida/i, /explica/i, /qual a diferen/i, /tem garantia/i, /prazo/i],
   objecao: [/caro/i, /n[ãa]o sei/i, /vou pensar/i, /depois/i, /outro lugar/i, /concorr/i, /n[ãa]o quero/i, /desist/i, /cancel/i],
   saudacao: [/bom dia/i, /boa tarde/i, /boa noite/i, /oi/i, /ol[áa]/i, /tudo bem/i],
@@ -25,7 +26,7 @@ const INTENT_PATTERNS: Record<string, RegExp[]> = {
 
 function detectIntent(message: string): string {
   if (!message) return "outro";
-  const priority = ["fechamento", "orcamento", "preco", "objecao", "duvida", "saudacao"];
+  const priority = ["fechamento", "enviar_preco", "orcamento", "preco", "objecao", "duvida", "saudacao"];
   for (const intent of priority) {
     const patterns = INTENT_PATTERNS[intent];
     if (patterns.some((p) => p.test(message))) return intent;
@@ -37,6 +38,7 @@ function detectIntent(message: string): string {
 function calcClosingScore(intent: string, tipoCopy: string): number {
   const intentScores: Record<string, number> = {
     fechamento: 95,
+    enviar_preco: 55,
     orcamento: 60,
     preco: 50,
     duvida: 40,
@@ -61,6 +63,14 @@ const INTENT_PROMPTS: Record<string, string> = {
   orcamento: `O cliente pediu orçamento — isso é um FORTE sinal de interesse. Responda com entusiasmo, valorize o projeto, pergunte detalhes técnicos e já sinalize que você tem condições especiais para fechamento rápido. Direcione para agendar uma apresentação ou enviar proposta completa.`,
   fechamento: `O cliente está PRONTO para fechar! NÃO hesite. Confirme os detalhes rapidamente, reforce que ele está fazendo a melhor escolha, crie senso de urgência positiva e facilite o fechamento IMEDIATAMENTE. Pergunte "Posso preparar o contrato agora?"`,
   preco: `O cliente está negociando preço — isso NÃO é rejeição, é interesse! Destaque o VALOR (não o preço): durabilidade, qualidade, garantia, personalização. Ofereça condições de pagamento flexíveis. Mostre que o investimento se paga. NUNCA reduza o preço sem trocar por algo (prazo, forma de pagamento). Sempre termine com uma proposta concreta de fechamento.`,
+  enviar_preco: `O cliente pediu para enviar preço/orçamento por mensagem, WhatsApp ou e-mail. NUNCA envie valores por mensagem de texto. Isso MATA a venda porque o cliente compara friamente sem contexto. 
+CONTORNE com elegância e firmeza:
+- Explique que o projeto dele é PERSONALIZADO e merece uma apresentação completa
+- Ofereça a DEAL ROOM: uma sala de reunião online exclusiva onde o cliente pode ver o projeto completo em tempo real, pedir ajustes ao vivo, negociar condições especiais e fechar a venda com envio imediato do contrato — tudo no conforto da casa dele
+- Posicione como um BENEFÍCIO para o cliente: "Preparei algo muito melhor do que um simples PDF de preço!"
+- Se o cliente insistir, ofereça como alternativa agendar uma reunião presencial ou por vídeo
+- NUNCA ceda e envie valores por texto. A experiência da Deal Room ou reunião SEMPRE converte mais
+- Exemplo de CTA: "Que tal agendarmos uma apresentação exclusiva pela nossa Deal Room? Você vai poder ver tudo em tempo real, do conforto da sua casa, e já sair com o contrato fechado!"`,
   duvida: `O cliente tem dúvidas — ÓTIMO, significa que está considerando! Responda com segurança e autoridade. Use cada resposta como oportunidade para mostrar diferenciais exclusivos. Termine SEMPRE direcionando para o próximo passo concreto (visita, simulação, proposta).`,
   objecao: `O cliente apresentou objeção — isso é NORMAL e contornável. NUNCA concorde com a objeção. NUNCA sugira desistência ou diga "sem problemas, quando estiver pronto". Quebre a objeção com firmeza e dados: provas sociais, comparativos, garantias, cases de sucesso. Mostre o CUSTO de NÃO comprar (perda das condições, aumento de preço, indisponibilidade). Termine com uma pergunta que leve ao fechamento.`,
   saudacao: `O cliente iniciou contato — CAPTURE o interesse imediatamente. Seja caloroso mas direto. Apresente-se, pergunte sobre o projeto e JÁ sinalize que tem condições especiais. Não perca tempo com banalidades — direcione para a necessidade do cliente.`,
@@ -80,6 +90,12 @@ const SYSTEM_PROMPT_CLOSING_RULES = `
 8. Use emojis com moderação (máx 2-3 por mensagem) para humanizar.
 9. Mensagens devem ser concisas e impactantes — máximo 4 parágrafos.
 10. Se o cliente disse "vou pensar", responda: "Entendo que é importante! Justamente por isso, que tal resolvermos agora as dúvidas que ficaram? Assim você decide com total segurança."
+11. NUNCA ENVIE PREÇO, VALOR OU ORÇAMENTO POR MENSAGEM DE TEXTO, WHATSAPP OU EMAIL. Se o cliente pedir, SEMPRE contorne:
+    - Explique que o projeto é personalizado e merece uma apresentação exclusiva
+    - Ofereça a DEAL ROOM (reunião online em tempo real onde pode ver o projeto, pedir ajustes, negociar e fechar com contrato imediato)
+    - Ofereça agendamento de reunião presencial ou por vídeo como alternativa
+    - Posicione como VANTAGEM para o cliente: experiência premium, não um simples PDF
+    - NUNCA ceda mesmo se o cliente insistir. A experiência da Deal Room ou reunião SEMPRE converte mais.
 
 === ESTRUTURA IDEAL DA RESPOSTA ===
 - Linha 1: Conexão pessoal (nome + empatia ativa, NÃO passiva)
