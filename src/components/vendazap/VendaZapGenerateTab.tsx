@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { ClosingThermometer, analyzeClientMessage } from "./ClosingThermometer";
+import { NegotiationEvolutionPanel, learnFromMessage, learnGoodResponse, recordSession, buildLearningContext } from "./NegotiationLearning";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -142,24 +143,29 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       mensagem: e.mensagem,
     }));
 
+    // Include learning context for the AI
+    const learningContext = buildLearningContext();
+
     const result = await generateMessage({
       nome_cliente: selectedClient?.nome, valor_orcamento: lastSim?.valor_final || lastSim?.valor_tela,
       status_negociacao: selectedClient?.status || "novo", dias_sem_resposta: diasSemResposta,
       mensagem_cliente: mensagemCliente || undefined, tipo_copy: tipoCopy, tom,
       client_id: selectedClient?.id, usuario_id: currentUserId,
       historico: historicoPayload.length > 0 ? historicoPayload : undefined,
+      learning_context: learningContext || undefined,
     });
     if (result) {
       updateForm({ mensagemGerada: result });
 
-      // Add to conversation memory
+      // Add to conversation memory + learn from this interaction
       const newEntries = [...historico.entries];
       if (mensagemCliente?.trim()) {
         const analysis = analyzeClientMessage(mensagemCliente);
         newEntries.push({ remetente_tipo: "cliente", mensagem: mensagemCliente.trim(), intent: analysis.intent, score: analysis.score });
+        // Teach the learning engine
+        learnFromMessage(analysis.intent, mensagemCliente.trim(), analysis.score);
       }
       newEntries.push({ remetente_tipo: "ia", mensagem: result });
-      // Keep last 20 entries
       setHistorico({ entries: newEntries.slice(-20), clientId: selectedClient?.id || null });
 
       // Calculate closing score
@@ -172,7 +178,15 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     }
   };
 
-  const handleCopy = (text: string) => { navigator.clipboard.writeText(text); toast.success("Mensagem copiada!"); };
+  // Learn when user copies a generated message (signals it was good)
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Mensagem copiada!");
+    // Record as good response
+    if (mensagemGerada && clientAnalysis) {
+      learnGoodResponse(clientAnalysis.intent, formState.mensagemCliente || "", text);
+    }
+  };
 
   const handleCopyAndOpenWhatsApp = (text: string, phone?: string | null) => {
     navigator.clipboard.writeText(text);
@@ -318,7 +332,23 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                     <p className="font-medium text-sm text-foreground">{selectedClient.nome}</p>
                     {clientScore && <Badge variant="outline" className={`text-[10px] ${clientScore.color}`}>{clientScore.emoji} {clientScore.label}</Badge>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); setClosingScore(null); setHistorico({ entries: [], clientId: null }); }} className="h-6 text-xs">Trocar</Button>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    // Record session before clearing
+                    if (historico.entries.length > 0) {
+                      const scores = historico.entries.filter(e => e.score !== undefined).map(e => e.score || 0);
+                      recordSession({
+                        clientId: selectedClient?.id || null,
+                        clientName: selectedClient?.nome || "",
+                        date: new Date().toISOString(),
+                        totalMessages: historico.entries.length,
+                        avgScore: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+                        finalScore: scores[scores.length - 1] || 0,
+                        objections: historico.entries.filter(e => e.intent === "objeção" || e.intent === "resistência").map(e => e.mensagem),
+                        outcome: "concluida",
+                      });
+                    }
+                    setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); setClosingScore(null); setHistorico({ entries: [], clientId: null });
+                  }} className="h-6 text-xs">Trocar</Button>
                 </div>
                 {selectedClient.numero_orcamento && <p className="text-xs text-muted-foreground">Orçamento: #{selectedClient.numero_orcamento}</p>}
                 <p className="text-xs text-muted-foreground">Status: {selectedClient.status}</p>
@@ -457,6 +487,9 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
       {/* Result */}
       <div className="space-y-4">
+        {/* Evolution panel */}
+        <NegotiationEvolutionPanel currentEntries={historico.entries} />
+
         {/* Response thermometer */}
         {closingScore !== null && mensagemGerada && (
           <ClosingThermometer score={closingScore} label="Potencial de fechamento da resposta" />
