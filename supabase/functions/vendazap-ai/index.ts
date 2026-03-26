@@ -13,6 +13,79 @@ function respond(body: unknown, status = 200) {
   });
 }
 
+// DISC profile detection from message patterns
+const DISC_PATTERNS = {
+  D: { // Dominância - direto, decisivo, impaciente
+    patterns: [/rápido/i, /direto/i, /logo/i, /agora/i, /resolve/i, /melhor/i, /resultado/i, /quanto/i, /decide/i, /objetivo/i, /preciso saber/i, /sem enrol/i, /não tenho tempo/i, /vamos/i, /fecha/i],
+    weight: 0,
+  },
+  I: { // Influência - entusiasta, sociável, emocional
+    patterns: [/kkk/i, /haha/i, /rsrs/i, /😂|😄|💪|👍|❤|🔥|😍/i, /amei/i, /lindo/i, /maravilh/i, /incrível/i, /show/i, /top/i, /adorei/i, /sonho/i, /perfeito/i, /família/i, /amig/i],
+    weight: 0,
+  },
+  S: { // Estabilidade - cauteloso, ponderado, busca segurança
+    patterns: [/pensar/i, /calma/i, /segur/i, /garantia/i, /confi/i, /estável/i, /família/i, /preocup/i, /cuidado/i, /tranquil/i, /certeza/i, /medo/i, /risco/i, /depois/i, /com tempo/i],
+    weight: 0,
+  },
+  C: { // Conformidade - analítico, detalhista, questiona dados
+    patterns: [/detalh/i, /especific/i, /técnic/i, /medid/i, /material/i, /compar/i, /pesquis/i, /dado/i, /norma/i, /padrão/i, /certificad/i, /diferença entre/i, /qual.*melhor/i, /como funciona/i, /explica/i],
+    weight: 0,
+  },
+};
+
+function detectDISC(messages: Array<{ mensagem: string; remetente_tipo: string }>): { profile: string; scores: Record<string, number> } {
+  const clientMsgs = messages.filter(m => m.remetente_tipo === "cliente").map(m => m.mensagem || "");
+  const allText = clientMsgs.join(" ");
+
+  const scores: Record<string, number> = { D: 0, I: 0, S: 0, C: 0 };
+  for (const [type, config] of Object.entries(DISC_PATTERNS)) {
+    for (const pattern of config.patterns) {
+      const matches = allText.match(new RegExp(pattern, "gi"));
+      if (matches) scores[type] += matches.length;
+    }
+  }
+
+  // Short messages with commands = D; long messages with details = C
+  const avgLen = clientMsgs.length > 0 ? clientMsgs.reduce((s, m) => s + m.length, 0) / clientMsgs.length : 50;
+  if (avgLen < 30) scores.D += 2;
+  else if (avgLen > 120) scores.C += 2;
+
+  // Exclamation marks = I; question marks = C
+  const excl = (allText.match(/!/g) || []).length;
+  const quest = (allText.match(/\?/g) || []).length;
+  scores.I += Math.min(excl, 3);
+  scores.C += Math.min(quest, 3);
+
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  return { profile: sorted[0][0], scores };
+}
+
+const DISC_STRATEGIES: Record<string, string> = {
+  D: `PERFIL DISC: DOMINANTE (D) — Cliente DIRETO e DECISIVO.
+🔴 Seja ULTRA-OBJETIVO. Zero enrolação. Vá direto ao ponto.
+🔴 Fale em RESULTADOS e EXCLUSIVIDADE. "Projeto premium", "solução definitiva".
+🔴 Não peça permissão, CONDUZA: "Vou reservar o melhor horário pra você".
+🔴 Urgência funciona: prazos, condições limitadas.`,
+
+  I: `PERFIL DISC: INFLUENTE (I) — Cliente ENTUSIASMADO e SOCIÁVEL.
+🔴 Seja CALOROSO e EMPOLGANTE. Use energia positiva.
+🔴 Fale em EXPERIÊNCIA, DESIGN, SONHO. "Imagina sua família nessa cozinha!"
+🔴 Use emojis moderadamente. Valide as emoções dele.
+🔴 Crie FOMO social: "Seus amigos vão pirar quando virem!"`,
+
+  S: `PERFIL DISC: ESTÁVEL (S) — Cliente CAUTELOSO busca SEGURANÇA.
+🔴 Seja ACOLHEDOR e PACIENTE, mas NUNCA diga "pense com calma".
+🔴 Fale em GARANTIA, SEGURANÇA, DURABILIDADE. "10 anos de garantia, zero preocupação."
+🔴 Mostre depoimentos e cases. Reduza percepção de risco.
+🔴 Guie gentilmente: "Posso preparar tudo pra você ver com calma na reunião?"`,
+
+  C: `PERFIL DISC: CONFORME (C) — Cliente ANALÍTICO e DETALHISTA.
+🔴 Forneça DADOS e ESPECIFICAÇÕES. Nomes de materiais, certificações.
+🔴 Fale em COMPARATIVOS técnicos. "MDF de 18mm com laminado Formica resistente a UV."
+🔴 Não force emoção; use LÓGICA e FATOS.
+🔴 Ofereça a reunião como "apresentação técnica detalhada do projeto".`,
+};
+
 // Intent detection keywords
 const INTENT_PATTERNS: Record<string, RegExp[]> = {
   orcamento: [/or[çc]amento/i, /quanto custa/i, /valor/i, /pre[çc]o/i, /tabela/i, /proposta/i],
@@ -47,36 +120,24 @@ function calcClosingScore(intent: string, tipoCopy: string): number {
   return Math.max(5, Math.min(100, base + bonus));
 }
 
-// Determine if Perplexity search would add value — now broader to alternate sources
 function shouldUsePerplexity(intent: string, mensagem: string, historico: any[]): boolean {
-  // Always use Perplexity when history is long (need fresh arguments)
   if (historico.length >= 4) return true;
-
-  // Use for price/negotiation intents (need market data to justify)
   if (["orcamento", "preco", "enviar_preco", "objecao"].includes(intent)) return true;
-
   const perplexityTriggers = [
     /tend[eê]ncia/i, /mercado/i, /concorr[eê]ncia/i, /pre[çc]o.*m[eé]dio/i,
-    /quanto.*custa.*m[eé]dia/i, /compara/i, /melhor.*material/i, /novidade/i,
-    /sustent/i, /fsc/i, /mdf.*mdp/i, /blum/i, /hafele/i, /hettich/i,
-    /design.*202/i, /feira/i, /pesquisa/i, /dado.*real/i, /estad[ií]stica/i,
-    /qualidade/i, /durabilidade/i, /garantia/i, /diferenc/i, /vantag/i,
+    /compara/i, /melhor.*material/i, /novidade/i, /sustent/i, /mdf.*mdp/i,
+    /blum/i, /hafele/i, /hettich/i, /qualidade/i, /durabilidade/i, /garantia/i,
   ];
   return perplexityTriggers.some(p => p.test(mensagem));
 }
 
-// Fetch real-time data from Perplexity when needed
 async function fetchPerplexityData(query: string): Promise<string> {
   const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
   if (!PERPLEXITY_API_KEY) return "";
-
   try {
     const res = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "sonar",
         messages: [
@@ -89,18 +150,30 @@ async function fetchPerplexityData(query: string): Promise<string> {
     if (!res.ok) return "";
     const data = await res.json();
     return data.choices?.[0]?.message?.content || "";
-  } catch {
-    return "";
-  }
+  } catch { return ""; }
 }
 
+// Creative objection-breaking strategies — rotated to never repeat
+const OBJECTION_STRATEGIES = [
+  `Use a técnica "CUSTO POR DIA": divida o valor por 10 anos (3650 dias). "Seu móvel custa menos que um café por dia e dura uma década."`,
+  `Use a técnica "COMPARAÇÃO INVISÍVEL": compare com algo que o cliente já gasta. "Você investe R$X por mês em [streaming/delivery] — aqui é o mesmo valor pra transformar sua casa pra sempre."`,
+  `Use a técnica "ARREPENDIMENTO FUTURO": "Imagina daqui 6 meses olhando aquele cantinho vazio e pensando 'por que não fiz?'"`,
+  `Use a técnica "PROVA SOCIAL ESPECÍFICA": "Semana passada a [nome fictício] estava na mesma dúvida — ontem me mandou foto da cozinha montada e disse que foi a melhor decisão."`,
+  `Use a técnica "INVERSÃO DE RISCO": "Nosso projeto tem garantia de [X] anos. Se não amar, a gente ajusta. Zero risco pra você."`,
+  `Use a técnica "ESCASSEZ REAL": "Essa condição é da campanha [mês atual]. Próximo mês o fornecedor já avisou reajuste."`,
+  `Use a técnica "DORE AGORA, CURE DEPOIS": pergunte sobre a dor atual. "Como tá sendo o dia a dia sem [cozinha organizada/closet]? Aposto que perde tempo todo dia."`,
+  `Use a técnica "ANCORAGEM": "Projetos como esse em lojas de shopping saem por 40% a mais. Aqui você tem a mesma qualidade com atendimento personalizado."`,
+  `Use a técnica "MICROCOMPROMISSO": não peça a venda, peça um passo menor. "Posso preparar uma apresentação 3D gratuita do seu espaço? Sem compromisso."`,
+  `Use a técnica "AUTORIDADE COM NÚMEROS": cite dados reais. "Pesquisa da ABIMÓVEL mostra que móveis planejados valorizam o imóvel em até 15%."`,
+];
+
 const INTENT_PROMPTS: Record<string, string> = {
-  orcamento: `O cliente pediu orçamento — FORTE sinal de interesse. NÃO envie valores. Diga que o projeto é PERSONALIZADO e merece uma apresentação exclusiva. Convide para a Deal Room/reunião online.`,
+  orcamento: `O cliente pediu orçamento — FORTE sinal de interesse. NÃO envie valores. Diga que o projeto é PERSONALIZADO e merece uma apresentação exclusiva na reunião online. Convide para a Deal Room.`,
   fechamento: `O cliente está PRONTO. Confirme detalhes, reforce a escolha, crie urgência e pergunte "Posso preparar o contrato agora?"`,
   preco: `Negociando preço = interesse! NÃO envie valores por texto. Destaque VALOR, não preço. Convide para a Deal Room para discutir condições especiais ao vivo.`,
-  enviar_preco: `🔴 REGRA ABSOLUTA: NUNCA envie preço/valor/orçamento por mensagem. SEMPRE contorne: "Seu projeto é exclusivo e merece uma apresentação personalizada!" Inclua o link da Deal Room.`,
+  enviar_preco: `🔴 REGRA ABSOLUTA: NUNCA envie preço/valor/orçamento por mensagem. SEMPRE contorne: "Seu projeto é exclusivo e merece uma apresentação personalizada na nossa sala de reunião online!" OBRIGATÓRIO incluir o link da Deal Room.`,
   duvida: `Responda com segurança e brevidade. Use cada resposta para mostrar diferenciais. Termine direcionando para próximo passo.`,
-  objecao: `NUNCA concorde. Quebre com dados, provas sociais, comparativos. Mostre o CUSTO de NÃO comprar. Termine com pergunta de fechamento.`,
+  objecao: `NUNCA concorde com a objeção. Quebre com CRIATIVIDADE usando estratégia única.`,
   saudacao: `Capture interesse. Seja caloroso mas direto. Pergunte sobre o projeto e sinalize condições especiais.`,
   outro: `Direcione para fechamento. Cada mensagem deve ter um CTA claro.`,
 };
@@ -117,20 +190,32 @@ Especialista em móveis planejados no mercado brasileiro. Conhece materiais (MDF
 🔴 Tom NATURAL e HUMANO — como um vendedor real digitando no WhatsApp.
 🔴 NÃO use formatação com * ou listas. Texto corrido e direto.
 
-=== REGRA ABSOLUTA: NUNCA ENVIE PREÇO ===
-🔴 Se o cliente pedir preço, valor, orçamento ou tabela: NUNCA envie números.
-🔴 SEMPRE contorne com: "Cada projeto é único, por isso preparei uma sala exclusiva pra gente conversar ao vivo!"
-🔴 SEMPRE inclua o link da Deal Room quando o assunto for preço/valor.
+=== REGRA ABSOLUTA #1: NUNCA ENVIE PREÇO ===
+🔴 Se o cliente pedir preço, valor, orçamento, tabela, "quanto custa", "me passa" ou QUALQUER variação: NUNCA envie números.
+🔴 SEMPRE redirecione para a reunião online (Deal Room) com o link fornecido.
+🔴 NUNCA diga "não posso enviar" — CONTORNE de forma natural: "Cada projeto é único! Preparei uma sala exclusiva pra gente ver tudo ao vivo!"
+🔴 OBRIGATÓRIO incluir o link da Deal Room quando preço/valor for mencionado.
 
-=== ANTI-REPETIÇÃO ===
-🔴 ANALISE TODO o histórico. NUNCA repita argumentos, aberturas ou estruturas já usados.
+=== REGRA #2: DEAL ROOM É A PRIORIDADE ===
+🔴 Quando o cliente insiste em preço, SEMPRE ofereça a Deal Room como benefício:
+  - "Preparei uma apresentação exclusiva pra você!"
+  - "Na reunião online eu mostro o projeto em 3D e as condições especiais!"
+  - "Acessa aqui que te mostro tudo ao vivo: [LINK]"
+🔴 SEMPRE inclua o link da Deal Room nessas situações.
+
+=== REGRA #3: CRIATIVIDADE E ANTI-REPETIÇÃO ===
+🔴 ANALISE TODO o histórico. NUNCA repita argumentos, aberturas, comparações ou estruturas já usados.
 🔴 Se já disse "exclusivo", use "diferenciado". Se já disse "qualidade", use "durabilidade".
-🔴 Varie COMPLETAMENTE a estrutura da frase. Se a anterior começou com pergunta, comece com afirmação.
+🔴 Varie COMPLETAMENTE a estrutura: se a anterior começou com pergunta, comece com afirmação.
+🔴 Para objeções: use técnicas de vendas DIFERENTES a cada resposta (ancoragem, prova social, custo por dia, inversão de risco).
+🔴 INVENTE comparações criativas e inusitadas que surpreendam.
 
-=== ADAPTAÇÃO DE TOM ===
-🔴 ANALISE o tom do cliente e ESPELHE: se é informal, seja informal. Se é formal, seja formal.
-🔴 Se o cliente usa "kkk" ou emojis, responda de forma descontraída.
-🔴 Se o cliente é objetivo, seja ainda MAIS objetivo.
+=== ADAPTAÇÃO DISC ===
+🔴 Adapte COMPLETAMENTE sua comunicação ao perfil DISC do cliente.
+🔴 D (Dominante): seja direto, fale em resultados, conduza com autoridade.
+🔴 I (Influente): seja entusiasmado, fale em experiência e design, use emoção.
+🔴 S (Estável): seja acolhedor, fale em garantia e segurança, reduza risco.
+🔴 C (Conforme): seja técnico, forneça dados e especificações, use lógica.
 
 === REGRAS DE VENDAS ===
 1. NUNCA diga "pense com calma" ou "quando estiver pronto".
@@ -152,11 +237,7 @@ serve(async (req) => {
     }
 
     let body: Record<string, unknown>;
-    try {
-      body = await req.json();
-    } catch {
-      return respond({ error: "Body inválido" }, 400);
-    }
+    try { body = await req.json(); } catch { return respond({ error: "Body inválido" }, 400); }
 
     const nome_cliente = typeof body.nome_cliente === "string" ? body.nome_cliente.slice(0, 200) : "";
     const valor_orcamento = typeof body.valor_orcamento === "number" ? body.valor_orcamento : null;
@@ -169,18 +250,17 @@ serve(async (req) => {
     const prompt_sistema = typeof body.prompt_sistema === "string" ? body.prompt_sistema.slice(0, 2000) : "";
     const max_tokens = typeof body.max_tokens === "number" ? Math.min(body.max_tokens, 1000) : 350;
     const modo = typeof body.modo === "string" ? body.modo : "sugestao";
-    const historico = Array.isArray(body.historico) ? body.historico.slice(-10) : [];
+    const historico = Array.isArray(body.historico) ? body.historico.slice(-20) : [];
     const learning_context = typeof body.learning_context === "string" ? body.learning_context.slice(0, 3000) : "";
     const custom_arguments = typeof body.custom_arguments === "string" ? body.custom_arguments.slice(0, 3000) : "";
     let perplexity_data = typeof body.perplexity_data === "string" ? body.perplexity_data.slice(0, 2000) : "";
+    const disc_profile = typeof body.disc_profile === "string" ? body.disc_profile : "";
 
     // Direct messages array (DealRoom AI Assistant)
     const messages = Array.isArray(body.messages) ? body.messages : null;
 
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) {
-      return respond({ error: "OPENAI_API_KEY não configurada" }, 500);
-    }
+    if (!OPENAI_API_KEY) return respond({ error: "OPENAI_API_KEY não configurada" }, 500);
 
     // DealRoom AI direct messages
     if (messages && messages.length > 0) {
@@ -189,7 +269,6 @@ serve(async (req) => {
         headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model: "gpt-4o-mini", messages, max_tokens, temperature: 0.7 }),
       });
-
       if (!aiRes.ok) {
         const errText = await aiRes.text();
         console.error("OpenAI error:", aiRes.status, errText);
@@ -197,10 +276,13 @@ serve(async (req) => {
         if (aiRes.status === 402) return respond({ error: "Créditos esgotados." }, 402);
         return respond({ error: "Erro na API de IA" }, 502);
       }
-
       const aiData = await aiRes.json();
       return respond({ reply: aiData.choices?.[0]?.message?.content || "", tokens_usados: aiData.usage?.total_tokens || 0 });
     }
+
+    // DISC Analysis from history
+    const detectedDisc = disc_profile || (historico.length >= 2 ? detectDISC(historico).profile : "");
+    const discStrategy = detectedDisc ? DISC_STRATEGIES[detectedDisc] || "" : "";
 
     // Intelligent Router: auto-fetch Perplexity data when relevant
     const intencao = detectIntent(mensagem_cliente);
@@ -210,38 +292,48 @@ serve(async (req) => {
         orcamento: `tendências e faixas de preço móveis planejados Brasil 2024 2025`,
         preco: `comparativo preços móveis planejados MDF MDP vantagens qualidade Brasil`,
         enviar_preco: `vantagens reunião presencial venda móveis planejados experiência cliente`,
-        objecao: `por que investir em móveis planejados vale a pena durabilidade dados`,
+        objecao: `por que investir em móveis planejados vale a pena durabilidade dados reais estatísticas`,
       };
-      const searchQuery = searchQueries[intencao] || `móveis planejados Brasil: ${mensagem_cliente.slice(0, 80)}`;
+      const searchQuery = searchQueries[intencao] || `móveis planejados Brasil novidades: ${mensagem_cliente.slice(0, 80)}`;
       perplexity_data = await fetchPerplexityData(searchQuery);
     }
 
     const intentContext = INTENT_PROMPTS[intencao] || INTENT_PROMPTS.outro;
     const closingScore = calcClosingScore(intencao, tipo_copy);
 
+    // Select a creative objection strategy based on message count to rotate
+    let objectionStrategy = "";
+    if (intencao === "objecao") {
+      const strategyIndex = historico.length % OBJECTION_STRATEGIES.length;
+      objectionStrategy = `\n\n=== ESTRATÉGIA DE OBJEÇÃO (USE ESTA!) ===\n${OBJECTION_STRATEGIES[strategyIndex]}`;
+    }
+
     const systemPrompt =
-      (prompt_sistema ||
-      `Você é um CLOSER de elite e especialista em móveis planejados no mercado brasileiro. Missão: FECHAR VENDAS com mensagens CURTAS e ASSERTIVAS.`) +
+      (prompt_sistema || `Você é um CLOSER de elite e especialista em móveis planejados no mercado brasileiro. Missão: FECHAR VENDAS com mensagens CURTAS, CRIATIVAS e ASSERTIVAS.`) +
       `\n\n--- CONTEXTO DA INTENÇÃO ---\n${intentContext}` +
       SYSTEM_PROMPT_CLOSING_RULES +
+      (discStrategy ? `\n\n${discStrategy}` : "") +
+      objectionStrategy +
       (learning_context ? `\n${learning_context}` : "") +
       (custom_arguments ? `\n\n=== ARGUMENTOS DA LOJA (USE!) ===\n${custom_arguments}` : "") +
-      (perplexity_data ? `\n\n=== DADOS REAIS DE MERCADO (use para credibilidade!) ===\n${perplexity_data}` : "") +
-      (modo === "autopilot"
-        ? "\n\n--- AUTO-PILOT ---\nSeja conciso (máx 2 parágrafos). Inclua pergunta de fechamento."
-        : "");
+      (perplexity_data ? `\n\n=== DADOS REAIS DE MERCADO (use para credibilidade e comparações criativas!) ===\n${perplexity_data}` : "") +
+      (modo === "autopilot" ? "\n\n--- AUTO-PILOT ---\nSeja conciso (máx 2 parágrafos). Inclua pergunta de fechamento." : "");
 
-    let userPrompt = `Gere uma mensagem ULTRA-CURTA de ${tipo_copy} com tom ${tom}. MÁXIMO 2 parágrafos curtos de 1-2 frases. LIMITE: 250 caracteres.`;
+    let userPrompt = `Gere uma mensagem ULTRA-CURTA de ${tipo_copy} com tom ${tom}. MÁXIMO 2 parágrafos curtos. LIMITE: 250 caracteres.`;
+    if (detectedDisc) userPrompt += `\nPERFIL DISC detectado: ${detectedDisc} — adapte 100% a comunicação.`;
     if (nome_cliente) userPrompt += `\nCliente: ${nome_cliente}`;
     if (valor_orcamento) userPrompt += `\n(Valor interno — NÃO mencione ao cliente)`;
     if (status_negociacao) userPrompt += `\nStatus: ${status_negociacao}`;
     if (dias_sem_resposta && dias_sem_resposta > 1) userPrompt += `\n${dias_sem_resposta} dias sem resposta — URGENTE!`;
     if (mensagem_cliente) userPrompt += `\nÚltima mensagem do cliente: "${mensagem_cliente}"`;
 
-    // Force Deal Room link when price-related intent
-    if (deal_room_link && (intencao === "enviar_preco" || intencao === "orcamento" || intencao === "preco")) {
-      userPrompt += `\n\n🔴 OBRIGATÓRIO: Inclua este link da reunião online na resposta: ${deal_room_link}`;
-      userPrompt += `\nDiga algo como: "Preparei uma sala exclusiva pra gente ver tudo ao vivo! Acessa aqui: ${deal_room_link}"`;
+    // Force Deal Room link when ANY price-related intent
+    const isPriceIntent = ["enviar_preco", "orcamento", "preco"].includes(intencao);
+    if (deal_room_link && isPriceIntent) {
+      userPrompt += `\n\n🔴🔴🔴 OBRIGATÓRIO: O cliente falou de PREÇO/VALOR. NÃO envie nenhum número.`;
+      userPrompt += `\n🔴 INCLUA OBRIGATORIAMENTE este link da reunião online: ${deal_room_link}`;
+      userPrompt += `\nExemplo: "Preparei uma sala exclusiva pra gente ver tudo ao vivo! Acessa aqui: ${deal_room_link}"`;
+      userPrompt += `\n🔴 Se NÃO incluir o link, a resposta será REJEITADA.`;
     } else if (deal_room_link) {
       userPrompt += `\nLink Deal Room disponível (use se fizer sentido): ${deal_room_link}`;
     }
@@ -252,25 +344,26 @@ serve(async (req) => {
         .map((h: any) => (h.mensagem || "").slice(0, 200));
 
       userPrompt += "\n\n--- HISTÓRICO RECENTE ---";
-      for (const h of historico.slice(-6)) {
+      for (const h of historico.slice(-8)) {
         const role = h.remetente_tipo === "cliente" ? "Cliente" : "Vendedor";
         userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 150)}`;
       }
 
       if (previousSellerMessages.length > 0) {
-        userPrompt += "\n\n⚠️ ARGUMENTOS JÁ USADOS (NÃO repita NENHUM):";
-        previousSellerMessages.slice(-5).forEach((msg: string, i: number) => {
-          userPrompt += `\n${i + 1}. "${msg.substring(0, 80)}"`;
+        userPrompt += "\n\n⚠️ ARGUMENTOS JÁ USADOS (NÃO repita NENHUM, crie algo 100% NOVO):";
+        previousSellerMessages.slice(-8).forEach((msg: string, i: number) => {
+          userPrompt += `\n${i + 1}. "${msg.substring(0, 100)}"`;
         });
-        userPrompt += "\n\n🔴 Use argumento 100% DIFERENTE. Mude a abordagem completamente.";
+        userPrompt += "\n\n🔴 PROIBIDO repetir qualquer frase, argumento ou estrutura acima.";
+        userPrompt += "\n🔴 Use uma abordagem COMPLETAMENTE DIFERENTE e CRIATIVA.";
+        userPrompt += "\n🔴 Surpreenda com uma comparação inusitada ou dado novo.";
       }
     }
 
-    const effectiveMaxTokens = Math.min(max_tokens, 250);
-    const temperature = historico.length > 2 ? 0.95 : 0.8;
+    const effectiveMaxTokens = Math.min(max_tokens, 300);
+    const temperature = Math.min(0.95 + (historico.length * 0.02), 1.2);
 
-    // Alternate between OpenAI and Perplexity for message generation
-    // Use Perplexity sonar for responses when we have market data context (richer arguments)
+    // Alternate between OpenAI and Perplexity for generation
     const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
     const usePerplexityForGeneration = PERPLEXITY_API_KEY && historico.length >= 3 && historico.length % 2 === 1;
 
@@ -279,38 +372,31 @@ serve(async (req) => {
     let ai_provider_used = "openai";
 
     if (usePerplexityForGeneration && PERPLEXITY_API_KEY) {
-      // Use Perplexity sonar for generation — brings fresh web-grounded arguments
       try {
         const pRes = await fetch("https://api.perplexity.ai/chat/completions", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${PERPLEXITY_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "sonar",
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt + "\n\nUse dados REAIS e atuais do mercado para construir argumentos inéditos." },
+              { role: "user", content: userPrompt + "\n\nUse dados REAIS e atuais do mercado para construir argumentos INÉDITOS e CRIATIVOS que nunca foram usados antes." },
             ],
             max_tokens: effectiveMaxTokens,
-            temperature: 0.7,
+            temperature: 0.8,
             search_recency_filter: "month",
           }),
         });
-
         if (pRes.ok) {
           const pData = await pRes.json();
           mensagem = pData.choices?.[0]?.message?.content || "";
           tokens_usados = pData.usage?.total_tokens || 0;
           ai_provider_used = "perplexity";
         }
-      } catch (e) {
-        console.error("Perplexity generation error:", e);
-      }
+      } catch (e) { console.error("Perplexity generation error:", e); }
     }
 
-    // Fallback to OpenAI if Perplexity didn't generate or wasn't used
+    // Fallback to OpenAI
     if (!mensagem) {
       const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -323,8 +409,8 @@ serve(async (req) => {
           ],
           max_tokens: effectiveMaxTokens,
           temperature,
-          presence_penalty: 0.8,
-          frequency_penalty: 0.7,
+          presence_penalty: 1.0,
+          frequency_penalty: 0.9,
         }),
       });
 
@@ -342,12 +428,18 @@ serve(async (req) => {
       ai_provider_used = "openai";
     }
 
+    // Post-process: if price intent and Deal Room link missing from response, append it
+    if (isPriceIntent && deal_room_link && !mensagem.includes(deal_room_link)) {
+      mensagem = mensagem.replace(/\s*$/, "") + `\n\nAcessa nossa sala exclusiva: ${deal_room_link}`;
+    }
+
     return respond({
       mensagem,
       tokens_usados,
       intencao,
       modo,
       closing_score: closingScore,
+      disc_profile: detectedDisc,
       used_perplexity: !!perplexity_data || ai_provider_used === "perplexity",
       ai_provider: ai_provider_used,
     });

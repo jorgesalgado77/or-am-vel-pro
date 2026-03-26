@@ -79,7 +79,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
-  const [isListOpen, setIsListOpen] = useState(false);
+  const [isListOpen, setIsListOpen] = useState(!selectedId);
 
   const hasActiveFilter = tempFilter !== "all" || unreadOnly || !!dateFilter;
   const totalUnread = useMemo(() => conversations.reduce((sum, c) => sum + c.unread_count, 0), [conversations]);

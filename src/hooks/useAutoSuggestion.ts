@@ -7,12 +7,39 @@ interface SuggestionCache {
   clientId: string;
   suggestion: string;
   tipoCopy: string;
+  discProfile: string;
   timestamp: number;
   messageHash: string;
 }
 
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 min (shorter for real-time feel)
+const CACHE_TTL_MS = 2 * 60 * 1000;
 const TIMEOUT_MS = 15_000;
+
+// DISC detection on client-side for UI display
+const DISC_CLIENT_PATTERNS: Record<string, RegExp[]> = {
+  D: [/rápido/i, /direto/i, /logo/i, /agora/i, /resolve/i, /preciso saber/i, /sem enrol/i, /fecha/i, /vamos/i, /decide/i],
+  I: [/kkk/i, /haha/i, /rsrs/i, /😂|😄|💪|👍|❤|🔥|😍/i, /amei/i, /lindo/i, /maravilh/i, /show/i, /top/i, /adorei/i, /sonho/i],
+  S: [/pensar/i, /calma/i, /segur/i, /garantia/i, /preocup/i, /tranquil/i, /certeza/i, /medo/i, /risco/i, /depois/i],
+  C: [/detalh/i, /especific/i, /técnic/i, /medid/i, /material/i, /compar/i, /pesquis/i, /dado/i, /como funciona/i, /explica/i],
+};
+
+function detectDISCFromMessages(messages: Array<{ mensagem: string; remetente_tipo: string }>): string {
+  const clientMsgs = messages.filter(m => m.remetente_tipo === "cliente").map(m => m.mensagem || "");
+  if (clientMsgs.length < 2) return "";
+  const allText = clientMsgs.join(" ");
+  const scores: Record<string, number> = { D: 0, I: 0, S: 0, C: 0 };
+  for (const [type, patterns] of Object.entries(DISC_CLIENT_PATTERNS)) {
+    for (const p of patterns) {
+      const matches = allText.match(new RegExp(p, "gi"));
+      if (matches) scores[type] += matches.length;
+    }
+  }
+  const avgLen = clientMsgs.reduce((s, m) => s + m.length, 0) / clientMsgs.length;
+  if (avgLen < 30) scores.D += 2;
+  else if (avgLen > 120) scores.C += 2;
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  return sorted[0][1] > 0 ? sorted[0][0] : "";
+}
 
 interface UseAutoSuggestionParams {
   tenantId: string | null;
@@ -24,6 +51,7 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
   const [suggestion, setSuggestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [tipoCopy, setTipoCopy] = useState("");
+  const [discProfile, setDiscProfile] = useState("");
   const [suggestionId, setSuggestionId] = useState<string | null>(null);
   const cacheRef = useRef<SuggestionCache | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -36,7 +64,6 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
   ) => {
     if (!tenantId || !addon?.ativo) return;
 
-    // Build a hash of the latest client message to detect new messages
     const lastClientMsg = recentMessages
       ?.filter(m => m.remetente_tipo === "cliente")
       ?.slice(-1)[0]?.mensagem || "";
@@ -52,6 +79,7 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
     ) {
       setSuggestion(cached.suggestion);
       setTipoCopy(cached.tipoCopy);
+      setDiscProfile(cached.discProfile);
       return;
     }
 
@@ -65,18 +93,18 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
 
     const days = Math.floor((Date.now() - new Date(client.updated_at).getTime()) / (1000 * 60 * 60 * 24));
 
-    // Detect intent from last client message for smarter type selection
+    // Detect intent
     let autoCopyType = "geral";
     if (lastClientMsg) {
       const lower = lastClientMsg.toLowerCase();
       if (/fechar|quero comprar|vou levar|aceito|fechado|manda o contrato/i.test(lower)) {
         autoCopyType = "fechamento";
       } else if (/manda.*pre[çc]o|envia.*pre[çc]o|envia.*valor|manda.*valor|passa.*pre[çc]o|passa.*valor|por whats|pelo whats|por e-?mail|manda.*por aqui|envia.*por aqui|pode mandar|pode enviar|me envia/i.test(lower)) {
-        autoCopyType = "reuniao"; // redirect to deal room
+        autoCopyType = "reuniao";
       } else if (/or[çc]amento|quanto custa|valor|pre[çc]o|proposta|me passa/i.test(lower)) {
-        autoCopyType = "reuniao"; // never send price, redirect to deal room
+        autoCopyType = "reuniao";
       } else if (/desconto|condi[çc][ãa]o|parcel|pagamento|negocia|mais barato/i.test(lower)) {
-        autoCopyType = "reuniao"; // price negotiation → deal room
+        autoCopyType = "reuniao";
       } else if (/caro|vou pensar|depois|outro lugar|concorr|n[ãa]o sei/i.test(lower)) {
         autoCopyType = "objecao";
       } else if (/como funciona|d[úu]vida|explica|garantia|prazo|entrega/i.test(lower)) {
@@ -85,14 +113,13 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         autoCopyType = "geral";
       }
     } else {
-      // Fallback to status-based detection (no client message)
       if (days > 7) autoCopyType = "reativacao";
       else if (client.status === "proposta_enviada") autoCopyType = "fechamento";
       else if (client.status === "em_negociacao") autoCopyType = "reuniao";
       else if (days > 3) autoCopyType = "urgencia";
     }
 
-    // Detect tone from client message
+    // Detect tone
     let tom = "amigavel";
     if (lastClientMsg) {
       const lower = lastClientMsg.toLowerCase();
@@ -102,7 +129,16 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
       else if (/caro|absurdo|reclamar|insatisf/i.test(lower)) tom = "empatico";
     }
 
-    // Build deal room link
+    // DISC detection
+    const detectedDisc = recentMessages ? detectDISCFromMessages(recentMessages) : "";
+    setDiscProfile(detectedDisc);
+
+    // Adapt tone based on DISC
+    if (detectedDisc === "D" && tom === "amigavel") tom = "direto";
+    else if (detectedDisc === "I" && tom === "amigavel") tom = "entusiasmado";
+    else if (detectedDisc === "S" && tom === "amigavel") tom = "acolhedor";
+    else if (detectedDisc === "C" && tom === "amigavel") tom = "tecnico";
+
     const dealRoomLink = options?.dealRoomLink || `${window.location.origin}/app`;
 
     try {
@@ -117,11 +153,12 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
             tom,
             mensagem_cliente: lastClientMsg,
             deal_room_link: dealRoomLink,
-            historico: (recentMessages || []).slice(-10),
+            historico: (recentMessages || []).slice(-20),
             prompt_sistema: addon.prompt_sistema,
             api_provider: addon.api_provider,
             openai_model: addon.openai_model,
             max_tokens: Math.min(addon.max_tokens_mensagem, 400),
+            disc_profile: detectedDisc,
           },
         }),
         new Promise<never>((_, reject) =>
@@ -132,21 +169,19 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
       if (controller.signal.aborted) return;
 
       const { data, error } = result as any;
-      if (error || data?.error) {
-        setLoading(false);
-        return;
-      }
+      if (error || data?.error) { setLoading(false); return; }
 
       const msg = data?.mensagem || "";
       const tokens = data?.tokens_usados || 0;
       const detectedType = data?.intencao || autoCopyType;
+      const serverDisc = data?.disc_profile || detectedDisc;
 
-      // Map AI-detected intent to display type
       let displayType = autoCopyType;
       if (detectedType === "fechamento") displayType = "fechamento";
       else if (detectedType === "enviar_preco") displayType = "reuniao";
       else if (detectedType === "objecao") displayType = "objecao";
 
+      setDiscProfile(serverDisc);
       setSuggestion(msg);
       setTipoCopy(displayType);
 
@@ -154,11 +189,11 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         clientId: client.id,
         suggestion: msg,
         tipoCopy: displayType,
+        discProfile: serverDisc,
         timestamp: Date.now(),
         messageHash,
       };
 
-      // Calculate and persist lead temperature
       const temperature = calcLeadTemperature({
         status: client.status,
         diasSemResposta: days,
@@ -173,7 +208,6 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         } as any)
         .eq("id", client.id);
 
-      // Persist to vendazap_suggestions
       const { data: inserted } = await supabase
         .from("vendazap_suggestions" as any)
         .insert({
@@ -197,16 +231,14 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         usuario_id: userId || null,
         usuario_nome: null,
         tenant_id: tenantId,
-        detalhes: { tipo_copy: displayType, client_nome: client.nome, intencao: detectedType, tom },
+        detalhes: { tipo_copy: displayType, client_nome: client.nome, intencao: detectedType, tom, disc: serverDisc },
       });
     } catch (err: any) {
       if (err?.message !== "timeout" && !controller.signal.aborted) {
         console.error("Auto-suggestion error:", err);
       }
     } finally {
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [tenantId, addon, userId]);
 
@@ -214,6 +246,7 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
     abortRef.current?.abort();
     setSuggestion("");
     setTipoCopy("");
+    setDiscProfile("");
     setSuggestionId(null);
     setLoading(false);
   }, []);
@@ -225,7 +258,6 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         .update({ used: true } as any)
         .eq("id", suggestionId);
     }
-
     logAudit({
       acao: "vendazap_suggestion_used",
       entidade: "client",
@@ -233,9 +265,9 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
       usuario_id: userId || null,
       usuario_nome: null,
       tenant_id: tenantId,
-      detalhes: { suggestion: suggestion.substring(0, 100), suggestion_id: suggestionId },
+      detalhes: { suggestion: suggestion.substring(0, 100), suggestion_id: suggestionId, disc: discProfile },
     });
-  }, [suggestion, userId, tenantId, suggestionId]);
+  }, [suggestion, userId, tenantId, suggestionId, discProfile]);
 
-  return { suggestion, loading, tipoCopy, generate, clear, markUsed };
+  return { suggestion, loading, tipoCopy, discProfile, generate, clear, markUsed };
 }
