@@ -35,43 +35,63 @@ export function useVendaZap(tenantId: string | null) {
   const [generating, setGenerating] = useState(false);
   const [dailyUsage, setDailyUsage] = useState(0);
 
+  const createVipAddon = (tid: string): VendaZapAddon => ({
+    id: `vip-${tid}`,
+    tenant_id: tid,
+    ativo: true,
+    max_mensagens_dia: 0,
+    max_tokens_mensagem: 2000,
+    prompt_sistema: "Você é um assistente de vendas especializado em móveis planejados.",
+    tom_padrao: "consultivo",
+    api_provider: "openai",
+    openai_model: "gpt-4o-mini",
+  });
+
   const fetchAddon = async () => {
     if (!tenantId) {
       setLoading(false);
       return;
     }
 
-    const { data } = await supabase
+    // Try reading vendazap_addon table
+    const { data, error } = await supabase
       .from("vendazap_addon")
       .select("*")
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
-    if (data) {
+    if (data && !error) {
       setAddon(data as unknown as VendaZapAddon);
-    } else {
-      // Check if admin granted access via recursos_vip
-      const { data: tenant } = await supabase
-        .from("tenants")
-        .select("recursos_vip")
-        .eq("id", tenantId)
+      setLoading(false);
+      return;
+    }
+
+    // Fallback: check recursos_vip on tenants table
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("recursos_vip")
+      .eq("id", tenantId)
+      .single();
+    const vip = (tenant as any)?.recursos_vip;
+    if (vip?.vendazap) {
+      // Try to auto-create addon record
+      const { data: created, error: upsertErr } = await supabase
+        .from("vendazap_addon")
+        .upsert({
+          tenant_id: tenantId,
+          ativo: true,
+          prompt_sistema: "Você é um assistente de vendas especializado em móveis planejados.",
+          tom_padrao: "consultivo",
+          max_mensagens_dia: 0,
+          max_tokens_mensagem: 2000,
+        } as any, { onConflict: "tenant_id" })
+        .select()
         .single();
-      const vip = (tenant as any)?.recursos_vip;
-      if (vip?.vendazap) {
-        // Auto-create addon record when admin granted access
-        const { data: created } = await supabase
-          .from("vendazap_addon")
-          .upsert({
-            tenant_id: tenantId,
-            ativo: true,
-            prompt_sistema: "Você é um assistente de vendas especializado em móveis planejados.",
-            tom_padrao: "consultivo",
-            max_mensagens_dia: 0,
-            max_tokens_mensagem: 2000,
-          } as any, { onConflict: "tenant_id" })
-          .select()
-          .single();
-        if (created) setAddon(created as unknown as VendaZapAddon);
+      if (created && !upsertErr) {
+        setAddon(created as unknown as VendaZapAddon);
+      } else {
+        // RLS may block upsert — use local addon object so the UI still works
+        setAddon(createVipAddon(tenantId));
       }
     }
     setLoading(false);
