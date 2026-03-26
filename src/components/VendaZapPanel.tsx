@@ -51,6 +51,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const autoSugg = useAutoSuggestion({ tenantId, addon, userId: currentUser?.id });
   const { pendingTriggers, loading: triggersLoading, markSent, dismiss } = useVendaZapTriggers(tenantId);
   const [clients, setClients] = useState<Client[]>([]);
+  const [activeTab, setActiveTab] = usePersistedValue("vendazap-active-tab", "gerar");
 
   useEffect(() => {
     if (!tenantId) return;
@@ -98,7 +99,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" />{dailyUsage}/{addon.max_mensagens_dia > 0 ? addon.max_mensagens_dia : "∞"} hoje</Badge>
       </div>
 
-      <Tabs defaultValue="gerar" className="space-y-4">
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-6 w-full">
           <TabsTrigger value="gerar" className="gap-2"><Sparkles className="h-4 w-4" />Gerar</TabsTrigger>
           <TabsTrigger value="gatilhos" className="gap-2 relative">

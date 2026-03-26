@@ -58,14 +58,26 @@ interface VendaZapGenerateTabProps {
 }
 
 export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId }: VendaZapGenerateTabProps) {
+  const [formState, updateForm, clearForm] = usePersistedFormState("vendazap-generate", {
+    tipoCopy: "geral",
+    tom: "persuasivo",
+    mensagemCliente: "",
+    mensagemGerada: "",
+    selectedClientId: null as string | null,
+    searchClient: "",
+  });
+
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [searchClient, setSearchClient] = useState("");
-  const [tipoCopy, setTipoCopy] = useState("geral");
-  const [tom, setTom] = useState("persuasivo");
-  const [mensagemCliente, setMensagemCliente] = useState("");
-  const [mensagemGerada, setMensagemGerada] = useState("");
   const [lastSim, setLastSim] = useState<any>(null);
+
+  // Derived from persisted state
+  const { tipoCopy, tom, mensagemCliente, mensagemGerada, searchClient } = formState;
+  const setTipoCopy = useCallback((v: string) => updateForm({ tipoCopy: v }), [updateForm]);
+  const setTom = useCallback((v: string) => updateForm({ tom: v }), [updateForm]);
+  const setMensagemCliente = useCallback((v: string) => updateForm({ mensagemCliente: v }), [updateForm]);
+  const setMensagemGerada = useCallback((v: string) => updateForm({ mensagemGerada: v }), [updateForm]);
+  const setSearchClient = useCallback((v: string) => updateForm({ searchClient: v }), [updateForm]);
 
   useEffect(() => {
     const tenantId = getTenantId();
