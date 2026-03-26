@@ -1,7 +1,8 @@
 /**
  * VendaZap message generator tab - extracted from VendaZapPanel.tsx
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,20 +58,41 @@ interface VendaZapGenerateTabProps {
 }
 
 export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId }: VendaZapGenerateTabProps) {
+  const [formState, updateForm, clearForm] = usePersistedFormState("vendazap-generate", {
+    tipoCopy: "geral",
+    tom: "persuasivo",
+    mensagemCliente: "",
+    mensagemGerada: "",
+    selectedClientId: null as string | null,
+    searchClient: "",
+  });
+
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [searchClient, setSearchClient] = useState("");
-  const [tipoCopy, setTipoCopy] = useState("geral");
-  const [tom, setTom] = useState("persuasivo");
-  const [mensagemCliente, setMensagemCliente] = useState("");
-  const [mensagemGerada, setMensagemGerada] = useState("");
   const [lastSim, setLastSim] = useState<any>(null);
+
+  // Derived from persisted state
+  const { tipoCopy, tom, mensagemCliente, mensagemGerada, searchClient } = formState;
+  const setTipoCopy = useCallback((v: string) => updateForm({ tipoCopy: v }), [updateForm]);
+  const setTom = useCallback((v: string) => updateForm({ tom: v }), [updateForm]);
+  const setMensagemCliente = useCallback((v: string) => updateForm({ mensagemCliente: v }), [updateForm]);
+  const setMensagemGerada = useCallback((v: string) => updateForm({ mensagemGerada: v }), [updateForm]);
+  const setSearchClient = useCallback((v: string) => updateForm({ searchClient: v }), [updateForm]);
 
   useEffect(() => {
     const tenantId = getTenantId();
     let query = supabase.from("clients").select("*").order("created_at", { ascending: false });
     if (tenantId) query = query.eq("tenant_id", tenantId);
-    query.then(({ data }) => { if (data) setClients(data); });
+    query.then(({ data }) => {
+      if (data) {
+        setClients(data);
+        // Restore persisted selected client
+        if (formState.selectedClientId && !selectedClient) {
+          const restored = data.find(c => c.id === formState.selectedClientId);
+          if (restored) setSelectedClient(restored);
+        }
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -96,7 +118,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       mensagem_cliente: mensagemCliente || undefined, tipo_copy: tipoCopy, tom,
       client_id: selectedClient?.id, usuario_id: currentUserId,
     });
-    if (result) setMensagemGerada(result);
+    if (result) updateForm({ mensagemGerada: result });
   };
 
   const handleCopy = (text: string) => { navigator.clipboard.writeText(text); toast.success("Mensagem copiada!"); };
@@ -128,7 +150,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                   const days = Math.floor((Date.now() - new Date(c.updated_at).getTime()) / (1000 * 60 * 60 * 24));
                   const score = getClientScore(c, days);
                   return (
-                    <button key={c.id} onClick={() => { setSelectedClient(c); setSearchClient(""); setMensagemGerada(""); }}
+                    <button key={c.id} onClick={() => { setSelectedClient(c); updateForm({ selectedClientId: c.id, searchClient: "", mensagemGerada: "" }); }}
                       className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors text-sm flex items-center justify-between">
                       <div>
                         <span className="font-medium text-foreground">{c.nome}</span>
@@ -147,7 +169,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                     <p className="font-medium text-sm text-foreground">{selectedClient.nome}</p>
                     {clientScore && <Badge variant="outline" className={`text-[10px] ${clientScore.color}`}>{clientScore.emoji} {clientScore.label}</Badge>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); autoSugg.clear(); setMensagemGerada(""); }} className="h-6 text-xs">Trocar</Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); }} className="h-6 text-xs">Trocar</Button>
                 </div>
                 {selectedClient.numero_orcamento && <p className="text-xs text-muted-foreground">Orçamento: #{selectedClient.numero_orcamento}</p>}
                 <p className="text-xs text-muted-foreground">Status: {selectedClient.status}</p>
@@ -171,7 +193,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                 <div className="space-y-3">
                   <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{autoSugg.suggestion}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setMensagemGerada(autoSugg.suggestion); if (selectedClient) autoSugg.markUsed(selectedClient.id); toast.success("Sugestão aplicada!"); }}>
+                    <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => { updateForm({ mensagemGerada: autoSugg.suggestion }); if (selectedClient) autoSugg.markUsed(selectedClient.id); toast.success("Sugestão aplicada!"); }}>
                       <Sparkles className="h-3 w-3" />Usar resposta
                     </Button>
                     <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handleCopy(autoSugg.suggestion)}><Copy className="h-3 w-3" />Copiar</Button>
