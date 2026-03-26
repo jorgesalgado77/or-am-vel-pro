@@ -193,7 +193,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                 <div className="space-y-3">
                   <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{autoSugg.suggestion}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => { setMensagemGerada(autoSugg.suggestion); if (selectedClient) autoSugg.markUsed(selectedClient.id); toast.success("Sugestão aplicada!"); }}>
+                    <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => { updateForm({ mensagemGerada: autoSugg.suggestion }); if (selectedClient) autoSugg.markUsed(selectedClient.id); toast.success("Sugestão aplicada!"); }}>
                       <Sparkles className="h-3 w-3" />Usar resposta
                     </Button>
                     <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handleCopy(autoSugg.suggestion)}><Copy className="h-3 w-3" />Copiar</Button>
