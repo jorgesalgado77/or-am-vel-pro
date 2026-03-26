@@ -61,20 +61,37 @@ export function PrazosEntregaTab() {
     const tenantId = getTenantId();
     if (!tenantId) return;
 
+    const payload = {
+      tenant_id: tenantId,
+      chave: "prazos_entrega",
+      valor: JSON.stringify(updated),
+    };
+
     const { error } = await supabase
       .from("tenant_settings" as any)
-      .upsert({
-        tenant_id: tenantId,
-        chave: "prazos_entrega",
-        valor: JSON.stringify(updated),
-      }, { onConflict: "tenant_id,chave" });
+      .upsert(payload as any, { onConflict: "tenant_id,chave" });
 
     if (error) {
-      console.error("Save deadlines error:", error);
-      toast.error("Erro ao salvar prazos");
-    } else {
-      toast.success("Prazos salvos!");
+      console.error("Upsert error, trying delete+insert:", error);
+      // Fallback: delete then insert
+      await supabase
+        .from("tenant_settings" as any)
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("chave", "prazos_entrega");
+
+      const { error: insertError } = await supabase
+        .from("tenant_settings" as any)
+        .insert(payload as any);
+
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        toast.error("Erro ao salvar prazos. Verifique se a tabela tenant_settings existe.");
+        return;
+      }
     }
+
+    toast.success("Prazos salvos!");
   };
 
   const addDeadline = () => {
