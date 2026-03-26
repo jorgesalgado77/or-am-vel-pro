@@ -123,7 +123,23 @@ export function parseXmlFile(content: string, fileName: string): ParsedFileResul
   const matchPieces = content.match(/<(?:QtdPecas|Quantidade|QTD|qtd_pecas|TotalPecas)[^>]*>\s*(\d+)\s*</i);
   if (matchPieces) pieces = parseInt(matchPieces[1]);
 
-  return { envName, pieces, total };
+  const extractTag = (tags: string[]) => {
+    for (const tag of tags) {
+      const m = content.match(new RegExp(`<${tag}[^>]*>\\s*([^<]+)\\s*<`, "i"));
+      if (m) return m[1].trim();
+    }
+    return "";
+  };
+
+  return {
+    envName, pieces, total,
+    fornecedor: extractTag(["Fornecedor", "Fabricante", "Marca"]),
+    corpo: extractTag(["Corpo", "Caixa", "Lateral"]),
+    porta: extractTag(["Porta", "Frente", "Fachada"]),
+    puxador: extractTag(["Puxador", "Puxadores"]),
+    complemento: extractTag(["Complemento", "Acessorios", "Ferragens"]),
+    modelo: extractTag(["Modelo", "Linha", "Colecao"]),
+  };
 }
 
 export function parseProjectFile(content: string, fileName: string): ParsedFileResult {

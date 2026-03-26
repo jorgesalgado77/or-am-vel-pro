@@ -521,7 +521,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           const parsed = parseProjectFile(content, file.name);
 
           if (parsed.total && !isNaN(parsed.total)) {
-            const newEnv: ImportedEnvironment = {
+            const newEnv: ImportedEnvironment & { fornecedor?: string; corpo?: string; porta?: string; puxador?: string; complemento?: string; modelo?: string } = {
               id: crypto.randomUUID(),
               fileName: file.name,
               environmentName: parsed.envName,
@@ -529,6 +529,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               totalValue: parsed.total,
               importedAt: new Date(),
               file,
+              fornecedor: parsed.fornecedor || "",
+              corpo: parsed.corpo || "",
+              porta: parsed.porta || "",
+              puxador: parsed.puxador || "",
+              complemento: parsed.complemento || "",
+              modelo: parsed.modelo || "",
             };
             setEnvironments((prev) => [...prev, newEnv]);
             setImportedFile(file);
