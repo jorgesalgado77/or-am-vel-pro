@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
-  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame,
+  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame, Download,
 } from "lucide-react";
+import jsPDF from "jspdf";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
