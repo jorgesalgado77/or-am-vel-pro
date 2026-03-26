@@ -95,8 +95,27 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const setMensagemCliente = useCallback((v: string) => updateForm({ mensagemCliente: v }), [updateForm]);
   const setSearchClient = useCallback((v: string) => updateForm({ searchClient: v }), [updateForm]);
 
-  // Analyze client message for thermometer
+  // Analyze client message for thermometer + auto-select copy type
   const clientAnalysis = mensagemCliente ? analyzeClientMessage(mensagemCliente) : null;
+
+  // Auto-detect and select appropriate copy type based on client message intent
+  useEffect(() => {
+    if (!clientAnalysis || !mensagemCliente || mensagemCliente.trim().length < 4) return;
+    const intentToCopy: Record<string, string> = {
+      "fechamento": "fechamento",
+      "orçamento": "urgencia",
+      "negociação": "objecao",
+      "dúvida": "reuniao",
+      "objeção": "objecao",
+      "resistência": "reversao",
+      "saudação": "fechamento",
+      "neutro": "urgencia",
+    };
+    const suggested = intentToCopy[clientAnalysis.intent];
+    if (suggested && suggested !== tipoCopy) {
+      setTipoCopy(suggested);
+    }
+  }, [clientAnalysis?.intent]);
 
   useEffect(() => {
     const tenantId = getTenantId();
@@ -393,8 +412,16 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                 const Icon = ct.icon;
                 return (
                   <button key={ct.value} onClick={() => setTipoCopy(ct.value)}
-                    className={`p-2.5 rounded-lg border text-left transition-all ${tipoCopy === ct.value ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
-                    <div className="flex items-center gap-2"><Icon className="h-3.5 w-3.5 text-primary shrink-0" /><span className="text-xs font-medium text-foreground">{ct.label}</span></div>
+                    className={`p-2.5 rounded-lg border-2 text-left transition-all duration-300 ${
+                      tipoCopy === ct.value
+                        ? "border-primary bg-primary/15 ring-2 ring-primary/30 shadow-md shadow-primary/10 scale-[1.02]"
+                        : "border-border hover:border-muted-foreground/30 bg-background"
+                    }`}>
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${tipoCopy === ct.value ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`text-xs font-medium ${tipoCopy === ct.value ? "text-primary" : "text-foreground"}`}>{ct.label}</span>
+                      {tipoCopy === ct.value && clientAnalysis && <Badge className="text-[8px] h-4 bg-primary/20 text-primary border-0 ml-auto">Auto</Badge>}
+                    </div>
                     <p className="text-[10px] text-muted-foreground mt-0.5">{ct.description}</p>
                   </button>
                 );
