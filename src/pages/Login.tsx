@@ -142,6 +142,7 @@ export default function Login() {
 
     setLoading(true);
     setPlanBlocked(null);
+    setHighlightForgotPassword(false);
 
     try {
       const { user, error } = await withTimeout(
