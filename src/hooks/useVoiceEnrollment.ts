@@ -113,7 +113,7 @@ export function extractLiveFingerprint(samples: Float32Array, sampleRate: number
   // Create an offline AudioBuffer
   const ctx = new OfflineAudioContext(1, samples.length, sampleRate);
   const buffer = ctx.createBuffer(1, samples.length, sampleRate);
-  buffer.copyToChannel(samples, 0);
+  buffer.copyToChannel(new Float32Array(samples.buffer as ArrayBuffer), 0);
   return extractFingerprint(buffer);
 }
 
@@ -132,12 +132,12 @@ export function useVoiceEnrollment(usuarioId: string | null) {
     try {
       const { data } = await supabase
         .from("usuarios")
-        .select("voice_fingerprint")
+        .select("*")
         .eq("id", usuarioId)
         .single();
 
-      if (data?.voice_fingerprint) {
-        const fp = data.voice_fingerprint as unknown as VoiceFingerprint;
+      if ((data as any)?.voice_fingerprint) {
+        const fp = (data as any).voice_fingerprint as VoiceFingerprint;
         setEnrolledFingerprint(fp);
         setIsEnrolled(true);
         return fp;
@@ -199,10 +199,10 @@ export function useVoiceEnrollment(usuarioId: string | null) {
       audioCtx.close();
 
       // Save to DB
-      const { error } = await supabase
+      const { error } = await (supabase
         .from("usuarios")
-        .update({ voice_fingerprint: fingerprint as any })
-        .eq("id", usuarioId);
+        .update({ voice_fingerprint: fingerprint } as any)
+        .eq("id", usuarioId));
 
       if (error) {
         console.error("Save voice fingerprint error:", error);
@@ -225,10 +225,10 @@ export function useVoiceEnrollment(usuarioId: string | null) {
     if (!uid) return;
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase
         .from("usuarios")
         .update({ voice_fingerprint: null } as any)
-        .eq("id", uid);
+        .eq("id", uid));
 
       if (error) {
         toast.error("Erro ao resetar registro de voz");
