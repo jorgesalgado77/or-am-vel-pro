@@ -78,12 +78,44 @@ serve(async (req) => {
     const modo = typeof body.modo === "string" ? body.modo : "sugestao";
     const historico = Array.isArray(body.historico) ? body.historico.slice(-10) : [];
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return respond({ error: "LOVABLE_API_KEY não configurada" }, 500);
+    // Also support direct messages array (used by DealRoom AI Assistant)
+    const messages = Array.isArray(body.messages) ? body.messages : null;
+
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      return respond({ error: "OPENAI_API_KEY não configurada" }, 500);
     }
 
-    // Detect intent from client message
+    // If direct messages array provided (DealRoom AI), use it directly
+    if (messages && messages.length > 0) {
+      const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages,
+          max_tokens: max_tokens,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!aiRes.ok) {
+        const errText = await aiRes.text();
+        console.error("OpenAI error:", aiRes.status, errText);
+        if (aiRes.status === 429) return respond({ error: "Limite de requisições excedido." }, 429);
+        if (aiRes.status === 402) return respond({ error: "Créditos esgotados." }, 402);
+        return respond({ error: "Erro na API de IA" }, 502);
+      }
+
+      const aiData = await aiRes.json();
+      const reply = aiData.choices?.[0]?.message?.content || "";
+      return respond({ reply, tokens_usados: aiData.usage?.total_tokens || 0 });
+    }
+
+    // Standard VendaZap flow with intent detection
     const intencao = detectIntent(mensagem_cliente);
     const intentContext = INTENT_PROMPTS[intencao] || INTENT_PROMPTS.outro;
 
@@ -105,7 +137,6 @@ Seja profissional, amigável e direto.`) +
     if (mensagem_cliente) userPrompt += `\nMensagem do cliente: "${mensagem_cliente}"`;
     if (deal_room_link) userPrompt += `\nLink da sala de negociação: ${deal_room_link}`;
 
-    // Add conversation history for context
     if (historico.length > 0) {
       userPrompt += "\n\n--- HISTÓRICO RECENTE ---";
       for (const h of historico) {
@@ -114,14 +145,14 @@ Seja profissional, amigável e direto.`) +
       }
     }
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -133,15 +164,9 @@ Seja profissional, amigável e direto.`) +
 
     if (!aiRes.ok) {
       const errText = await aiRes.text();
-      console.error("AI gateway error:", aiRes.status, errText);
-
-      if (aiRes.status === 429) {
-        return respond({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }, 429);
-      }
-      if (aiRes.status === 402) {
-        return respond({ error: "Créditos de IA esgotados. Adicione créditos no painel." }, 402);
-      }
-
+      console.error("OpenAI error:", aiRes.status, errText);
+      if (aiRes.status === 429) return respond({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }, 429);
+      if (aiRes.status === 402) return respond({ error: "Créditos de IA esgotados." }, 402);
       return respond({ error: "Erro na API de IA" }, 502);
     }
 
