@@ -129,6 +129,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [cpfCnpjError, setCpfCnpjError] = useState<string>("");
   const [sameAddress, setSameAddress] = useState(false);
   const [deliveryDeadlines, setDeliveryDeadlines] = useState<{id: string; label: string; dias: number}[]>([]);
+  const [fornecedores, setFornecedores] = useState<{id: string; nome: string}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
@@ -149,10 +150,11 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const docType = isCnpj(form.cpf_cnpj) ? "CNPJ" : "CPF";
   const rgLabel = isCnpj(form.cpf_cnpj) ? "Inscrição Estadual" : "RG";
 
-  // Load delivery deadlines from settings
+  // Load delivery deadlines and fornecedores from settings
   useEffect(() => {
     const tenantId = getTenantId();
     if (!tenantId) return;
+    // Load prazos
     supabase.from("tenant_settings" as any)
       .select("*")
       .eq("tenant_id", tenantId)
@@ -168,6 +170,20 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             { id: "3", label: "60 dias úteis", dias: 60 },
             { id: "4", label: "90 dias úteis", dias: 90 },
           ]);
+        }
+      });
+    // Load fornecedores
+    supabase.from("tenant_settings" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("chave", "fornecedores")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && (data as any).valor) {
+          try {
+            const parsed = JSON.parse((data as any).valor);
+            setFornecedores(parsed.filter((f: any) => f.ativo !== false).map((f: any) => ({ id: f.id, nome: f.nome })));
+          } catch {}
         }
       });
   }, [open]);
@@ -536,8 +552,34 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                               <TableCell className="text-xs font-medium text-center">{idx + 1}</TableCell>
                               <TableCell><Input type="number" min={1} value={item.quantidade} onChange={e => updateItem(idx, "quantidade", Number(e.target.value))} className="h-8 text-xs w-14" /></TableCell>
                               <TableCell><Input value={item.descricao_ambiente} onChange={e => updateItem(idx, "descricao_ambiente", e.target.value)} className="h-8 text-xs" placeholder="Ex: Cozinha" /></TableCell>
-                              <TableCell><Input value={item.fornecedor} onChange={e => updateItem(idx, "fornecedor", e.target.value)} className="h-8 text-xs" /></TableCell>
-                              <TableCell><Input value={item.prazo} onChange={e => updateItem(idx, "prazo", e.target.value)} className="h-8 text-xs" /></TableCell>
+                              <TableCell>
+                                {fornecedores.length > 0 ? (
+                                  <Select value={item.fornecedor} onValueChange={v => updateItem(idx, "fornecedor", v)}>
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                    <SelectContent>
+                                      {fornecedores.map(f => (
+                                        <SelectItem key={f.id} value={f.nome}>{f.nome}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input value={item.fornecedor} onChange={e => updateItem(idx, "fornecedor", e.target.value)} className="h-8 text-xs" />
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {deliveryDeadlines.length > 0 ? (
+                                  <Select value={item.prazo} onValueChange={v => updateItem(idx, "prazo", v)}>
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Prazo..." /></SelectTrigger>
+                                    <SelectContent>
+                                      {deliveryDeadlines.map(d => (
+                                        <SelectItem key={d.id} value={d.label}>{d.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input value={item.prazo} onChange={e => updateItem(idx, "prazo", e.target.value)} className="h-8 text-xs" />
+                                )}
+                              </TableCell>
                               <TableCell><Input value={item.valor_ambiente ? maskCurrency(String(Math.round(item.valor_ambiente * 100))) : ""} onChange={e => updateItem(idx, "valor_ambiente", unmaskCurrency(e.target.value))} className="h-8 text-xs" placeholder="R$ 0,00" /></TableCell>
                               <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                             </TableRow>
