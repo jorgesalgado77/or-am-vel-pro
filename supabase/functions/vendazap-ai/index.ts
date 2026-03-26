@@ -180,11 +180,14 @@ Seja profissional, confiante e assertivo. Nunca seja passivo.`) +
     if (deal_room_link) userPrompt += `\nLink da sala de negociação: ${deal_room_link}`;
 
     if (historico.length > 0) {
-      userPrompt += "\n\n--- HISTÓRICO RECENTE ---";
+      userPrompt += "\n\n--- HISTÓRICO COMPLETO DA NEGOCIAÇÃO (USE COMO CONTEXTO!) ---";
+      userPrompt += "\nIMPORTANTE: O cliente já interagiu antes. Considere TODAS as mensagens anteriores. Se o cliente está tentando fugir ou repetindo objeções, seja MAIS FIRME e use argumentos DIFERENTES dos já usados. Nunca repita a mesma abordagem.";
       for (const h of historico) {
-        const role = h.remetente_tipo === "cliente" ? "Cliente" : "Vendedor";
-        userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 200)}`;
+        const role = h.remetente_tipo === "cliente" ? "Cliente" : "Vendedor (você)";
+        userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 300)}`;
       }
+      userPrompt += "\n--- FIM DO HISTÓRICO ---";
+      userPrompt += "\nAgora gere uma resposta que EVOLUA a argumentação, usando dados e ângulos NOVOS que ainda não foram usados. Se o cliente repetiu uma objeção, quebre-a de forma DIFERENTE e mais contundente.";
     }
 
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
