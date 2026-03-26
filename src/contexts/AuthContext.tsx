@@ -519,12 +519,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
           }
 
+          // Use auth_user_id when available (correct UUID for Supabase Auth operations)
+          const legacyAuthUserId = legacyUser.auth_user_id || legacyUser.id;
+
           if (tenantIdFromCode && legacyUser.tenant_id !== tenantIdFromCode) {
             return { user: null, error: "Este email não está vinculado ao código da loja informado." };
           }
 
           if (isEmailNotConfirmedError(error)) {
-            const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+            const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
             if (confirmedLogin) {
               return finalizeLogin(confirmedLogin);
             }
@@ -581,7 +584,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             if (signUpError && isAlreadyRegisteredError(signUpError)) {
-              const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+              const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
               if (confirmedLogin) {
                 return finalizeLogin(confirmedLogin);
               }
@@ -618,7 +621,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             if (isEmailNotConfirmedError(retryProvision.error)) {
-              const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+              const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
               if (confirmedLogin) {
                 return finalizeLogin(confirmedLogin);
               }
@@ -649,7 +652,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.warn("[Auth] Legacy migration signUp failed:", signUpError.message);
 
             if (isAlreadyRegisteredError(signUpError)) {
-              const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+              const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
               if (confirmedLogin) {
                 return finalizeLogin(confirmedLogin);
               }
@@ -698,7 +701,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           if (isEmailNotConfirmedError(retryError)) {
-            const confirmedLogin = await attemptConfirmedLogin(legacyUser.id, normalizedEmail_, password);
+            const confirmedLogin = await attemptConfirmedLogin(legacyAuthUserId, normalizedEmail_, password);
             if (confirmedLogin) {
               return finalizeLogin(confirmedLogin);
             }
