@@ -25,6 +25,7 @@ import {
   attemptConfirmedLogin,
   signInWithPasswordFast,
   resolveTenantIdByStoreCode,
+  syncLegacyAuthPassword,
 } from "@/lib/authHelpers";
 
 interface AuthContextType {
