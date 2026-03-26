@@ -1,11 +1,13 @@
 import {memo} from "react";
 import {Button} from "@/components/ui/button";
+import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
 import {Lightbulb, Copy, Loader2} from "lucide-react";
 
 interface Props {
   suggestion: string;
   loading: boolean;
   tipoCopy: string;
+  discProfile?: string;
   onUse: () => void;
 }
 
@@ -19,12 +21,21 @@ const TIPO_LABELS: Record<string, string> = {
   resposta_automatica: "🤖 Auto-Pilot",
 };
 
-export const ChatAISuggestion = memo(function ChatAISuggestion({ suggestion, loading, tipoCopy, onUse }: Props) {
+const DISC_LABELS: Record<string, { label: string; emoji: string; desc: string }> = {
+  D: { label: "Dominante", emoji: "🔴", desc: "Direto, decisivo, orientado a resultados" },
+  I: { label: "Influente", emoji: "🟡", desc: "Entusiasmado, sociável, emotivo" },
+  S: { label: "Estável", emoji: "🟢", desc: "Cauteloso, busca segurança e garantias" },
+  C: { label: "Conforme", emoji: "🔵", desc: "Analítico, detalhista, precisa de dados" },
+};
+
+export const ChatAISuggestion = memo(function ChatAISuggestion({ suggestion, loading, tipoCopy, discProfile, onUse }: Props) {
   if (!loading && !suggestion) return null;
+
+  const disc = discProfile ? DISC_LABELS[discProfile] : null;
 
   return (
     <div className="mx-3 mb-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex items-center gap-1.5 mb-1.5">
+      <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
         <Lightbulb className="h-3.5 w-3.5 text-primary" />
         <span className="text-xs font-semibold text-primary">Sugestão da IA</span>
         {tipoCopy && (
@@ -32,12 +43,26 @@ export const ChatAISuggestion = memo(function ChatAISuggestion({ suggestion, loa
             {TIPO_LABELS[tipoCopy] || tipoCopy}
           </span>
         )}
+        {disc && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full font-medium cursor-help">
+                {disc.emoji} DISC: {disc.label}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs max-w-[200px]">
+              <p className="font-semibold">{disc.emoji} Perfil {disc.label}</p>
+              <p className="text-muted-foreground">{disc.desc}</p>
+              <p className="mt-1 text-primary">Tom e argumentos adaptados automaticamente</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {loading ? (
         <div className="flex items-center gap-2 py-2">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-          <span className="text-xs text-muted-foreground">Analisando conversa...</span>
+          <span className="text-xs text-muted-foreground">Analisando conversa{discProfile ? " e perfil DISC" : ""}...</span>
         </div>
       ) : (
         <>
