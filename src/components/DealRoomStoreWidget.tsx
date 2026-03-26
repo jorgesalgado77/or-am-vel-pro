@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DollarSign, TrendingUp, Target, Percent, Trophy, Plus,
   Send, Eye, CheckCircle, XCircle, FileText, ExternalLink,
-  Handshake, BarChart3, RefreshCw, Video, Calendar,
+  Handshake, BarChart3, RefreshCw, Video, Calendar, Bot,
 } from "lucide-react";
 import { useDealRoom, type DealRoomProposal } from "@/hooks/useDealRoom";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DealRoomMeeting } from "./dealroom/DealRoomMeeting";
 import { DealRoomScheduler } from "./dealroom/DealRoomScheduler";
+import { DealRoomVendaZapAI } from "./dealroom/DealRoomVendaZapAI";
 
 interface DealRoomStoreWidgetProps {
   tenantId: string;
@@ -199,6 +200,7 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
       <Tabs defaultValue="propostas" className="space-y-4">
         <TabsList className="overflow-x-auto">
           <TabsTrigger value="propostas" className="gap-2"><FileText className="h-4 w-4" /> Propostas</TabsTrigger>
+          <TabsTrigger value="vendazap-ai" className="gap-2"><Bot className="h-4 w-4" /> VendaZap AI</TabsTrigger>
           <TabsTrigger value="metricas" className="gap-2"><BarChart3 className="h-4 w-4" /> Métricas</TabsTrigger>
           <TabsTrigger value="ranking" className="gap-2"><Trophy className="h-4 w-4" /> Ranking</TabsTrigger>
           <TabsTrigger value="agenda" className="gap-2"><Calendar className="h-4 w-4" /> Agenda</TabsTrigger>
@@ -328,6 +330,16 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* VendaZap AI Tab */}
+        <TabsContent value="vendazap-ai">
+          <DealRoomVendaZapAI
+            tenantId={tenantId}
+            clientName={clients.find(c => c.id === activeMeeting?.clientId)?.nome || activeMeeting?.clientName}
+            proposalValue={activeMeeting?.proposalValue}
+            sessionId={activeMeeting?.sessionId}
+          />
         </TabsContent>
 
         {/* Métricas Tab */}
