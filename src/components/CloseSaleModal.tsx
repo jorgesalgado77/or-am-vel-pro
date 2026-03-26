@@ -129,6 +129,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [cpfCnpjError, setCpfCnpjError] = useState<string>("");
   const [sameAddress, setSameAddress] = useState(false);
   const [deliveryDeadlines, setDeliveryDeadlines] = useState<{id: string; label: string; dias: number}[]>([]);
+  const [fornecedores, setFornecedores] = useState<{id: string; nome: string}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
