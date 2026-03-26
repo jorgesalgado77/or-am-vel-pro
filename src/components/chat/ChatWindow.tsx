@@ -23,6 +23,7 @@ interface Props {
   aiSuggestion: string;
   aiLoading: boolean;
   aiTipoCopy: string;
+  aiDiscProfile?: string;
   onUseSuggestion: () => void;
   inputValue: string;
   onInputChange: (v: string) => void;
@@ -32,7 +33,7 @@ const PAGE_SIZE = 40;
 
 export function ChatWindow({
   conversation, onBack, onStartDealRoom,
-  aiSuggestion, aiLoading, aiTipoCopy, onUseSuggestion,
+  aiSuggestion, aiLoading, aiTipoCopy, aiDiscProfile, onUseSuggestion,
   inputValue, onInputChange, userId, tenantId,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -281,6 +282,7 @@ export function ChatWindow({
         suggestion={aiSuggestion}
         loading={aiLoading}
         tipoCopy={aiTipoCopy}
+        discProfile={aiDiscProfile}
         onUse={onUseSuggestion}
       />
 

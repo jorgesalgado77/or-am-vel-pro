@@ -292,6 +292,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               aiSuggestion={suggestion}
               aiLoading={aiLoading}
               aiTipoCopy={tipoCopy}
+              aiDiscProfile={discProfile}
               onUseSuggestion={handleUseSuggestion}
               inputValue={inputValue}
               onInputChange={setInputValue}
