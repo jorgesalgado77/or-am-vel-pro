@@ -219,34 +219,42 @@ serve(async (req) => {
         ? "\n\n--- AUTO-PILOT ---\nSeja conciso (máx 2 parágrafos). Inclua pergunta de fechamento."
         : "");
 
-    let userPrompt = `Gere uma mensagem CURTA de ${tipo_copy} com tom ${tom}. MÁXIMO 3 parágrafos curtos. FOCO: fechamento.`;
+    let userPrompt = `Gere uma mensagem ULTRA-CURTA de ${tipo_copy} com tom ${tom}. MÁXIMO 2 parágrafos curtos de 1-2 frases. LIMITE: 250 caracteres.`;
     if (nome_cliente) userPrompt += `\nCliente: ${nome_cliente}`;
-    if (valor_orcamento) userPrompt += `\nValor: R$ ${valor_orcamento}`;
+    if (valor_orcamento) userPrompt += `\n(Valor interno — NÃO mencione ao cliente)`;
     if (status_negociacao) userPrompt += `\nStatus: ${status_negociacao}`;
-    if (dias_sem_resposta) userPrompt += `\n${dias_sem_resposta} dias sem resposta — URGENTE!`;
-    if (mensagem_cliente) userPrompt += `\nMensagem do cliente: "${mensagem_cliente}"`;
-    if (deal_room_link) userPrompt += `\nLink Deal Room: ${deal_room_link}`;
+    if (dias_sem_resposta && dias_sem_resposta > 1) userPrompt += `\n${dias_sem_resposta} dias sem resposta — URGENTE!`;
+    if (mensagem_cliente) userPrompt += `\nÚltima mensagem do cliente: "${mensagem_cliente}"`;
+
+    // Force Deal Room link when price-related intent
+    if (deal_room_link && (intencao === "enviar_preco" || intencao === "orcamento" || intencao === "preco")) {
+      userPrompt += `\n\n🔴 OBRIGATÓRIO: Inclua este link da reunião online na resposta: ${deal_room_link}`;
+      userPrompt += `\nDiga algo como: "Preparei uma sala exclusiva pra gente ver tudo ao vivo! Acessa aqui: ${deal_room_link}"`;
+    } else if (deal_room_link) {
+      userPrompt += `\nLink Deal Room disponível (use se fizer sentido): ${deal_room_link}`;
+    }
 
     if (historico.length > 0) {
       const previousSellerMessages = historico
         .filter((h: any) => h.remetente_tipo !== "cliente")
         .map((h: any) => (h.mensagem || "").slice(0, 200));
 
-      userPrompt += "\n\n--- HISTÓRICO ---";
-      for (const h of historico) {
+      userPrompt += "\n\n--- HISTÓRICO RECENTE ---";
+      for (const h of historico.slice(-6)) {
         const role = h.remetente_tipo === "cliente" ? "Cliente" : "Vendedor";
-        userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 200)}`;
+        userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 150)}`;
       }
 
       if (previousSellerMessages.length > 0) {
-        userPrompt += "\n\n⚠️ NÃO REPITA estes argumentos já usados:";
-        previousSellerMessages.forEach((msg: string, i: number) => {
-          userPrompt += `\n${i + 1}. "${msg.substring(0, 100)}"`;
+        userPrompt += "\n\n⚠️ ARGUMENTOS JÁ USADOS (NÃO repita NENHUM):";
+        previousSellerMessages.slice(-5).forEach((msg: string, i: number) => {
+          userPrompt += `\n${i + 1}. "${msg.substring(0, 80)}"`;
         });
-        userPrompt += "\n\n🔴 Use argumentos COMPLETAMENTE DIFERENTES. Seja CRIATIVO, CURTO e HUMANO.";
+        userPrompt += "\n\n🔴 Use argumento 100% DIFERENTE. Mude a abordagem completamente.";
       }
     }
 
+    const effectiveMaxTokens = Math.min(max_tokens, 250);
     const temperature = historico.length > 2 ? 0.95 : 0.8;
 
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -258,10 +266,10 @@ serve(async (req) => {
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens,
+        max_tokens: effectiveMaxTokens,
         temperature,
-        presence_penalty: 0.6,
-        frequency_penalty: 0.5,
+        presence_penalty: 0.8,
+        frequency_penalty: 0.7,
       }),
     });
 
