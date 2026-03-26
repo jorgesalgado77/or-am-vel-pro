@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion, Lightbulb } from "lucide-react";
+import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion, Lightbulb, Clock } from "lucide-react";
 
 // Lazy load each tab to reduce initial chunk from 1.5MB
 const CompanySettingsTab = lazy(() => import("@/components/settings/CompanySettingsTab").then(m => ({ default: m.CompanySettingsTab })));
@@ -19,6 +19,7 @@ const AuditLogsTab = lazy(() => import("@/components/settings/AuditLogsTab").the
 const CanvaIntegrationTab = lazy(() => import("@/components/settings/CanvaIntegrationTab").then(m => ({ default: m.CanvaIntegrationTab })));
 const BriefingTab = lazy(() => import("@/components/settings/BriefingTab").then(m => ({ default: m.BriefingTab })));
 const ArgumentBankTab = lazy(() => import("@/components/settings/ArgumentBankTab").then(m => ({ default: m.ArgumentBankTab })));
+const PrazosEntregaTab = lazy(() => import("@/components/settings/PrazosEntregaTab").then(m => ({ default: m.PrazosEntregaTab })));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-12">
@@ -49,6 +50,7 @@ export function SettingsPanel() {
           <TabsTrigger value="canva" className="gap-2"><Palette className="h-4 w-4" />Canva</TabsTrigger>
           <TabsTrigger value="briefing" className="gap-2"><FileQuestion className="h-4 w-4" />Briefing</TabsTrigger>
           <TabsTrigger value="argumentos" className="gap-2"><Lightbulb className="h-4 w-4" />Argumentos</TabsTrigger>
+          <TabsTrigger value="prazos" className="gap-2"><Clock className="h-4 w-4" />Prazos Entrega</TabsTrigger>
         </TabsList>
 
         <Suspense fallback={<TabLoader />}>
@@ -68,6 +70,7 @@ export function SettingsPanel() {
           {activeTab === "canva" && <TabsContent value="canva" forceMount><CanvaIntegrationTab /></TabsContent>}
           {activeTab === "briefing" && <TabsContent value="briefing" forceMount><BriefingTab /></TabsContent>}
           {activeTab === "argumentos" && <TabsContent value="argumentos" forceMount><ArgumentBankTab /></TabsContent>}
+          {activeTab === "prazos" && <TabsContent value="prazos" forceMount><PrazosEntregaTab /></TabsContent>}
         </Suspense>
       </Tabs>
     </div>
