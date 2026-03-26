@@ -173,6 +173,8 @@ serve(async (req) => {
     const modo = typeof body.modo === "string" ? body.modo : "sugestao";
     const historico = Array.isArray(body.historico) ? body.historico.slice(-10) : [];
     const learning_context = typeof body.learning_context === "string" ? body.learning_context.slice(0, 3000) : "";
+    const custom_arguments = typeof body.custom_arguments === "string" ? body.custom_arguments.slice(0, 3000) : "";
+    const perplexity_data = typeof body.perplexity_data === "string" ? body.perplexity_data.slice(0, 2000) : "";
 
     // Also support direct messages array (used by DealRoom AI Assistant)
     const messages = Array.isArray(body.messages) ? body.messages : null;
@@ -225,6 +227,8 @@ Você tem conhecimento profundo sobre materiais (MDF, MDP, ferragens Blum/Hafele
       `\n\n--- CONTEXTO DA INTENÇÃO ---\n${intentContext}` +
       SYSTEM_PROMPT_CLOSING_RULES +
       (learning_context ? `\n${learning_context}` : "") +
+      (custom_arguments ? `\n\n=== ARGUMENTOS PERSONALIZADOS DA LOJA (USE ATIVAMENTE!) ===\n${custom_arguments}\nUse estes argumentos REAIS da loja para tornar a mensagem mais convincente e personalizada.` : "") +
+      (perplexity_data ? `\n\n=== DADOS REAIS DA INTERNET (PESQUISA PERPLEXITY) ===\n${perplexity_data}\nIncorpore estes dados atualizados na sua argumentação para dar credibilidade e peso.` : "") +
       (modo === "autopilot"
         ? "\n\n--- MODO AUTO-PILOT ---\nVocê está respondendo AUTOMATICAMENTE. Seja conciso (máx 3 parágrafos). Inclua uma pergunta de fechamento. NÃO use saudações formais excessivas."
         : "");
