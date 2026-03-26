@@ -487,6 +487,9 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
       {/* Result */}
       <div className="space-y-4">
+        {/* Evolution panel */}
+        <NegotiationEvolutionPanel currentEntries={historico.entries} />
+
         {/* Response thermometer */}
         {closingScore !== null && mensagemGerada && (
           <ClosingThermometer score={closingScore} label="Potencial de fechamento da resposta" />
