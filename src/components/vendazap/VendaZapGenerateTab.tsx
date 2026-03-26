@@ -82,6 +82,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [clients, setClients] = useState<Client[]>([]);
   const [lastSim, setLastSim] = useState<any>(null);
   const [closingScore, setClosingScore] = useState<number | null>(null);
+  const [customArguments, setCustomArguments] = useState("");
 
   const [autoChanged, setAutoChanged] = useState<{ copy?: string; tone?: string }>({});
 
@@ -150,6 +151,16 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
         }
       }
     });
+    // Load custom arguments from argument bank
+    if (tenantId) {
+      supabase.from("argument_bank" as any).select("titulo, argumento, dados_reais, categoria").eq("tenant_id", tenantId)
+        .then(({ data: args }) => {
+          if (args && Array.isArray(args) && args.length > 0) {
+            const formatted = (args as any[]).map(a => `[${a.categoria}] ${a.titulo}: ${a.argumento}${a.dados_reais ? ` (Dados: ${a.dados_reais})` : ""}`).join("\n");
+            setCustomArguments(formatted);
+          }
+        });
+    }
   }, []);
 
   useEffect(() => {
@@ -192,6 +203,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       client_id: selectedClient?.id, usuario_id: currentUserId,
       historico: historicoPayload.length > 0 ? historicoPayload : undefined,
       learning_context: learningContext || undefined,
+      custom_arguments: customArguments || undefined,
     });
     if (result) {
       updateForm({ mensagemGerada: result });
