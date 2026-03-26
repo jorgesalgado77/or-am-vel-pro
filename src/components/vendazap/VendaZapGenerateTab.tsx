@@ -58,6 +58,13 @@ interface VendaZapGenerateTabProps {
   currentUserId?: string;
 }
 
+interface HistoricoEntry {
+  remetente_tipo: "cliente" | "ia";
+  mensagem: string;
+  intent?: string;
+  score?: number;
+}
+
 export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId }: VendaZapGenerateTabProps) {
   const [formState, updateForm, clearForm] = usePersistedFormState("vendazap-generate", {
     tipoCopy: "geral",
@@ -72,6 +79,12 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [clients, setClients] = useState<Client[]>([]);
   const [lastSim, setLastSim] = useState<any>(null);
   const [closingScore, setClosingScore] = useState<number | null>(null);
+
+  // Conversation memory — persisted in sessionStorage
+  const [historico, setHistorico] = usePersistedFormState("vendazap-historico", {
+    entries: [] as HistoricoEntry[],
+    clientId: null as string | null,
+  });
 
   // Derived from persisted state
   const { tipoCopy, tom, mensagemCliente, mensagemGerada, searchClient } = formState;
@@ -114,19 +127,47 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const diasSemResposta = selectedClient ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
 
+  // Reset historico when client changes
+  useEffect(() => {
+    if (selectedClient && historico.clientId !== selectedClient.id) {
+      setHistorico({ entries: [], clientId: selectedClient.id });
+    }
+  }, [selectedClient?.id]);
+
   const handleGenerate = async () => {
+    // Build historico array from memory for the edge function
+    const historicoPayload = historico.entries.map(e => ({
+      remetente_tipo: e.remetente_tipo === "ia" ? "loja" : "cliente",
+      mensagem: e.mensagem,
+    }));
+
     const result = await generateMessage({
       nome_cliente: selectedClient?.nome, valor_orcamento: lastSim?.valor_final || lastSim?.valor_tela,
       status_negociacao: selectedClient?.status || "novo", dias_sem_resposta: diasSemResposta,
       mensagem_cliente: mensagemCliente || undefined, tipo_copy: tipoCopy, tom,
       client_id: selectedClient?.id, usuario_id: currentUserId,
+      historico: historicoPayload.length > 0 ? historicoPayload : undefined,
     });
     if (result) {
       updateForm({ mensagemGerada: result });
-      // Calculate closing score based on response context
+
+      // Add to conversation memory
+      const newEntries = [...historico.entries];
+      if (mensagemCliente?.trim()) {
+        const analysis = analyzeClientMessage(mensagemCliente);
+        newEntries.push({ remetente_tipo: "cliente", mensagem: mensagemCliente.trim(), intent: analysis.intent, score: analysis.score });
+      }
+      newEntries.push({ remetente_tipo: "ia", mensagem: result });
+      // Keep last 20 entries
+      setHistorico({ entries: newEntries.slice(-20), clientId: selectedClient?.id || null });
+
+      // Calculate closing score
       const baseScore = clientAnalysis ? clientAnalysis.score : 50;
       const copyBonus = tipoCopy === "fechamento" ? 20 : tipoCopy === "urgencia" ? 15 : tipoCopy === "objecao" ? 10 : tipoCopy === "reversao" ? 5 : 0;
-      setClosingScore(Math.min(100, baseScore + copyBonus + 15)); // +15 because AI response always pushes toward closing
+      setClosingScore(Math.min(100, baseScore + copyBonus + 15));
+
+      // Clear client message field for next round
+      updateForm({ mensagemCliente: "" });
     }
   };
 
@@ -178,7 +219,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                     <p className="font-medium text-sm text-foreground">{selectedClient.nome}</p>
                     {clientScore && <Badge variant="outline" className={`text-[10px] ${clientScore.color}`}>{clientScore.emoji} {clientScore.label}</Badge>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); setClosingScore(null); }} className="h-6 text-xs">Trocar</Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); setClosingScore(null); setHistorico({ entries: [], clientId: null }); }} className="h-6 text-xs">Trocar</Button>
                 </div>
                 {selectedClient.numero_orcamento && <p className="text-xs text-muted-foreground">Orçamento: #{selectedClient.numero_orcamento}</p>}
                 <p className="text-xs text-muted-foreground">Status: {selectedClient.status}</p>
@@ -244,16 +285,63 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           </CardContent>
         </Card>
 
+        {/* Conversation History */}
+        {historico.entries.length > 0 && (
+          <Card className="border-primary/20">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  Memória da Conversa ({historico.entries.length} msgs)
+                </CardTitle>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => setHistorico({ entries: [], clientId: selectedClient?.id || null })}>
+                  Limpar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="max-h-40">
+                <div className="space-y-1.5">
+                  {historico.entries.map((entry, i) => (
+                    <div key={i} className={`flex ${entry.remetente_tipo === "ia" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-[11px] ${
+                        entry.remetente_tipo === "ia"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-foreground"
+                      }`}>
+                        <span className="font-semibold text-[10px] block mb-0.5">
+                          {entry.remetente_tipo === "ia" ? "🤖 IA" : "👤 Cliente"}
+                          {entry.intent && <span className="ml-1 opacity-70">({entry.intent})</span>}
+                        </span>
+                        <p className="line-clamp-2">{entry.mensagem}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Client Message */}
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm">Mensagem do Cliente (opcional)</CardTitle></CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">
+              {historico.entries.length > 0 ? "Réplica do Cliente" : "Mensagem do Cliente (opcional)"}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
-            <Textarea placeholder="Cole aqui a mensagem do cliente para a IA analisar e contra-argumentar..." value={mensagemCliente} onChange={(e) => setMensagemCliente(e.target.value)} rows={3} />
-            {/* Client message thermometer */}
+            <Textarea
+              placeholder={historico.entries.length > 0
+                ? "Cole a réplica do cliente — a IA usará todo o contexto anterior para contra-argumentar..."
+                : "Cole aqui a mensagem do cliente para a IA analisar e contra-argumentar..."
+              }
+              value={mensagemCliente}
+              onChange={(e) => setMensagemCliente(e.target.value)}
+              rows={3}
+            />
             {clientAnalysis && mensagemCliente.length > 3 && (
-              <div className="space-y-2">
-                <ClosingThermometer score={clientAnalysis.score} label={`Análise da mensagem do cliente — Intenção: ${clientAnalysis.intent}`} />
-              </div>
+              <ClosingThermometer score={clientAnalysis.score} label={`Análise da mensagem do cliente — Intenção: ${clientAnalysis.intent}`} />
             )}
           </CardContent>
         </Card>
