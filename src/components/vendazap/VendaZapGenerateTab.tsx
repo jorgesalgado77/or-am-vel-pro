@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { ClosingThermometer, analyzeClientMessage } from "./ClosingThermometer";
+import { NegotiationEvolutionPanel, learnFromMessage, learnGoodResponse, recordSession, buildLearningContext } from "./NegotiationLearning";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
