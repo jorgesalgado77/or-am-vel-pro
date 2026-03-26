@@ -12,8 +12,9 @@ interface Props {
 const TIPO_LABELS: Record<string, string> = {
   reativacao: "Reativação",
   fechamento: "🎯 Fechamento",
-  reuniao: "Reunião",
-  urgencia: "Urgência",
+  reuniao: "📹 Reunião/Deal Room",
+  urgencia: "⚡ Urgência",
+  objecao: "🛡️ Objeção",
   geral: "Geral",
   resposta_automatica: "🤖 Auto-Pilot",
 };
