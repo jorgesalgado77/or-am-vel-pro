@@ -204,10 +204,15 @@ serve(async (req) => {
 
     // Intelligent Router: auto-fetch Perplexity data when relevant
     const intencao = detectIntent(mensagem_cliente);
-    if (!perplexity_data && shouldUsePerplexity(intencao, mensagem_cliente)) {
-      const searchQuery = mensagem_cliente
-        ? `móveis planejados Brasil: ${mensagem_cliente.slice(0, 100)}`
-        : "tendências móveis planejados Brasil 2024 preços mercado";
+    const usePerplexity = !perplexity_data && shouldUsePerplexity(intencao, mensagem_cliente, historico);
+    if (usePerplexity) {
+      const searchQueries: Record<string, string> = {
+        orcamento: `tendências e faixas de preço móveis planejados Brasil 2024 2025`,
+        preco: `comparativo preços móveis planejados MDF MDP vantagens qualidade Brasil`,
+        enviar_preco: `vantagens reunião presencial venda móveis planejados experiência cliente`,
+        objecao: `por que investir em móveis planejados vale a pena durabilidade dados`,
+      };
+      const searchQuery = searchQueries[intencao] || `móveis planejados Brasil: ${mensagem_cliente.slice(0, 80)}`;
       perplexity_data = await fetchPerplexityData(searchQuery);
     }
 
@@ -221,7 +226,7 @@ serve(async (req) => {
       SYSTEM_PROMPT_CLOSING_RULES +
       (learning_context ? `\n${learning_context}` : "") +
       (custom_arguments ? `\n\n=== ARGUMENTOS DA LOJA (USE!) ===\n${custom_arguments}` : "") +
-      (perplexity_data ? `\n\n=== DADOS REAIS (PERPLEXITY) ===\n${perplexity_data}\nUse estes dados para dar credibilidade.` : "") +
+      (perplexity_data ? `\n\n=== DADOS REAIS DE MERCADO (use para credibilidade!) ===\n${perplexity_data}` : "") +
       (modo === "autopilot"
         ? "\n\n--- AUTO-PILOT ---\nSeja conciso (máx 2 parágrafos). Inclua pergunta de fechamento."
         : "");
@@ -264,33 +269,78 @@ serve(async (req) => {
     const effectiveMaxTokens = Math.min(max_tokens, 250);
     const temperature = historico.length > 2 ? 0.95 : 0.8;
 
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: effectiveMaxTokens,
-        temperature,
-        presence_penalty: 0.8,
-        frequency_penalty: 0.7,
-      }),
-    });
+    // Alternate between OpenAI and Perplexity for message generation
+    // Use Perplexity sonar for responses when we have market data context (richer arguments)
+    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    const usePerplexityForGeneration = PERPLEXITY_API_KEY && historico.length >= 3 && historico.length % 2 === 1;
 
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      console.error("OpenAI error:", aiRes.status, errText);
-      if (aiRes.status === 429) return respond({ error: "Limite de requisições excedido." }, 429);
-      if (aiRes.status === 402) return respond({ error: "Créditos esgotados." }, 402);
-      return respond({ error: "Erro na API de IA" }, 502);
+    let mensagem = "";
+    let tokens_usados = 0;
+    let ai_provider_used = "openai";
+
+    if (usePerplexityForGeneration && PERPLEXITY_API_KEY) {
+      // Use Perplexity sonar for generation — brings fresh web-grounded arguments
+      try {
+        const pRes = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${PERPLEXITY_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "sonar",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt + "\n\nUse dados REAIS e atuais do mercado para construir argumentos inéditos." },
+            ],
+            max_tokens: effectiveMaxTokens,
+            temperature: 0.7,
+            search_recency_filter: "month",
+          }),
+        });
+
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          mensagem = pData.choices?.[0]?.message?.content || "";
+          tokens_usados = pData.usage?.total_tokens || 0;
+          ai_provider_used = "perplexity";
+        }
+      } catch (e) {
+        console.error("Perplexity generation error:", e);
+      }
     }
 
-    const aiData = await aiRes.json();
-    const mensagem = aiData.choices?.[0]?.message?.content || "";
-    const tokens_usados = aiData.usage?.total_tokens || 0;
+    // Fallback to OpenAI if Perplexity didn't generate or wasn't used
+    if (!mensagem) {
+      const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          max_tokens: effectiveMaxTokens,
+          temperature,
+          presence_penalty: 0.8,
+          frequency_penalty: 0.7,
+        }),
+      });
+
+      if (!aiRes.ok) {
+        const errText = await aiRes.text();
+        console.error("OpenAI error:", aiRes.status, errText);
+        if (aiRes.status === 429) return respond({ error: "Limite de requisições excedido." }, 429);
+        if (aiRes.status === 402) return respond({ error: "Créditos esgotados." }, 402);
+        return respond({ error: "Erro na API de IA" }, 502);
+      }
+
+      const aiData = await aiRes.json();
+      mensagem = aiData.choices?.[0]?.message?.content || "";
+      tokens_usados = aiData.usage?.total_tokens || 0;
+      ai_provider_used = "openai";
+    }
 
     return respond({
       mensagem,
@@ -298,7 +348,8 @@ serve(async (req) => {
       intencao,
       modo,
       closing_score: closingScore,
-      used_perplexity: !!perplexity_data,
+      used_perplexity: !!perplexity_data || ai_provider_used === "perplexity",
+      ai_provider: ai_provider_used,
     });
   } catch (e) {
     console.error("vendazap-ai error:", e);
