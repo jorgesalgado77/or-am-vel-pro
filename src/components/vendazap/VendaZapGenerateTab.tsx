@@ -479,7 +479,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                       <Sparkles className="h-3 w-3" />Usar resposta
                     </Button>
                     <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handleCopy(autoSugg.suggestion)}><Copy className="h-3 w-3" />Copiar</Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handleCopyAndOpenWhatsApp(autoSugg.suggestion, selectedClient?.telefone1)}><ExternalLink className="h-3 w-3" />WhatsApp</Button>
+                    <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => handleCopyAndOpenDealRoom(autoSugg.suggestion)}><Video className="h-3 w-3" />Deal Room</Button>
                   </div>
                 </div>
               )}
