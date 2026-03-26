@@ -552,13 +552,26 @@ export default function Login() {
               </div>
 
               <div className="flex justify-end">
-                <button
-                  type="button"
-                  className="text-xs text-white/40 hover:text-[hsl(var(--primary))] transition-colors"
-                  onClick={() => setShowForgotPassword(true)}
-                >
-                  Esqueci minha senha
-                </button>
+                {highlightForgotPassword ? (
+                  <motion.button
+                    type="button"
+                    initial={{ scale: 1 }}
+                    animate={{ scale: [1, 1.08, 1], opacity: [0.8, 1, 0.8] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="text-sm font-semibold text-[hsl(var(--primary))] underline underline-offset-2 px-3 py-1.5 rounded-lg bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)]"
+                    onClick={() => { setShowForgotPassword(true); setHighlightForgotPassword(false); }}
+                  >
+                    🔑 Esqueci minha senha
+                  </motion.button>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-xs text-white/40 hover:text-[hsl(var(--primary))] transition-colors"
+                    onClick={() => setShowForgotPassword(true)}
+                  >
+                    Esqueci minha senha
+                  </button>
+                )}
               </div>
 
               <Button
