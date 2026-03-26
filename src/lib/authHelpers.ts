@@ -521,6 +521,36 @@ export async function ensureUserProfile(authUser: SupabaseAuthUser | null, metad
   }
 }
 
+/**
+ * Attempt to sync legacy password into Supabase Auth when the Auth account
+ * exists with a different password. Uses SECURITY DEFINER RPC.
+ */
+export async function syncLegacyAuthPassword(
+  email: string,
+  newPassword: string,
+  legacyUserId: string,
+): Promise<boolean> {
+  try {
+    const { error } = await withTimeout(
+      (supabase as any).rpc("sync_legacy_auth_password", {
+        p_email: email,
+        p_new_password: newPassword,
+        p_legacy_user_id: legacyUserId,
+      }),
+      3000,
+      { error: createTimeoutError("sync_legacy_auth_password") } as any,
+    );
+    if (error) {
+      console.warn("[Auth] sync_legacy_auth_password failed:", error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn("[Auth] sync_legacy_auth_password unavailable:", e);
+    return false;
+  }
+}
+
 /** Sync in-memory state for non-React consumers (auditService) */
 export function syncGlobalState(appUser: AppUser | null) {
   setTenantState(appUser?.tenant_id ?? null, appUser?.id ?? null);
