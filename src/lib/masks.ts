@@ -57,6 +57,24 @@ export function isCnpj(value: string): boolean {
   return unmask(value).length > 11;
 }
 
+/** Mask RG (XX.XXX.XXX-X) or Inscrição Estadual (auto-detect by length) */
+export function maskRgIe(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 9) {
+    // RG: 00.000.000-0
+    return digits
+      .replace(/(\d{2})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1})$/, "$1-$2");
+  }
+  // Inscrição Estadual: varies by state, use generic dotted format
+  return digits.replace(/(\d{3})(?=\d)/g, "$1.").replace(/\.(\d{1,2})$/, "-$1");
+}
+
+export function maskCep(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+}
+
 // ==================== VALIDATION ====================
 
 export function validateCpf(cpf: string): boolean {
