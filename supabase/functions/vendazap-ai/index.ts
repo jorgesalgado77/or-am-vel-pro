@@ -168,6 +168,7 @@ Sua missão é FECHAR VENDAS. Cada mensagem deve aproximar o cliente do SIM.
 Seja profissional, confiante e assertivo. Nunca seja passivo.`) +
       `\n\n--- CONTEXTO DA INTENÇÃO ---\n${intentContext}` +
       SYSTEM_PROMPT_CLOSING_RULES +
+      (learning_context ? `\n${learning_context}` : "") +
       (modo === "autopilot"
         ? "\n\n--- MODO AUTO-PILOT ---\nVocê está respondendo AUTOMATICAMENTE. Seja conciso (máx 3 parágrafos). Inclua uma pergunta de fechamento. NÃO use saudações formais excessivas."
         : "");
