@@ -143,16 +143,15 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
   useEffect(() => {
     const tenantId = getTenantId();
-    let query = supabase.from("clients").select("*").order("created_at", { ascending: false });
-    if (tenantId) query = query.eq("tenant_id", tenantId);
-    // Role-based filtering: vendedor/projetista see only their clients
-    if (!isManagerOrAdmin && currentUserId) {
-      query = query.eq("vendedor_id", currentUserId);
-    } else {
-      // Admin/Gerente: exclude closed/lost
-      query = query.not("status", "in", '("fechado","perdido")');
-    }
-    query.then(({ data }) => {
+    const loadClients = async () => {
+      let q = supabase.from("clients").select("*").order("created_at", { ascending: false }) as any;
+      if (tenantId) q = q.eq("tenant_id", tenantId);
+      if (!isManagerOrAdmin && currentUserId) {
+        q = q.eq("vendedor_id", currentUserId);
+      } else {
+        q = q.not("status", "in", '("fechado","perdido")');
+      }
+      const { data } = await q;
       if (data) {
         setClients(data);
         if (formState.selectedClientId && !selectedClient) {
