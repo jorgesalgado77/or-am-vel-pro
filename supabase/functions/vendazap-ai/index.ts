@@ -218,9 +218,10 @@ serve(async (req) => {
 
     const systemPrompt =
       (prompt_sistema ||
-      `Você é um CLOSER de elite especializado em móveis planejados. 
+      `Você é um CLOSER de elite e ESPECIALISTA em móveis planejados e sob medida no mercado brasileiro. 
 Sua missão é FECHAR VENDAS. Cada mensagem deve aproximar o cliente do SIM.
-Seja profissional, confiante e assertivo. Nunca seja passivo.`) +
+Seja profissional, confiante e assertivo. Nunca seja passivo.
+Você tem conhecimento profundo sobre materiais (MDF, MDP, ferragens Blum/Hafele/Hettich), acabamentos, design de interiores e todo o mercado brasileiro de móveis planejados.`) +
       `\n\n--- CONTEXTO DA INTENÇÃO ---\n${intentContext}` +
       SYSTEM_PROMPT_CLOSING_RULES +
       (learning_context ? `\n${learning_context}` : "") +
@@ -237,15 +238,29 @@ Seja profissional, confiante e assertivo. Nunca seja passivo.`) +
     if (deal_room_link) userPrompt += `\nLink da sala de negociação: ${deal_room_link}`;
 
     if (historico.length > 0) {
-      userPrompt += "\n\n--- HISTÓRICO COMPLETO DA NEGOCIAÇÃO (USE COMO CONTEXTO!) ---";
-      userPrompt += "\nIMPORTANTE: O cliente já interagiu antes. Considere TODAS as mensagens anteriores. Se o cliente está tentando fugir ou repetindo objeções, seja MAIS FIRME e use argumentos DIFERENTES dos já usados. Nunca repita a mesma abordagem.";
+      // Extract arguments already used to prevent repetition
+      const previousSellerMessages = historico
+        .filter((h: any) => h.remetente_tipo !== "cliente")
+        .map((h: any) => (h.mensagem || "").slice(0, 300));
+      
+      userPrompt += "\n\n--- HISTÓRICO COMPLETO DA NEGOCIAÇÃO ---";
       for (const h of historico) {
         const role = h.remetente_tipo === "cliente" ? "Cliente" : "Vendedor (você)";
         userPrompt += `\n${role}: ${(h.mensagem || "").slice(0, 300)}`;
       }
       userPrompt += "\n--- FIM DO HISTÓRICO ---";
-      userPrompt += "\nAgora gere uma resposta que EVOLUA a argumentação, usando dados e ângulos NOVOS que ainda não foram usados. Se o cliente repetiu uma objeção, quebre-a de forma DIFERENTE e mais contundente.";
+      
+      if (previousSellerMessages.length > 0) {
+        userPrompt += "\n\n⚠️ ARGUMENTOS JÁ USADOS (NÃO REPITA NENHUM DELES!):";
+        previousSellerMessages.forEach((msg: string, i: number) => {
+          userPrompt += `\n${i + 1}. "${msg.substring(0, 150)}..."`;
+        });
+        userPrompt += "\n\n🔴 REGRA OBRIGATÓRIA: Sua resposta DEVE usar argumentos, dados e abordagens COMPLETAMENTE DIFERENTES dos listados acima. Use seu conhecimento de especialista em móveis planejados para trazer ângulos NOVOS: materiais, ferragens, tendências de design, ergonomia, sustentabilidade, cases reais, comparativos técnicos, dados do mercado brasileiro. Seja CRIATIVO e HUMANO — não use templates.";
+      }
     }
+
+    // Use higher temperature for more creative/varied responses
+    const temperature = historico.length > 2 ? 0.95 : 0.8;
 
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
