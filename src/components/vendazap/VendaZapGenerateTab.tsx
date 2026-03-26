@@ -332,7 +332,23 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                     <p className="font-medium text-sm text-foreground">{selectedClient.nome}</p>
                     {clientScore && <Badge variant="outline" className={`text-[10px] ${clientScore.color}`}>{clientScore.emoji} {clientScore.label}</Badge>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); setClosingScore(null); setHistorico({ entries: [], clientId: null }); }} className="h-6 text-xs">Trocar</Button>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    // Record session before clearing
+                    if (historico.entries.length > 0) {
+                      const scores = historico.entries.filter(e => e.score !== undefined).map(e => e.score || 0);
+                      recordSession({
+                        clientId: selectedClient?.id || null,
+                        clientName: selectedClient?.nome || "",
+                        date: new Date().toISOString(),
+                        totalMessages: historico.entries.length,
+                        avgScore: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+                        finalScore: scores[scores.length - 1] || 0,
+                        objections: historico.entries.filter(e => e.intent === "objeção" || e.intent === "resistência").map(e => e.mensagem),
+                        outcome: "concluida",
+                      });
+                    }
+                    setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); setClosingScore(null); setHistorico({ entries: [], clientId: null });
+                  }} className="h-6 text-xs">Trocar</Button>
                 </div>
                 {selectedClient.numero_orcamento && <p className="text-xs text-muted-foreground">Orçamento: #{selectedClient.numero_orcamento}</p>}
                 <p className="text-xs text-muted-foreground">Status: {selectedClient.status}</p>
