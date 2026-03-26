@@ -39,6 +39,7 @@ export default function Login() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
   const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string } | null>(null);
+  const [highlightForgotPassword, setHighlightForgotPassword] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Detect low-end device for reduced effects
@@ -141,6 +142,7 @@ export default function Login() {
 
     setLoading(true);
     setPlanBlocked(null);
+    setHighlightForgotPassword(false);
 
     try {
       const { user, error } = await withTimeout(
@@ -151,6 +153,15 @@ export default function Login() {
 
       if (error) {
         const msg = error.toLowerCase();
+        const isPasswordError = msg.includes("invalid login credentials") || 
+          msg.includes("senha incorreta") || 
+          msg.includes("sincronizar seu acesso") ||
+          msg.includes("already registered");
+
+        if (isPasswordError) {
+          setHighlightForgotPassword(true);
+        }
+
         if (msg.includes("email not confirmed")) {
           toast.error("Email ainda não confirmado. Tente novamente em alguns instantes.");
         } else if (msg.includes("invalid login credentials")) {
@@ -541,13 +552,26 @@ export default function Login() {
               </div>
 
               <div className="flex justify-end">
-                <button
-                  type="button"
-                  className="text-xs text-white/40 hover:text-[hsl(var(--primary))] transition-colors"
-                  onClick={() => setShowForgotPassword(true)}
-                >
-                  Esqueci minha senha
-                </button>
+                {highlightForgotPassword ? (
+                  <motion.button
+                    type="button"
+                    initial={{ scale: 1 }}
+                    animate={{ scale: [1, 1.08, 1], opacity: [0.8, 1, 0.8] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="text-sm font-semibold text-[hsl(var(--primary))] underline underline-offset-2 px-3 py-1.5 rounded-lg bg-[hsl(var(--primary)/0.15)] border border-[hsl(var(--primary)/0.3)]"
+                    onClick={() => { setShowForgotPassword(true); setHighlightForgotPassword(false); }}
+                  >
+                    🔑 Esqueci minha senha
+                  </motion.button>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-xs text-white/40 hover:text-[hsl(var(--primary))] transition-colors"
+                    onClick={() => setShowForgotPassword(true)}
+                  >
+                    Esqueci minha senha
+                  </button>
+                )}
               </div>
 
               <Button
