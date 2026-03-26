@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck, DollarSign, TrendingUp, Landmark, Crown } from "lucide-react";
+import { Plus, Trash2, Pencil, Camera, KeyRound, Eye, EyeOff, ShieldCheck, DollarSign, TrendingUp, Landmark, Crown, Mic, MicOff } from "lucide-react";
 import { UpgradePlanDialog } from "@/components/shared/UpgradePlanDialog";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -733,6 +733,19 @@ export function UsuariosTab() {
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => setResetPasswordDialog({ open: true, userId: u.id, userName: u.apelido || u.nome_completo })} title="Resetar Senha">
                           <KeyRound className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={async () => {
+                            if (!confirm(`Resetar registro de voz de "${u.apelido || u.nome_completo}"? O usuário precisará gravar nova amostra.`)) return;
+                            const { error } = await (supabase.from("usuarios").update({ voice_fingerprint: null } as any).eq("id", u.id));
+                            if (error) toast.error("Erro ao resetar voz");
+                            else toast.success("Registro de voz resetado!");
+                          }}
+                          title="Resetar Registro de Voz"
+                        >
+                          <MicOff className="h-4 w-4 text-muted-foreground" />
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => handleDelete(u.id, u.nome_completo)} title="Excluir">
                           <Trash2 className="h-4 w-4 text-destructive" />

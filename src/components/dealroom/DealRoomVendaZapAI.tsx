@@ -1,6 +1,6 @@
 /**
  * VendaZap AI integration inside Deal Room — real-time audio transcription,
- * voice separation (Vendedor vs Cliente), AI sales coaching, and PDF export.
+ * automatic voice diarization, AI sales coaching, DB persistence, and PDF export.
  */
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Mic, MicOff, Brain, Send, Download, RefreshCw, Sparkles,
-  MessageSquare, Copy, User, Headphones, StopCircle, Play,
+  MessageSquare, Copy, User, Headphones, StopCircle, Play, Save,
+  Fingerprint, CheckCircle2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -18,12 +19,15 @@ import jsPDF from "jspdf";
 import { ClosingThermometer, analyzeClientMessage } from "@/components/vendazap/ClosingThermometer";
 import { NegotiationEvolutionPanel, learnFromMessage, buildLearningContext } from "@/components/vendazap/NegotiationLearning";
 import { COPY_TYPES } from "@/components/vendazap/VendaZapGenerateTab";
+import { useVoiceEnrollment, compareVoice, extractLiveFingerprint, type VoiceFingerprint } from "@/hooks/useVoiceEnrollment";
 
 interface Props {
   tenantId: string;
   clientName?: string;
   proposalValue?: number;
   sessionId?: string;
+  currentUserId?: string;
+  clientId?: string;
 }
 
 interface TranscriptEntry {
@@ -33,6 +37,7 @@ interface TranscriptEntry {
   timestamp: Date;
   intent?: string;
   score?: number;
+  confidence?: number; // diarization confidence
 }
 
 interface AICoachMessage {
@@ -41,7 +46,7 @@ interface AICoachMessage {
   timestamp: Date;
 }
 
-export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessionId }: Props) {
+export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessionId, currentUserId, clientId }: Props) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [currentSpeaker, setCurrentSpeaker] = useState<"vendedor" | "cliente">("vendedor");
@@ -50,19 +55,71 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
   const [aiLoading, setAILoading] = useState(false);
   const [generatedResponse, setGeneratedResponse] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [autoDiarize, setAutoDiarize] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const interimRef = useRef("");
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
+  // Voice enrollment
+  const voiceEnrollment = useVoiceEnrollment(currentUserId || null);
+
+  // Load enrollment on mount
+  useEffect(() => {
+    if (currentUserId) {
+      voiceEnrollment.loadEnrollment();
+    }
+  }, [currentUserId]);
 
   // Current analysis from latest client message
   const lastClientMsg = [...transcript].reverse().find(t => t.speaker === "cliente");
   const clientAnalysis = lastClientMsg ? analyzeClientMessage(lastClientMsg.text) : null;
 
-  // Start/stop speech recognition
-  const toggleRecording = useCallback(() => {
+  /**
+   * Identify speaker using voice fingerprint comparison.
+   * Captures a short audio sample and compares against enrolled voice.
+   */
+  const identifySpeaker = useCallback((): "vendedor" | "cliente" => {
+    if (!autoDiarize || !voiceEnrollment.enrolledFingerprint || !analyserRef.current) {
+      return currentSpeaker;
+    }
+
+    try {
+      const analyser = analyserRef.current;
+      const bufferLength = analyser.fftSize;
+      const dataArray = new Float32Array(bufferLength);
+      analyser.getFloatTimeDomainData(dataArray);
+
+      // Check if there's actual audio (not silence)
+      let maxAmp = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        maxAmp = Math.max(maxAmp, Math.abs(dataArray[i]));
+      }
+      if (maxAmp < 0.01) return currentSpeaker;
+
+      const liveFp = extractLiveFingerprint(dataArray, audioContextRef.current?.sampleRate || 44100);
+      const similarity = compareVoice(voiceEnrollment.enrolledFingerprint, liveFp);
+
+      // Threshold: >55% similarity = vendedor, else = cliente
+      return similarity > 55 ? "vendedor" : "cliente";
+    } catch {
+      return currentSpeaker;
+    }
+  }, [autoDiarize, voiceEnrollment.enrolledFingerprint, currentSpeaker]);
+
+  // Start/stop speech recognition with auto-diarization
+  const toggleRecording = useCallback(async () => {
     if (isRecording) {
       recognitionRef.current?.stop();
+      mediaStreamRef.current?.getTracks().forEach(t => t.stop());
+      audioContextRef.current?.close();
+      audioContextRef.current = null;
+      analyserRef.current = null;
+      mediaStreamRef.current = null;
       setIsRecording(false);
       return;
     }
@@ -70,6 +127,25 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error("Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.");
+      return;
+    }
+
+    // Setup audio context for diarization
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      if (autoDiarize && voiceEnrollment.enrolledFingerprint) {
+        const audioCtx = new AudioContext();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+        audioContextRef.current = audioCtx;
+        analyserRef.current = analyser;
+      }
+    } catch {
+      toast.error("Erro ao acessar microfone");
       return;
     }
 
@@ -81,32 +157,37 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
 
     recognition.onresult = (event: any) => {
       let finalText = "";
-      let interimText = "";
-
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalText += result[0].transcript;
-        } else {
-          interimText += result[0].transcript;
+        if (event.results[i].isFinal) {
+          finalText += event.results[i][0].transcript;
         }
       }
 
-      interimRef.current = interimText;
-
       if (finalText.trim()) {
+        // Auto-identify speaker
+        const detectedSpeaker = identifySpeaker();
         const analysis = analyzeClientMessage(finalText.trim());
+        const similarity = voiceEnrollment.enrolledFingerprint && analyserRef.current ? (() => {
+          try {
+            const dataArray = new Float32Array(analyserRef.current!.fftSize);
+            analyserRef.current!.getFloatTimeDomainData(dataArray);
+            const liveFp = extractLiveFingerprint(dataArray, audioContextRef.current?.sampleRate || 44100);
+            return compareVoice(voiceEnrollment.enrolledFingerprint!, liveFp);
+          } catch { return undefined; }
+        })() : undefined;
+
         const entry: TranscriptEntry = {
           id: crypto.randomUUID(),
-          speaker: currentSpeaker,
+          speaker: detectedSpeaker,
           text: finalText.trim(),
           timestamp: new Date(),
-          intent: currentSpeaker === "cliente" ? analysis.intent : undefined,
-          score: currentSpeaker === "cliente" ? analysis.score : undefined,
+          intent: detectedSpeaker === "cliente" ? analysis.intent : undefined,
+          score: detectedSpeaker === "cliente" ? analysis.score : undefined,
+          confidence: similarity,
         };
         setTranscript(prev => [...prev, entry]);
 
-        if (currentSpeaker === "cliente") {
+        if (detectedSpeaker === "cliente") {
           learnFromMessage(analysis.intent, finalText.trim(), analysis.score);
         }
       }
@@ -115,13 +196,11 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
     recognition.onerror = (event: any) => {
       if (event.error !== "no-speech") {
         console.error("Speech recognition error:", event.error);
-        toast.error("Erro no reconhecimento de voz");
       }
     };
 
     recognition.onend = () => {
-      // Auto-restart if still recording
-      if (isRecording && recognitionRef.current) {
+      if (recognitionRef.current) {
         try { recognitionRef.current.start(); } catch {}
       }
     };
@@ -129,18 +208,87 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
     recognitionRef.current = recognition;
     recognition.start();
     setIsRecording(true);
-    toast.success("🎙️ Gravação iniciada!");
-  }, [isRecording, currentSpeaker]);
+    toast.success("🎙️ Gravação iniciada" + (autoDiarize && voiceEnrollment.isEnrolled ? " com diarização automática!" : "!"));
+  }, [isRecording, currentSpeaker, autoDiarize, voiceEnrollment.enrolledFingerprint, identifySpeaker]);
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => { recognitionRef.current?.stop(); };
+    return () => {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      mediaStreamRef.current?.getTracks().forEach(t => t.stop());
+      audioContextRef.current?.close();
+    };
   }, []);
 
   // Auto-scroll transcript
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [transcript]);
+
+  // Save transcript to database
+  const saveTranscript = useCallback(async () => {
+    if (transcript.length === 0) {
+      toast.error("Nenhuma transcrição para salvar.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const transcriptData = transcript.map(t => ({
+        speaker: t.speaker,
+        text: t.text,
+        timestamp: t.timestamp.toISOString(),
+        intent: t.intent || null,
+        score: t.score || null,
+        confidence: t.confidence || null,
+      }));
+
+      const clientEntries = transcript.filter(t => t.speaker === "cliente");
+      const scored = clientEntries.filter(t => t.score !== undefined);
+      const avgScore = scored.length > 0 ? Math.round(scored.reduce((s, t) => s + (t.score || 0), 0) / scored.length) : 0;
+      const objections = clientEntries.filter(t => t.intent === "objeção" || t.intent === "resistência" || t.intent === "enviar_preco");
+
+      const { error } = await supabase
+        .from("dealroom_meeting_transcripts" as any)
+        .insert({
+          tenant_id: tenantId,
+          session_id: sessionId || crypto.randomUUID(),
+          client_id: clientId || null,
+          usuario_id: currentUserId || null,
+          client_name: clientName || null,
+          transcript: transcriptData,
+          total_entries: transcript.length,
+          avg_closing_score: avgScore,
+          total_objections: objections.length,
+          duration_seconds: transcript.length > 1
+            ? Math.round((transcript[transcript.length - 1].timestamp.getTime() - transcript[0].timestamp.getTime()) / 1000)
+            : 0,
+          ai_coach_messages: aiCoachMessages.length > 0 ? aiCoachMessages.map(m => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp.toISOString(),
+          })) : null,
+        });
+
+      if (error) {
+        console.error("Save transcript error:", error);
+        toast.error("Erro ao salvar transcrição. Tabela pode não existir ainda.");
+      } else {
+        setSaved(true);
+        toast.success("✅ Transcrição salva no histórico do cliente!");
+      }
+    } catch {
+      toast.error("Erro de conexão ao salvar");
+    }
+    setSaving(false);
+  }, [transcript, aiCoachMessages, tenantId, sessionId, clientId, currentUserId, clientName]);
+
+  // Auto-save when recording stops and there are entries
+  useEffect(() => {
+    if (!isRecording && transcript.length > 0 && !saved) {
+      saveTranscript();
+    }
+  }, [isRecording]);
 
   // Generate AI sales response based on conversation context
   const handleGenerateResponse = async () => {
@@ -179,7 +327,7 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
     setGenerating(false);
   };
 
-  // AI Coach — ask strategy questions
+  // AI Coach
   const sendCoachMessage = async (text: string) => {
     if (!text.trim()) return;
     const userMsg: AICoachMessage = { role: "user", content: text, timestamp: new Date() };
@@ -222,7 +370,7 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
     setAILoading(false);
   };
 
-  // Export entire meeting transcript + analysis as PDF
+  // Export PDF
   const handleExportPDF = () => {
     if (transcript.length === 0) {
       toast.error("Nenhuma transcrição para exportar.");
@@ -256,6 +404,7 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
     if (proposalValue) addText(`Valor da proposta: R$ ${proposalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, margin, 10, [60, 60, 60]);
     addText(`Data: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}`, margin, 10, [60, 60, 60]);
     addText(`Total de falas: ${transcript.length}`, margin, 10, [60, 60, 60]);
+    addText(`Diarizacao automatica: ${autoDiarize && voiceEnrollment.isEnrolled ? "Ativa" : "Manual"}`, margin, 10, [60, 60, 60]);
     y += 6;
 
     doc.setDrawColor(0, 150, 80);
@@ -267,15 +416,16 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
     addText("Transcricao Completa da Reuniao", margin, 12, [0, 0, 0], true);
     y += 4;
 
-    transcript.forEach((entry, i) => {
+    transcript.forEach((entry) => {
       checkPage(20);
       const isVendedor = entry.speaker === "vendedor";
       const speakerLabel = isVendedor ? "Vendedor/Projetista" : "Cliente";
       const time = entry.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       const intentLabel = entry.intent ? ` [${entry.intent}]` : "";
       const scoreLabel = entry.score !== undefined ? ` (${entry.score}%)` : "";
+      const confLabel = entry.confidence !== undefined ? ` conf:${entry.confidence}%` : "";
 
-      addText(`${time} — ${speakerLabel}${intentLabel}${scoreLabel}`, margin, 8, isVendedor ? [0, 100, 60] : [180, 80, 0], true);
+      addText(`${time} — ${speakerLabel}${intentLabel}${scoreLabel}${confLabel}`, margin, 8, isVendedor ? [0, 100, 60] : [180, 80, 0], true);
       y += 1;
 
       const msgLines = doc.splitTextToSize(entry.text, maxWidth - 10);
@@ -317,7 +467,6 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
       addText("Nenhuma objecao critica detectada.", margin, 9, [0, 120, 60]);
     }
 
-    // Scores
     y += 4;
     const scored = clientEntries.filter(t => t.score !== undefined);
     const avgScore = scored.length > 0 ? scored.reduce((sum, t) => sum + (t.score || 0), 0) / scored.length : 0;
@@ -365,6 +514,55 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
 
   return (
     <div className="space-y-4">
+      {/* Voice Enrollment Status */}
+      {!voiceEnrollment.isEnrolled && (
+        <Card className="border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Fingerprint className="h-4 w-4 text-amber-600" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">Registro de Voz não configurado</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Grave uma amostra da sua voz para ativar a identificação automática de quem fala
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1 border-amber-500/50"
+                onClick={voiceEnrollment.isRecording ? voiceEnrollment.stopRecording : voiceEnrollment.startRecording}
+                disabled={voiceEnrollment.loading}
+              >
+                {voiceEnrollment.loading ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                ) : voiceEnrollment.isRecording ? (
+                  <><StopCircle className="h-3 w-3 text-destructive" /> Parar (5s)</>
+                ) : (
+                  <><Mic className="h-3 w-3" /> Gravar Voz</>
+                )}
+              </Button>
+            </div>
+            {voiceEnrollment.isRecording && (
+              <div className="mt-2">
+                <div className="h-1.5 bg-amber-200 dark:bg-amber-900 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: "100%" }} />
+                </div>
+                <p className="text-[10px] text-amber-600 mt-1">Fale normalmente por 5 segundos...</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {voiceEnrollment.isEnrolled && (
+        <div className="flex items-center gap-2 px-1">
+          <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+          <span className="text-[10px] text-primary font-medium">Voz registrada — diarização automática ativa</span>
+        </div>
+      )}
+
       {/* Recording Controls */}
       <Card>
         <CardHeader className="pb-2">
@@ -374,6 +572,23 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
               Transcrição ao Vivo
             </CardTitle>
             <div className="flex items-center gap-2">
+              {transcript.length > 0 && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1"
+                    onClick={saveTranscript}
+                    disabled={saving || saved}
+                  >
+                    {saved ? <CheckCircle2 className="h-3 w-3 text-primary" /> : saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    {saved ? "Salvo" : "Salvar"}
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={handleExportPDF}>
+                    <Download className="h-3 w-3" /> PDF
+                  </Button>
+                </>
+              )}
               <Button
                 size="sm"
                 variant={isRecording ? "destructive" : "default"}
@@ -386,38 +601,42 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
                   <><Play className="h-3 w-3" /> Gravar</>
                 )}
               </Button>
-              {transcript.length > 0 && (
-                <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={handleExportPDF}>
-                  <Download className="h-3 w-3" /> PDF
-                </Button>
-              )}
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Speaker toggle */}
+          {/* Speaker toggle — shown only when no auto-diarization */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Quem fala:</span>
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant={currentSpeaker === "vendedor" ? "default" : "outline"}
-                className="h-6 text-[10px] gap-1"
-                onClick={() => setCurrentSpeaker("vendedor")}
-              >
-                <User className="h-3 w-3" /> Vendedor
-              </Button>
-              <Button
-                size="sm"
-                variant={currentSpeaker === "cliente" ? "default" : "outline"}
-                className="h-6 text-[10px] gap-1"
-                onClick={() => setCurrentSpeaker("cliente")}
-              >
-                <Headphones className="h-3 w-3" /> Cliente
-              </Button>
-            </div>
+            {(!autoDiarize || !voiceEnrollment.isEnrolled) && (
+              <>
+                <span className="text-xs text-muted-foreground">Quem fala:</span>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant={currentSpeaker === "vendedor" ? "default" : "outline"}
+                    className="h-6 text-[10px] gap-1"
+                    onClick={() => setCurrentSpeaker("vendedor")}
+                  >
+                    <User className="h-3 w-3" /> Vendedor
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={currentSpeaker === "cliente" ? "default" : "outline"}
+                    className="h-6 text-[10px] gap-1"
+                    onClick={() => setCurrentSpeaker("cliente")}
+                  >
+                    <Headphones className="h-3 w-3" /> Cliente
+                  </Button>
+                </div>
+              </>
+            )}
+            {autoDiarize && voiceEnrollment.isEnrolled && (
+              <Badge variant="secondary" className="text-[9px] h-5 gap-1">
+                <Fingerprint className="h-2.5 w-2.5" /> Diarização Automática
+              </Badge>
+            )}
             {isRecording && (
-              <Badge variant="destructive" className="text-[9px] h-5 animate-pulse gap-1">
+              <Badge variant="destructive" className="text-[9px] h-5 animate-pulse gap-1 ml-auto">
                 <Mic className="h-2.5 w-2.5" /> REC
               </Badge>
             )}
@@ -429,7 +648,6 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
             className="h-48 overflow-y-auto border rounded-lg p-2 space-y-1.5"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            <style>{`.dealroom-transcript::-webkit-scrollbar { display: none; }`}</style>
             {transcript.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <Mic className="h-8 w-8 mb-2 opacity-30" />
@@ -454,6 +672,9 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
                       </span>
                       {entry.intent && (
                         <Badge variant="outline" className="text-[7px] h-3 px-1">{entry.intent}</Badge>
+                      )}
+                      {entry.confidence !== undefined && (
+                        <span className="text-[7px] opacity-40 ml-1">{entry.confidence}%</span>
                       )}
                       <span className="text-[8px] opacity-50 ml-auto">
                         {entry.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
