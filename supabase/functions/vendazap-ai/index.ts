@@ -168,14 +168,14 @@ const OBJECTION_STRATEGIES = [
 ];
 
 const INTENT_PROMPTS: Record<string, string> = {
-  orcamento: `O cliente pediu orçamento — FORTE sinal de interesse. NÃO envie valores. Diga que o projeto é PERSONALIZADO e merece uma apresentação exclusiva na reunião online. Convide para a Deal Room.`,
-  fechamento: `O cliente está PRONTO. Confirme detalhes, reforce a escolha, crie urgência e pergunte "Posso preparar o contrato agora?"`,
-  preco: `Negociando preço = interesse! NÃO envie valores por texto. Destaque VALOR, não preço. Convide para a Deal Room para discutir condições especiais ao vivo.`,
-  enviar_preco: `🔴 REGRA ABSOLUTA: NUNCA envie preço/valor/orçamento por mensagem. SEMPRE contorne: "Seu projeto é exclusivo e merece uma apresentação personalizada na nossa sala de reunião online!" OBRIGATÓRIO incluir o link da Deal Room.`,
-  duvida: `Responda com segurança e brevidade. Use cada resposta para mostrar diferenciais. Termine direcionando para próximo passo.`,
-  objecao: `NUNCA concorde com a objeção. Quebre com CRIATIVIDADE usando estratégia única.`,
-  saudacao: `Capture interesse. Seja caloroso mas direto. Pergunte sobre o projeto e sinalize condições especiais.`,
-  outro: `Direcione para fechamento. Cada mensagem deve ter um CTA claro.`,
+  orcamento: `O cliente pediu orçamento — FORTE sinal de interesse! NÃO envie valores. Mostre que o projeto dele MERECE uma apresentação técnica completa. Cite 1 material ou técnica específica. Convide para Deal Room.`,
+  fechamento: `Cliente PRONTO pra fechar! Confirme o projeto com detalhes técnicos (material, ferragem, prazo). Crie micro-urgência: "Garanto essa condição até [dia]". Pergunte: "Preparo o contrato agora?"`,
+  preco: `Negociando preço = INTERESSE REAL. NÃO envie valores. Use técnica "valor vs. preço": cite durabilidade (10-15 anos vs. 3-5 de modulado), valorização do imóvel (até 15%), garantia estendida. Convide para Deal Room.`,
+  enviar_preco: `🔴 CONTORNE sem parecer evasivo. Cite algo TÉCNICO do projeto: "Teu projeto usa [material X] que é o mesmo de projetos de R$XX mil — na nossa sala online te mostro como entregar essa qualidade no teu orçamento." OBRIGATÓRIO incluir link.`,
+  duvida: `Responda com AUTORIDADE TÉCNICA real: cite nome do material, processo, certificação. Cada resposta é uma chance de mostrar expertise. Termine com: "Quer ver isso ao vivo no projeto 3D?"`,
+  objecao: `NUNCA concorde com a objeção. Quebre com DADOS CONCRETOS e técnica de vendas específica. Cite números reais, comparativos mensuráveis, depoimentos. Seja assertivo mas empático.`,
+  saudacao: `Primeira impressão DECISIVA. Não seja genérico. Pergunte ESPECIFICAMENTE: "Qual ambiente você quer transformar?" ou "Já tem o espaço medido?". Sinalize expertise: "Trabalho com [ferragem/material premium]".`,
+  outro: `Direcione para o próximo passo com CTA específico. Cada mensagem deve ter 1 dado técnico + 1 ação clara.`,
 };
 
 const SYSTEM_PROMPT_CLOSING_RULES = `
