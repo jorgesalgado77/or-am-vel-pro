@@ -519,6 +519,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return { user: null, error: "Email não encontrado no sistema. Verifique o email digitado." };
           }
 
+          // Use auth_user_id when available (correct UUID for Supabase Auth operations)
+          const legacyAuthUserId = legacyUser.auth_user_id || legacyUser.id;
+
           if (tenantIdFromCode && legacyUser.tenant_id !== tenantIdFromCode) {
             return { user: null, error: "Este email não está vinculado ao código da loja informado." };
           }
