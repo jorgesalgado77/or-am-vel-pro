@@ -578,6 +578,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (confirmedLogin) {
                 return finalizeLogin(confirmedLogin);
               }
+              // Sync password and retry
+              const synced = await syncLegacyAuthPassword(normalizedEmail_, password, legacyUser.id);
+              if (synced) {
+                const retryAfterSync = await signInWithPasswordFast(normalizedEmail_, password);
+                if (!retryAfterSync.error && retryAfterSync.data.user) {
+                  return finalizeLogin(retryAfterSync.data);
+                }
+              }
             }
 
             if (signUpData.user) {
