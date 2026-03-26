@@ -116,12 +116,17 @@ export function useVendaZap(tenantId: string | null) {
   const fetchDailyUsage = async () => {
     if (!tenantId) return;
     const today = new Date().toISOString().split("T")[0];
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("vendazap_usage")
       .select("mensagens_geradas")
       .eq("tenant_id", tenantId)
       .eq("usage_date", today);
 
+    if (error) {
+      // RLS may block — default to 0
+      setDailyUsage(0);
+      return;
+    }
     const total = (data || []).reduce((sum, row: any) => sum + (row.mensagens_geradas || 0), 0);
     setDailyUsage(total);
   };
