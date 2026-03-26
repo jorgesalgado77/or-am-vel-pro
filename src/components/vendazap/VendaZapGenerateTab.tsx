@@ -12,32 +12,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
-  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink,
+  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { calcLeadTemperature, TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
+import { ClosingThermometer, analyzeClientMessage } from "./ClosingThermometer";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 const COPY_TYPES = [
-  { value: "reativacao", label: "Reativação", icon: RefreshCw, description: "Cliente parou de responder" },
-  { value: "urgencia", label: "Urgência", icon: Clock, description: "Orçamento expirando" },
-  { value: "objecao", label: "Quebra de Objeção", icon: Target, description: "Responder objeções" },
-  { value: "reuniao", label: "Convite Reunião", icon: Handshake, description: "Convidar para reunião" },
-  { value: "fechamento", label: "Fechamento", icon: Zap, description: "Fechar a venda" },
-  { value: "geral", label: "Follow-up", icon: MessageSquare, description: "Mensagem geral" },
+  { value: "reativacao", label: "Reativação", icon: RefreshCw, description: "Reengajar cliente inativo com urgência" },
+  { value: "urgencia", label: "Urgência", icon: Clock, description: "Pressionar com prazo e escassez" },
+  { value: "objecao", label: "Quebra de Objeção", icon: ShieldAlert, description: "Derrubar objeções com firmeza" },
+  { value: "reuniao", label: "Convite Reunião", icon: Handshake, description: "Agendar encontro decisivo" },
+  { value: "fechamento", label: "Fechamento", icon: Zap, description: "Fechar a venda AGORA" },
+  { value: "reversao", label: "Reversão", icon: Flame, description: "Reverter desistência ou recusa" },
 ];
 
 export { COPY_TYPES };
 
 const TONES = [
-  { value: "direto", label: "Direto" },
-  { value: "consultivo", label: "Consultivo" },
-  { value: "persuasivo", label: "Persuasivo" },
-  { value: "amigavel", label: "Amigável" },
+  { value: "direto", label: "Direto e Assertivo" },
+  { value: "consultivo", label: "Consultivo Expert" },
+  { value: "persuasivo", label: "Persuasivo Closer" },
+  { value: "urgente", label: "Urgente e Decisivo" },
 ];
 
 function getClientScore(client: Client, diasSemResposta: number) {
@@ -70,14 +71,17 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [lastSim, setLastSim] = useState<any>(null);
+  const [closingScore, setClosingScore] = useState<number | null>(null);
 
   // Derived from persisted state
   const { tipoCopy, tom, mensagemCliente, mensagemGerada, searchClient } = formState;
   const setTipoCopy = useCallback((v: string) => updateForm({ tipoCopy: v }), [updateForm]);
   const setTom = useCallback((v: string) => updateForm({ tom: v }), [updateForm]);
   const setMensagemCliente = useCallback((v: string) => updateForm({ mensagemCliente: v }), [updateForm]);
-  const setMensagemGerada = useCallback((v: string) => updateForm({ mensagemGerada: v }), [updateForm]);
   const setSearchClient = useCallback((v: string) => updateForm({ searchClient: v }), [updateForm]);
+
+  // Analyze client message for thermometer
+  const clientAnalysis = mensagemCliente ? analyzeClientMessage(mensagemCliente) : null;
 
   useEffect(() => {
     const tenantId = getTenantId();
@@ -86,7 +90,6 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     query.then(({ data }) => {
       if (data) {
         setClients(data);
-        // Restore persisted selected client
         if (formState.selectedClientId && !selectedClient) {
           const restored = data.find(c => c.id === formState.selectedClientId);
           if (restored) setSelectedClient(restored);
@@ -118,7 +121,13 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       mensagem_cliente: mensagemCliente || undefined, tipo_copy: tipoCopy, tom,
       client_id: selectedClient?.id, usuario_id: currentUserId,
     });
-    if (result) updateForm({ mensagemGerada: result });
+    if (result) {
+      updateForm({ mensagemGerada: result });
+      // Calculate closing score based on response context
+      const baseScore = clientAnalysis ? clientAnalysis.score : 50;
+      const copyBonus = tipoCopy === "fechamento" ? 20 : tipoCopy === "urgencia" ? 15 : tipoCopy === "objecao" ? 10 : tipoCopy === "reversao" ? 5 : 0;
+      setClosingScore(Math.min(100, baseScore + copyBonus + 15)); // +15 because AI response always pushes toward closing
+    }
   };
 
   const handleCopy = (text: string) => { navigator.clipboard.writeText(text); toast.success("Mensagem copiada!"); };
@@ -150,7 +159,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                   const days = Math.floor((Date.now() - new Date(c.updated_at).getTime()) / (1000 * 60 * 60 * 24));
                   const score = getClientScore(c, days);
                   return (
-                    <button key={c.id} onClick={() => { setSelectedClient(c); updateForm({ selectedClientId: c.id, searchClient: "", mensagemGerada: "" }); }}
+                    <button key={c.id} onClick={() => { setSelectedClient(c); updateForm({ selectedClientId: c.id, searchClient: "", mensagemGerada: "" }); setClosingScore(null); }}
                       className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors text-sm flex items-center justify-between">
                       <div>
                         <span className="font-medium text-foreground">{c.nome}</span>
@@ -169,7 +178,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                     <p className="font-medium text-sm text-foreground">{selectedClient.nome}</p>
                     {clientScore && <Badge variant="outline" className={`text-[10px] ${clientScore.color}`}>{clientScore.emoji} {clientScore.label}</Badge>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); }} className="h-6 text-xs">Trocar</Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setSelectedClient(null); updateForm({ selectedClientId: null, mensagemGerada: "" }); autoSugg.clear(); setClosingScore(null); }} className="h-6 text-xs">Trocar</Button>
                 </div>
                 {selectedClient.numero_orcamento && <p className="text-xs text-muted-foreground">Orçamento: #{selectedClient.numero_orcamento}</p>}
                 <p className="text-xs text-muted-foreground">Status: {selectedClient.status}</p>
@@ -238,23 +247,37 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
         {/* Client Message */}
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-sm">Mensagem do Cliente (opcional)</CardTitle></CardHeader>
-          <CardContent>
-            <Textarea placeholder="Cole aqui a mensagem do cliente..." value={mensagemCliente} onChange={(e) => setMensagemCliente(e.target.value)} rows={3} />
+          <CardContent className="space-y-3">
+            <Textarea placeholder="Cole aqui a mensagem do cliente para a IA analisar e contra-argumentar..." value={mensagemCliente} onChange={(e) => setMensagemCliente(e.target.value)} rows={3} />
+            {/* Client message thermometer */}
+            {clientAnalysis && mensagemCliente.length > 3 && (
+              <div className="space-y-2">
+                <ClosingThermometer score={clientAnalysis.score} label={`Análise da mensagem do cliente — Intenção: ${clientAnalysis.intent}`} />
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Button onClick={handleGenerate} disabled={generating} className="w-full gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700" size="lg">
-          {generating ? <><RefreshCw className="h-4 w-4 animate-spin" />Gerando...</> : <><Sparkles className="h-4 w-4" />Gerar Mensagem</>}
+          {generating ? <><RefreshCw className="h-4 w-4 animate-spin" />Gerando...</> : <><Sparkles className="h-4 w-4" />Gerar Mensagem de Fechamento</>}
         </Button>
       </div>
 
       {/* Result */}
       <div className="space-y-4">
+        {/* Response thermometer */}
+        {closingScore !== null && mensagemGerada && (
+          <ClosingThermometer score={closingScore} label="Potencial de fechamento da resposta" />
+        )}
+
         <Card className="min-h-[300px]">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2"><Send className="h-4 w-4 text-green-600" />Mensagem Gerada</CardTitle>
-              {mensagemGerada && <Button variant="outline" size="sm" onClick={() => handleCopy(mensagemGerada)} className="gap-1 h-7"><Copy className="h-3 w-3" />Copiar</Button>}
+              <div className="flex items-center gap-2">
+                {closingScore !== null && <ClosingThermometer score={closingScore} compact />}
+                {mensagemGerada && <Button variant="outline" size="sm" onClick={() => handleCopy(mensagemGerada)} className="gap-1 h-7"><Copy className="h-3 w-3" />Copiar</Button>}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -266,7 +289,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <Bot className="h-12 w-12 mb-3 opacity-30" />
-                <p className="text-sm text-center">Selecione um cliente e tipo de mensagem, depois clique em "Gerar Mensagem"</p>
+                <p className="text-sm text-center">Selecione um cliente e tipo de mensagem, depois clique em "Gerar Mensagem de Fechamento"</p>
               </div>
             )}
           </CardContent>
