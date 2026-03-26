@@ -82,6 +82,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [lastSim, setLastSim] = useState<any>(null);
   const [closingScore, setClosingScore] = useState<number | null>(null);
 
+  const [autoChanged, setAutoChanged] = useState<{ copy?: string; tone?: string }>({});
+
   // Conversation memory — persisted in sessionStorage
   const [historico, setHistorico] = usePersistedFormState("vendazap-historico", {
     entries: [] as HistoricoEntry[],
@@ -127,8 +129,11 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     };
     const suggestedCopy = intentToCopy[analysis.intent];
     const suggestedTone = intentToTone[analysis.intent];
-    if (suggestedCopy) setTipoCopy(suggestedCopy);
-    if (suggestedTone) setTom(suggestedTone);
+    if (suggestedCopy) { setTipoCopy(suggestedCopy); setAutoChanged(prev => ({ ...prev, copy: suggestedCopy })); }
+    if (suggestedTone) { setTom(suggestedTone); setAutoChanged(prev => ({ ...prev, tone: suggestedTone })); }
+    // Clear animation after 1.5s
+    const timer = setTimeout(() => setAutoChanged({}), 1500);
+    return () => clearTimeout(timer);
   }, [mensagemCliente]);
 
   useEffect(() => {
