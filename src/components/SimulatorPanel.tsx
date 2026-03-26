@@ -1322,6 +1322,16 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           formaPagamento,
           vendedor: client?.vendedor || "",
           numeroOrcamento: client?.numero_orcamento || "",
+          ambientes: environments.map(env => ({
+            nome: env.environmentName,
+            valor: env.totalValue,
+            fornecedor: (env as any).fornecedor || "",
+            corpo: (env as any).corpo || "",
+            porta: (env as any).porta || "",
+            puxador: (env as any).puxador || "",
+            complemento: (env as any).complemento || "",
+            modelo: (env as any).modelo || "",
+          })),
         }}
         saving={closingSale}
       />

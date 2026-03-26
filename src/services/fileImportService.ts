@@ -7,6 +7,12 @@ export interface ParsedFileResult {
   envName: string;
   pieces: number;
   total: number | null;
+  fornecedor?: string;
+  corpo?: string;
+  porta?: string;
+  puxador?: string;
+  complemento?: string;
+  modelo?: string;
 }
 
 export function parseTxtFile(content: string, fileName: string): ParsedFileResult {
