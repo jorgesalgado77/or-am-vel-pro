@@ -638,6 +638,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (confirmedLogin) {
                 return finalizeLogin(confirmedLogin);
               }
+
+              // Auth account exists with a different password — sync the legacy password
+              const synced = await syncLegacyAuthPassword(normalizedEmail_, password, legacyUser.id);
+              if (synced) {
+                const retryAfterSync = await signInWithPasswordFast(normalizedEmail_, password);
+                if (!retryAfterSync.error && retryAfterSync.data.user) {
+                  return finalizeLogin(retryAfterSync.data);
+                }
+              }
+
+              // Last resort: return a helpful error instead of raw "User already registered"
+              return { user: null, error: "Não foi possível sincronizar seu acesso. Use 'Esqueci minha senha' ou contate o suporte." };
             }
 
             return { user: null, error: signUpError.message || "Não foi possível concluir o login desta conta." };
