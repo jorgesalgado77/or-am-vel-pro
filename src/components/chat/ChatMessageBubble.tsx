@@ -59,7 +59,15 @@ function AttachmentPreview({ msg }: { msg: ChatMessage }) {
 
 export const ChatMessageBubble = memo(function ChatMessageBubble({ message, showDate }: Props) {
   const isLoja = message.remetente_tipo === "loja";
+  const isCliente = message.remetente_tipo === "cliente";
   const time = format(new Date(message.created_at), "HH:mm");
+
+  const clientAnalysis = useMemo(() => {
+    if (isCliente && message.mensagem && message.mensagem.trim().length > 2) {
+      return analyzeClientMessage(message.mensagem);
+    }
+    return null;
+  }, [isCliente, message.mensagem]);
 
   return (
     <>
@@ -71,19 +79,24 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({ message, show
         </div>
       )}
       <div className={cn("flex mb-1.5", isLoja ? "justify-end" : "justify-start")}>
-        <div
-          className={cn(
-            "max-w-[75%] rounded-2xl px-3 py-1.5 text-sm shadow-sm",
-            isLoja
-              ? "bg-primary text-primary-foreground rounded-tr-sm"
-              : "bg-muted text-foreground rounded-tl-sm"
+        <div className="flex flex-col gap-1 max-w-[75%]">
+          <div
+            className={cn(
+              "rounded-2xl px-3 py-1.5 text-sm shadow-sm",
+              isLoja
+                ? "bg-primary text-primary-foreground rounded-tr-sm"
+                : "bg-muted text-foreground rounded-tl-sm"
+            )}
+          >
+            <AttachmentPreview msg={message} />
+            {message.mensagem && <p className="whitespace-pre-wrap break-words">{message.mensagem}</p>}
+            <p className={cn("text-[10px] text-right mt-0.5", isLoja ? "opacity-70" : "text-muted-foreground")}>
+              {time}
+            </p>
+          </div>
+          {clientAnalysis && (
+            <ClosingThermometer score={clientAnalysis.score} compact />
           )}
-        >
-          <AttachmentPreview msg={message} />
-          {message.mensagem && <p className="whitespace-pre-wrap break-words">{message.mensagem}</p>}
-          <p className={cn("text-[10px] text-right mt-0.5", isLoja ? "opacity-70" : "text-muted-foreground")}>
-            {time}
-          </p>
         </div>
       </div>
     </>
