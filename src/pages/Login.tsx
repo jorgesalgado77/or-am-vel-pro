@@ -153,6 +153,15 @@ export default function Login() {
 
       if (error) {
         const msg = error.toLowerCase();
+        const isPasswordError = msg.includes("invalid login credentials") || 
+          msg.includes("senha incorreta") || 
+          msg.includes("sincronizar seu acesso") ||
+          msg.includes("already registered");
+
+        if (isPasswordError) {
+          setHighlightForgotPassword(true);
+        }
+
         if (msg.includes("email not confirmed")) {
           toast.error("Email ainda não confirmado. Tente novamente em alguns instantes.");
         } else if (msg.includes("invalid login credentials")) {
