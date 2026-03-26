@@ -239,7 +239,7 @@ export function FornecedoresTab() {
 
       {/* Dialog de cadastro/edição — responsivo com scroll */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0">
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0">
             <DialogTitle className="text-base flex items-center gap-2">
               <Factory className="h-4 w-4 text-primary" />
@@ -247,7 +247,7 @@ export function FornecedoresTab() {
             </DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 px-4 sm:px-6" style={{ maxHeight: "calc(90vh - 140px)" }}>
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6" style={{ maxHeight: "calc(90dvh - 130px)" }}>
             <div className="space-y-3 pb-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -318,7 +318,7 @@ export function FornecedoresTab() {
                 <Textarea value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} className="mt-1 text-sm min-h-[60px]" />
               </div>
             </div>
-          </ScrollArea>
+          </div>
 
           <DialogFooter className="px-4 sm:px-6 py-3 border-t shrink-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
