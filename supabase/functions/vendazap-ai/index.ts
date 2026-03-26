@@ -47,13 +47,20 @@ function calcClosingScore(intent: string, tipoCopy: string): number {
   return Math.max(5, Math.min(100, base + bonus));
 }
 
-// Determine if Perplexity search would add value
-function shouldUsePerplexity(intent: string, mensagem: string): boolean {
+// Determine if Perplexity search would add value — now broader to alternate sources
+function shouldUsePerplexity(intent: string, mensagem: string, historico: any[]): boolean {
+  // Always use Perplexity when history is long (need fresh arguments)
+  if (historico.length >= 4) return true;
+
+  // Use for price/negotiation intents (need market data to justify)
+  if (["orcamento", "preco", "enviar_preco", "objecao"].includes(intent)) return true;
+
   const perplexityTriggers = [
     /tend[eê]ncia/i, /mercado/i, /concorr[eê]ncia/i, /pre[çc]o.*m[eé]dio/i,
     /quanto.*custa.*m[eé]dia/i, /compara/i, /melhor.*material/i, /novidade/i,
     /sustent/i, /fsc/i, /mdf.*mdp/i, /blum/i, /hafele/i, /hettich/i,
     /design.*202/i, /feira/i, /pesquisa/i, /dado.*real/i, /estad[ií]stica/i,
+    /qualidade/i, /durabilidade/i, /garantia/i, /diferenc/i, /vantag/i,
   ];
   return perplexityTriggers.some(p => p.test(mensagem));
 }
