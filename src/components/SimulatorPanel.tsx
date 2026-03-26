@@ -7,7 +7,8 @@ import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
-import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen} from "lucide-react";
+import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu} from "lucide-react";
+import {Badge} from "@/components/ui/badge";
 import {LoadSimulationModal} from "@/components/simulator/LoadSimulationModal";
 import {SimulatorEnvironmentsTable, type ImportedEnvironment} from "@/components/simulator/SimulatorEnvironmentsTable";
 import {SimulatorResultCard} from "@/components/simulator/SimulatorResultCard";
@@ -199,6 +200,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     } catch { /* ignore */ }
   }, []);
 
+  const [detectedSoftware, setDetectedSoftware] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
     // Restore from saved simulation (DB) if available
     if (init?.ambientes && init.ambientes.length > 0) {
@@ -538,6 +540,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             };
             setEnvironments((prev) => [...prev, newEnv]);
             setImportedFile(file);
+            if (parsed.software && parsed.software !== "generico") {
+              setDetectedSoftware(parsed.software);
+            }
             toast.success(`Ambiente "${parsed.envName}" importado: ${formatCurrency(parsed.total)}`);
           } else {
             toast.error(`Não foi possível encontrar o valor total em ${file.name}`);
@@ -972,7 +977,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               </div>
               <div className="mt-2 border rounded-md overflow-hidden">
                 <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Ambientes Importados</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-muted-foreground">Ambientes Importados</span>
+                    {detectedSoftware && (
+                      <Badge variant="secondary" className="text-[9px] h-5 gap-1 px-1.5 font-semibold">
+                        <Cpu className="h-2.5 w-2.5" />
+                        {detectedSoftware === "promob" ? "Promob" : detectedSoftware === "focco" ? "Focco" : detectedSoftware === "gabster" ? "Gabster" : detectedSoftware}
+                      </Badge>
+                    )}
+                  </div>
                   <span className="text-xs text-muted-foreground">{environments.length} arquivo(s)</span>
                 </div>
                 <SimulatorEnvironmentsTable
@@ -1271,7 +1284,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
               setDesconto3Unlocked(false); setPlusUnlocked(false);
-              setEnvironments([]); setImportedFile(null);
+              setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
               sessionStorage.removeItem(SIM_STORAGE_KEY);
               toast.success("Simulação limpa");
             }}
