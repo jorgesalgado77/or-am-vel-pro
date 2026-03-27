@@ -95,13 +95,21 @@ export function OnboardingAIAssistant() {
     return () => viewport.removeEventListener("scroll", handleScrollChange);
   }, [open, handleScrollChange]);
 
+  // Scroll to bottom helper — targets the Radix viewport directly
+  const scrollToBottom = useCallback(() => {
+    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (!viewport) return;
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+    userScrolledUp.current = false;
+    setShowScrollBtn(false);
+    setUnreadCount(0);
+  }, []);
+
   // Auto-scroll to bottom on new messages or loading state (only if not manually scrolled up)
   useLayoutEffect(() => {
     if (userScrolledUp.current) return;
-    requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-    });
-  }, [messages.length, loading]);
+    requestAnimationFrame(() => scrollToBottom());
+  }, [messages.length, loading, scrollToBottom]);
 
   // Focus input when opened
   useEffect(() => {
