@@ -139,16 +139,32 @@ export function KanbanClientDialog({
         }
       });
 
-    // Load client tracking (contract info)
+    // Load contract info from client_contracts (source of truth)
     supabase
-      .from("client_tracking")
+      .from("client_contracts")
       .select("*")
       .eq("client_id", client.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .then(({ data }: any) => {
         if (data && data.length > 0) {
-          setTrackingRecord(data[0] as ClientTrackingRecord);
+          const contract = data[0];
+          setTrackingRecord({
+            id: contract.id,
+            client_id: contract.client_id,
+            numero_contrato: contract.numero_contrato || "",
+            nome_cliente: contract.nome_cliente || "",
+            cpf_cnpj: contract.cpf_cnpj || null,
+            quantidade_ambientes: contract.quantidade_ambientes || 0,
+            valor_contrato: Number(contract.valor_contrato) || 0,
+            data_fechamento: contract.data_fechamento || contract.created_at,
+            projetista: contract.projetista || null,
+            status: contract.status || "ativo",
+            comissao_percentual: null,
+            comissao_valor: null,
+            comissao_status: null,
+            created_at: contract.created_at,
+          } as ClientTrackingRecord);
         } else {
           setTrackingRecord(null);
         }
