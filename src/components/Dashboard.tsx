@@ -311,6 +311,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     { key: "projetista", label: "Projetista" },
     { key: "indicador", label: "Indicador" },
     { key: "leads_origem", label: "Leads por Origem" },
+    { key: "vendedor_leads", label: "Leads por Vendedor" },
   ], []);
 
   // Unique projetistas for filter
