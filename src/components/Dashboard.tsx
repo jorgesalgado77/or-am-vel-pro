@@ -108,6 +108,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       query = query.eq("tenant_id", tenantId);
     }
 
+    // Only fetch records that represent actual closed contracts (status != em_negociacao, novo, etc.)
+    query = query.not("status", "in", "(em_negociacao,novo,perdido)");
+
     const { data } = await query;
 
     if (data) {
@@ -167,13 +170,22 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    const totalValue = Object.values(filteredLastSims).reduce((sum, s) => sum + (s.valor_com_desconto || s.valor_final), 0);
-
-    // New KPIs
-    const ticketMedio = clientsWithSim > 0 ? totalValue / clientsWithSim : 0;
+    // Valor Total Orçamentos = only clients WITHOUT closed contract (status != "fechado")
     const closedClients = filteredClients.filter(c => (c as any).status === "fechado").length;
-    const taxaConversao = totalClients > 0 ? (closedClients / totalClients) * 100 : 0;
+    const nonClosedClientsWithSim = filteredClients.filter(c => (c as any).status !== "fechado" && filteredLastSims[c.id]);
+    const totalValueOrcamentos = nonClosedClientsWithSim.reduce((sum, c) => {
+      const s = filteredLastSims[c.id];
+      return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
+    }, 0);
+
+    // Faturamento Contratos = from trackingData (already filtered to actual contracts)
     const faturamentoContratos = trackingData.total;
+
+    // Taxa de Conversão = contratos fechados / total com orçamento
+    const taxaConversao = clientsWithSim > 0 ? (closedClients / clientsWithSim) * 100 : 0;
+
+    // Ticket Médio = based on non-closed budgets
+    const ticketMedio = nonClosedClientsWithSim.length > 0 ? totalValueOrcamentos / nonClosedClientsWithSim.length : 0;
 
     const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number; closedTotal: number }> = {};
     filteredClients.forEach(c => {
@@ -238,7 +250,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     });
 
     return {
-      totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue,
+      totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue: totalValueOrcamentos,
       ticketMedio, taxaConversao, closedClients, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
@@ -960,8 +972,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         </Card>
       </div>
 
-      {/* Deal Room Widget */}
-      <DealRoomStoreWidgetWrapper />
+      {/* Deal Room Widget removed — it's a standalone add-on with its own screen */}
 
       {/* Produtos Mais Vendidos */}
       <TopSellingProductsChart />
@@ -1020,6 +1031,7 @@ const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent, destru
 });
 
 const STATUS_OPTIONS = [
+  { value: "fechado", label: "Fechado" },
   { value: "medicao", label: "Medição" },
   { value: "liberacao", label: "Liberação" },
   { value: "entrega", label: "Entrega" },
@@ -1029,12 +1041,14 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
+  fechado: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
   medicao: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   liberacao: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   entrega: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   montagem: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   assistencia: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   finalizado: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  em_negociacao: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
 };
 
 interface TrackingRow {
@@ -1046,6 +1060,7 @@ interface TrackingRow {
   valor_contrato: number;
   data_fechamento: string | null;
   projetista: string | null;
+  vendedor: string | null;
   status: string;
 }
 
@@ -1063,10 +1078,13 @@ function ContractTrackingList() {
 
   const fetchTrackings = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const tenantId = await getResolvedTenantId();
+    let query = supabase
       .from("client_tracking")
-      .select("*")
+      .select("id, numero_contrato, nome_cliente, cpf_cnpj, quantidade_ambientes, valor_contrato, data_fechamento, projetista, status, vendedor")
       .order("created_at", { ascending: false });
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
     if (data) setTrackings(data as any);
     setLoading(false);
   }, []);
@@ -1213,7 +1231,7 @@ function ContractTrackingList() {
                       {Number(t.valor_contrato).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </TableCell>
                     <TableCell>{t.data_fechamento ? format(new Date(t.data_fechamento), "dd/MM/yyyy") : "—"}</TableCell>
-                    <TableCell>{t.projetista || "—"}</TableCell>
+                    <TableCell>{t.projetista || t.vendedor || "—"}</TableCell>
                   </TableRow>
                 ))
               )}

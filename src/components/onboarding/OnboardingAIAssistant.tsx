@@ -31,6 +31,16 @@ const ONBOARDING_STEPS = [
   { key: "resend_api", label: "Email" },
 ];
 
+const POSITION_KEY = "mia_fab_position";
+
+function loadSavedPosition(): { x: number; y: number } | null {
+  try {
+    const saved = localStorage.getItem(POSITION_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
+
 export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
@@ -40,6 +50,11 @@ export function OnboardingAIAssistant() {
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Drag state
+  const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(loadSavedPosition);
+  const dragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number; dragging: boolean }>({ startX: 0, startY: 0, startPosX: 0, startPosY: 0, dragging: false });
+  const fabRef = useRef<HTMLButtonElement>(null);
 
   const hasOpenAI = keys.some(k => k.provider === "openai" && k.is_active);
   const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);
@@ -72,6 +87,45 @@ export function OnboardingAIAssistant() {
     }
   }, [tenantId]);
 
+  // Drag handlers for FAB
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const el = fabRef.current;
+    if (!el) return;
+    el.setPointerCapture(e.pointerId);
+    const rect = el.getBoundingClientRect();
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPosX: rect.left,
+      startPosY: rect.top,
+      dragging: false,
+    };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (d.startX === 0 && d.startY === 0) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) d.dragging = true;
+    if (!d.dragging) return;
+
+    const newX = Math.max(0, Math.min(window.innerWidth - 56, d.startPosX + dx));
+    const newY = Math.max(0, Math.min(window.innerHeight - 56, d.startPosY + dy));
+    setFabPos({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const el = fabRef.current;
+    if (el) el.releasePointerCapture(e.pointerId);
+    if (!dragRef.current.dragging) {
+      setOpen(true);
+    } else if (fabPos) {
+      localStorage.setItem(POSITION_KEY, JSON.stringify(fabPos));
+    }
+    dragRef.current = { startX: 0, startY: 0, startPosX: 0, startPosY: 0, dragging: false };
+  };
+
   const handleSend = () => {
     const msg = input.trim();
     if (!msg || loading) return;
@@ -84,13 +138,21 @@ export function OnboardingAIAssistant() {
 
   if (!tenantId) return null;
 
+  const fabStyle: React.CSSProperties = fabPos
+    ? { position: "fixed", left: fabPos.x, top: fabPos.y, bottom: "auto", right: "auto" }
+    : { position: "fixed", bottom: 24, right: 24 };
+
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button — draggable */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center group"
+          ref={fabRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          style={fabStyle}
+          className="z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center group touch-none select-none cursor-grab active:cursor-grabbing"
         >
           <Bot className="h-6 w-6 group-hover:hidden" />
           <MessageCircle className="h-6 w-6 hidden group-hover:block" />
