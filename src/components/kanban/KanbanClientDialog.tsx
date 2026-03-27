@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Handshake, Pencil, Trash2, History, FileText, Phone, Mail, User, Hash, Clock,
   AlertTriangle, CalendarIcon, FileQuestion, Paperclip, ExternalLink, Download, ArrowRight,
-  Send, ClipboardList, Calculator,
+  Send, ClipboardList, Calculator, CheckCircle2, Ruler, Award,
 } from "lucide-react";
 import { BriefingModal } from "@/components/BriefingModal";
+import { MeasurementRequestModal } from "./MeasurementRequestModal";
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
@@ -23,6 +24,7 @@ import { formatCurrency } from "@/lib/financing";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { KANBAN_COLUMNS, type Client, type LastSimInfo } from "./kanbanTypes";
+import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
 
 interface LeadAttachment {
   id: string;
@@ -42,6 +44,12 @@ interface SimulationInfo {
   exists: boolean;
   last_date: string | null;
   count: number;
+}
+
+interface MeasurementRequestInfo {
+  exists: boolean;
+  status: string | null;
+  created_at: string | null;
 }
 
 interface KanbanClientDialogProps {
@@ -67,17 +75,30 @@ export function KanbanClientDialog({
   indicadorMap, usuarios, onEdit, onDelete, onSimulate, onHistory, onContracts, onClientUpdate,
 }: KanbanClientDialogProps) {
   const [showBriefing, setShowBriefing] = useState(false);
+  const [showMeasurementRequest, setShowMeasurementRequest] = useState(false);
   const [attachments, setAttachments] = useState<LeadAttachment[]>([]);
   const [briefingInfo, setBriefingInfo] = useState<BriefingInfo>({ exists: false, created_at: null });
   const [simInfo, setSimInfo] = useState<SimulationInfo>({ exists: false, last_date: null, count: 0 });
+  const [trackingRecord, setTrackingRecord] = useState<ClientTrackingRecord | null>(null);
+  const [measurementInfo, setMeasurementInfo] = useState<MeasurementRequestInfo>({ exists: false, status: null, created_at: null });
   const [sending, setSending] = useState(false);
 
   const isAdminOrManager = cargoNome.includes("administrador") || cargoNome.includes("gerente");
+  const isAdmin = cargoNome.includes("administrador");
+  const isLiberadorTecnicoConferente = cargoNome.includes("liberador") || cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("conferente");
   const status = (client as any)?.status || "novo";
   const isNovo = status === "novo";
+  const hasContract = !!trackingRecord;
 
   useEffect(() => {
-    if (!client?.id) { setAttachments([]); setBriefingInfo({ exists: false, created_at: null }); setSimInfo({ exists: false, last_date: null, count: 0 }); return; }
+    if (!client?.id) {
+      setAttachments([]);
+      setBriefingInfo({ exists: false, created_at: null });
+      setSimInfo({ exists: false, last_date: null, count: 0 });
+      setTrackingRecord(null);
+      setMeasurementInfo({ exists: false, status: null, created_at: null });
+      return;
+    }
 
     // Load attachments
     supabase
@@ -117,12 +138,45 @@ export function KanbanClientDialog({
           setSimInfo({ exists: false, last_date: null, count: 0 });
         }
       });
+
+    // Load client tracking (contract info)
+    supabase
+      .from("client_tracking")
+      .select("*")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => {
+        if (data && data.length > 0) {
+          setTrackingRecord(data[0] as ClientTrackingRecord);
+        } else {
+          setTrackingRecord(null);
+        }
+      });
+
+    // Load measurement request info
+    supabase
+      .from("measurement_requests" as any)
+      .select("status, created_at")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }: any) => {
+        if (data && data.length > 0) {
+          setMeasurementInfo({ exists: true, status: data[0].status, created_at: data[0].created_at });
+        } else {
+          setMeasurementInfo({ exists: false, status: null, created_at: null });
+        }
+      });
   }, [client?.id, client?.nome]);
 
   if (!client) return null;
 
   const isExpired = lastSim ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
-  const colCfg = KANBAN_COLUMNS.find(c => c.id === status);
+  
+  // If client has a contract, show "Fechado" tag
+  const effectiveStatus = hasContract ? "fechado" : status;
+  const colCfg = KANBAN_COLUMNS.find(c => c.id === effectiveStatus);
   const daysInColumn = differenceInDays(new Date(), new Date((client as any).updated_at || client.created_at));
 
   const handleAssignVendedor = async (val: string) => {
@@ -158,7 +212,6 @@ export function KanbanClientDialog({
       { duration: 5000 }
     );
 
-    // Don't auto-move when just assigning - let "Enviar ao Responsável" handle it
     const updatedClient = { ...client, vendedor: newVendedor } as any;
     onClientUpdate(updatedClient, false);
   };
@@ -170,7 +223,6 @@ export function KanbanClientDialog({
     }
     setSending(true);
     try {
-      // Keep status as "novo" so it appears in the responsible's kanban "Novo" column
       const { error } = await supabase
         .from("clients")
         .update({ vendedor: client.vendedor, status: "novo" } as any)
@@ -180,7 +232,6 @@ export function KanbanClientDialog({
       const userInfo = getAuditUserInfo();
       const tenantId = await getResolvedTenantId();
 
-      // Send notification to the responsible user
       await supabase.from("tracking_messages").insert({
         tenant_id: tenantId, tipo: "sistema", canal: "interno",
         remetente: userInfo.usuario_nome || "Sistema",
@@ -220,8 +271,16 @@ export function KanbanClientDialog({
                 </span>
               </div>
             </div>
-            <Badge variant="outline" className="text-xs shrink-0" style={{ borderColor: colCfg?.color, color: colCfg?.color }}>
-              {colCfg?.icon} {colCfg?.label}
+            {/* Status tag: show Fechado if contract exists */}
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs shrink-0",
+                hasContract && "border-emerald-500 text-emerald-600 bg-emerald-500/10"
+              )}
+              style={!hasContract ? { borderColor: colCfg?.color, color: colCfg?.color } : undefined}
+            >
+              {hasContract ? "✅ Fechado" : `${colCfg?.icon} ${colCfg?.label}`}
             </Badge>
           </div>
         </DialogHeader>
@@ -293,7 +352,7 @@ export function KanbanClientDialog({
               </div>
             )}
 
-            {/* Briefing & Simulation Status - highlighted indicators */}
+            {/* Briefing & Simulation Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className={cn(
                 "rounded-lg p-3 border flex items-start gap-2.5",
@@ -332,6 +391,63 @@ export function KanbanClientDialog({
                 </div>
               </div>
             </div>
+
+            {/* Contract Closed Warning */}
+            {hasContract && (
+              <div className="rounded-lg p-3 border bg-emerald-500/10 border-emerald-500/30 flex items-start gap-2.5">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    ✅ Contrato Fechado
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Contrato nº {trackingRecord!.numero_contrato} • Valor: {formatCurrency(trackingRecord!.valor_contrato)}
+                    {trackingRecord!.data_fechamento && ` • Fechado em ${format(new Date(trackingRecord!.data_fechamento), "dd/MM/yyyy")}`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Measurement Request Warning */}
+            {hasContract && (
+              <div className={cn(
+                "rounded-lg p-3 border flex items-start gap-2.5",
+                measurementInfo.exists
+                  ? "bg-emerald-500/10 border-emerald-500/30"
+                  : "bg-amber-500/10 border-amber-500/30"
+              )}>
+                <Ruler className={cn("h-4 w-4 mt-0.5 shrink-0", measurementInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <div className="min-w-0">
+                  <p className={cn("text-xs font-semibold", measurementInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                    {measurementInfo.exists ? "✅ Solicitação de Medida Enviada" : "⚠️ Solicitação de Medida Pendente"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {measurementInfo.exists && measurementInfo.created_at
+                      ? `Enviada em ${format(new Date(measurementInfo.created_at), "dd/MM/yyyy", { locale: ptBR })} • Status: ${measurementInfo.status}`
+                      : "Nenhuma solicitação de medida enviada para este cliente"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Indicator Commission Info - for liberador/tecnico/conferente */}
+            {hasContract && isLiberadorTecnicoConferente && client.indicador_id && indicadorMap[client.indicador_id] && (
+              <div className="rounded-lg p-3 border bg-primary/5 border-primary/20 flex items-start gap-2.5">
+                <Award className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-primary">
+                    💰 Indicador com Comissão
+                  </p>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 space-y-0.5">
+                    <p>Indicador: <span className="font-medium text-foreground">{indicadorMap[client.indicador_id].nome}</span></p>
+                    <p>Comissão: <span className="font-medium text-foreground">{indicadorMap[client.indicador_id].comissao}%</span></p>
+                    <p>Valor: <span className="font-medium text-foreground">
+                      {formatCurrency(trackingRecord!.valor_contrato * indicadorMap[client.indicador_id].comissao / 100)}
+                    </span></p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Datas e tempo */}
             <div className="bg-muted/30 rounded-lg p-3 space-y-2">
@@ -384,7 +500,7 @@ export function KanbanClientDialog({
                 )}
               </div>
 
-              {/* Enviar ao Responsável button - only for admin/manager when in "Novo" and has a responsável */}
+              {/* Enviar ao Responsável button */}
               {isAdminOrManager && isNovo && client.vendedor && (
                 <Button
                   className="w-full gap-2 mt-1"
@@ -514,16 +630,27 @@ export function KanbanClientDialog({
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-          {lastSim && lastSim.sim_count > 0 ? (
+          {/* Measurement Request button for closed contracts */}
+          {hasContract && (
+            <Button
+              className="gap-2 flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => setShowMeasurementRequest(true)}
+            >
+              <Ruler className="h-4 w-4" />Enviar Solicitação de Medida
+            </Button>
+          )}
+
+          {!hasContract && lastSim && lastSim.sim_count > 0 ? (
             <Button className="gap-2 flex-1" variant="outline" onClick={() => { onClose(); onHistory(client); }}>
               <History className="h-4 w-4" />Reabrir Simulação
             </Button>
-          ) : (
+          ) : !hasContract ? (
             <Button className="gap-2 flex-1" onClick={() => { onClose(); onSimulate(client); }}>
               <Handshake className="h-4 w-4" />Negociar
             </Button>
-          )}
-          {lastSim && lastSim.sim_count > 0 && (
+          ) : null}
+
+          {!hasContract && lastSim && lastSim.sim_count > 0 && (
             <Button variant="outline" size="icon" onClick={() => { onClose(); onSimulate(client); }} title="Nova Simulação">
               <Handshake className="h-4 w-4" />
             </Button>
@@ -539,7 +666,8 @@ export function KanbanClientDialog({
               <Pencil className="h-4 w-4" />
             </Button>
           )}
-          {canDelete && (
+          {/* Delete: only for admin users */}
+          {isAdmin && (
             <Button variant="outline" size="icon" className="text-destructive hover:text-destructive" onClick={() => { onClose(); onDelete(client.id); }} title="Excluir">
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -561,7 +689,6 @@ export function KanbanClientDialog({
             descricao_ambientes: client.descricao_ambientes,
           }}
           onSendToSimulator={(data) => {
-            // Update client with briefing environments data then open simulator
             supabase.from("clients").update({
               quantidade_ambientes: data.quantidadeAmbientes,
               descricao_ambientes: data.descricaoAmbientes,
@@ -575,6 +702,16 @@ export function KanbanClientDialog({
             } as any);
           }}
         />
+
+        {hasContract && trackingRecord && (
+          <MeasurementRequestModal
+            open={showMeasurementRequest}
+            onOpenChange={setShowMeasurementRequest}
+            client={client}
+            tracking={trackingRecord}
+            lastSim={lastSim}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
