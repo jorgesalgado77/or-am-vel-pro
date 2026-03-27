@@ -32,10 +32,17 @@ const ONBOARDING_STEPS = [
 export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage } = useOnboardingAI(tenantId);
+  const { keys } = useApiKeys(tenantId);
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const hasOpenAI = keys.some(k => k.provider === "openai" && k.is_active);
+  const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);
+  const missingCriticalKeys = !hasOpenAI || !hasEvolution;
 
   // Auto-scroll to bottom
   useEffect(() => {
