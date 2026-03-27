@@ -31,6 +31,16 @@ export function useClientTracking(clientIds?: string[]) {
     if (!tenantId) return;
 
     setLoading(true);
+
+    // First get client IDs with actual issued contracts
+    let contractQuery = supabase
+      .from("client_contracts")
+      .select("client_id")
+      .eq("tenant_id", tenantId);
+    const { data: contractData } = await contractQuery;
+    const contractClientIds = new Set((contractData as any[] || []).map((c: any) => c.client_id));
+
+    // Then fetch tracking records only for those clients
     let query = supabase
       .from("client_tracking")
       .select("*")
@@ -44,8 +54,11 @@ export function useClientTracking(clientIds?: string[]) {
     if (data) {
       const map: Record<string, ClientTrackingRecord[]> = {};
       (data as any[]).forEach((t: ClientTrackingRecord) => {
-        if (!map[t.client_id]) map[t.client_id] = [];
-        map[t.client_id].push(t);
+        // Only include tracking records for clients with actual contracts
+        if (contractClientIds.has(t.client_id)) {
+          if (!map[t.client_id]) map[t.client_id] = [];
+          map[t.client_id].push(t);
+        }
       });
       setTrackingMap(map);
     }
