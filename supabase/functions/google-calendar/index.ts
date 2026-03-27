@@ -1,7 +1,7 @@
 /**
  * Google Calendar Edge Function — Sync tasks with Google Calendar
  * 
- * Uses tenant-specific API key from api_keys table (provider: google_calendar).
+ * Now supports OAuth 2.0 tokens (preferred) with fallback to API Key.
  * Actions: createEvent, updateEvent, deleteEvent, listEvents
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -27,40 +27,161 @@ function getSupabaseAdmin() {
   );
 }
 
-async function resolveGoogleConfig(tenantId: string | null): Promise<{ apiKey: string; calendarId: string } | null> {
+const GCAL_BASE = "https://www.googleapis.com/calendar/v3";
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+
+interface AuthConfig {
+  type: "oauth" | "apikey";
+  accessToken?: string;
+  apiKey?: string;
+  calendarId: string;
+}
+
+/**
+ * Resolve auth: prefer OAuth tokens, fallback to API key
+ */
+async function resolveAuthConfig(
+  tenantId: string | null,
+  userId: string | null
+): Promise<AuthConfig | null> {
+  const sb = getSupabaseAdmin();
+
+  // 1. Try OAuth tokens for this user
+  if (tenantId && userId) {
+    const { data: tokenRow } = await sb
+      .from("google_calendar_tokens" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .single();
+
+    if (tokenRow) {
+      const row = tokenRow as any;
+      let accessToken = row.access_token;
+
+      // Check if token is expired (with 5min buffer)
+      const expiry = new Date(row.token_expiry).getTime();
+      if (Date.now() > expiry - 5 * 60 * 1000 && row.refresh_token) {
+        // Refresh the token
+        const refreshed = await refreshAccessToken(row.refresh_token, tenantId);
+        if (refreshed) {
+          accessToken = refreshed.access_token;
+          await sb.from("google_calendar_tokens" as any)
+            .update({
+              access_token: refreshed.access_token,
+              token_expiry: new Date(Date.now() + (refreshed.expires_in || 3600) * 1000).toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("tenant_id", tenantId)
+            .eq("user_id", userId);
+        } else {
+          // Token refresh failed, mark inactive
+          await sb.from("google_calendar_tokens" as any)
+            .update({ is_active: false })
+            .eq("tenant_id", tenantId)
+            .eq("user_id", userId);
+          // Fall through to API key
+        }
+      }
+
+      if (accessToken) {
+        return {
+          type: "oauth",
+          accessToken,
+          calendarId: row.calendar_id || "primary",
+        };
+      }
+    }
+  }
+
+  // 2. Fallback: tenant API key
   if (tenantId) {
     try {
-      const sb = getSupabaseAdmin();
-      const { data } = await sb.rpc("get_api_config", { p_tenant_id: tenantId, p_provider: "google_calendar" });
-      if (data && data.length > 0 && data[0].api_key) {
+      const { data } = await sb.rpc("get_api_config", {
+        p_tenant_id: tenantId,
+        p_provider: "google_calendar",
+      });
+      if (data?.[0]?.api_key) {
         return {
+          type: "apikey",
           apiKey: data[0].api_key,
           calendarId: data[0].api_url || "primary",
         };
       }
-    } catch (e) {
-      console.warn("[resolveGoogleConfig] Fallback:", e);
-    }
+    } catch (_e) { /* fallback */ }
   }
-  const apiKey = Deno.env.get("GOOGLE_CALENDAR_API_KEY");
-  if (!apiKey) return null;
-  return { apiKey, calendarId: "primary" };
+
+  // 3. Fallback: env var
+  const envKey = Deno.env.get("GOOGLE_CALENDAR_API_KEY");
+  if (envKey) {
+    return { type: "apikey", apiKey: envKey, calendarId: "primary" };
+  }
+
+  return null;
 }
 
-const GCAL_BASE = "https://www.googleapis.com/calendar/v3";
+async function refreshAccessToken(refreshToken: string, tenantId: string) {
+  const sb = getSupabaseAdmin();
 
-async function gcalFetch(apiKey: string, path: string, method = "GET", body?: unknown) {
-  const separator = path.includes("?") ? "&" : "?";
-  const url = `${GCAL_BASE}${path}${separator}key=${apiKey}`;
-  
-  const opts: RequestInit = {
-    method,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-  };
+  // Get OAuth credentials
+  let clientId = Deno.env.get("GOOGLE_CLIENT_ID") || "";
+  let clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") || "";
+
+  try {
+    const { data } = await sb.rpc("get_api_config", {
+      p_tenant_id: tenantId,
+      p_provider: "google_calendar_oauth",
+    });
+    if (data?.[0]?.api_key) {
+      clientId = data[0].api_key;
+      clientSecret = data[0].api_url || clientSecret;
+    }
+  } catch (_e) { /* use env */ }
+
+  if (!clientId || !clientSecret) return null;
+
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.access_token) return null;
+  return data;
+}
+
+async function gcalFetch(config: AuthConfig, path: string, method = "GET", body?: unknown) {
+  const url = `${GCAL_BASE}${path}`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+  if (config.type === "oauth") {
+    headers["Authorization"] = `Bearer ${config.accessToken}`;
+  }
+
+  let finalUrl = url;
+  if (config.type === "apikey") {
+    const sep = url.includes("?") ? "&" : "?";
+    finalUrl = `${url}${sep}key=${config.apiKey}`;
+    headers["Authorization"] = `Bearer ${config.apiKey}`;
+  }
+
+  const opts: RequestInit = { method, headers };
   if (body) opts.body = JSON.stringify(body);
 
-  const res = await fetch(url, opts);
-  const data = await res.json();
+  const res = await fetch(finalUrl, opts);
+
+  if (method === "DELETE" && (res.status === 204 || res.status === 200)) {
+    return { success: true, data: null };
+  }
+
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     return { success: false, error: data.error?.message || `Google [${res.status}]`, data };
   }
@@ -74,16 +195,19 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { action, tenant_id } = body;
+    const { action, tenant_id, user_id } = body;
 
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ") || authHeader.replace("Bearer ", "").length < 20) {
       return respond({ error: "Não autorizado" }, 401);
     }
 
-    const config = await resolveGoogleConfig(tenant_id || null);
+    const config = await resolveAuthConfig(tenant_id || null, user_id || null);
     if (!config) {
-      return respond({ error: "Google Calendar API Key não configurada. Adicione em Configurações > APIs." }, 400);
+      return respond({
+        error: "Google Calendar não configurado. Conecte sua conta Google ou adicione uma API Key em Configurações > APIs.",
+        needs_oauth: true,
+      }, 400);
     }
 
     // ── Create Event ──
@@ -93,12 +217,12 @@ serve(async (req) => {
         return respond({ error: "summary e start_date são obrigatórios" }, 400);
       }
 
-      const startDateTime = start_time 
-        ? `${start_date}T${start_time}:00` 
+      const startDateTime = start_time
+        ? `${start_date}T${start_time}:00`
         : `${start_date}T09:00:00`;
-      const endDateTime = end_time 
-        ? `${start_date}T${end_time}:00` 
-        : start_time 
+      const endDateTime = end_time
+        ? `${start_date}T${end_time}:00`
+        : start_time
           ? `${start_date}T${String(Number(start_time.split(":")[0]) + 1).padStart(2, "0")}:${start_time.split(":")[1]}:00`
           : `${start_date}T10:00:00`;
 
@@ -120,18 +244,20 @@ serve(async (req) => {
         event.attendees = attendees.map((email: string) => ({ email }));
       }
 
-      const result = await gcalFetch(config.apiKey, `/calendars/${config.calendarId}/events`, "POST", event);
+      const result = await gcalFetch(config, `/calendars/${config.calendarId}/events`, "POST", event);
 
-      // If success, update task with calendar event ID
       if (result.success && task_id) {
         const sb = getSupabaseAdmin();
-        await sb.from("tasks").update({ 
+        await sb.from("tasks").update({
           google_event_id: result.data.id,
           google_calendar_url: result.data.htmlLink,
         }).eq("id", task_id);
       }
 
-      return respond(result, result.success ? 200 : 502);
+      return respond({
+        ...result,
+        auth_type: config.type,
+      }, result.success ? 200 : 502);
     }
 
     // ── Update Event ──
@@ -150,7 +276,7 @@ serve(async (req) => {
         updates.end = { dateTime: `${start_date}T${endH}:${endM}:00`, timeZone: "America/Sao_Paulo" };
       }
 
-      const result = await gcalFetch(config.apiKey, `/calendars/${config.calendarId}/events/${event_id}`, "PATCH", updates);
+      const result = await gcalFetch(config, `/calendars/${config.calendarId}/events/${event_id}`, "PATCH", updates);
       return respond(result, result.success ? 200 : 502);
     }
 
@@ -159,16 +285,8 @@ serve(async (req) => {
       const { event_id } = body;
       if (!event_id) return respond({ error: "event_id obrigatório" }, 400);
 
-      const res = await fetch(
-        `${GCAL_BASE}/calendars/${config.calendarId}/events/${event_id}`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${config.apiKey}` } }
-      );
-      
-      if (res.status === 204 || res.status === 200) {
-        return respond({ success: true });
-      }
-      const data = await res.json().catch(() => ({}));
-      return respond({ success: false, error: data.error?.message || `Google [${res.status}]` }, 502);
+      const result = await gcalFetch(config, `/calendars/${config.calendarId}/events/${event_id}`, "DELETE");
+      return respond(result, result.success ? 200 : 502);
     }
 
     // ── List Events ──
@@ -179,7 +297,7 @@ serve(async (req) => {
       if (time_max) path += `&timeMax=${time_max}`;
       path += `&maxResults=${max_results || 50}`;
 
-      const result = await gcalFetch(config.apiKey, path);
+      const result = await gcalFetch(config, path);
       return respond(result, result.success ? 200 : 502);
     }
 
