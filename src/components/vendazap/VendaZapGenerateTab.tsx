@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { DealRoomInviteTemplate } from "@/components/dealroom/DealRoomInviteTemplate";
+import { QualityValidatorPanel, type QualityValidationResult } from "./QualityValidatorPanel";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -61,6 +62,7 @@ interface VendaZapGenerateTabProps {
   addon: any;
   autoSugg: any;
   currentUserId?: string;
+  lastQuality?: QualityValidationResult | null;
 }
 
 interface HistoricoEntry {
@@ -70,7 +72,7 @@ interface HistoricoEntry {
   score?: number;
 }
 
-export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId }: VendaZapGenerateTabProps) {
+export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId, lastQuality }: VendaZapGenerateTabProps) {
   const { currentUser } = useCurrentUser();
   const isManagerOrAdmin = currentUser?.cargo_nome === "Administrador" || currentUser?.cargo_nome === "Gerente";
   const [formState, updateForm, clearForm] = usePersistedFormState("vendazap-generate", {
