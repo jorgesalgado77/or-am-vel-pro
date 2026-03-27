@@ -31,6 +31,16 @@ const ONBOARDING_STEPS = [
   { key: "resend_api", label: "Email" },
 ];
 
+const POSITION_KEY = "mia_fab_position";
+
+function loadSavedPosition(): { x: number; y: number } | null {
+  try {
+    const saved = localStorage.getItem(POSITION_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
+
 export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
@@ -40,6 +50,11 @@ export function OnboardingAIAssistant() {
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Drag state
+  const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(loadSavedPosition);
+  const dragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number; dragging: boolean }>({ startX: 0, startY: 0, startPosX: 0, startPosY: 0, dragging: false });
+  const fabRef = useRef<HTMLButtonElement>(null);
 
   const hasOpenAI = keys.some(k => k.provider === "openai" && k.is_active);
   const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);

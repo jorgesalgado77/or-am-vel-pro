@@ -1077,10 +1077,13 @@ function ContractTrackingList() {
 
   const fetchTrackings = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    const tenantId = await getResolvedTenantId();
+    let query = supabase
       .from("client_tracking")
-      .select("*")
+      .select("id, numero_contrato, nome_cliente, cpf_cnpj, quantidade_ambientes, valor_contrato, data_fechamento, projetista, status, vendedor")
       .order("created_at", { ascending: false });
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
     if (data) setTrackings(data as any);
     setLoading(false);
   }, []);
