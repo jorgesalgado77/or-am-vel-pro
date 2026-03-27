@@ -172,15 +172,12 @@ export function ArgumentBankTab() {
     if (!form.titulo.trim()) { toast.error("Digite um título primeiro"); return; }
     setImprovingTitle(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
-          prompt: `Melhore este título de argumento de venda de móveis planejados para ser mais persuasivo, profissional e impactante. Retorne APENAS o título melhorado, sem explicações:\n\nTítulo original: "${form.titulo}"`,
-          mode: "improve",
-        },
+      const { data, error } = await supabase.functions.invoke("improve-argument", {
+        body: { prompt: form.titulo, action: "improve_title" },
       });
       if (error) throw error;
-      const improved = (data?.text || data?.content || "").trim();
-      if (improved) setForm(f => ({ ...f, titulo: improved }));
+      const improved = (data?.content || "").trim();
+      if (improved) { setForm(f => ({ ...f, titulo: improved })); toast.success("Título melhorado!"); }
       else toast.error("Não foi possível melhorar o título");
     } catch {
       toast.error("Erro ao melhorar título com IA");
@@ -193,15 +190,12 @@ export function ArgumentBankTab() {
     if (!form.argumento.trim()) { toast.error("Digite um argumento primeiro"); return; }
     setImprovingArg(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
-          prompt: `Melhore este argumento de venda de móveis planejados para ser mais convincente, com dados e linguagem persuasiva. Retorne APENAS o argumento melhorado, sem explicações:\n\nArgumento original: "${form.argumento}"`,
-          mode: "improve",
-        },
+      const { data, error } = await supabase.functions.invoke("improve-argument", {
+        body: { prompt: form.argumento, action: "improve_argument" },
       });
       if (error) throw error;
-      const improved = (data?.text || data?.content || "").trim();
-      if (improved) setForm(f => ({ ...f, argumento: improved }));
+      const improved = (data?.content || "").trim();
+      if (improved) { setForm(f => ({ ...f, argumento: improved })); toast.success("Argumento melhorado!"); }
       else toast.error("Não foi possível melhorar o argumento");
     } catch {
       toast.error("Erro ao melhorar argumento com IA");
@@ -390,7 +384,7 @@ export function ArgumentBankTab() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Argumento" : "Novo Argumento"}</DialogTitle>
           </DialogHeader>
