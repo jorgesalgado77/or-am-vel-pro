@@ -986,6 +986,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                 >
                   <Package className="h-4 w-4" />
                 </Button>
+              </div>
               <div className="mt-2 border rounded-md overflow-hidden">
                 <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
                   <div className="flex items-center gap-2">
