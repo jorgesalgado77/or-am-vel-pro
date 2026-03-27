@@ -94,6 +94,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [customArguments, setCustomArguments] = useState("");
 
   const [autoChanged, setAutoChanged] = useState<{ copy?: string; tone?: string }>({});
+  const [lastDiscRecalibration, setLastDiscRecalibration] = useState(0);
+  const [discRecalibrationCount, setDiscRecalibrationCount] = useState(0);
 
   // Conversation memory — persisted in sessionStorage
   const [historico, setHistorico] = usePersistedFormState("vendazap-historico", {
@@ -121,6 +123,48 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
     return detectDiscFromMessages(liveMessages);
   }, [historico.entries, mensagemCliente]);
+
+  // DISC recalibration every 10 client messages — auto-adjusts tone + copy type
+  const clientMessageCount = useMemo(() => {
+    return historico.entries.filter(e => e.remetente_tipo === "cliente").length;
+  }, [historico.entries]);
+
+  useEffect(() => {
+    if (clientMessageCount === 0) return;
+    const recalibrationThreshold = Math.floor(clientMessageCount / 10);
+    if (recalibrationThreshold <= lastDiscRecalibration) return;
+
+    setLastDiscRecalibration(recalibrationThreshold);
+    setDiscRecalibrationCount(prev => prev + 1);
+
+    // Auto-adjust tone based on DISC profile
+    const discToTone: Record<string, string> = {
+      D: "direto",
+      I: "persuasivo",
+      S: "consultivo",
+      C: "consultivo",
+    };
+    // Auto-adjust copy type based on DISC + conversation stage
+    const discToCopy: Record<string, string> = {
+      D: "fechamento",     // Dominantes querem ação rápida
+      I: "reuniao",        // Influentes respondem a conexão
+      S: "reuniao",        // Estáveis precisam de segurança
+      C: "objecao",        // Conformes querem dados e provas
+    };
+
+    if (discInsight.profile && discInsight.confidence > 50) {
+      const newTone = discToTone[discInsight.profile];
+      const newCopy = discToCopy[discInsight.profile];
+      if (newTone) { setTom(newTone); setAutoChanged(prev => ({ ...prev, tone: newTone })); }
+      if (newCopy) { setTipoCopy(newCopy); setAutoChanged(prev => ({ ...prev, copy: newCopy })); }
+      toast.info(
+        `🔄 Recalibração DISC (${discRecalibrationCount + 1}ª): perfil ${DISC_PROFILE_META[discInsight.profile]?.label} ${DISC_PROFILE_META[discInsight.profile]?.emoji} confirmado com ${discInsight.confidence}% de confiança. Tom e estratégia ajustados automaticamente.`,
+        { duration: 5000 }
+      );
+      setTimeout(() => setAutoChanged({}), 2000);
+    }
+  }, [clientMessageCount, discInsight.profile, discInsight.confidence]);
+
   const discMeta = discInsight.profile ? DISC_PROFILE_META[discInsight.profile] : null;
 
   // Auto-detect and select appropriate copy type AND tone based on client message — real-time on every keystroke
@@ -697,9 +741,19 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                   <Target className="h-4 w-4 text-primary" />
                   Perfil DISC em tempo real
                 </CardTitle>
-                <Badge variant="outline" className="text-[10px]">
-                  {discInsight.profile ? `${discInsight.confidence}% de confiança` : "Em análise"}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  {discRecalibrationCount > 0 && (
+                    <Badge className="text-[9px] h-4 bg-primary/10 text-primary border-primary/20">
+                      🔄 {discRecalibrationCount}ª recalibração
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-[10px]">
+                    {discInsight.profile ? `${discInsight.confidence}% confiança` : "Em análise"}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[9px] h-4">
+                    {clientMessageCount} msgs · próx. recal. em {10 - (clientMessageCount % 10)}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
