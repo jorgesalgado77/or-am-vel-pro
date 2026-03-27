@@ -90,11 +90,15 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [showFilters, setShowFilters] = useState(false);
   const [isListOpen, setIsListOpen] = useState(!selectedId);
 
-  const vendedores = useMemo(() => {
-    const names = new Set<string>();
-    conversations.forEach(c => { if (c.vendedor_nome) names.add(c.vendedor_nome); });
-    return Array.from(names).sort();
+  const vendedorCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    conversations.forEach(c => {
+      if (c.vendedor_nome) map.set(c.vendedor_nome, (map.get(c.vendedor_nome) || 0) + 1);
+    });
+    return map;
   }, [conversations]);
+
+  const vendedores = useMemo(() => Array.from(vendedorCounts.keys()).sort(), [vendedorCounts]);
 
   const hasActiveFilter = tempFilter !== "all" || unreadOnly || !!dateFilter || vendedorFilter !== "all";
   const totalUnread = useMemo(() => conversations.reduce((sum, c) => sum + c.unread_count, 0), [conversations]);
