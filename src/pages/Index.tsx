@@ -31,6 +31,7 @@ const FinancialPanel = lazy(() => import("@/components/FinancialPanel").then(m =
 const TutorialsPanel = lazy(() => import("@/components/tutorials/TutorialsPanel").then(m => ({ default: m.TutorialsPanel })));
 const SmartImport3DView = lazy(() => import("@/components/smartimport/SmartImport3DView").then(m => ({ default: m.SmartImport3DView })));
 const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => ({ default: m.TasksPanel })));
+const MeasurementKanban = lazy(() => import("@/components/kanban/MeasurementKanban").then(m => ({ default: m.MeasurementKanban })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
@@ -63,6 +64,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   tutorials: { title: "Tutoriais", subtitle: "Aprenda a usar cada funcionalidade do sistema com vídeos práticos" },
   smart3d: { title: "3D Smart Import", subtitle: "Importe projetos 3D, visualize ambientes e gere orçamentos automáticos" },
   tasks: { title: "Tarefas", subtitle: "Gerencie suas tarefas com Kanban e calendário" },
+  measurements: { title: "Solicitações de Medida", subtitle: "Gerencie e distribua solicitações de medida para os técnicos" },
 };
 
 export default function Index() {
@@ -394,6 +396,8 @@ export default function Index() {
               {activeView === "tasks" && (
                 <TasksPanel tenantId={authUser?.tenant_id || null} userId={authUser?.id} userName={authUser?.nome_completo || authUser?.apelido || ""} />
               )}
+
+              {activeView === "measurements" && <MeasurementKanban />}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>
