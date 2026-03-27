@@ -12,6 +12,7 @@ import { TypingIndicator } from "./TypingIndicator";
 import { TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { useQuickReplies } from "@/hooks/useQuickReplies";
+import { ChatDealInsights } from "./ChatDealInsights";
 import type { ChatConversation, ChatMessage } from "./types";
 
 const DISC_PROFILES: Record<string, { label: string; emoji: string; color: string; desc: string; tips: string }> = {
@@ -305,6 +306,13 @@ export function ChatWindow({
 
         {/* Auto-Pilot History */}
         <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId ?? null} />
+
+        {/* Deal Insights from Engine */}
+        <ChatDealInsights
+          conversation={conversation}
+          tenantId={tenantId ?? null}
+          messageCount={messages.length}
+        />
 
         {/* DISC Profile Indicator */}
         {aiDiscProfile && (

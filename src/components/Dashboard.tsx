@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays, Megaphone, Share2, UserPlus } from "lucide-react";
 import { TopSellingProductsChart } from "@/components/dashboard/TopSellingProductsChart";
+import { DealInsightsWidget } from "@/components/dashboard/DealInsightsWidget";
 import { LowStockAlerts } from "@/components/dashboard/LowStockAlerts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -377,6 +378,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   return (
     <div className="space-y-6">
       <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
+      <DealInsightsWidget />
       {/* Date Filter Bar */}
       <Card>
         <CardContent className="p-4">
