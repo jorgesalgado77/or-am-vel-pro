@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Task, TaskStatus } from "@/components/tasks/taskTypes";
 import { playNotificationSound } from "@/lib/notificationSound";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
 
 export function useTasks(tenantId: string | null, userId: string | undefined) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -44,16 +45,13 @@ export function useTasks(tenantId: string | null, userId: string | undefined) {
             toast.info(`📋 Nova tarefa: ${newTask.titulo}`, { duration: 6000 });
           });
           // Send push notification for background alerts
-          supabase.functions.invoke("push-notification", {
-            body: {
-              action: "send",
-              user_id: userId,
-              title: "📋 Nova tarefa atribuída",
-              body: newTask.titulo,
-              tag: `task-${newTask.id}`,
-              url: "/app",
-            },
-          }).catch(() => {});
+          sendPushIfEnabled(
+            "tarefas",
+            userId,
+            "📋 Nova tarefa atribuída",
+            newTask.titulo,
+            `task-${newTask.id}`,
+          );
         }
       })
       .on("postgres_changes", {
