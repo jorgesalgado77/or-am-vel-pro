@@ -76,13 +76,15 @@ export function ApiKeysTab() {
             if (!valid) errorMsg = resendData?.error || "Chave Resend inválida";
           }
         } else if (selectedProvider === "perplexity") {
-          const res = await fetch("https://api.perplexity.ai/chat/completions", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${apiKey.trim()}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "sonar", messages: [{ role: "user", content: "test" }], max_tokens: 1 }),
+          const { data: pData, error: pErr } = await supabase.functions.invoke("perplexity-search", {
+            body: { query: "test", tenant_id: tenantId, _temp_key: apiKey.trim() },
           });
-          valid = res.ok || res.status === 400; // 400 = valid key, bad request
-          if (!valid) errorMsg = "Chave Perplexity inválida";
+          if (pErr) {
+            errorMsg = "Erro ao validar chave Perplexity";
+          } else {
+            valid = !!pData?.content || pData?.error === undefined;
+            if (!valid) errorMsg = pData?.error || "Chave Perplexity inválida";
+          }
         } else {
           // For other providers, validate format only
           valid = apiKey.trim().length > 10;

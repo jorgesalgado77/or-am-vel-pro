@@ -33,9 +33,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { query, context, search_recency_filter, tenant_id } = await req.json();
+    const { query, context, search_recency_filter, tenant_id, _temp_key } = await req.json();
 
-    const PERPLEXITY_API_KEY = await resolvePerplexityKey(tenant_id || null);
+    const PERPLEXITY_API_KEY = _temp_key || await resolvePerplexityKey(tenant_id || null);
     if (!PERPLEXITY_API_KEY) {
       return new Response(JSON.stringify({ error: "PERPLEXITY_API_KEY não configurada. Configure nas Configurações > APIs." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
