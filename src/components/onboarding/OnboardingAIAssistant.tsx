@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,7 +35,7 @@ export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
-  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
