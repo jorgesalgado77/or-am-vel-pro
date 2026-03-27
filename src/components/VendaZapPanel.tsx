@@ -124,7 +124,16 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         </TabsList>
 
         <TabsContent value="gerar" className="space-y-4">
-          <VendaZapGenerateTab generating={generating} generateMessage={generateMessage} addon={addon} autoSugg={autoSugg} currentUserId={currentUser?.id} lastQuality={lastQuality} />
+          <VendaZapGenerateTab
+            generating={generating}
+            generateMessage={generateMessage}
+            addon={addon}
+            autoSugg={autoSugg}
+            currentUserId={currentUser?.id}
+            lastQuality={lastQuality}
+            resumeSession={resumeSession}
+            onResumeConsumed={() => setResumeSession(null)}
+          />
         </TabsContent>
 
         <TabsContent value="gatilhos" className="space-y-4">
