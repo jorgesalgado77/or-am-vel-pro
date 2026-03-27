@@ -211,19 +211,28 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         temSimulacao: !!lastSim,
       });
 
+      // Resolve real client_id: client.id might be a tracking_id
+      let realClientId = client.id;
+      const { data: trackingRow } = await supabase
+        .from("client_tracking")
+        .select("client_id")
+        .eq("id", client.id)
+        .maybeSingle();
+      if (trackingRow?.client_id) realClientId = trackingRow.client_id;
+
       await supabase
         .from("clients")
         .update({
           lead_temperature: temperature,
           last_ai_analysis: new Date().toISOString(),
         } as any)
-        .eq("id", client.id);
+        .eq("id", realClientId);
 
       const { data: inserted } = await supabase
         .from("vendazap_suggestions" as any)
         .insert({
           tenant_id: tenantId,
-          client_id: client.id,
+          client_id: realClientId,
           usuario_id: userId || null,
           original_message: lastClientMsg || `${client.nome} - ${client.status} - ${days}d`,
           suggested_reply: msg,
