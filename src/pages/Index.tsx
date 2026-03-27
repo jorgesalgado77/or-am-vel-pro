@@ -87,6 +87,7 @@ export default function Index() {
   const isAdmin = authUser?.cargo_nome?.toUpperCase().includes("ADMIN") ?? false;
   const canAccessSettings = Boolean(authUser) && (isAdmin || hasPermission("configuracoes"));
   const { onlineUsers } = useOnlinePresence(authUser?.id ?? null, presenceInfo);
+  useApiKeyHealthCheck(authUser?.tenant_id ?? null, authUser?.id);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
