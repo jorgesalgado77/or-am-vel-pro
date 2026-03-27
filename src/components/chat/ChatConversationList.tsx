@@ -22,6 +22,7 @@ interface Props {
 }
 
 type TempFilter = LeadTemperature | "all";
+type VendedorFilter = string | "all";
 
 function timeAgo(dateStr?: string) {
   if (!dateStr) return "";
@@ -83,12 +84,19 @@ const ConversationItem = memo(function ConversationItem({
 export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, loading, onStartConversation }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
+  const [vendedorFilter, setVendedorFilter] = useState<VendedorFilter>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
   const [isListOpen, setIsListOpen] = useState(!selectedId);
 
-  const hasActiveFilter = tempFilter !== "all" || unreadOnly || !!dateFilter;
+  const vendedores = useMemo(() => {
+    const names = new Set<string>();
+    conversations.forEach(c => { if (c.vendedor_nome) names.add(c.vendedor_nome); });
+    return Array.from(names).sort();
+  }, [conversations]);
+
+  const hasActiveFilter = tempFilter !== "all" || unreadOnly || !!dateFilter || vendedorFilter !== "all";
   const totalUnread = useMemo(() => conversations.reduce((sum, c) => sum + c.unread_count, 0), [conversations]);
 
   const filtered = useMemo(() => {
@@ -102,6 +110,9 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
     if (tempFilter !== "all") {
       result = result.filter((c) => c.lead_temperature === tempFilter);
     }
+    if (vendedorFilter !== "all") {
+      result = result.filter((c) => c.vendedor_nome === vendedorFilter);
+    }
     if (unreadOnly) {
       result = result.filter((c) => c.unread_count > 0);
     }
@@ -110,10 +121,11 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
       result = result.filter((c) => c.last_message_at?.startsWith(dayStr));
     }
     return result;
-  }, [conversations, search, tempFilter, unreadOnly, dateFilter]);
+  }, [conversations, search, tempFilter, vendedorFilter, unreadOnly, dateFilter]);
 
   const clearFilters = () => {
     setTempFilter("all");
+    setVendedorFilter("all");
     setUnreadOnly(false);
     setDateFilter(undefined);
   };
@@ -177,7 +189,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                 );
               })}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 onClick={() => setUnreadOnly(!unreadOnly)}
                 className={cn(
@@ -212,6 +224,47 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                   />
                 </PopoverContent>
               </Popover>
+              {vendedores.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={cn(
+                        "text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors border flex items-center gap-1",
+                        vendedorFilter !== "all"
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+                      )}
+                    >
+                      👤 {vendedorFilter !== "all" ? vendedorFilter : "Vendedor"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="start">
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        onClick={() => setVendedorFilter("all")}
+                        className={cn(
+                          "text-xs px-2 py-1.5 rounded text-left transition-colors",
+                          vendedorFilter === "all" ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+                        )}
+                      >
+                        Todos os vendedores
+                      </button>
+                      {vendedores.map(v => (
+                        <button
+                          key={v}
+                          onClick={() => setVendedorFilter(v)}
+                          className={cn(
+                            "text-xs px-2 py-1.5 rounded text-left transition-colors truncate",
+                            vendedorFilter === v ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+                          )}
+                        >
+                          👤 {v}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
               {hasActiveFilter && (
                 <button onClick={clearFilters} className="text-[10px] px-1.5 py-0.5 rounded-full text-muted-foreground hover:text-foreground transition-colors" title="Limpar filtros">
                   <X className="h-3 w-3" />
