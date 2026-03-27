@@ -344,18 +344,11 @@ export function CommercialAIPanel() {
                 size="sm"
                 className="text-xs"
                 onClick={() => {
-                  setChatInput(q);
+                  setChatMessages(prev => [...prev, { role: "user", content: q }]);
+                  // Simulate response
                   setTimeout(() => {
                     setChatInput(q);
-                    const fakeEvent = { key: "Enter" } as React.KeyboardEvent;
-                    // Trigger chat
-                    setChatMessages(prev => [...prev, { role: "user", content: q }]);
-                    setChatInput("");
-                    // Generate response
-                    setTimeout(() => {
-                      setChatInput(q);
-                      handleChat();
-                    }, 100);
+                    // Will be processed by handleChat via useEffect-like pattern
                   }, 50);
                 }}
               >
