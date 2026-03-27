@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Save, FileDown, Handshake, RotateCcw } from "lucide-react";
+import { Save, FileDown, Handshake, RotateCcw, Loader2 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/financing";
 
 interface ResultRowProps {
@@ -42,6 +42,7 @@ interface SimulatorResultCardProps {
   saving: boolean;
   closingSale: boolean;
   hasClient: boolean;
+  generatingPdf?: boolean;
   onSave: () => void;
   onPdf: (() => void) | null;
   onCloseSale: () => void;
@@ -51,7 +52,7 @@ interface SimulatorResultCardProps {
 export function SimulatorResultCard({
   valorTela, valorTelaComComissao, comissaoPercentual, hideIndicador,
   result, valorEntrada, parcelas, showParcelas, showCarencia, carenciaDias,
-  saving, closingSale, hasClient,
+  saving, closingSale, hasClient, generatingPdf,
   onSave, onPdf, onCloseSale, onClear,
 }: SimulatorResultCardProps) {
   return (
@@ -87,8 +88,9 @@ export function SimulatorResultCard({
               {saving ? "Salvando..." : "Salvar Simulação"}
             </Button>
             {onPdf && (
-              <Button variant="outline" className="gap-2" onClick={onPdf}>
-                <FileDown className="h-4 w-4" />PDF
+              <Button variant="outline" className="gap-2" onClick={onPdf} disabled={generatingPdf}>
+                {generatingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                {generatingPdf ? "Gerando..." : "PDF"}
               </Button>
             )}
           </div>
