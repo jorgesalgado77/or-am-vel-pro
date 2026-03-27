@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Search, Phone, User, Loader2, X } from "lucide-react";
+import { Download, Search, Phone, User, Loader2, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
@@ -18,9 +19,10 @@ interface Props {
   tenantId: string | null;
   open: boolean;
   onClose: () => void;
+  onStartChat?: (contact: WhatsAppContact) => void;
 }
 
-export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantId, open, onClose }: Props) {
+export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantId, open, onClose, onStartChat }: Props) {
   const [contacts, setContacts] = useState<WhatsAppContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [imported, setImported] = useState(false);
@@ -157,14 +159,30 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
               ) : (
                 <div className="space-y-1">
                   {filtered.map((c, i) => (
-                    <div key={`${c.phone}-${i}`} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <User className="h-3.5 w-3.5 text-primary" />
-                      </div>
+                    <div key={`${c.phone}-${i}`} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors group">
+                      <Avatar className="h-8 w-8 shrink-0">
+                        {c.profilePicUrl ? (
+                          <AvatarImage src={c.profilePicUrl} alt={c.name} />
+                        ) : null}
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {c.name?.charAt(0)?.toUpperCase() || <User className="h-3.5 w-3.5" />}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{c.name}</p>
                         <p className="text-[10px] text-muted-foreground font-mono">{c.phone}</p>
                       </div>
+                      {onStartChat && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          onClick={() => onStartChat(c)}
+                          title="Iniciar conversa"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>

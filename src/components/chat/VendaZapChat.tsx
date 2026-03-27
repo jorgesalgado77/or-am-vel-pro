@@ -680,6 +680,28 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         tenantId={tenantId}
         open={showWhatsAppContacts}
         onClose={() => setShowWhatsAppContacts(false)}
+        onStartChat={(contact) => {
+          setShowWhatsAppContacts(false);
+          const newConv: ChatConversation = {
+            id: `wa-${contact.phone}`,
+            numero_contrato: "",
+            nome_cliente: contact.name,
+            unread_count: 0,
+            last_message: "",
+            last_message_at: new Date().toISOString(),
+          };
+          setConversations(prev => {
+            const exists = prev.find(c => c.nome_cliente === contact.name && c.numero_contrato === "");
+            if (exists) {
+              setSelected(exists);
+              return prev;
+            }
+            const updated = [newConv, ...prev];
+            setSelected(newConv);
+            return updated;
+          });
+          toast.success(`Conversa iniciada com ${contact.name}`);
+        }}
       />
       </div>
     </div>
