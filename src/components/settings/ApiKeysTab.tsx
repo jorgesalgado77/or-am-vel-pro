@@ -66,11 +66,15 @@ export function ApiKeysTab() {
             if (!valid) errorMsg = "Chave ou URL da Evolution inválida";
           }
         } else if (selectedProvider === "resend") {
-          const res = await fetch("https://api.resend.com/domains", {
-            headers: { Authorization: `Bearer ${apiKey.trim()}` },
+          const { data: resendData, error: resendErr } = await supabase.functions.invoke("resend-email", {
+            body: { action: "verify", tenant_id: tenantId, _temp_key: apiKey.trim() },
           });
-          valid = res.ok;
-          if (!valid) errorMsg = "Chave Resend inválida";
+          if (resendErr) {
+            errorMsg = "Erro ao validar chave Resend";
+          } else {
+            valid = resendData?.success === true;
+            if (!valid) errorMsg = resendData?.error || "Chave Resend inválida";
+          }
         } else if (selectedProvider === "perplexity") {
           const res = await fetch("https://api.perplexity.ai/chat/completions", {
             method: "POST",
