@@ -186,16 +186,31 @@ export function WhatsAppTab() {
         const res = await fetch(url, { headers: { apikey: evolutionKey } });
         if (res.ok) toast.success("Conexão com Evolution API estabelecida!");
         else toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
-      } else {
+      } else if (provider === "twilio") {
         if (!twilioSid || !twilioToken) {
           toast.error("Preencha o Account SID e Auth Token do Twilio");
           setTesting(false);
           return;
         }
         toast.info("Para testar o Twilio, salve as configurações e envie uma mensagem de teste.");
+      } else if (provider === "zapi") {
+        if (!zapiInstanceId || !zapiToken) {
+          toast.error("Preencha o Instance ID e Token do Z-API");
+          setTesting(false);
+          return;
+        }
+        const url = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/status`;
+        const res = await fetch(url, {
+          headers: zapiClientToken ? { "Client-Token": zapiClientToken } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connected) toast.success("Z-API conectado e autenticado!");
+          else toast.warning(`Z-API respondeu, mas status: ${data.status || "desconectado"}. Escaneie o QR Code no painel Z-API.`);
+        } else {
+          toast.error(`Erro na conexão Z-API: ${res.status} ${res.statusText}`);
+        }
       }
-    } catch {
-      toast.error("Erro ao testar conexão. Verifique a URL e credenciais.");
     }
     setTesting(false);
   };
