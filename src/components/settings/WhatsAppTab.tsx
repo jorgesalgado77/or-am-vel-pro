@@ -17,7 +17,7 @@ import {getTenantId} from "@/lib/tenantState";
 import {WhatsAppBotMonitor} from "@/components/campaigns/WhatsAppBotMonitor";
 import {WhatsAppInstanceManager} from "./WhatsAppInstanceManager";
 
-type WhatsAppProvider = "evolution" | "twilio";
+type WhatsAppProvider = "evolution" | "twilio" | "zapi";
 
 interface WhatsAppSettings {
   id: string;
@@ -28,6 +28,11 @@ interface WhatsAppSettings {
   twilio_account_sid: string | null;
   twilio_auth_token: string | null;
   twilio_phone_number: string | null;
+  zapi_instance_id: string | null;
+  zapi_token: string | null;
+  zapi_security_token: string | null;
+  zapi_webhook_url: string | null;
+  zapi_client_token: string | null;
   ativo: boolean;
   enviar_contrato: boolean;
   enviar_notificacoes: boolean;
@@ -58,6 +63,8 @@ export function WhatsAppTab() {
   const [testing, setTesting] = useState(false);
   const [showEvolutionKey, setShowEvolutionKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
+  const [showZapiToken, setShowZapiToken] = useState(false);
+  const [showZapiSecurityToken, setShowZapiSecurityToken] = useState(false);
 
   const [provider, setProvider] = useState<WhatsAppProvider>("evolution");
   const [evolutionUrl, setEvolutionUrl] = useState("");
@@ -66,6 +73,11 @@ export function WhatsAppTab() {
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioToken, setTwilioToken] = useState("");
   const [twilioPhone, setTwilioPhone] = useState("");
+  const [zapiInstanceId, setZapiInstanceId] = useState("");
+  const [zapiToken, setZapiToken] = useState("");
+  const [zapiSecurityToken, setZapiSecurityToken] = useState("");
+  const [zapiWebhookUrl, setZapiWebhookUrl] = useState("");
+  const [zapiClientToken, setZapiClientToken] = useState("");
   const [ativo, setAtivo] = useState(false);
   const [enviarContrato, setEnviarContrato] = useState(true);
   const [enviarNotificacoes, setEnviarNotificacoes] = useState(true);
@@ -99,6 +111,11 @@ export function WhatsAppTab() {
       setTwilioSid(s.twilio_account_sid || "");
       setTwilioToken(s.twilio_auth_token || "");
       setTwilioPhone(s.twilio_phone_number || "");
+      setZapiInstanceId(s.zapi_instance_id || "");
+      setZapiToken(s.zapi_token || "");
+      setZapiSecurityToken(s.zapi_security_token || "");
+      setZapiWebhookUrl(s.zapi_webhook_url || "");
+      setZapiClientToken(s.zapi_client_token || "");
       setAtivo(s.ativo);
       setEnviarContrato(s.enviar_contrato);
       setEnviarNotificacoes(s.enviar_notificacoes);
@@ -141,6 +158,11 @@ export function WhatsAppTab() {
         twilio_account_sid: twilioSid.trim() || null,
         twilio_auth_token: twilioToken.trim() || null,
         twilio_phone_number: twilioPhone.trim() || null,
+        zapi_instance_id: zapiInstanceId.trim() || null,
+        zapi_token: zapiToken.trim() || null,
+        zapi_security_token: zapiSecurityToken.trim() || null,
+        zapi_webhook_url: zapiWebhookUrl.trim() || null,
+        zapi_client_token: zapiClientToken.trim() || null,
         ativo,
         enviar_contrato: enviarContrato,
         enviar_notificacoes: enviarNotificacoes,
@@ -164,16 +186,33 @@ export function WhatsAppTab() {
         const res = await fetch(url, { headers: { apikey: evolutionKey } });
         if (res.ok) toast.success("Conexão com Evolution API estabelecida!");
         else toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
-      } else {
+      } else if (provider === "twilio") {
         if (!twilioSid || !twilioToken) {
           toast.error("Preencha o Account SID e Auth Token do Twilio");
           setTesting(false);
           return;
         }
         toast.info("Para testar o Twilio, salve as configurações e envie uma mensagem de teste.");
+      } else if (provider === "zapi") {
+        if (!zapiInstanceId || !zapiToken) {
+          toast.error("Preencha o Instance ID e Token do Z-API");
+          setTesting(false);
+          return;
+        }
+        const url = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/status`;
+        const res = await fetch(url, {
+          headers: zapiClientToken ? { "Client-Token": zapiClientToken } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.connected) toast.success("Z-API conectado e autenticado!");
+          else toast.warning(`Z-API respondeu, mas status: ${data.status || "desconectado"}. Escaneie o QR Code no painel Z-API.`);
+        } else {
+          toast.error(`Erro na conexão Z-API: ${res.status} ${res.statusText}`);
+        }
       }
     } catch {
-      toast.error("Erro ao testar conexão. Verifique a URL e credenciais.");
+      toast.error("Erro ao testar conexão. Verifique as credenciais.");
     }
     setTesting(false);
   };
@@ -247,14 +286,18 @@ export function WhatsAppTab() {
 
           <div>
             <Label className="text-sm font-medium mb-3 block">Provedor da API</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button onClick={() => setProvider("evolution")} className={`p-4 rounded-lg border-2 transition-all text-left ${provider === "evolution" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
                 <p className="font-semibold text-sm text-foreground">Evolution API</p>
-                <p className="text-xs text-muted-foreground mt-1">API gratuita e open-source para WhatsApp</p>
+                <p className="text-xs text-muted-foreground mt-1">Open-source para WhatsApp</p>
+              </button>
+              <button onClick={() => setProvider("zapi")} className={`p-4 rounded-lg border-2 transition-all text-left ${provider === "zapi" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
+                <p className="font-semibold text-sm text-foreground">Z-API</p>
+                <p className="text-xs text-muted-foreground mt-1">API brasileira estável e confiável</p>
               </button>
               <button onClick={() => setProvider("twilio")} className={`p-4 rounded-lg border-2 transition-all text-left ${provider === "twilio" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"}`}>
                 <p className="font-semibold text-sm text-foreground">Twilio</p>
-                <p className="text-xs text-muted-foreground mt-1">Plataforma de comunicação em nuvem</p>
+                <p className="text-xs text-muted-foreground mt-1">Comunicação em nuvem</p>
               </button>
             </div>
           </div>
@@ -264,7 +307,9 @@ export function WhatsAppTab() {
       {/* Provider-specific settings */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">{provider === "evolution" ? "Evolution API — Credenciais" : "Twilio — Credenciais"}</CardTitle>
+          <CardTitle className="text-base">
+            {provider === "evolution" ? "Evolution API — Credenciais" : provider === "zapi" ? "Z-API — Credenciais" : "Twilio — Credenciais"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {provider === "evolution" ? (
@@ -285,6 +330,51 @@ export function WhatsAppTab() {
               <div>
                 <Label>Nome da Instância</Label>
                 <Input value={evolutionInstance} onChange={(e) => setEvolutionInstance(e.target.value)} placeholder="Ex: minha-instancia" className="mt-1" />
+              </div>
+            </>
+          ) : provider === "zapi" ? (
+            <>
+              <div className="bg-muted/50 rounded-lg p-3 mb-2">
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  Acesse <strong>painel.z-api.io</strong> para obter suas credenciais. O Instance ID e Token ficam na tela principal da sua instância.
+                </p>
+              </div>
+              <div>
+                <Label>Instance ID</Label>
+                <Input value={zapiInstanceId} onChange={(e) => setZapiInstanceId(e.target.value)} placeholder="Ex: 3C2A1B4D5E6F7G8H9I0J" className="mt-1" />
+                <p className="text-[11px] text-muted-foreground mt-1">Identificador único da sua instância no painel Z-API</p>
+              </div>
+              <div>
+                <Label>Token da Instância</Label>
+                <div className="relative mt-1">
+                  <Input type={showZapiToken ? "text" : "password"} value={zapiToken} onChange={(e) => setZapiToken(e.target.value)} placeholder="Token de autenticação da instância" className="pr-10" />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowZapiToken(!showZapiToken)}>
+                    {showZapiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Token gerado automaticamente pelo Z-API para autenticar requisições</p>
+              </div>
+              <div>
+                <Label>Security Token (Opcional)</Label>
+                <div className="relative mt-1">
+                  <Input type={showZapiSecurityToken ? "text" : "password"} value={zapiSecurityToken} onChange={(e) => setZapiSecurityToken(e.target.value)} placeholder="Token de segurança para webhooks" className="pr-10" />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowZapiSecurityToken(!showZapiSecurityToken)}>
+                    {showZapiSecurityToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Token extra para validar webhooks recebidos (recomendado para produção)</p>
+              </div>
+              <div>
+                <Label>Client Token (Opcional)</Label>
+                <Input value={zapiClientToken} onChange={(e) => setZapiClientToken(e.target.value)} placeholder="Token do cliente Z-API" className="mt-1" />
+                <p className="text-[11px] text-muted-foreground mt-1">Necessário em contas com múltiplas instâncias ou plano Business</p>
+              </div>
+              <Separator />
+              <div>
+                <Label>URL do Webhook (Recebimento)</Label>
+                <Input value={zapiWebhookUrl} onChange={(e) => setZapiWebhookUrl(e.target.value)} placeholder="https://seu-servidor.com/webhook/zapi" className="mt-1" />
+                <p className="text-[11px] text-muted-foreground mt-1">URL para onde o Z-API enviará as mensagens recebidas. Configure no painel Z-API → Webhooks</p>
               </div>
             </>
           ) : (
