@@ -224,7 +224,17 @@ export function ClientsKanban({
     KANBAN_COLUMNS.forEach(col => { map[col.id] = []; });
     filtered.forEach(client => {
       let status = (client as any).status || "novo";
+      // Legacy: map proposta_enviada to em_negociacao
+      if (status === "proposta_enviada") status = "em_negociacao";
       if (status === "novo" && client.vendedor) status = "em_negociacao";
+      
+      // Auto-expire: if client has a simulation and it's past validity, move to expirado
+      const sim = lastSims[client.id];
+      if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado") {
+        const isExpired = isPast(addDays(new Date(sim.created_at), settings.budget_validity_days));
+        if (isExpired) status = "expirado";
+      }
+      
       if (map[status]) map[status].push(client);
       else map["novo"].push(client);
     });
@@ -233,7 +243,7 @@ export function ClientsKanban({
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered]);
+  }, [filtered, lastSims, settings.budget_validity_days]);
 
   // Drag and drop handler
   const handleDragEnd = useCallback(async (result: DropResult) => {
