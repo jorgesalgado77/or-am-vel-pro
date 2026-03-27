@@ -335,6 +335,44 @@ async function sendViaTwilio(phone: string, message: string, mediaUrl?: string) 
   return { success: true };
 }
 
+async function sendViaZapi(phone: string, message: string, config: { instanceId: string; token: string; clientToken: string; securityToken?: string }, mediaUrl?: string) {
+  const baseUrl = `https://api.z-api.io/instances/${config.instanceId}/token/${config.token}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Client-Token": config.clientToken,
+  };
+  if (config.securityToken) headers["Security-Token"] = config.securityToken;
+
+  // Normalize phone number (remove +, spaces, dashes)
+  const normalizedPhone = phone.replace(/[\s\-\+]/g, "");
+
+  if (mediaUrl) {
+    const res = await fetch(`${baseUrl}/send-image`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ phone: normalizedPhone, image: mediaUrl, caption: message }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      return { success: false, error: `Z-API [${res.status}]: ${errText}` };
+    }
+    return { success: true };
+  }
+
+  const res = await fetch(`${baseUrl}/send-text`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ phone: normalizedPhone, message }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, error: `Z-API [${res.status}]: ${errText}` };
+  }
+
+  return { success: true };
+}
+
 // ── Main Handler ──
 
 serve(async (req) => {
