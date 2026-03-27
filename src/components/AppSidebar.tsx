@@ -61,48 +61,6 @@ export function AppSidebar({
   const companyName = settings.company_name || "OrçaMóvel PRO";
   const companySubtitle = settings.company_subtitle || "Orce. Venda. Simplifique";
 
-  // Fetch notification history (leads received)
-  useEffect(() => {
-    const userName = currentUser?.nome_completo;
-    if (!userName) return;
-
-    const fetchNotifications = async () => {
-      const { data } = await supabase
-        .from("tracking_messages" as any)
-        .select("id, conteudo, created_at")
-        .eq("destinatario", userName)
-        .eq("tipo", "sistema")
-        .ilike("conteudo", "%enviado para seu atendimento%")
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (data) {
-        const readIds = JSON.parse(localStorage.getItem("read_notifications") || "[]");
-        setNotifications((data as any[]).map(n => ({ ...n, lido: readIds.includes(n.id) })));
-      }
-    };
-    fetchNotifications();
-
-    // Realtime subscription
-    const channel = supabase
-      .channel("sidebar-notifications")
-      .on("postgres_changes" as any, { event: "INSERT", schema: "public", table: "tracking_messages" }, (payload: any) => {
-        const msg = payload.new;
-        if (msg?.destinatario === userName && msg?.tipo === "sistema" && msg?.conteudo?.includes("enviado para seu atendimento")) {
-          setNotifications(prev => [{ id: msg.id, conteudo: msg.conteudo, created_at: msg.created_at, lido: false }, ...prev.slice(0, 19)]);
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [currentUser?.nome_completo]);
-
-  const unreadNotifications = notifications.filter(n => !n.lido).length;
-
-  const markAllRead = () => {
-    const ids = notifications.map(n => n.id);
-    localStorage.setItem("read_notifications", JSON.stringify(ids));
-    setNotifications(prev => prev.map(n => ({ ...n, lido: true })));
-  };
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
