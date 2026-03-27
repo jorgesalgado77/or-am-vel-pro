@@ -168,6 +168,33 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [catalogProductsTotal, setCatalogProductsTotal] = useState(0);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
+  // Quick client linking (when simulator opened without a client)
+  const [linkedClient, setLinkedClient] = useState<Client | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientResults, setClientResults] = useState<Client[]>([]);
+  const [searchingClients, setSearchingClients] = useState(false);
+  const effectiveClient = client || linkedClient;
+
+  const searchClients = useCallback(async (term: string) => {
+    if (!term || term.length < 2) { setClientResults([]); return; }
+    const tid = await getResolvedTenantId();
+    if (!tid) return;
+    setSearchingClients(true);
+    const { data } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("tenant_id", tid)
+      .ilike("nome", `%${term}%`)
+      .limit(5);
+    setClientResults((data as Client[]) || []);
+    setSearchingClients(false);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => searchClients(clientSearch), 300);
+    return () => clearTimeout(t);
+  }, [clientSearch, searchClients]);
+
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? client?.indicador_id ?? "");
