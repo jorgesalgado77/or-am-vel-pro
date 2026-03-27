@@ -87,4 +87,4 @@ export const TaskCalendarView = forwardRef<HTMLDivElement, Props>(function TaskC
       </div>
     </div>
   );
-}
+});
