@@ -1379,11 +1379,12 @@ function ContractTrackingList({ clients, lastSims }: { clients: Client[]; lastSi
     }
   }, [comissaoPolicy, form, fetchTrackings]);
 
+  // Use allSellers from DB for the filter, plus any names from trackings not already included
   const uniqueProjetistas = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(allSellers);
     trackings.forEach((t) => { const p = t.projetista || t.vendedor; if (p) set.add(p); });
     return Array.from(set).sort();
-  }, [trackings]);
+  }, [trackings, allSellers]);
 
   const filtered = useMemo(() =>
     trackings.filter((t) => {
