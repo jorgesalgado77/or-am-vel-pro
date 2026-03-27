@@ -42,6 +42,7 @@ export function ClientsKanban({
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
+  const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
 
   const { settings } = useCompanySettings();
   const { projetistas, usuarios } = useUsuarios();
