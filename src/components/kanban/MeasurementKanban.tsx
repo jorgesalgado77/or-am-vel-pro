@@ -57,7 +57,7 @@ export function MeasurementKanban() {
     if (!tenantId) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("measurement_requests")
+      .from("measurement_requests" as any)
       .select("*")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
@@ -103,7 +103,7 @@ export function MeasurementKanban() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     const { error } = await supabase
-      .from("measurement_requests")
+      .from("measurement_requests" as any)
       .update({ status: newStatus, updated_at: new Date().toISOString() } as any)
       .eq("id", id);
     if (error) toast.error("Erro ao atualizar status");
@@ -116,7 +116,7 @@ export function MeasurementKanban() {
   const handleAssign = async (id: string, assignedTo: string) => {
     const val = assignedTo === "__none__" ? null : assignedTo;
     const { error } = await supabase
-      .from("measurement_requests")
+      .from("measurement_requests" as any)
       .update({
         assigned_to: val,
         status: val ? "em_andamento" : "novo",
