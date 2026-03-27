@@ -1,40 +1,55 @@
 /**
- * PDF Generation Service — calls the generate-pdf Edge Function
+ * PDF Generation Service — calls the generate-pdf Edge Function (server-side)
  * and handles download / mobile share.
  */
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-export interface GenerateBudgetPdfParams {
-  tenant_id: string;
-  budget_id?: string;
-  provider?: "pdfmonkey" | "pdfgenerator" | "internal";
-  template_id?: string;
-  payload: Record<string, unknown>;
+export interface BudgetPdfPayload {
+  clientName: string;
+  clientCpf?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  vendedor?: string;
+  companyName?: string;
+  companySubtitle?: string;
+  companyLogoUrl?: string;
+  valorTela: number;
+  desconto1: number;
+  desconto2: number;
+  desconto3: number;
+  valorComDesconto: number;
+  formaPagamento: string;
+  parcelas: number;
+  valorEntrada: number;
+  plusPercentual: number;
+  taxaCredito: number;
+  saldo: number;
+  valorFinal: number;
+  valorParcela: number;
+  ambientes?: Array<{ environmentName: string; pieceCount: number; totalValue: number }>;
+  date?: string;
 }
 
 export interface PdfResult {
   success: boolean;
   download_url?: string;
-  document_id?: string;
-  provider?: string;
   error?: string;
+  provider?: string;
 }
 
 /**
- * Generate a PDF via the Edge Function and return the result.
+ * Generate a professional budget PDF server-side via Edge Function.
  */
-export async function generateBudgetPdf(params: GenerateBudgetPdfParams): Promise<PdfResult> {
+export async function generateBudgetPdfServerSide(
+  tenantId: string,
+  payload: BudgetPdfPayload
+): Promise<PdfResult> {
   const { data, error } = await supabase.functions.invoke("generate-pdf", {
     body: {
-      action: "generate",
-      tenant_id: params.tenant_id,
-      provider: params.provider,
-      data: {
-        template_id: params.template_id,
-        budget_id: params.budget_id,
-        payload: params.payload,
-      },
+      action: "generate-budget",
+      tenant_id: tenantId,
+      payload,
     },
   });
 
@@ -46,35 +61,7 @@ export async function generateBudgetPdf(params: GenerateBudgetPdfParams): Promis
 }
 
 /**
- * Poll PDFMonkey status until done or timeout.
- */
-export async function pollPdfStatus(
-  tenantId: string,
-  documentId: string,
-  maxAttempts = 15,
-  intervalMs = 2000
-): Promise<PdfResult> {
-  for (let i = 0; i < maxAttempts; i++) {
-    const { data } = await supabase.functions.invoke("generate-pdf", {
-      body: { action: "status", tenant_id: tenantId, document_id: documentId },
-    });
-
-    if (data?.success && data.download_url && data.status === "success") {
-      return data as PdfResult;
-    }
-
-    if (data?.status === "failure") {
-      return { success: false, error: "Falha na geração do PDF" };
-    }
-
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-
-  return { success: false, error: "Tempo esgotado aguardando o PDF" };
-}
-
-/**
- * Open or share a PDF URL. On mobile devices with Web Share API,
+ * Open or share a PDF URL. On mobile with Web Share API,
  * offers to share directly (e.g., to WhatsApp).
  */
 export async function openOrSharePdf(url: string, fileName = "orcamento.pdf") {
@@ -82,7 +69,6 @@ export async function openOrSharePdf(url: string, fileName = "orcamento.pdf") {
 
   if (isMobile && navigator.share) {
     try {
-      // Try to fetch and share as a file for WhatsApp compatibility
       const response = await fetch(url);
       const blob = await response.blob();
       const file = new File([blob], fileName, { type: "application/pdf" });
@@ -96,57 +82,33 @@ export async function openOrSharePdf(url: string, fileName = "orcamento.pdf") {
         return;
       }
     } catch {
-      // fallback to URL share
       try {
         await navigator.share({ title: "Orçamento", url });
         return;
       } catch {
-        // user cancelled or not supported
+        // user cancelled
       }
     }
   }
 
-  // Desktop or fallback: open in new tab
   window.open(url, "_blank", "noopener");
 }
 
 /**
- * Full flow: generate → poll (if needed) → open/share.
- * Returns true if successful.
+ * Full flow: generate server-side → open/share.
  */
-export async function generateAndOpenPdf(params: GenerateBudgetPdfParams): Promise<boolean> {
-  const result = await generateBudgetPdf(params);
+export async function generateAndOpenBudgetPdf(
+  tenantId: string,
+  payload: BudgetPdfPayload
+): Promise<boolean> {
+  const result = await generateBudgetPdfServerSide(tenantId, payload);
 
-  if (!result.success) {
+  if (!result.success || !result.download_url) {
     toast.error(result.error || "Erro ao gerar PDF");
     return false;
   }
 
-  // If provider is internal, no external PDF — handled client-side
-  if (result.provider === "internal") {
-    toast.info("Use a geração local de PDF para este provedor.");
-    return false;
-  }
-
-  let downloadUrl = result.download_url;
-
-  // If we got a document_id but no download URL yet (async generation), poll
-  if (!downloadUrl && result.document_id) {
-    toast.info("Gerando PDF, aguarde...");
-    const pollResult = await pollPdfStatus(params.tenant_id, result.document_id);
-    if (!pollResult.success || !pollResult.download_url) {
-      toast.error(pollResult.error || "Falha ao gerar PDF");
-      return false;
-    }
-    downloadUrl = pollResult.download_url;
-  }
-
-  if (downloadUrl) {
-    toast.success("PDF gerado com sucesso!");
-    await openOrSharePdf(downloadUrl);
-    return true;
-  }
-
-  toast.error("URL do PDF não disponível");
-  return false;
+  toast.success("PDF gerado com sucesso!");
+  await openOrSharePdf(result.download_url);
+  return true;
 }
