@@ -29,6 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
   novo: "Novo",
   em_negociacao: "Em Negociação",
   proposta_enviada: "Proposta Enviada",
+  expirado: "Expirado",
   fechado: "Fechado",
   perdido: "Perdido",
 };
@@ -54,7 +55,7 @@ export function StartConversationModal({
         .from("client_tracking")
         .select("id, nome_cliente, numero_contrato, status, projetista, client_id")
         .eq("tenant_id", tenantId)
-        .in("status", ["novo", "em_negociacao", "proposta_enviada", "fechado"])
+        .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"])
         .order("updated_at", { ascending: false });
 
       if (!trackings || trackings.length === 0) {
@@ -63,7 +64,7 @@ export function StartConversationModal({
           .from("clients")
           .select("id, nome, numero_orcamento, status, vendedor")
           .eq("tenant_id", tenantId)
-          .in("status", ["novo", "em_negociacao", "proposta_enviada", "fechado"])
+          .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"])
           .order("updated_at", { ascending: false });
 
         if (directClients && directClients.length > 0) {
