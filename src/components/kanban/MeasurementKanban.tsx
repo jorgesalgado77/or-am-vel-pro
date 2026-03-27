@@ -77,7 +77,16 @@ export function MeasurementKanban() {
       .on("postgres_changes" as any, {
         event: "*", schema: "public", table: "measurement_requests",
         filter: `tenant_id=eq.${tenantId}`,
-      }, () => { fetchRequests(); })
+      }, (payload: any) => {
+        fetchRequests();
+        if (payload.eventType === "INSERT") {
+          playNotificationSound();
+          toast.info("📐 Nova solicitação de medida recebida!", {
+            description: payload.new?.nome_cliente || "Novo pedido",
+            duration: 5000,
+          });
+        }
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchRequests]);
