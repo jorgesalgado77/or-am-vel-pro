@@ -223,8 +223,10 @@ export function OnboardingAIAssistant() {
         >
           <Bot className="h-6 w-6 group-hover:hidden" />
           <MessageCircle className="h-6 w-6 hidden group-hover:block" />
-          {messages.length === 0 && (
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive animate-pulse" />
+          {(messages.length === 0 || fabUnread > 0) && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive flex items-center justify-center text-[10px] font-bold text-destructive-foreground animate-pulse px-1">
+              {fabUnread > 0 ? fabUnread : ""}
+            </span>
           )}
         </button>
       )}
