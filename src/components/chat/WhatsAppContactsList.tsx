@@ -48,24 +48,40 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
       let fetchedContacts: WhatsAppContact[] = [];
 
       if (s.provider === "zapi" && s.zapi_instance_id && s.zapi_token) {
-        const res = await fetch(
-          `https://api.z-api.io/instances/${s.zapi_instance_id}/token/${s.zapi_token}/contacts`,
-          {
-            headers: {
-              "Client-Token": s.zapi_client_token || "",
-              ...(s.zapi_security_token ? { "Security-Token": s.zapi_security_token } : {}),
-            },
+        // Z-API paginated contacts fetch
+        let page = 1;
+        let hasMore = true;
+        const baseUrl = `https://api.z-api.io/instances/${s.zapi_instance_id}/token/${s.zapi_token}`;
+        const headers: Record<string, string> = {
+          "Client-Token": s.zapi_client_token || "",
+          ...(s.zapi_security_token ? { "Security-Token": s.zapi_security_token } : {}),
+        };
+
+        while (hasMore) {
+          try {
+            const res = await fetch(`${baseUrl}/contacts?page=${page}&pageSize=1000`, { headers });
+            const data = await res.json().catch(() => []);
+            const batch = Array.isArray(data) ? data : (data?.contacts || data?.results || []);
+            if (!Array.isArray(batch) || batch.length === 0) {
+              hasMore = false;
+              break;
+            }
+            const mapped = batch
+              .filter((c: any) => (c.name || c.notify || c.pushName) && (c.phone || c.id))
+              .map((c: any) => ({
+                name: c.name || c.notify || c.pushName || "Sem nome",
+                phone: (c.phone || c.id || "").replace("@c.us", "").replace("@s.whatsapp.net", ""),
+                profilePicUrl: c.imgUrl,
+              }));
+            fetchedContacts.push(...mapped);
+            if (batch.length < 1000) {
+              hasMore = false;
+            } else {
+              page++;
+            }
+          } catch {
+            hasMore = false;
           }
-        );
-        const data = await res.json().catch(() => []);
-        if (Array.isArray(data)) {
-          fetchedContacts = data
-            .filter((c: any) => c.name && c.phone)
-            .map((c: any) => ({
-              name: c.name || c.notify || "Sem nome",
-              phone: c.phone?.replace("@c.us", "") || "",
-              profilePicUrl: c.imgUrl,
-            }));
         }
       } else if (s.provider === "evolution" && s.evolution_api_url && s.evolution_api_key) {
         const instanceName = s.evolution_instance_name || "default";
