@@ -7,7 +7,7 @@ import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2 } from "lucide-react";
+import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
@@ -174,6 +174,12 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
               <div className="flex items-center gap-1 mt-1.5">
                 <AlertTriangle className="h-3 w-3 text-destructive" />
                 <span className="text-[10px] text-destructive font-medium">Orçamento expirado</span>
+              </div>
+            )}
+            {(client as any).status === "fechado" && (
+              <div className="flex items-center gap-1 mt-1.5">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                <span className="text-[10px] text-emerald-600 font-semibold">✅ Contrato Fechado</span>
               </div>
             )}
           </div>
