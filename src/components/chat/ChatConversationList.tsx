@@ -22,6 +22,7 @@ interface Props {
 }
 
 type TempFilter = LeadTemperature | "all";
+type VendedorFilter = string | "all";
 
 function timeAgo(dateStr?: string) {
   if (!dateStr) return "";
