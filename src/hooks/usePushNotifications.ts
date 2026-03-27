@@ -58,7 +58,7 @@ export function usePushNotifications(tenantId: string | null, userId: string | u
       // 3. Subscribe to push
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
       });
 
       // 4. Store subscription in DB via edge function
