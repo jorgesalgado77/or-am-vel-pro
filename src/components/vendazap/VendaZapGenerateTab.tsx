@@ -215,10 +215,19 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const diasSemResposta = selectedClient ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
 
-  // Reset historico when client changes
+  // Restore historico from saved session when client changes
   useEffect(() => {
     if (selectedClient && historico.clientId !== selectedClient.id) {
-      setHistorico({ entries: [], clientId: selectedClient.id });
+      const saved = getActiveSession(selectedClient.id);
+      if (saved && saved.entries.length > 0) {
+        setHistorico({ entries: saved.entries as HistoricoEntry[], clientId: selectedClient.id });
+        // Restore settings
+        if (saved.settings.tipoCopy) setTipoCopy(saved.settings.tipoCopy);
+        if (saved.settings.tom) setTom(saved.settings.tom);
+        if (saved.settings.closingScore) setClosingScore(saved.settings.closingScore);
+      } else {
+        setHistorico({ entries: [], clientId: selectedClient.id });
+      }
     }
   }, [selectedClient?.id]);
 
