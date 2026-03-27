@@ -687,7 +687,7 @@ serve(async (req) => {
     const temperature = Math.min(0.95 + (historico.length * 0.02), 1.2);
 
     // Alternate between OpenAI and Perplexity for generation
-    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    const PERPLEXITY_API_KEY = await resolveApiKey(tenant_id, "perplexity");
     const usePerplexityForGeneration = PERPLEXITY_API_KEY && historico.length >= 3 && historico.length % 2 === 1;
 
     let mensagem = "";
