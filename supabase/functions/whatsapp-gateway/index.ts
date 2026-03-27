@@ -1,8 +1,15 @@
 /**
- * WhatsApp Gateway — Abstraction layer for sending WhatsApp messages.
+ * WhatsApp Gateway — Full Evolution API integration
  * 
- * Supports tenant-specific API keys from the api_keys table.
- * Falls back to global env vars if no tenant key is found.
+ * Actions:
+ *   - send: Send text/media message
+ *   - status: Check connection status
+ *   - createInstance: Create a new Evolution API instance
+ *   - connectInstance: Connect instance (returns QR code)
+ *   - fetchQR: Fetch current QR code for an instance
+ *   - disconnectInstance: Disconnect/logout instance
+ *   - deleteInstance: Delete an instance
+ *   - instanceStatus: Get instance connection status
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -20,22 +27,36 @@ function respond(body: unknown, status = 200) {
   });
 }
 
+function getSupabaseAdmin() {
+  const sbUrl = Deno.env.get("SUPABASE_URL")!;
+  const sbKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(sbUrl, sbKey);
+}
+
 // Resolve Evolution API credentials (tenant-specific or global)
-async function resolveEvolutionConfig(tenantId: string | null): Promise<{ apiUrl: string; apiKey: string; instanceName: string } | null> {
+async function resolveEvolutionConfig(tenantId: string | null): Promise<{ apiUrl: string; apiKey: string } | null> {
   if (tenantId) {
     try {
-      const sbUrl = Deno.env.get("SUPABASE_URL");
-      const sbKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (sbUrl && sbKey) {
-        const sb = createClient(sbUrl, sbKey);
-        const { data } = await sb.rpc("get_api_config", { p_tenant_id: tenantId, p_provider: "evolution" });
-        if (data && data.length > 0 && data[0].api_key) {
-          return {
-            apiUrl: data[0].api_url || Deno.env.get("WHATSAPP_API_URL") || "",
-            apiKey: data[0].api_key,
-            instanceName: Deno.env.get("WHATSAPP_INSTANCE") || "default",
-          };
-        }
+      const sb = getSupabaseAdmin();
+      // Try api_keys table first
+      const { data } = await sb.rpc("get_api_config", { p_tenant_id: tenantId, p_provider: "evolution" });
+      if (data && data.length > 0 && data[0].api_key) {
+        return {
+          apiUrl: data[0].api_url || Deno.env.get("WHATSAPP_API_URL") || "",
+          apiKey: data[0].api_key,
+        };
+      }
+      // Fallback: try whatsapp_settings table
+      const { data: ws } = await sb
+        .from("whatsapp_settings")
+        .select("evolution_api_url, evolution_api_key")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (ws?.evolution_api_key) {
+        return {
+          apiUrl: ws.evolution_api_url || Deno.env.get("WHATSAPP_API_URL") || "",
+          apiKey: ws.evolution_api_key,
+        };
       }
     } catch (e) {
       console.warn("[resolveEvolutionConfig] Fallback:", e);
@@ -44,52 +65,166 @@ async function resolveEvolutionConfig(tenantId: string | null): Promise<{ apiUrl
   const apiUrl = Deno.env.get("WHATSAPP_API_URL");
   const apiKey = Deno.env.get("WHATSAPP_API_KEY");
   if (!apiUrl || !apiKey) return null;
-  return { apiUrl, apiKey, instanceName: Deno.env.get("WHATSAPP_INSTANCE") || "default" };
+  return { apiUrl, apiKey };
 }
 
-// Evolution API sender
-async function sendViaEvolution(phone: string, message: string, mediaUrl?: string, tenantId?: string | null): Promise<{ success: boolean; error?: string }> {
-  const config = await resolveEvolutionConfig(tenantId || null);
-  if (!config) return { success: false, error: "Evolution API não configurada. Configure nas Configurações > APIs." };
+// ── Instance Management ──
 
-  const { apiUrl, apiKey, instanceName } = config;
+async function createInstance(config: { apiUrl: string; apiKey: string }, instanceName: string, tenantId: string) {
+  const url = `${config.apiUrl.replace(/\/$/, "")}/instance/create`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: config.apiKey },
+    body: JSON.stringify({
+      instanceName,
+      qrcode: true,
+      integration: "WHATSAPP-BAILEYS",
+    }),
+  });
 
-  if (!apiUrl || !apiKey) {
-    return { success: false, error: "WHATSAPP_API_URL ou WHATSAPP_API_KEY não configurados" };
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, error: `Evolution API [${res.status}]: ${errText}` };
   }
 
-  try {
-    const endpoint = mediaUrl
-      ? `${apiUrl}/message/sendMedia/${instanceName}`
-      : `${apiUrl}/message/sendText/${instanceName}`;
+  const data = await res.json();
 
-    const body = mediaUrl
-      ? { number: phone, mediatype: "image", mimetype: "image/jpeg", caption: message, media: mediaUrl }
-      : { number: phone, text: message };
+  // Save instance to DB
+  const sb = getSupabaseAdmin();
+  await sb.from("whatsapp_instances").upsert({
+    tenant_id: tenantId,
+    instance_name: instanceName,
+    status: "disconnected",
+    connected: false,
+    qr_code: data.qrcode?.base64 || null,
+  }, { onConflict: "tenant_id,instance_name", ignoreDuplicates: false });
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": apiKey,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      return { success: false, error: `Evolution API [${res.status}]: ${errText}` };
-    }
-
-    const data = await res.json();
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: `Evolution API error: ${(e as Error).message}` };
-  }
+  return { success: true, data, qr_code: data.qrcode?.base64 || null };
 }
 
-// Twilio sender
-async function sendViaTwilio(phone: string, message: string, mediaUrl?: string): Promise<{ success: boolean; error?: string }> {
+async function connectInstance(config: { apiUrl: string; apiKey: string }, instanceName: string, tenantId: string) {
+  const url = `${config.apiUrl.replace(/\/$/, "")}/instance/connect/${instanceName}`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { apikey: config.apiKey },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, error: `Evolution API [${res.status}]: ${errText}` };
+  }
+
+  const data = await res.json();
+  const qrCode = data.base64 || data.qrcode?.base64 || null;
+
+  // Update DB
+  const sb = getSupabaseAdmin();
+  await sb.from("whatsapp_instances")
+    .update({ status: "connecting", qr_code: qrCode })
+    .eq("tenant_id", tenantId)
+    .eq("instance_name", instanceName);
+
+  return { success: true, qr_code: qrCode };
+}
+
+async function fetchInstanceQR(config: { apiUrl: string; apiKey: string }, instanceName: string) {
+  const url = `${config.apiUrl.replace(/\/$/, "")}/instance/connect/${instanceName}`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { apikey: config.apiKey },
+  });
+
+  if (!res.ok) {
+    return { success: false, error: `[${res.status}]` };
+  }
+
+  const data = await res.json();
+  return { success: true, qr_code: data.base64 || data.qrcode?.base64 || null };
+}
+
+async function getInstanceStatus(config: { apiUrl: string; apiKey: string }, instanceName: string, tenantId: string) {
+  const url = `${config.apiUrl.replace(/\/$/, "")}/instance/connectionState/${instanceName}`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { apikey: config.apiKey },
+  });
+
+  if (!res.ok) {
+    return { success: false, error: `[${res.status}]` };
+  }
+
+  const data = await res.json();
+  const state = data.instance?.state || data.state || "unknown";
+  const connected = state === "open" || state === "connected";
+
+  // Sync DB
+  const sb = getSupabaseAdmin();
+  await sb.from("whatsapp_instances")
+    .update({ status: connected ? "connected" : "disconnected", connected })
+    .eq("tenant_id", tenantId)
+    .eq("instance_name", instanceName);
+
+  return { success: true, state, connected, data };
+}
+
+async function disconnectInstance(config: { apiUrl: string; apiKey: string }, instanceName: string, tenantId: string) {
+  const url = `${config.apiUrl.replace(/\/$/, "")}/instance/logout/${instanceName}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { apikey: config.apiKey },
+  });
+
+  const sb = getSupabaseAdmin();
+  await sb.from("whatsapp_instances")
+    .update({ status: "disconnected", connected: false, qr_code: null })
+    .eq("tenant_id", tenantId)
+    .eq("instance_name", instanceName);
+
+  return { success: res.ok };
+}
+
+async function deleteInstance(config: { apiUrl: string; apiKey: string }, instanceName: string, tenantId: string) {
+  const url = `${config.apiUrl.replace(/\/$/, "")}/instance/delete/${instanceName}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { apikey: config.apiKey },
+  });
+
+  const sb = getSupabaseAdmin();
+  await sb.from("whatsapp_instances")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("instance_name", instanceName);
+
+  return { success: res.ok };
+}
+
+// ── Send Messages ──
+
+async function sendViaEvolution(phone: string, message: string, instanceName: string, config: { apiUrl: string; apiKey: string }, mediaUrl?: string) {
+  const endpoint = mediaUrl
+    ? `${config.apiUrl.replace(/\/$/, "")}/message/sendMedia/${instanceName}`
+    : `${config.apiUrl.replace(/\/$/, "")}/message/sendText/${instanceName}`;
+
+  const body = mediaUrl
+    ? { number: phone, mediatype: "image", mimetype: "image/jpeg", caption: message, media: mediaUrl }
+    : { number: phone, text: message };
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: config.apiKey },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, error: `Evolution API [${res.status}]: ${errText}` };
+  }
+
+  return { success: true };
+}
+
+async function sendViaTwilio(phone: string, message: string, mediaUrl?: string) {
   const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
   const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
   const fromNumber = Deno.env.get("TWILIO_FROM_NUMBER");
@@ -98,37 +233,34 @@ async function sendViaTwilio(phone: string, message: string, mediaUrl?: string):
     return { success: false, error: "Credenciais Twilio não configuradas" };
   }
 
-  try {
-    const params = new URLSearchParams({
-      To: `whatsapp:${phone}`,
-      From: `whatsapp:${fromNumber}`,
-      Body: message,
-    });
+  const params = new URLSearchParams({
+    To: `whatsapp:${phone}`,
+    From: `whatsapp:${fromNumber}`,
+    Body: message,
+  });
+  if (mediaUrl) params.set("MediaUrl", mediaUrl);
 
-    if (mediaUrl) params.set("MediaUrl", mediaUrl);
-
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params,
-      }
-    );
-
-    if (!res.ok) {
-      const errText = await res.text();
-      return { success: false, error: `Twilio [${res.status}]: ${errText}` };
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params,
     }
+  );
 
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: `Twilio error: ${(e as Error).message}` };
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, error: `Twilio [${res.status}]: ${errText}` };
   }
+
+  return { success: true };
 }
+
+// ── Main Handler ──
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -142,23 +274,75 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, phone, message, media_url, tracking_id, tenant_id } = body;
+    const { action, phone, message, media_url, tenant_id, instance_name } = body;
 
-    // Check provider
-    const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
+    // Resolve Evolution config
+    const config = await resolveEvolutionConfig(tenant_id || null);
+
+    // ── Instance Management Actions ──
+
+    if (action === "createInstance") {
+      if (!config) return respond({ error: "Evolution API não configurada. Adicione a API Key em Configurações > APIs." }, 400);
+      if (!instance_name || !tenant_id) return respond({ error: "instance_name e tenant_id são obrigatórios" }, 400);
+      const result = await createInstance(config, instance_name, tenant_id);
+      return respond(result, result.success ? 200 : 502);
+    }
+
+    if (action === "connectInstance") {
+      if (!config) return respond({ error: "Evolution API não configurada" }, 400);
+      if (!instance_name || !tenant_id) return respond({ error: "instance_name e tenant_id são obrigatórios" }, 400);
+      const result = await connectInstance(config, instance_name, tenant_id);
+      return respond(result, result.success ? 200 : 502);
+    }
+
+    if (action === "fetchQR") {
+      if (!config) return respond({ error: "Evolution API não configurada" }, 400);
+      if (!instance_name) return respond({ error: "instance_name é obrigatório" }, 400);
+      const result = await fetchInstanceQR(config, instance_name);
+      return respond(result, result.success ? 200 : 502);
+    }
+
+    if (action === "instanceStatus") {
+      if (!config) return respond({ error: "Evolution API não configurada" }, 400);
+      if (!instance_name || !tenant_id) return respond({ error: "instance_name e tenant_id são obrigatórios" }, 400);
+      const result = await getInstanceStatus(config, instance_name, tenant_id);
+      return respond(result, result.success ? 200 : 502);
+    }
+
+    if (action === "disconnectInstance") {
+      if (!config) return respond({ error: "Evolution API não configurada" }, 400);
+      if (!instance_name || !tenant_id) return respond({ error: "instance_name e tenant_id são obrigatórios" }, 400);
+      const result = await disconnectInstance(config, instance_name, tenant_id);
+      return respond(result);
+    }
+
+    if (action === "deleteInstance") {
+      if (!config) return respond({ error: "Evolution API não configurada" }, 400);
+      if (!instance_name || !tenant_id) return respond({ error: "instance_name e tenant_id são obrigatórios" }, 400);
+      const result = await deleteInstance(config, instance_name, tenant_id);
+      return respond(result);
+    }
+
+    // ── Status ──
 
     if (action === "status") {
+      const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
       return respond({
         provider,
         connected: provider !== "simulation",
         simulation: provider === "simulation",
+        hasConfig: !!config,
       });
     }
+
+    // ── Send Message ──
 
     if (action === "send") {
       if (!phone || !message) {
         return respond({ error: "phone e message são obrigatórios" }, 400);
       }
+
+      const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
 
       if (provider === "simulation") {
         return respond({
@@ -168,23 +352,37 @@ serve(async (req) => {
         });
       }
 
-      let result;
       if (provider === "evolution") {
-        result = await sendViaEvolution(phone, message, media_url, tenant_id);
-      } else if (provider === "twilio") {
-        result = await sendViaTwilio(phone, message, media_url);
-      } else {
-        return respond({ error: `Provedor desconhecido: ${provider}` }, 400);
+        if (!config) return respond({ error: "Evolution API não configurada" }, 400);
+        // Determine instance name
+        let instName = instance_name || Deno.env.get("WHATSAPP_INSTANCE") || "default";
+        if (tenant_id && !instance_name) {
+          // Try to find active instance from DB
+          const sb = getSupabaseAdmin();
+          const { data: inst } = await sb
+            .from("whatsapp_instances")
+            .select("instance_name")
+            .eq("tenant_id", tenant_id)
+            .eq("connected", true)
+            .limit(1)
+            .maybeSingle();
+          if (inst) instName = inst.instance_name;
+        }
+        const result = await sendViaEvolution(phone, message, instName, config, media_url);
+        if (!result.success) return respond({ error: result.error }, 502);
+        return respond({ success: true, provider });
       }
 
-      if (!result.success) {
-        return respond({ error: result.error }, 502);
+      if (provider === "twilio") {
+        const result = await sendViaTwilio(phone, message, media_url);
+        if (!result.success) return respond({ error: result.error }, 502);
+        return respond({ success: true, provider });
       }
 
-      return respond({ success: true, provider });
+      return respond({ error: `Provedor desconhecido: ${provider}` }, 400);
     }
 
-    return respond({ error: "Ação inválida. Use 'send' ou 'status'" }, 400);
+    return respond({ error: "Ação inválida. Use: send, status, createInstance, connectInstance, fetchQR, instanceStatus, disconnectInstance, deleteInstance" }, 400);
   } catch (e) {
     console.error("whatsapp-gateway error:", e);
     return respond({ error: "Erro interno" }, 500);
