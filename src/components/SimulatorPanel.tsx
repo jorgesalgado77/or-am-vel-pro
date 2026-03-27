@@ -7,7 +7,7 @@ import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
-import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu} from "lucide-react";
+import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package} from "lucide-react";
 import {Badge} from "@/components/ui/badge";
 import {LoadSimulationModal} from "@/components/simulator/LoadSimulationModal";
 import {SimulatorEnvironmentsTable, type ImportedEnvironment} from "@/components/simulator/SimulatorEnvironmentsTable";
@@ -26,6 +26,7 @@ import {validateFileUpload} from "@/lib/validation";
 import {generateSimulationPdf} from "@/lib/generatePdf";
 import {ContractEditorDialog} from "@/components/ContractEditorDialog";
 import {CloseSaleModal} from "@/components/CloseSaleModal";
+import {ProductPickerForSimulator} from "@/components/simulator/ProductPickerForSimulator";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {useDealRoom} from "@/hooks/useDealRoom";
@@ -161,6 +162,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeMsg, setUpgradeMsg] = useState("");
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [catalogProductsTotal, setCatalogProductsTotal] = useState(0);
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
@@ -554,13 +557,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     input.click();
   };
 
-  // Update valorTela whenever environments change
+  // Update valorTela whenever environments or catalog products change
   useEffect(() => {
-    if (environments.length > 0) {
-      const sum = environments.reduce((acc, env) => acc + env.totalValue, 0);
-      setValorTela(sum);
+    if (environments.length > 0 || catalogProductsTotal > 0) {
+      const envSum = environments.reduce((acc, env) => acc + env.totalValue, 0);
+      setValorTela(envSum + catalogProductsTotal);
     }
-  }, [environments]);
+  }, [environments, catalogProductsTotal]);
 
   const handleRemoveEnvironment = (envId: string) => {
     setEnvironments((prev) => {
@@ -973,6 +976,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                   onClick={handleFileImport}
                 >
                   <Upload className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  title="Adicionar produtos do catálogo"
+                  onClick={() => setProductPickerOpen(true)}
+                >
+                  <Package className="h-4 w-4" />
                 </Button>
               </div>
               <div className="mt-2 border rounded-md overflow-hidden">
@@ -1398,6 +1410,28 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             } catch {}
           }
           toast.success(`Simulação de ${sim.client_name} carregada!`);
+        }}
+      />
+      <ProductPickerForSimulator
+        tenantId={resolvedTenantId}
+        open={productPickerOpen}
+        onOpenChange={setProductPickerOpen}
+        onConfirm={(items, total) => {
+          setCatalogProductsTotal(total);
+          // Add as environment entry for visibility
+          const productEnv: ImportedEnvironment = {
+            id: "catalog-products",
+            fileName: "Catálogo",
+            environmentName: `Produtos Avulsos (${items.length})`,
+            pieceCount: items.reduce((s, i) => s + i.quantity, 0),
+            totalValue: total,
+            importedAt: new Date(),
+            file: new File([], "catalogo.json"),
+          };
+          setEnvironments(prev => {
+            const filtered = prev.filter(e => e.id !== "catalog-products");
+            return [...filtered, productEnv];
+          });
         }}
       />
     </div>
