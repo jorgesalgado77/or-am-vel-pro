@@ -95,7 +95,9 @@ serve(async (req) => {
     }
 
     if (action === "verify") {
-      const apiKey = await resolveResendKey(tenant_id || null);
+      // Allow validating a temporary key passed from the client (before saving)
+      const tempKey = body._temp_key;
+      const apiKey = tempKey || await resolveResendKey(tenant_id || null);
       if (!apiKey) {
         return respond({ success: false, error: "API Key não encontrada" });
       }
