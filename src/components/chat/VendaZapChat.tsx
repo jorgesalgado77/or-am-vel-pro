@@ -293,26 +293,29 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   return (
     <div className="flex h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
       {/* Conversation list */}
-      <div className={`w-72 shrink-0 ${selected ? "hidden md:flex md:flex-col" : "flex flex-col w-full md:w-72"}`}>
-        {/* Simulator Panel — at top of sidebar */}
+      <div className={`w-72 shrink-0 ${selected ? "hidden md:flex md:flex-col" : "flex flex-col w-full md:w-72"} overflow-hidden`}>
+        {/* Simulator Panel — fixed at top */}
         <WhatsAppSimulatorPanel
           config={simConfig}
           onUpdateConfig={updateSimConfig}
           onSendManual={handleSendSimulated}
           hasSelectedConversation={!!selected}
         />
-        {simConfig.enabled && (
-          <div className="px-2 py-2 border-b border-border">
-            <SimulatorMetricsPanel />
-          </div>
-        )}
-        <ChatConversationList
-          conversations={conversations}
-          selectedId={selected?.id || null}
-          onSelect={handleSelectConversation}
-          loading={loading}
-          onStartConversation={() => setShowStartModal(true)}
-        />
+        {/* Scrollable area for metrics + conversations */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {simConfig.enabled && (
+            <div className="px-2 py-2 border-b border-border">
+              <SimulatorMetricsPanel />
+            </div>
+          )}
+          <ChatConversationList
+            conversations={conversations}
+            selectedId={selected?.id || null}
+            onSelect={handleSelectConversation}
+            loading={loading}
+            onStartConversation={() => setShowStartModal(true)}
+          />
+        </div>
       </div>
 
       {/* Chat window */}
