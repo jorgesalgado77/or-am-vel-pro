@@ -34,6 +34,7 @@ import {AdminCanvaConfig} from "@/components/admin/AdminCanvaConfig";
 import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
 import {AdminTutorials} from "@/components/admin/AdminTutorials";
 import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
+import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {format, isAfter, isBefore} from "date-fns";
 import {ptBR} from "date-fns/locale";
 
@@ -742,6 +743,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
               <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
               <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
+              <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
@@ -1006,6 +1008,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           {/* TAB: Login Diagnostics */}
           <TabsContent value="diagnostics">
             <AdminLoginDiagnostics />
+          </TabsContent>
+
+          {/* TAB: API Keys */}
+          <TabsContent value="apikeys">
+            <AdminApiKeys />
           </TabsContent>
 
           {/* TAB: Canva */}
