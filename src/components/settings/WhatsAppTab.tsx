@@ -199,16 +199,28 @@ export function WhatsAppTab() {
           setTesting(false);
           return;
         }
-        const url = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/status`;
-        const res = await fetch(url, {
-          headers: zapiClientToken ? { "Client-Token": zapiClientToken } : {},
-        });
+        const headers: Record<string, string> = {};
+        if (zapiClientToken) headers["Client-Token"] = zapiClientToken;
+
+        const url = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/phone`;
+        const res = await fetch(url, { headers });
+        const text = await res.text();
+
         if (res.ok) {
-          const data = await res.json();
-          if (data.connected) toast.success("Z-API conectado e autenticado!");
-          else toast.warning(`Z-API respondeu, mas status: ${data.status || "desconectado"}. Escaneie o QR Code no painel Z-API.`);
+          try {
+            const data = JSON.parse(text);
+            if (data.connected || data.phone) {
+              toast.success(`Z-API conectado! Número: ${data.phone || "detectado"}`);
+            } else {
+              toast.warning("Z-API respondeu, mas ainda não está conectado. Escaneie o QR Code no painel Z-API.");
+            }
+          } catch {
+            toast.success("Z-API acessível! Verifique o status no painel Z-API.");
+          }
+        } else if (res.status === 400 || res.status === 401 || res.status === 403) {
+          toast.error("Credenciais Z-API inválidas. Verifique Instance ID, Token e Client-Token no painel Z-API.");
         } else {
-          toast.error(`Erro na conexão Z-API: ${res.status} ${res.statusText}`);
+          toast.error(`Erro na conexão Z-API: ${res.status}`);
         }
       }
     } catch {
