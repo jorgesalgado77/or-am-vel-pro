@@ -258,17 +258,23 @@ export function WhatsAppTab() {
         });
         const data = await res.json().catch(() => null);
 
-        if (!res.ok || data?.error) {
+        const status = String(data?.status || "").toLowerCase();
+        const connected =
+          data?.connected === true ||
+          data?.authenticated === true ||
+          data?.smartphoneConnected === true ||
+          status === "connected" ||
+          status === "open";
+        const alreadyConnected = typeof data?.error === "string" && data.error.toLowerCase().includes("already connected");
+
+        if (!res.ok || (data?.error && !connected && !alreadyConnected)) {
           const detail = data?.message || data?.error || `${res.status} ${res.statusText}`;
           toast.error(`Erro na conexão Z-API: ${detail}`);
           setTesting(false);
           return;
         }
 
-        const status = String(data?.status || "").toLowerCase();
-        const connected = data?.connected === true || data?.authenticated === true || status === "connected" || status === "open";
-
-        if (connected) {
+        if (connected || alreadyConnected) {
           toast.success("Z-API conectada e autenticada!");
         } else {
           toast.warning("Z-API acessível, mas a instância ainda não está conectada. Escaneie o QR Code no painel Z-API.");
