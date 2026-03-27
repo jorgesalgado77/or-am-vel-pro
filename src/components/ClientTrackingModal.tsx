@@ -130,6 +130,7 @@ export function ClientTrackingModal({ open, onClose }: Props) {
       remetente_nome: tracking.nome_cliente,
       lida: false,
     } as any);
+    // Note: tenant_id not available in this component, RLS should resolve via tracking_id
     if (error) toast.error("Erro ao enviar mensagem");
     else {
       setNewMessage("");
