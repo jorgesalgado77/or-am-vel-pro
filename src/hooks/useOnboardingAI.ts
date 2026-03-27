@@ -217,12 +217,106 @@ export function useOnboardingAI(tenantId: string | null) {
     [tenantId]
   );
 
+  // FASE 6: Configure VendaZap AI
+  const configureVendaZap = useCallback(async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
+        body: { action: "configure_vendazap", tenant_id: tenantId },
+      });
+      if (error) throw error;
+      const msg: AIMessage = {
+        id: `a-${Date.now()}`,
+        role: "assistant",
+        content: `✅ **VendaZap AI configurado com sucesso!**\n\n🎯 **Tom:** ${data?.tom || "profissional"}\n📝 **Prompt gerado** com base no perfil da sua loja.\n\nPreview: _${data?.prompt_preview || ""}_\n\nAgora sugiro **executar os testes** para garantir que tudo está funcionando!`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, msg]);
+    } catch {
+      toast.error("Erro ao configurar VendaZap AI");
+    }
+    setLoading(false);
+  }, [tenantId]);
+
+  // FASE 7: Run guided tests
+  const runTests = useCallback(async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    const startMsg: AIMessage = {
+      id: `a-${Date.now()}`,
+      role: "assistant",
+      content: "🧪 **Executando testes automáticos...**\n\nTestando IA, WhatsApp, Email e PDF...",
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, startMsg]);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
+        body: { action: "run_tests", tenant_id: tenantId },
+      });
+      if (error) throw error;
+
+      const results = data?.results || {};
+      const lines = Object.entries(results).map(([key, val]: [string, any]) => {
+        const icon = val.ok ? "✅" : "❌";
+        const label: Record<string, string> = { openai: "IA de Vendas", whatsapp: "WhatsApp", email: "Email", pdf: "PDF" };
+        return `${icon} **${label[key] || key}:** ${val.detail}`;
+      });
+
+      const summary = data?.criticalPassed
+        ? "\n\n🎉 **Testes críticos OK!** Seu sistema está pronto. Que tal criar seu primeiro projeto?"
+        : "\n\n⚠️ **Alguns testes falharam.** Verifique as APIs em Configurações > APIs.";
+
+      const resultMsg: AIMessage = {
+        id: `a-${Date.now() + 1}`,
+        role: "assistant",
+        content: `📋 **Resultado dos Testes:**\n\n${lines.join("\n")}${summary}`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, resultMsg]);
+    } catch {
+      toast.error("Erro ao executar testes");
+    }
+    setLoading(false);
+  }, [tenantId]);
+
+  // FASE 8: Suggest first project
+  const suggestFirstProject = useCallback(async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
+        body: { action: "suggest_first_project", tenant_id: tenantId },
+      });
+      if (error) throw error;
+
+      const s = data?.suggestion;
+      const envList = (s?.environments || []).map((e: string) => `  • ${e}`).join("\n");
+      const modList = (s?.modules || []).map((m: string) => `  • ${m}`).join("\n");
+
+      const msg: AIMessage = {
+        id: `a-${Date.now()}`,
+        role: "assistant",
+        content: `🏗️ **Sugestão de Primeiro Projeto — ${data?.storeType || "Loja"}**\n\n📐 **Ambientes sugeridos:**\n${envList}\n\n🧩 **Módulos recomendados:**\n${modList}\n\n💰 **Faixa de preço:** ${s?.priceRange || "consulte"}\n\nPara começar, vá em **Simulador** e crie um orçamento com esses ambientes! 🚀`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, msg]);
+    } catch {
+      toast.error("Erro ao gerar sugestão de projeto");
+    }
+    setLoading(false);
+  }, [tenantId]);
+
   return {
     messages,
     loading,
     context,
     sendMessage,
     savePreferences,
+    configureVendaZap,
+    runTests,
+    suggestFirstProject,
   };
 }
 

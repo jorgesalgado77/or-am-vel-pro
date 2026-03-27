@@ -104,13 +104,18 @@ REGRAS:
 7. Quando perguntar sobre o tipo de loja, ofereça opções: Alto Padrão, Popular, Corporativo, Misto
 8. Seja BREVE - respostas de no máximo 3 parágrafos
 
+9. Quando APIs estiverem configuradas, sugira "Configurar VendaZap AI" automaticamente
+10. Após configurar VendaZap, sugira "Executar testes" para validar tudo
+11. Após testes OK, sugira "Criar primeiro projeto" para guiar o usuário
+
 FLUXO IDEAL:
 1. Saudação → perguntar tipo de loja e ticket médio
 2. Configurar OpenAI API (IA de vendas)
 3. Configurar Evolution API (WhatsApp)
-4. Testar conexões
-5. Criar primeiro projeto/orçamento
-6. Onboarding completo 🎉`;
+4. Configurar VendaZap AI automaticamente (prompt + tom + respostas)
+5. Executar auto-testes (IA, WhatsApp, Email, PDF)
+6. Criar primeiro projeto/orçamento guiado
+7. Onboarding completo 🎉`;
 }
 
 serve(async (req) => {
@@ -184,6 +189,235 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Action: configure_vendazap — FASE 6
+    if (action === "configure_vendazap") {
+      const ctx = await getOnboardingContext(supabase, tenant_id);
+      const prefs = ctx.onboardingPrefs as any;
+      const storeName = (ctx.tenant as any)?.nome_loja || "nossa loja";
+      const storeType = prefs?.store_type || "móveis planejados";
+      const avgTicket = prefs?.average_ticket || "médio";
+      const audience = prefs?.target_audience || "clientes interessados em móveis planejados";
+
+      const tomMap: Record<string, string> = {
+        "Alto Padrão": "sofisticado",
+        "Popular": "amigável",
+        "Corporativo": "profissional",
+        "Misto": "versátil",
+      };
+      const tom = tomMap[storeType] || "profissional";
+
+      const generatedPrompt = `Você é o assistente de vendas da "${storeName}", especialista em ${storeType.toLowerCase()}.
+Seu tom é ${tom} e acolhedor. Ticket médio: ${avgTicket}.
+Público-alvo: ${audience}.
+
+REGRAS:
+1. Sempre cumprimente o cliente pelo nome quando disponível
+2. Identifique rapidamente a necessidade (cozinha, quarto, sala, etc.)
+3. Faça perguntas sobre medidas, estilo preferido e orçamento
+4. Sugira agendar uma visita técnica para medições
+5. Nunca invente preços — direcione para simulação no sistema
+6. Use emojis com moderação (máx 2 por mensagem)
+7. Seja breve — máx 3 parágrafos por resposta
+8. Se o cliente mencionar concorrência, destaque diferenciais sem depreciar`;
+
+      // Upsert vendazap_addons
+      const { data: existing } = await supabase
+        .from("vendazap_addons")
+        .select("id")
+        .eq("tenant_id", tenant_id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("vendazap_addons")
+          .update({
+            prompt_sistema: generatedPrompt,
+            tom_padrao: tom,
+            ativo: true,
+          })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("vendazap_addons").insert({
+          tenant_id,
+          prompt_sistema: generatedPrompt,
+          tom_padrao: tom,
+          ativo: true,
+        });
+      }
+
+      // Save strategy to onboarding context
+      await supabase.from("onboarding_ai_context").upsert(
+        {
+          tenant_id,
+          business_strategy: {
+            vendazap_configured: true,
+            tom,
+            prompt_generated_at: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "tenant_id" }
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tom,
+          prompt_preview: generatedPrompt.slice(0, 200) + "...",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Action: run_tests — FASE 7
+    if (action === "run_tests") {
+      const results: Record<string, { ok: boolean; detail: string }> = {};
+
+      // Test OpenAI
+      const { data: openaiKeyData } = await supabase
+        .from("api_keys")
+        .select("api_key")
+        .eq("tenant_id", tenant_id)
+        .eq("provider", "openai")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (openaiKeyData?.api_key) {
+        try {
+          const res = await fetch("https://api.openai.com/v1/models", {
+            headers: { Authorization: `Bearer ${openaiKeyData.api_key}` },
+          });
+          results.openai = res.ok
+            ? { ok: true, detail: "Conexão OK — IA de vendas funcionando" }
+            : { ok: false, detail: "Chave inválida ou sem créditos" };
+        } catch (e) {
+          results.openai = { ok: false, detail: `Erro de rede: ${(e as Error).message}` };
+        }
+      } else {
+        results.openai = { ok: false, detail: "Nenhuma chave OpenAI configurada" };
+      }
+
+      // Test Evolution (WhatsApp)
+      const { data: evoKeyData } = await supabase
+        .from("api_keys")
+        .select("api_key, api_url")
+        .eq("tenant_id", tenant_id)
+        .eq("provider", "evolution")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (evoKeyData?.api_key && evoKeyData?.api_url) {
+        try {
+          const res = await fetch(`${evoKeyData.api_url}/instance/fetchInstances`, {
+            headers: { apikey: evoKeyData.api_key },
+          });
+          results.whatsapp = res.ok
+            ? { ok: true, detail: "Evolution API conectada" }
+            : { ok: false, detail: "Falha na conexão com Evolution API" };
+        } catch (e) {
+          results.whatsapp = { ok: false, detail: `Erro de rede: ${(e as Error).message}` };
+        }
+      } else {
+        results.whatsapp = { ok: false, detail: "Nenhuma chave Evolution configurada" };
+      }
+
+      // Test Resend (Email)
+      const { data: resendKeyData } = await supabase
+        .from("api_keys")
+        .select("api_key")
+        .eq("tenant_id", tenant_id)
+        .eq("provider", "resend")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (resendKeyData?.api_key) {
+        try {
+          const res = await fetch("https://api.resend.com/domains", {
+            headers: { Authorization: `Bearer ${resendKeyData.api_key}` },
+          });
+          results.email = res.ok
+            ? { ok: true, detail: "Resend conectado — envio de emails OK" }
+            : { ok: false, detail: "Chave Resend inválida" };
+        } catch (e) {
+          results.email = { ok: false, detail: `Erro de rede: ${(e as Error).message}` };
+        }
+      } else {
+        results.email = { ok: false, detail: "Nenhuma chave de email configurada (opcional)" };
+      }
+
+      // Test PDF
+      const { data: pdfKeyData } = await supabase
+        .from("api_keys")
+        .select("api_key, api_url")
+        .eq("tenant_id", tenant_id)
+        .eq("provider", "pdf")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (pdfKeyData?.api_key && pdfKeyData?.api_url) {
+        try {
+          const res = await fetch(pdfKeyData.api_url, { method: "HEAD" });
+          results.pdf = res.ok
+            ? { ok: true, detail: "Gerador de PDF acessível" }
+            : { ok: false, detail: "URL do gerador de PDF inacessível" };
+        } catch {
+          results.pdf = { ok: false, detail: "Erro ao conectar com gerador de PDF" };
+        }
+      } else {
+        results.pdf = { ok: false, detail: "Nenhuma API de PDF configurada (opcional)" };
+      }
+
+      const allPassed = Object.values(results).every((r) => r.ok);
+      const criticalPassed = (results.openai?.ok ?? false) && (results.whatsapp?.ok ?? false);
+
+      return new Response(
+        JSON.stringify({ results, allPassed, criticalPassed }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Action: suggest_first_project — FASE 8
+    if (action === "suggest_first_project") {
+      const ctx = await getOnboardingContext(supabase, tenant_id);
+      const prefs = ctx.onboardingPrefs as any;
+      const storeType = prefs?.store_type || "Misto";
+      const avgTicket = prefs?.average_ticket || "R$ 15.000";
+
+      const suggestions: Record<string, { environments: string[]; priceRange: string; modules: string[] }> = {
+        "Alto Padrão": {
+          environments: ["Cozinha Gourmet", "Closet Master", "Home Office Premium"],
+          priceRange: "R$ 25.000 - R$ 80.000",
+          modules: ["Ilha central", "Gavetas com soft-close", "Iluminação LED embutida", "Portas de vidro reflecta"],
+        },
+        "Popular": {
+          environments: ["Cozinha Compacta", "Guarda-roupa Casal", "Lavanderia"],
+          priceRange: "R$ 5.000 - R$ 15.000",
+          modules: ["Módulos aéreos", "Balcão multiuso", "Prateleiras organizadoras"],
+        },
+        "Corporativo": {
+          environments: ["Recepção", "Sala de Reuniões", "Estação de Trabalho"],
+          priceRange: "R$ 15.000 - R$ 50.000",
+          modules: ["Mesas modulares", "Armários com chave", "Divisórias acústicas"],
+        },
+        "Misto": {
+          environments: ["Cozinha Planejada", "Quarto de Casal", "Banheiro"],
+          priceRange: "R$ 8.000 - R$ 30.000",
+          modules: ["Módulos sob medida", "Puxadores diferenciados", "Nichos decorativos"],
+        },
+      };
+
+      const suggestion = suggestions[storeType] || suggestions["Misto"];
+
+      return new Response(
+        JSON.stringify({
+          storeType,
+          avgTicket,
+          suggestion,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Action: validate_api_key

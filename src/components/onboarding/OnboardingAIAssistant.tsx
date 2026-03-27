@@ -15,6 +15,9 @@ import {
   Loader2,
   Settings,
   AlertTriangle,
+  Zap,
+  FlaskConical,
+  FolderPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
@@ -31,7 +34,7 @@ const ONBOARDING_STEPS = [
 
 export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
-  const { messages, loading, context, sendMessage } = useOnboardingAI(tenantId);
+  const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -249,6 +252,42 @@ export function OnboardingAIAssistant() {
                   {type}
                 </Button>
               ))}
+            </div>
+          )}
+
+          {/* Advanced action buttons (FASES 6, 7, 8) */}
+          {messages.length > 2 && (hasOpenAI || hasEvolution) && (
+            <div className="px-3 py-2 border-t border-border flex flex-wrap gap-1.5 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={configureVendaZap}
+                disabled={loading}
+              >
+                <Zap className="h-3 w-3" />
+                Configurar VendaZap
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={runTests}
+                disabled={loading}
+              >
+                <FlaskConical className="h-3 w-3" />
+                Executar Testes
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={suggestFirstProject}
+                disabled={loading}
+              >
+                <FolderPlus className="h-3 w-3" />
+                Primeiro Projeto
+              </Button>
             </div>
           )}
 
