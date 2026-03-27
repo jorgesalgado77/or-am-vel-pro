@@ -40,6 +40,7 @@ import { useRealtimeMessages } from "@/hooks/useRealtimeMessages";
 import { useClientManager } from "@/hooks/useClientManager";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import { useApiKeyHealthCheck } from "@/hooks/useApiKeyHealthCheck";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 
