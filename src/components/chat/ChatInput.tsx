@@ -151,7 +151,6 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
             }}
           />
         )}
-        </Button>
 
         {/* Audio */}
         <Button
