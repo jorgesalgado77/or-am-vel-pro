@@ -84,12 +84,19 @@ const ConversationItem = memo(function ConversationItem({
 export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, loading, onStartConversation }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
+  const [vendedorFilter, setVendedorFilter] = useState<VendedorFilter>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
   const [isListOpen, setIsListOpen] = useState(!selectedId);
 
-  const hasActiveFilter = tempFilter !== "all" || unreadOnly || !!dateFilter;
+  const vendedores = useMemo(() => {
+    const names = new Set<string>();
+    conversations.forEach(c => { if (c.vendedor_nome) names.add(c.vendedor_nome); });
+    return Array.from(names).sort();
+  }, [conversations]);
+
+  const hasActiveFilter = tempFilter !== "all" || unreadOnly || !!dateFilter || vendedorFilter !== "all";
   const totalUnread = useMemo(() => conversations.reduce((sum, c) => sum + c.unread_count, 0), [conversations]);
 
   const filtered = useMemo(() => {
