@@ -61,7 +61,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     sendSimulatedMessage,
     isSimulating,
     cleanup: cleanupSim,
-  } = useWhatsAppSimulator();
+  } = useWhatsAppSimulator(tenantId);
 
   // Keep ref updated for use in realtime callback
   useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
