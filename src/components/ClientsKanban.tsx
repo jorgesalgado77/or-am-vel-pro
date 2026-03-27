@@ -117,13 +117,13 @@ export function ClientsKanban({
     fetchFollowUpStatuses();
   }, [localClients]);
 
-  // Fetch client_tracking to detect closed contracts
+  // Fetch client_contracts to detect clients with actual issued contracts
   useEffect(() => {
     const tenantId = getTenantId();
     if (!tenantId) return;
     const fetchContractClients = async () => {
       const { data } = await supabase
-        .from("client_tracking")
+        .from("client_contracts")
         .select("client_id")
         .eq("tenant_id", tenantId);
       if (data) {
