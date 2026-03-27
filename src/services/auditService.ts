@@ -40,7 +40,9 @@ export type AuditAction =
   | "tenant_ativado"
   | "tenant_desativado"
   | "tenant_excluido"
-  | "solicitacao_medida_criada";
+  | "solicitacao_medida_criada"
+  | "desconto_excedido_aprovacao"
+  | "relatorio_semanal_comercial";
 
 export type AuditEntity =
   | "client"
