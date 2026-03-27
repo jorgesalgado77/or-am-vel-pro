@@ -202,22 +202,27 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    // Valor Total Orçamentos = only clients WITHOUT closed contract (status != "fechado")
-    const closedClients = filteredClients.filter(c => (c as any).status === "fechado").length;
-    const nonClosedClientsWithSim = filteredClients.filter(c => (c as any).status !== "fechado" && filteredLastSims[c.id]);
-    const totalValueOrcamentos = nonClosedClientsWithSim.reduce((sum, c) => {
+    // Separate clients: those with actual contracts vs open budgets
+    const closedClients = filteredClients.filter(c => contractClientIds.has(c.id));
+    const openClientsWithSim = filteredClients.filter(c => !contractClientIds.has(c.id) && filteredLastSims[c.id]);
+
+    // Valor Total Orçamentos = only open (non-closed) clients with simulations
+    const totalValueOrcamentos = openClientsWithSim.reduce((sum, c) => {
       const s = filteredLastSims[c.id];
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    // Faturamento Contratos = from trackingData (already filtered to actual contracts)
-    const faturamentoContratos = trackingData.total;
+    // Faturamento Contratos = sum of sim values for closed clients
+    const faturamentoContratos = closedClients.reduce((sum, c) => {
+      const s = filteredLastSims[c.id];
+      return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
+    }, 0);
 
     // Taxa de Conversão = contratos fechados / total com orçamento
-    const taxaConversao = clientsWithSim > 0 ? (closedClients / clientsWithSim) * 100 : 0;
+    const taxaConversao = clientsWithSim > 0 ? (closedClients.length / clientsWithSim) * 100 : 0;
 
-    // Ticket Médio = based on non-closed budgets
-    const ticketMedio = nonClosedClientsWithSim.length > 0 ? totalValueOrcamentos / nonClosedClientsWithSim.length : 0;
+    // Ticket Médio = based on open budgets only
+    const ticketMedio = openClientsWithSim.length > 0 ? totalValueOrcamentos / openClientsWithSim.length : 0;
 
     const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number; closedTotal: number }> = {};
     filteredClients.forEach(c => {
