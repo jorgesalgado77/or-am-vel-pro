@@ -53,6 +53,8 @@ export function analyzeVendaZapMessage(message: string): { score: number; intent
   const lower = message.toLowerCase();
   const explicitDisinterest = /n[ãa]o tenho(?:\s+mais)?\s+interesse|perdi o interesse|n[ãa]o quero mais|n[ãa]o vou seguir|n[ãa]o faz mais sentido|j[aá] desisti|deixa pra l[aá]|pode encerrar|n[ãa]o vou fechar/i.test(lower);
   const mentionsDecisionMaker = /meu marido|minha esposa|meu esposo|minha mulher|preciso ver com|vou ver com|vou falar com|decidir com|ver com ele|ver com ela/i.test(lower);
+  const mentionsArquiteto = /arquitet[oa]|designer|projetista/i.test(lower);
+  const mentionsSocio = /s[oó]cio|s[oó]cia|parceiro de neg[oó]cio/i.test(lower);
   const asksAlternativeService = /outra forma de atendimento|atendimento online|atendimento remoto|videochamada|chamada de v[ií]deo|sem ir na loja|sem ir ai|sem sair de casa|por chamada|por v[ií]deo|online/i.test(lower);
   const mentionsTimeFriction = /perder tempo|sem tempo|corrido|agilidade|mais pr[aá]tico|praticidade/i.test(lower);
 
@@ -69,7 +71,7 @@ export function analyzeVendaZapMessage(message: string): { score: number; intent
     return { score: 60, intent: "canal_alternativo" };
   }
   if (mentionsDecisionMaker) {
-    return { score: 58, intent: "decisor_familiar" };
+    return { score: 58, intent: mentionsArquiteto ? "decisor_arquiteto" : mentionsSocio ? "decisor_socio" : "decisor_familiar" };
   }
   if (/manda.*pre[çc]o|envia.*pre[çc]o|envia.*valor|manda.*valor|envia.*or[çc]amento|manda.*or[çc]amento|por whats|pelo whats|por e-?mail|pelo e-?mail|por mensagem|pela mensagem|me envia|pode mandar|pode enviar|passa.*pre[çc]o|passa.*valor|manda.*por aqui|envia.*por aqui/i.test(lower)) {
     return { score: 50, intent: "enviar_preco" };
@@ -130,6 +132,15 @@ export function detectDiscFromMessages(messages: VendaZapMessageLike[]): DiscIns
   if (/meu marido|minha esposa|preciso ver com|vou ver com|decidir com/i.test(lower)) {
     scores.S += 3;
     signals.push("decisão compartilhada");
+  }
+  if (/arquitet[oa]|designer|projetista/i.test(lower)) {
+    scores.C += 3;
+    signals.push("decisor: arquiteto/designer");
+  }
+  if (/s[oó]cio|s[oó]cia|parceiro de neg[oó]cio/i.test(lower)) {
+    scores.D += 2;
+    scores.C += 1;
+    signals.push("decisor: sócio/parceiro");
   }
   if (/outra forma de atendimento|atendimento online|atendimento remoto|videochamada|sem ir na loja|sem sair de casa/i.test(lower)) {
     scores.S += 2;
