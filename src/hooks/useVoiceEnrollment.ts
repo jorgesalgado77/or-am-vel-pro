@@ -131,24 +131,19 @@ export function useVoiceEnrollment(usuarioId: string | null) {
   const recordingTimerRef = useRef<number | null>(null);
   const autoStopRef = useRef<number | null>(null);
 
-  // Load existing enrollment
+  // Load existing enrollment from localStorage
   const loadEnrollment = useCallback(async () => {
     if (!usuarioId) return null;
     try {
-      const { data } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("id", usuarioId)
-        .single();
-
-      if ((data as any)?.voice_fingerprint) {
-        const fp = (data as any).voice_fingerprint as VoiceFingerprint;
+      const stored = localStorage.getItem(`voice_fp_${usuarioId}`);
+      if (stored) {
+        const fp = JSON.parse(stored) as VoiceFingerprint;
         setEnrolledFingerprint(fp);
         setIsEnrolled(true);
         return fp;
       }
     } catch {
-      // Column might not exist yet
+      // ignore
     }
     return null;
   }, [usuarioId]);
@@ -238,20 +233,21 @@ export function useVoiceEnrollment(usuarioId: string | null) {
       const fingerprint = extractFingerprint(audioBuffer);
       audioCtx.close();
 
-      // Save to DB
-      const { error } = await (supabase
-        .from("usuarios")
-        .update({ voice_fingerprint: fingerprint } as any)
-        .eq("id", usuarioId));
+      // Save fingerprint to localStorage (no DB column needed)
+      localStorage.setItem(`voice_fp_${usuarioId}`, JSON.stringify(fingerprint));
 
-      if (error) {
-        console.error("Save voice fingerprint error:", error);
-        toast.error("Erro ao salvar registro de voz");
-      } else {
-        setEnrolledFingerprint(fingerprint);
-        setIsEnrolled(true);
-        toast.success("✅ Registro de voz salvo com sucesso!");
+      // Also try uploading audio blob to storage for persistence
+      try {
+        const ext = blob.type.includes("webm") ? "webm" : "wav";
+        const path = `voice-profiles/${usuarioId}/${crypto.randomUUID()}.${ext}`;
+        await supabase.storage.from("private").upload(path, blob, { upsert: true, contentType: blob.type });
+      } catch {
+        // Storage upload is optional/best-effort
       }
+
+      setEnrolledFingerprint(fingerprint);
+      setIsEnrolled(true);
+      toast.success("✅ Registro de voz salvo com sucesso!");
     } catch (err) {
       console.error("Voice processing error:", err);
       toast.error("Erro ao processar áudio");
@@ -265,20 +261,12 @@ export function useVoiceEnrollment(usuarioId: string | null) {
     if (!uid) return;
     setLoading(true);
     try {
-      const { error } = await (supabase
-        .from("usuarios")
-        .update({ voice_fingerprint: null } as any)
-        .eq("id", uid));
-
-      if (error) {
-        toast.error("Erro ao resetar registro de voz");
-      } else {
-        if (!targetUsuarioId || targetUsuarioId === usuarioId) {
-          setEnrolledFingerprint(null);
-          setIsEnrolled(false);
-        }
-        toast.success("Registro de voz removido");
+      localStorage.removeItem(`voice_fp_${uid}`);
+      if (!targetUsuarioId || targetUsuarioId === usuarioId) {
+        setEnrolledFingerprint(null);
+        setIsEnrolled(false);
       }
+      toast.success("Registro de voz removido");
     } catch {
       toast.error("Erro de conexão");
     }
