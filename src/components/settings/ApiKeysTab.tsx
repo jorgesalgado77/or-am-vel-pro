@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KeyRound, Plus, Trash2, Eye, EyeOff, Shield, CheckCircle2, XCircle, Webhook, Copy, ExternalLink } from "lucide-react";
 import { useApiKeys, API_PROVIDERS, type ApiProvider } from "@/hooks/useApiKeys";
+import { supabase } from "@/lib/supabaseClient";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 
