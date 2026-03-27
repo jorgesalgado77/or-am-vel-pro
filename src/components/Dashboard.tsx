@@ -302,7 +302,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byStatus,
       leadsBySource,
     };
-  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, contractClientIds]);
+  }, [filteredClients, filteredLastSims, lastSims, budgetValidityDays, indicadores, contractClientIds]);
 
   // Line chart data: aggregate filtered simulations by month
   const lineData = useMemo(() => {
