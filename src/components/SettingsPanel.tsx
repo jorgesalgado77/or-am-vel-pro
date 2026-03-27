@@ -67,7 +67,7 @@ export function SettingsPanel() {
           <TabsTrigger value="briefing" className="gap-2"><FileQuestion className="h-4 w-4" />Briefing</TabsTrigger>
           <TabsTrigger value="argumentos" className="gap-2"><Lightbulb className="h-4 w-4" />Argumentos</TabsTrigger>
           <TabsTrigger value="prazos" className="gap-2"><Clock className="h-4 w-4" />Prazos Entrega</TabsTrigger>
-          <TabsTrigger value="fornecedores" className="gap-2"><Factory className="h-4 w-4" />Fornecedores</TabsTrigger>
+          <TabsTrigger value="fornecedores" className="gap-2"><Factory className="h-4 w-4" />Fornecedor Planejados</TabsTrigger>
           <TabsTrigger value="apikeys" className="gap-2"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
           <TabsTrigger value="push" className="gap-2"><BellRing className="h-4 w-4" />Push</TabsTrigger>
           <TabsTrigger value="google_calendar" className="gap-2"><CalendarSync className="h-4 w-4" />Google Agenda</TabsTrigger>

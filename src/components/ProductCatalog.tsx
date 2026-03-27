@@ -236,7 +236,7 @@ export function ProductCatalog() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-2 w-full max-w-xs">
           <TabsTrigger value="products" className="gap-1.5 text-xs"><Package className="h-3.5 w-3.5" />Produtos</TabsTrigger>
-          <TabsTrigger value="suppliers" className="gap-1.5 text-xs"><Factory className="h-3.5 w-3.5" />Fornecedores</TabsTrigger>
+          <TabsTrigger value="suppliers" className="gap-1.5 text-xs"><Factory className="h-3.5 w-3.5" />Fornecedor Planejados</TabsTrigger>
         </TabsList>
 
         {/* === PRODUCTS TAB === */}
@@ -363,7 +363,7 @@ export function ProductCatalog() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Factory className="h-4 w-4 text-primary" />
-                  Fornecedores ({suppliers.length})
+                  Fornecedor Planejados ({suppliers.length})
                 </CardTitle>
                 <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={() => { setSupplierForm({ id: "", name: "", contact_name: "", contact_phone: "", contact_email: "", whatsapp: "" }); setSupplierDialogOpen(true); }}>
                   <Plus className="h-3.5 w-3.5" /> Novo Fornecedor

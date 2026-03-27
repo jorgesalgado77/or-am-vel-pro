@@ -1,5 +1,5 @@
 /**
- * Fornecedores (Suppliers) Settings Tab — CRUD for supplier registration
+ * Fornecedor Planejados Settings Tab — CRUD for supplier registration
  */
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -177,14 +177,14 @@ export function FornecedoresTab() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Factory className="h-4 w-4 text-primary" />
-              Fornecedores Cadastrados
+              Fornecedor Planejados Cadastrados
             </CardTitle>
             <Button size="sm" className="gap-1.5 h-8 text-xs w-full sm:w-auto" onClick={openNew}>
               <Plus className="h-3.5 w-3.5" /> Novo Fornecedor
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Cadastre os fornecedores que aparecerão nos itens do contrato de venda.
+            Cadastre os fornecedores de planejados que aparecerão nos itens do contrato de venda.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
