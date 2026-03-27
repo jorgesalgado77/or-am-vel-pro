@@ -3,6 +3,7 @@
  */
 import { Flame, ThermometerSun, Snowflake, TrendingUp, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { analyzeVendaZapMessage } from "@/lib/vendazapAnalysis";
 
 interface ClosingThermometerProps {
   /** Score 0-100 representing closing proximity */
@@ -83,39 +84,5 @@ export function ClosingThermometer({ score, label, compact = false }: ClosingThe
  * Analyzes a client message text and returns a closing score estimate (client-side heuristic).
  */
 export function analyzeClientMessage(message: string): { score: number; intent: string } {
-  if (!message || message.trim().length < 2) return { score: 0, intent: "vazio" };
-
-  const lower = message.toLowerCase();
-
-  // Very positive signals → high score
-  if (/fechar|quero comprar|vou levar|aceito|pode fazer|fechado|manda o contrato|vamos nessa/i.test(lower)) {
-    return { score: 90, intent: "fechamento" };
-  }
-  // Client wants price by message/WhatsApp/email → redirect to meeting/Deal Room
-  if (/manda.*pre[çc]o|envia.*pre[çc]o|envia.*valor|manda.*valor|envia.*or[çc]amento|manda.*or[çc]amento|por whats|pelo whats|por e-?mail|pelo e-?mail|por mensagem|pela mensagem|me envia|pode mandar|pode enviar|passa.*pre[çc]o|passa.*valor|manda.*por aqui|envia.*por aqui/i.test(lower)) {
-    return { score: 50, intent: "enviar_preco" };
-  }
-  if (/or[çc]amento|quanto custa|valor|pre[çc]o|proposta|me passa/i.test(lower)) {
-    return { score: 65, intent: "orçamento" };
-  }
-  if (/desconto|condi[çc][ãa]o|parcel|pagamento|negocia|mais barato/i.test(lower)) {
-    return { score: 55, intent: "negociação" };
-  }
-  if (/como funciona|d[úu]vida|explica|garantia|prazo|entrega/i.test(lower)) {
-    return { score: 45, intent: "dúvida" };
-  }
-  // Objections — still interest, just needs breaking
-  if (/caro|vou pensar|depois|outro lugar|concorr|n[ãa]o sei|preciso ver/i.test(lower)) {
-    return { score: 30, intent: "objeção" };
-  }
-  // Negative signals
-  if (/n[ãa]o quero|desist|cancel|n[ãa]o tenho interesse|obrigad[oa] mas/i.test(lower)) {
-    return { score: 15, intent: "resistência" };
-  }
-  // Greeting
-  if (/bom dia|boa tarde|boa noite|oi|ol[áa]|tudo bem/i.test(lower)) {
-    return { score: 25, intent: "saudação" };
-  }
-
-  return { score: 35, intent: "neutro" };
+  return analyzeVendaZapMessage(message);
 }
