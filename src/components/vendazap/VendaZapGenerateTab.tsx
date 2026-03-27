@@ -248,17 +248,33 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       const newEntries = [...historico.entries];
       if (mensagemCliente?.trim()) {
         const analysis = analyzeClientMessage(mensagemCliente);
-        newEntries.push({ remetente_tipo: "cliente", mensagem: mensagemCliente.trim(), intent: analysis.intent, score: analysis.score });
-        // Teach the learning engine
+        newEntries.push({ remetente_tipo: "cliente", mensagem: mensagemCliente.trim(), intent: analysis.intent, score: analysis.score, timestamp: new Date().toISOString() });
         learnFromMessage(analysis.intent, mensagemCliente.trim(), analysis.score);
       }
-      newEntries.push({ remetente_tipo: "ia", mensagem: result });
-      setHistorico({ entries: newEntries.slice(-20), clientId: selectedClient?.id || null });
+      newEntries.push({ remetente_tipo: "ia", mensagem: result, timestamp: new Date().toISOString() });
+      const trimmed = newEntries.slice(-20);
+      setHistorico({ entries: trimmed, clientId: selectedClient?.id || null });
 
       // Calculate closing score
       const baseScore = clientAnalysis ? clientAnalysis.score : 50;
       const copyBonus = tipoCopy === "fechamento" ? 20 : tipoCopy === "urgencia" ? 15 : tipoCopy === "objecao" ? 10 : tipoCopy === "reversao" ? 5 : 0;
-      setClosingScore(Math.min(100, baseScore + copyBonus + 15));
+      const finalScore = Math.min(100, baseScore + copyBonus + 15);
+      setClosingScore(finalScore);
+
+      // Persist session to history
+      if (selectedClient) {
+        saveSession(
+          selectedClient.id,
+          selectedClient.nome,
+          trimmed as SavedHistoricoEntry[],
+          {
+            tipoCopy,
+            tom,
+            discProfile: discInsight.profile || null,
+            closingScore: finalScore,
+          },
+        );
+      }
 
       // Clear client message field for next round
       updateForm({ mensagemCliente: "" });
