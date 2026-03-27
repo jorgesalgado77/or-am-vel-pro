@@ -498,26 +498,18 @@ REGRAS:
     // Action: chat (default)
     const ctx = await getOnboardingContext(supabase, tenant_id);
 
-    // Try Lovable AI Gateway first, then tenant OpenAI key, then global OpenAI key
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    // Use tenant OpenAI key first, then global OPENAI_API_KEY
+    const { data: openaiKey } = await supabase
+      .from("api_keys")
+      .select("api_key")
+      .eq("tenant_id", tenant_id)
+      .eq("provider", "openai")
+      .eq("is_active", true)
+      .maybeSingle();
 
-    let aiKey: string | null = null;
-    let useGateway = false;
+    const aiKey = openaiKey?.api_key || Deno.env.get("OPENAI_API_KEY") || null;
 
-    if (LOVABLE_API_KEY) {
-      useGateway = true;
-    } else {
-      const { data: openaiKey } = await supabase
-        .from("api_keys")
-        .select("api_key")
-        .eq("tenant_id", tenant_id)
-        .eq("provider", "openai")
-        .eq("is_active", true)
-        .maybeSingle();
-      aiKey = openaiKey?.api_key || Deno.env.get("OPENAI_API_KEY") || null;
-    }
-
-    if (!useGateway && !aiKey) {
+    if (!aiKey) {
       const cannedResponse = getCannedResponse(ctx, messages);
       return new Response(
         JSON.stringify({ reply: cannedResponse, context: ctx }),
@@ -534,20 +526,14 @@ REGRAS:
       ...(messages || []).slice(-20),
     ];
 
-    const aiUrl = useGateway
-      ? "https://ai.gateway.lovable.dev/v1/chat/completions"
-      : "https://api.openai.com/v1/chat/completions";
-
-    const aiBearer = useGateway ? LOVABLE_API_KEY! : aiKey!;
-
-    const aiRes = await fetch(aiUrl, {
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${aiBearer}`,
+        Authorization: `Bearer ${aiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: useGateway ? "google/gemini-2.5-flash" : "gpt-4o-mini",
+        model: "gpt-4o-mini",
         messages: chatMessages,
         max_tokens: 500,
         temperature: 0.7,
