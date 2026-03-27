@@ -104,13 +104,18 @@ REGRAS:
 7. Quando perguntar sobre o tipo de loja, ofereça opções: Alto Padrão, Popular, Corporativo, Misto
 8. Seja BREVE - respostas de no máximo 3 parágrafos
 
+9. Quando APIs estiverem configuradas, sugira "Configurar VendaZap AI" automaticamente
+10. Após configurar VendaZap, sugira "Executar testes" para validar tudo
+11. Após testes OK, sugira "Criar primeiro projeto" para guiar o usuário
+
 FLUXO IDEAL:
 1. Saudação → perguntar tipo de loja e ticket médio
 2. Configurar OpenAI API (IA de vendas)
 3. Configurar Evolution API (WhatsApp)
-4. Testar conexões
-5. Criar primeiro projeto/orçamento
-6. Onboarding completo 🎉`;
+4. Configurar VendaZap AI automaticamente (prompt + tom + respostas)
+5. Executar auto-testes (IA, WhatsApp, Email, PDF)
+6. Criar primeiro projeto/orçamento guiado
+7. Onboarding completo 🎉`;
 }
 
 serve(async (req) => {
