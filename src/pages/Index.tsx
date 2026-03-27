@@ -33,6 +33,7 @@ const SmartImport3DView = lazy(() => import("@/components/smartimport/SmartImpor
 const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => ({ default: m.TasksPanel })));
 const MeasurementKanban = lazy(() => import("@/components/kanban/MeasurementKanban").then(m => ({ default: m.MeasurementKanban })));
 const ProductCatalog = lazy(() => import("@/components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
+const CommercialAIPanel = lazy(() => import("@/components/commercial/CommercialAIPanel").then(m => ({ default: m.CommercialAIPanel })));
 const OnboardingAIAssistant = lazy(() => import("@/components/onboarding/OnboardingAIAssistant").then(m => ({ default: m.OnboardingAIAssistant })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
@@ -69,6 +70,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   tasks: { title: "Tarefas", subtitle: "Gerencie suas tarefas com Kanban e calendário" },
   measurements: { title: "Solicitações de Medida", subtitle: "Gerencie e distribua solicitações de medida para os técnicos" },
   catalog: { title: "Catálogo de Produtos", subtitle: "Gerencie produtos, fornecedores, estoque e precificação" },
+  "commercial-ai": { title: "IA Gerente Comercial", subtitle: "Monitoramento inteligente de vendas, alertas e coaching" },
 };
 
 export default function Index() {
@@ -407,6 +409,7 @@ export default function Index() {
 
               {activeView === "measurements" && <MeasurementKanban />}
               {activeView === "catalog" && <ProductCatalog />}
+              {activeView === "commercial-ai" && <CommercialAIPanel />}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>
