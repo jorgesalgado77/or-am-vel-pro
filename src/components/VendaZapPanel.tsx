@@ -56,6 +56,13 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const { pendingTriggers, loading: triggersLoading, markSent, dismiss } = useVendaZapTriggers(tenantId);
   const [clients, setClients] = useState<Client[]>([]);
   const [activeTab, setActiveTab] = usePersistedValue("vendazap-active-tab", "gerar");
+  const [resumeSession, setResumeSession] = useState<ConversationSession | null>(null);
+
+  const handleResumeSession = useCallback((session: ConversationSession) => {
+    setResumeSession(session);
+    setActiveTab("gerar");
+    toast.success(`Retomando conversa com ${session.clientName}`);
+  }, [setActiveTab]);
 
   useEffect(() => {
     if (!tenantId) return;
