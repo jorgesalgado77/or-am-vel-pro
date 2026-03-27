@@ -194,6 +194,7 @@ export function useWhatsAppSimulator() {
           remetente_tipo: "cliente",
           remetente_nome: clientName,
           lida: false,
+          tenant_id: tenantIdRef.current,
         } as any);
 
         if (error) {
@@ -221,6 +222,7 @@ export function useWhatsAppSimulator() {
         remetente_tipo: "cliente",
         remetente_nome: clientName,
         lida: false,
+        tenant_id: tenantIdRef.current,
       } as any);
 
       if (error) {
