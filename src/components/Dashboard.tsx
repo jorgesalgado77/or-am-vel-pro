@@ -1231,7 +1231,7 @@ function ContractTrackingList() {
                       {Number(t.valor_contrato).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </TableCell>
                     <TableCell>{t.data_fechamento ? format(new Date(t.data_fechamento), "dd/MM/yyyy") : "—"}</TableCell>
-                    <TableCell>{t.projetista || "—"}</TableCell>
+                    <TableCell>{t.projetista || t.vendedor || "—"}</TableCell>
                   </TableRow>
                 ))
               )}
