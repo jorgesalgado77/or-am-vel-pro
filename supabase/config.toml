@@ -1,5 +1,4 @@
-[project]
-id = "bdhfzjuwtkiexyeusnqq"
+project_id = "bdhfzjuwtkiexyeusnqq"
 
 [functions.vendazap-ai]
 verify_jwt = false
@@ -41,6 +40,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.perplexity-search]
+verify_jwt = false
+
+[functions.resend-email]
 verify_jwt = false
 
 [functions.onboarding-ai]
