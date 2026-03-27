@@ -4,11 +4,13 @@ import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
 import { useAutoPilot } from "@/hooks/useAutoPilot";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useWhatsAppSimulator } from "@/hooks/useWhatsAppSimulator";
 import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
+import { WhatsAppSimulatorPanel } from "./WhatsAppSimulatorPanel";
 import { StartConversationModal } from "./StartConversationModal";
 import type { ChatConversation } from "./types";
 
@@ -51,8 +53,20 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     processMessage: autoPilotProcess,
   } = useAutoPilot({ tenantId, userId, addon: addonConfig });
 
+  const {
+    config: simConfig,
+    updateConfig: updateSimConfig,
+    scheduleSimulatedReply,
+    sendSimulatedMessage,
+    isSimulating,
+    cleanup: cleanupSim,
+  } = useWhatsAppSimulator();
+
   // Keep ref updated for use in realtime callback
   useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
+
+  // Cleanup simulator on unmount
+  useEffect(() => () => cleanupSim(), [cleanupSim]);
 
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
@@ -262,10 +276,30 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
   const existingConvIds = useMemo(() => new Set(conversations.map((c) => c.id)), [conversations]);
 
+  // Handle store message sent — trigger simulator reply
+  const handleMessageSent = useCallback((message: string) => {
+    if (isSimulating && selected) {
+      scheduleSimulatedReply(selected.id, selected.nome_cliente, message);
+    }
+  }, [isSimulating, selected, scheduleSimulatedReply]);
+
+  // Manual simulated message
+  const handleSendSimulated = useCallback(async (customMessage?: string) => {
+    if (!selected) return false;
+    return sendSimulatedMessage(selected.id, selected.nome_cliente, customMessage);
+  }, [selected, sendSimulatedMessage]);
+
   return (
     <div className="flex h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
       {/* Conversation list */}
       <div className={`w-72 shrink-0 ${selected ? "hidden md:flex md:flex-col" : "flex flex-col w-full md:w-72"}`}>
+        {/* Simulator Panel — at top of sidebar */}
+        <WhatsAppSimulatorPanel
+          config={simConfig}
+          onUpdateConfig={updateSimConfig}
+          onSendManual={handleSendSimulated}
+          hasSelectedConversation={!!selected}
+        />
         <ChatConversationList
           conversations={conversations}
           selectedId={selected?.id || null}
@@ -298,6 +332,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               onInputChange={setInputValue}
               userId={userId}
               tenantId={tenantId}
+              onMessageSent={handleMessageSent}
             />
           </>
         ) : (

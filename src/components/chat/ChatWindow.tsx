@@ -49,6 +49,7 @@ interface Props {
   onUseSuggestion: () => void;
   inputValue: string;
   onInputChange: (v: string) => void;
+  onMessageSent?: (message: string) => void;
 }
 
 const PAGE_SIZE = 40;
@@ -56,7 +57,7 @@ const PAGE_SIZE = 40;
 export function ChatWindow({
   conversation, onBack, onStartDealRoom,
   aiSuggestion, aiLoading, aiTipoCopy, aiDiscProfile, onUseSuggestion,
-  inputValue, onInputChange, userId, tenantId,
+  inputValue, onInputChange, userId, tenantId, onMessageSent,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,7 +171,9 @@ export function ChatWindow({
     if (error) {
       toast.error("Erro ao enviar mensagem");
     } else {
+      const sentText = inputValue.trim();
       onInputChange("");
+      onMessageSent?.(sentText);
       requestAnimationFrame(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       });
