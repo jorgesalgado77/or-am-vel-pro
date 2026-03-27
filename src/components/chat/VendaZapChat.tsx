@@ -5,10 +5,12 @@ import { useVendaZap } from "@/hooks/useVendaZap";
 import { useAutoPilot } from "@/hooks/useAutoPilot";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useWhatsAppSimulator } from "@/hooks/useWhatsAppSimulator";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Wifi, WifiOff, Loader2, Brain } from "lucide-react";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
@@ -149,9 +151,11 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [showStartModal, setShowStartModal] = useState(false);
+  const [mobileAiOpen, setMobileAiOpen] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
+  const isMobile = useIsMobile();
   const { currentUser } = useCurrentUser();
   const { status: whatsappStatus, provider: whatsappProvider } = useWhatsAppConnectionStatus(tenantId);
   const { addon } = useVendaZap(tenantId);
@@ -599,16 +603,27 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       <div className={`flex-1 min-h-0 ${selected ? "flex" : "hidden md:flex md:items-center md:justify-center"}`}>
         {selected ? (
           <>
-            <div className="flex-1 flex flex-col min-h-0 min-w-0">
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
               <AutoPilotPanel
                 settings={autoPilotSettings}
                 isActive={autoPilotActive}
                 onToggle={toggleAutoPilot}
                 onUpdateSettings={updateAutoPilotSettings}
               />
+              {isMobile && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="fixed bottom-20 right-4 z-40 h-10 rounded-full shadow-lg gap-2 md:hidden"
+                  onClick={() => setMobileAiOpen((prev) => !prev)}
+                >
+                  <Brain className="h-4 w-4" />
+                  IA
+                </Button>
+              )}
               <ChatWindow
                 conversation={selected}
-                onBack={() => { setSelected(null); clear(); fetchConversations(); }}
+                onBack={() => { setSelected(null); setMobileAiOpen(false); clear(); fetchConversations(); }}
                 onStartDealRoom={onDealRoom ? handleDealRoom : undefined}
                 inputValue={inputValue}
                 onInputChange={setInputValue}
@@ -626,6 +641,9 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               aiTipoCopy={tipoCopy}
               aiDiscProfile={discProfile}
               onUseSuggestion={handleUseSuggestion}
+              isMobile={isMobile}
+              mobileOpen={mobileAiOpen}
+              onMobileOpenChange={setMobileAiOpen}
             />
           </>
         ) : (

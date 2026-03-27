@@ -29,9 +29,10 @@ import { useApiKeys } from "@/hooks/useApiKeys";
 const ONBOARDING_STEPS = [
   { key: "company_info", label: "Dados da loja" },
   { key: "openai_api", label: "IA de vendas" },
-  { key: "evolution_api", label: "WhatsApp" },
+  { key: "whatsapp_api", label: "WhatsApp" },
   { key: "whatsapp_connected", label: "WhatsApp ativo" },
   { key: "resend_api", label: "Email" },
+  { key: "pdf_configured", label: "PDF" },
 ];
 
 const POSITION_KEY = "mia_fab_position";
@@ -67,8 +68,8 @@ export function OnboardingAIAssistant() {
   const fabRef = useRef<HTMLButtonElement>(null);
 
   const hasOpenAI = keys.some(k => k.provider === "openai" && k.is_active);
-  const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);
-  const missingCriticalKeys = !hasOpenAI || !hasEvolution;
+  const hasWhatsApp = Boolean(context?.completedSteps?.includes("whatsapp_api") || context?.completedSteps?.includes("whatsapp_connected"));
+  const missingCriticalKeys = !hasOpenAI || !hasWhatsApp;
 
   // Scroll tracking
   const userScrolledUp = useRef(false);
@@ -310,7 +311,7 @@ export function OnboardingAIAssistant() {
                 <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-foreground">
-                    {!hasOpenAI && !hasEvolution
+                    {!hasOpenAI && !hasWhatsApp
                       ? "APIs de IA e WhatsApp não configuradas"
                       : !hasOpenAI
                       ? "API da OpenAI não configurada"
@@ -411,7 +412,7 @@ export function OnboardingAIAssistant() {
           )}
 
           {/* Advanced action buttons */}
-          {messages.length > 2 && (hasOpenAI || hasEvolution) && (
+          {messages.length > 2 && (hasOpenAI || hasWhatsApp) && (
             <div className="px-3 py-2 border-t border-border flex flex-wrap gap-1.5 shrink-0">
               <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={configureVendaZap} disabled={loading}>
                 <Zap className="h-3 w-3" /> Configurar VendaZap

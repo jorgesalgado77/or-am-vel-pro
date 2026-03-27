@@ -7,20 +7,68 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface OnboardingCapabilities {
+  companyInfo: boolean;
+  salesAI: boolean;
+  whatsappApi: boolean;
+  whatsappConnected: boolean;
+  email: boolean;
+  pdf: boolean;
+}
+
 interface OnboardingContext {
   tenant: Record<string, unknown> | null;
   apiKeys: string[];
   whatsappConnected: boolean;
+  whatsappProvider: string | null;
   companySettings: Record<string, unknown> | null;
   onboardingPrefs: Record<string, unknown> | null;
+  capabilities: OnboardingCapabilities;
   completedSteps: string[];
+}
+
+async function getWhatsAppSettings(
+  supabase: ReturnType<typeof createClient>,
+  tenantId: string
+) {
+  let response = await supabase
+    .from("whatsapp_settings")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .limit(1)
+    .maybeSingle();
+
+  if (
+    response.error?.code === "42703" ||
+    response.error?.code === "PGRST204" ||
+    response.error?.message?.includes("tenant_id")
+  ) {
+    response = await supabase
+      .from("whatsapp_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
+  }
+
+  return response.data as Record<string, unknown> | null;
+}
+
+function detectWhatsAppProvider(
+  whatsappSettings: Record<string, unknown> | null,
+  activeApis: string[]
+) {
+  if (typeof whatsappSettings?.provider === "string") return whatsappSettings.provider;
+  if (whatsappSettings?.zapi_instance_id || whatsappSettings?.zapi_token || whatsappSettings?.zapi_client_token) return "zapi";
+  if (whatsappSettings?.evolution_api_url || whatsappSettings?.evolution_api_key || activeApis.includes("evolution")) return "evolution";
+  if (whatsappSettings?.twilio_account_sid || whatsappSettings?.twilio_auth_token || whatsappSettings?.twilio_phone_number) return "twilio";
+  return null;
 }
 
 async function getOnboardingContext(
   supabase: ReturnType<typeof createClient>,
   tenantId: string
 ): Promise<OnboardingContext> {
-  const [tenantRes, apiKeysRes, whatsappRes, companyRes, prefsRes] =
+  const [tenantRes, apiKeysRes, whatsappRes, companyRes, prefsRes, whatsappSettings] =
     await Promise.all([
       supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle(),
       supabase
@@ -43,26 +91,62 @@ async function getOnboardingContext(
         .select("*")
         .eq("tenant_id", tenantId)
         .maybeSingle(),
+      getWhatsAppSettings(supabase, tenantId),
     ]);
 
   const activeApis = (apiKeysRes.data || []).map(
     (k: { provider: string }) => k.provider
   );
-  const whatsappConnected = (whatsappRes.data || []).length > 0;
+  const whatsappProvider = detectWhatsAppProvider(whatsappSettings, activeApis);
+
+  const hasZapiConfig = Boolean(
+    whatsappSettings?.ativo &&
+    whatsappSettings?.zapi_instance_id &&
+    whatsappSettings?.zapi_token &&
+    whatsappSettings?.zapi_client_token
+  );
+  const hasEvolutionConfig = Boolean(
+    activeApis.includes("evolution") ||
+    (whatsappSettings?.ativo && whatsappSettings?.evolution_api_url && whatsappSettings?.evolution_api_key)
+  );
+  const hasTwilioConfig = Boolean(
+    whatsappSettings?.ativo &&
+    whatsappSettings?.twilio_account_sid &&
+    whatsappSettings?.twilio_auth_token &&
+    whatsappSettings?.twilio_phone_number
+  );
+
+  const whatsappApi = hasZapiConfig || hasEvolutionConfig || hasTwilioConfig;
+  const whatsappConnected =
+    hasTwilioConfig ||
+    (whatsappRes.data || []).length > 0 ||
+    (whatsappProvider === "zapi" && hasZapiConfig);
+
+  const capabilities: OnboardingCapabilities = {
+    companyInfo: Boolean(companyRes.data?.company_name),
+    salesAI: activeApis.includes("openai"),
+    whatsappApi,
+    whatsappConnected,
+    email: activeApis.includes("resend"),
+    pdf: true,
+  };
 
   const completedSteps: string[] = [];
-  if (companyRes.data?.company_name) completedSteps.push("company_info");
-  if (activeApis.includes("openai")) completedSteps.push("openai_api");
-  if (activeApis.includes("evolution")) completedSteps.push("evolution_api");
-  if (activeApis.includes("resend")) completedSteps.push("resend_api");
-  if (whatsappConnected) completedSteps.push("whatsapp_connected");
+  if (capabilities.companyInfo) completedSteps.push("company_info");
+  if (capabilities.salesAI) completedSteps.push("openai_api");
+  if (capabilities.whatsappApi) completedSteps.push("whatsapp_api");
+  if (capabilities.whatsappConnected) completedSteps.push("whatsapp_connected");
+  if (capabilities.email) completedSteps.push("resend_api");
+  if (capabilities.pdf) completedSteps.push("pdf_configured");
 
   return {
     tenant: tenantRes.data,
     apiKeys: activeApis,
-    whatsappConnected,
+    whatsappConnected: capabilities.whatsappConnected,
+    whatsappProvider,
     companySettings: companyRes.data,
     onboardingPrefs: prefsRes.data,
+    capabilities,
     completedSteps,
   };
 }
@@ -90,20 +174,19 @@ LOJA: "${storeName}" | PLANO: ${plan}
 ${storeContext}
 PROGRESSO ATUAL:
 - APIs configuradas: ${ctx.apiKeys.length > 0 ? ctx.apiKeys.join(", ") : "nenhuma"}
-- WhatsApp: ${ctx.whatsappConnected ? "✅ conectado" : "❌ não conectado"}
+- WhatsApp: ${ctx.capabilities.whatsappApi ? `✅ ${ctx.whatsappProvider || "configurado"}` : "❌ não configurado"}
 - Etapas concluídas: ${ctx.completedSteps.length > 0 ? ctx.completedSteps.join(", ") : "nenhuma"}
 
 REGRAS:
 1. Guie o usuário passo a passo pela configuração da loja
 2. Quando o usuário enviar uma API key, identifique o provedor e responda com JSON de ação:
    {"action":"save_api_key","provider":"openai","key":"sk-..."}
-3. Se o usuário perguntar sobre WhatsApp/Evolution, explique como conectar via QR Code
+3. Se o usuário perguntar sobre WhatsApp, explique como conectar via Z-API, Evolution ou Twilio
 4. Se todas as etapas estiverem completas, parabenize e sugira criar o primeiro orçamento
 5. Fale como especialista em móveis planejados - use termos do setor
 6. Nunca invente dados da loja - use apenas o contexto fornecido
 7. Quando perguntar sobre o tipo de loja, ofereça opções: Alto Padrão, Popular, Corporativo, Misto
 8. Seja BREVE - respostas de no máximo 3 parágrafos
-
 9. Quando APIs estiverem configuradas, sugira "Configurar VendaZap AI" automaticamente
 10. Após configurar VendaZap, sugira "Executar testes" para validar tudo
 11. Após testes OK, sugira "Criar primeiro projeto" para guiar o usuário
@@ -111,7 +194,7 @@ REGRAS:
 FLUXO IDEAL:
 1. Saudação → perguntar tipo de loja e ticket médio
 2. Configurar OpenAI API (IA de vendas)
-3. Configurar Evolution API (WhatsApp)
+3. Configurar WhatsApp (Z-API, Evolution ou Twilio)
 4. Configurar VendaZap AI automaticamente (prompt + tom + respostas)
 5. Executar auto-testes (IA, WhatsApp, Email, PDF)
 6. Criar primeiro projeto/orçamento guiado
@@ -273,9 +356,9 @@ REGRAS:
 
     // Action: run_tests — FASE 7
     if (action === "run_tests") {
+      const ctx = await getOnboardingContext(supabase, tenant_id);
       const results: Record<string, { ok: boolean; detail: string }> = {};
 
-      // Test OpenAI
       const { data: openaiKeyData } = await supabase
         .from("api_keys")
         .select("api_key")
@@ -299,31 +382,21 @@ REGRAS:
         results.openai = { ok: false, detail: "Nenhuma chave OpenAI configurada" };
       }
 
-      // Test Evolution (WhatsApp)
-      const { data: evoKeyData } = await supabase
-        .from("api_keys")
-        .select("api_key, api_url")
-        .eq("tenant_id", tenant_id)
-        .eq("provider", "evolution")
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (evoKeyData?.api_key && evoKeyData?.api_url) {
-        try {
-          const res = await fetch(`${evoKeyData.api_url}/instance/fetchInstances`, {
-            headers: { apikey: evoKeyData.api_key },
-          });
-          results.whatsapp = res.ok
-            ? { ok: true, detail: "Evolution API conectada" }
-            : { ok: false, detail: "Falha na conexão com Evolution API" };
-        } catch (e) {
-          results.whatsapp = { ok: false, detail: `Erro de rede: ${(e as Error).message}` };
-        }
+      if (!ctx.capabilities.whatsappApi) {
+        results.whatsapp = { ok: false, detail: "Nenhuma integração de WhatsApp configurada" };
+      } else if (ctx.capabilities.whatsappConnected) {
+        const providerLabel = ctx.whatsappProvider === "zapi"
+          ? "Z-API"
+          : ctx.whatsappProvider === "evolution"
+          ? "Evolution API"
+          : ctx.whatsappProvider === "twilio"
+          ? "Twilio"
+          : "WhatsApp";
+        results.whatsapp = { ok: true, detail: `${providerLabel} conectado e disponível` };
       } else {
-        results.whatsapp = { ok: false, detail: "Nenhuma chave Evolution configurada" };
+        results.whatsapp = { ok: false, detail: "WhatsApp configurado, mas ainda não conectado" };
       }
 
-      // Test Resend (Email)
       const { data: resendKeyData } = await supabase
         .from("api_keys")
         .select("api_key")
@@ -347,33 +420,27 @@ REGRAS:
         results.email = { ok: false, detail: "Nenhuma chave de email configurada (opcional)" };
       }
 
-      // Test PDF
-      const { data: pdfKeyData } = await supabase
-        .from("api_keys")
-        .select("api_key, api_url")
-        .eq("tenant_id", tenant_id)
-        .eq("provider", "pdf")
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (pdfKeyData?.api_key && pdfKeyData?.api_url) {
-        try {
-          const res = await fetch(pdfKeyData.api_url, { method: "HEAD" });
-          results.pdf = res.ok
-            ? { ok: true, detail: "Gerador de PDF acessível" }
-            : { ok: false, detail: "URL do gerador de PDF inacessível" };
-        } catch {
-          results.pdf = { ok: false, detail: "Erro ao conectar com gerador de PDF" };
-        }
-      } else {
-        results.pdf = { ok: false, detail: "Nenhuma API de PDF configurada (opcional)" };
+      try {
+        const pdfStatus = await fetch(`${supabaseUrl}/functions/v1/generate-pdf`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "generate-budget", payload: { clientName: "Teste Mia", valorTela: 1, desconto1: 0, desconto2: 0, desconto3: 0, valorComDesconto: 1, formaPagamento: "Pix", parcelas: 1, valorEntrada: 0, plusPercentual: 0, taxaCredito: 0, saldo: 0, valorFinal: 1, valorParcela: 1 } }),
+        });
+        results.pdf = pdfStatus.ok
+          ? { ok: true, detail: "Gerador de PDF interno configurado" }
+          : { ok: false, detail: "Falha ao validar gerador de PDF interno" };
+      } catch {
+        results.pdf = { ok: false, detail: "Erro ao validar gerador de PDF interno" };
       }
 
       const allPassed = Object.values(results).every((r) => r.ok);
       const criticalPassed = (results.openai?.ok ?? false) && (results.whatsapp?.ok ?? false);
 
       return new Response(
-        JSON.stringify({ results, allPassed, criticalPassed }),
+        JSON.stringify({ results, allPassed, criticalPassed, completedSteps: ctx.completedSteps, capabilities: ctx.capabilities }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -614,12 +681,12 @@ Eu vou validar automaticamente e configurar tudo pra você.
 Se não tem uma chave ainda, acesse: https://platform.openai.com/api-keys`;
   }
 
-  if (!ctx.whatsappConnected) {
+  if (!ctx.capabilities.whatsappConnected) {
     return `IA de vendas configurada! ✅ Agora vamos conectar o WhatsApp.
 
-Vá em **Configurações > WhatsApp** e crie uma instância. Depois escaneie o QR Code com seu celular.
+Vá em **Configurações > WhatsApp** e conecte via **Z-API, Evolution ou Twilio**. Depois finalize a conexão do número.
 
-Se precisar de ajuda com a Evolution API, me mande sua chave que eu configuro automaticamente.`;
+Se precisar, eu também consigo validar se a configuração já está ativa nos testes.`;
   }
 
   return `Parabéns! 🎉 Seu sistema está quase 100% configurado!
