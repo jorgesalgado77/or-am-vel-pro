@@ -213,9 +213,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    // Faturamento Contratos = sum of sim values for closed clients (use unfiltered lastSims)
-    const faturamentoContratos = closedClients.reduce((sum, c) => {
-      const s = lastSims[c.id] || filteredLastSims[c.id];
+    // Faturamento Contratos = sum of sim values for all emitted contracts, independent of client/date filtering
+    const faturamentoContratos = Array.from(contractClientIds).reduce((sum, clientId) => {
+      const s = lastSims[clientId] || filteredLastSims[clientId];
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
@@ -483,8 +483,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <KpiCard icon={Users} label="Total de Clientes" value={String(stats.totalClients)} />
         <KpiCard icon={Calculator} label="Com Orçamento" value={String(stats.clientsWithSim)} accent />
         <KpiCard icon={TrendingUp} label="Valor Total Orçamentos" value={formatCurrency(stats.totalValue)} accent />
-        <KpiCard icon={FileCheck} label="Contratos Fechados" value={String(trackingData.count)} success />
-        <KpiCard icon={DollarSign} label="Faturamento Contratos" value={formatCurrency(trackingData.total)} success />
+        <KpiCard icon={FileCheck} label="Contratos Fechados" value={String(stats.closedClients)} success />
+        <KpiCard icon={DollarSign} label="Faturamento Contratos" value={formatCurrency(stats.faturamentoContratos)} success />
       </div>
 
       {/* Secondary KPIs */}
