@@ -42,3 +42,6 @@ verify_jwt = false
 
 [functions.perplexity-search]
 verify_jwt = false
+
+[functions.onboarding-ai]
+verify_jwt = false
