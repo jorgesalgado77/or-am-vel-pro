@@ -123,7 +123,7 @@ export function WhatsAppTab() {
       return;
     }
 
-    let missingTenantColumn = false;
+    // Try with tenant_id first, then without if column doesn't exist
     let response = await supabase
       .from("whatsapp_settings")
       .select("*")
@@ -132,18 +132,11 @@ export function WhatsAppTab() {
       .maybeSingle();
 
     if (isMissingTenantColumnError(response.error)) {
-      missingTenantColumn = true;
       response = await supabase
         .from("whatsapp_settings")
         .select("*")
         .limit(1)
         .maybeSingle();
-    }
-
-    if (response.error) {
-      toast.error("Erro ao carregar configurações do WhatsApp");
-      setLoading(false);
-      return;
     }
 
     if (response.data) {
@@ -152,26 +145,8 @@ export function WhatsAppTab() {
       return;
     }
 
-    let createdResponse = await supabase
-      .from("whatsapp_settings")
-      .insert((missingTenantColumn ? {} : { tenant_id: tenantId }) as any)
-      .select("*")
-      .single();
-
-    if (isMissingTenantColumnError(createdResponse.error)) {
-      createdResponse = await supabase
-        .from("whatsapp_settings")
-        .insert({} as any)
-        .select("*")
-        .single();
-    }
-
-    if (createdResponse.data) {
-      applySettings(createdResponse.data as unknown as WhatsAppSettings);
-    } else if (createdResponse.error) {
-      toast.error("Erro ao inicializar configurações do WhatsApp");
-    }
-
+    // No existing record — just finish loading. 
+    // The user can fill in the form and we'll upsert on save.
     setLoading(false);
   };
 
