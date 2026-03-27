@@ -244,20 +244,27 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       }
     });
 
-    const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number }> = {};
+    const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number; clientes: { nome: string; orcamento: string }[] }> = {};
     filteredClients.forEach(c => {
       if (!c.indicador_id) return;
+      // Only include clients with actual closed contracts
+      if (!contractClientIds.has(c.id)) return;
       const ind = indicadores.find(i => i.id === c.indicador_id);
       if (!ind) return;
       if (!byIndicador[c.indicador_id]) {
-        byIndicador[c.indicador_id] = { nome: ind.nome, comissao: ind.comissao_percentual, count: 0, total: 0, comissaoTotal: 0 };
+        byIndicador[c.indicador_id] = { nome: ind.nome, comissao: ind.comissao_percentual, count: 0, total: 0, comissaoTotal: 0, clientes: [] };
       }
       byIndicador[c.indicador_id].count++;
       const sim = filteredLastSims[c.id];
       if (sim) {
-        byIndicador[c.indicador_id].total += sim.valor_com_desconto || sim.valor_final;
-        byIndicador[c.indicador_id].comissaoTotal += (sim.valor_com_desconto || sim.valor_final) * (ind.comissao_percentual / 100);
+        const val = sim.valor_com_desconto || sim.valor_final;
+        byIndicador[c.indicador_id].total += val;
+        byIndicador[c.indicador_id].comissaoTotal += val * (ind.comissao_percentual / 100);
       }
+      byIndicador[c.indicador_id].clientes.push({
+        nome: c.nome || "—",
+        orcamento: (c as any).numero_orcamento || "—",
+      });
     });
 
     // Pipeline by status
