@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -60,13 +60,15 @@ export function OnboardingAIAssistant() {
   const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);
   const missingCriticalKeys = !hasOpenAI || !hasEvolution;
 
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (scrollRef.current) {
-      const el = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-      if (el) el.scrollTop = el.scrollHeight;
-    }
-  }, [messages]);
+  // Auto-scroll to bottom on new messages or loading state
+  useLayoutEffect(() => {
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        const el = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
+        if (el) el.scrollTop = el.scrollHeight;
+      }
+    });
+  }, [messages.length, loading]);
 
   // Focus input when opened
   useEffect(() => {
