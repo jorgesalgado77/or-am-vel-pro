@@ -1412,6 +1412,28 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           toast.success(`Simulação de ${sim.client_name} carregada!`);
         }}
       />
+      <ProductPickerForSimulator
+        tenantId={resolvedTenantId}
+        open={productPickerOpen}
+        onOpenChange={setProductPickerOpen}
+        onConfirm={(items, total) => {
+          setCatalogProductsTotal(total);
+          // Add as environment entry for visibility
+          const productEnv: ImportedEnvironment = {
+            id: "catalog-products",
+            fileName: "Catálogo",
+            environmentName: `Produtos Avulsos (${items.length})`,
+            pieceCount: items.reduce((s, i) => s + i.quantity, 0),
+            totalValue: total,
+            importedAt: new Date(),
+            file: new File([], "catalogo.json"),
+          };
+          setEnvironments(prev => {
+            const filtered = prev.filter(e => e.id !== "catalog-products");
+            return [...filtered, productEnv];
+          });
+        }}
+      />
     </div>
   );
 }
