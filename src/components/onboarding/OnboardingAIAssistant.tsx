@@ -18,6 +18,7 @@ import {
   Zap,
   FlaskConical,
   FolderPlus,
+  ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
@@ -64,12 +65,15 @@ export function OnboardingAIAssistant() {
 
   // Track if user has manually scrolled up
   const userScrolledUp = useRef(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const handleScrollChange = useCallback(() => {
     const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
     if (!viewport) return;
     const { scrollTop, scrollHeight, clientHeight } = viewport;
-    userScrolledUp.current = scrollHeight - scrollTop - clientHeight > 60;
+    const isUp = scrollHeight - scrollTop - clientHeight > 60;
+    userScrolledUp.current = isUp;
+    setShowScrollBtn(isUp);
   }, []);
 
   // Attach scroll listener to viewport
@@ -292,32 +296,47 @@ export function OnboardingAIAssistant() {
           )}
 
           {/* Messages — scrollable with visible scrollbar */}
-          <ScrollArea ref={scrollRef} className="flex-1 min-h-0">
-            <div className="p-3 space-y-3">
-              {messages.map((msg) => (
-                <MessageBubble key={msg.id} message={msg} />
-              ))}
-              {loading && (
-                <div className="flex items-start gap-2 px-3 py-2 animate-fade-in">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Bot className="h-4 w-4 text-primary animate-pulse" />
-                  </div>
-                  <div className="bg-muted rounded-xl rounded-tl-sm px-3 py-2 space-y-1">
-                    <div className="flex gap-1 items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
+          <div className="relative flex-1 min-h-0">
+            <ScrollArea ref={scrollRef} className="h-full">
+              <div className="p-3 space-y-3">
+                {messages.map((msg) => (
+                  <MessageBubble key={msg.id} message={msg} />
+                ))}
+                {loading && (
+                  <div className="flex items-start gap-2 px-3 py-2 animate-fade-in">
+                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Bot className="h-4 w-4 text-primary animate-pulse" />
                     </div>
-                    <p className="text-[10px] text-muted-foreground italic">Mia está digitando...</p>
+                    <div className="bg-muted rounded-xl rounded-tl-sm px-3 py-2 space-y-1">
+                      <div className="flex gap-1 items-center">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground italic">Mia está digitando...</p>
+                    </div>
                   </div>
-                </div>
-              )}
-              <div ref={bottomRef} />
-            </div>
-            <ScrollBar className="opacity-60 hover:opacity-100 transition-opacity" />
-          </ScrollArea>
+                )}
+                <div ref={bottomRef} />
+              </div>
+              <ScrollBar className="opacity-60 hover:opacity-100 transition-opacity" />
+            </ScrollArea>
 
-          {/* Quick actions */}
+            {/* Scroll to bottom FAB */}
+            {showScrollBtn && (
+              <button
+                onClick={() => {
+                  userScrolledUp.current = false;
+                  setShowScrollBtn(false);
+                  bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+                }}
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-110 transition-transform animate-in fade-in zoom-in-75 duration-200"
+                aria-label="Ir para mensagens recentes"
+              >
+                <ArrowDown className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           {messages.length <= 2 && (
             <div className="px-3 py-2 border-t border-border flex flex-wrap gap-1.5 shrink-0">
               {[
