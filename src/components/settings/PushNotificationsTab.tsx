@@ -46,15 +46,12 @@ export function PushNotificationsTab() {
     if (!currentUser?.id) return;
     setLogsLoading(true);
     try {
-      const { data } = await supabase
-        .from("push_notification_logs")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      setLogs((data as PushLog[]) || []);
+      const { data, error } = await supabase.rpc("get_push_logs" as any, { p_user_id: currentUser.id });
+      if (!error && data) {
+        setLogs((data as unknown as PushLog[]) || []);
+      }
     } catch {
-      // Table may not exist yet
+      // Table or function may not exist yet
       setLogs([]);
     }
     setLogsLoading(false);
