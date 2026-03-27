@@ -4,11 +4,13 @@ import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
 import { useAutoPilot } from "@/hooks/useAutoPilot";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useWhatsAppSimulator } from "@/hooks/useWhatsAppSimulator";
 import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
+import { WhatsAppSimulatorPanel } from "./WhatsAppSimulatorPanel";
 import { StartConversationModal } from "./StartConversationModal";
 import type { ChatConversation } from "./types";
 
