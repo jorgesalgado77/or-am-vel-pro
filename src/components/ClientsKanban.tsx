@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, UserPlus, CalendarIcon, FileText, Calculator } from "lucide-react";
 import { addDays, isPast } from "date-fns";
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 import { playNotificationSound } from "@/lib/notificationSound";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
