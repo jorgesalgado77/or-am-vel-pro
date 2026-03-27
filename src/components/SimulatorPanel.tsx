@@ -615,6 +615,23 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       return;
     }
 
+    // Check discount rules before saving
+    const discountCheck = checkDiscount(
+      valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual
+    );
+    if (!discountCheck.allowed) {
+      const valorDesc = valorTelaComComissao * (1 - desconto1/100) * (1 - desconto2/100) * (1 - desconto3/100);
+      const discPct = valorTelaComComissao > 0 ? ((valorTelaComComissao - valorDesc) / valorTelaComComissao) * 100 : 0;
+      await requestApproval({
+        clientName: client?.nome || newClient.nome || "Novo cliente",
+        vendedorName: currentUser?.nome_completo || currentUser?.apelido || "Vendedor",
+        valorFinal: result.valorFinal,
+        discountPercent: discPct,
+        violations: discountCheck.violations,
+      });
+      return;
+    }
+
     let clientId = client?.id;
 
     // If no client, create one first
