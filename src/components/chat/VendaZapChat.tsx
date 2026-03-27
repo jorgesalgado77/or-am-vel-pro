@@ -153,6 +153,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const [inputValue, setInputValue] = useState("");
   const [showStartModal, setShowStartModal] = useState(false);
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
+  const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
