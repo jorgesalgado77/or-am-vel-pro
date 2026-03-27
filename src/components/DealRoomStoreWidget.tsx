@@ -13,7 +13,7 @@ import {
   DollarSign, TrendingUp, Target, Percent, Trophy, Plus,
   Send, Eye, CheckCircle, XCircle, FileText, ExternalLink,
   Handshake, BarChart3, RefreshCw, Video, Calendar, Bot,
-  Mic, MicOff, AlertTriangle, Package,
+  Mic, MicOff, AlertTriangle, Package, Loader2,
 } from "lucide-react";
 import { useDealRoom, type DealRoomProposal } from "@/hooks/useDealRoom";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
