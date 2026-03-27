@@ -329,6 +329,11 @@ export function CommercialAIPanel() {
           </div>
         </TabsContent>
 
+        {/* Goals Tab */}
+        <TabsContent value="goals">
+          <SalesGoalsPanel tenantId={tenantId} />
+        </TabsContent>
+
         {/* Ranking Tab */}
         <TabsContent value="ranking" className="space-y-3">
           {rankings.length === 0 ? (
