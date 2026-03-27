@@ -19,7 +19,10 @@ export { CanvaIntegrationTab } from "@/components/settings/CanvaIntegrationTab";
 export { ResendTab } from "@/components/settings/ResendTab";
 export { ComissaoPolicyTab } from "@/components/settings/ComissaoPolicyTab";
 export { ComissoesIndicadores } from "@/components/settings/ComissoesIndicadores";
+export { ApiKeysTab } from "@/components/settings/ApiKeysTab";
 
 // Hooks
 export { useCompanySettings } from "@/hooks/useCompanySettings";
 export { useIndicadores } from "@/hooks/useIndicadores";
+export { useApiKeys } from "@/hooks/useApiKeys";
+export { useTenantOnboarding } from "@/hooks/useTenantOnboarding";

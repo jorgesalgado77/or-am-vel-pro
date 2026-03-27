@@ -33,3 +33,12 @@ verify_jwt = false
 
 [functions.admin-store]
 verify_jwt = false
+
+[functions.whatsapp-gateway]
+verify_jwt = false
+
+[functions.admin-vendazap]
+verify_jwt = false
+
+[functions.perplexity-search]
+verify_jwt = false

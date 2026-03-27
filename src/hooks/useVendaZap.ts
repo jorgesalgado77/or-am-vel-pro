@@ -173,6 +173,7 @@ export function useVendaZap(tenantId: string | null) {
       const { data, error } = await supabase.functions.invoke("vendazap-ai", {
         body: {
           ...params,
+          tenant_id: tenantId,
           prompt_sistema: addon.prompt_sistema,
           api_provider: addon.api_provider,
           openai_model: addon.openai_model,

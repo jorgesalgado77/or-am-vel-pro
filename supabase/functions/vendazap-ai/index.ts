@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,31 @@ function respond(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+/**
+ * Resolve API key for a given tenant + provider.
+ * Falls back to global env var if tenant has no custom key.
+ */
+async function resolveApiKey(tenantId: string | null, provider: "openai" | "perplexity"): Promise<string | null> {
+  if (tenantId) {
+    try {
+      const sbUrl = Deno.env.get("SUPABASE_URL");
+      const sbKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (sbUrl && sbKey) {
+        const sb = createClient(sbUrl, sbKey);
+        const { data } = await sb.rpc("get_api_config", { p_tenant_id: tenantId, p_provider: provider });
+        if (data && data.length > 0 && data[0].api_key) {
+          return data[0].api_key;
+        }
+      }
+    } catch (e) {
+      console.warn(`[resolveApiKey] Failed for tenant ${tenantId}/${provider}:`, e);
+    }
+  }
+  // Fallback to global env
+  const envKey = provider === "openai" ? "OPENAI_API_KEY" : "PERPLEXITY_API_KEY";
+  return Deno.env.get(envKey) || null;
 }
 
 // DISC profile detection from message patterns
@@ -539,12 +565,14 @@ serve(async (req) => {
     let perplexity_data = typeof body.perplexity_data === "string" ? body.perplexity_data.slice(0, 2000) : "";
     const disc_profile = typeof body.disc_profile === "string" ? body.disc_profile : "";
     const openai_model = typeof body.openai_model === "string" ? body.openai_model.slice(0, 100) : "gpt-4o-mini";
+    const tenant_id = typeof body.tenant_id === "string" ? body.tenant_id : null;
 
     // Direct messages array (DealRoom AI Assistant)
     const messages = Array.isArray(body.messages) ? body.messages : null;
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) return respond({ error: "OPENAI_API_KEY não configurada" }, 500);
+    // Resolve tenant-specific API keys with global fallback
+    const OPENAI_API_KEY = await resolveApiKey(tenant_id, "openai");
+    if (!OPENAI_API_KEY) return respond({ error: "OPENAI_API_KEY não configurada. Configure nas Configurações > APIs." }, 500);
 
     // DealRoom AI direct messages
     if (messages && messages.length > 0) {
@@ -659,7 +687,7 @@ serve(async (req) => {
     const temperature = Math.min(0.95 + (historico.length * 0.02), 1.2);
 
     // Alternate between OpenAI and Perplexity for generation
-    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    const PERPLEXITY_API_KEY = await resolveApiKey(tenant_id, "perplexity");
     const usePerplexityForGeneration = PERPLEXITY_API_KEY && historico.length >= 3 && historico.length % 2 === 1;
 
     let mensagem = "";

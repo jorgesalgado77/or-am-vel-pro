@@ -1,15 +1,11 @@
 /**
  * WhatsApp Gateway — Abstraction layer for sending WhatsApp messages.
  * 
- * In SIMULATION mode: returns success immediately (message is inserted client-side).
- * In PRODUCTION mode: routes to Evolution API or Twilio.
- * 
- * To switch from simulation to real:
- * 1. Set WHATSAPP_PROVIDER secret to "evolution" or "twilio"
- * 2. Set WHATSAPP_API_URL and WHATSAPP_API_KEY secrets
- * 3. Disable simulation mode in the UI
+ * Supports tenant-specific API keys from the api_keys table.
+ * Falls back to global env vars if no tenant key is found.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,11 +20,39 @@ function respond(body: unknown, status = 200) {
   });
 }
 
-// Evolution API sender
-async function sendViaEvolution(phone: string, message: string, mediaUrl?: string): Promise<{ success: boolean; error?: string }> {
+// Resolve Evolution API credentials (tenant-specific or global)
+async function resolveEvolutionConfig(tenantId: string | null): Promise<{ apiUrl: string; apiKey: string; instanceName: string } | null> {
+  if (tenantId) {
+    try {
+      const sbUrl = Deno.env.get("SUPABASE_URL");
+      const sbKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (sbUrl && sbKey) {
+        const sb = createClient(sbUrl, sbKey);
+        const { data } = await sb.rpc("get_api_config", { p_tenant_id: tenantId, p_provider: "evolution" });
+        if (data && data.length > 0 && data[0].api_key) {
+          return {
+            apiUrl: data[0].api_url || Deno.env.get("WHATSAPP_API_URL") || "",
+            apiKey: data[0].api_key,
+            instanceName: Deno.env.get("WHATSAPP_INSTANCE") || "default",
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("[resolveEvolutionConfig] Fallback:", e);
+    }
+  }
   const apiUrl = Deno.env.get("WHATSAPP_API_URL");
   const apiKey = Deno.env.get("WHATSAPP_API_KEY");
-  const instanceName = Deno.env.get("WHATSAPP_INSTANCE") || "default";
+  if (!apiUrl || !apiKey) return null;
+  return { apiUrl, apiKey, instanceName: Deno.env.get("WHATSAPP_INSTANCE") || "default" };
+}
+
+// Evolution API sender
+async function sendViaEvolution(phone: string, message: string, mediaUrl?: string, tenantId?: string | null): Promise<{ success: boolean; error?: string }> {
+  const config = await resolveEvolutionConfig(tenantId || null);
+  if (!config) return { success: false, error: "Evolution API não configurada. Configure nas Configurações > APIs." };
+
+  const { apiUrl, apiKey, instanceName } = config;
 
   if (!apiUrl || !apiKey) {
     return { success: false, error: "WHATSAPP_API_URL ou WHATSAPP_API_KEY não configurados" };
@@ -118,7 +142,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, phone, message, media_url, tracking_id } = body;
+    const { action, phone, message, media_url, tracking_id, tenant_id } = body;
 
     // Check provider
     const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
@@ -137,7 +161,6 @@ serve(async (req) => {
       }
 
       if (provider === "simulation") {
-        // In simulation mode, message is handled client-side
         return respond({
           success: true,
           provider: "simulation",
@@ -147,7 +170,7 @@ serve(async (req) => {
 
       let result;
       if (provider === "evolution") {
-        result = await sendViaEvolution(phone, message, media_url);
+        result = await sendViaEvolution(phone, message, media_url, tenant_id);
       } else if (provider === "twilio") {
         result = await sendViaTwilio(phone, message, media_url);
       } else {

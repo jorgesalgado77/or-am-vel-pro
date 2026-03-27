@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,18 +7,41 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * Resolve Perplexity API key: tenant-specific first, then global fallback.
+ */
+async function resolvePerplexityKey(tenantId: string | null): Promise<string | null> {
+  if (tenantId) {
+    try {
+      const sbUrl = Deno.env.get("SUPABASE_URL");
+      const sbKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (sbUrl && sbKey) {
+        const sb = createClient(sbUrl, sbKey);
+        const { data } = await sb.rpc("get_api_config", { p_tenant_id: tenantId, p_provider: "perplexity" });
+        if (data && data.length > 0 && data[0].api_key) {
+          return data[0].api_key;
+        }
+      }
+    } catch (e) {
+      console.warn("[resolvePerplexityKey] Fallback to global:", e);
+    }
+  }
+  return Deno.env.get("PERPLEXITY_API_KEY") || null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY");
+    const { query, context, search_recency_filter, tenant_id } = await req.json();
+
+    const PERPLEXITY_API_KEY = await resolvePerplexityKey(tenant_id || null);
     if (!PERPLEXITY_API_KEY) {
-      return new Response(JSON.stringify({ error: "PERPLEXITY_API_KEY não configurada" }), {
+      return new Response(JSON.stringify({ error: "PERPLEXITY_API_KEY não configurada. Configure nas Configurações > APIs." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { query, context, search_recency_filter } = await req.json();
     if (!query || typeof query !== "string") {
       return new Response(JSON.stringify({ error: "Query é obrigatória" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
