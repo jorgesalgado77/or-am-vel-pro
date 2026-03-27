@@ -291,7 +291,7 @@ export function OnboardingAIAssistant() {
             </div>
           )}
 
-          {/* Messages */}
+          {/* Messages — scrollable with visible scrollbar */}
           <ScrollArea ref={scrollRef} className="flex-1 min-h-0">
             <div className="p-3 space-y-3">
               {messages.map((msg) => (
@@ -314,6 +314,7 @@ export function OnboardingAIAssistant() {
               )}
               <div ref={bottomRef} />
             </div>
+            <ScrollBar className="opacity-60 hover:opacity-100 transition-opacity" />
           </ScrollArea>
 
           {/* Quick actions */}
