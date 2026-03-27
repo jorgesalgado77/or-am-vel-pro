@@ -292,6 +292,7 @@ export function OnboardingAIAssistant() {
                   </div>
                 </div>
               )}
+              <div ref={bottomRef} />
             </div>
           </ScrollArea>
 
