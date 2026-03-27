@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { playNotificationSound } from "@/lib/notificationSound";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
 import { format } from "date-fns";
 
 export interface AppNotification {
@@ -164,6 +165,16 @@ export function useNotificationCenter(userId: string | undefined, userName: stri
             link_view: "vendazap-chat",
           };
           setNotifications(prev => [notif, ...prev].slice(0, 30));
+          // Push notification for client messages
+          if (userId) {
+            sendPushIfEnabled(
+              "mensagens",
+              userId,
+              `💬 Mensagem de ${m.remetente_nome || "Cliente"}`,
+              (m.conteudo || "").slice(0, 100),
+              `msg-${m.id}`,
+            );
+          }
         }
         // Lead assignment
         if (m?.tipo === "sistema" && m?.destinatario === userName && m?.conteudo?.includes("enviado para seu atendimento")) {
@@ -178,6 +189,16 @@ export function useNotificationCenter(userId: string | undefined, userName: stri
             link_view: "clients",
           };
           setNotifications(prev => [notif, ...prev].slice(0, 30));
+          // Push notification for new leads
+          if (userId) {
+            sendPushIfEnabled(
+              "leads",
+              userId,
+              "🚀 Novo Lead atribuído",
+              m.conteudo?.replace(/[🚀✅⚠️]/g, "").trim() || "Novo lead para atendimento",
+              `lead-${m.id}`,
+            );
+          }
         }
       })
       .subscribe();
