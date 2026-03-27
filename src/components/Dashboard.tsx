@@ -229,7 +229,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       const name = c.vendedor || "Sem projetista";
       if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0, closedTotal: 0 };
       byProjetista[name].count++;
-      if ((c as any).status === "fechado") {
+      if (contractClientIds.has(c.id)) {
         byProjetista[name].closed++;
         const sim = filteredLastSims[c.id];
         if (sim) byProjetista[name].closedTotal += sim.valor_com_desconto || sim.valor_final;
@@ -288,13 +288,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
     return {
       totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue: totalValueOrcamentos,
-      ticketMedio, taxaConversao, closedClients, faturamentoContratos,
+      ticketMedio, taxaConversao, closedClients: closedClients.length, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
       byStatus,
       leadsBySource,
     };
-  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, trackingData]);
+  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, contractClientIds]);
 
   // Line chart data: aggregate filtered simulations by month
   const lineData = useMemo(() => {
