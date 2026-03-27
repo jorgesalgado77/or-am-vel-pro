@@ -10,7 +10,7 @@ import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wifi, WifiOff, Loader2, Brain } from "lucide-react";
+import { Wifi, WifiOff, Loader2, Brain, Phone } from "lucide-react";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
@@ -18,6 +18,7 @@ import { WhatsAppSimulatorPanel } from "./WhatsAppSimulatorPanel";
 import { SimulatorMetricsPanel } from "./SimulatorMetricsPanel";
 import { StartConversationModal } from "./StartConversationModal";
 import { ChatRightPanel } from "./ChatRightPanel";
+import { WhatsAppContactsList } from "./WhatsAppContactsList";
 import type { ChatConversation } from "./types";
 
 type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
