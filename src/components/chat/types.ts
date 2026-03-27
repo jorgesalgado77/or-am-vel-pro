@@ -7,6 +7,8 @@ export interface ChatConversation {
   last_message_at?: string;
   lead_temperature?: "quente" | "morno" | "frio";
   vendedor_nome?: string | null;
+  isClientDirect?: boolean;
+  client_id?: string;
 }
 
 export interface ChatMessage {

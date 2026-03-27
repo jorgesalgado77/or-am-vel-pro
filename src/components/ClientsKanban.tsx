@@ -247,13 +247,16 @@ export function ClientsKanban({
 
   // Drag and drop handler
   const handleDragEnd = useCallback(async (result: DropResult) => {
-    const { draggableId, destination } = result;
+    const { draggableId, destination, source } = result;
     if (!destination) return;
     const newStatus = destination.droppableId;
+    // If dropped in same column, no-op
+    if (source.droppableId === newStatus) return;
+    
     const client = localClients.find(c => c.id === draggableId);
-    if (!client || (client as any).status === newStatus) return;
+    if (!client) return;
 
-    const oldStatus = (client as any).status;
+    const oldStatus = (client as any).status || "novo";
     setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
 
     const { error } = await supabase.from("clients").update({ status: newStatus } as any).eq("id", draggableId);

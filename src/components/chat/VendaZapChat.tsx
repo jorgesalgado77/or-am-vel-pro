@@ -179,6 +179,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         last_message: lastMsgMap[t.id]?.msg || (t.isClientDirect ? "Clique para iniciar conversa" : undefined),
         last_message_at: lastMsgMap[t.id]?.at,
         vendedor_nome: vendedorMap[t.client_id]?.vendedor || null,
+        isClientDirect: t.isClientDirect || false,
+        client_id: t.client_id,
       }))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
@@ -278,7 +280,57 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     return () => { supabase.removeChannel(channel); };
   }, [selected, fetchConversations, autoPilotActive, autoPilotProcess, triggerAI]);
 
-  const handleSelectConversation = (conv: ChatConversation) => {
+  const handleSelectConversation = useCallback(async (conv: ChatConversation) => {
+    // If this is a direct client without a tracking record, create one first
+    if (conv.isClientDirect) {
+      const clientId = conv.client_id || conv.id;
+      
+      // Check if a client_tracking record already exists for this client
+      const { data: existingTracking } = await supabase
+        .from("client_tracking")
+        .select("id")
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      let trackingId = existingTracking?.id;
+
+      if (!trackingId) {
+        const { data: newTracking, error: trackError } = await supabase
+          .from("client_tracking")
+          .insert({
+            client_id: clientId,
+            nome_cliente: conv.nome_cliente,
+            numero_contrato: conv.numero_contrato || `CHAT-${Date.now()}`,
+            tenant_id: tenantId,
+            status: "em_negociacao",
+          })
+          .select("id")
+          .single();
+
+        if (trackError || !newTracking) {
+          toast.error("Erro ao criar registro de conversa");
+          console.error("client_tracking insert error:", trackError);
+          return;
+        }
+        trackingId = newTracking.id;
+      }
+
+      // Update conv with the real tracking ID
+      const updatedConv: ChatConversation = {
+        ...conv,
+        id: trackingId,
+        isClientDirect: false,
+      };
+
+      setSelected(updatedConv);
+      setInputValue("");
+      clear();
+      triggerAI(updatedConv);
+      // Refresh conversations to get the updated list
+      fetchConversations();
+      return;
+    }
+
     setSelected(conv);
     setInputValue("");
     clear();
@@ -286,7 +338,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     setConversations((prev) =>
       prev.map((c) => (c.id === conv.id ? { ...c, unread_count: 0 } : c))
     );
-  };
+  }, [tenantId, clear, triggerAI, fetchConversations]);
 
   const handleUseSuggestion = () => {
     setInputValue(suggestion);
