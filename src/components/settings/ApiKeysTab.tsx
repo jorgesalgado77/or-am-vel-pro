@@ -43,21 +43,54 @@ export function ApiKeysTab() {
     setValidationResult(null);
 
     try {
-      // Validate API key via edge function
-      const { data: result, error: fnError } = await supabase.functions.invoke("onboarding-ai", {
-        body: {
-          action: "validate_api_key",
-          tenant_id: tenantId,
-          provider: selectedProvider,
-          api_key: apiKey.trim(),
-          api_url: apiUrl.trim() || undefined,
-        },
-      });
+      // Validate API key directly from client (avoids edge function dependency)
+      let valid = false;
+      let errorMsg = "";
+
+      try {
+        if (selectedProvider === "openai") {
+          const res = await fetch("https://api.openai.com/v1/models", {
+            headers: { Authorization: `Bearer ${apiKey.trim()}` },
+          });
+          valid = res.ok;
+          if (!valid) errorMsg = "Chave OpenAI inválida ou sem créditos";
+        } else if (selectedProvider === "evolution") {
+          const trimmedUrl = apiUrl.trim();
+          if (!trimmedUrl) {
+            errorMsg = "URL da Evolution API é obrigatória";
+          } else {
+            const res = await fetch(`${trimmedUrl}/instance/fetchInstances`, {
+              headers: { apikey: apiKey.trim() },
+            });
+            valid = res.ok;
+            if (!valid) errorMsg = "Chave ou URL da Evolution inválida";
+          }
+        } else if (selectedProvider === "resend") {
+          const res = await fetch("https://api.resend.com/domains", {
+            headers: { Authorization: `Bearer ${apiKey.trim()}` },
+          });
+          valid = res.ok;
+          if (!valid) errorMsg = "Chave Resend inválida";
+        } else if (selectedProvider === "perplexity") {
+          const res = await fetch("https://api.perplexity.ai/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey.trim()}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "sonar", messages: [{ role: "user", content: "test" }], max_tokens: 1 }),
+          });
+          valid = res.ok || res.status === 400; // 400 = valid key, bad request
+          if (!valid) errorMsg = "Chave Perplexity inválida";
+        } else {
+          // For other providers, validate format only
+          valid = apiKey.trim().length > 10;
+          if (!valid) errorMsg = "Chave muito curta (mínimo 10 caracteres)";
+        }
+      } catch (e) {
+        errorMsg = `Erro de conexão: ${(e as Error).message}`;
+      }
 
       setValidating(false);
 
-      if (fnError || !result?.valid) {
-        const errorMsg = result?.error || fnError?.message || "Não foi possível validar";
+      if (!valid) {
         setValidationResult({ valid: false, error: errorMsg });
         toast.error(`❌ Validação falhou: ${errorMsg}`);
         setSaving(false);
@@ -67,7 +100,6 @@ export function ApiKeysTab() {
       setValidationResult({ valid: true });
       toast.success(`✅ ${meta?.label || selectedProvider} validada com sucesso!`);
 
-      // Key was auto-saved by the edge function, just refresh
       await upsertKey(selectedProvider as ApiProvider, apiKey.trim(), apiUrl.trim() || undefined);
       setShowForm(false);
       setSelectedProvider("");
