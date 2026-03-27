@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import ReactMarkdown from "react-markdown";
 import {
   Bot,
   Send,
@@ -61,8 +62,27 @@ export function OnboardingAIAssistant() {
   const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);
   const missingCriticalKeys = !hasOpenAI || !hasEvolution;
 
-  // Auto-scroll to bottom on new messages or loading state
+  // Track if user has manually scrolled up
+  const userScrolledUp = useRef(false);
+
+  const handleScrollChange = useCallback(() => {
+    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (!viewport) return;
+    const { scrollTop, scrollHeight, clientHeight } = viewport;
+    userScrolledUp.current = scrollHeight - scrollTop - clientHeight > 60;
+  }, []);
+
+  // Attach scroll listener to viewport
+  useEffect(() => {
+    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (!viewport) return;
+    viewport.addEventListener("scroll", handleScrollChange);
+    return () => viewport.removeEventListener("scroll", handleScrollChange);
+  }, [open, handleScrollChange]);
+
+  // Auto-scroll to bottom on new messages or loading state (only if not manually scrolled up)
   useLayoutEffect(() => {
+    if (userScrolledUp.current) return;
     requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     });
@@ -271,7 +291,7 @@ export function OnboardingAIAssistant() {
             </div>
           )}
 
-          {/* Messages */}
+          {/* Messages — scrollable with visible scrollbar */}
           <ScrollArea ref={scrollRef} className="flex-1 min-h-0">
             <div className="p-3 space-y-3">
               {messages.map((msg) => (
@@ -294,6 +314,7 @@ export function OnboardingAIAssistant() {
               )}
               <div ref={bottomRef} />
             </div>
+            <ScrollBar className="opacity-60 hover:opacity-100 transition-opacity" />
           </ScrollArea>
 
           {/* Quick actions */}
@@ -419,28 +440,19 @@ function MessageBubble({ message }: { message: AIMessage }) {
 }
 
 function RenderMarkdown({ content }: { content: string }) {
-  // Simple markdown: bold, links, line breaks
-  const parts = content.split("\n").map((line, i) => {
-    const processed = line
-      .replace(
-        /\*\*(.*?)\*\*/g,
-        '<strong class="font-semibold">$1</strong>'
-      )
-      .replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener" class="underline">$1</a>'
-      )
-      .replace(
-        /(https?:\/\/[^\s]+)/g,
-        '<a href="$1" target="_blank" rel="noopener" class="underline break-all">$1</a>'
-      );
-    return (
-      <span key={i}>
-        <span dangerouslySetInnerHTML={{ __html: processed }} />
-        {i < content.split("\n").length - 1 && <br />}
-      </span>
-    );
-  });
-
-  return <>{parts}</>;
+  return (
+    <div className="prose prose-sm prose-slate dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_strong]:font-semibold [&_a]:underline [&_a]:text-inherit [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_code]:text-xs [&_code]:bg-black/10 [&_code]:px-1 [&_code]:rounded">
+      <ReactMarkdown
+        components={{
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="underline break-all">
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
