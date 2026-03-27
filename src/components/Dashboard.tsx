@@ -97,6 +97,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   // Contract tracking data — only count clients with actual issued contracts
   const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
   const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string }[]>([]);
+  const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
 
   const fetchTrackingStats = useCallback(async () => {
     const tenantId = await getResolvedTenantId();
@@ -111,10 +112,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     if (!contracts || contracts.length === 0) {
       setTrackingRaw([]);
       setTrackingData({ count: 0, total: 0 });
+      setContractClientIds(new Set());
       return;
     }
 
-    const contractClientIds = new Set((contracts as any[]).map(c => c.client_id));
+    const cIds = new Set((contracts as any[]).map(c => c.client_id));
+    setContractClientIds(cIds);
 
     // Step 2: Get tracking data for those clients (which has valor_contrato)
     let trackQuery = supabase
@@ -127,7 +130,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const trackMap = new Map<string, { valor_contrato: number; dateRef: string }>();
     if (trackData) {
       (trackData as any[]).forEach(t => {
-        if (contractClientIds.has(t.client_id)) {
+        if (cIds.has(t.client_id)) {
           trackMap.set(t.client_id, {
             valor_contrato: Number(t.valor_contrato) || 0,
             dateRef: t.data_fechamento || t.created_at,
@@ -138,7 +141,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
     // For clients with contracts but no tracking record, use contract creation date
     const all: { valor_contrato: number; dateRef: string }[] = [];
-    contractClientIds.forEach(clientId => {
+    cIds.forEach(clientId => {
       const tracked = trackMap.get(clientId);
       if (tracked) {
         all.push(tracked);
@@ -200,29 +203,34 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    // Valor Total Orçamentos = only clients WITHOUT closed contract (status != "fechado")
-    const closedClients = filteredClients.filter(c => (c as any).status === "fechado").length;
-    const nonClosedClientsWithSim = filteredClients.filter(c => (c as any).status !== "fechado" && filteredLastSims[c.id]);
-    const totalValueOrcamentos = nonClosedClientsWithSim.reduce((sum, c) => {
+    // Separate clients: those with actual contracts vs open budgets
+    const closedClients = filteredClients.filter(c => contractClientIds.has(c.id));
+    const openClientsWithSim = filteredClients.filter(c => !contractClientIds.has(c.id) && filteredLastSims[c.id]);
+
+    // Valor Total Orçamentos = only open (non-closed) clients with simulations
+    const totalValueOrcamentos = openClientsWithSim.reduce((sum, c) => {
       const s = filteredLastSims[c.id];
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    // Faturamento Contratos = from trackingData (already filtered to actual contracts)
-    const faturamentoContratos = trackingData.total;
+    // Faturamento Contratos = sum of sim values for closed clients
+    const faturamentoContratos = closedClients.reduce((sum, c) => {
+      const s = filteredLastSims[c.id];
+      return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
+    }, 0);
 
     // Taxa de Conversão = contratos fechados / total com orçamento
-    const taxaConversao = clientsWithSim > 0 ? (closedClients / clientsWithSim) * 100 : 0;
+    const taxaConversao = clientsWithSim > 0 ? (closedClients.length / clientsWithSim) * 100 : 0;
 
-    // Ticket Médio = based on non-closed budgets
-    const ticketMedio = nonClosedClientsWithSim.length > 0 ? totalValueOrcamentos / nonClosedClientsWithSim.length : 0;
+    // Ticket Médio = based on open budgets only
+    const ticketMedio = openClientsWithSim.length > 0 ? totalValueOrcamentos / openClientsWithSim.length : 0;
 
     const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number; closedTotal: number }> = {};
     filteredClients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
       if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0, closedTotal: 0 };
       byProjetista[name].count++;
-      if ((c as any).status === "fechado") {
+      if (contractClientIds.has(c.id)) {
         byProjetista[name].closed++;
         const sim = filteredLastSims[c.id];
         if (sim) byProjetista[name].closedTotal += sim.valor_com_desconto || sim.valor_final;
@@ -281,13 +289,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
     return {
       totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue: totalValueOrcamentos,
-      ticketMedio, taxaConversao, closedClients, faturamentoContratos,
+      ticketMedio, taxaConversao, closedClients: closedClients.length, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
       byStatus,
       leadsBySource,
     };
-  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, trackingData]);
+  }, [filteredClients, filteredLastSims, budgetValidityDays, indicadores, contractClientIds]);
 
   // Line chart data: aggregate filtered simulations by month
   const lineData = useMemo(() => {
