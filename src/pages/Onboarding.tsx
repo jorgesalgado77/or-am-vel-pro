@@ -503,6 +503,7 @@ export default function Onboarding() {
           </form>
         </CardContent>
       </Card>
+      <Suspense fallback={null}><OnboardingAIAssistant /></Suspense>
     </div>
   );
 }
