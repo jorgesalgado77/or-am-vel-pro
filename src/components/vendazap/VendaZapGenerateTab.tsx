@@ -94,6 +94,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const [customArguments, setCustomArguments] = useState("");
 
   const [autoChanged, setAutoChanged] = useState<{ copy?: string; tone?: string }>({});
+  const [lastDiscRecalibration, setLastDiscRecalibration] = useState(0);
+  const [discRecalibrationCount, setDiscRecalibrationCount] = useState(0);
 
   // Conversation memory — persisted in sessionStorage
   const [historico, setHistorico] = usePersistedFormState("vendazap-historico", {
