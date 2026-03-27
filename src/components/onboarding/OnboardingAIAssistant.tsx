@@ -62,8 +62,27 @@ export function OnboardingAIAssistant() {
   const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);
   const missingCriticalKeys = !hasOpenAI || !hasEvolution;
 
-  // Auto-scroll to bottom on new messages or loading state
+  // Track if user has manually scrolled up
+  const userScrolledUp = useRef(false);
+
+  const handleScrollChange = useCallback(() => {
+    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (!viewport) return;
+    const { scrollTop, scrollHeight, clientHeight } = viewport;
+    userScrolledUp.current = scrollHeight - scrollTop - clientHeight > 60;
+  }, []);
+
+  // Attach scroll listener to viewport
+  useEffect(() => {
+    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (!viewport) return;
+    viewport.addEventListener("scroll", handleScrollChange);
+    return () => viewport.removeEventListener("scroll", handleScrollChange);
+  }, [open, handleScrollChange]);
+
+  // Auto-scroll to bottom on new messages or loading state (only if not manually scrolled up)
   useLayoutEffect(() => {
+    if (userScrolledUp.current) return;
     requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     });
