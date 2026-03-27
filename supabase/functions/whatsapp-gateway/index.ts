@@ -88,6 +88,61 @@ async function resolveEvolutionConfig(tenantId: string | null): Promise<{ apiUrl
   return { apiUrl, apiKey };
 }
 
+// Resolve Z-API credentials from whatsapp_settings
+async function resolveZapiConfig(tenantId: string | null): Promise<{ instanceId: string; token: string; clientToken: string; securityToken?: string } | null> {
+  const sb = getSupabaseAdmin();
+
+  try {
+    let query = sb.from("whatsapp_settings").select("*");
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    let { data: ws, error } = await query.maybeSingle();
+
+    if (error?.code === "42703" || error?.code === "PGRST204" || error?.message?.includes("tenant_id")) {
+      const fallback = await sb.from("whatsapp_settings").select("*").limit(1).maybeSingle();
+      ws = fallback.data;
+    }
+
+    if (ws?.zapi_instance_id && ws?.zapi_token && ws?.zapi_client_token) {
+      return {
+        instanceId: ws.zapi_instance_id,
+        token: ws.zapi_token,
+        clientToken: ws.zapi_client_token,
+        securityToken: ws.zapi_security_token || undefined,
+      };
+    }
+  } catch (e) {
+    console.warn("[resolveZapiConfig] Error:", e);
+  }
+
+  return null;
+}
+
+// Detect which provider is configured for a tenant
+async function detectProvider(tenantId: string | null): Promise<"zapi" | "evolution" | "twilio" | "simulation"> {
+  const sb = getSupabaseAdmin();
+
+  try {
+    let query = sb.from("whatsapp_settings").select("api_provider, ativo");
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    let { data: ws, error } = await query.maybeSingle();
+
+    if (error?.code === "42703" || error?.code === "PGRST204" || error?.message?.includes("tenant_id")) {
+      const fallback = await sb.from("whatsapp_settings").select("api_provider, ativo").limit(1).maybeSingle();
+      ws = fallback.data;
+    }
+
+    if (ws?.ativo && ws?.api_provider) {
+      return ws.api_provider as "zapi" | "evolution";
+    }
+  } catch (e) {
+    console.warn("[detectProvider] Error:", e);
+  }
+
+  const envProvider = Deno.env.get("WHATSAPP_PROVIDER");
+  if (envProvider === "evolution" || envProvider === "twilio") return envProvider;
+  return "simulation";
+}
+
 // ── Instance Management ──
 
 async function createInstance(config: { apiUrl: string; apiKey: string }, instanceName: string, tenantId: string) {
