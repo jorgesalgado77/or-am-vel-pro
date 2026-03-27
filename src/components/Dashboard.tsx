@@ -97,6 +97,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   // Contract tracking data — only count clients with actual issued contracts
   const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
   const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string }[]>([]);
+  const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
 
   const fetchTrackingStats = useCallback(async () => {
     const tenantId = await getResolvedTenantId();
