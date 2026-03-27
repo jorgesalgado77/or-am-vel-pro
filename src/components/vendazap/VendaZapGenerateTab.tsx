@@ -786,6 +786,9 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                 </div>
               )}
 
+              {/* DISC Evolution Chart */}
+              <DiscEvolutionChart entries={historico.entries} detectDisc={detectDiscFromMessages} />
+
               <p className="text-xs text-muted-foreground leading-relaxed">{discInsight.summary}</p>
             </CardContent>
           </Card>
