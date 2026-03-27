@@ -26,6 +26,7 @@ import { NegotiationEvolutionPanel, learnFromMessage, learnGoodResponse, recordS
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Database } from "@/integrations/supabase/types";
 import { DISC_PROFILE_META, detectDiscFromMessages } from "@/lib/vendazapAnalysis";
+import { DiscEvolutionChart } from "./DiscEvolutionChart";
 import { saveSession, getActiveSession, type ConversationSession, type HistoricoEntry as SavedHistoricoEntry } from "@/lib/vendazapHistory";
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
