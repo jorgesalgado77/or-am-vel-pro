@@ -191,7 +191,7 @@ export function OnboardingAIAssistant() {
                       className="h-6 text-[10px] gap-1 px-2"
                       onClick={() => {
                         setOpen(false);
-                        navigate("/?tab=settings&subtab=apis");
+                        window.dispatchEvent(new CustomEvent("navigate-to-settings", { detail: { subtab: "apis" } }));
                       }}
                     >
                       <Settings className="h-3 w-3" />

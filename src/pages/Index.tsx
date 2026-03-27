@@ -176,11 +176,14 @@ export default function Index() {
 
   // Listen for navigate-to-dealroom events from VendaZap and other components
   useEffect(() => {
-    const handler = (e: Event) => {
-      setActiveView("dealroom");
-    };
+    const handler = () => setActiveView("dealroom");
+    const settingsHandler = () => setActiveView("settings");
     window.addEventListener("navigate-to-dealroom", handler);
-    return () => window.removeEventListener("navigate-to-dealroom", handler);
+    window.addEventListener("navigate-to-settings", settingsHandler);
+    return () => {
+      window.removeEventListener("navigate-to-dealroom", handler);
+      window.removeEventListener("navigate-to-settings", settingsHandler);
+    };
   }, []);
 
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
