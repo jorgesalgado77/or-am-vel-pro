@@ -1135,7 +1135,7 @@ interface TrackingRow {
   created_at: string;
 }
 
-function ContractTrackingList() {
+function ContractTrackingList({ clients, lastSims }: { clients: Client[]; lastSims: Record<string, LastSimInfo> }) {
   const { policy: comissaoPolicy } = useComissaoPolicy();
   const [trackings, setTrackings] = useState<TrackingRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1158,7 +1158,7 @@ function ContractTrackingList() {
       .order("created_at", { ascending: false });
     let trackingQuery = supabase
       .from("client_tracking")
-      .select("id, client_id, numero_contrato, nome_cliente, cpf_cnpj, quantidade_ambientes, valor_contrato, data_fechamento, projetista, status, vendedor, created_at")
+      .select("id, contract_id, client_id, numero_contrato, nome_cliente, cpf_cnpj, quantidade_ambientes, valor_contrato, data_fechamento, projetista, status, created_at")
       .order("created_at", { ascending: false });
     let transactionQuery = supabase
       .from("dealroom_transactions")
@@ -1184,22 +1184,22 @@ function ContractTrackingList() {
       return;
     }
 
-    const latestContractByClient = new Map<string, any>();
+    const latestContractByClient = new Map<string, { id: string; client_id: string; simulation_id: string | null; created_at: string }>();
     for (const contract of contractsRes.data || []) {
       if (contract.client_id && !latestContractByClient.has(contract.client_id)) {
         latestContractByClient.set(contract.client_id, contract);
       }
     }
 
-    const latestTrackingByClient = new Map<string, any>();
+    const latestTrackingByClient = new Map<string, { id: string; contract_id: string | null; client_id: string; numero_contrato: string; nome_cliente: string; cpf_cnpj: string | null; quantidade_ambientes: number | null; valor_contrato: number | null; data_fechamento: string | null; projetista: string | null; status: string; created_at: string }>();
     for (const tracking of trackingRes.data || []) {
       if (tracking.client_id && !latestTrackingByClient.has(tracking.client_id)) {
         latestTrackingByClient.set(tracking.client_id, tracking);
       }
     }
 
-    const latestTransactionByClient = new Map<string, any>();
-    const latestTransactionBySimulation = new Map<string, any>();
+    const latestTransactionByClient = new Map<string, { client_id: string | null; simulation_id: string | null; numero_contrato: string | null; nome_cliente: string | null; nome_vendedor: string | null; valor_venda: number; created_at: string }>();
+    const latestTransactionBySimulation = new Map<string, { client_id: string | null; simulation_id: string | null; numero_contrato: string | null; nome_cliente: string | null; nome_vendedor: string | null; valor_venda: number; created_at: string }>();
     for (const transaction of transactionsRes.data || []) {
       if (transaction.client_id && !latestTransactionByClient.has(transaction.client_id)) {
         latestTransactionByClient.set(transaction.client_id, transaction);
@@ -1209,13 +1209,13 @@ function ContractTrackingList() {
       }
     }
 
-    const clientMap = new Map(clients.map((client) => [client.id, client]));
+    const clientMap = new Map<string, Client>(clients.map((client) => [client.id, client]));
 
     const rows: TrackingRow[] = Array.from(latestContractByClient.values())
-      .map((contract: any) => {
+      .map((contract) => {
         const client = clientMap.get(contract.client_id);
         const tracking = latestTrackingByClient.get(contract.client_id);
-        const transaction = latestTransactionBySimulation.get(contract.simulation_id) || latestTransactionByClient.get(contract.client_id);
+        const transaction = (contract.simulation_id ? latestTransactionBySimulation.get(contract.simulation_id) : undefined) || latestTransactionByClient.get(contract.client_id);
         const sim = lastSims[contract.client_id];
 
         return {
@@ -1231,7 +1231,7 @@ function ContractTrackingList() {
           valor_contrato: Number(tracking?.valor_contrato) || Number(transaction?.valor_venda) || sim?.valor_com_desconto || sim?.valor_final || 0,
           data_fechamento: tracking?.data_fechamento || transaction?.created_at || contract.created_at,
           projetista: tracking?.projetista || client?.vendedor || null,
-          vendedor: tracking?.vendedor || transaction?.nome_vendedor || client?.vendedor || null,
+          vendedor: transaction?.nome_vendedor || client?.vendedor || null,
           status: tracking?.status || "fechado",
           created_at: tracking?.created_at || transaction?.created_at || contract.created_at,
         };
@@ -1275,6 +1275,7 @@ function ContractTrackingList() {
     const { data, error } = await supabase
       .from("client_tracking")
       .insert({
+        contract_id: row.contract_id,
         client_id: row.client_id,
         numero_contrato: row.numero_contrato !== "—" ? row.numero_contrato : "",
         nome_cliente: row.nome_cliente,
@@ -1283,7 +1284,6 @@ function ContractTrackingList() {
         valor_contrato: row.valor_contrato,
         data_fechamento: row.data_fechamento,
         projetista: row.projetista,
-        vendedor: row.vendedor,
         status: newStatus,
         comissao_percentual: comissaoResult.percentual,
         comissao_valor: Math.round((row.valor_contrato * comissaoResult.percentual / 100) * 100) / 100,
@@ -1303,7 +1303,7 @@ function ContractTrackingList() {
 
     const userInfo = getAuditUserInfo();
     logAudit({
-      acao: "tracking_criado_por_contrato_emitido",
+      acao: "status_tracking_alterado",
       entidade: "tracking",
       entidade_id: data?.id,
       detalhes: { client_id: row.client_id, novo_status: newStatus },
