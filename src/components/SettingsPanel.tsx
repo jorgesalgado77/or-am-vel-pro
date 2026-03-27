@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion, Lightbulb, Clock, Factory, KeyRound, BellRing, CalendarSync } from "lucide-react";
 
@@ -33,6 +33,17 @@ const TabLoader = () => (
 
 export function SettingsPanel() {
   const [activeTab, setActiveTab] = useState("company");
+
+  // Listen for navigate-to-settings events to auto-select subtab
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const subtab = (e as CustomEvent)?.detail?.subtab;
+      if (subtab === "apis") setActiveTab("apikeys");
+      else if (subtab) setActiveTab(subtab);
+    };
+    window.addEventListener("navigate-to-settings", handler);
+    return () => window.removeEventListener("navigate-to-settings", handler);
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

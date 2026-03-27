@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +35,6 @@ export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
@@ -191,7 +189,7 @@ export function OnboardingAIAssistant() {
                       className="h-6 text-[10px] gap-1 px-2"
                       onClick={() => {
                         setOpen(false);
-                        navigate("/?tab=settings&subtab=apis");
+                        window.dispatchEvent(new CustomEvent("navigate-to-settings", { detail: { subtab: "apis" } }));
                       }}
                     >
                       <Settings className="h-3 w-3" />
