@@ -95,13 +95,21 @@ export function OnboardingAIAssistant() {
     return () => viewport.removeEventListener("scroll", handleScrollChange);
   }, [open, handleScrollChange]);
 
+  // Scroll to bottom helper — targets the Radix viewport directly
+  const scrollToBottom = useCallback(() => {
+    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (!viewport) return;
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+    userScrolledUp.current = false;
+    setShowScrollBtn(false);
+    setUnreadCount(0);
+  }, []);
+
   // Auto-scroll to bottom on new messages or loading state (only if not manually scrolled up)
   useLayoutEffect(() => {
     if (userScrolledUp.current) return;
-    requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-    });
-  }, [messages.length, loading]);
+    requestAnimationFrame(() => scrollToBottom());
+  }, [messages.length, loading, scrollToBottom]);
 
   // Focus input when opened
   useEffect(() => {
@@ -336,12 +344,7 @@ export function OnboardingAIAssistant() {
             {/* Scroll to bottom FAB */}
             {showScrollBtn && (
               <button
-                onClick={() => {
-                  userScrolledUp.current = false;
-                  setShowScrollBtn(false);
-                  setUnreadCount(0);
-                  bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-                }}
+                onClick={scrollToBottom}
                 className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 h-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center gap-1 px-3 hover:scale-105 transition-transform animate-in fade-in zoom-in-75 duration-200"
                 aria-label="Ir para mensagens recentes"
               >
