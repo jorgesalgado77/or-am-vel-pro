@@ -344,12 +344,7 @@ export function OnboardingAIAssistant() {
             {/* Scroll to bottom FAB */}
             {showScrollBtn && (
               <button
-                onClick={() => {
-                  userScrolledUp.current = false;
-                  setShowScrollBtn(false);
-                  setUnreadCount(0);
-                  bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-                }}
+                onClick={scrollToBottom}
                 className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 h-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center gap-1 px-3 hover:scale-105 transition-transform animate-in fade-in zoom-in-75 duration-200"
                 aria-label="Ir para mensagens recentes"
               >
