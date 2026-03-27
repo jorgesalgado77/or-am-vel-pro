@@ -36,7 +36,6 @@ export function OnboardingAIAssistant() {
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
   const [open, setOpen] = useState(false);
-  const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
