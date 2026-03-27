@@ -440,28 +440,19 @@ function MessageBubble({ message }: { message: AIMessage }) {
 }
 
 function RenderMarkdown({ content }: { content: string }) {
-  // Simple markdown: bold, links, line breaks
-  const parts = content.split("\n").map((line, i) => {
-    const processed = line
-      .replace(
-        /\*\*(.*?)\*\*/g,
-        '<strong class="font-semibold">$1</strong>'
-      )
-      .replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener" class="underline">$1</a>'
-      )
-      .replace(
-        /(https?:\/\/[^\s]+)/g,
-        '<a href="$1" target="_blank" rel="noopener" class="underline break-all">$1</a>'
-      );
-    return (
-      <span key={i}>
-        <span dangerouslySetInnerHTML={{ __html: processed }} />
-        {i < content.split("\n").length - 1 && <br />}
-      </span>
-    );
-  });
-
-  return <>{parts}</>;
+  return (
+    <div className="prose prose-sm prose-slate dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_strong]:font-semibold [&_a]:underline [&_a]:text-inherit [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_code]:text-xs [&_code]:bg-black/10 [&_code]:px-1 [&_code]:rounded">
+      <ReactMarkdown
+        components={{
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="underline break-all">
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
