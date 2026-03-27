@@ -17,7 +17,7 @@ import {getTenantId} from "@/lib/tenantState";
 import {WhatsAppBotMonitor} from "@/components/campaigns/WhatsAppBotMonitor";
 import {WhatsAppInstanceManager} from "./WhatsAppInstanceManager";
 
-type WhatsAppProvider = "evolution" | "twilio";
+type WhatsAppProvider = "evolution" | "twilio" | "zapi";
 
 interface WhatsAppSettings {
   id: string;
@@ -28,6 +28,11 @@ interface WhatsAppSettings {
   twilio_account_sid: string | null;
   twilio_auth_token: string | null;
   twilio_phone_number: string | null;
+  zapi_instance_id: string | null;
+  zapi_token: string | null;
+  zapi_security_token: string | null;
+  zapi_webhook_url: string | null;
+  zapi_client_token: string | null;
   ativo: boolean;
   enviar_contrato: boolean;
   enviar_notificacoes: boolean;
@@ -58,6 +63,8 @@ export function WhatsAppTab() {
   const [testing, setTesting] = useState(false);
   const [showEvolutionKey, setShowEvolutionKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
+  const [showZapiToken, setShowZapiToken] = useState(false);
+  const [showZapiSecurityToken, setShowZapiSecurityToken] = useState(false);
 
   const [provider, setProvider] = useState<WhatsAppProvider>("evolution");
   const [evolutionUrl, setEvolutionUrl] = useState("");
@@ -66,6 +73,11 @@ export function WhatsAppTab() {
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioToken, setTwilioToken] = useState("");
   const [twilioPhone, setTwilioPhone] = useState("");
+  const [zapiInstanceId, setZapiInstanceId] = useState("");
+  const [zapiToken, setZapiToken] = useState("");
+  const [zapiSecurityToken, setZapiSecurityToken] = useState("");
+  const [zapiWebhookUrl, setZapiWebhookUrl] = useState("");
+  const [zapiClientToken, setZapiClientToken] = useState("");
   const [ativo, setAtivo] = useState(false);
   const [enviarContrato, setEnviarContrato] = useState(true);
   const [enviarNotificacoes, setEnviarNotificacoes] = useState(true);
