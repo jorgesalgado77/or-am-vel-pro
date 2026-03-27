@@ -6,6 +6,7 @@ export interface ChatConversation {
   last_message?: string;
   last_message_at?: string;
   lead_temperature?: "quente" | "morno" | "frio";
+  vendedor_nome?: string | null;
 }
 
 export interface ChatMessage {
