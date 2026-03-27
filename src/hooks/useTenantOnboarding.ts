@@ -1,0 +1,40 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
+
+export interface TenantOnboarding {
+  id: string;
+  tenant_id: string;
+  onboarding_completed: boolean;
+  setup_fee_paid: boolean;
+  setup_fee_amount: number;
+  setup_fee_paid_at: string | null;
+}
+
+export function useTenantOnboarding(tenantId: string | null) {
+  const [onboarding, setOnboarding] = useState<TenantOnboarding | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [setupFeePaid, setSetupFeePaid] = useState(true); // default true to avoid blocking
+
+  const fetch = useCallback(async () => {
+    if (!tenantId) { setLoading(false); return; }
+    const { data } = await supabase
+      .from("tenant_onboarding")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (data) {
+      const record = data as unknown as TenantOnboarding;
+      setOnboarding(record);
+      setSetupFeePaid(record.setup_fee_paid);
+    } else {
+      // No record = not restricted
+      setSetupFeePaid(true);
+    }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  return { onboarding, loading, setupFeePaid, refetch: fetch };
+}
