@@ -66,6 +66,17 @@ export function OnboardingAIAssistant() {
   // Track if user has manually scrolled up
   const userScrolledUp = useRef(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const prevMsgCount = useRef(messages.length);
+
+  // Count new messages arriving while scrolled up
+  useEffect(() => {
+    const newCount = messages.length - prevMsgCount.current;
+    prevMsgCount.current = messages.length;
+    if (newCount > 0 && userScrolledUp.current) {
+      setUnreadCount(prev => prev + newCount);
+    }
+  }, [messages.length]);
 
   const handleScrollChange = useCallback(() => {
     const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
@@ -328,12 +339,18 @@ export function OnboardingAIAssistant() {
                 onClick={() => {
                   userScrolledUp.current = false;
                   setShowScrollBtn(false);
+                  setUnreadCount(0);
                   bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
                 }}
-                className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-110 transition-transform animate-in fade-in zoom-in-75 duration-200"
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 h-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center gap-1 px-3 hover:scale-105 transition-transform animate-in fade-in zoom-in-75 duration-200"
                 aria-label="Ir para mensagens recentes"
               >
                 <ArrowDown className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="text-[10px] font-bold leading-none">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
             )}
           </div>
