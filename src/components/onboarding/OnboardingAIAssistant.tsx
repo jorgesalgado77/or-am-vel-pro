@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +13,13 @@ import {
   CheckCircle2,
   Circle,
   Loader2,
+  Settings,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
+import { useApiKeys } from "@/hooks/useApiKeys";
 
 const ONBOARDING_STEPS = [
   { key: "company_info", label: "Dados da loja" },
