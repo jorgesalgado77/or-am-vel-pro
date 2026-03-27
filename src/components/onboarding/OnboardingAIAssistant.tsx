@@ -49,6 +49,7 @@ export function OnboardingAIAssistant() {
   const [input, setInput] = useState("");
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Drag state
@@ -63,10 +64,7 @@ export function OnboardingAIAssistant() {
   // Auto-scroll to bottom on new messages or loading state
   useLayoutEffect(() => {
     requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        const el = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-        if (el) el.scrollTop = el.scrollHeight;
-      }
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     });
   }, [messages.length, loading]);
 
