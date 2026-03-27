@@ -26,7 +26,7 @@ import { NegotiationEvolutionPanel, learnFromMessage, learnGoodResponse, recordS
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Database } from "@/integrations/supabase/types";
 import { DISC_PROFILE_META, detectDiscFromMessages } from "@/lib/vendazapAnalysis";
-
+import { saveSession, getActiveSession, type ConversationSession, type HistoricoEntry as SavedHistoricoEntry } from "@/lib/vendazapHistory";
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 const COPY_TYPES = [
@@ -63,6 +63,8 @@ interface VendaZapGenerateTabProps {
   autoSugg: any;
   currentUserId?: string;
   lastQuality?: QualityValidationResult | null;
+  resumeSession?: ConversationSession | null;
+  onResumeConsumed?: () => void;
 }
 
 interface HistoricoEntry {
@@ -70,9 +72,10 @@ interface HistoricoEntry {
   mensagem: string;
   intent?: string;
   score?: number;
+  timestamp?: string;
 }
 
-export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId, lastQuality }: VendaZapGenerateTabProps) {
+export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId, lastQuality, resumeSession, onResumeConsumed }: VendaZapGenerateTabProps) {
   const { currentUser } = useCurrentUser();
   const isManagerOrAdmin = currentUser?.cargo_nome === "Administrador" || currentUser?.cargo_nome === "Gerente";
   const [formState, updateForm, clearForm] = usePersistedFormState("vendazap-generate", {
@@ -214,12 +217,37 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const diasSemResposta = selectedClient ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
 
-  // Reset historico when client changes
+  // Restore historico from saved session when client changes
   useEffect(() => {
     if (selectedClient && historico.clientId !== selectedClient.id) {
-      setHistorico({ entries: [], clientId: selectedClient.id });
+      const saved = getActiveSession(selectedClient.id);
+      if (saved && saved.entries.length > 0) {
+        setHistorico({ entries: saved.entries as HistoricoEntry[], clientId: selectedClient.id });
+        // Restore settings
+        if (saved.settings.tipoCopy) setTipoCopy(saved.settings.tipoCopy);
+        if (saved.settings.tom) setTom(saved.settings.tom);
+        if (saved.settings.closingScore) setClosingScore(saved.settings.closingScore);
+      } else {
+        setHistorico({ entries: [], clientId: selectedClient.id });
+      }
     }
   }, [selectedClient?.id]);
+
+  // Resume from history tab
+  useEffect(() => {
+    if (resumeSession && clients.length > 0) {
+      const client = clients.find((c) => c.id === resumeSession.clientId);
+      if (client) {
+        setSelectedClient(client);
+        updateForm({ selectedClientId: client.id, searchClient: "" });
+        setHistorico({ entries: resumeSession.entries as HistoricoEntry[], clientId: client.id });
+        if (resumeSession.settings.tipoCopy) setTipoCopy(resumeSession.settings.tipoCopy);
+        if (resumeSession.settings.tom) setTom(resumeSession.settings.tom);
+        if (resumeSession.settings.closingScore) setClosingScore(resumeSession.settings.closingScore);
+      }
+      onResumeConsumed?.();
+    }
+  }, [resumeSession, clients]);
 
   const handleGenerate = async () => {
     // Build historico array from memory for the edge function
@@ -248,17 +276,33 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       const newEntries = [...historico.entries];
       if (mensagemCliente?.trim()) {
         const analysis = analyzeClientMessage(mensagemCliente);
-        newEntries.push({ remetente_tipo: "cliente", mensagem: mensagemCliente.trim(), intent: analysis.intent, score: analysis.score });
-        // Teach the learning engine
+        newEntries.push({ remetente_tipo: "cliente", mensagem: mensagemCliente.trim(), intent: analysis.intent, score: analysis.score, timestamp: new Date().toISOString() });
         learnFromMessage(analysis.intent, mensagemCliente.trim(), analysis.score);
       }
-      newEntries.push({ remetente_tipo: "ia", mensagem: result });
-      setHistorico({ entries: newEntries.slice(-20), clientId: selectedClient?.id || null });
+      newEntries.push({ remetente_tipo: "ia", mensagem: result, timestamp: new Date().toISOString() });
+      const trimmed = newEntries.slice(-20);
+      setHistorico({ entries: trimmed, clientId: selectedClient?.id || null });
 
       // Calculate closing score
       const baseScore = clientAnalysis ? clientAnalysis.score : 50;
       const copyBonus = tipoCopy === "fechamento" ? 20 : tipoCopy === "urgencia" ? 15 : tipoCopy === "objecao" ? 10 : tipoCopy === "reversao" ? 5 : 0;
-      setClosingScore(Math.min(100, baseScore + copyBonus + 15));
+      const finalScore = Math.min(100, baseScore + copyBonus + 15);
+      setClosingScore(finalScore);
+
+      // Persist session to history
+      if (selectedClient) {
+        saveSession(
+          selectedClient.id,
+          selectedClient.nome,
+          trimmed as SavedHistoricoEntry[],
+          {
+            tipoCopy,
+            tom,
+            discProfile: discInsight.profile || null,
+            closingScore: finalScore,
+          },
+        );
+      }
 
       // Clear client message field for next round
       updateForm({ mensagemCliente: "" });

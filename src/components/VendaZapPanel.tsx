@@ -1,7 +1,7 @@
 /**
  * VendaZapPanel - refactored to use sub-components.
  */
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { usePersistedValue } from "@/hooks/usePersistedFormState";
 import { AddonPurchaseCard } from "@/components/AddonPurchaseCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { VendaZapGenerateTab, COPY_TYPES } from "@/components/vendazap/VendaZapGenerateTab";
+import { VendaZapHistoryTab } from "@/components/vendazap/VendaZapHistoryTab";
+import type { ConversationSession } from "@/lib/vendazapHistory";
 import type { Database } from "@/integrations/supabase/types";
 
 const AutoPilotAnalyticsLazy = lazy(() => import("@/components/chat/AutoPilotAnalytics").then(m => ({ default: m.AutoPilotAnalytics })));
@@ -54,6 +56,13 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const { pendingTriggers, loading: triggersLoading, markSent, dismiss } = useVendaZapTriggers(tenantId);
   const [clients, setClients] = useState<Client[]>([]);
   const [activeTab, setActiveTab] = usePersistedValue("vendazap-active-tab", "gerar");
+  const [resumeSession, setResumeSession] = useState<ConversationSession | null>(null);
+
+  const handleResumeSession = useCallback((session: ConversationSession) => {
+    setResumeSession(session);
+    setActiveTab("gerar");
+    toast.success(`Retomando conversa com ${session.clientName}`);
+  }, [setActiveTab]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -115,7 +124,16 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         </TabsList>
 
         <TabsContent value="gerar" className="space-y-4">
-          <VendaZapGenerateTab generating={generating} generateMessage={generateMessage} addon={addon} autoSugg={autoSugg} currentUserId={currentUser?.id} lastQuality={lastQuality} />
+          <VendaZapGenerateTab
+            generating={generating}
+            generateMessage={generateMessage}
+            addon={addon}
+            autoSugg={autoSugg}
+            currentUserId={currentUser?.id}
+            lastQuality={lastQuality}
+            resumeSession={resumeSession}
+            onResumeConsumed={() => setResumeSession(null)}
+          />
         </TabsContent>
 
         <TabsContent value="gatilhos" className="space-y-4">
@@ -189,39 +207,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         </TabsContent>
 
         <TabsContent value="historico">
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm">Mensagens Recentes</CardTitle></CardHeader>
-            <CardContent>
-              {messages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhuma mensagem gerada ainda</p>
-              ) : (
-                <ScrollArea className="h-[500px]">
-                  <div className="space-y-3">
-                    {messages.map(msg => {
-                      const copyType = COPY_TYPES.find(ct => ct.value === msg.tipo_copy);
-                      return (
-                        <div key={msg.id} className="border rounded-lg p-3 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="text-[10px]">{copyType?.label || msg.tipo_copy}</Badge>
-                              <Badge variant="outline" className="text-[10px]">{msg.tom}</Badge>
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">{format(new Date(msg.created_at), "dd/MM HH:mm", { locale: ptBR })}</span>
-                          </div>
-                          {(msg.contexto as any)?.nome_cliente && <p className="text-xs text-muted-foreground">Cliente: {(msg.contexto as any).nome_cliente}</p>}
-                          <p className="text-sm text-foreground whitespace-pre-wrap">{msg.mensagem_gerada}</p>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => handleCopy(msg.mensagem_gerada)}><Copy className="h-3 w-3" />Copiar</Button>
-                            <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => handleCopyAndOpenWhatsApp(msg.mensagem_gerada)}><ExternalLink className="h-3 w-3" />WhatsApp</Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
+          <VendaZapHistoryTab onResumeSession={handleResumeSession} />
         </TabsContent>
 
         <TabsContent value="analytics">
