@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays, Megaphone, Share2, UserPlus } from "lucide-react";
+import { TopSellingProductsChart } from "@/components/dashboard/TopSellingProductsChart";
+import { LowStockAlerts } from "@/components/dashboard/LowStockAlerts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/financing";
@@ -958,6 +960,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
       {/* Deal Room Widget */}
       <DealRoomStoreWidgetWrapper />
+
+      {/* Produtos Mais Vendidos */}
+      <TopSellingProductsChart />
+
+      {/* Alertas de Estoque Baixo */}
+      <LowStockAlerts />
 
       {/* Contratos Fechados - Acompanhamento */}
       <ContractTrackingList />

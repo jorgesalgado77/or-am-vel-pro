@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
   stock_quantity INTEGER DEFAULT 0,
   stock_status TEXT DEFAULT 'em_estoque' CHECK (stock_status IN ('em_estoque','sob_encomenda','indisponivel')),
+  stock_min_quantity INTEGER DEFAULT 5,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE (tenant_id, internal_code)
