@@ -244,20 +244,27 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       }
     });
 
-    const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number }> = {};
+    const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number; clientes: { nome: string; orcamento: string }[] }> = {};
     filteredClients.forEach(c => {
       if (!c.indicador_id) return;
+      // Only include clients with actual closed contracts
+      if (!contractClientIds.has(c.id)) return;
       const ind = indicadores.find(i => i.id === c.indicador_id);
       if (!ind) return;
       if (!byIndicador[c.indicador_id]) {
-        byIndicador[c.indicador_id] = { nome: ind.nome, comissao: ind.comissao_percentual, count: 0, total: 0, comissaoTotal: 0 };
+        byIndicador[c.indicador_id] = { nome: ind.nome, comissao: ind.comissao_percentual, count: 0, total: 0, comissaoTotal: 0, clientes: [] };
       }
       byIndicador[c.indicador_id].count++;
       const sim = filteredLastSims[c.id];
       if (sim) {
-        byIndicador[c.indicador_id].total += sim.valor_com_desconto || sim.valor_final;
-        byIndicador[c.indicador_id].comissaoTotal += (sim.valor_com_desconto || sim.valor_final) * (ind.comissao_percentual / 100);
+        const val = sim.valor_com_desconto || sim.valor_final;
+        byIndicador[c.indicador_id].total += val;
+        byIndicador[c.indicador_id].comissaoTotal += val * (ind.comissao_percentual / 100);
       }
+      byIndicador[c.indicador_id].clientes.push({
+        nome: c.nome || "—",
+        orcamento: (c as any).numero_orcamento || "—",
+      });
     });
 
     // Pipeline by status
@@ -865,6 +872,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                     <TableHead className="font-medium text-center">Clientes</TableHead>
                     <TableHead className="font-medium text-center">Fechados</TableHead>
                     <TableHead className="font-medium text-center">Conversão</TableHead>
+                    <TableHead className="font-medium text-right">Em Negociação</TableHead>
+                    <TableHead className="font-medium text-right">Contratos</TableHead>
                     <TableHead className="font-medium text-right">Valor Total</TableHead>
                     <TableHead className="font-medium text-right">Comissão</TableHead>
                   </TableRow>
@@ -872,6 +881,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                 <TableBody>
                   {filtered.map(([name, data]) => {
                     const conv = data.count > 0 ? ((data.closed / data.count) * 100).toFixed(0) : "0";
+                    const openTotal = data.total - data.closedTotal;
                     const matchedCargo = cargos.find(c => 
                       name.toLowerCase().includes(c.nome.toLowerCase()) || c.nome.toLowerCase() === "projetista"
                     );
@@ -889,6 +899,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                       <TableCell className="text-center">
                         <Badge variant="outline" className={Number(conv) >= 30 ? "border-emerald-500 text-emerald-600" : ""}>{conv}%</Badge>
                       </TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-amber-600">{openTotal > 0 ? formatCurrency(openTotal) : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-emerald-600">{data.closedTotal > 0 ? formatCurrency(data.closedTotal) : "—"}</TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
                       <TableCell className="text-right tabular-nums font-medium text-primary">
                         {comissaoValor > 0 ? formatCurrency(comissaoValor) : "—"}
@@ -901,6 +913,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                     const totClientes = filtered.reduce((s, [, d]) => s + d.count, 0);
                     const totFechados = filtered.reduce((s, [, d]) => s + d.closed, 0);
                     const totValor = filtered.reduce((s, [, d]) => s + d.total, 0);
+                    const totOpen = filtered.reduce((s, [, d]) => s + (d.total - d.closedTotal), 0);
+                    const totClosed = filtered.reduce((s, [, d]) => s + d.closedTotal, 0);
                     const totComissao = filtered.reduce((s, [name, data]) => {
                       const mc = cargos.find(c => name.toLowerCase().includes(c.nome.toLowerCase()) || c.nome.toLowerCase() === "projetista");
                       const cp = mc ? mc.comissao_percentual : 0;
@@ -914,6 +928,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                         <TableCell className="text-center"><Badge variant="secondary">{totClientes}</Badge></TableCell>
                         <TableCell className="text-center"><Badge variant="default" className="bg-emerald-600">{totFechados}</Badge></TableCell>
                         <TableCell className="text-center"><Badge variant="outline">{totConv}%</Badge></TableCell>
+                        <TableCell className="text-right tabular-nums text-amber-600">{totOpen > 0 ? formatCurrency(totOpen) : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums text-emerald-600">{totClosed > 0 ? formatCurrency(totClosed) : "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatCurrency(totValor)}</TableCell>
                         <TableCell className="text-right tabular-nums text-primary">{totComissao > 0 ? formatCurrency(totComissao) : "—"}</TableCell>
                       </TableRow>
@@ -973,9 +989,10 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
                     <TableHead className="font-medium">Indicador</TableHead>
-                    <TableHead className="font-medium text-center">Clientes</TableHead>
-                    <TableHead className="font-medium text-right">Valor Total</TableHead>
-                    <TableHead className="font-medium text-right">Comissão</TableHead>
+                    <TableHead className="font-medium">Cliente / Orçamento</TableHead>
+                    <TableHead className="font-medium text-center">Contratos</TableHead>
+                    <TableHead className="font-medium text-right">Valor Contrato</TableHead>
+                    <TableHead className="font-medium text-right">Comissão Devida</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -984,8 +1001,18 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                       <TableCell className="font-medium text-foreground">
                         {data.nome} <span className="text-muted-foreground text-xs">({data.comissao}%)</span>
                       </TableCell>
-                      <TableCell className="text-center"><Badge variant="secondary">{data.count}</Badge></TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {data.clientes.map((cl, i) => (
+                            <div key={i} className="text-xs">
+                              <span className="font-medium text-foreground">{cl.nome}</span>
+                              <span className="text-muted-foreground ml-1">({cl.orcamento})</span>
+                            </div>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center"><Badge variant="default" className="bg-emerald-600">{data.count}</Badge></TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-emerald-600">{formatCurrency(data.total)}</TableCell>
                       <TableCell className="text-right tabular-nums font-medium text-primary">{formatCurrency(data.comissaoTotal)}</TableCell>
                     </TableRow>
                   ))}
@@ -996,8 +1023,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                     return (
                       <TableRow className="bg-muted/50 border-t-2 border-border font-semibold">
                         <TableCell className="text-foreground">Total</TableCell>
-                        <TableCell className="text-center"><Badge variant="secondary">{totClientes}</Badge></TableCell>
-                        <TableCell className="text-right tabular-nums">{formatCurrency(totValor)}</TableCell>
+                        <TableCell />
+                        <TableCell className="text-center"><Badge variant="default" className="bg-emerald-600">{totClientes}</Badge></TableCell>
+                        <TableCell className="text-right tabular-nums text-emerald-600">{formatCurrency(totValor)}</TableCell>
                         <TableCell className="text-right tabular-nums text-primary">{formatCurrency(totComissao)}</TableCell>
                       </TableRow>
                     );
