@@ -48,7 +48,7 @@ interface VendaZapPanelProps {
 
 export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
   const { currentUser } = useCurrentUser();
-  const { addon, messages, loading, generating, dailyUsage, generateMessage, fetchMessages } = useVendaZap(tenantId);
+  const { addon, messages, loading, generating, dailyUsage, lastQuality, generateMessage, fetchMessages } = useVendaZap(tenantId);
   const { showOnboarding, setShowOnboarding } = useOnboarding("vendazap");
   const autoSugg = useAutoSuggestion({ tenantId, addon, userId: currentUser?.id });
   const { pendingTriggers, loading: triggersLoading, markSent, dismiss } = useVendaZapTriggers(tenantId);
@@ -115,7 +115,7 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         </TabsList>
 
         <TabsContent value="gerar" className="space-y-4">
-          <VendaZapGenerateTab generating={generating} generateMessage={generateMessage} addon={addon} autoSugg={autoSugg} currentUserId={currentUser?.id} />
+          <VendaZapGenerateTab generating={generating} generateMessage={generateMessage} addon={addon} autoSugg={autoSugg} currentUserId={currentUser?.id} lastQuality={lastQuality} />
         </TabsContent>
 
         <TabsContent value="gatilhos" className="space-y-4">
