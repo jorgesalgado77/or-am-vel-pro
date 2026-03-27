@@ -246,6 +246,11 @@ export function ClientsKanban({
       if (status === "proposta_enviada") status = "em_negociacao";
       if (status === "novo" && client.vendedor) status = "em_negociacao";
       
+      // Auto-move clients with closed contracts to "fechado"
+      if (contractClientIds.has(client.id)) {
+        status = "fechado";
+      }
+      
       // Auto-expire: if client has a simulation and it's past validity, move to expirado
       const sim = lastSims[client.id];
       if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado") {
@@ -261,7 +266,7 @@ export function ClientsKanban({
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds]);
 
   // Drag and drop handler
   const handleDragEnd = useCallback(async (result: DropResult) => {
