@@ -429,9 +429,9 @@ export function WhatsAppTab() {
                 <p className="text-[11px] text-muted-foreground mt-1">Token extra para validar webhooks recebidos (recomendado para produção)</p>
               </div>
               <div>
-                <Label>Client Token (Opcional)</Label>
-                <Input value={zapiClientToken} onChange={(e) => setZapiClientToken(e.target.value)} placeholder="Token do cliente Z-API" className="mt-1" />
-                <p className="text-[11px] text-muted-foreground mt-1">Necessário em contas com múltiplas instâncias ou plano Business</p>
+                <Label>Client Token <span className="text-destructive">*</span></Label>
+                <Input value={zapiClientToken} onChange={(e) => setZapiClientToken(e.target.value)} placeholder="Token do cliente Z-API (obrigatório)" className="mt-1" />
+                <p className="text-[11px] text-muted-foreground mt-1">Obrigatório para autenticar na API. Encontre em painel.z-api.io → Dados da instância web</p>
               </div>
               <Separator />
               <div>
