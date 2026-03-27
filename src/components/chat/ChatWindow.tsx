@@ -333,6 +333,18 @@ export function ChatWindow({
           quickRepliesLoading={qrLoading}
           onAddQuickReply={addQR}
           onRemoveQuickReply={removeQR}
+          tenantId={tenantId}
+          onSendProductText={async (text) => {
+            const { error } = await supabase.from("tracking_messages").insert({
+              tracking_id: conversation.id,
+              mensagem: text,
+              remetente_tipo: "loja",
+              remetente_nome: "Loja",
+              lida: false,
+              tenant_id: tenantId || undefined,
+            } as any);
+            if (error) toast.error("Erro ao enviar produto");
+          }}
         />
       </div>
     </div>
