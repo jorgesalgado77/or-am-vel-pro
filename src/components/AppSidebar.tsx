@@ -223,6 +223,8 @@ export function AppSidebar({
             </PopoverContent>
           </Popover>
 
+          <PushNotificationToggle tenantId={tenantId} userId={currentUser?.id} />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={cycleTheme}>
