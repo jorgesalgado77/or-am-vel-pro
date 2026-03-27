@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, UserPlus, CalendarIcon, FileText, Calculator } from "lucide-react";
+import { addDays, isPast } from "date-fns";
 import { supabase } from "@/lib/supabaseClient";
 import { playNotificationSound } from "@/lib/notificationSound";
 import { formatCurrency } from "@/lib/financing";
