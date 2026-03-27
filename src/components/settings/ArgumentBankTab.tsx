@@ -209,23 +209,20 @@ export function ArgumentBankTab() {
     if (!topic) { toast.error("Preencha o título ou argumento para buscar dados reais"); return; }
     setSearchingData(true);
     try {
-      const { data, error } = await supabase.functions.invoke("perplexity-search", {
-        body: {
-          query: `Dados reais, estatísticas e pesquisas sobre: ${topic} - mercado de móveis planejados Brasil`,
-          context: "Busca de dados reais para fundamentar argumento de venda",
-        },
+      const { data, error } = await supabase.functions.invoke("improve-argument", {
+        body: { prompt: `Dados reais, estatísticas e pesquisas sobre: ${topic} - mercado de móveis planejados Brasil`, action: "search_real_data" },
       });
       if (error) throw error;
       if (data?.content) {
         setForm(f => ({
           ...f,
           dados_reais: data.content.slice(0, 500),
-          fonte: data.citations?.[0] || f.fonte,
+          fonte: f.fonte,
         }));
         toast.success("Dados reais encontrados e preenchidos!");
       }
     } catch {
-      toast.error("Erro ao buscar dados reais. Verifique a conexão com Perplexity.");
+      toast.error("Erro ao buscar dados reais via OpenAI.");
     }
     setSearchingData(false);
   };
