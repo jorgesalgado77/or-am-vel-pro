@@ -110,6 +110,9 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
     if (tempFilter !== "all") {
       result = result.filter((c) => c.lead_temperature === tempFilter);
     }
+    if (vendedorFilter !== "all") {
+      result = result.filter((c) => c.vendedor_nome === vendedorFilter);
+    }
     if (unreadOnly) {
       result = result.filter((c) => c.unread_count > 0);
     }
@@ -118,10 +121,11 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
       result = result.filter((c) => c.last_message_at?.startsWith(dayStr));
     }
     return result;
-  }, [conversations, search, tempFilter, unreadOnly, dateFilter]);
+  }, [conversations, search, tempFilter, vendedorFilter, unreadOnly, dateFilter]);
 
   const clearFilters = () => {
     setTempFilter("all");
+    setVendedorFilter("all");
     setUnreadOnly(false);
     setDateFilter(undefined);
   };
