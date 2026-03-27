@@ -83,6 +83,7 @@ export function PushNotificationsTab() {
       case "mensagens": return "Mensagem";
       case "leads": return "Lead";
       case "medidas": case "medida_nova": return "Medida";
+      case "api_keys": case "api-key-openai": case "api-key-evolution": case "api-key-resend": return "API Key";
       default: return tag;
     }
   };
@@ -93,6 +94,7 @@ export function PushNotificationsTab() {
       case "mensagens": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
       case "leads": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
       case "medidas": case "medida_nova": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+      case "api_keys": case "api-key-openai": case "api-key-evolution": case "api-key-resend": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
       default: return "bg-muted text-muted-foreground";
     }
   };
