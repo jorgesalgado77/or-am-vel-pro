@@ -93,40 +93,85 @@ export function WhatsAppTab() {
 
   const tenantId = getTenantId();
 
-  const fetchSettings = async () => {
-    if (!tenantId) { setLoading(false); return; }
-    let query = supabase
-      .from("whatsapp_settings")
-      .select("*");
-    query = query.eq("tenant_id", tenantId);
-    const { data } = await query.limit(1).maybeSingle();
+  const isMissingTenantColumnError = (error: { code?: string; message?: string } | null) => {
+    if (!error) return false;
+    return error.code === "42703" || error.code === "PGRST204" || error.message?.includes("tenant_id") === true;
+  };
 
-    if (data) {
-      const s = data as unknown as WhatsAppSettings;
-      setSettings(s);
-      setProvider(s.provider);
-      setEvolutionUrl(s.evolution_api_url || "");
-      setEvolutionKey(s.evolution_api_key || "");
-      setEvolutionInstance(s.evolution_instance_name || "");
-      setTwilioSid(s.twilio_account_sid || "");
-      setTwilioToken(s.twilio_auth_token || "");
-      setTwilioPhone(s.twilio_phone_number || "");
-      setZapiInstanceId(s.zapi_instance_id || "");
-      setZapiToken(s.zapi_token || "");
-      setZapiSecurityToken(s.zapi_security_token || "");
-      setZapiWebhookUrl(s.zapi_webhook_url || "");
-      setZapiClientToken(s.zapi_client_token || "");
-      setAtivo(s.ativo);
-      setEnviarContrato(s.enviar_contrato);
-      setEnviarNotificacoes(s.enviar_notificacoes);
-    } else {
-      const { data: created } = await supabase
+  const applySettings = (rawSettings: WhatsAppSettings) => {
+    setSettings(rawSettings);
+    setProvider(rawSettings.provider);
+    setEvolutionUrl(rawSettings.evolution_api_url || "");
+    setEvolutionKey(rawSettings.evolution_api_key || "");
+    setEvolutionInstance(rawSettings.evolution_instance_name || "");
+    setTwilioSid(rawSettings.twilio_account_sid || "");
+    setTwilioToken(rawSettings.twilio_auth_token || "");
+    setTwilioPhone(rawSettings.twilio_phone_number || "");
+    setZapiInstanceId(rawSettings.zapi_instance_id || "");
+    setZapiToken(rawSettings.zapi_token || "");
+    setZapiSecurityToken(rawSettings.zapi_security_token || "");
+    setZapiWebhookUrl(rawSettings.zapi_webhook_url || "");
+    setZapiClientToken(rawSettings.zapi_client_token || "");
+    setAtivo(rawSettings.ativo);
+    setEnviarContrato(rawSettings.enviar_contrato);
+    setEnviarNotificacoes(rawSettings.enviar_notificacoes);
+  };
+
+  const fetchSettings = async () => {
+    if (!tenantId) {
+      setLoading(false);
+      return;
+    }
+
+    let missingTenantColumn = false;
+    let response = await supabase
+      .from("whatsapp_settings")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .limit(1)
+      .maybeSingle();
+
+    if (isMissingTenantColumnError(response.error)) {
+      missingTenantColumn = true;
+      response = await supabase
         .from("whatsapp_settings")
-        .insert({ tenant_id: tenantId } as any)
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+    }
+
+    if (response.error) {
+      toast.error("Erro ao carregar configurações do WhatsApp");
+      setLoading(false);
+      return;
+    }
+
+    if (response.data) {
+      applySettings(response.data as unknown as WhatsAppSettings);
+      setLoading(false);
+      return;
+    }
+
+    let createdResponse = await supabase
+      .from("whatsapp_settings")
+      .insert((missingTenantColumn ? {} : { tenant_id: tenantId }) as any)
+      .select("*")
+      .single();
+
+    if (isMissingTenantColumnError(createdResponse.error)) {
+      createdResponse = await supabase
+        .from("whatsapp_settings")
+        .insert({} as any)
         .select("*")
         .single();
-      if (created) setSettings(created as unknown as WhatsAppSettings);
     }
+
+    if (createdResponse.data) {
+      applySettings(createdResponse.data as unknown as WhatsAppSettings);
+    } else if (createdResponse.error) {
+      toast.error("Erro ao inicializar configurações do WhatsApp");
+    }
+
     setLoading(false);
   };
 
@@ -170,7 +215,10 @@ export function WhatsAppTab() {
       .eq("id", settings.id);
     setSaving(false);
     if (error) toast.error("Erro ao salvar configurações");
-    else { toast.success("Configurações do WhatsApp salvas!"); fetchSettings(); }
+    else {
+      toast.success("Configurações do WhatsApp salvas!");
+      fetchSettings();
+    }
   };
 
   const handleTestConnection = async () => {
@@ -199,28 +247,30 @@ export function WhatsAppTab() {
           setTesting(false);
           return;
         }
-        const headers: Record<string, string> = {};
-        if (zapiClientToken) headers["Client-Token"] = zapiClientToken;
 
-        const url = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/phone`;
-        const res = await fetch(url, { headers });
-        const text = await res.text();
+        const url = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/status`;
+        const res = await fetch(url, {
+          headers: {
+            ...(zapiClientToken ? { "Client-Token": zapiClientToken } : {}),
+            ...(zapiSecurityToken ? { "Security-Token": zapiSecurityToken } : {}),
+          },
+        });
+        const data = await res.json().catch(() => null);
 
-        if (res.ok) {
-          try {
-            const data = JSON.parse(text);
-            if (data.connected || data.phone) {
-              toast.success(`Z-API conectado! Número: ${data.phone || "detectado"}`);
-            } else {
-              toast.warning("Z-API respondeu, mas ainda não está conectado. Escaneie o QR Code no painel Z-API.");
-            }
-          } catch {
-            toast.success("Z-API acessível! Verifique o status no painel Z-API.");
-          }
-        } else if (res.status === 400 || res.status === 401 || res.status === 403) {
-          toast.error("Credenciais Z-API inválidas. Verifique Instance ID, Token e Client-Token no painel Z-API.");
+        if (!res.ok || data?.error) {
+          const detail = data?.message || data?.error || `${res.status} ${res.statusText}`;
+          toast.error(`Erro na conexão Z-API: ${detail}`);
+          setTesting(false);
+          return;
+        }
+
+        const status = String(data?.status || "").toLowerCase();
+        const connected = data?.connected === true || data?.authenticated === true || status === "connected" || status === "open";
+
+        if (connected) {
+          toast.success("Z-API conectada e autenticada!");
         } else {
-          toast.error(`Erro na conexão Z-API: ${res.status}`);
+          toast.warning("Z-API acessível, mas a instância ainda não está conectada. Escaneie o QR Code no painel Z-API.");
         }
       }
     } catch {
