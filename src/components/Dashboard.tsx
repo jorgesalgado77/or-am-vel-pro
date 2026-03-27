@@ -213,9 +213,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    // Faturamento Contratos = sum of sim values for closed clients
+    // Faturamento Contratos = sum of sim values for closed clients (use unfiltered lastSims)
     const faturamentoContratos = closedClients.reduce((sum, c) => {
-      const s = filteredLastSims[c.id];
+      const s = lastSims[c.id] || filteredLastSims[c.id];
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
