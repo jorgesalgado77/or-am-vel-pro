@@ -1,4 +1,4 @@
-import {useState, useMemo, useEffect, useRef} from "react";
+import {useState, useMemo, useEffect, useRef, useCallback} from "react";
 import {UpgradePlanDialog, parsePlanLimitError} from "@/components/shared/UpgradePlanDialog";
 import {Input} from "@/components/ui/input";
 import {Label} from "@/components/ui/label";
@@ -7,7 +7,7 @@ import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
-import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package} from "lucide-react";
+import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, Search, UserPlus, X} from "lucide-react";
 import {Badge} from "@/components/ui/badge";
 import {LoadSimulationModal} from "@/components/simulator/LoadSimulationModal";
 import {SimulatorEnvironmentsTable, type ImportedEnvironment} from "@/components/simulator/SimulatorEnvironmentsTable";
@@ -167,6 +167,33 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [catalogProductsTotal, setCatalogProductsTotal] = useState(0);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  // Quick client linking (when simulator opened without a client)
+  const [linkedClient, setLinkedClient] = useState<Client | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientResults, setClientResults] = useState<Client[]>([]);
+  const [searchingClients, setSearchingClients] = useState(false);
+  const effectiveClient = client || linkedClient;
+
+  const searchClients = useCallback(async (term: string) => {
+    if (!term || term.length < 2) { setClientResults([]); return; }
+    const tid = await getResolvedTenantId();
+    if (!tid) return;
+    setSearchingClients(true);
+    const { data } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("tenant_id", tid)
+      .ilike("nome", `%${term}%`)
+      .limit(5);
+    setClientResults((data as Client[]) || []);
+    setSearchingClients(false);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => searchClients(clientSearch), 300);
+    return () => clearTimeout(t);
+  }, [clientSearch, searchClients]);
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
@@ -1300,10 +1327,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             carenciaDias={carenciaDias}
             saving={saving}
             closingSale={closingSale}
-            hasClient={!!client}
+            hasClient={!!effectiveClient}
             generatingPdf={generatingPdf}
             onSave={handleSave}
-            onPdf={client ? async () => {
+            onPdf={effectiveClient ? async () => {
               if (!resolvedTenantId) {
                 toast.error("Tenant não identificado");
                 return;
@@ -1311,11 +1338,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setGeneratingPdf(true);
               try {
                 await generateAndOpenBudgetPdf(resolvedTenantId, {
-                  clientName: client.nome,
-                  clientCpf: client.cpf || undefined,
-                  clientEmail: client.email || undefined,
-                  clientPhone: client.telefone1 || undefined,
-                  vendedor: client.vendedor || undefined,
+                  clientName: effectiveClient.nome,
+                  clientCpf: effectiveClient.cpf || undefined,
+                  clientEmail: effectiveClient.email || undefined,
+                  clientPhone: effectiveClient.telefone1 || undefined,
+                  vendedor: effectiveClient.vendedor || undefined,
                   companyName: settings.company_name,
                   companySubtitle: settings.company_subtitle || undefined,
                   companyLogoUrl: settings.logo_url || undefined,
@@ -1341,12 +1368,71 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
               setDesconto3Unlocked(false); setPlusUnlocked(false);
               setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
+              setLinkedClient(null); setClientSearch("");
               sessionStorage.removeItem(SIM_STORAGE_KEY);
               toast.success("Simulação limpa");
             }}
           />
 
-          {!client && showClientForm && (
+          {/* Quick client picker when no client is linked */}
+          {!effectiveClient && (
+            <Card className="border-dashed border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 pb-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  Vincular Cliente Existente
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Vincule um cliente para habilitar a geração de PDF e o fechamento de venda.
+                </p>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    placeholder="Buscar por nome do cliente..."
+                    className="pl-9"
+                  />
+                </div>
+                {searchingClients && (
+                  <p className="text-xs text-muted-foreground">Buscando...</p>
+                )}
+                {clientResults.length > 0 && (
+                  <div className="border rounded-md divide-y max-h-40 overflow-y-auto bg-background">
+                    {clientResults.map((c) => (
+                      <button
+                        key={c.id}
+                        className="w-full text-left px-3 py-2 hover:bg-accent transition-colors text-sm"
+                        onClick={() => {
+                          setLinkedClient(c);
+                          setClientSearch("");
+                          setClientResults([]);
+                          toast.success(`Cliente "${c.nome}" vinculado ao simulador`);
+                        }}
+                      >
+                        <span className="font-medium">{c.nome}</span>
+                        {c.email && <span className="text-xs text-muted-foreground ml-2">{c.email}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Show linked client badge */}
+          {linkedClient && !client && (
+            <div className="flex items-center gap-2 text-sm bg-primary/10 rounded-lg px-3 py-2">
+              <UserPlus className="h-4 w-4 text-primary" />
+              <span className="font-medium">{linkedClient.nome}</span>
+              <Badge variant="secondary" className="text-[10px]">vinculado</Badge>
+              <button onClick={() => { setLinkedClient(null); setClientSearch(""); }} className="ml-auto text-muted-foreground hover:text-destructive">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {!effectiveClient && showClientForm && (
             <SimulatorClientForm
               newClient={newClient}
               onChange={setNewClient}
