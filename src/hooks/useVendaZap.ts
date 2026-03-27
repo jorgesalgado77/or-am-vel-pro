@@ -34,6 +34,14 @@ export function useVendaZap(tenantId: string | null) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [dailyUsage, setDailyUsage] = useState(0);
+  const [lastQuality, setLastQuality] = useState<{
+    passed: boolean;
+    reason: string;
+    attempts: number;
+    decisionMaker: string | null;
+    discProfile: string | null;
+    intent: string | null;
+  } | null>(null);
 
   const createVipAddon = (tid: string): VendaZapAddon => ({
     id: `vip-${tid}`,
@@ -188,6 +196,16 @@ export function useVendaZap(tenantId: string | null) {
         throw new Error("A IA não retornou nenhuma mensagem.");
       }
 
+      // Store quality validation metadata
+      setLastQuality({
+        passed: data.quality_validated ?? true,
+        reason: data.quality_reason ?? "ok",
+        attempts: data.quality_validated === false ? 1 : 0,
+        decisionMaker: data.decision_maker ?? null,
+        discProfile: data.disc_profile ?? null,
+        intent: data.intencao ?? null,
+      });
+
       const today = new Date().toISOString().split("T")[0];
 
       const persistResults = await Promise.allSettled([
@@ -261,6 +279,7 @@ export function useVendaZap(tenantId: string | null) {
     loading,
     generating,
     dailyUsage,
+    lastQuality,
     generateMessage,
     fetchMessages,
     fetchDailyUsage,
