@@ -51,12 +51,16 @@ export function analyzeVendaZapMessage(message: string): { score: number; intent
   if (!message || message.trim().length < 2) return { score: 0, intent: "vazio" };
 
   const lower = message.toLowerCase();
+  const explicitDisinterest = /n[ãa]o tenho(?:\s+mais)?\s+interesse|perdi o interesse|n[ãa]o quero mais|n[ãa]o vou seguir|n[ãa]o faz mais sentido|j[aá] desisti|deixa pra l[aá]|pode encerrar|n[ãa]o vou fechar/i.test(lower);
   const mentionsDecisionMaker = /meu marido|minha esposa|meu esposo|minha mulher|preciso ver com|vou ver com|vou falar com|decidir com|ver com ele|ver com ela/i.test(lower);
   const asksAlternativeService = /outra forma de atendimento|atendimento online|atendimento remoto|videochamada|chamada de v[ií]deo|sem ir na loja|sem ir ai|sem sair de casa|por chamada|por v[ií]deo|online/i.test(lower);
   const mentionsTimeFriction = /perder tempo|sem tempo|corrido|agilidade|mais pr[aá]tico|praticidade/i.test(lower);
 
   if (/fechar|quero comprar|vou levar|aceito|pode fazer|fechado|manda o contrato|vamos nessa/i.test(lower)) {
     return { score: 90, intent: "fechamento" };
+  }
+  if (explicitDisinterest) {
+    return { score: 8, intent: "desinteresse_explicit" };
   }
   if (mentionsDecisionMaker && asksAlternativeService) {
     return { score: 72, intent: "canal_alternativo" };
@@ -118,6 +122,10 @@ export function detectDiscFromMessages(messages: VendaZapMessageLike[]): DiscIns
   };
 
   const signals: string[] = [];
+
+  if (/n[ãa]o tenho(?:\s+mais)?\s+interesse|perdi o interesse|n[ãa]o quero mais|n[ãa]o vou seguir|j[aá] desisti/i.test(lower)) {
+    signals.push("rejeição explícita");
+  }
 
   if (/meu marido|minha esposa|preciso ver com|vou ver com|decidir com/i.test(lower)) {
     scores.S += 3;

@@ -124,6 +124,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     const analysis = analyzeClientMessage(mensagemCliente);
     if (!analysis) return;
     const intentToCopy: Record<string, string> = {
+      "desinteresse_explicit": "reversao",
       "fechamento": "fechamento",
       "orçamento": "urgencia",
       "negociação": "objecao",
@@ -137,6 +138,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       "neutro": "urgencia",
     };
     const intentToTone: Record<string, string> = {
+      "desinteresse_explicit": "direto",
       "fechamento": "urgente",
       "orçamento": "consultivo",
       "negociação": "persuasivo",
