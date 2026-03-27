@@ -19,6 +19,8 @@ interface Props {
   onSelect: (conv: ChatConversation) => void;
   loading: boolean;
   onStartConversation?: () => void;
+  currentUserName?: string | null;
+  isAdminOrManager?: boolean;
 }
 
 type TempFilter = LeadTemperature | "all";
