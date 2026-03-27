@@ -498,21 +498,26 @@ REGRAS:
     // Action: chat (default)
     const ctx = await getOnboardingContext(supabase, tenant_id);
 
-    // Get tenant's OpenAI key
-    const { data: openaiKey } = await supabase
-      .from("api_keys")
-      .select("api_key")
-      .eq("tenant_id", tenant_id)
-      .eq("provider", "openai")
-      .eq("is_active", true)
-      .maybeSingle();
+    // Try Lovable AI Gateway first, then tenant OpenAI key, then global OpenAI key
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-    // Fallback: check global OpenAI key
-    const aiKey =
-      openaiKey?.api_key || Deno.env.get("OPENAI_API_KEY");
+    let aiKey: string | null = null;
+    let useGateway = false;
 
-    if (!aiKey) {
-      // Return a helpful canned response without AI
+    if (LOVABLE_API_KEY) {
+      useGateway = true;
+    } else {
+      const { data: openaiKey } = await supabase
+        .from("api_keys")
+        .select("api_key")
+        .eq("tenant_id", tenant_id)
+        .eq("provider", "openai")
+        .eq("is_active", true)
+        .maybeSingle();
+      aiKey = openaiKey?.api_key || Deno.env.get("OPENAI_API_KEY") || null;
+    }
+
+    if (!useGateway && !aiKey) {
       const cannedResponse = getCannedResponse(ctx, messages);
       return new Response(
         JSON.stringify({ reply: cannedResponse, context: ctx }),
@@ -526,17 +531,23 @@ REGRAS:
 
     const chatMessages = [
       { role: "system", content: systemPrompt },
-      ...(messages || []).slice(-20), // limit context window
+      ...(messages || []).slice(-20),
     ];
 
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const aiUrl = useGateway
+      ? "https://ai.gateway.lovable.dev/v1/chat/completions"
+      : "https://api.openai.com/v1/chat/completions";
+
+    const aiBearer = useGateway ? LOVABLE_API_KEY! : aiKey!;
+
+    const aiRes = await fetch(aiUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${aiKey}`,
+        Authorization: `Bearer ${aiBearer}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: useGateway ? "google/gemini-2.5-flash" : "gpt-4o-mini",
         messages: chatMessages,
         max_tokens: 500,
         temperature: 0.7,
@@ -545,7 +556,7 @@ REGRAS:
 
     if (!aiRes.ok) {
       const errText = await aiRes.text();
-      console.error("OpenAI error:", errText);
+      console.error("AI error:", aiRes.status, errText);
       const cannedResponse = getCannedResponse(ctx, messages);
       return new Response(
         JSON.stringify({ reply: cannedResponse, context: ctx }),
