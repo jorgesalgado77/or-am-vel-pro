@@ -88,6 +88,7 @@ const DISC_STRATEGIES: Record<string, string> = {
 
 // Intent detection keywords
 const INTENT_PATTERNS: Record<string, RegExp[]> = {
+  desinteresse_explicit: [/n[ãa]o tenho(?:\s+mais)?\s+interesse/i, /perdi o interesse/i, /n[ãa]o quero mais/i, /n[ãa]o vou seguir/i, /n[ãa]o faz mais sentido/i, /j[aá] desisti/i, /deixa pra l[aá]/i, /pode encerrar/i, /n[ãa]o vou fechar/i],
   orcamento: [/or[çc]amento/i, /quanto custa/i, /valor/i, /pre[çc]o/i, /tabela/i, /proposta/i],
   fechamento: [/fechar/i, /quero comprar/i, /vamos fechar/i, /aceito/i, /pode fazer/i, /fechado/i, /vou levar/i],
   preco: [/desconto/i, /mais barato/i, /negocia/i, /condi[çc][ãa]o/i, /parcel/i, /pagamento/i],
@@ -99,7 +100,7 @@ const INTENT_PATTERNS: Record<string, RegExp[]> = {
 
 function detectIntent(message: string): string {
   if (!message) return "outro";
-  const priority = ["fechamento", "enviar_preco", "orcamento", "preco", "objecao", "duvida", "saudacao"];
+  const priority = ["desinteresse_explicit", "fechamento", "enviar_preco", "orcamento", "preco", "objecao", "duvida", "saudacao"];
   for (const intent of priority) {
     const patterns = INTENT_PATTERNS[intent];
     if (patterns.some((p) => p.test(message))) return intent;
@@ -117,14 +118,17 @@ function extractContextSignals(mensagem: string, historico: any[]) {
   const mentionsDecisionMaker = /meu marido|minha esposa|meu esposo|minha mulher|vou ver com|preciso ver com|decidir com|falar com ele|falar com ela/i.test(combined);
   const asksAlternativeService = /outra forma de atendimento|atendimento online|atendimento remoto|videochamada|chamada de v[ií]deo|sem ir na loja|sem sair de casa|online/i.test(combined);
   const mentionsTimeFriction = /perder tempo|sem tempo|corrido|mais pr[aá]tico|praticidade|agilidade/i.test(combined);
+  const explicitDisinterest = /n[ãa]o tenho(?:\s+mais)?\s+interesse|perdi o interesse|n[ãa]o quero mais|n[ãa]o vou seguir|n[ãa]o faz mais sentido|j[aá] desisti|deixa pra l[aá]|pode encerrar|n[ãa]o vou fechar/i.test(combined);
 
   const signalLabels = [
+    explicitDisinterest ? "cliente verbalizou desinteresse explícito" : "",
     mentionsDecisionMaker ? "há outro decisor envolvido" : "",
     asksAlternativeService ? "cliente quer atendimento remoto/prático" : "",
     mentionsTimeFriction ? "cliente quer reduzir tempo e deslocamento" : "",
   ].filter(Boolean);
 
   return {
+    explicitDisinterest,
     mentionsDecisionMaker,
     asksAlternativeService,
     mentionsTimeFriction,
@@ -212,6 +216,7 @@ const OBJECTION_STRATEGIES = [
 ];
 
 const INTENT_PROMPTS: Record<string, string> = {
+  desinteresse_explicit: `Cliente declarou desinteresse de forma explícita. NÃO responda com propaganda genérica. Primeiro valide o afastamento sem bajular; depois tente recuperar com uma pergunta cirúrgica para descobrir o motivo real OU ofereça uma saída de baixo atrito. A resposta deve soar humana, firme e breve.`,
   atendimento_remoto: `Cliente quer alternativa prática à ida até a loja. Responda acolhendo a objeção de tempo, explique o formato remoto em termos concretos e convide para o próximo passo sem parecer evasivo.`,
   orcamento: `O cliente pediu orçamento — FORTE sinal de interesse! NÃO envie valores. Mostre que o projeto dele MERECE uma apresentação técnica completa. Cite 1 material ou técnica específica. Convide para Deal Room.`,
   fechamento: `Cliente PRONTO pra fechar! Confirme o projeto com detalhes técnicos (material, ferragem, prazo). Crie micro-urgência: "Garanto essa condição até [dia]". Pergunte: "Preparo o contrato agora?"`,
@@ -257,6 +262,7 @@ Você é um CLOSER DE ELITE com 15 anos de experiência em vendas de móveis pla
 🔴 Para INDECISÃO: não diga "pense com calma" — provoque com dado concreto ou pergunta que dói.
 🔴 Para CONCORRÊNCIA: cite diferenciais TÉCNICOS reais, não promessas vagas.
 🔴 INVENTE analogias surpreendentes e inusitadas baseadas no perfil do cliente.
+🔴 Para DESINTERESSE EXPLÍCITO: pare de empurrar produto. Descubra o motivo real com uma pergunta curta ou ofereça um fechamento elegante de baixo atrito.
 
 === ADAPTAÇÃO DISC (OBRIGATÓRIA) ===
 🔴 D (Dominante): Frases curtas. Verbos de ação. Zero rodeios. "Resultado", "resolve", "agenda agora".
@@ -271,7 +277,32 @@ Você é um CLOSER DE ELITE com 15 anos de experiência em vendas de móveis pla
 4. SEMPRE: usar nome do cliente, CTA direto, referência específica ao contexto
 5. SEMPRE: incluir link Deal Room quando preço for mencionado
 6. NUNCA: responder com algo fora do tema perguntado pelo cliente
+7. NUNCA: responder desinteresse explícito com publicidade vazia, frases motivacionais ou convite genérico para reunião
 `;
+
+function sanitizeGeneratedMessage(message: string, intent: string, originalMessage: string): string {
+  let result = (message || "").trim();
+  if (!result) return result;
+
+  if (intent === "desinteresse_explicit") {
+    const genericPatterns = [
+      /transformam seu lar/i,
+      /não perca a chance/i,
+      /vamos explorar juntos/i,
+      /espaço especial/i,
+      /reuni[aã]o/i,
+    ];
+
+    if (genericPatterns.some((pattern) => pattern.test(result))) {
+      const mentionsInterest = /n[ãa]o tenho(?:\s+mais)?\s+interesse|perdi o interesse/i.test(originalMessage);
+      if (mentionsInterest) {
+        return "Entendi — quando você diz que não tem mais interesse, foi pelo valor, pelo momento ou porque o projeto saiu da prioridade? Se me falar em 1 linha, eu te respondo com objetividade e sem insistir.";
+      }
+    }
+  }
+
+  return result;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS")
@@ -334,7 +365,11 @@ serve(async (req) => {
     const discStrategy = detectedDisc ? DISC_STRATEGIES[detectedDisc] || "" : "";
 
     // Intelligent Router: auto-fetch Perplexity data when relevant
-    const intencao = (contextSignals.asksAlternativeService || contextSignals.mentionsDecisionMaker) ? "atendimento_remoto" : detectIntent(mensagem_cliente);
+    const intencao = contextSignals.explicitDisinterest
+      ? "desinteresse_explicit"
+      : (contextSignals.asksAlternativeService || contextSignals.mentionsDecisionMaker)
+        ? "atendimento_remoto"
+        : detectIntent(mensagem_cliente);
     const usePerplexity = !perplexity_data && shouldUsePerplexity(intencao, mensagem_cliente, historico);
     if (usePerplexity) {
       const searchQueries: Record<string, string> = {
@@ -377,6 +412,7 @@ serve(async (req) => {
     if (dias_sem_resposta && dias_sem_resposta > 1) userPrompt += `\n${dias_sem_resposta} dias sem resposta — URGENTE!`;
     if (mensagem_cliente) userPrompt += `\nÚltima mensagem do cliente: "${mensagem_cliente}"`;
     if (contextSignals.signalLabels.length > 0) userPrompt += `\nSinais contextuais detectados: ${contextSignals.signalLabels.join(", ")}`;
+    if (contextSignals.explicitDisinterest) userPrompt += `\nIMPORTANTE: o cliente verbalizou desinteresse. Não faça propaganda; identifique a causa real com respeito e objetividade.`;
     if (contextSignals.mentionsDecisionMaker) userPrompt += `\nIMPORTANTE: responda facilitando a decisão conjunta, sem pressionar nem desviar do assunto.`;
     if (contextSignals.asksAlternativeService || contextSignals.mentionsTimeFriction) userPrompt += `\nIMPORTANTE: ofereça atendimento remoto/online de forma concreta e prática.`;
 
@@ -480,6 +516,8 @@ serve(async (req) => {
       tokens_usados = aiData.usage?.total_tokens || 0;
       ai_provider_used = "openai";
     }
+
+    mensagem = sanitizeGeneratedMessage(mensagem, intencao, mensagem_cliente);
 
     // Post-process: if price intent and Deal Room link missing from response, append it
     if (isPriceIntent && deal_room_link && !mensagem.includes(deal_room_link)) {
