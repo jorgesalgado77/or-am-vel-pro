@@ -356,9 +356,9 @@ REGRAS:
 
     // Action: run_tests — FASE 7
     if (action === "run_tests") {
+      const ctx = await getOnboardingContext(supabase, tenant_id);
       const results: Record<string, { ok: boolean; detail: string }> = {};
 
-      // Test OpenAI
       const { data: openaiKeyData } = await supabase
         .from("api_keys")
         .select("api_key")
@@ -382,31 +382,21 @@ REGRAS:
         results.openai = { ok: false, detail: "Nenhuma chave OpenAI configurada" };
       }
 
-      // Test Evolution (WhatsApp)
-      const { data: evoKeyData } = await supabase
-        .from("api_keys")
-        .select("api_key, api_url")
-        .eq("tenant_id", tenant_id)
-        .eq("provider", "evolution")
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (evoKeyData?.api_key && evoKeyData?.api_url) {
-        try {
-          const res = await fetch(`${evoKeyData.api_url}/instance/fetchInstances`, {
-            headers: { apikey: evoKeyData.api_key },
-          });
-          results.whatsapp = res.ok
-            ? { ok: true, detail: "Evolution API conectada" }
-            : { ok: false, detail: "Falha na conexão com Evolution API" };
-        } catch (e) {
-          results.whatsapp = { ok: false, detail: `Erro de rede: ${(e as Error).message}` };
-        }
+      if (!ctx.capabilities.whatsappApi) {
+        results.whatsapp = { ok: false, detail: "Nenhuma integração de WhatsApp configurada" };
+      } else if (ctx.capabilities.whatsappConnected) {
+        const providerLabel = ctx.whatsappProvider === "zapi"
+          ? "Z-API"
+          : ctx.whatsappProvider === "evolution"
+          ? "Evolution API"
+          : ctx.whatsappProvider === "twilio"
+          ? "Twilio"
+          : "WhatsApp";
+        results.whatsapp = { ok: true, detail: `${providerLabel} conectado e disponível` };
       } else {
-        results.whatsapp = { ok: false, detail: "Nenhuma chave Evolution configurada" };
+        results.whatsapp = { ok: false, detail: "WhatsApp configurado, mas ainda não conectado" };
       }
 
-      // Test Resend (Email)
       const { data: resendKeyData } = await supabase
         .from("api_keys")
         .select("api_key")
@@ -430,33 +420,27 @@ REGRAS:
         results.email = { ok: false, detail: "Nenhuma chave de email configurada (opcional)" };
       }
 
-      // Test PDF
-      const { data: pdfKeyData } = await supabase
-        .from("api_keys")
-        .select("api_key, api_url")
-        .eq("tenant_id", tenant_id)
-        .eq("provider", "pdf")
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (pdfKeyData?.api_key && pdfKeyData?.api_url) {
-        try {
-          const res = await fetch(pdfKeyData.api_url, { method: "HEAD" });
-          results.pdf = res.ok
-            ? { ok: true, detail: "Gerador de PDF acessível" }
-            : { ok: false, detail: "URL do gerador de PDF inacessível" };
-        } catch {
-          results.pdf = { ok: false, detail: "Erro ao conectar com gerador de PDF" };
-        }
-      } else {
-        results.pdf = { ok: false, detail: "Nenhuma API de PDF configurada (opcional)" };
+      try {
+        const pdfStatus = await fetch(`${supabaseUrl}/functions/v1/generate-pdf`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "generate-budget", payload: { clientName: "Teste Mia", valorTela: 1, desconto1: 0, desconto2: 0, desconto3: 0, valorComDesconto: 1, formaPagamento: "Pix", parcelas: 1, valorEntrada: 0, plusPercentual: 0, taxaCredito: 0, saldo: 0, valorFinal: 1, valorParcela: 1 } }),
+        });
+        results.pdf = pdfStatus.ok
+          ? { ok: true, detail: "Gerador de PDF interno configurado" }
+          : { ok: false, detail: "Falha ao validar gerador de PDF interno" };
+      } catch {
+        results.pdf = { ok: false, detail: "Erro ao validar gerador de PDF interno" };
       }
 
       const allPassed = Object.values(results).every((r) => r.ok);
       const criticalPassed = (results.openai?.ok ?? false) && (results.whatsapp?.ok ?? false);
 
       return new Response(
-        JSON.stringify({ results, allPassed, criticalPassed }),
+        JSON.stringify({ results, allPassed, criticalPassed, completedSteps: ctx.completedSteps, capabilities: ctx.capabilities }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -697,12 +681,12 @@ Eu vou validar automaticamente e configurar tudo pra você.
 Se não tem uma chave ainda, acesse: https://platform.openai.com/api-keys`;
   }
 
-  if (!ctx.whatsappConnected) {
+  if (!ctx.capabilities.whatsappConnected) {
     return `IA de vendas configurada! ✅ Agora vamos conectar o WhatsApp.
 
-Vá em **Configurações > WhatsApp** e crie uma instância. Depois escaneie o QR Code com seu celular.
+Vá em **Configurações > WhatsApp** e conecte via **Z-API, Evolution ou Twilio**. Depois finalize a conexão do número.
 
-Se precisar de ajuda com a Evolution API, me mande sua chave que eu configuro automaticamente.`;
+Se precisar, eu também consigo validar se a configuração já está ativa nos testes.`;
   }
 
   return `Parabéns! 🎉 Seu sistema está quase 100% configurado!
