@@ -179,6 +179,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         last_message: lastMsgMap[t.id]?.msg || (t.isClientDirect ? "Clique para iniciar conversa" : undefined),
         last_message_at: lastMsgMap[t.id]?.at,
         vendedor_nome: vendedorMap[t.client_id]?.vendedor || null,
+        isClientDirect: t.isClientDirect || false,
+        client_id: t.client_id,
       }))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
