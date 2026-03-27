@@ -117,6 +117,22 @@ export function ClientsKanban({
     fetchFollowUpStatuses();
   }, [localClients]);
 
+  // Fetch client_tracking to detect closed contracts
+  useEffect(() => {
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    const fetchContractClients = async () => {
+      const { data } = await supabase
+        .from("client_tracking")
+        .select("client_id")
+        .eq("tenant_id", tenantId);
+      if (data) {
+        setContractClientIds(new Set((data as any[]).map((d: any) => d.client_id)));
+      }
+    };
+    fetchContractClients();
+  }, [localClients]);
+
   // Realtime: listen for new leads sent to the current user
   useEffect(() => {
     const userName = currentUser?.nome_completo;
