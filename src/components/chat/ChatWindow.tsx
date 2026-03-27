@@ -166,6 +166,7 @@ export function ChatWindow({
       remetente_tipo: "loja",
       remetente_nome: "Loja",
       lida: false,
+      tenant_id: tenantId || undefined,
     } as any);
 
     if (error) {
@@ -191,6 +192,7 @@ export function ChatWindow({
       tipo_anexo: tipo,
       anexo_url: url,
       anexo_nome: name,
+      tenant_id: tenantId || undefined,
     } as any);
 
     if (error) toast.error("Erro ao enviar anexo");

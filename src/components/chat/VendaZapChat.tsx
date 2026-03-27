@@ -399,6 +399,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       remetente_tipo: "loja",
       remetente_nome: currentUser?.nome_completo || "Loja",
       lida: true,
+      tenant_id: tenantId,
     });
 
     if (error) {
