@@ -1301,22 +1301,39 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             saving={saving}
             closingSale={closingSale}
             hasClient={!!client}
+            generatingPdf={generatingPdf}
             onSave={handleSave}
-            onPdf={client ? () => generateSimulationPdf({
-              clientName: client.nome,
-              clientCpf: client.cpf || undefined,
-              clientEmail: client.email || undefined,
-              clientPhone: client.telefone1 || undefined,
-              vendedor: client.vendedor || undefined,
-              companyName: settings.company_name,
-              companySubtitle: settings.company_subtitle || undefined,
-              companyLogoUrl: settings.logo_url || undefined,
-              valorTela, desconto1, desconto2, desconto3,
-              valorComDesconto: result.valorComDesconto,
-              formaPagamento, parcelas, valorEntrada, plusPercentual,
-              taxaCredito: result.taxaCredito,
-              saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
-            }) : null}
+            onPdf={client ? async () => {
+              if (!resolvedTenantId) {
+                toast.error("Tenant não identificado");
+                return;
+              }
+              setGeneratingPdf(true);
+              try {
+                await generateAndOpenBudgetPdf(resolvedTenantId, {
+                  clientName: client.nome,
+                  clientCpf: client.cpf || undefined,
+                  clientEmail: client.email || undefined,
+                  clientPhone: client.telefone1 || undefined,
+                  vendedor: client.vendedor || undefined,
+                  companyName: settings.company_name,
+                  companySubtitle: settings.company_subtitle || undefined,
+                  companyLogoUrl: settings.logo_url || undefined,
+                  valorTela, desconto1, desconto2, desconto3,
+                  valorComDesconto: result.valorComDesconto,
+                  formaPagamento, parcelas, valorEntrada, plusPercentual,
+                  taxaCredito: result.taxaCredito,
+                  saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
+                  ambientes: environments.map(e => ({
+                    environmentName: e.environmentName,
+                    pieceCount: e.pieceCount,
+                    totalValue: e.totalValue,
+                  })),
+                });
+              } finally {
+                setGeneratingPdf(false);
+              }
+            } : null}
             onCloseSale={handleCloseSale}
             onClear={() => {
               setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
