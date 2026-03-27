@@ -559,7 +559,13 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   }, [selected, sendSimulatedMessage]);
 
   return (
-    <div className="flex h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
+    <div className="flex flex-col h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
+      {/* WhatsApp Connection Status Bar */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/30">
+        <span className="text-xs font-medium text-foreground">Chat de Vendas</span>
+        <WhatsAppStatusTag status={whatsappStatus} provider={whatsappProvider} />
+      </div>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Conversation list */}
       <div className={`w-72 shrink-0 ${selected ? "hidden md:flex md:flex-col" : "flex flex-col w-full md:w-72"} overflow-hidden`}>
         {/* Simulator Panel — fixed at top */}
