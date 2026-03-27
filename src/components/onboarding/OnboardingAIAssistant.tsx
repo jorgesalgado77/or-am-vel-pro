@@ -19,6 +19,7 @@ import {
   FlaskConical,
   FolderPlus,
   ArrowDown,
+  Volume2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
@@ -67,16 +68,38 @@ export function OnboardingAIAssistant() {
   const userScrolledUp = useRef(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [fabUnread, setFabUnread] = useState(0);
   const prevMsgCount = useRef(messages.length);
+  const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const prevLastAssistantId = useRef<string | null>(null);
 
-  // Count new messages arriving while scrolled up
+  // Init notification audio
+  useEffect(() => {
+    notificationAudioRef.current = new Audio("/sounds/mia-notification.wav");
+    notificationAudioRef.current.volume = 0.5;
+  }, []);
+
+  // Count new messages arriving while scrolled up OR chat closed
   useEffect(() => {
     const newCount = messages.length - prevMsgCount.current;
     prevMsgCount.current = messages.length;
     if (newCount > 0 && userScrolledUp.current) {
       setUnreadCount(prev => prev + newCount);
     }
-  }, [messages.length]);
+    if (newCount > 0 && !open) {
+      setFabUnread(prev => prev + newCount);
+    }
+  }, [messages.length, open]);
+
+  // Play notification sound when new assistant message arrives while chat is closed
+  useEffect(() => {
+    const lastAssistant = [...messages].reverse().find(m => m.role === "assistant");
+    if (!lastAssistant) return;
+    if (prevLastAssistantId.current && prevLastAssistantId.current !== lastAssistant.id && !open) {
+      notificationAudioRef.current?.play().catch(() => {});
+    }
+    prevLastAssistantId.current = lastAssistant.id;
+  }, [messages, open]);
 
   const handleScrollChange = useCallback(() => {
     const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
@@ -111,9 +134,10 @@ export function OnboardingAIAssistant() {
     requestAnimationFrame(() => scrollToBottom());
   }, [messages.length, loading, scrollToBottom]);
 
-  // Focus input when opened
+  // Focus input when opened & clear FAB unread
   useEffect(() => {
     if (open) {
+      setFabUnread(0);
       setTimeout(() => inputRef.current?.focus(), 200);
     }
   }, [open]);
@@ -199,8 +223,10 @@ export function OnboardingAIAssistant() {
         >
           <Bot className="h-6 w-6 group-hover:hidden" />
           <MessageCircle className="h-6 w-6 hidden group-hover:block" />
-          {messages.length === 0 && (
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive animate-pulse" />
+          {(messages.length === 0 || fabUnread > 0) && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive flex items-center justify-center text-[10px] font-bold text-destructive-foreground animate-pulse px-1">
+              {fabUnread > 0 ? fabUnread : ""}
+            </span>
           )}
         </button>
       )}
