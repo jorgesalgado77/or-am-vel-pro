@@ -17,8 +17,12 @@ interface Props {
 export const AutoPilotPanel = memo(function AutoPilotPanel({ settings, isActive, onToggle, onUpdateSettings }: Props) {
   const [showConfig, setShowConfig] = useState(false);
 
-  const tokensPercent = settings ? Math.min(100, Math.round((settings.tokens_usados_hoje / (settings.max_tokens_dia || 1)) * 100)) : 0;
-  const respostasPercent = settings ? Math.min(100, Math.round((settings.respostas_hoje / (settings.max_respostas_dia || 1)) * 100)) : 0;
+  const respostasPercent = settings && settings.max_respostas_dia > 0
+    ? Math.min(100, Math.round((settings.respostas_hoje / settings.max_respostas_dia) * 100))
+    : 0;
+  const tokensPercent = settings && settings.max_tokens_dia > 0
+    ? Math.min(100, Math.round((settings.tokens_usados_hoje / settings.max_tokens_dia) * 100))
+    : 0;
 
   return (
     <div className="border-b border-border bg-card">
@@ -36,7 +40,7 @@ export const AutoPilotPanel = memo(function AutoPilotPanel({ settings, isActive,
         <div className="flex items-center gap-2">
           {isActive && settings && (
             <span className="text-[10px] text-muted-foreground">
-              {settings.respostas_hoje}/{settings.max_respostas_dia} respostas
+              {settings.respostas_hoje}/{settings.max_respostas_dia} respostas · {(settings.tokens_usados_hoje || 0).toLocaleString()}/{(settings.max_tokens_dia || 0).toLocaleString()} tokens
             </span>
           )}
           <Switch

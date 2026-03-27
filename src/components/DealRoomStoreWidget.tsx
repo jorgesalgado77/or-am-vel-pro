@@ -13,7 +13,7 @@ import {
   DollarSign, TrendingUp, Target, Percent, Trophy, Plus,
   Send, Eye, CheckCircle, XCircle, FileText, ExternalLink,
   Handshake, BarChart3, RefreshCw, Video, Calendar, Bot,
-  Mic, MicOff, AlertTriangle, Package,
+  Mic, MicOff, AlertTriangle, Package, Loader2,
 } from "lucide-react";
 import { useDealRoom, type DealRoomProposal } from "@/hooks/useDealRoom";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
@@ -263,7 +263,6 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
                   "Olá, meu nome é {(() => {
                     const apelido = currentUser?.apelido;
                     const nome = currentUser?.nome_completo;
-                    // Prefer apelido if it looks like a real name (not generic like "Admin")
                     if (apelido && apelido.toLowerCase() !== "admin" && apelido.length > 2) return apelido;
                     if (nome && nome.toLowerCase() !== "admin" && nome.length > 2) return nome;
                     return apelido || nome || 'vendedor';
@@ -273,21 +272,54 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
                 </p>
               </CardContent>
             </Card>
-            <div className="flex justify-center gap-3">
-              {!voiceEnrollment.isRecording ? (
+
+            {/* Recording timer */}
+            {(voiceEnrollment.isRecording || voiceEnrollment.recordingSeconds > 0) && (
+              <div className="text-center">
+                <span className={`text-lg font-mono font-bold ${voiceEnrollment.isRecording ? "text-destructive animate-pulse" : "text-foreground"}`}>
+                  {Math.floor(voiceEnrollment.recordingSeconds / 60).toString().padStart(2, "0")}:
+                  {(voiceEnrollment.recordingSeconds % 60).toString().padStart(2, "0")}
+                </span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {voiceEnrollment.isRecording ? "Gravando... (máx 3 min)" : "Gravação finalizada"}
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-center gap-2 flex-wrap">
+              {!voiceEnrollment.isRecording && !voiceEnrollment.recordedBlob && (
                 <Button onClick={() => voiceEnrollment.startRecording()} disabled={voiceEnrollment.loading} className="gap-2">
                   <Mic className="h-4 w-4" /> Iniciar Gravação
                 </Button>
-              ) : (
+              )}
+              {voiceEnrollment.isRecording && (
                 <Button onClick={() => voiceEnrollment.stopRecording()} variant="destructive" className="gap-2 animate-pulse">
                   <MicOff className="h-4 w-4" /> Parar Gravação
                 </Button>
               )}
+              {voiceEnrollment.recordedBlob && !voiceEnrollment.isRecording && (
+                <>
+                  <Button onClick={() => voiceEnrollment.playRecording()} variant="outline" className="gap-2" size="sm">
+                    ▶️ Ouvir
+                  </Button>
+                  <Button onClick={() => voiceEnrollment.saveRecording()} disabled={voiceEnrollment.loading} className="gap-2" size="sm">
+                    {voiceEnrollment.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "💾"} Salvar
+                  </Button>
+                  <Button onClick={() => voiceEnrollment.discardRecording()} variant="ghost" className="gap-2" size="sm">
+                    🗑️ Descartar
+                  </Button>
+                </>
+              )}
             </div>
             {voiceEnrollment.isEnrolled && (
-              <p className="text-center text-sm text-green-600 font-medium">
-                ✓ Perfil de voz salvo com sucesso!
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-green-600 font-medium">
+                  ✓ Perfil de voz salvo com sucesso!
+                </p>
+                <Button onClick={() => voiceEnrollment.resetEnrollment()} variant="ghost" size="sm" className="text-destructive text-xs">
+                  Excluir perfil
+                </Button>
+              </div>
             )}
           </div>
         </DialogContent>

@@ -122,9 +122,14 @@ export function useVoiceEnrollment(usuarioId: string | null) {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrolledFingerprint, setEnrolledFingerprint] = useState<VoiceFingerprint | null>(null);
   const [loading, setLoading] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const autoStopRef = useRef<number | null>(null);
 
   // Load existing enrollment
   const loadEnrollment = useCallback(async () => {
@@ -162,20 +167,29 @@ export function useVoiceEnrollment(usuarioId: string | null) {
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        await processAndSave(blob);
+        setRecordedBlob(blob);
+        // Don't auto-save; let user preview first
       };
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setIsRecording(true);
+      setRecordedBlob(null);
+      setRecordingSeconds(0);
 
-      // Auto-stop after 5 seconds
-      setTimeout(() => {
+      // Timer
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingSeconds(s => s + 1);
+      }, 1000);
+
+      // Auto-stop after 3 minutes (180s)
+      autoStopRef.current = window.setTimeout(() => {
         if (mediaRecorderRef.current?.state === "recording") {
           mediaRecorderRef.current.stop();
           setIsRecording(false);
+          if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
         }
-      }, 5000);
+      }, 180000);
     } catch {
       toast.error("Erro ao acessar microfone");
     }
@@ -186,7 +200,33 @@ export function useVoiceEnrollment(usuarioId: string | null) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (autoStopRef.current) clearTimeout(autoStopRef.current);
   }, []);
+
+  // Play back recorded audio
+  const playRecording = useCallback(() => {
+    if (!recordedBlob) return;
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    const url = URL.createObjectURL(recordedBlob);
+    setAudioUrl(url);
+    const audio = new Audio(url);
+    audio.play();
+  }, [recordedBlob, audioUrl]);
+
+  // Save recorded blob
+  const saveRecording = useCallback(async () => {
+    if (!recordedBlob) return;
+    await processAndSave(recordedBlob);
+  }, [recordedBlob]);
+
+  // Discard recorded blob
+  const discardRecording = useCallback(() => {
+    setRecordedBlob(null);
+    setRecordingSeconds(0);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl(null);
+  }, [audioUrl]);
 
   const processAndSave = async (blob: Blob) => {
     if (!usuarioId) return;
@@ -250,9 +290,14 @@ export function useVoiceEnrollment(usuarioId: string | null) {
     isEnrolled,
     enrolledFingerprint,
     loading,
+    recordedBlob,
+    recordingSeconds,
     loadEnrollment,
     startRecording,
     stopRecording,
+    playRecording,
+    saveRecording,
+    discardRecording,
     resetEnrollment,
   };
 }

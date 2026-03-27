@@ -10,7 +10,7 @@ import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wifi, WifiOff, Loader2, Brain } from "lucide-react";
+import { Wifi, WifiOff, Loader2, Brain, Phone } from "lucide-react";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
@@ -18,6 +18,7 @@ import { WhatsAppSimulatorPanel } from "./WhatsAppSimulatorPanel";
 import { SimulatorMetricsPanel } from "./SimulatorMetricsPanel";
 import { StartConversationModal } from "./StartConversationModal";
 import { ChatRightPanel } from "./ChatRightPanel";
+import { WhatsAppContactsList } from "./WhatsAppContactsList";
 import type { ChatConversation } from "./types";
 
 type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
@@ -152,6 +153,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const [inputValue, setInputValue] = useState("");
   const [showStartModal, setShowStartModal] = useState(false);
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
+  const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
@@ -568,7 +570,14 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       {/* WhatsApp Connection Status Bar */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/30">
         <span className="text-xs font-medium text-foreground">Chat de Vendas</span>
-        <WhatsAppStatusTag status={whatsappStatus} provider={whatsappProvider} />
+        <div className="flex items-center gap-2">
+          {whatsappStatus === "online" && (
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowWhatsAppContacts(true)}>
+              <Phone className="h-3 w-3" /> Contatos WA
+            </Button>
+          )}
+          <WhatsAppStatusTag status={whatsappStatus} provider={whatsappProvider} />
+        </div>
       </div>
       <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Conversation list */}
@@ -664,6 +673,13 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         currentUserRole={currentUser?.cargo_nome || null}
         currentUserId={userId || currentUser?.id || null}
         existingConversationIds={existingConvIds}
+      />
+
+      {/* WhatsApp Contacts */}
+      <WhatsAppContactsList
+        tenantId={tenantId}
+        open={showWhatsAppContacts}
+        onClose={() => setShowWhatsAppContacts(false)}
       />
       </div>
     </div>
