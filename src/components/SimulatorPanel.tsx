@@ -36,6 +36,7 @@ import {useCurrentUser} from "@/hooks/useCurrentUser";
 import {useCompanySettings} from "@/hooks/useCompanySettings";
 import {useDiscountOptions} from "@/hooks/useDiscountOptions";
 import {useUsuarios} from "@/hooks/useUsuarios";
+import {useDiscountApproval} from "@/hooks/useDiscountApproval";
 import {useIndicadores} from "@/hooks/useIndicadores";
 import {useTenantPlanContext} from "@/hooks/useTenantPlan";
 import {getResolvedTenantId} from "@/contexts/TenantContext";
