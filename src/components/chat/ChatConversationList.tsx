@@ -141,6 +141,27 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
 
   return (
     <div className="flex flex-col h-full border-r border-border bg-card">
+      {/* Role-based filter indicator */}
+      {currentUserName && (
+        <div className={cn(
+          "px-3 py-1.5 border-b border-border text-[10px] font-medium flex items-center gap-1.5",
+          isAdminOrManager
+            ? "bg-primary/5 text-primary"
+            : "bg-accent/50 text-accent-foreground"
+        )}>
+          {isAdminOrManager ? (
+            <>
+              <Users className="h-3 w-3" />
+              <span>👁️ Visão completa — Todas as conversas</span>
+            </>
+          ) : (
+            <>
+              <Users className="h-3 w-3" />
+              <span>🔒 Minhas conversas — {currentUserName}</span>
+            </>
+          )}
+        </div>
+      )}
       {/* Header */}
       <div className="p-3 border-b border-border space-y-2">
         <div className="flex items-center justify-between">
