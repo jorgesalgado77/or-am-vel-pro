@@ -120,9 +120,20 @@ function extractContextSignals(mensagem: string, historico: any[]) {
   const mentionsTimeFriction = /perder tempo|sem tempo|corrido|mais pr[aá]tico|praticidade|agilidade/i.test(combined);
   const explicitDisinterest = /n[ãa]o tenho(?:\s+mais)?\s+interesse|perdi o interesse|n[ãa]o quero mais|n[ãa]o vou seguir|n[ãa]o faz mais sentido|j[aá] desisti|deixa pra l[aá]|pode encerrar|n[ãa]o vou fechar/i.test(combined);
 
+  // Decision-maker identification
+  const mentionsMarido = /meu marido|marido/i.test(combined);
+  const mentionsEsposa = /minha esposa|esposa|minha mulher/i.test(combined);
+  const mentionsSocio = /s[oó]cio|s[oó]cia|parceiro de neg[oó]cio|meu parceiro|minha parceira/i.test(combined);
+  const mentionsArquiteto = /arquitet[oa]|designer|projetista|meu arquiteto|minha arquiteta/i.test(combined);
+  const decisionMakerType: string | null = mentionsMarido ? "marido" : mentionsEsposa ? "esposa" : mentionsSocio ? "socio" : mentionsArquiteto ? "arquiteto" : mentionsDecisionMaker ? "outro" : null;
+
   const signalLabels = [
     explicitDisinterest ? "cliente verbalizou desinteresse explícito" : "",
-    mentionsDecisionMaker ? "há outro decisor envolvido" : "",
+    decisionMakerType === "marido" ? "decisor: marido" : "",
+    decisionMakerType === "esposa" ? "decisor: esposa" : "",
+    decisionMakerType === "socio" ? "decisor: sócio/parceiro" : "",
+    decisionMakerType === "arquiteto" ? "decisor: arquiteto/designer" : "",
+    (mentionsDecisionMaker && !decisionMakerType) ? "há outro decisor envolvido" : "",
     asksAlternativeService ? "cliente quer atendimento remoto/prático" : "",
     mentionsTimeFriction ? "cliente quer reduzir tempo e deslocamento" : "",
   ].filter(Boolean);
@@ -130,29 +141,108 @@ function extractContextSignals(mensagem: string, historico: any[]) {
   return {
     explicitDisinterest,
     mentionsDecisionMaker,
+    decisionMakerType,
     asksAlternativeService,
     mentionsTimeFriction,
     signalLabels,
   };
 }
 
+// === DECISION-MAKER OBJECTION MATRIX ===
+const DECISION_MAKER_MATRIX: Record<string, { directive: string; strategies: string[] }> = {
+  marido: {
+    directive: `O MARIDO é o co-decisor. A cliente já tem interesse mas precisa do aval dele.
+🔴 NÃO diga "traga seu marido na loja". Isso gera atrito.
+🔴 FACILITE a participação dele sem esforço: videochamada, apresentação por link, resumo visual.
+🔴 Fale na linguagem do marido: ROI, praticidade, valorização do imóvel, durabilidade.
+🔴 Posicione o projeto como INVESTIMENTO, não gasto.`,
+    strategies: [
+      `"Consigo fazer uma apresentação rápida de 15 min por vídeo — seu marido entra do celular dele e vê tudo ao vivo, sem sair do trabalho."`,
+      `"Preparo um resumo visual com investimento, materiais e valorização do imóvel pra ele analisar no tempo dele. Mando por WhatsApp mesmo."`,
+      `"Muitos maridos que atendo preferem ver os números primeiro — posso montar um comparativo de custo x durabilidade que deixa a decisão mais fácil pros dois."`,
+    ],
+  },
+  esposa: {
+    directive: `A ESPOSA é a co-decisora. O cliente já tem interesse mas precisa do aval dela.
+🔴 NÃO minimize a participação dela. Ela é decisora, não aprovadora.
+🔴 FACILITE a participação com visualização do ambiente: projeto 3D, moodboard, referências.
+🔴 Fale na linguagem do design, conforto, estética, funcionalidade do dia a dia.
+🔴 Convide os dois para uma experiência visual juntos.`,
+    strategies: [
+      `"Que tal eu preparar uma visualização 3D do ambiente pra vocês verem juntos? Ela pode opinar sobre cores e acabamentos ao vivo."`,
+      `"Monto um moodboard personalizado com as referências do espaço — é rápido e ela pode ver do celular. Assim vocês decidem juntos."`,
+      `"Muitas esposas que atendo adoram participar da escolha de acabamento. Posso fazer uma call rápida com os dois pra mostrar as opções."`,
+    ],
+  },
+  socio: {
+    directive: `O SÓCIO/PARCEIRO COMERCIAL é o co-decisor. É uma decisão de negócio.
+🔴 Trate como investimento empresarial: ROI, depreciação, imagem do negócio.
+🔴 Ofereça apresentação executiva com números e payback.
+🔴 Fale em valorização do ponto, produtividade do espaço, impressão nos clientes.
+🔴 Facilite uma reunião rápida com ambos os sócios.`,
+    strategies: [
+      `"Consigo montar uma apresentação executiva com ROI e payback do investimento. Seu sócio pode entrar na call de 15 min e ver os números."`,
+      `"Projetos comerciais como esse costumam se pagar em 2-3 anos pela valorização do ponto. Posso preparar o comparativo pra vocês dois analisarem."`,
+      `"Muitos sócios pedem justificativa financeira — monto um one-pager com custo, benefício e prazo pra facilitar a decisão conjunta."`,
+    ],
+  },
+  arquiteto: {
+    directive: `O ARQUITETO/DESIGNER é o co-decisor técnico.
+🔴 NÃO tente contornar o arquiteto — trate como ALIADO.
+🔴 Fale linguagem TÉCNICA: especificações, catálogos, fichas de material.
+🔴 Ofereça colaboração: planta com medidas, blocos 3D, paleta de materiais.
+🔴 Posicione-se como parceiro do profissional, não concorrente.`,
+    strategies: [
+      `"Posso enviar nossa ficha técnica completa (materiais, ferragens, acabamentos) pro seu arquiteto avaliar. Trabalhamos com Blum, Hafele e laminados de primeira linha."`,
+      `"Muitos arquitetos que trabalham conosco gostam de receber o arquivo técnico do projeto pra validar. Posso mandar o DWG/PDF detalhado."`,
+      `"Se quiser, posso agendar uma call técnica rápida com seu arquiteto — alinhamos especificações e ele fica tranquilo com a qualidade do projeto."`,
+    ],
+  },
+  outro: {
+    directive: `Há um CO-DECISOR não identificado no processo.
+🔴 Descubra quem é com uma pergunta natural.
+🔴 Facilite a participação remota sem pressionar visita.
+🔴 Ofereça material que possa ser compartilhado facilmente.`,
+    strategies: [
+      `"Entendi que vocês vão decidir juntos — posso preparar um resumo visual pra compartilhar? Assim a outra pessoa vê tudo sem precisar vir até aqui."`,
+      `"Consigo fazer uma apresentação rápida por vídeo pra vocês dois verem ao mesmo tempo. Funciona pra você?"`,
+    ],
+  },
+};
+
 function buildContextDirective(signals: ReturnType<typeof extractContextSignals>, dealRoomLink: string) {
-  if (!signals.mentionsDecisionMaker && !signals.asksAlternativeService && !signals.mentionsTimeFriction) {
-    return "";
+  const parts: string[] = [];
+
+  // Decision-maker matrix
+  if (signals.decisionMakerType && DECISION_MAKER_MATRIX[signals.decisionMakerType]) {
+    const matrix = DECISION_MAKER_MATRIX[signals.decisionMakerType];
+    const strategyIndex = Math.floor(Math.random() * matrix.strategies.length);
+    parts.push(`
+=== MATRIZ DE DECISOR: ${signals.decisionMakerType.toUpperCase()} ===
+${matrix.directive}
+
+EXEMPLO DE RESPOSTA IDEAL (adapte ao contexto, NÃO copie literal):
+${matrix.strategies[strategyIndex]}
+`);
   }
 
-  return `
+  // Time friction / alternative service
+  if (signals.asksAlternativeService || signals.mentionsTimeFriction) {
+    parts.push(`
+=== ATRITO DE DESLOCAMENTO/TEMPO ===
+- Ofereça atendimento remoto objetivo, prático e confortável.
+- Explique em 1 frase COMO funciona (ex.: videochamada de 15 min com projeto 3D).
+- NÃO force material/ferragem se a dúvida for sobre formato de atendimento.`);
+  }
 
-=== LEITURA PROFUNDA DE CONTEXTO (OBRIGATÓRIA) ===
-O cliente não está pedindo preço agora; ele está sinalizando ATRITO na jornada de compra.
-- Se mencionar marido, esposa ou outra pessoa: trate como decisão compartilhada e facilite a participação dos dois.
-- Se disser que não quer ir à loja ou perder tempo: ofereça atendimento remoto objetivo, prático e confortável.
-- Explique em 1 frase COMO funciona esse atendimento (ex.: videochamada de 15 min com projeto 3D, materiais e próximos passos).
-- A resposta precisa validar a preocupação e reduzir esforço, sem soar robótica.
-- NÃO fale de navegação, mapa, fluxo técnico genérico ou qualquer detalhe fora da pergunta.
-- NÃO force material/ferragem se a dúvida for sobre formato de atendimento; nesse caso, o elemento concreto deve ser o processo/tempo/conveniência.
-- Se houver link da Deal Room, use-o como solução prática para o casal decidir junto${dealRoomLink ? `: ${dealRoomLink}` : ""}.
-`;
+  // Deal Room link for decision-maker contexts
+  if (dealRoomLink && (signals.mentionsDecisionMaker || signals.asksAlternativeService)) {
+    parts.push(`
+🔴 Use este link da Deal Room como solução prática para decisão conjunta: ${dealRoomLink}`);
+  }
+
+  if (parts.length === 0) return "";
+  return "\n\n=== LEITURA PROFUNDA DE CONTEXTO (OBRIGATÓRIA) ===\n" + parts.join("\n");
 }
 
 function calcClosingScore(intent: string, tipoCopy: string): number {
@@ -284,24 +374,139 @@ function sanitizeGeneratedMessage(message: string, intent: string, originalMessa
   let result = (message || "").trim();
   if (!result) return result;
 
-  if (intent === "desinteresse_explicit") {
-    const genericPatterns = [
-      /transformam seu lar/i,
-      /não perca a chance/i,
-      /vamos explorar juntos/i,
-      /espaço especial/i,
-      /reuni[aã]o/i,
-    ];
+  return result;
+}
 
-    if (genericPatterns.some((pattern) => pattern.test(result))) {
-      const mentionsInterest = /n[ãa]o tenho(?:\s+mais)?\s+interesse|perdi o interesse/i.test(originalMessage);
-      if (mentionsInterest) {
-        return "Entendi — quando você diz que não tem mais interesse, foi pelo valor, pelo momento ou porque o projeto saiu da prioridade? Se me falar em 1 linha, eu te respondo com objetividade e sem insistir.";
+// === QUALITY VALIDATOR ===
+const GENERIC_BLACKLIST: RegExp[] = [
+  /cada projeto [eé] [uú]nico/i,
+  /preparei algo especial/i,
+  /aten[çc][ãa]o especial/i,
+  /transformam seu lar/i,
+  /n[ãa]o perca a chance/i,
+  /vamos explorar juntos/i,
+  /espa[çc]o especial/i,
+  /conforto e seguran[çc]a/i,
+  /n[ãa]o perca essa oportunidade/i,
+  /assim como um designer cuida/i,
+  /nossos m[oó]veis transformam/i,
+  /seu lar merece/i,
+  /fa[çc]a a escolha certa/i,
+  /invista no seu sonho/i,
+  /estamos aqui para ajudar/i,
+  /ficamos [àa] disposi[çc][ãa]o/i,
+  /qualquer d[úu]vida estamos aqui/i,
+  /será um prazer/i,
+  /temos as melhores solu[çc][õo]es/i,
+  /somos especialistas/i,
+  /temos o melhor/i,
+  /somos a melhor op[çc][ãa]o/i,
+];
+
+interface QualityResult {
+  passed: boolean;
+  reason: string;
+  genericMatches: string[];
+}
+
+function validateResponseQuality(
+  response: string,
+  intent: string,
+  originalMessage: string,
+  previousSellerMessages: string[],
+): QualityResult {
+  if (!response || response.trim().length < 10) {
+    return { passed: false, reason: "resposta vazia ou muito curta", genericMatches: [] };
+  }
+
+  // Check generic blacklist
+  const genericMatches: string[] = [];
+  for (const pattern of GENERIC_BLACKLIST) {
+    if (pattern.test(response)) {
+      const match = response.match(pattern);
+      genericMatches.push(match?.[0] || pattern.source);
+    }
+  }
+  if (genericMatches.length >= 2) {
+    return { passed: false, reason: "múltiplas frases genéricas detectadas", genericMatches };
+  }
+
+  // Check if response is off-context for desinteresse
+  if (intent === "desinteresse_explicit") {
+    const pushesProduct = /cozinha|closet|dormit[oó]rio|banheiro|lavanderia|sala|quarto/i.test(response) &&
+      !/por que|motivo|o que mudou|o que aconteceu|causa/i.test(response);
+    if (pushesProduct) {
+      return { passed: false, reason: "empurra produto quando cliente disse não ter interesse", genericMatches };
+    }
+  }
+
+  // Check repetition against previous seller messages
+  if (previousSellerMessages.length > 0) {
+    const responseLower = response.toLowerCase().trim();
+    const responseWords = new Set(responseLower.split(/\s+/).filter(w => w.length > 3));
+
+    for (const prev of previousSellerMessages) {
+      const prevLower = prev.toLowerCase().trim();
+      if (!prevLower) continue;
+
+      // Exact or near-exact match
+      if (responseLower === prevLower) {
+        return { passed: false, reason: "resposta idêntica a uma anterior", genericMatches };
+      }
+
+      // Word overlap > 70%
+      const prevWords = new Set(prevLower.split(/\s+/).filter(w => w.length > 3));
+      if (prevWords.size > 0 && responseWords.size > 0) {
+        const overlap = [...responseWords].filter(w => prevWords.has(w)).length;
+        const similarity = overlap / Math.max(responseWords.size, prevWords.size);
+        if (similarity > 0.7) {
+          return { passed: false, reason: `similaridade de ${Math.round(similarity * 100)}% com resposta anterior`, genericMatches };
+        }
       }
     }
   }
 
-  return result;
+  // Check if response mentions client's actual words (context relevance)
+  if (originalMessage && originalMessage.length > 10) {
+    const clientKeywords = originalMessage.toLowerCase()
+      .split(/\s+/)
+      .filter(w => w.length > 4)
+      .filter(w => !["porque", "quando", "existe", "alguma", "outra", "forma", "tenho", "quero", "posso", "estou", "estava"].includes(w));
+
+    if (clientKeywords.length > 0) {
+      const respLower = response.toLowerCase();
+      const hasAnyReference = clientKeywords.some(kw => respLower.includes(kw));
+      // Only flag if there are enough meaningful keywords to expect a reference
+      if (!hasAnyReference && clientKeywords.length >= 3) {
+        // Soft warning — don't block, just note
+        // return { passed: false, reason: "nenhuma referência ao que o cliente disse", genericMatches };
+      }
+    }
+  }
+
+  return { passed: true, reason: "ok", genericMatches };
+}
+
+// Fallback responses by intent for when quality validation fails
+const FALLBACK_RESPONSES: Record<string, string[]> = {
+  desinteresse_explicit: [
+    "Entendi, [nome]. Sem insistência — mas me fala: foi pelo valor, pelo momento ou o projeto saiu da prioridade? Em 1 linha resolvo sua dúvida.",
+    "[nome], respeito sua decisão. Só pra eu entender e melhorar: o que pesou mais — preço, prazo ou mudou de planos? Fico no aguardo sem pressão.",
+    "Sem problema, [nome]. Antes de encerrar: foi algo que faltou no projeto ou mudou a prioridade? Pergunto pra te atender melhor se voltar.",
+  ],
+  objecao: [
+    "[nome], entendo a hesitação. Pesquisa da ABIMÓVEL mostra que planejados valorizam o imóvel em até 15% — é investimento que se paga. Quer ver os números na nossa sala online?",
+    "[nome], comparando com modulado: planejado dura 10-15 anos vs. 3-5. Dividido por dia, custa menos que um café. Vale a pena ver o comparativo ao vivo?",
+  ],
+  outro: [
+    "[nome], pra avançar de forma objetiva: qual ambiente é prioridade pra você agora? Assim monto algo certeiro.",
+  ],
+};
+
+function getFallbackResponse(intent: string, nomeCliente: string, attemptIndex: number): string {
+  const pool = FALLBACK_RESPONSES[intent] || FALLBACK_RESPONSES.outro;
+  const idx = attemptIndex % pool.length;
+  return pool[idx].replace(/\[nome\]/g, nomeCliente || "");
 }
 
 serve(async (req) => {
@@ -427,11 +632,12 @@ serve(async (req) => {
       userPrompt += `\nLink Deal Room disponível (use se fizer sentido): ${deal_room_link}`;
     }
 
-    if (historico.length > 0) {
-      const previousSellerMessages = historico
-        .filter((h: any) => h.remetente_tipo !== "cliente")
-        .map((h: any) => (h.mensagem || "").slice(0, 200));
+    // Extract previous seller messages for quality check
+    const previousSellerMessages = historico
+      .filter((h: any) => h.remetente_tipo !== "cliente")
+      .map((h: any) => (h.mensagem || "").slice(0, 300));
 
+    if (historico.length > 0) {
       userPrompt += "\n\n--- HISTÓRICO RECENTE ---";
       for (const h of historico.slice(-8)) {
         const role = h.remetente_tipo === "cliente" ? "Cliente" : "Vendedor";
@@ -517,6 +723,52 @@ serve(async (req) => {
       ai_provider_used = "openai";
     }
 
+    // === QUALITY VALIDATION ===
+    let qualityResult = validateResponseQuality(mensagem, intencao, mensagem_cliente, previousSellerMessages);
+    let validationAttempts = 0;
+
+    if (!qualityResult.passed && validationAttempts < 1) {
+      // Try regenerating once with stronger instructions
+      validationAttempts++;
+      const retryPrompt = userPrompt +
+        `\n\n🔴🔴🔴 A RESPOSTA ANTERIOR FOI REJEITADA: ${qualityResult.reason}.` +
+        (qualityResult.genericMatches.length > 0 ? `\nFrases genéricas detectadas: ${qualityResult.genericMatches.join(", ")}` : "") +
+        `\nGere uma resposta COMPLETAMENTE DIFERENTE, sem frases genéricas, referenciando diretamente o que o cliente disse.`;
+
+      try {
+        const retryRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: openai_model || "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: retryPrompt },
+            ],
+            max_tokens: effectiveMaxTokens,
+            temperature: Math.min(temperature + 0.15, 1.3),
+            presence_penalty: 1.2,
+            frequency_penalty: 1.0,
+          }),
+        });
+        if (retryRes.ok) {
+          const retryData = await retryRes.json();
+          const retryMsg = retryData.choices?.[0]?.message?.content || "";
+          const retryQuality = validateResponseQuality(retryMsg, intencao, mensagem_cliente, previousSellerMessages);
+          if (retryQuality.passed) {
+            mensagem = retryMsg;
+            tokens_usados += retryData.usage?.total_tokens || 0;
+            qualityResult = retryQuality;
+          }
+        }
+      } catch (e) { console.error("Quality retry error:", e); }
+    }
+
+    // If still failing, use curated fallback
+    if (!qualityResult.passed) {
+      mensagem = getFallbackResponse(intencao, nome_cliente, historico.length);
+    }
+
     mensagem = sanitizeGeneratedMessage(mensagem, intencao, mensagem_cliente);
 
     // Post-process: if price intent and Deal Room link missing from response, append it
@@ -533,6 +785,9 @@ serve(async (req) => {
       disc_profile: detectedDisc,
       used_perplexity: !!perplexity_data || ai_provider_used === "perplexity",
       ai_provider: ai_provider_used,
+      quality_validated: qualityResult.passed,
+      quality_reason: qualityResult.reason,
+      decision_maker: contextSignals.decisionMakerType || null,
     });
   } catch (e) {
     console.error("vendazap-ai error:", e);
