@@ -112,6 +112,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     if (!contracts || contracts.length === 0) {
       setTrackingRaw([]);
       setTrackingData({ count: 0, total: 0 });
+      setContractClientIds(new Set());
       return;
     }
 
