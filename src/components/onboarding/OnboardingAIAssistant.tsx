@@ -49,6 +49,7 @@ export function OnboardingAIAssistant() {
   const [input, setInput] = useState("");
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Drag state
@@ -63,10 +64,7 @@ export function OnboardingAIAssistant() {
   // Auto-scroll to bottom on new messages or loading state
   useLayoutEffect(() => {
     requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        const el = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-        if (el) el.scrollTop = el.scrollHeight;
-      }
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     });
   }, [messages.length, loading]);
 
@@ -280,17 +278,21 @@ export function OnboardingAIAssistant() {
                 <MessageBubble key={msg.id} message={msg} />
               ))}
               {loading && (
-                <div className="flex items-center gap-2 px-3 py-2">
+                <div className="flex items-start gap-2 px-3 py-2 animate-fade-in">
                   <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Bot className="h-4 w-4 text-primary" />
+                    <Bot className="h-4 w-4 text-primary animate-pulse" />
                   </div>
-                  <div className="flex gap-1">
-                    <span className="h-2 w-2 rounded-full bg-primary/40 animate-bounce [animation-delay:0ms]" />
-                    <span className="h-2 w-2 rounded-full bg-primary/40 animate-bounce [animation-delay:150ms]" />
-                    <span className="h-2 w-2 rounded-full bg-primary/40 animate-bounce [animation-delay:300ms]" />
+                  <div className="bg-muted rounded-xl rounded-tl-sm px-3 py-2 space-y-1">
+                    <div className="flex gap-1 items-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground italic">Mia está digitando...</p>
                   </div>
                 </div>
               )}
+              <div ref={bottomRef} />
             </div>
           </ScrollArea>
 
