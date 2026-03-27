@@ -367,5 +367,11 @@ export function MeasurementKanban() {
         </div>
       </div>
     </div>
+      </TabsContent>
+
+      <TabsContent value="report">
+        <MeasurementReport />
+      </TabsContent>
+    </Tabs>
   );
 }
