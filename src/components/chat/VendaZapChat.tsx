@@ -309,9 +309,40 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       return;
     }
 
+    let actualTrackingId = trackingId;
+
+    // Check if a client_tracking record exists for this ID
+    const { data: existingTracking } = await supabase
+      .from("client_tracking")
+      .select("id")
+      .eq("id", trackingId)
+      .maybeSingle();
+
+    if (!existingTracking) {
+      // trackingId is a client ID — create a client_tracking record
+      const { data: newTracking, error: trackError } = await supabase
+        .from("client_tracking")
+        .insert({
+          client_id: trackingId,
+          nome_cliente: clientName,
+          numero_contrato: contractNumber || `CHAT-${Date.now()}`,
+          tenant_id: tenantId,
+          status: "em_negociacao",
+        })
+        .select("id")
+        .single();
+
+      if (trackError || !newTracking) {
+        toast.error("Erro ao criar registro de conversa");
+        console.error("client_tracking insert error:", trackError);
+        return;
+      }
+      actualTrackingId = newTracking.id;
+    }
+
     // Send a system message to initialize the conversation
     const { error } = await supabase.from("tracking_messages").insert({
-      tracking_id: trackingId,
+      tracking_id: actualTrackingId,
       mensagem: `Conversa iniciada por ${currentUser?.nome_completo || "Usuário"}`,
       remetente_tipo: "loja",
       remetente_nome: currentUser?.nome_completo || "Loja",
@@ -320,6 +351,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     if (error) {
       toast.error("Erro ao iniciar conversa");
+      console.error("tracking_messages insert error:", error);
       return;
     }
 
@@ -328,13 +360,13 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     // Select the new conversation
     const newConv: ChatConversation = {
-      id: trackingId,
+      id: actualTrackingId,
       numero_contrato: contractNumber,
       nome_cliente: clientName,
       unread_count: 0,
     };
     handleSelectConversation(newConv);
-  }, [conversations, currentUser, fetchConversations]);
+  }, [conversations, currentUser, fetchConversations, tenantId]);
 
   const existingConvIds = useMemo(() => new Set(conversations.map((c) => c.id)), [conversations]);
 
