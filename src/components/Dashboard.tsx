@@ -1069,6 +1069,7 @@ function ContractTrackingList() {
   const [trackings, setTrackings] = useState<TrackingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filterProjetista, setFilterProjetista] = useState("_all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     numero_contrato: "", nome_cliente: "", cpf_cnpj: "",
@@ -1150,13 +1151,21 @@ function ContractTrackingList() {
     }
   }, [form, fetchTrackings]);
 
+  const uniqueProjetistas = useMemo(() => {
+    const set = new Set<string>();
+    trackings.forEach((t) => { const p = t.projetista || t.vendedor; if (p) set.add(p); });
+    return Array.from(set).sort();
+  }, [trackings]);
+
   const filtered = useMemo(() =>
-    trackings.filter((t) =>
-      t.numero_contrato.toLowerCase().includes(search.toLowerCase()) ||
-      t.nome_cliente.toLowerCase().includes(search.toLowerCase()) ||
-      (t.projetista || "").toLowerCase().includes(search.toLowerCase())
-    ),
-    [trackings, search]
+    trackings.filter((t) => {
+      const matchSearch = t.numero_contrato.toLowerCase().includes(search.toLowerCase()) ||
+        t.nome_cliente.toLowerCase().includes(search.toLowerCase()) ||
+        (t.projetista || "").toLowerCase().includes(search.toLowerCase());
+      const matchProjetista = filterProjetista === "_all" || (t.projetista || t.vendedor) === filterProjetista;
+      return matchSearch && matchProjetista;
+    }),
+    [trackings, search, filterProjetista]
   );
 
   const getStatusLabel = useCallback((val: string) =>
@@ -1183,10 +1192,21 @@ function ContractTrackingList() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-4">
-          <div className="relative max-w-sm">
+        <div className="mb-4 flex flex-wrap gap-3 items-end">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar contrato, cliente ou projetista..." className="pl-9" />
+          </div>
+          <div className="min-w-[180px]">
+            <Select value={filterProjetista} onValueChange={setFilterProjetista}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Projetista" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_all">Todos os projetistas</SelectItem>
+                {uniqueProjetistas.map((p) => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="rounded-md border overflow-auto">
