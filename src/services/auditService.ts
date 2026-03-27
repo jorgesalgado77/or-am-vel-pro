@@ -39,7 +39,8 @@ export type AuditAction =
   | "lead_enviado_responsavel"
   | "tenant_ativado"
   | "tenant_desativado"
-  | "tenant_excluido";
+  | "tenant_excluido"
+  | "solicitacao_medida_criada";
 
 export type AuditEntity =
   | "client"
@@ -54,7 +55,8 @@ export type AuditEntity =
   | "tracking_messages"
   | "followup_config"
   | "followup_schedule"
-  | "tenant";
+  | "tenant"
+  | "measurement_request";
 
 interface AuditLogInput {
   acao: AuditAction;

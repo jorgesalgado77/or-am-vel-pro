@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, UserPlus, CalendarIcon, FileText, Calculator } from "lucide-react";
 import { addDays, isPast } from "date-fns";
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 import { playNotificationSound } from "@/lib/notificationSound";
 import { formatCurrency } from "@/lib/financing";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
@@ -41,6 +42,7 @@ export function ClientsKanban({
   const [lastSims, setLastSims] = useState<Record<string, LastSimInfo>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
+  const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
 
   const { settings } = useCompanySettings();
   const { projetistas, usuarios } = useUsuarios();
@@ -113,6 +115,22 @@ export function ClientsKanban({
       setFollowUpStatus(statusMap);
     };
     fetchFollowUpStatuses();
+  }, [localClients]);
+
+  // Fetch client_tracking to detect closed contracts
+  useEffect(() => {
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    const fetchContractClients = async () => {
+      const { data } = await supabase
+        .from("client_tracking")
+        .select("client_id")
+        .eq("tenant_id", tenantId);
+      if (data) {
+        setContractClientIds(new Set((data as any[]).map((d: any) => d.client_id)));
+      }
+    };
+    fetchContractClients();
   }, [localClients]);
 
   // Realtime: listen for new leads sent to the current user
@@ -228,6 +246,11 @@ export function ClientsKanban({
       if (status === "proposta_enviada") status = "em_negociacao";
       if (status === "novo" && client.vendedor) status = "em_negociacao";
       
+      // Auto-move clients with closed contracts to "fechado"
+      if (contractClientIds.has(client.id)) {
+        status = "fechado";
+      }
+      
       // Auto-expire: if client has a simulation and it's past validity, move to expirado
       const sim = lastSims[client.id];
       if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado") {
@@ -243,7 +266,7 @@ export function ClientsKanban({
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds]);
 
   // Drag and drop handler
   const handleDragEnd = useCallback(async (result: DropResult) => {
