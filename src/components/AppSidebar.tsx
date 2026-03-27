@@ -47,8 +47,14 @@ export function AppSidebar({
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
   const { mode, cycleTheme } = useTheme();
-  const [notifications, setNotifications] = useState<Array<{ id: string; conteudo: string; created_at: string; lido: boolean }>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  const tenantId = (currentUser as any)?.tenant_id || null;
+  const { notifications, unreadCount: unreadNotifications, markAsRead, markAllRead } = useNotificationCenter(
+    currentUser?.id,
+    currentUser?.nome_completo,
+    tenantId
+  );
 
   const isAdmin = currentUser?.cargo_nome?.toUpperCase().includes("ADMINISTRADOR") || currentUser?.cargo_nome?.toUpperCase().includes("ADMIN");
   const ThemeIcon = THEME_ICONS[mode];
