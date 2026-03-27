@@ -11,6 +11,7 @@ import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
 import { WhatsAppSimulatorPanel } from "./WhatsAppSimulatorPanel";
+import { SimulatorMetricsPanel } from "./SimulatorMetricsPanel";
 import { StartConversationModal } from "./StartConversationModal";
 import type { ChatConversation } from "./types";
 
@@ -300,6 +301,11 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
           onSendManual={handleSendSimulated}
           hasSelectedConversation={!!selected}
         />
+        {simConfig.enabled && (
+          <div className="px-2 py-2 border-b border-border">
+            <SimulatorMetricsPanel />
+          </div>
+        )}
         <ChatConversationList
           conversations={conversations}
           selectedId={selected?.id || null}
