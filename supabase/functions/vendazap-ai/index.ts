@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,31 @@ function respond(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+/**
+ * Resolve API key for a given tenant + provider.
+ * Falls back to global env var if tenant has no custom key.
+ */
+async function resolveApiKey(tenantId: string | null, provider: "openai" | "perplexity"): Promise<string | null> {
+  if (tenantId) {
+    try {
+      const sbUrl = Deno.env.get("SUPABASE_URL");
+      const sbKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (sbUrl && sbKey) {
+        const sb = createClient(sbUrl, sbKey);
+        const { data } = await sb.rpc("get_api_config", { p_tenant_id: tenantId, p_provider: provider });
+        if (data && data.length > 0 && data[0].api_key) {
+          return data[0].api_key;
+        }
+      }
+    } catch (e) {
+      console.warn(`[resolveApiKey] Failed for tenant ${tenantId}/${provider}:`, e);
+    }
+  }
+  // Fallback to global env
+  const envKey = provider === "openai" ? "OPENAI_API_KEY" : "PERPLEXITY_API_KEY";
+  return Deno.env.get(envKey) || null;
 }
 
 // DISC profile detection from message patterns
