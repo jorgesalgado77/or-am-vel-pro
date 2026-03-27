@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KeyRound, Plus, Trash2, Eye, EyeOff, Shield, CheckCircle2, XCircle, Webhook, Copy, ExternalLink } from "lucide-react";
 import { useApiKeys, API_PROVIDERS, type ApiProvider } from "@/hooks/useApiKeys";
+import { supabase } from "@/lib/supabaseClient";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 
@@ -24,6 +25,9 @@ export function ApiKeysTab() {
   const availableProviders = API_PROVIDERS.filter(p => !keys.some(k => k.provider === p.value));
   const providerMeta = (provider: string) => API_PROVIDERS.find(p => p.value === provider);
 
+  const [validating, setValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<{ valid: boolean; error?: string } | null>(null);
+
   const handleSave = async () => {
     if (!selectedProvider || !apiKey.trim()) {
       toast.error("Preencha o provider e a API Key");
@@ -35,13 +39,46 @@ export function ApiKeysTab() {
       return;
     }
     setSaving(true);
-    const ok = await upsertKey(selectedProvider as ApiProvider, apiKey.trim(), apiUrl.trim() || undefined);
-    if (ok) {
+    setValidating(true);
+    setValidationResult(null);
+
+    try {
+      // Validate API key via edge function
+      const { data: result, error: fnError } = await supabase.functions.invoke("onboarding-ai", {
+        body: {
+          action: "validate_api_key",
+          tenant_id: tenantId,
+          provider: selectedProvider,
+          api_key: apiKey.trim(),
+          api_url: apiUrl.trim() || undefined,
+        },
+      });
+
+      setValidating(false);
+
+      if (fnError || !result?.valid) {
+        const errorMsg = result?.error || fnError?.message || "Não foi possível validar";
+        setValidationResult({ valid: false, error: errorMsg });
+        toast.error(`❌ Validação falhou: ${errorMsg}`);
+        setSaving(false);
+        return;
+      }
+
+      setValidationResult({ valid: true });
+      toast.success(`✅ ${meta?.label || selectedProvider} validada com sucesso!`);
+
+      // Key was auto-saved by the edge function, just refresh
+      await upsertKey(selectedProvider as ApiProvider, apiKey.trim(), apiUrl.trim() || undefined);
       setShowForm(false);
       setSelectedProvider("");
       setApiKey("");
       setApiUrl("");
+      setValidationResult(null);
+    } catch (err) {
+      setValidating(false);
+      toast.error("Erro ao validar API key");
     }
+
     setSaving(false);
   };
 
@@ -122,9 +159,21 @@ export function ApiKeysTab() {
                     />
                   </div>
                 )}
+                {validationResult && !validationResult.valid && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs">
+                    <XCircle className="h-4 w-4 shrink-0" />
+                    <span>{validationResult.error}</span>
+                  </div>
+                )}
+                {validationResult?.valid && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-emerald-500/10 text-emerald-600 text-xs">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>API validada com sucesso!</span>
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  <Button onClick={handleSave} disabled={saving} size="sm">
-                    {saving ? "Salvando..." : "Salvar"}
+                  <Button onClick={handleSave} disabled={saving || validating} size="sm">
+                    {validating ? "Validando..." : saving ? "Salvando..." : "Validar e Salvar"}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setSelectedProvider(""); setApiKey(""); setApiUrl(""); }}>
                     Cancelar

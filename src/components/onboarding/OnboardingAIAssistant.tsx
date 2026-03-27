@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +13,13 @@ import {
   CheckCircle2,
   Circle,
   Loader2,
+  Settings,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
+import { useApiKeys } from "@/hooks/useApiKeys";
 
 const ONBOARDING_STEPS = [
   { key: "company_info", label: "Dados da loja" },
@@ -28,10 +32,17 @@ const ONBOARDING_STEPS = [
 export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage } = useOnboardingAI(tenantId);
+  const { keys } = useApiKeys(tenantId);
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const hasOpenAI = keys.some(k => k.provider === "openai" && k.is_active);
+  const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);
+  const missingCriticalKeys = !hasOpenAI || !hasEvolution;
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -153,6 +164,49 @@ export function OnboardingAIAssistant() {
               })}
             </div>
           </div>
+
+          {/* Missing API keys alert */}
+          {missingCriticalKeys && !missingKeysDismissed && (
+            <div className="px-3 py-2 border-b border-border bg-destructive/5 shrink-0">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground">
+                    {!hasOpenAI && !hasEvolution
+                      ? "APIs de IA e WhatsApp não configuradas"
+                      : !hasOpenAI
+                      ? "API da OpenAI não configurada"
+                      : "API do WhatsApp não configurada"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Configure em Configurações &gt; APIs para ativar os módulos.
+                  </p>
+                  <div className="flex gap-1.5 mt-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] gap-1 px-2"
+                      onClick={() => {
+                        setOpen(false);
+                        navigate("/?tab=settings&subtab=apis");
+                      }}
+                    >
+                      <Settings className="h-3 w-3" />
+                      Ir para APIs
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 text-[10px] px-2"
+                      onClick={() => setMissingKeysDismissed(true)}
+                    >
+                      Depois
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Messages */}
           <ScrollArea ref={scrollRef} className="flex-1 min-h-0">
