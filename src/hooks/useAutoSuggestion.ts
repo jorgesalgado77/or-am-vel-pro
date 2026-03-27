@@ -129,15 +129,26 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
       else if (/caro|absurdo|reclamar|insatisf/i.test(lower)) tom = "empatico";
     }
 
-    // DISC detection
+    // DISC detection — deeper analysis using full conversation
     const detectedDisc = recentMessages ? detectDISCFromMessages(recentMessages) : "";
     setDiscProfile(detectedDisc);
 
-    // Adapt tone based on DISC
-    if (detectedDisc === "D" && tom === "amigavel") tom = "direto";
-    else if (detectedDisc === "I" && tom === "amigavel") tom = "entusiasmado";
-    else if (detectedDisc === "S" && tom === "amigavel") tom = "acolhedor";
-    else if (detectedDisc === "C" && tom === "amigavel") tom = "tecnico";
+    // Count client messages for recalibration awareness
+    const clientMsgCount = recentMessages?.filter(m => m.remetente_tipo === "cliente").length || 0;
+    const isRecalibrationPoint = clientMsgCount > 0 && clientMsgCount % 10 === 0;
+
+    // Adapt tone based on DISC — stronger adaptation at recalibration points
+    if (detectedDisc === "D") tom = isRecalibrationPoint ? "direto" : (tom === "amigavel" ? "direto" : tom);
+    else if (detectedDisc === "I") tom = isRecalibrationPoint ? "entusiasmado" : (tom === "amigavel" ? "entusiasmado" : tom);
+    else if (detectedDisc === "S") tom = isRecalibrationPoint ? "acolhedor" : (tom === "amigavel" ? "acolhedor" : tom);
+    else if (detectedDisc === "C") tom = isRecalibrationPoint ? "tecnico" : (tom === "amigavel" ? "tecnico" : tom);
+
+    // At recalibration points, also adjust copy type based on DISC
+    if (isRecalibrationPoint && detectedDisc) {
+      const discCopyMap: Record<string, string> = { D: "fechamento", I: "reuniao", S: "reuniao", C: "objecao" };
+      const discCopy = discCopyMap[detectedDisc];
+      if (discCopy && autoCopyType === "geral") autoCopyType = discCopy;
+    }
 
     const dealRoomLink = options?.dealRoomLink || `${window.location.origin}/app`;
 
