@@ -2,6 +2,8 @@
  * ProductCatalog — Full product catalog management UI
  */
 import { useState, useRef, useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Package, Plus, Trash2, Pencil, Search, Loader2, Upload, Image as ImageIcon,
-  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X,
+  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart,
 } from "lucide-react";
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
 import { toast } from "sonner";
@@ -79,6 +81,39 @@ export function ProductCatalog() {
   // Supplier dialog
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
   const [supplierForm, setSupplierForm] = useState({ id: "", name: "", contact_name: "", contact_phone: "", contact_email: "", whatsapp: "" });
+
+  // Sale registration
+  const [saleDialogOpen, setSaleDialogOpen] = useState(false);
+  const [saleProduct, setSaleProduct] = useState<Product | null>(null);
+  const [saleQty, setSaleQty] = useState(1);
+  const [saleSaving, setSaleSaving] = useState(false);
+
+  const openSaleDialog = (p: Product) => {
+    setSaleProduct(p);
+    setSaleQty(1);
+    setSaleDialogOpen(true);
+  };
+
+  const handleRegisterSale = async () => {
+    if (!saleProduct) return;
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Tenant não identificado"); return; }
+    setSaleSaving(true);
+    const { error } = await supabase.from("product_sales" as any).insert({
+      tenant_id: tenantId,
+      product_id: saleProduct.id,
+      quantity: saleQty,
+      unit_price: saleProduct.sale_price,
+      total_price: saleProduct.sale_price * saleQty,
+    } as any);
+    if (error) {
+      toast.error("Erro ao registrar venda: " + error.message);
+    } else {
+      toast.success(`Venda de ${saleQty}x ${saleProduct.name} registrada!`);
+      setSaleDialogOpen(false);
+    }
+    setSaleSaving(false);
+  };
 
   const computedPrice = calculateSalePrice(form.cost_price, form.markup_percentage);
 
@@ -285,6 +320,9 @@ export function ProductCatalog() {
                               <TableCell className="text-xs hidden lg:table-cell">{p.supplier?.name || "—"}</TableCell>
                               <TableCell>
                                 <div className="flex gap-1">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Registrar venda" onClick={() => openSaleDialog(p)}>
+                                    <ShoppingCart className="h-3.5 w-3.5" />
+                                  </Button>
                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditProduct(p)}>
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
@@ -576,6 +614,48 @@ export function ProductCatalog() {
             <Button onClick={handleSaveSupplier} disabled={saving}>
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sale Registration Dialog */}
+      <Dialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ShoppingCart className="h-4 w-4 text-emerald-600" /> Registrar Venda
+            </DialogTitle>
+          </DialogHeader>
+          {saleProduct && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 border">
+                <p className="text-sm font-medium">{saleProduct.name}</p>
+                <p className="text-xs text-muted-foreground">{saleProduct.internal_code} • {saleProduct.category}</p>
+                <p className="text-sm font-semibold text-primary mt-1">{formatBRL(saleProduct.sale_price)} / un.</p>
+              </div>
+              <div>
+                <Label className="text-xs">Quantidade</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={saleQty}
+                  onChange={e => setSaleQty(Math.max(1, Number(e.target.value)))}
+                  className="mt-1"
+                />
+              </div>
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-200">
+                <p className="text-xs text-muted-foreground">Total da venda</p>
+                <p className="text-lg font-bold text-emerald-700">{formatBRL(saleProduct.sale_price * saleQty)}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaleDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleRegisterSale} disabled={saleSaving} className="gap-1.5">
+              {saleSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <ShoppingCart className="h-3.5 w-3.5" />
+              Registrar Venda
             </Button>
           </DialogFooter>
         </DialogContent>
