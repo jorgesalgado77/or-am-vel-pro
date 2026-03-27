@@ -1,7 +1,7 @@
 /**
  * VendaZapPanel - refactored to use sub-components.
  */
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { usePersistedValue } from "@/hooks/usePersistedFormState";
 import { AddonPurchaseCard } from "@/components/AddonPurchaseCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { VendaZapGenerateTab, COPY_TYPES } from "@/components/vendazap/VendaZapGenerateTab";
+import { VendaZapHistoryTab } from "@/components/vendazap/VendaZapHistoryTab";
+import type { ConversationSession } from "@/lib/vendazapHistory";
 import type { Database } from "@/integrations/supabase/types";
 
 const AutoPilotAnalyticsLazy = lazy(() => import("@/components/chat/AutoPilotAnalytics").then(m => ({ default: m.AutoPilotAnalytics })));
