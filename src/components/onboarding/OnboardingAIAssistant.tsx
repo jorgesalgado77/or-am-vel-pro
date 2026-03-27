@@ -68,16 +68,38 @@ export function OnboardingAIAssistant() {
   const userScrolledUp = useRef(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [fabUnread, setFabUnread] = useState(0);
   const prevMsgCount = useRef(messages.length);
+  const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+  const prevLastAssistantId = useRef<string | null>(null);
 
-  // Count new messages arriving while scrolled up
+  // Init notification audio
+  useEffect(() => {
+    notificationAudioRef.current = new Audio("/sounds/mia-notification.wav");
+    notificationAudioRef.current.volume = 0.5;
+  }, []);
+
+  // Count new messages arriving while scrolled up OR chat closed
   useEffect(() => {
     const newCount = messages.length - prevMsgCount.current;
     prevMsgCount.current = messages.length;
     if (newCount > 0 && userScrolledUp.current) {
       setUnreadCount(prev => prev + newCount);
     }
-  }, [messages.length]);
+    if (newCount > 0 && !open) {
+      setFabUnread(prev => prev + newCount);
+    }
+  }, [messages.length, open]);
+
+  // Play notification sound when new assistant message arrives while chat is closed
+  useEffect(() => {
+    const lastAssistant = [...messages].reverse().find(m => m.role === "assistant");
+    if (!lastAssistant) return;
+    if (prevLastAssistantId.current && prevLastAssistantId.current !== lastAssistant.id && !open) {
+      notificationAudioRef.current?.play().catch(() => {});
+    }
+    prevLastAssistantId.current = lastAssistant.id;
+  }, [messages, open]);
 
   const handleScrollChange = useCallback(() => {
     const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
