@@ -290,9 +290,14 @@ export function useVoiceEnrollment(usuarioId: string | null) {
     isEnrolled,
     enrolledFingerprint,
     loading,
+    recordedBlob,
+    recordingSeconds,
     loadEnrollment,
     startRecording,
     stopRecording,
+    playRecording,
+    saveRecording,
+    discardRecording,
     resetEnrollment,
   };
 }
