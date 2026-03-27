@@ -261,7 +261,7 @@ export function useOnboardingAI(tenantId: string | null) {
       const results: Record<string, { ok: boolean; detail: string }> = {};
 
       // 1. OpenAI test
-      const { data: openaiKey } = await supabase
+      const { data: openaiKey } = await (supabase as any)
         .from("api_keys")
         .select("api_key")
         .eq("tenant_id", tenantId)
@@ -269,7 +269,7 @@ export function useOnboardingAI(tenantId: string | null) {
         .eq("is_active", true)
         .maybeSingle();
 
-      if (openaiKey?.api_key) {
+      if ((openaiKey as any)?.api_key) {
         results.openai = { ok: true, detail: "Conexão OK — IA de vendas funcionando" };
       } else {
         results.openai = { ok: false, detail: "Nenhuma chave OpenAI configurada" };
@@ -277,7 +277,7 @@ export function useOnboardingAI(tenantId: string | null) {
 
       // 2. WhatsApp test — check whatsapp_settings directly
       let whatsappSettings: any = null;
-      const wsRes = await supabase.from("whatsapp_settings").select("*").limit(1).maybeSingle();
+      const wsRes = await (supabase as any).from("whatsapp_settings").select("*").limit(1).maybeSingle();
       whatsappSettings = wsRes.data;
 
       if (whatsappSettings?.ativo) {
@@ -292,15 +292,14 @@ export function useOnboardingAI(tenantId: string | null) {
           results.whatsapp = { ok: false, detail: "WhatsApp configurado, mas dados incompletos" };
         }
       } else {
-        // Fallback: check api_keys for evolution
-        const { data: evoKey } = await supabase
+        const { data: evoKey } = await (supabase as any)
           .from("api_keys")
           .select("api_key")
           .eq("tenant_id", tenantId)
           .eq("provider", "evolution")
           .eq("is_active", true)
           .maybeSingle();
-        if (evoKey?.api_key) {
+        if ((evoKey as any)?.api_key) {
           results.whatsapp = { ok: true, detail: "Evolution API configurada via API Keys" };
         } else {
           results.whatsapp = { ok: false, detail: "Nenhuma integração de WhatsApp configurada" };
@@ -308,7 +307,7 @@ export function useOnboardingAI(tenantId: string | null) {
       }
 
       // 3. Email test
-      const { data: resendKey } = await supabase
+      const { data: resendKey } = await (supabase as any)
         .from("api_keys")
         .select("api_key")
         .eq("tenant_id", tenantId)
@@ -316,7 +315,7 @@ export function useOnboardingAI(tenantId: string | null) {
         .eq("is_active", true)
         .maybeSingle();
 
-      if (resendKey?.api_key) {
+      if ((resendKey as any)?.api_key) {
         results.email = { ok: true, detail: "Resend conectado — envio de emails OK" };
       } else {
         results.email = { ok: false, detail: "Nenhuma chave de email configurada (opcional)" };
