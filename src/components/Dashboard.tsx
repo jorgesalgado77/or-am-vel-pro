@@ -872,6 +872,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                     <TableHead className="font-medium text-center">Clientes</TableHead>
                     <TableHead className="font-medium text-center">Fechados</TableHead>
                     <TableHead className="font-medium text-center">Conversão</TableHead>
+                    <TableHead className="font-medium text-right">Em Negociação</TableHead>
+                    <TableHead className="font-medium text-right">Contratos</TableHead>
                     <TableHead className="font-medium text-right">Valor Total</TableHead>
                     <TableHead className="font-medium text-right">Comissão</TableHead>
                   </TableRow>
@@ -879,6 +881,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                 <TableBody>
                   {filtered.map(([name, data]) => {
                     const conv = data.count > 0 ? ((data.closed / data.count) * 100).toFixed(0) : "0";
+                    const openTotal = data.total - data.closedTotal;
                     const matchedCargo = cargos.find(c => 
                       name.toLowerCase().includes(c.nome.toLowerCase()) || c.nome.toLowerCase() === "projetista"
                     );
@@ -896,6 +899,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                       <TableCell className="text-center">
                         <Badge variant="outline" className={Number(conv) >= 30 ? "border-emerald-500 text-emerald-600" : ""}>{conv}%</Badge>
                       </TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-amber-600">{openTotal > 0 ? formatCurrency(openTotal) : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium text-emerald-600">{data.closedTotal > 0 ? formatCurrency(data.closedTotal) : "—"}</TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{formatCurrency(data.total)}</TableCell>
                       <TableCell className="text-right tabular-nums font-medium text-primary">
                         {comissaoValor > 0 ? formatCurrency(comissaoValor) : "—"}
@@ -908,6 +913,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                     const totClientes = filtered.reduce((s, [, d]) => s + d.count, 0);
                     const totFechados = filtered.reduce((s, [, d]) => s + d.closed, 0);
                     const totValor = filtered.reduce((s, [, d]) => s + d.total, 0);
+                    const totOpen = filtered.reduce((s, [, d]) => s + (d.total - d.closedTotal), 0);
+                    const totClosed = filtered.reduce((s, [, d]) => s + d.closedTotal, 0);
                     const totComissao = filtered.reduce((s, [name, data]) => {
                       const mc = cargos.find(c => name.toLowerCase().includes(c.nome.toLowerCase()) || c.nome.toLowerCase() === "projetista");
                       const cp = mc ? mc.comissao_percentual : 0;
@@ -921,6 +928,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
                         <TableCell className="text-center"><Badge variant="secondary">{totClientes}</Badge></TableCell>
                         <TableCell className="text-center"><Badge variant="default" className="bg-emerald-600">{totFechados}</Badge></TableCell>
                         <TableCell className="text-center"><Badge variant="outline">{totConv}%</Badge></TableCell>
+                        <TableCell className="text-right tabular-nums text-amber-600">{totOpen > 0 ? formatCurrency(totOpen) : "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums text-emerald-600">{totClosed > 0 ? formatCurrency(totClosed) : "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatCurrency(totValor)}</TableCell>
                         <TableCell className="text-right tabular-nums text-primary">{totComissao > 0 ? formatCurrency(totComissao) : "—"}</TableCell>
                       </TableRow>
