@@ -45,3 +45,6 @@ verify_jwt = false
 
 [functions.onboarding-ai]
 verify_jwt = false
+
+[functions.commercial-ai]
+verify_jwt = false

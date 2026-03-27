@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   TrendingUp, TrendingDown, Users, Target, DollarSign, Clock,
   AlertTriangle, Lightbulb, Trophy, MessageCircle, Send, Bot,
-  Flame, Snowflake, Star, ArrowUp, ArrowDown,
+  Flame, Snowflake, Star, ArrowUp, ArrowDown, Loader2, Bell,
 } from "lucide-react";
 import { useCommercialAI, type AIInsight } from "@/hooks/useCommercialAI";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
+import { toast } from "sonner";
 
 function formatCurrency(val: number) {
   return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -32,70 +35,150 @@ const PRIORITY_BADGE: Record<string, { variant: "destructive" | "secondary" | "o
   low: { variant: "outline", label: "Baixa" },
 };
 
+type ChatMsg = { role: "user" | "assistant"; content: string };
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://bdhfzjuwtkiexyeusnqq.supabase.co";
+const CHAT_URL = `${SUPABASE_URL}/functions/v1/commercial-ai`;
+
+async function streamChat(opts: {
+  tenantId: string;
+  messages: ChatMsg[];
+  metricsSummary: string;
+  onDelta: (text: string) => void;
+  onDone: () => void;
+  onError: (msg: string) => void;
+}) {
+  try {
+    const resp = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_wbUKLbibswCqDaXfCYMnZQ_otmy7ZEn"}`,
+      },
+      body: JSON.stringify({
+        action: "chat",
+        tenant_id: opts.tenantId,
+        messages: opts.messages,
+        metrics_summary: opts.metricsSummary,
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: "Erro desconhecido" }));
+      opts.onError(err.error || `Erro ${resp.status}`);
+      return;
+    }
+
+    if (!resp.body) { opts.onError("Sem resposta"); return; }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let idx: number;
+      while ((idx = buffer.indexOf("\n")) !== -1) {
+        let line = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 1);
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (!line.startsWith("data: ")) continue;
+        const json = line.slice(6).trim();
+        if (json === "[DONE]") { opts.onDone(); return; }
+        try {
+          const parsed = JSON.parse(json);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) opts.onDelta(content);
+        } catch { /* partial json */ }
+      }
+    }
+    opts.onDone();
+  } catch (e) {
+    opts.onError("Falha na conexão com a IA");
+  }
+}
+
 export function CommercialAIPanel() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
   const { metrics, insights, rankings, stalledLeads, hotLeads, loading, markInsightRead } = useCommercialAI(tenantId, user?.id);
-  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([
-    { role: "assistant", content: "Olá! Sou sua IA Gerente Comercial 🤖. Posso analisar suas vendas, identificar oportunidades e sugerir ações. Pergunte-me algo!" },
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([
+    { role: "assistant", content: "Olá! Sou sua **IA Gerente Comercial** 🤖. Posso analisar suas vendas, identificar oportunidades e sugerir ações com base nos seus dados reais. Pergunte-me algo!" },
   ]);
   const [chatInput, setChatInput] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pushChecked = useRef(false);
 
-  const handleChat = () => {
-    if (!chatInput.trim() || !metrics) return;
-    const userMsg = chatInput.trim();
+  // Build metrics summary for AI context
+  const metricsSummary = metrics
+    ? `Leads: ${metrics.leads_count}, Propostas: ${metrics.proposals_sent}, Fechados: ${metrics.deals_closed}, ` +
+      `Conversão: ${metrics.conversion_rate}%, Faturamento: R$${metrics.revenue.toFixed(2)}, ` +
+      `Ticket Médio: R$${metrics.average_ticket.toFixed(2)}, Tempo Médio: ${metrics.avg_close_days}d, ` +
+      `Leads Parados: ${stalledLeads.length}, Leads Quentes: ${hotLeads.length}`
+    : "";
+
+  // Auto-scroll chat
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [chatMessages]);
+
+  // Check alerts for push notifications (once per session)
+  useEffect(() => {
+    if (!tenantId || !user?.id || pushChecked.current) return;
+    pushChecked.current = true;
+
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke("commercial-ai", {
+          body: { action: "check_alerts", tenant_id: tenantId },
+        });
+        if (data?.alerts) {
+          for (const alert of data.alerts) {
+            sendPushIfEnabled("leads", user.id, alert.title, alert.body, `commercial-ai-${alert.type}`);
+          }
+        }
+      } catch { /* silent */ }
+    })();
+  }, [tenantId, user?.id]);
+
+  const handleChat = useCallback(async (overrideMsg?: string) => {
+    const userMsg = overrideMsg || chatInput.trim();
+    if (!userMsg || !tenantId || isStreaming) return;
     setChatInput("");
-    setChatMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    setIsStreaming(true);
 
-    // Smart responses based on real data
-    let response = "";
-    const lower = userMsg.toLowerCase();
+    const newMessages = [...chatMessages, { role: "user" as const, content: userMsg }];
+    setChatMessages(newMessages);
 
-    if (lower.includes("vendas") || lower.includes("desempenho") || lower.includes("como estão")) {
-      response = `📊 **Resumo das Vendas:**\n\n` +
-        `• **${metrics.leads_count}** leads no funil\n` +
-        `• **${metrics.proposals_sent}** propostas enviadas\n` +
-        `• **${metrics.deals_closed}** vendas fechadas\n` +
-        `• Taxa de conversão: **${metrics.conversion_rate}%**\n` +
-        `• Faturamento: **${formatCurrency(metrics.revenue)}**\n` +
-        `• Ticket médio: **${formatCurrency(metrics.average_ticket)}**\n\n` +
-        (metrics.conversion_rate < 20 ? "⚠️ Sua conversão está abaixo da média. Sugiro focar nos leads quentes!" : "✅ Bom desempenho! Continue assim.");
-    } else if (lower.includes("quente") || lower.includes("atender") || lower.includes("prioridade")) {
-      if (hotLeads.length > 0) {
-        response = `🔥 Você tem **${hotLeads.length} lead(s) quente(s)** que devem ser priorizados agora!\n\nEstes são clientes em negociação ativa nos últimos 3 dias. Envie uma mensagem de follow-up para manter o interesse.`;
-      } else {
-        response = "No momento não há leads em negociação recente. Foque em qualificar os novos leads do funil.";
-      }
-    } else if (lower.includes("parado") || lower.includes("sem resposta") || lower.includes("gargalo")) {
-      response = stalledLeads.length > 0
-        ? `⚠️ **${stalledLeads.length} lead(s) parado(s)** há mais de 3 dias sem atividade.\n\nSugestão: Envie uma mensagem oferecendo condições especiais ou agende uma visita técnica.`
-        : "✅ Nenhum lead parado no momento. Bom trabalho mantendo o funil ativo!";
-    } else if (lower.includes("meta") || lower.includes("ranking") || lower.includes("equipe")) {
-      if (rankings.length > 0) {
-        const top = rankings.slice(0, 3).map((r, i) => `${i + 1}. **${r.user_name}** — ${r.deals_closed} vendas, ${formatCurrency(r.revenue)}`).join("\n");
-        response = `🏆 **Ranking de Vendedores:**\n\n${top}\n\n${rankings.length > 3 ? `E mais ${rankings.length - 3} vendedor(es).` : ""}`;
-      } else {
-        response = "Ainda não há dados de ranking disponíveis. Incentive a equipe a registrar vendas no sistema.";
-      }
-    } else if (lower.includes("dica") || lower.includes("sugest") || lower.includes("aumentar")) {
-      response = `💡 **Dicas para Aumentar Vendas:**\n\n` +
-        `1. **Follow-up em 24h** — Clientes respondidos rapidamente convertem 3x mais\n` +
-        `2. **Produtos complementares** — Ofereça itens do catálogo junto com o projeto\n` +
-        `3. **Desconto progressivo** — Use o simulador para criar propostas atrativas\n` +
-        `4. **WhatsApp ativo** — Mantenha contato via VendaZap para não esfriar o lead\n` +
-        `5. **Visita técnica** — Agende medições para clientes em dúvida`;
-    } else {
-      response = `Entendi! Com base nos seus dados:\n\n` +
-        `• Faturamento atual: **${formatCurrency(metrics.revenue)}**\n` +
-        `• ${stalledLeads.length} leads precisam de atenção\n` +
-        `• ${hotLeads.length} leads quentes aguardando\n\n` +
-        `Posso ajudar com: desempenho de vendas, leads quentes, gargalos, ranking da equipe ou dicas de venda.`;
-    }
+    let assistantText = "";
+    const updateAssistant = (chunk: string) => {
+      assistantText += chunk;
+      setChatMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && prev.length === newMessages.length + 1) {
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantText } : m);
+        }
+        return [...prev, { role: "assistant", content: assistantText }];
+      });
+    };
 
-    setTimeout(() => {
-      setChatMessages(prev => [...prev, { role: "assistant", content: response }]);
-    }, 500);
-  };
+    await streamChat({
+      tenantId,
+      messages: newMessages.filter(m => m.role === "user" || m.role === "assistant").slice(-10),
+      metricsSummary,
+      onDelta: updateAssistant,
+      onDone: () => setIsStreaming(false),
+      onError: (msg) => {
+        toast.error(msg);
+        setChatMessages(prev => [...prev, { role: "assistant", content: `❌ ${msg}` }]);
+        setIsStreaming(false);
+      },
+    });
+  }, [chatInput, chatMessages, tenantId, isStreaming, metricsSummary]);
 
   if (loading) {
     return (
@@ -190,10 +273,7 @@ export function CommercialAIPanel() {
                 const priority = PRIORITY_BADGE[insight.priority];
                 const Icon = config.icon;
                 return (
-                  <Card
-                    key={insight.id}
-                    className={cn("transition-all", !insight.is_read && "border-l-4 border-l-primary")}
-                  >
+                  <Card key={insight.id} className={cn("transition-all", !insight.is_read && "border-l-4 border-l-primary")}>
                     <CardContent className="pt-4">
                       <div className="flex items-start gap-3">
                         <div className={cn("p-2 rounded-lg shrink-0", config.bgColor)}>
@@ -206,13 +286,8 @@ export function CommercialAIPanel() {
                           </div>
                           <p className="text-sm text-foreground">{insight.message}</p>
                           {insight.action_type && (
-                            <div className="mt-2 flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-xs h-7"
-                                onClick={() => markInsightRead(insight.id)}
-                              >
+                            <div className="mt-2">
+                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => markInsightRead(insight.id)}>
                                 ✓ Entendido
                               </Button>
                             </div>
@@ -297,15 +372,16 @@ export function CommercialAIPanel() {
           )}
         </TabsContent>
 
-        {/* Chat Tab */}
+        {/* Chat Tab — Streaming AI */}
         <TabsContent value="chat">
           <Card className="h-[500px] flex flex-col">
             <CardHeader className="pb-2 border-b border-border">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Bot className="h-4 w-4 text-primary" /> IA Gerente Comercial
+                <Badge variant="outline" className="text-[10px] ml-auto">OpenAI / Gemini</Badge>
               </CardTitle>
             </CardHeader>
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 p-4" ref={scrollRef as any}>
               <div className="space-y-3">
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
@@ -319,6 +395,13 @@ export function CommercialAIPanel() {
                     </div>
                   </div>
                 ))}
+                {isStreaming && chatMessages[chatMessages.length - 1]?.role !== "assistant" && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-lg px-3 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  </div>
+                )}
               </div>
             </ScrollArea>
             <div className="p-3 border-t border-border flex gap-2">
@@ -326,31 +409,26 @@ export function CommercialAIPanel() {
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 placeholder="Pergunte sobre suas vendas..."
-                onKeyDown={e => e.key === "Enter" && handleChat()}
+                onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleChat()}
                 className="text-sm"
+                disabled={isStreaming}
               />
-              <Button size="icon" onClick={handleChat} disabled={!chatInput.trim()}>
-                <Send className="h-4 w-4" />
+              <Button size="icon" onClick={() => handleChat()} disabled={!chatInput.trim() || isStreaming}>
+                {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
           </Card>
 
           {/* Quick Actions */}
           <div className="flex flex-wrap gap-2 mt-3">
-            {["Como estão minhas vendas?", "Quem devo atender agora?", "Ranking da equipe", "Dicas para vender mais"].map(q => (
+            {["Como estão minhas vendas?", "Quem devo atender agora?", "Ranking da equipe", "Dicas para vender mais", "Analise meus gargalos"].map(q => (
               <Button
                 key={q}
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => {
-                  setChatMessages(prev => [...prev, { role: "user", content: q }]);
-                  // Simulate response
-                  setTimeout(() => {
-                    setChatInput(q);
-                    // Will be processed by handleChat via useEffect-like pattern
-                  }, 50);
-                }}
+                disabled={isStreaming}
+                onClick={() => handleChat(q)}
               >
                 {q}
               </Button>
