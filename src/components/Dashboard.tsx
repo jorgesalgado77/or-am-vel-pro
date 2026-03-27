@@ -219,8 +219,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    // Taxa de Conversão = contratos fechados / total com orçamento
-    const taxaConversao = clientsWithSim > 0 ? (closedClients.length / clientsWithSim) * 100 : 0;
+    // Taxa de Conversão = contratos fechados / total de clientes
+    const taxaConversao = totalClients > 0 ? (closedClients.length / totalClients) * 100 : 0;
 
     // Ticket Médio = based on open budgets only
     const ticketMedio = openClientsWithSim.length > 0 ? totalValueOrcamentos / openClientsWithSim.length : 0;
