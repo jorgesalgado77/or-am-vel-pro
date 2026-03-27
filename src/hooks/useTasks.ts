@@ -43,6 +43,17 @@ export function useTasks(tenantId: string | null, userId: string | undefined) {
           import("sonner").then(({ toast }) => {
             toast.info(`📋 Nova tarefa: ${newTask.titulo}`, { duration: 6000 });
           });
+          // Send push notification for background alerts
+          supabase.functions.invoke("push-notification", {
+            body: {
+              action: "send",
+              user_id: userId,
+              title: "📋 Nova tarefa atribuída",
+              body: newTask.titulo,
+              tag: `task-${newTask.id}`,
+              url: "/app",
+            },
+          }).catch(() => {});
         }
       })
       .on("postgres_changes", {

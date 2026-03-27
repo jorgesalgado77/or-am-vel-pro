@@ -10,6 +10,7 @@ import { TaskCalendarView } from "./TaskCalendarView";
 import { TaskCreateModal } from "./TaskCreateModal";
 import { TaskFilters } from "./TaskFilters";
 import { GoogleCalendarConnect } from "./GoogleCalendarConnect";
+import { PushNotificationToggle } from "./PushNotificationToggle";
 import { type Task, type DateFilterPreset } from "./taskTypes";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { playNotificationSound } from "@/lib/notificationSound";
@@ -151,6 +152,7 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
           onCustomEndChange={setCustomEnd}
         />
         <div className="flex items-center gap-2">
+          <PushNotificationToggle tenantId={tenantId} userId={userId} />
           <GoogleCalendarConnect tenantId={tenantId} userId={userId} />
           <Tabs value={view} onValueChange={(v) => setView(v as any)}>
             <TabsList className="h-8">
