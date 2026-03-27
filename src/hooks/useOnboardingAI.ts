@@ -169,7 +169,12 @@ export function useOnboardingAI(tenantId: string | null) {
         }
       );
 
-      if (error) throw error;
+      console.log("[Mia] Response:", { data, error });
+
+      if (error) {
+        console.error("[Mia] Function error:", error);
+        throw error;
+      }
 
       const reply = data?.reply || "Desculpe, ocorreu um erro. Tente novamente.";
 
