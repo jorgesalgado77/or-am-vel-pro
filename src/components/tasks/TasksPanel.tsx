@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, CalendarDays } from "lucide-react";
+import { Plus, LayoutGrid, CalendarDays, CalendarSync } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { TaskKanbanBoard } from "./TaskKanbanBoard";
 import { TaskCalendarView } from "./TaskCalendarView";
 import { TaskCreateModal } from "./TaskCreateModal";
@@ -85,11 +86,24 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
     return filtered;
   }, [tasks, dateFilter, typeFilter, customStart, customEnd]);
 
+  const { syncTaskToCalendar, syncing: calendarSyncing } = useGoogleCalendar(tenantId);
+
   const handleSave = async (data: Partial<Task>) => {
     if (editingTask) {
       await updateTask(editingTask.id, data);
     } else {
-      await createTask(data);
+      const created = await createTask(data);
+      // Try to sync to Google Calendar (non-blocking)
+      if (created) {
+        syncTaskToCalendar({
+          id: (created as any).id,
+          titulo: data.titulo || "",
+          descricao: data.descricao,
+          data_tarefa: data.data_tarefa || "",
+          horario: data.horario,
+          responsavel_nome: data.responsavel_nome,
+        });
+      }
     }
   };
 

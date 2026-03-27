@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-export type ApiProvider = "openai" | "perplexity" | "evolution" | "resend" | "stripe" | "asaas" | "pdf";
+export type ApiProvider = "openai" | "perplexity" | "evolution" | "resend" | "stripe" | "asaas" | "pdf" | "google_calendar";
 
 export interface ApiKeyRecord {
   id: string;
@@ -23,6 +23,7 @@ export const API_PROVIDERS: { value: ApiProvider; label: string; description: st
   { value: "stripe", label: "Stripe", description: "Pagamentos internacionais", urlRequired: false },
   { value: "asaas", label: "Asaas", description: "Cobranças PIX/Boleto (Brasil)", urlRequired: true },
   { value: "pdf", label: "PDF Generator", description: "Geração de documentos PDF", urlRequired: true },
+  { value: "google_calendar", label: "Google Calendar", description: "Sincronizar tarefas com Google Agenda", urlRequired: false },
 ];
 
 export function useApiKeys(tenantId: string | null) {

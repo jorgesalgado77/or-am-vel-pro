@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
@@ -6,11 +6,12 @@ import {
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
   Box, Loader2, Bell, ClipboardCheck,
 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useNotificationCenter, type AppNotification } from "@/hooks/useNotificationCenter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -46,56 +47,20 @@ export function AppSidebar({
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
   const { mode, cycleTheme } = useTheme();
-  const [notifications, setNotifications] = useState<Array<{ id: string; conteudo: string; created_at: string; lido: boolean }>>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  const tenantId = (currentUser as any)?.tenant_id || null;
+  const { notifications, unreadCount: unreadNotifications, markAsRead, markAllRead } = useNotificationCenter(
+    currentUser?.id,
+    currentUser?.nome_completo,
+    tenantId
+  );
 
   const isAdmin = currentUser?.cargo_nome?.toUpperCase().includes("ADMINISTRADOR") || currentUser?.cargo_nome?.toUpperCase().includes("ADMIN");
   const ThemeIcon = THEME_ICONS[mode];
   const companyName = settings.company_name || "OrçaMóvel PRO";
   const companySubtitle = settings.company_subtitle || "Orce. Venda. Simplifique";
 
-  // Fetch notification history (leads received)
-  useEffect(() => {
-    const userName = currentUser?.nome_completo;
-    if (!userName) return;
-
-    const fetchNotifications = async () => {
-      const { data } = await supabase
-        .from("tracking_messages" as any)
-        .select("id, conteudo, created_at")
-        .eq("destinatario", userName)
-        .eq("tipo", "sistema")
-        .ilike("conteudo", "%enviado para seu atendimento%")
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (data) {
-        const readIds = JSON.parse(localStorage.getItem("read_notifications") || "[]");
-        setNotifications((data as any[]).map(n => ({ ...n, lido: readIds.includes(n.id) })));
-      }
-    };
-    fetchNotifications();
-
-    // Realtime subscription
-    const channel = supabase
-      .channel("sidebar-notifications")
-      .on("postgres_changes" as any, { event: "INSERT", schema: "public", table: "tracking_messages" }, (payload: any) => {
-        const msg = payload.new;
-        if (msg?.destinatario === userName && msg?.tipo === "sistema" && msg?.conteudo?.includes("enviado para seu atendimento")) {
-          setNotifications(prev => [{ id: msg.id, conteudo: msg.conteudo, created_at: msg.created_at, lido: false }, ...prev.slice(0, 19)]);
-        }
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [currentUser?.nome_completo]);
-
-  const unreadNotifications = notifications.filter(n => !n.lido).length;
-
-  const markAllRead = () => {
-    const ids = notifications.map(n => n.id);
-    localStorage.setItem("read_notifications", JSON.stringify(ids));
-    setNotifications(prev => prev.map(n => ({ ...n, lido: true })));
-  };
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
@@ -213,7 +178,7 @@ export function AppSidebar({
               <div className="p-3 border-b border-border flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-semibold text-foreground">Notificações</h4>
-                  <p className="text-[10px] text-muted-foreground">{notifications.length} lead(s) recebido(s)</p>
+                  <p className="text-[10px] text-muted-foreground">{unreadNotifications} não lida(s) de {notifications.length}</p>
                 </div>
                 {unreadNotifications > 0 && (
                   <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
@@ -228,16 +193,27 @@ export function AppSidebar({
                   <div className="divide-y divide-border">
                     {notifications.map(n => {
                       const dateStr = (() => { try { return format(new Date(n.created_at), "dd/MM/yy HH:mm"); } catch { return "—"; } })();
+                      const typeIcon = n.type === "lead" ? "🆕" : n.type === "tarefa" ? "📋" : n.type === "mensagem" ? "💬" : "🔔";
                       return (
-                        <div key={n.id} className={cn("px-3 py-2.5 text-xs hover:bg-secondary/50 transition-colors", !n.lido && "bg-primary/5")}>
+                        <button
+                          key={n.id}
+                          className={cn("w-full text-left px-3 py-2.5 text-xs hover:bg-secondary/50 transition-colors", !n.lido && "bg-primary/5")}
+                          onClick={() => {
+                            markAsRead(n.id);
+                            if (n.link_view) onViewChange(n.link_view);
+                            setShowNotifications(false);
+                          }}
+                        >
                           <div className="flex items-start gap-2">
                             {!n.lido && <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />}
+                            <span className="text-sm shrink-0">{typeIcon}</span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-foreground leading-relaxed">{n.conteudo.replace(/[🚀✅⚠️]/g, "").trim()}</p>
+                              <p className="text-foreground font-medium">{n.titulo}</p>
+                              <p className="text-muted-foreground leading-relaxed mt-0.5">{n.descricao}</p>
                               <p className="text-muted-foreground mt-1">{dateStr}</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
