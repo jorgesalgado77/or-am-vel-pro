@@ -247,22 +247,24 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                       <button
                         onClick={() => setVendedorFilter("all")}
                         className={cn(
-                          "text-xs px-2 py-1.5 rounded text-left transition-colors",
+                          "text-xs px-2 py-1.5 rounded text-left transition-colors flex items-center justify-between",
                           vendedorFilter === "all" ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
                         )}
                       >
-                        Todos os vendedores
+                        <span>Todos os vendedores</span>
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1.5 ml-2">{conversations.length}</Badge>
                       </button>
                       {vendedores.map(v => (
                         <button
                           key={v}
                           onClick={() => setVendedorFilter(v)}
                           className={cn(
-                            "text-xs px-2 py-1.5 rounded text-left transition-colors truncate",
+                            "text-xs px-2 py-1.5 rounded text-left transition-colors truncate flex items-center justify-between",
                             vendedorFilter === v ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
                           )}
                         >
-                          👤 {v}
+                          <span className="truncate">👤 {v}</span>
+                          <Badge variant="secondary" className="text-[9px] h-4 px-1.5 ml-2 shrink-0">{vendedorCounts.get(v) || 0}</Badge>
                         </button>
                       ))}
                     </div>
