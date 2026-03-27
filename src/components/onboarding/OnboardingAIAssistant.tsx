@@ -134,9 +134,10 @@ export function OnboardingAIAssistant() {
     requestAnimationFrame(() => scrollToBottom());
   }, [messages.length, loading, scrollToBottom]);
 
-  // Focus input when opened
+  // Focus input when opened & clear FAB unread
   useEffect(() => {
     if (open) {
+      setFabUnread(0);
       setTimeout(() => inputRef.current?.focus(), 200);
     }
   }, [open]);
