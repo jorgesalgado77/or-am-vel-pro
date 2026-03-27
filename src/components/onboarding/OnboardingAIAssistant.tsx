@@ -66,6 +66,17 @@ export function OnboardingAIAssistant() {
   // Track if user has manually scrolled up
   const userScrolledUp = useRef(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const prevMsgCount = useRef(messages.length);
+
+  // Count new messages arriving while scrolled up
+  useEffect(() => {
+    const newCount = messages.length - prevMsgCount.current;
+    prevMsgCount.current = messages.length;
+    if (newCount > 0 && userScrolledUp.current) {
+      setUnreadCount(prev => prev + newCount);
+    }
+  }, [messages.length]);
 
   const handleScrollChange = useCallback(() => {
     const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
