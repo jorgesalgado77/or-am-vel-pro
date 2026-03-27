@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, BellRing, BellOff, Settings2, ListTodo, MessageSquare, UserPlus, Ruler, History, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Bell, BellRing, BellOff, Settings2, ListTodo, MessageSquare, UserPlus, Ruler, History, CheckCircle, XCircle, Clock, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ const CATEGORIES: { key: PushCategory; label: string; icon: React.ElementType; d
   { key: "mensagens", label: "Mensagens", icon: MessageSquare, desc: "Mensagens de clientes no VendaZap" },
   { key: "leads", label: "Leads", icon: UserPlus, desc: "Novos leads enviados para seu atendimento" },
   { key: "medidas", label: "Medidas", icon: Ruler, desc: "Novas solicitações de medida para distribuição" },
+  { key: "api_keys", label: "API Keys", icon: KeyRound, desc: "Alertas quando uma API key expira ou falha na validação" },
 ];
 
 interface PushLog {
