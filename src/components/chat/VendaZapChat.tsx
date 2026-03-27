@@ -152,6 +152,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const conversationsRef = useRef<ChatConversation[]>([]);
 
   const { currentUser } = useCurrentUser();
+  const { status: whatsappStatus, provider: whatsappProvider } = useWhatsAppConnectionStatus(tenantId);
   const { addon } = useVendaZap(tenantId);
   const addonConfig = addon ? {
     ativo: addon.ativo,
