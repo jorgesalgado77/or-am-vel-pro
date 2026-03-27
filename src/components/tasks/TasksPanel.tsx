@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, LayoutGrid, CalendarDays } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
+import { useUsuarios } from "@/hooks/useUsuarios";
 import { TaskKanbanBoard } from "./TaskKanbanBoard";
 import { TaskCalendarView } from "./TaskCalendarView";
 import { TaskCreateModal } from "./TaskCreateModal";
@@ -22,10 +23,12 @@ interface Props {
 
 export function TasksPanel({ tenantId, userId, userName }: Props) {
   const { tasks, loading, createTask, updateTaskStatus, updateTask, deleteTask } = useTasks(tenantId, userId);
+  const { usuarios } = useUsuarios();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilterPreset>("todos");
   const [typeFilter, setTypeFilter] = useState("todos");
+  const [responsavelFilter, setResponsavelFilter] = useState("todos");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [view, setView] = useState<"kanban" | "calendar">("kanban");
@@ -39,7 +42,6 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
       if (t.data_tarefa === todayStr && t.status !== "concluida" && !alertedRef.current.has(t.id)) {
         alertedRef.current.add(t.id);
         if (t.responsavel_id === userId) {
-          // Check if it's close to the scheduled time
           if (t.horario) {
             const [h, m] = t.horario.split(":").map(Number);
             const taskTime = new Date(now);
@@ -55,8 +57,21 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
     });
   }, [tasks, userId]);
 
+  const usuariosOptions = useMemo(() =>
+    usuarios.filter(u => u.ativo).map(u => ({ id: u.id, nome: u.nome_completo })),
+    [usuarios]
+  );
+
   const filteredTasks = useMemo(() => {
     let filtered = tasks;
+
+    // Responsible filter
+    if (responsavelFilter === "meus") {
+      filtered = filtered.filter(t => t.responsavel_id === userId);
+    } else if (responsavelFilter !== "todos") {
+      filtered = filtered.filter(t => t.responsavel_id === responsavelFilter);
+    }
+
     // Date filter
     if (dateFilter !== "todos") {
       const now = new Date();
@@ -85,7 +100,7 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
       filtered = filtered.filter(t => t.tipo === typeFilter);
     }
     return filtered;
-  }, [tasks, dateFilter, typeFilter, customStart, customEnd]);
+  }, [tasks, dateFilter, typeFilter, responsavelFilter, userId, customStart, customEnd]);
 
   const { syncTaskToCalendar, syncing: calendarSyncing } = useGoogleCalendar(tenantId, userId);
 
@@ -94,7 +109,6 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
       await updateTask(editingTask.id, data);
     } else {
       const created = await createTask(data);
-      // Try to sync to Google Calendar (non-blocking)
       if (created) {
         syncTaskToCalendar({
           id: (created as any).id,
@@ -128,6 +142,9 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
           onDateFilterChange={setDateFilter}
           typeFilter={typeFilter}
           onTypeFilterChange={setTypeFilter}
+          responsavelFilter={responsavelFilter}
+          onResponsavelFilterChange={setResponsavelFilter}
+          usuarios={usuariosOptions}
           customStart={customStart}
           customEnd={customEnd}
           onCustomStartChange={setCustomStart}
