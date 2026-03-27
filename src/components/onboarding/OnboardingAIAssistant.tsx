@@ -18,6 +18,8 @@ import {
   FlaskConical,
   FolderPlus,
   ArrowDown,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
@@ -53,6 +55,7 @@ export function OnboardingAIAssistant() {
   const { keys } = useApiKeys(tenantId);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [compactMode, setCompactMode] = useState(false);
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -231,14 +234,10 @@ export function OnboardingAIAssistant() {
             "fixed z-50 flex flex-col overflow-hidden border border-border bg-background shadow-2xl",
             // Mobile: full viewport
             "inset-0 rounded-none",
-            // sm+: floating bottom-right card
-            "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:rounded-2xl",
+            // sm+: floating bottom-right card with explicit height
+            "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:h-[min(85dvh,680px)] sm:rounded-2xl",
             !prefersReducedMotion && "animate-in slide-in-from-bottom-4 duration-300"
           )}
-          style={{
-            // Use dvh for mobile safe area, capped on desktop
-            maxHeight: "100dvh",
-          }}
         >
           {/* Header */}
           <div className="bg-primary px-4 py-3 flex items-center gap-3 shrink-0">
@@ -253,45 +252,56 @@ export function OnboardingAIAssistant() {
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+              onClick={() => setCompactMode(v => !v)}
+              title={compactMode ? "Expandir progresso" : "Modo compacto"}
+            >
+              {compactMode ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
               onClick={() => setOpen(false)}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Progress bar */}
-          <div className="px-4 py-2 border-b border-border bg-muted/30 shrink-0">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Progresso</span>
-              <span className="text-xs font-semibold text-foreground">
-                {completedSteps.length}/{ONBOARDING_STEPS.length}
-              </span>
+          {/* Progress bar — hidden in compact mode */}
+          {!compactMode && (
+            <div className="px-4 py-2 border-b border-border bg-muted/30 shrink-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Progresso</span>
+                <span className="text-xs font-semibold text-foreground">
+                  {completedSteps.length}/{ONBOARDING_STEPS.length}
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {ONBOARDING_STEPS.map((step) => {
+                  const done = completedSteps.includes(step.key);
+                  return (
+                    <Badge
+                      key={step.key}
+                      variant={done ? "default" : "outline"}
+                      className={cn(
+                        "text-[10px] gap-1 py-0",
+                        done && "bg-primary/15 text-primary border-primary/30"
+                      )}
+                    >
+                      {done ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
+                      {step.label}
+                    </Badge>
+                  );
+                })}
+              </div>
             </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {ONBOARDING_STEPS.map((step) => {
-                const done = completedSteps.includes(step.key);
-                return (
-                  <Badge
-                    key={step.key}
-                    variant={done ? "default" : "outline"}
-                    className={cn(
-                      "text-[10px] gap-1 py-0",
-                      done && "bg-primary/15 text-primary border-primary/30"
-                    )}
-                  >
-                    {done ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
-                    {step.label}
-                  </Badge>
-                );
-              })}
-            </div>
-          </div>
+          )}
 
           {/* Missing API keys alert */}
           {missingCriticalKeys && !missingKeysDismissed && (
