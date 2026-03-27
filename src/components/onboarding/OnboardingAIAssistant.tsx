@@ -18,6 +18,8 @@ import {
   FlaskConical,
   FolderPlus,
   ArrowDown,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
