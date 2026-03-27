@@ -21,6 +21,7 @@ interface Props {
   tenantId: string | null;
   currentUserName: string | null;
   currentUserRole: string | null;
+  currentUserId?: string | null;
   existingConversationIds: Set<string>;
 }
 
@@ -33,7 +34,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function StartConversationModal({
-  open, onClose, onSelect, tenantId, currentUserName, currentUserRole, existingConversationIds,
+  open, onClose, onSelect, tenantId, currentUserName, currentUserRole, currentUserId, existingConversationIds,
 }: Props) {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [search, setSearch] = useState("");
@@ -58,19 +59,19 @@ export function StartConversationModal({
 
       if (!trackings) { setLoading(false); return; }
 
-      // Fetch clients to get vendedor info
+      // Fetch clients to get vendedor info and vendedor_id for role filtering
       const clientIds = [...new Set((trackings as any[]).map((t) => t.client_id).filter(Boolean))];
-      let vendedorMap: Record<string, string | null> = {};
+      let vendedorMap: Record<string, { vendedor: string | null; vendedor_id: string | null }> = {};
 
       if (clientIds.length > 0) {
         const { data: clientsData } = await supabase
           .from("clients")
-          .select("id, vendedor")
+          .select("id, vendedor, vendedor_id")
           .in("id", clientIds);
 
         if (clientsData) {
           (clientsData as any[]).forEach((c) => {
-            vendedorMap[c.id] = c.vendedor;
+            vendedorMap[c.id] = { vendedor: c.vendedor, vendedor_id: c.vendedor_id };
           });
         }
       }
@@ -80,18 +81,26 @@ export function StartConversationModal({
         clientName: t.nome_cliente,
         contractNumber: t.numero_contrato,
         status: t.status,
-        vendedor: vendedorMap[t.client_id] || null,
+        vendedor: vendedorMap[t.client_id]?.vendedor || null,
         projetista: t.projetista || null,
+        vendedor_id: vendedorMap[t.client_id]?.vendedor_id || null,
+        client_id: t.client_id,
       }));
 
       // Filter by role: vendedor/projetista only see their own clients
       let filtered = options;
-      if (!isAdminOrManager && currentUserName) {
-        const nameLower = currentUserName.toLowerCase();
-        filtered = options.filter((c) =>
-          c.vendedor?.toLowerCase() === nameLower ||
-          c.projetista?.toLowerCase() === nameLower
-        );
+      if (!isAdminOrManager) {
+        if (currentUserId) {
+          // Filter by vendedor_id (reliable)
+          filtered = options.filter((c) => (c as any).vendedor_id === currentUserId);
+        } else if (currentUserName) {
+          // Fallback to name matching
+          const nameLower = currentUserName.toLowerCase();
+          filtered = options.filter((c) =>
+            c.vendedor?.toLowerCase() === nameLower ||
+            c.projetista?.toLowerCase() === nameLower
+          );
+        }
       }
 
       setClients(filtered);
