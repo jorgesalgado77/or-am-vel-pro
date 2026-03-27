@@ -64,12 +64,15 @@ export function OnboardingAIAssistant() {
 
   // Track if user has manually scrolled up
   const userScrolledUp = useRef(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const handleScrollChange = useCallback(() => {
     const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
     if (!viewport) return;
     const { scrollTop, scrollHeight, clientHeight } = viewport;
-    userScrolledUp.current = scrollHeight - scrollTop - clientHeight > 60;
+    const isUp = scrollHeight - scrollTop - clientHeight > 60;
+    userScrolledUp.current = isUp;
+    setShowScrollBtn(isUp);
   }, []);
 
   // Attach scroll listener to viewport
