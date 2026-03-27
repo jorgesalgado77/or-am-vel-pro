@@ -210,8 +210,8 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: "Propostas", value: proposalStats?.total ?? proposals.length, icon: FileText, color: "text-primary" },
-            { label: "Vendas", value: metrics?.totalVendas ?? 0, icon: TrendingUp, color: "text-primary" },
-            { label: "Valor Vendido", value: formatCurrency(metrics?.totalTransacionado ?? 0), icon: DollarSign, color: "text-primary" },
+            { label: "Vendas Confirmadas", value: metrics?.totalVendas ?? 0, icon: TrendingUp, color: "text-primary" },
+            { label: "Valor Confirmado", value: formatCurrency(metrics?.totalTransacionado ?? 0), icon: DollarSign, color: "text-primary" },
             { label: "Taxa Plataforma", value: formatCurrency(metrics?.totalTaxas ?? 0), icon: Percent, color: "text-primary" },
             { label: "Ticket Médio", value: formatCurrency(metrics?.ticketMedio ?? 0), icon: Target, color: "text-primary" },
           ].map(kpi => (
