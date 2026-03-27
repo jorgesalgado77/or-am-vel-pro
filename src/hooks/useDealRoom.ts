@@ -186,7 +186,7 @@ export function useDealRoom() {
       const tid = filters?.tenant_id;
       if (!tid) return null;
 
-      // Get transactions directly
+      // Get ALL transactions for reference
       const { data: transactions } = await supabase
         .from("dealroom_transactions")
         .select("*")
@@ -194,14 +194,18 @@ export function useDealRoom() {
         .order("created_at", { ascending: false });
 
       const txns = (transactions || []) as DealRoomTransaction[];
-      const totalVendas = txns.length;
-      const totalTransacionado = txns.reduce((s, t) => s + (t.valor_venda || 0), 0);
-      const totalTaxas = txns.reduce((s, t) => s + (t.taxa_plataforma_valor || 0), 0);
+
+      // Only count transactions that originate from PAID proposals (confirmed payment)
+      // Transactions with forma_pagamento = "dealroom" are auto-created when proposal is marked as paid
+      const confirmedTxns = txns.filter(t => t.forma_pagamento === "dealroom");
+      const totalVendas = confirmedTxns.length;
+      const totalTransacionado = confirmedTxns.reduce((s, t) => s + (t.valor_venda || 0), 0);
+      const totalTaxas = confirmedTxns.reduce((s, t) => s + (t.taxa_plataforma_valor || 0), 0);
       const ticketMedio = totalVendas > 0 ? totalTransacionado / totalVendas : 0;
 
-      // Build vendor ranking
+      // Build vendor ranking from confirmed transactions only
       const vendorMap: Record<string, { nome: string; total: number; vendas: number }> = {};
-      txns.forEach((t: any) => {
+      confirmedTxns.forEach((t: any) => {
         const key = t.usuario_id || "desconhecido";
         if (!vendorMap[key]) vendorMap[key] = { nome: t.nome_vendedor || "Desconhecido", total: 0, vendas: 0 };
         vendorMap[key].total += t.valor_venda || 0;
