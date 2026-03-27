@@ -13,6 +13,7 @@ import {
   DollarSign, TrendingUp, Target, Percent, Trophy, Plus,
   Send, Eye, CheckCircle, XCircle, FileText, ExternalLink,
   Handshake, BarChart3, RefreshCw, Video, Calendar, Bot,
+  Mic, MicOff, AlertTriangle,
 } from "lucide-react";
 import { useDealRoom, type DealRoomProposal } from "@/hooks/useDealRoom";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
@@ -24,6 +25,8 @@ import { ptBR } from "date-fns/locale";
 import { DealRoomMeeting } from "./dealroom/DealRoomMeeting";
 import { DealRoomScheduler } from "./dealroom/DealRoomScheduler";
 import { DealRoomVendaZapAI } from "./dealroom/DealRoomVendaZapAI";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useVoiceEnrollment } from "@/hooks/useVoiceEnrollment";
 
 interface DealRoomStoreWidgetProps {
   tenantId: string;
