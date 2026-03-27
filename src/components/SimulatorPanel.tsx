@@ -557,13 +557,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     input.click();
   };
 
-  // Update valorTela whenever environments change
+  // Update valorTela whenever environments or catalog products change
   useEffect(() => {
-    if (environments.length > 0) {
-      const sum = environments.reduce((acc, env) => acc + env.totalValue, 0);
-      setValorTela(sum);
+    if (environments.length > 0 || catalogProductsTotal > 0) {
+      const envSum = environments.reduce((acc, env) => acc + env.totalValue, 0);
+      setValorTela(envSum + catalogProductsTotal);
     }
-  }, [environments]);
+  }, [environments, catalogProductsTotal]);
 
   const handleRemoveEnvironment = (envId: string) => {
     setEnvironments((prev) => {
@@ -977,7 +977,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                 >
                   <Upload className="h-4 w-4" />
                 </Button>
-              </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  title="Adicionar produtos do catálogo"
+                  onClick={() => setProductPickerOpen(true)}
+                >
+                  <Package className="h-4 w-4" />
+                </Button>
               <div className="mt-2 border rounded-md overflow-hidden">
                 <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
                   <div className="flex items-center gap-2">
