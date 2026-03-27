@@ -88,22 +88,29 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     let filteredTrackings = trackings as any[];
 
+    // Fetch client vendedor info for all trackings
+    const allClientIds = [...new Set(filteredTrackings.map(t => t.client_id).filter(Boolean))];
+    let vendedorMap: Record<string, { vendedor_id: string | null; vendedor: string | null }> = {};
+
+    if (allClientIds.length > 0) {
+      const { data: clientsData } = await supabase
+        .from("clients")
+        .select("id, vendedor_id, vendedor")
+        .in("id", allClientIds);
+
+      (clientsData || []).forEach((c: any) => {
+        vendedorMap[c.id] = { vendedor_id: c.vendedor_id, vendedor: c.vendedor };
+      });
+    }
+
     // Role-based filtering: vendedor/projetista only see their own clients
     if (!isAdminOrManager && userId) {
-      const clientIds = [...new Set(filteredTrackings.map(t => t.client_id).filter(Boolean))];
-      if (clientIds.length > 0) {
-        const { data: clientsData } = await supabase
-          .from("clients")
-          .select("id, vendedor_id")
-          .in("id", clientIds);
-
-        const myClientIds = new Set(
-          (clientsData || [])
-            .filter((c: any) => c.vendedor_id === userId)
-            .map((c: any) => c.id)
-        );
-        filteredTrackings = filteredTrackings.filter(t => myClientIds.has(t.client_id));
-      }
+      const myClientIds = new Set(
+        Object.entries(vendedorMap)
+          .filter(([, v]) => v.vendedor_id === userId)
+          .map(([id]) => id)
+      );
+      filteredTrackings = filteredTrackings.filter(t => myClientIds.has(t.client_id));
     }
 
     const trackingIds = filteredTrackings.map(t => t.id);
@@ -145,6 +152,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         unread_count: unreadMap[t.id] || 0,
         last_message: lastMsgMap[t.id]?.msg,
         last_message_at: lastMsgMap[t.id]?.at,
+        vendedor_nome: vendedorMap[t.client_id]?.vendedor || null,
       }))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;

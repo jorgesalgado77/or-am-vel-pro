@@ -67,6 +67,13 @@ const ConversationItem = memo(function ConversationItem({
               )}
             </div>
           </div>
+          {conv.vendedor_nome && (
+            <div className="mt-0.5">
+              <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">
+                👤 {conv.vendedor_nome}
+              </Badge>
+            </div>
+          )}
         </div>
       </div>
     </button>
