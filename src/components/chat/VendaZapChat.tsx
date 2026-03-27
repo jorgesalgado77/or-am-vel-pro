@@ -7,6 +7,8 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useWhatsAppSimulator } from "@/hooks/useWhatsAppSimulator";
 import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Wifi, WifiOff, Loader2 } from "lucide-react";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
@@ -14,6 +16,125 @@ import { WhatsAppSimulatorPanel } from "./WhatsAppSimulatorPanel";
 import { SimulatorMetricsPanel } from "./SimulatorMetricsPanel";
 import { StartConversationModal } from "./StartConversationModal";
 import type { ChatConversation } from "./types";
+
+type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
+
+function useWhatsAppConnectionStatus(tenantId: string | null) {
+  const [status, setStatus] = useState<WhatsAppConnectionStatus>("checking");
+  const [provider, setProvider] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tenantId) { setStatus("not_configured"); return; }
+
+    const checkConnection = async () => {
+      setStatus("checking");
+
+      // Read whatsapp_settings
+      let response = await supabase
+        .from("whatsapp_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      // If tenant_id filter fails, retry without it
+      if (response.error?.code === "42703" || response.error?.code === "PGRST204") {
+        response = await supabase
+          .from("whatsapp_settings")
+          .select("*")
+          .limit(1)
+          .maybeSingle();
+      }
+
+      const settings = response.data as any;
+
+      if (!settings || !settings.ativo) {
+        setStatus("not_configured");
+        return;
+      }
+
+      setProvider(settings.provider);
+
+      if (settings.provider === "zapi" && settings.zapi_instance_id && settings.zapi_token && settings.zapi_client_token) {
+        try {
+          const res = await fetch(
+            `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/status`,
+            {
+              headers: {
+                "Client-Token": settings.zapi_client_token,
+                ...(settings.zapi_security_token ? { "Security-Token": settings.zapi_security_token } : {}),
+              },
+            }
+          );
+          const data = await res.json().catch(() => null);
+          const connected =
+            data?.connected === true ||
+            data?.smartphoneConnected === true ||
+            (typeof data?.error === "string" && data.error.toLowerCase().includes("already connected"));
+          setStatus(connected ? "online" : "offline");
+        } catch {
+          setStatus("offline");
+        }
+      } else if (settings.provider === "evolution" && settings.evolution_api_url && settings.evolution_api_key) {
+        try {
+          const instanceName = settings.evolution_instance_name || "default";
+          const res = await fetch(
+            `${settings.evolution_api_url.replace(/\/$/, "")}/instance/connectionState/${instanceName}`,
+            { headers: { apikey: settings.evolution_api_key } }
+          );
+          const data = await res.json().catch(() => null);
+          const state = data?.instance?.state || data?.state || "";
+          setStatus(state === "open" || state === "connected" ? "online" : "offline");
+        } catch {
+          setStatus("offline");
+        }
+      } else {
+        setStatus("not_configured");
+      }
+    };
+
+    checkConnection();
+    // Re-check every 60 seconds
+    const interval = setInterval(checkConnection, 60000);
+    return () => clearInterval(interval);
+  }, [tenantId]);
+
+  return { status, provider };
+}
+
+function WhatsAppStatusTag({ status, provider }: { status: WhatsAppConnectionStatus; provider: string | null }) {
+  if (status === "checking") {
+    return (
+      <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 border-muted-foreground/30 text-muted-foreground animate-pulse">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Verificando...
+      </Badge>
+    );
+  }
+  if (status === "online") {
+    const label = provider === "zapi" ? "Z-API Online" : provider === "evolution" ? "Evolution Online" : "WhatsApp Online";
+    return (
+      <Badge className="gap-1.5 text-[10px] px-2 py-0.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 hover:bg-emerald-500/20">
+        <Wifi className="h-3 w-3" />
+        {label}
+      </Badge>
+    );
+  }
+  if (status === "offline") {
+    const label = provider === "zapi" ? "Z-API Offline" : provider === "evolution" ? "Evolution Offline" : "WhatsApp Offline";
+    return (
+      <Badge variant="destructive" className="gap-1.5 text-[10px] px-2 py-0.5">
+        <WifiOff className="h-3 w-3" />
+        {label}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 text-muted-foreground">
+      <WifiOff className="h-3 w-3" />
+      Não configurado
+    </Badge>
+  );
+}
 
 interface Props {
   tenantId: string | null;
