@@ -152,6 +152,7 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
       remetente_tipo: "loja",
       remetente_nome: "Loja",
       lida: false,
+      tenant_id: getTenantId(),
     } as any);
     if (error) toast.error("Erro ao enviar");
     else {

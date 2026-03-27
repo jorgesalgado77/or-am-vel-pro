@@ -187,6 +187,7 @@ export function useAutoPilot({ tenantId, userId, addon }: UseAutoPilotParams) {
         remetente_tipo: "loja",
         remetente_nome: "🤖 Auto-Pilot",
         lida: false,
+        tenant_id: tenantId,
       } as any);
 
       if (sendError) {

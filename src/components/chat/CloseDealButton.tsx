@@ -75,6 +75,7 @@ export function CloseDealButton({ trackingId, clientName, tenantId, userId, onPr
         remetente_tipo: "loja",
         remetente_nome: "📋 Proposta",
         lida: false,
+        tenant_id: tenantId,
       } as any);
 
       logAudit({
