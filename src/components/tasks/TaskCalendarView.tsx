@@ -30,7 +30,7 @@ export const TaskCalendarView = forwardRef<HTMLDivElement, Props>(function TaskC
   }, [tasks]);
 
   return (
-    <div className="border rounded-lg bg-card">
+    <div ref={ref} className="border rounded-lg bg-card">
       <div className="flex items-center justify-between p-3 border-b">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
           <ChevronLeft className="h-4 w-4" />
