@@ -13,28 +13,27 @@ export interface TenantOnboarding {
 export function useTenantOnboarding(tenantId: string | null) {
   const [onboarding, setOnboarding] = useState<TenantOnboarding | null>(null);
   const [loading, setLoading] = useState(true);
-  const [setupFeePaid, setSetupFeePaid] = useState(true); // default true to avoid blocking
+  const [setupFeePaid, setSetupFeePaid] = useState(true);
 
-  const fetch = useCallback(async () => {
+  const fetchOnboarding = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("tenant_onboarding")
       .select("*")
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
     if (data) {
-      const record = data as unknown as TenantOnboarding;
+      const record = data as TenantOnboarding;
       setOnboarding(record);
       setSetupFeePaid(record.setup_fee_paid);
     } else {
-      // No record = not restricted
       setSetupFeePaid(true);
     }
     setLoading(false);
   }, [tenantId]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchOnboarding(); }, [fetchOnboarding]);
 
-  return { onboarding, loading, setupFeePaid, refetch: fetch };
+  return { onboarding, loading, setupFeePaid, refetch: fetchOnboarding };
 }

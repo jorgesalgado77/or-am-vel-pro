@@ -32,13 +32,13 @@ export function useApiKeys(tenantId: string | null) {
   const fetchKeys = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("api_keys")
       .select("*")
       .eq("tenant_id", tenantId)
       .order("provider");
 
-    if (!error && data) setKeys(data as unknown as ApiKeyRecord[]);
+    if (!error && data) setKeys(data as ApiKeyRecord[]);
     setLoading(false);
   }, [tenantId]);
 
@@ -49,15 +49,15 @@ export function useApiKeys(tenantId: string | null) {
     const existing = keys.find(k => k.provider === provider);
 
     if (existing) {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("api_keys")
-        .update({ api_key: apiKey, api_url: apiUrl || null, is_active: true } as any)
+        .update({ api_key: apiKey, api_url: apiUrl || null, is_active: true })
         .eq("id", existing.id);
       if (error) { toast.error("Erro ao atualizar API key"); return false; }
     } else {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("api_keys")
-        .insert({ tenant_id: tenantId, provider, api_key: apiKey, api_url: apiUrl || null, is_active: true } as any);
+        .insert({ tenant_id: tenantId, provider, api_key: apiKey, api_url: apiUrl || null, is_active: true });
       if (error) { toast.error("Erro ao salvar API key"); return false; }
     }
 
@@ -67,16 +67,16 @@ export function useApiKeys(tenantId: string | null) {
   };
 
   const toggleKey = async (id: string, isActive: boolean) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("api_keys")
-      .update({ is_active: isActive } as any)
+      .update({ is_active: isActive })
       .eq("id", id);
     if (error) { toast.error("Erro ao alterar status"); return; }
     await fetchKeys();
   };
 
   const deleteKey = async (id: string) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("api_keys")
       .delete()
       .eq("id", id);
