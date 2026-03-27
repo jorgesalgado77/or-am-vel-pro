@@ -129,7 +129,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const trackMap = new Map<string, { valor_contrato: number; dateRef: string }>();
     if (trackData) {
       (trackData as any[]).forEach(t => {
-        if (contractClientIds.has(t.client_id)) {
+        if (cIds.has(t.client_id)) {
           trackMap.set(t.client_id, {
             valor_contrato: Number(t.valor_contrato) || 0,
             dateRef: t.data_fechamento || t.created_at,
@@ -140,7 +140,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
     // For clients with contracts but no tracking record, use contract creation date
     const all: { valor_contrato: number; dateRef: string }[] = [];
-    contractClientIds.forEach(clientId => {
+    cIds.forEach(clientId => {
       const tracked = trackMap.get(clientId);
       if (tracked) {
         all.push(tracked);
