@@ -94,37 +94,67 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const dateRange = useMemo(() => getDateRange(datePreset, customStart, customEnd), [datePreset, customStart, customEnd]);
 
-  // Contract tracking data
+  // Contract tracking data — only count clients with actual issued contracts
   const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
   const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string }[]>([]);
 
   const fetchTrackingStats = useCallback(async () => {
     const tenantId = await getResolvedTenantId();
-    let query = supabase
-      .from("client_tracking")
-      .select("valor_contrato, data_fechamento, created_at");
 
-    if (tenantId) {
-      query = query.eq("tenant_id", tenantId);
+    // Step 1: Get clients that actually have issued contracts
+    let contractQuery = supabase
+      .from("client_contracts")
+      .select("client_id, created_at");
+    if (tenantId) contractQuery = contractQuery.eq("tenant_id", tenantId);
+    const { data: contracts } = await contractQuery;
+
+    if (!contracts || contracts.length === 0) {
+      setTrackingRaw([]);
+      setTrackingData({ count: 0, total: 0 });
+      return;
     }
 
-    // Only fetch records that represent actual closed contracts (status != em_negociacao, novo, etc.)
-    query = query.not("status", "in", "(em_negociacao,novo,perdido)");
+    const contractClientIds = new Set((contracts as any[]).map(c => c.client_id));
 
-    const { data } = await query;
+    // Step 2: Get tracking data for those clients (which has valor_contrato)
+    let trackQuery = supabase
+      .from("client_tracking")
+      .select("client_id, valor_contrato, data_fechamento, created_at");
+    if (tenantId) trackQuery = trackQuery.eq("tenant_id", tenantId);
+    const { data: trackData } = await trackQuery;
 
-    if (data) {
-      const all = (data as any[]).map((t) => ({
-        valor_contrato: Number(t.valor_contrato) || 0,
-        dateRef: t.data_fechamento || t.created_at,
-      }));
-      const filtered = all.filter((t) => isInRange(t.dateRef, dateRange.start, dateRange.end));
-      setTrackingRaw(filtered);
-      setTrackingData({
-        count: filtered.length,
-        total: filtered.reduce((sum, t) => sum + t.valor_contrato, 0),
+    // Build values from client_tracking for clients with actual contracts
+    const trackMap = new Map<string, { valor_contrato: number; dateRef: string }>();
+    if (trackData) {
+      (trackData as any[]).forEach(t => {
+        if (contractClientIds.has(t.client_id)) {
+          trackMap.set(t.client_id, {
+            valor_contrato: Number(t.valor_contrato) || 0,
+            dateRef: t.data_fechamento || t.created_at,
+          });
+        }
       });
     }
+
+    // For clients with contracts but no tracking record, use contract creation date
+    const all: { valor_contrato: number; dateRef: string }[] = [];
+    contractClientIds.forEach(clientId => {
+      const tracked = trackMap.get(clientId);
+      if (tracked) {
+        all.push(tracked);
+      } else {
+        // Find the contract date for this client
+        const contract = (contracts as any[]).find(c => c.client_id === clientId);
+        all.push({ valor_contrato: 0, dateRef: contract?.created_at || new Date().toISOString() });
+      }
+    });
+
+    const filtered = all.filter(t => isInRange(t.dateRef, dateRange.start, dateRange.end));
+    setTrackingRaw(filtered);
+    setTrackingData({
+      count: filtered.length,
+      total: filtered.reduce((sum, t) => sum + t.valor_contrato, 0),
+    });
   }, [dateRange]);
 
   useEffect(() => { fetchTrackingStats(); }, [fetchTrackingStats]);
