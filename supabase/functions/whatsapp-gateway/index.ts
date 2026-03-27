@@ -35,10 +35,10 @@ function getSupabaseAdmin() {
 
 // Resolve Evolution API credentials (tenant-specific or global)
 async function resolveEvolutionConfig(tenantId: string | null): Promise<{ apiUrl: string; apiKey: string } | null> {
+  const sb = getSupabaseAdmin();
+
   if (tenantId) {
     try {
-      const sb = getSupabaseAdmin();
-      // Try api_keys table first
       const { data } = await sb.rpc("get_api_config", { p_tenant_id: tenantId, p_provider: "evolution" });
       if (data && data.length > 0 && data[0].api_key) {
         return {
@@ -46,22 +46,42 @@ async function resolveEvolutionConfig(tenantId: string | null): Promise<{ apiUrl
           apiKey: data[0].api_key,
         };
       }
-      // Fallback: try whatsapp_settings table
-      const { data: ws } = await sb
-        .from("whatsapp_settings")
-        .select("evolution_api_url, evolution_api_key")
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
-      if (ws?.evolution_api_key) {
-        return {
-          apiUrl: ws.evolution_api_url || Deno.env.get("WHATSAPP_API_URL") || "",
-          apiKey: ws.evolution_api_key,
-        };
-      }
     } catch (e) {
-      console.warn("[resolveEvolutionConfig] Fallback:", e);
+      console.warn("[resolveEvolutionConfig] RPC fallback:", e);
     }
   }
+
+  try {
+    let settingsQuery = sb
+      .from("whatsapp_settings")
+      .select("evolution_api_url, evolution_api_key");
+
+    if (tenantId) {
+      settingsQuery = settingsQuery.eq("tenant_id", tenantId);
+    }
+
+    let { data: ws, error } = await settingsQuery.maybeSingle();
+
+    if (error?.code === "42703" || error?.code === "PGRST204" || error?.message?.includes("tenant_id")) {
+      const fallback = await sb
+        .from("whatsapp_settings")
+        .select("evolution_api_url, evolution_api_key")
+        .limit(1)
+        .maybeSingle();
+      ws = fallback.data;
+      error = fallback.error;
+    }
+
+    if (!error && ws?.evolution_api_key) {
+      return {
+        apiUrl: ws.evolution_api_url || Deno.env.get("WHATSAPP_API_URL") || "",
+        apiKey: ws.evolution_api_key,
+      };
+    }
+  } catch (e) {
+    console.warn("[resolveEvolutionConfig] Settings fallback:", e);
+  }
+
   const apiUrl = Deno.env.get("WHATSAPP_API_URL");
   const apiKey = Deno.env.get("WHATSAPP_API_KEY");
   if (!apiUrl || !apiKey) return null;
