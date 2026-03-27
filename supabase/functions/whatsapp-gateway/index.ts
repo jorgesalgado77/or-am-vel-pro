@@ -142,7 +142,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, phone, message, media_url, tracking_id } = body;
+    const { action, phone, message, media_url, tracking_id, tenant_id } = body;
 
     // Check provider
     const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
@@ -161,7 +161,6 @@ serve(async (req) => {
       }
 
       if (provider === "simulation") {
-        // In simulation mode, message is handled client-side
         return respond({
           success: true,
           provider: "simulation",
@@ -171,7 +170,7 @@ serve(async (req) => {
 
       let result;
       if (provider === "evolution") {
-        result = await sendViaEvolution(phone, message, media_url);
+        result = await sendViaEvolution(phone, message, media_url, tenant_id);
       } else if (provider === "twilio") {
         result = await sendViaTwilio(phone, message, media_url);
       } else {
