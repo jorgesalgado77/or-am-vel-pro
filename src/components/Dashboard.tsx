@@ -1060,6 +1060,7 @@ interface TrackingRow {
   valor_contrato: number;
   data_fechamento: string | null;
   projetista: string | null;
+  vendedor: string | null;
   status: string;
 }
 
