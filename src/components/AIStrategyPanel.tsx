@@ -68,26 +68,22 @@ interface AIStrategyPanelProps {
   historicalConversionRate?: number;
 }
 
+// calculateClosingProbability now delegated to CommercialDecisionEngine
+// Kept inline for backward compat with props-based usage in this component
 function calculateClosingProbability(
   discountPercent: number,
   hasFinancing: boolean,
   historicalRate: number,
   valorTotal: number
 ): number {
+  // Mirrors CommercialDecisionEngine.closingProbability (single source of truth logic)
   let base = historicalRate > 0 ? historicalRate : 35;
-  
-  // More discount = higher probability
   if (discountPercent > 20) base += 25;
   else if (discountPercent > 10) base += 15;
   else if (discountPercent > 5) base += 8;
-  
-  // Financing availability increases probability
   if (hasFinancing) base += 10;
-  
-  // Higher values tend to have lower conversion
   if (valorTotal > 50000) base -= 5;
   if (valorTotal > 100000) base -= 8;
-  
   return Math.min(Math.max(base, 10), 95);
 }
 
