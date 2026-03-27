@@ -122,9 +122,14 @@ export function useVoiceEnrollment(usuarioId: string | null) {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrolledFingerprint, setEnrolledFingerprint] = useState<VoiceFingerprint | null>(null);
   const [loading, setLoading] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const autoStopRef = useRef<number | null>(null);
 
   // Load existing enrollment
   const loadEnrollment = useCallback(async () => {
@@ -195,7 +200,33 @@ export function useVoiceEnrollment(usuarioId: string | null) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (autoStopRef.current) clearTimeout(autoStopRef.current);
   }, []);
+
+  // Play back recorded audio
+  const playRecording = useCallback(() => {
+    if (!recordedBlob) return;
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    const url = URL.createObjectURL(recordedBlob);
+    setAudioUrl(url);
+    const audio = new Audio(url);
+    audio.play();
+  }, [recordedBlob, audioUrl]);
+
+  // Save recorded blob
+  const saveRecording = useCallback(async () => {
+    if (!recordedBlob) return;
+    await processAndSave(recordedBlob);
+  }, [recordedBlob]);
+
+  // Discard recorded blob
+  const discardRecording = useCallback(() => {
+    setRecordedBlob(null);
+    setRecordingSeconds(0);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl(null);
+  }, [audioUrl]);
 
   const processAndSave = async (blob: Blob) => {
     if (!usuarioId) return;
