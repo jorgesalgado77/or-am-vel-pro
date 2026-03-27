@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import ReactMarkdown from "react-markdown";
 import {
   Bot,
@@ -19,7 +18,6 @@ import {
   FlaskConical,
   FolderPlus,
   ArrowDown,
-  Volume2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
@@ -44,6 +42,11 @@ function loadSavedPosition(): { x: number; y: number } | null {
   return null;
 }
 
+// Detect reduced motion preference for low-end devices
+const prefersReducedMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
 export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
@@ -51,7 +54,7 @@ export function OnboardingAIAssistant() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -64,7 +67,7 @@ export function OnboardingAIAssistant() {
   const hasEvolution = keys.some(k => k.provider === "evolution" && k.is_active);
   const missingCriticalKeys = !hasOpenAI || !hasEvolution;
 
-  // Track if user has manually scrolled up
+  // Scroll tracking
   const userScrolledUp = useRef(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -73,13 +76,13 @@ export function OnboardingAIAssistant() {
   const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
   const prevLastAssistantId = useRef<string | null>(null);
 
-  // Init notification audio
+  // Init notification audio (lazy)
   useEffect(() => {
     notificationAudioRef.current = new Audio("/sounds/mia-notification.wav");
     notificationAudioRef.current.volume = 0.5;
   }, []);
 
-  // Count new messages arriving while scrolled up OR chat closed
+  // Count new messages while scrolled up or closed
   useEffect(() => {
     const newCount = messages.length - prevMsgCount.current;
     prevMsgCount.current = messages.length;
@@ -91,7 +94,7 @@ export function OnboardingAIAssistant() {
     }
   }, [messages.length, open]);
 
-  // Play notification sound when new assistant message arrives while chat is closed
+  // Notification sound when chat is closed
   useEffect(() => {
     const lastAssistant = [...messages].reverse().find(m => m.role === "assistant");
     if (!lastAssistant) return;
@@ -101,40 +104,33 @@ export function OnboardingAIAssistant() {
     prevLastAssistantId.current = lastAssistant.id;
   }, [messages, open]);
 
-  const handleScrollChange = useCallback(() => {
-    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
-    if (!viewport) return;
-    const { scrollTop, scrollHeight, clientHeight } = viewport;
-    const isUp = scrollHeight - scrollTop - clientHeight > 60;
-    userScrolledUp.current = isUp;
-    setShowScrollBtn(isUp);
+  // Native scroll handler on viewport div
+  const handleScroll = useCallback(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    userScrolledUp.current = !nearBottom;
+    setShowScrollBtn(!nearBottom);
+    if (nearBottom) setUnreadCount(0);
   }, []);
 
-  // Attach scroll listener to viewport
-  useEffect(() => {
-    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
-    if (!viewport) return;
-    viewport.addEventListener("scroll", handleScrollChange);
-    return () => viewport.removeEventListener("scroll", handleScrollChange);
-  }, [open, handleScrollChange]);
-
-  // Scroll to bottom helper — targets the Radix viewport directly
+  // Scroll to bottom helper
   const scrollToBottom = useCallback(() => {
-    const viewport = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
-    if (!viewport) return;
-    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+    const el = viewportRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotion ? "auto" : "smooth" });
     userScrolledUp.current = false;
     setShowScrollBtn(false);
     setUnreadCount(0);
   }, []);
 
-  // Auto-scroll to bottom on new messages or loading state (only if not manually scrolled up)
+  // Auto-scroll on new messages
   useLayoutEffect(() => {
     if (userScrolledUp.current) return;
     requestAnimationFrame(() => scrollToBottom());
   }, [messages.length, loading, scrollToBottom]);
 
-  // Focus input when opened & clear FAB unread
+  // Focus input & clear FAB unread when opened
   useEffect(() => {
     if (open) {
       setFabUnread(0);
@@ -161,10 +157,8 @@ export function OnboardingAIAssistant() {
     el.setPointerCapture(e.pointerId);
     const rect = el.getBoundingClientRect();
     dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startPosX: rect.left,
-      startPosY: rect.top,
+      startX: e.clientX, startY: e.clientY,
+      startPosX: rect.left, startPosY: rect.top,
       dragging: false,
     };
   };
@@ -176,7 +170,6 @@ export function OnboardingAIAssistant() {
     const dy = e.clientY - d.startY;
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) d.dragging = true;
     if (!d.dragging) return;
-
     const newX = Math.max(0, Math.min(window.innerWidth - 56, d.startPosX + dx));
     const newY = Math.max(0, Math.min(window.innerHeight - 56, d.startPosY + dy));
     setFabPos({ x: newX, y: newY });
@@ -211,7 +204,7 @@ export function OnboardingAIAssistant() {
 
   return (
     <>
-      {/* Floating button — draggable */}
+      {/* FAB */}
       {!open && (
         <button
           ref={fabRef}
@@ -231,21 +224,30 @@ export function OnboardingAIAssistant() {
         </button>
       )}
 
-      {/* Chat panel */}
+      {/* Chat panel — responsive: full-screen on mobile, floating on desktop */}
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-h-[600px] rounded-2xl border border-border bg-background shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+        <div
+          className={cn(
+            "fixed z-50 flex flex-col overflow-hidden border border-border bg-background shadow-2xl",
+            // Mobile: full viewport
+            "inset-0 rounded-none",
+            // sm+: floating bottom-right card
+            "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:rounded-2xl",
+            !prefersReducedMotion && "animate-in slide-in-from-bottom-4 duration-300"
+          )}
+          style={{
+            // Use dvh for mobile safe area, capped on desktop
+            maxHeight: "100dvh",
+          }}
+        >
           {/* Header */}
           <div className="bg-primary px-4 py-3 flex items-center gap-3 shrink-0">
             <div className="h-9 w-9 rounded-full bg-primary-foreground/20 flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-primary-foreground">
-                Mia — Assistente IA
-              </p>
-              <p className="text-xs text-primary-foreground/70">
-                Configuração inteligente
-              </p>
+              <p className="text-sm font-semibold text-primary-foreground">Mia — Assistente IA</p>
+              <p className="text-xs text-primary-foreground/70">Configuração inteligente</p>
             </div>
             <Button
               variant="ghost"
@@ -260,9 +262,7 @@ export function OnboardingAIAssistant() {
           {/* Progress bar */}
           <div className="px-4 py-2 border-b border-border bg-muted/30 shrink-0">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-muted-foreground">
-                Progresso
-              </span>
+              <span className="text-xs font-medium text-muted-foreground">Progresso</span>
               <span className="text-xs font-semibold text-foreground">
                 {completedSteps.length}/{ONBOARDING_STEPS.length}
               </span>
@@ -285,11 +285,7 @@ export function OnboardingAIAssistant() {
                       done && "bg-primary/15 text-primary border-primary/30"
                     )}
                   >
-                    {done ? (
-                      <CheckCircle2 className="h-3 w-3" />
-                    ) : (
-                      <Circle className="h-3 w-3" />
-                    )}
+                    {done ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
                     {step.label}
                   </Badge>
                 );
@@ -340,15 +336,20 @@ export function OnboardingAIAssistant() {
             </div>
           )}
 
-          {/* Messages — scrollable with visible scrollbar */}
-          <div className="relative flex-1 min-h-0">
-            <ScrollArea ref={scrollRef} className="h-full">
+          {/* ===== Messages — native scroll, isolated flex area ===== */}
+          <div className="relative flex-1 min-h-0 overflow-hidden">
+            <div
+              ref={viewportRef}
+              onScroll={handleScroll}
+              className="absolute inset-0 overflow-y-auto overscroll-contain scroll-smooth"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
               <div className="p-3 space-y-3">
                 {messages.map((msg) => (
                   <MessageBubble key={msg.id} message={msg} />
                 ))}
                 {loading && (
-                  <div className="flex items-start gap-2 px-3 py-2 animate-fade-in">
+                  <div className="flex items-start gap-2 px-1 py-2">
                     <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <Bot className="h-4 w-4 text-primary animate-pulse" />
                     </div>
@@ -362,35 +363,29 @@ export function OnboardingAIAssistant() {
                     </div>
                   </div>
                 )}
-                <div ref={bottomRef} />
+                <div ref={bottomRef} className="h-1" />
               </div>
-              <ScrollBar className="opacity-60 hover:opacity-100 transition-opacity" />
-            </ScrollArea>
+            </div>
 
-            {/* Scroll to bottom FAB */}
+            {/* Scroll-to-bottom FAB */}
             {showScrollBtn && (
               <button
                 onClick={scrollToBottom}
-                className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 h-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center gap-1 px-3 hover:scale-105 transition-transform animate-in fade-in zoom-in-75 duration-200"
+                className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 h-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center gap-1 px-3 hover:scale-105 active:scale-95 transition-transform"
                 aria-label="Ir para mensagens recentes"
               >
                 <ArrowDown className="h-4 w-4" />
                 {unreadCount > 0 && (
-                  <span className="text-[10px] font-bold leading-none">
-                    {unreadCount}
-                  </span>
+                  <span className="text-[10px] font-bold leading-none">{unreadCount}</span>
                 )}
               </button>
             )}
           </div>
+
+          {/* Quick actions (early onboarding) */}
           {messages.length <= 2 && (
             <div className="px-3 py-2 border-t border-border flex flex-wrap gap-1.5 shrink-0">
-              {[
-                "Alto Padrão",
-                "Popular",
-                "Corporativo",
-                "Misto",
-              ].map((type) => (
+              {["Alto Padrão", "Popular", "Corporativo", "Misto"].map((type) => (
                 <Button
                   key={type}
                   variant="outline"
@@ -405,49 +400,25 @@ export function OnboardingAIAssistant() {
             </div>
           )}
 
-          {/* Advanced action buttons (FASES 6, 7, 8) */}
+          {/* Advanced action buttons */}
           {messages.length > 2 && (hasOpenAI || hasEvolution) && (
             <div className="px-3 py-2 border-t border-border flex flex-wrap gap-1.5 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={configureVendaZap}
-                disabled={loading}
-              >
-                <Zap className="h-3 w-3" />
-                Configurar VendaZap
+              <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={configureVendaZap} disabled={loading}>
+                <Zap className="h-3 w-3" /> Configurar VendaZap
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={runTests}
-                disabled={loading}
-              >
-                <FlaskConical className="h-3 w-3" />
-                Executar Testes
+              <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={runTests} disabled={loading}>
+                <FlaskConical className="h-3 w-3" /> Executar Testes
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={suggestFirstProject}
-                disabled={loading}
-              >
-                <FolderPlus className="h-3 w-3" />
-                Primeiro Projeto
+              <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={suggestFirstProject} disabled={loading}>
+                <FolderPlus className="h-3 w-3" /> Primeiro Projeto
               </Button>
             </div>
           )}
 
-          {/* Input */}
-          <div className="p-3 border-t border-border shrink-0">
+          {/* Input — always pinned at bottom with safe area */}
+          <div className="p-3 border-t border-border bg-background shrink-0" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSend();
-              }}
+              onSubmit={(e) => { e.preventDefault(); handleSend(); }}
               className="flex gap-2"
             >
               <Input
@@ -464,11 +435,7 @@ export function OnboardingAIAssistant() {
                 className="h-9 w-9 shrink-0"
                 disabled={!input.trim() || loading}
               >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </form>
           </div>
@@ -478,13 +445,11 @@ export function OnboardingAIAssistant() {
   );
 }
 
-function MessageBubble({ message }: { message: AIMessage }) {
+const MessageBubble = memo(function MessageBubble({ message }: { message: AIMessage }) {
   const isUser = message.role === "user";
 
   return (
-    <div
-      className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}
-    >
+    <div className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
       {!isUser && (
         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
           <Bot className="h-4 w-4 text-primary" />
@@ -502,9 +467,9 @@ function MessageBubble({ message }: { message: AIMessage }) {
       </div>
     </div>
   );
-}
+});
 
-function RenderMarkdown({ content }: { content: string }) {
+const RenderMarkdown = memo(function RenderMarkdown({ content }: { content: string }) {
   return (
     <div className="prose prose-sm prose-slate dark:prose-invert max-w-none [&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_strong]:font-semibold [&_a]:underline [&_a]:text-inherit [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_code]:text-xs [&_code]:bg-black/10 [&_code]:px-1 [&_code]:rounded">
       <ReactMarkdown
@@ -520,4 +485,4 @@ function RenderMarkdown({ content }: { content: string }) {
       </ReactMarkdown>
     </div>
   );
-}
+});
