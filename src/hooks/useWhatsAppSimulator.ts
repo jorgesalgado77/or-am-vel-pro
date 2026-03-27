@@ -130,7 +130,7 @@ const CONTEXTUAL_RESPONSES: Array<{ trigger: RegExp; responses: string[] }> = [
   },
 ];
 
-export function useWhatsAppSimulator() {
+export function useWhatsAppSimulator(tenantId?: string | null) {
   const [config, setConfig] = useState<SimulationConfig>(() => {
     try {
       const saved = sessionStorage.getItem("whatsapp-sim-config");
@@ -141,6 +141,8 @@ export function useWhatsAppSimulator() {
   });
 
   const pendingTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const tenantIdRef = useRef(tenantId);
+  tenantIdRef.current = tenantId;
 
   const updateConfig = useCallback((updates: Partial<SimulationConfig>) => {
     setConfig((prev) => {
