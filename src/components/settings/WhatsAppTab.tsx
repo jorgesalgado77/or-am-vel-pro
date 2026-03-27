@@ -15,6 +15,7 @@ import {toast} from "sonner";
 import {Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle, Plus, Trash2, Edit, Bot, Copy, Info} from "lucide-react";
 import {getTenantId} from "@/lib/tenantState";
 import {WhatsAppBotMonitor} from "@/components/campaigns/WhatsAppBotMonitor";
+import {WhatsAppInstanceManager} from "./WhatsAppInstanceManager";
 
 type WhatsAppProvider = "evolution" | "twilio";
 
@@ -410,6 +411,13 @@ export function WhatsAppTab() {
           </div>
         </CardContent>
       </Card>
+
+      <Separator className="my-8" />
+
+      {/* Instance Manager */}
+      {provider === "evolution" && (
+        <WhatsAppInstanceManager tenantId={tenantId} />
+      )}
 
       <Separator className="my-8" />
 
