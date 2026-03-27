@@ -439,7 +439,7 @@ serve(async (req) => {
     // ── Status ──
 
     if (action === "status") {
-      const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
+      const provider = await detectProvider(tenant_id || null);
       return respond({
         provider,
         connected: provider !== "simulation",
@@ -455,7 +455,7 @@ serve(async (req) => {
         return respond({ error: "phone e message são obrigatórios" }, 400);
       }
 
-      const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
+      const provider = await detectProvider(tenant_id || null);
 
       if (provider === "simulation") {
         return respond({
@@ -465,12 +465,18 @@ serve(async (req) => {
         });
       }
 
+      if (provider === "zapi") {
+        const zapiConfig = await resolveZapiConfig(tenant_id || null);
+        if (!zapiConfig) return respond({ error: "Z-API não configurada. Adicione as credenciais em Configurações > WhatsApp." }, 400);
+        const result = await sendViaZapi(phone, message, zapiConfig, media_url);
+        if (!result.success) return respond({ error: result.error }, 502);
+        return respond({ success: true, provider: "zapi" });
+      }
+
       if (provider === "evolution") {
         if (!config) return respond({ error: "Evolution API não configurada" }, 400);
-        // Determine instance name
         let instName = instance_name || Deno.env.get("WHATSAPP_INSTANCE") || "default";
         if (tenant_id && !instance_name) {
-          // Try to find active instance from DB
           const sb = getSupabaseAdmin();
           const { data: inst } = await sb
             .from("whatsapp_instances")
