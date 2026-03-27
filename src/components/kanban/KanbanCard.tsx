@@ -47,7 +47,8 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
             "hover:shadow-md hover:border-primary/30",
             "active:scale-[0.98]",
             snapshot.isDragging && "shadow-lg ring-2 ring-primary/40 scale-[1.02]",
-            expired && "border-destructive/30"
+            expired && "border-destructive/30",
+            (client as any).status === "fechado" && "ring-2 ring-emerald-400/50 bg-emerald-50/30 dark:bg-emerald-950/20"
           )}
           style={{
             ...provided.draggableProps.style,
