@@ -15,6 +15,9 @@ import {
   Loader2,
   Settings,
   AlertTriangle,
+  Zap,
+  FlaskConical,
+  FolderPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
@@ -31,7 +34,7 @@ const ONBOARDING_STEPS = [
 
 export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
-  const { messages, loading, context, sendMessage } = useOnboardingAI(tenantId);
+  const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
