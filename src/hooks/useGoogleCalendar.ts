@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-export function useGoogleCalendar(tenantId: string | null) {
+export function useGoogleCalendar(tenantId: string | null, userId?: string) {
   const [syncing, setSyncing] = useState(false);
 
   const syncTaskToCalendar = useCallback(async (task: {
@@ -20,6 +20,7 @@ export function useGoogleCalendar(tenantId: string | null) {
         body: {
           action: "createEvent",
           tenant_id: tenantId,
+          user_id: userId || null,
           task_id: task.id,
           summary: task.titulo,
           description: task.descricao || `Tarefa: ${task.titulo}${task.responsavel_nome ? `\nResponsável: ${task.responsavel_nome}` : ""}`,
@@ -29,11 +30,14 @@ export function useGoogleCalendar(tenantId: string | null) {
       });
 
       if (error || data?.error) {
+        // If needs OAuth, don't show error toast (handled by UI)
+        if (data?.needs_oauth) return null;
         console.warn("Google Calendar sync failed:", data?.error || error);
         return null;
       }
 
-      toast.success("📅 Tarefa sincronizada com Google Agenda!");
+      const authLabel = data?.auth_type === "oauth" ? "OAuth" : "API Key";
+      toast.success(`📅 Tarefa sincronizada com Google Agenda! (${authLabel})`);
       return data?.data;
     } catch (err) {
       console.warn("Google Calendar sync error:", err);
@@ -41,18 +45,18 @@ export function useGoogleCalendar(tenantId: string | null) {
     } finally {
       setSyncing(false);
     }
-  }, [tenantId]);
+  }, [tenantId, userId]);
 
   const deleteCalendarEvent = useCallback(async (eventId: string) => {
     if (!tenantId) return;
     try {
       await supabase.functions.invoke("google-calendar", {
-        body: { action: "deleteEvent", tenant_id: tenantId, event_id: eventId },
+        body: { action: "deleteEvent", tenant_id: tenantId, user_id: userId || null, event_id: eventId },
       });
     } catch (err) {
       console.warn("Delete calendar event error:", err);
     }
-  }, [tenantId]);
+  }, [tenantId, userId]);
 
   return { syncTaskToCalendar, deleteCalendarEvent, syncing };
 }
