@@ -11,6 +11,7 @@ import {
   Flame, Snowflake, Star, ArrowUp, ArrowDown, Loader2, Bell,
 } from "lucide-react";
 import { useCommercialAI, type AIInsight } from "@/hooks/useCommercialAI";
+import { SalesGoalsPanel } from "@/components/commercial/SalesGoalsPanel";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -241,15 +242,16 @@ export function CommercialAIPanel() {
       </div>
 
       <Tabs defaultValue="insights" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="insights" className="gap-1">
-            <Lightbulb className="h-4 w-4" /> Insights
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="insights" className="gap-1 text-xs">
+            <Lightbulb className="h-3.5 w-3.5" /> Insights
             {insights.filter(i => !i.is_read).length > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 text-[10px]">{insights.filter(i => !i.is_read).length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="ranking" className="gap-1"><Trophy className="h-4 w-4" /> Ranking</TabsTrigger>
-          <TabsTrigger value="chat" className="gap-1"><Bot className="h-4 w-4" /> Assistente IA</TabsTrigger>
+          <TabsTrigger value="goals" className="gap-1 text-xs"><Target className="h-3.5 w-3.5" /> Metas</TabsTrigger>
+          <TabsTrigger value="ranking" className="gap-1 text-xs"><Trophy className="h-3.5 w-3.5" /> Ranking</TabsTrigger>
+          <TabsTrigger value="chat" className="gap-1 text-xs"><Bot className="h-3.5 w-3.5" /> IA</TabsTrigger>
         </TabsList>
 
         {/* Insights Tab */}
