@@ -26,6 +26,7 @@ import {validateFileUpload} from "@/lib/validation";
 import {generateSimulationPdf} from "@/lib/generatePdf";
 import {ContractEditorDialog} from "@/components/ContractEditorDialog";
 import {CloseSaleModal} from "@/components/CloseSaleModal";
+import {ProductPickerForSimulator} from "@/components/simulator/ProductPickerForSimulator";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {useDealRoom} from "@/hooks/useDealRoom";
