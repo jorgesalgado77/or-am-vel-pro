@@ -6,7 +6,7 @@ import {
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
   Box, Loader2, Bell, ClipboardCheck,
 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
