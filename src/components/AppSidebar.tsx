@@ -58,10 +58,10 @@ export function AppSidebar({
   );
 
   const isAdmin = currentUser?.cargo_nome?.toUpperCase().includes("ADMINISTRADOR") || currentUser?.cargo_nome?.toUpperCase().includes("ADMIN");
+  const cargoLower = currentUser?.cargo_nome?.toLowerCase() || "";
   const ThemeIcon = THEME_ICONS[mode];
   const companyName = settings.company_name || "OrçaMóvel PRO";
   const companySubtitle = settings.company_subtitle || "Orce. Venda. Simplifique";
-
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
@@ -78,7 +78,7 @@ export function AppSidebar({
     { id: "dealroom", label: "Deal Room", icon: Video, perm: "dealroom" as const, show: hasPermission("dealroom"), badge: "ADD-ON" },
     { id: "smart3d", label: "3D Smart Import", icon: Box, perm: "smart3d" as const, show: hasPermission("smart3d"), badge: "ADD-ON" },
     { id: "tasks", label: "Tarefas", icon: ClipboardCheck, perm: "clientes" as const, show: true, badge: null },
-    { id: "measurements", label: "Medidas", icon: Ruler, perm: "clientes" as const, show: cargoNome.includes("gerente") || cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("administrador"), badge: null },
+    { id: "measurements", label: "Medidas", icon: Ruler, perm: "clientes" as const, show: cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador"), badge: null },
     { id: "tutorials", label: "Tutoriais", icon: GraduationCap, perm: "clientes" as const, show: true, badge: null },
   ];
 
