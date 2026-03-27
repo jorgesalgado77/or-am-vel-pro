@@ -637,6 +637,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         currentUserId={userId || currentUser?.id || null}
         existingConversationIds={existingConvIds}
       />
+      </div>
     </div>
   );
 }
