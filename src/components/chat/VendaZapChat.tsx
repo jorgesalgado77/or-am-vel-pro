@@ -15,6 +15,7 @@ import { AutoPilotPanel } from "./AutoPilotPanel";
 import { WhatsAppSimulatorPanel } from "./WhatsAppSimulatorPanel";
 import { SimulatorMetricsPanel } from "./SimulatorMetricsPanel";
 import { StartConversationModal } from "./StartConversationModal";
+import { ChatRightPanel } from "./ChatRightPanel";
 import type { ChatConversation } from "./types";
 
 type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
@@ -592,30 +593,37 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         </div>
       </div>
 
-      {/* Chat window */}
-      <div className={`flex-1 min-h-0 ${selected ? "flex flex-col" : "hidden md:flex md:flex-col md:items-center md:justify-center"}`}>
+      {/* Chat window + Right panel */}
+      <div className={`flex-1 min-h-0 ${selected ? "flex" : "hidden md:flex md:items-center md:justify-center"}`}>
         {selected ? (
           <>
-            <AutoPilotPanel
-              settings={autoPilotSettings}
-              isActive={autoPilotActive}
-              onToggle={toggleAutoPilot}
-              onUpdateSettings={updateAutoPilotSettings}
-            />
-            <ChatWindow
+            <div className="flex-1 flex flex-col min-h-0 min-w-0">
+              <AutoPilotPanel
+                settings={autoPilotSettings}
+                isActive={autoPilotActive}
+                onToggle={toggleAutoPilot}
+                onUpdateSettings={updateAutoPilotSettings}
+              />
+              <ChatWindow
+                conversation={selected}
+                onBack={() => { setSelected(null); clear(); fetchConversations(); }}
+                onStartDealRoom={onDealRoom ? handleDealRoom : undefined}
+                inputValue={inputValue}
+                onInputChange={setInputValue}
+                userId={userId}
+                tenantId={tenantId}
+                onMessageSent={handleMessageSent}
+              />
+            </div>
+            <ChatRightPanel
               conversation={selected}
-              onBack={() => { setSelected(null); clear(); fetchConversations(); }}
-              onStartDealRoom={onDealRoom ? handleDealRoom : undefined}
+              tenantId={tenantId}
+              messageCount={0}
               aiSuggestion={suggestion}
               aiLoading={aiLoading}
               aiTipoCopy={tipoCopy}
               aiDiscProfile={discProfile}
               onUseSuggestion={handleUseSuggestion}
-              inputValue={inputValue}
-              onInputChange={setInputValue}
-              userId={userId}
-              tenantId={tenantId}
-              onMessageSent={handleMessageSent}
             />
           </>
         ) : (
