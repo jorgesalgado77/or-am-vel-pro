@@ -49,6 +49,13 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidgetProps>(function DealRoomStoreWidget({ tenantId }, ref) {
   const { getMetrics, listProposals, createProposal, trackProposalEvent, loading: hookLoading } = useDealRoom();
   const { showOnboarding, setShowOnboarding } = useOnboarding("dealroom");
+  const { currentUser } = useCurrentUser();
+  const voiceEnrollment = useVoiceEnrollment(currentUser?.id || null);
+  const [showVoiceEnroll, setShowVoiceEnroll] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.id) voiceEnrollment.loadEnrollment();
+  }, [currentUser?.id]);
 
   const [metrics, setMetrics] = useState<{
     totalVendas: number; totalTransacionado: number; totalTaxas: number;
