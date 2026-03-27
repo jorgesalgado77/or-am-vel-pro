@@ -171,7 +171,9 @@ export function ChatWindow({
     if (error) {
       toast.error("Erro ao enviar mensagem");
     } else {
+      const sentText = inputValue.trim();
       onInputChange("");
+      onMessageSent?.(sentText);
       requestAnimationFrame(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       });
