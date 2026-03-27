@@ -5,6 +5,7 @@ import { Send, Paperclip, Mic, Square, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { QuickRepliesPopover } from "./QuickRepliesPopover";
+import { ChatProductPicker } from "./ChatProductPicker";
 import type { QuickReply } from "@/hooks/useQuickReplies";
 
 interface Props {
@@ -135,7 +136,21 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
         >
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+        </Button>
+
+        {/* Product Picker */}
+        {tenantId && onSendProductText && (
+          <ChatProductPicker
+            tenantId={tenantId}
+            onSendProduct={(text, imageUrl) => {
+              if (imageUrl) {
+                onAttachmentSent(imageUrl, "produto.jpg", "image/jpeg");
+              }
+              onSendProductText(text, imageUrl);
+            }}
+          />
+        )}
         </Button>
 
         {/* Audio */}
