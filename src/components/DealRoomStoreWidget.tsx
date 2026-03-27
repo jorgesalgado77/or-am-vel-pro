@@ -259,7 +259,14 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
               <CardContent className="p-3">
                 <p className="text-xs font-medium text-foreground mb-2">📝 Leia o texto abaixo em voz alta:</p>
                 <p className="text-sm italic text-muted-foreground leading-relaxed">
-                  "Olá, meu nome é {currentUser?.nome_completo || 'vendedor'} e estou aqui para apresentar 
+                  "Olá, meu nome é {(() => {
+                    const apelido = currentUser?.apelido;
+                    const nome = currentUser?.nome_completo;
+                    // Prefer apelido if it looks like a real name (not generic like "Admin")
+                    if (apelido && apelido.toLowerCase() !== "admin" && apelido.length > 2) return apelido;
+                    if (nome && nome.toLowerCase() !== "admin" && nome.length > 2) return nome;
+                    return apelido || nome || 'vendedor';
+                  })()} e estou aqui para apresentar 
                   o melhor projeto personalizado para a sua casa. Nossos móveis planejados são feitos 
                   com materiais de alta qualidade e acompanhamento completo do início ao fim."
                 </p>
