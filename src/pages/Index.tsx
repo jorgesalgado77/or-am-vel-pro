@@ -32,6 +32,7 @@ const TutorialsPanel = lazy(() => import("@/components/tutorials/TutorialsPanel"
 const SmartImport3DView = lazy(() => import("@/components/smartimport/SmartImport3DView").then(m => ({ default: m.SmartImport3DView })));
 const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => ({ default: m.TasksPanel })));
 const MeasurementKanban = lazy(() => import("@/components/kanban/MeasurementKanban").then(m => ({ default: m.MeasurementKanban })));
+const OnboardingAIAssistant = lazy(() => import("@/components/onboarding/OnboardingAIAssistant").then(m => ({ default: m.OnboardingAIAssistant })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
@@ -419,6 +420,9 @@ export default function Index() {
             <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
           </Suspense>
           <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
+          <Suspense fallback={null}>
+            <OnboardingAIAssistant />
+          </Suspense>
         </div>
       </TenantPlanContext.Provider>
     </CurrentUserContext.Provider>
