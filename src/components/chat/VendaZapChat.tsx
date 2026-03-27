@@ -53,8 +53,20 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     processMessage: autoPilotProcess,
   } = useAutoPilot({ tenantId, userId, addon: addonConfig });
 
+  const {
+    config: simConfig,
+    updateConfig: updateSimConfig,
+    scheduleSimulatedReply,
+    sendSimulatedMessage,
+    isSimulating,
+    cleanup: cleanupSim,
+  } = useWhatsAppSimulator();
+
   // Keep ref updated for use in realtime callback
   useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
+
+  // Cleanup simulator on unmount
+  useEffect(() => () => cleanupSim(), [cleanupSim]);
 
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
