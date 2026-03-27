@@ -1110,13 +1110,27 @@ function ContractTrackingList() {
   const fetchTrackings = useCallback(async () => {
     setLoading(true);
     const tenantId = await getResolvedTenantId();
+
+    // Step 1: Get client IDs that have actual issued contracts
+    let contractQuery = supabase
+      .from("client_contracts")
+      .select("client_id");
+    if (tenantId) contractQuery = contractQuery.eq("tenant_id", tenantId);
+    const { data: contractData } = await contractQuery;
+    const contractClientIds = new Set((contractData as any[] || []).map((c: any) => c.client_id));
+
+    // Step 2: Fetch tracking records, but only show those with real contracts
     let query = supabase
       .from("client_tracking")
-      .select("id, numero_contrato, nome_cliente, cpf_cnpj, quantidade_ambientes, valor_contrato, data_fechamento, projetista, status, vendedor")
+      .select("id, numero_contrato, nome_cliente, cpf_cnpj, quantidade_ambientes, valor_contrato, data_fechamento, projetista, status, vendedor, client_id")
       .order("created_at", { ascending: false });
     if (tenantId) query = query.eq("tenant_id", tenantId);
     const { data } = await query;
-    if (data) setTrackings(data as any);
+    if (data) {
+      // Filter: only show tracking records for clients with actual contracts
+      const filtered = (data as any[]).filter((t: any) => contractClientIds.has(t.client_id));
+      setTrackings(filtered as any);
+    }
     setLoading(false);
   }, []);
 
