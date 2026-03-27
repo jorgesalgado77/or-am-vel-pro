@@ -359,6 +359,19 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     return data;
   }, [filteredLeadsBySource]);
 
+  // Vendedor leads distribution data
+  const vendedorLeadsPieData = useMemo(() => {
+    const byVendedor: Record<string, number> = {};
+    filteredClients.forEach(c => {
+      const name = c.vendedor || "Sem vendedor";
+      byVendedor[name] = (byVendedor[name] || 0) + 1;
+    });
+    return Object.entries(byVendedor)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .filter(d => d.value > 0);
+  }, [filteredClients]);
+
   return (
     <div className="space-y-6">
       <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
