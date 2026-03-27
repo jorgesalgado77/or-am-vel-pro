@@ -618,6 +618,48 @@ export function ProductCatalog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Sale Registration Dialog */}
+      <Dialog open={saleDialogOpen} onOpenChange={setSaleDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ShoppingCart className="h-4 w-4 text-emerald-600" /> Registrar Venda
+            </DialogTitle>
+          </DialogHeader>
+          {saleProduct && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 border">
+                <p className="text-sm font-medium">{saleProduct.name}</p>
+                <p className="text-xs text-muted-foreground">{saleProduct.internal_code} • {saleProduct.category}</p>
+                <p className="text-sm font-semibold text-primary mt-1">{formatBRL(saleProduct.sale_price)} / un.</p>
+              </div>
+              <div>
+                <Label className="text-xs">Quantidade</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={saleQty}
+                  onChange={e => setSaleQty(Math.max(1, Number(e.target.value)))}
+                  className="mt-1"
+                />
+              </div>
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-200">
+                <p className="text-xs text-muted-foreground">Total da venda</p>
+                <p className="text-lg font-bold text-emerald-700">{formatBRL(saleProduct.sale_price * saleQty)}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaleDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleRegisterSale} disabled={saleSaving} className="gap-1.5">
+              {saleSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <ShoppingCart className="h-3.5 w-3.5" />
+              Registrar Venda
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
