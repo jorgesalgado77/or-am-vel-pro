@@ -47,7 +47,7 @@ export function TopSellingProductsChart() {
       .select("product_id, quantity, total_price")
       .eq("tenant_id", tenantId);
 
-    if (!sales || sales.length === 0) {
+    if (!sales || (sales as any[]).length === 0) {
       setSalesData([]);
       setCategoryData([]);
       setLoading(false);
@@ -55,7 +55,7 @@ export function TopSellingProductsChart() {
     }
 
     // Load products for names/categories
-    const productIds = [...new Set((sales as SaleRow[]).map(s => s.product_id))];
+    const productIds = [...new Set((sales as unknown as SaleRow[]).map(s => s.product_id))];
     const { data: products } = await supabase
       .from("products" as any)
       .select("id, name, category")
@@ -65,7 +65,7 @@ export function TopSellingProductsChart() {
 
     // Aggregate by product
     const byProduct = new Map<string, { name: string; qty: number; revenue: number; category: string }>();
-    for (const s of sales as SaleRow[]) {
+    for (const s of (sales as unknown as SaleRow[])) {
       const prod = productMap.get(s.product_id);
       const key = s.product_id;
       const existing = byProduct.get(key) || { name: prod?.name || "Desconhecido", qty: 0, revenue: 0, category: prod?.category || "geral" };
