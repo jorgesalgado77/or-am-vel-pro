@@ -48,3 +48,6 @@ verify_jwt = false
 
 [functions.commercial-ai]
 verify_jwt = false
+
+[functions.improve-argument]
+verify_jwt = false
