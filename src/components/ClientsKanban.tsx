@@ -118,20 +118,38 @@ export function ClientsKanban({
   }, [localClients]);
 
   // Fetch client_contracts to detect clients with actual issued contracts
+  // and auto-sync their status to "fechado" in the database
   useEffect(() => {
     const tenantId = getTenantId();
-    if (!tenantId) return;
+    if (!tenantId || localClients.length === 0) return;
     const fetchContractClients = async () => {
       const { data } = await supabase
         .from("client_contracts")
         .select("client_id")
         .eq("tenant_id", tenantId);
       if (data) {
-        setContractClientIds(new Set((data as any[]).map((d: any) => d.client_id)));
+        const ids = new Set((data as any[]).map((d: any) => d.client_id));
+        setContractClientIds(ids);
+
+        // Auto-sync: update status to "fechado" for clients with contracts that aren't already
+        const needsUpdate = localClients.filter(
+          c => ids.has(c.id) && (c as any).status !== "fechado"
+        );
+        if (needsUpdate.length > 0) {
+          const updateIds = needsUpdate.map(c => c.id);
+          await supabase
+            .from("clients")
+            .update({ status: "fechado" } as any)
+            .in("id", updateIds);
+          // Update local state immediately
+          setLocalClients(prev =>
+            prev.map(c => updateIds.includes(c.id) ? { ...c, status: "fechado" } as any : c)
+          );
+        }
       }
     };
     fetchContractClients();
-  }, [localClients]);
+  }, [localClients.length]);
 
   // Realtime: listen for new leads sent to the current user
   useEffect(() => {
