@@ -63,6 +63,8 @@ interface VendaZapGenerateTabProps {
   autoSugg: any;
   currentUserId?: string;
   lastQuality?: QualityValidationResult | null;
+  resumeSession?: ConversationSession | null;
+  onResumeConsumed?: () => void;
 }
 
 interface HistoricoEntry {
