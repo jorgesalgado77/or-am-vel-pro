@@ -49,7 +49,7 @@ export function StartConversationModal({
     setLoading(true);
 
     (async () => {
-      // Fetch client_tracking with client info
+      // Fetch client_tracking records
       const { data: trackings } = await supabase
         .from("client_tracking")
         .select("id, nome_cliente, numero_contrato, status, projetista, client_id")
@@ -57,21 +57,52 @@ export function StartConversationModal({
         .in("status", ["novo", "em_negociacao", "proposta_enviada", "fechado"])
         .order("updated_at", { ascending: false });
 
-      if (!trackings) { setLoading(false); return; }
+      if (!trackings || trackings.length === 0) {
+        // Fallback: query clients table directly if no tracking records
+        const { data: directClients } = await supabase
+          .from("clients")
+          .select("id, nome, numero_orcamento, status, vendedor")
+          .eq("tenant_id", tenantId)
+          .in("status", ["novo", "em_negociacao", "proposta_enviada", "fechado"])
+          .order("updated_at", { ascending: false });
 
-      // Fetch clients to get vendedor info and vendedor_id for role filtering
+        if (directClients && directClients.length > 0) {
+          let options: ClientOption[] = (directClients as any[]).map((c) => ({
+            trackingId: c.id, // Use client id — will need tracking creation
+            clientName: c.nome,
+            contractNumber: c.numero_orcamento || "",
+            status: c.status,
+            vendedor: c.vendedor || null,
+            projetista: null,
+          }));
+
+          // Role filter
+          if (!isAdminOrManager && currentUserName) {
+            const nameLower = currentUserName.toLowerCase();
+            options = options.filter(c => c.vendedor?.toLowerCase() === nameLower);
+          }
+
+          setClients(options);
+        } else {
+          setClients([]);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Fetch vendedor from clients table (no vendedor_id — use vendedor name)
       const clientIds = [...new Set((trackings as any[]).map((t) => t.client_id).filter(Boolean))];
-      let vendedorMap: Record<string, { vendedor: string | null; vendedor_id: string | null }> = {};
+      let vendedorMap: Record<string, { vendedor: string | null }> = {};
 
       if (clientIds.length > 0) {
         const { data: clientsData } = await supabase
           .from("clients")
-          .select("id, vendedor, vendedor_id")
+          .select("id, vendedor")
           .in("id", clientIds);
 
         if (clientsData) {
           (clientsData as any[]).forEach((c) => {
-            vendedorMap[c.id] = { vendedor: c.vendedor, vendedor_id: c.vendedor_id };
+            vendedorMap[c.id] = { vendedor: c.vendedor };
           });
         }
       }
@@ -83,24 +114,16 @@ export function StartConversationModal({
         status: t.status,
         vendedor: vendedorMap[t.client_id]?.vendedor || null,
         projetista: t.projetista || null,
-        vendedor_id: vendedorMap[t.client_id]?.vendedor_id || null,
-        client_id: t.client_id,
       }));
 
       // Filter by role: vendedor/projetista only see their own clients
       let filtered = options;
-      if (!isAdminOrManager) {
-        if (currentUserId) {
-          // Filter by vendedor_id (reliable)
-          filtered = options.filter((c) => (c as any).vendedor_id === currentUserId);
-        } else if (currentUserName) {
-          // Fallback to name matching
-          const nameLower = currentUserName.toLowerCase();
-          filtered = options.filter((c) =>
-            c.vendedor?.toLowerCase() === nameLower ||
-            c.projetista?.toLowerCase() === nameLower
-          );
-        }
+      if (!isAdminOrManager && currentUserName) {
+        const nameLower = currentUserName.toLowerCase();
+        filtered = options.filter((c) =>
+          c.vendedor?.toLowerCase() === nameLower ||
+          c.projetista?.toLowerCase() === nameLower
+        );
       }
 
       setClients(filtered);
