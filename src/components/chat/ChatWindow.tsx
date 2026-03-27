@@ -49,6 +49,7 @@ interface Props {
   onUseSuggestion: () => void;
   inputValue: string;
   onInputChange: (v: string) => void;
+  onMessageSent?: (message: string) => void;
 }
 
 const PAGE_SIZE = 40;
@@ -56,7 +57,7 @@ const PAGE_SIZE = 40;
 export function ChatWindow({
   conversation, onBack, onStartDealRoom,
   aiSuggestion, aiLoading, aiTipoCopy, aiDiscProfile, onUseSuggestion,
-  inputValue, onInputChange, userId, tenantId,
+  inputValue, onInputChange, userId, tenantId, onMessageSent,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
