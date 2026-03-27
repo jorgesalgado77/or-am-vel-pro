@@ -27,6 +27,7 @@ import { DealRoomScheduler } from "./dealroom/DealRoomScheduler";
 import { DealRoomVendaZapAI } from "./dealroom/DealRoomVendaZapAI";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useVoiceEnrollment } from "@/hooks/useVoiceEnrollment";
+import { DealRoomProductPicker } from "./dealroom/DealRoomProductPicker";
 
 interface DealRoomStoreWidgetProps {
   tenantId: string;
@@ -489,6 +490,15 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Produtos Tab */}
+        <TabsContent value="produtos">
+          <Card>
+            <CardContent className="p-4">
+              <DealRoomProductPicker tenantId={tenantId} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Agenda Tab */}
