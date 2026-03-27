@@ -178,7 +178,7 @@ export function AppSidebar({
               <div className="p-3 border-b border-border flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-semibold text-foreground">Notificações</h4>
-                  <p className="text-[10px] text-muted-foreground">{notifications.length} lead(s) recebido(s)</p>
+                  <p className="text-[10px] text-muted-foreground">{unreadNotifications} não lida(s) de {notifications.length}</p>
                 </div>
                 {unreadNotifications > 0 && (
                   <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
@@ -193,16 +193,27 @@ export function AppSidebar({
                   <div className="divide-y divide-border">
                     {notifications.map(n => {
                       const dateStr = (() => { try { return format(new Date(n.created_at), "dd/MM/yy HH:mm"); } catch { return "—"; } })();
+                      const typeIcon = n.type === "lead" ? "🆕" : n.type === "tarefa" ? "📋" : n.type === "mensagem" ? "💬" : "🔔";
                       return (
-                        <div key={n.id} className={cn("px-3 py-2.5 text-xs hover:bg-secondary/50 transition-colors", !n.lido && "bg-primary/5")}>
+                        <button
+                          key={n.id}
+                          className={cn("w-full text-left px-3 py-2.5 text-xs hover:bg-secondary/50 transition-colors", !n.lido && "bg-primary/5")}
+                          onClick={() => {
+                            markAsRead(n.id);
+                            if (n.link_view) onViewChange(n.link_view);
+                            setShowNotifications(false);
+                          }}
+                        >
                           <div className="flex items-start gap-2">
                             {!n.lido && <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />}
+                            <span className="text-sm shrink-0">{typeIcon}</span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-foreground leading-relaxed">{n.conteudo.replace(/[🚀✅⚠️]/g, "").trim()}</p>
+                              <p className="text-foreground font-medium">{n.titulo}</p>
+                              <p className="text-muted-foreground leading-relaxed mt-0.5">{n.descricao}</p>
                               <p className="text-muted-foreground mt-1">{dateStr}</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
