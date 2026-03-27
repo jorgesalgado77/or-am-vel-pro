@@ -207,6 +207,84 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
         </div>
       </div>
 
+      {/* Voice Enrollment Banner */}
+      {!voiceEnrollment.isEnrolled ? (
+        <Card className="border-amber-400/50 bg-amber-50/60 dark:bg-amber-950/20 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setShowVoiceEnroll(true)}>
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+              <MicOff className="h-4 w-4 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                <AlertTriangle className="h-3 w-3" /> Perfil de Voz não configurado
+              </p>
+              <p className="text-[10px] text-amber-700/80 dark:text-amber-400/70">
+                Grave sua voz para ativar a diarização automática nas reuniões. Clique para configurar.
+              </p>
+            </div>
+            <Badge variant="outline" className="border-amber-400 text-amber-700 dark:text-amber-400 text-[10px] shrink-0">
+              Configurar
+            </Badge>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-green-400/30 bg-green-50/40 dark:bg-green-950/10">
+          <CardContent className="p-2.5 flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+              <Mic className="h-3.5 w-3.5 text-green-600" />
+            </div>
+            <p className="text-[11px] text-green-700 dark:text-green-400">
+              ✓ Perfil de voz ativo — diarização automática habilitada nas reuniões
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Voice Enrollment Dialog */}
+      <Dialog open={showVoiceEnroll} onOpenChange={setShowVoiceEnroll}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mic className="h-5 w-5 text-primary" />
+              Gravar Perfil de Voz
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Grave uma amostra da sua voz para que o sistema identifique automaticamente 
+              quem está falando durante as reuniões na Deal Room.
+            </p>
+            <Card className="bg-muted/30">
+              <CardContent className="p-3">
+                <p className="text-xs font-medium text-foreground mb-2">📝 Leia o texto abaixo em voz alta:</p>
+                <p className="text-sm italic text-muted-foreground leading-relaxed">
+                  "Olá, meu nome é {currentUser?.nome_completo || 'vendedor'} e estou aqui para apresentar 
+                  o melhor projeto personalizado para a sua casa. Nossos móveis planejados são feitos 
+                  com materiais de alta qualidade e acompanhamento completo do início ao fim."
+                </p>
+              </CardContent>
+            </Card>
+            <div className="flex justify-center gap-3">
+              {!voiceEnrollment.isRecording ? (
+                <Button onClick={() => voiceEnrollment.startRecording()} disabled={voiceEnrollment.loading} className="gap-2">
+                  <Mic className="h-4 w-4" /> Iniciar Gravação
+                </Button>
+              ) : (
+                <Button onClick={() => voiceEnrollment.stopRecording()} variant="destructive" className="gap-2 animate-pulse">
+                  <MicOff className="h-4 w-4" /> Parar Gravação
+                </Button>
+              )}
+            </div>
+            {voiceEnrollment.isEnrolled && (
+              <p className="text-center text-sm text-green-600 font-medium">
+                ✓ Perfil de voz salvo com sucesso!
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="propostas" className="space-y-4">
         <TabsList className="overflow-x-auto">
           <TabsTrigger value="propostas" className="gap-2"><FileText className="h-4 w-4" /> Propostas</TabsTrigger>
