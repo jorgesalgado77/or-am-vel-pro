@@ -339,12 +339,18 @@ export function OnboardingAIAssistant() {
                 onClick={() => {
                   userScrolledUp.current = false;
                   setShowScrollBtn(false);
+                  setUnreadCount(0);
                   bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
                 }}
-                className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-110 transition-transform animate-in fade-in zoom-in-75 duration-200"
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 h-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center gap-1 px-3 hover:scale-105 transition-transform animate-in fade-in zoom-in-75 duration-200"
                 aria-label="Ir para mensagens recentes"
               >
                 <ArrowDown className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="text-[10px] font-bold leading-none">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
             )}
           </div>
