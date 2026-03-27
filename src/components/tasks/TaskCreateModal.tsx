@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TASK_TYPES, type Task } from "./taskTypes";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Upload } from "lucide-react";
 
 interface Props {

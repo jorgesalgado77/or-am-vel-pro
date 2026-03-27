@@ -30,6 +30,7 @@ const ReferralPanel = lazy(() => import("@/components/ReferralPanel").then(m => 
 const FinancialPanel = lazy(() => import("@/components/FinancialPanel").then(m => ({ default: m.FinancialPanel })));
 const TutorialsPanel = lazy(() => import("@/components/tutorials/TutorialsPanel").then(m => ({ default: m.TutorialsPanel })));
 const SmartImport3DView = lazy(() => import("@/components/smartimport/SmartImport3DView").then(m => ({ default: m.SmartImport3DView })));
+const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => ({ default: m.TasksPanel })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
@@ -61,6 +62,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   financial: { title: "Módulo Financeiro", subtitle: "Contas a pagar, folha de pagamento e ponto de equilíbrio" },
   tutorials: { title: "Tutoriais", subtitle: "Aprenda a usar cada funcionalidade do sistema com vídeos práticos" },
   smart3d: { title: "3D Smart Import", subtitle: "Importe projetos 3D, visualize ambientes e gere orçamentos automáticos" },
+  tasks: { title: "Tarefas", subtitle: "Gerencie suas tarefas com Kanban e calendário" },
 };
 
 export default function Index() {
@@ -387,6 +389,10 @@ export default function Index() {
 
               {activeView === "smart3d" && (
                 <SmartImport3DView tenantId={authUser?.tenant_id || null} onBack={() => setActiveView("dashboard")} />
+              )}
+
+              {activeView === "tasks" && (
+                <TasksPanel tenantId={authUser?.tenant_id || null} userId={authUser?.id} userName={authUser?.nome_completo || authUser?.apelido || ""} />
               )}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
