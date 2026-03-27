@@ -31,8 +31,7 @@ const PAGE_SIZE = 40;
 
 export function ChatWindow({
   conversation, onBack, onStartDealRoom,
-  aiSuggestion, aiLoading, aiTipoCopy, aiDiscProfile, onUseSuggestion,
-  inputValue, onInputChange, userId, tenantId, onMessageSent,
+  inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -277,30 +276,6 @@ export function ChatWindow({
       <div className="shrink-0 border-t border-border bg-card">
         {/* Typing indicator */}
         <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
-
-        {/* Auto-Pilot History */}
-        <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId ?? null} />
-
-        {/* Deal Insights from Engine */}
-        <ChatDealInsights
-          conversation={conversation}
-          tenantId={tenantId ?? null}
-          messageCount={messages.length}
-        />
-
-        {/* DISC Profile Indicator */}
-        {aiDiscProfile && (
-          <DISCProfileBadge profile={aiDiscProfile} />
-        )}
-
-        {/* AI Suggestion */}
-        <ChatAISuggestion
-          suggestion={aiSuggestion}
-          loading={aiLoading}
-          tipoCopy={aiTipoCopy}
-          discProfile={aiDiscProfile}
-          onUse={onUseSuggestion}
-        />
 
         {/* Input */}
         <ChatInput
