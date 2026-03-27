@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, BellRing, BellOff, Settings2, ListTodo, MessageSquare, UserPlus, Ruler, History, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Bell, BellRing, BellOff, Settings2, ListTodo, MessageSquare, UserPlus, Ruler, History, CheckCircle, XCircle, Clock, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ const CATEGORIES: { key: PushCategory; label: string; icon: React.ElementType; d
   { key: "mensagens", label: "Mensagens", icon: MessageSquare, desc: "Mensagens de clientes no VendaZap" },
   { key: "leads", label: "Leads", icon: UserPlus, desc: "Novos leads enviados para seu atendimento" },
   { key: "medidas", label: "Medidas", icon: Ruler, desc: "Novas solicitações de medida para distribuição" },
+  { key: "api_keys", label: "API Keys", icon: KeyRound, desc: "Alertas quando uma API key expira ou falha na validação" },
 ];
 
 interface PushLog {
@@ -82,6 +83,7 @@ export function PushNotificationsTab() {
       case "mensagens": return "Mensagem";
       case "leads": return "Lead";
       case "medidas": case "medida_nova": return "Medida";
+      case "api_keys": case "api-key-openai": case "api-key-evolution": case "api-key-resend": return "API Key";
       default: return tag;
     }
   };
@@ -92,6 +94,7 @@ export function PushNotificationsTab() {
       case "mensagens": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
       case "leads": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
       case "medidas": case "medida_nova": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+      case "api_keys": case "api-key-openai": case "api-key-evolution": case "api-key-resend": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
       default: return "bg-muted text-muted-foreground";
     }
   };
