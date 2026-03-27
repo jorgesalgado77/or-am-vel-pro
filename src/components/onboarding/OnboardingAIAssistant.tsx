@@ -18,6 +18,7 @@ import {
   Zap,
   FlaskConical,
   FolderPlus,
+  ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
