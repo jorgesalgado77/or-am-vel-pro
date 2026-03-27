@@ -15,6 +15,7 @@ import { AutoPilotPanel } from "./AutoPilotPanel";
 import { WhatsAppSimulatorPanel } from "./WhatsAppSimulatorPanel";
 import { SimulatorMetricsPanel } from "./SimulatorMetricsPanel";
 import { StartConversationModal } from "./StartConversationModal";
+import { ChatRightPanel } from "./ChatRightPanel";
 import type { ChatConversation } from "./types";
 
 type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
