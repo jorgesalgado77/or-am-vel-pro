@@ -1047,7 +1047,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       <LowStockAlerts />
 
       {/* Contratos Fechados - Acompanhamento */}
-      <ContractTrackingList />
+      <ContractTrackingList clients={clients} lastSims={lastSims} />
     </div>
   );
 }
