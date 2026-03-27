@@ -12,8 +12,6 @@ import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useNotificationCenter, type AppNotification } from "@/hooks/useNotificationCenter";
-import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
