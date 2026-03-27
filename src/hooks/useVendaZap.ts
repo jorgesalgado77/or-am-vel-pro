@@ -147,6 +147,7 @@ export function useVendaZap(tenantId: string | null) {
     deal_room_link?: string;
     client_id?: string;
     usuario_id?: string;
+    disc_profile?: string;
   }) => {
     if (!tenantId || !addon?.ativo) {
       toast.error("VendaZap AI não está ativo para esta loja");

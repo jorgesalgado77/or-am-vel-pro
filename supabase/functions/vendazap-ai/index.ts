@@ -107,6 +107,50 @@ function detectIntent(message: string): string {
   return "outro";
 }
 
+function extractContextSignals(mensagem: string, historico: any[]) {
+  const customerHistory = historico
+    .filter((item) => item?.remetente_tipo === "cliente")
+    .map((item) => item?.mensagem || "")
+    .join(" ");
+  const combined = `${customerHistory} ${mensagem}`.trim();
+
+  const mentionsDecisionMaker = /meu marido|minha esposa|meu esposo|minha mulher|vou ver com|preciso ver com|decidir com|falar com ele|falar com ela/i.test(combined);
+  const asksAlternativeService = /outra forma de atendimento|atendimento online|atendimento remoto|videochamada|chamada de v[ií]deo|sem ir na loja|sem sair de casa|online/i.test(combined);
+  const mentionsTimeFriction = /perder tempo|sem tempo|corrido|mais pr[aá]tico|praticidade|agilidade/i.test(combined);
+
+  const signalLabels = [
+    mentionsDecisionMaker ? "há outro decisor envolvido" : "",
+    asksAlternativeService ? "cliente quer atendimento remoto/prático" : "",
+    mentionsTimeFriction ? "cliente quer reduzir tempo e deslocamento" : "",
+  ].filter(Boolean);
+
+  return {
+    mentionsDecisionMaker,
+    asksAlternativeService,
+    mentionsTimeFriction,
+    signalLabels,
+  };
+}
+
+function buildContextDirective(signals: ReturnType<typeof extractContextSignals>, dealRoomLink: string) {
+  if (!signals.mentionsDecisionMaker && !signals.asksAlternativeService && !signals.mentionsTimeFriction) {
+    return "";
+  }
+
+  return `
+
+=== LEITURA PROFUNDA DE CONTEXTO (OBRIGATÓRIA) ===
+O cliente não está pedindo preço agora; ele está sinalizando ATRITO na jornada de compra.
+- Se mencionar marido, esposa ou outra pessoa: trate como decisão compartilhada e facilite a participação dos dois.
+- Se disser que não quer ir à loja ou perder tempo: ofereça atendimento remoto objetivo, prático e confortável.
+- Explique em 1 frase COMO funciona esse atendimento (ex.: videochamada de 15 min com projeto 3D, materiais e próximos passos).
+- A resposta precisa validar a preocupação e reduzir esforço, sem soar robótica.
+- NÃO fale de navegação, mapa, fluxo técnico genérico ou qualquer detalhe fora da pergunta.
+- NÃO force material/ferragem se a dúvida for sobre formato de atendimento; nesse caso, o elemento concreto deve ser o processo/tempo/conveniência.
+- Se houver link da Deal Room, use-o como solução prática para o casal decidir junto${dealRoomLink ? `: ${dealRoomLink}` : ""}.
+`;
+}
+
 function calcClosingScore(intent: string, tipoCopy: string): number {
   const intentScores: Record<string, number> = {
     fechamento: 95, enviar_preco: 55, orcamento: 60, preco: 50,
@@ -168,14 +212,15 @@ const OBJECTION_STRATEGIES = [
 ];
 
 const INTENT_PROMPTS: Record<string, string> = {
+  atendimento_remoto: `Cliente quer alternativa prática à ida até a loja. Responda acolhendo a objeção de tempo, explique o formato remoto em termos concretos e convide para o próximo passo sem parecer evasivo.`,
   orcamento: `O cliente pediu orçamento — FORTE sinal de interesse! NÃO envie valores. Mostre que o projeto dele MERECE uma apresentação técnica completa. Cite 1 material ou técnica específica. Convide para Deal Room.`,
   fechamento: `Cliente PRONTO pra fechar! Confirme o projeto com detalhes técnicos (material, ferragem, prazo). Crie micro-urgência: "Garanto essa condição até [dia]". Pergunte: "Preparo o contrato agora?"`,
   preco: `Negociando preço = INTERESSE REAL. NÃO envie valores. Use técnica "valor vs. preço": cite durabilidade (10-15 anos vs. 3-5 de modulado), valorização do imóvel (até 15%), garantia estendida. Convide para Deal Room.`,
   enviar_preco: `🔴 CONTORNE sem parecer evasivo. Cite algo TÉCNICO do projeto: "Teu projeto usa [material X] que é o mesmo de projetos de R$XX mil — na nossa sala online te mostro como entregar essa qualidade no teu orçamento." OBRIGATÓRIO incluir link.`,
-  duvida: `Responda com AUTORIDADE TÉCNICA real: cite nome do material, processo, certificação. Cada resposta é uma chance de mostrar expertise. Termine com: "Quer ver isso ao vivo no projeto 3D?"`,
+  duvida: `Responda de forma pertinente à dúvida. Se a pergunta for técnica, use autoridade técnica real. Se a pergunta for operacional/comercial, responda com processo concreto, tempo, formato do atendimento ou próximo passo real.`,
   objecao: `NUNCA concorde com a objeção. Quebre com DADOS CONCRETOS e técnica de vendas específica. Cite números reais, comparativos mensuráveis, depoimentos. Seja assertivo mas empático.`,
   saudacao: `Primeira impressão DECISIVA. Não seja genérico. Pergunte ESPECIFICAMENTE: "Qual ambiente você quer transformar?" ou "Já tem o espaço medido?". Sinalize expertise: "Trabalho com [ferragem/material premium]".`,
-  outro: `Direcione para o próximo passo com CTA específico. Cada mensagem deve ter 1 dado técnico + 1 ação clara.`,
+  outro: `Direcione para o próximo passo com CTA específico. Cada mensagem deve ter 1 elemento concreto e pertinente ao contexto + 1 ação clara.`,
 };
 
 const SYSTEM_PROMPT_CLOSING_RULES = `
@@ -185,16 +230,17 @@ Você é um CLOSER DE ELITE com 15 anos de experiência em vendas de móveis pla
 
 === REGRA SUPREMA: PERSONALIZAÇÃO REAL ===
 🔴 PROIBIDO respostas genéricas como "cada projeto é único", "preparei algo especial", "atenção especial".
-🔴 Cada resposta DEVE conter pelo menos 1 dado concreto: nome de material, técnica específica, número real, comparação mensurável.
+🔴 Cada resposta DEVE conter pelo menos 1 elemento concreto e pertinente ao contexto: tempo de atendimento, etapa do processo, formato do atendimento, material/ferragem, garantia, prazo ou comparação mensurável.
 🔴 REFERENCIE diretamente o que o cliente disse — cite palavras dele e responda ESPECIFICAMENTE.
 🔴 Exemplo RUIM: "Cada projeto é único e merece atenção especial"
 🔴 Exemplo BOM: "Pra sua cozinha, [nome], trabalho com MDF de 18mm e ferragem Blum de fechamento suave — mesma usada em projetos de alto padrão na Europa."
+🔴 Exemplo BOM para objeção de deslocamento: "Se o ponto é não perder tempo, faço tudo online em 15 min e seu marido entra junto do celular, sem ir até a loja."
 
 === FORMATO DA RESPOSTA ===
-🔴 MÁXIMO 2 parágrafos curtos (1-2 frases cada). Limite: 280 caracteres.
+🔴 MÁXIMO 2 parágrafos curtos (até 3 frases no total). Limite: 420 caracteres.
 🔴 Use 1-2 emojis MAX. Tom NATURAL de WhatsApp — sem formatação, sem *, sem listas.
 🔴 Primeira frase: GANCHO direto que prende atenção (pergunta provocativa, dado surpreendente ou referência ao que o cliente disse).
-🔴 Segunda frase: CTA claro e específico.
+🔴 Segunda ou terceira frase: solução concreta + CTA claro e específico.
 
 === REGRA ABSOLUTA #1: NUNCA ENVIE PREÇO ===
 🔴 Se pedirem preço/valor/orçamento: NUNCA envie números.
@@ -224,6 +270,7 @@ Você é um CLOSER DE ELITE com 15 anos de experiência em vendas de móveis pla
 3. NUNCA: enviar preço/valor por texto
 4. SEMPRE: usar nome do cliente, CTA direto, referência específica ao contexto
 5. SEMPRE: incluir link Deal Room quando preço for mencionado
+6. NUNCA: responder com algo fora do tema perguntado pelo cliente
 `;
 
 serve(async (req) => {
@@ -255,6 +302,7 @@ serve(async (req) => {
     const custom_arguments = typeof body.custom_arguments === "string" ? body.custom_arguments.slice(0, 3000) : "";
     let perplexity_data = typeof body.perplexity_data === "string" ? body.perplexity_data.slice(0, 2000) : "";
     const disc_profile = typeof body.disc_profile === "string" ? body.disc_profile : "";
+    const openai_model = typeof body.openai_model === "string" ? body.openai_model.slice(0, 100) : "gpt-4o-mini";
 
     // Direct messages array (DealRoom AI Assistant)
     const messages = Array.isArray(body.messages) ? body.messages : null;
@@ -281,11 +329,12 @@ serve(async (req) => {
     }
 
     // DISC Analysis from history
+    const contextSignals = extractContextSignals(mensagem_cliente, historico);
     const detectedDisc = disc_profile || (historico.length >= 2 ? detectDISC(historico).profile : "");
     const discStrategy = detectedDisc ? DISC_STRATEGIES[detectedDisc] || "" : "";
 
     // Intelligent Router: auto-fetch Perplexity data when relevant
-    const intencao = detectIntent(mensagem_cliente);
+    const intencao = (contextSignals.asksAlternativeService || contextSignals.mentionsDecisionMaker) ? "atendimento_remoto" : detectIntent(mensagem_cliente);
     const usePerplexity = !perplexity_data && shouldUsePerplexity(intencao, mensagem_cliente, historico);
     if (usePerplexity) {
       const searchQueries: Record<string, string> = {
@@ -313,19 +362,23 @@ serve(async (req) => {
       `\n\n--- CONTEXTO DA INTENÇÃO ---\n${intentContext}` +
       SYSTEM_PROMPT_CLOSING_RULES +
       (discStrategy ? `\n\n${discStrategy}` : "") +
+      buildContextDirective(contextSignals, deal_room_link) +
       objectionStrategy +
       (learning_context ? `\n${learning_context}` : "") +
       (custom_arguments ? `\n\n=== ARGUMENTOS DA LOJA (USE!) ===\n${custom_arguments}` : "") +
       (perplexity_data ? `\n\n=== DADOS REAIS DE MERCADO (use para credibilidade e comparações criativas!) ===\n${perplexity_data}` : "") +
       (modo === "autopilot" ? "\n\n--- AUTO-PILOT ---\nSeja conciso (máx 2 parágrafos). Inclua pergunta de fechamento." : "");
 
-    let userPrompt = `Gere uma mensagem ULTRA-CURTA de ${tipo_copy} com tom ${tom}. MÁXIMO 2 parágrafos curtos. LIMITE: 250 caracteres.`;
+    let userPrompt = `Gere uma mensagem humana, contextual e persuasiva de ${tipo_copy} com tom ${tom}. Máximo de 3 frases curtas e até 420 caracteres.`;
     if (detectedDisc) userPrompt += `\nPERFIL DISC detectado: ${detectedDisc} — adapte 100% a comunicação.`;
     if (nome_cliente) userPrompt += `\nCliente: ${nome_cliente}`;
     if (valor_orcamento) userPrompt += `\n(Valor interno — NÃO mencione ao cliente)`;
     if (status_negociacao) userPrompt += `\nStatus: ${status_negociacao}`;
     if (dias_sem_resposta && dias_sem_resposta > 1) userPrompt += `\n${dias_sem_resposta} dias sem resposta — URGENTE!`;
     if (mensagem_cliente) userPrompt += `\nÚltima mensagem do cliente: "${mensagem_cliente}"`;
+    if (contextSignals.signalLabels.length > 0) userPrompt += `\nSinais contextuais detectados: ${contextSignals.signalLabels.join(", ")}`;
+    if (contextSignals.mentionsDecisionMaker) userPrompt += `\nIMPORTANTE: responda facilitando a decisão conjunta, sem pressionar nem desviar do assunto.`;
+    if (contextSignals.asksAlternativeService || contextSignals.mentionsTimeFriction) userPrompt += `\nIMPORTANTE: ofereça atendimento remoto/online de forma concreta e prática.`;
 
     // Force Deal Room link when ANY price-related intent
     const isPriceIntent = ["enviar_preco", "orcamento", "preco"].includes(intencao);
@@ -402,7 +455,7 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: openai_model || "gpt-4o-mini",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },

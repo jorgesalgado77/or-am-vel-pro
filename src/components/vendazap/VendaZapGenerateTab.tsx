@@ -1,7 +1,7 @@
 /**
  * VendaZap message generator tab - extracted from VendaZapPanel.tsx
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { ClosingThermometer, analyzeClientMessage } from "./ClosingThermometer";
 import { NegotiationEvolutionPanel, learnFromMessage, learnGoodResponse, recordSession, buildLearningContext } from "./NegotiationLearning";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Database } from "@/integrations/supabase/types";
+import { DISC_PROFILE_META, detectDiscFromMessages } from "@/lib/vendazapAnalysis";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -104,6 +105,18 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
   // Analyze client message for thermometer + auto-select copy type
   const clientAnalysis = mensagemCliente ? analyzeClientMessage(mensagemCliente) : null;
+  const discInsight = useMemo(() => {
+    const liveMessages = [
+      ...historico.entries.map((entry) => ({
+        remetente_tipo: entry.remetente_tipo === "ia" ? "loja" : entry.remetente_tipo,
+        mensagem: entry.mensagem,
+      })),
+      ...(mensagemCliente.trim() ? [{ remetente_tipo: "cliente", mensagem: mensagemCliente.trim() }] : []),
+    ];
+
+    return detectDiscFromMessages(liveMessages);
+  }, [historico.entries, mensagemCliente]);
+  const discMeta = discInsight.profile ? DISC_PROFILE_META[discInsight.profile] : null;
 
   // Auto-detect and select appropriate copy type AND tone based on client message — real-time on every keystroke
   useEffect(() => {
@@ -117,6 +130,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       "dúvida": "reuniao",
       "objeção": "objecao",
       "resistência": "reversao",
+      "canal_alternativo": "reuniao",
+      "decisor_familiar": "reuniao",
       "enviar_preco": "reuniao",
       "saudação": "fechamento",
       "neutro": "urgencia",
@@ -128,6 +143,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       "dúvida": "consultivo",
       "objeção": "persuasivo",
       "resistência": "direto",
+      "canal_alternativo": "consultivo",
+      "decisor_familiar": "consultivo",
       "enviar_preco": "consultivo",
       "saudação": "consultivo",
       "neutro": "persuasivo",
@@ -214,6 +231,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
       historico: historicoPayload.length > 0 ? historicoPayload : undefined,
       learning_context: learningContext || undefined,
       custom_arguments: customArguments || undefined,
+      disc_profile: discInsight.profile || undefined,
     });
     if (result) {
       updateForm({ mensagemGerada: result });
@@ -618,29 +636,53 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           </Card>
         )}
 
-        {/* DISC Profile Badge — auto-detected */}
-        {autoSugg.discProfile && (() => {
-          const DISC_DATA: Record<string, { label: string; emoji: string; color: string; tips: string }> = {
-            D: { label: "Dominante", emoji: "🔴", color: "border-red-300 bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300 dark:border-red-800", tips: "Seja objetivo • Mostre ROI e resultados rápidos • Conduza com autoridade" },
-            I: { label: "Influente", emoji: "🟡", color: "border-yellow-300 bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300 dark:border-yellow-800", tips: "Use entusiasmo • Depoimentos e exclusividade • Apele para emoção" },
-            S: { label: "Estável", emoji: "🟢", color: "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300 dark:border-green-800", tips: "Ofereça garantias • Prazos claros e suporte • Reduza percepção de risco" },
-            C: { label: "Conforme", emoji: "🔵", color: "border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800", tips: "Dados e especificações • Comparativos técnicos • Use lógica e fatos" },
-          };
-          const disc = DISC_DATA[autoSugg.discProfile];
-          if (!disc) return null;
-          return (
-            <div className={`rounded-lg border-2 px-3 py-2.5 flex items-start gap-2.5 animate-in fade-in slide-in-from-bottom-1 duration-300 ${disc.color}`}>
-              <span className="text-lg mt-0.5">{disc.emoji}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className="text-xs font-bold tracking-wide">DISC: {disc.label}</span>
-                  <Badge variant="outline" className="text-[8px] h-4 border-current/30">Auto-detectado</Badge>
-                </div>
-                <p className="text-[11px] opacity-80 leading-snug">{disc.tips}</p>
+        {/* DISC Profile Card */}
+        {selectedClient && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  Perfil DISC em tempo real
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px]">
+                  {discInsight.profile ? `${discInsight.confidence}% de confiança` : "Em análise"}
+                </Badge>
               </div>
-            </div>
-          );
-        })()}
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {discMeta ? (
+                <div className="rounded-lg border border-border bg-card px-3 py-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-lg leading-none">{discMeta.emoji}</span>
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <p className="text-sm font-semibold text-foreground">DISC: {discMeta.label}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{discMeta.approach}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border bg-card px-3 py-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Ainda faltam sinais mais fortes para cravar o perfil; continue registrando a fala do cliente e a leitura vai aparecer aqui.
+                  </p>
+                </div>
+              )}
+
+              {discInsight.signals.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {discInsight.signals.map((signal) => (
+                    <Badge key={signal} variant="secondary" className="text-[10px]">
+                      {signal}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground leading-relaxed">{discInsight.summary}</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Client Message */}
         <Card>
