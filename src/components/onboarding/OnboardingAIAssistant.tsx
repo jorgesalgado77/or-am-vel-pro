@@ -55,6 +55,7 @@ export function OnboardingAIAssistant() {
   const { keys } = useApiKeys(tenantId);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [compactMode, setCompactMode] = useState(false);
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
