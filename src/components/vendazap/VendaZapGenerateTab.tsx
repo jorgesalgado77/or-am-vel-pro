@@ -233,6 +233,22 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     }
   }, [selectedClient?.id]);
 
+  // Resume from history tab
+  useEffect(() => {
+    if (resumeSession && clients.length > 0) {
+      const client = clients.find((c) => c.id === resumeSession.clientId);
+      if (client) {
+        setSelectedClient(client);
+        updateForm({ selectedClientId: client.id, searchClient: "" });
+        setHistorico({ entries: resumeSession.entries as HistoricoEntry[], clientId: client.id });
+        if (resumeSession.settings.tipoCopy) setTipoCopy(resumeSession.settings.tipoCopy);
+        if (resumeSession.settings.tom) setTom(resumeSession.settings.tom);
+        if (resumeSession.settings.closingScore) setClosingScore(resumeSession.settings.closingScore);
+      }
+      onResumeConsumed?.();
+    }
+  }, [resumeSession, clients]);
+
   const handleGenerate = async () => {
     // Build historico array from memory for the edge function
     const historicoPayload = historico.entries.map(e => ({
