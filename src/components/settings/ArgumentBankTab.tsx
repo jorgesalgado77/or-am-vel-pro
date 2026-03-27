@@ -167,16 +167,22 @@ export function ArgumentBankTab() {
     setSearching(false);
   };
 
-  // AI improve title
+  // AI improve title — uses vendazap-ai (already deployed) with messages passthrough to OpenAI
   const handleImproveTitle = async () => {
     if (!form.titulo.trim()) { toast.error("Digite um título primeiro"); return; }
     setImprovingTitle(true);
     try {
-      const { data, error } = await supabase.functions.invoke("improve-argument", {
-        body: { prompt: form.titulo, action: "improve_title" },
+      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
+        body: {
+          messages: [
+            { role: "system", content: "Você é um especialista em copywriting para vendas de móveis planejados. Melhore o título do argumento de venda para ser mais persuasivo, profissional e impactante. Retorne APENAS o título melhorado, sem explicações, aspas ou prefixos." },
+            { role: "user", content: form.titulo },
+          ],
+          max_tokens: 100,
+        },
       });
       if (error) throw error;
-      const improved = (data?.content || "").trim();
+      const improved = (data?.reply || "").trim();
       if (improved) { setForm(f => ({ ...f, titulo: improved })); toast.success("Título melhorado!"); }
       else toast.error("Não foi possível melhorar o título");
     } catch {
@@ -190,11 +196,17 @@ export function ArgumentBankTab() {
     if (!form.argumento.trim()) { toast.error("Digite um argumento primeiro"); return; }
     setImprovingArg(true);
     try {
-      const { data, error } = await supabase.functions.invoke("improve-argument", {
-        body: { prompt: form.argumento, action: "improve_argument" },
+      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
+        body: {
+          messages: [
+            { role: "system", content: "Você é um especialista em vendas de móveis planejados. Melhore o argumento de venda para ser mais convincente, com linguagem persuasiva e técnica. Retorne APENAS o argumento melhorado, sem explicações, aspas ou prefixos. Máximo 500 caracteres." },
+            { role: "user", content: form.argumento },
+          ],
+          max_tokens: 300,
+        },
       });
       if (error) throw error;
-      const improved = (data?.content || "").trim();
+      const improved = (data?.reply || "").trim();
       if (improved) { setForm(f => ({ ...f, argumento: improved })); toast.success("Argumento melhorado!"); }
       else toast.error("Não foi possível melhorar o argumento");
     } catch {
@@ -203,26 +215,29 @@ export function ArgumentBankTab() {
     setImprovingArg(false);
   };
 
-  // Search real data about the topic
+  // Search real data about the topic via OpenAI
   const handleSearchRealData = async () => {
     const topic = form.titulo.trim() || form.argumento.trim();
     if (!topic) { toast.error("Preencha o título ou argumento para buscar dados reais"); return; }
     setSearchingData(true);
     try {
-      const { data, error } = await supabase.functions.invoke("improve-argument", {
-        body: { prompt: `Dados reais, estatísticas e pesquisas sobre: ${topic} - mercado de móveis planejados Brasil`, action: "search_real_data" },
+      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
+        body: {
+          messages: [
+            { role: "system", content: "Você é um pesquisador especialista no mercado de móveis planejados no Brasil. Forneça dados reais, estatísticas, pesquisas e tendências sobre o tema solicitado. Inclua números, percentuais e fontes quando possível. Responda em português brasileiro. Máximo 500 caracteres." },
+            { role: "user", content: `Dados reais, estatísticas e pesquisas sobre: ${topic} - mercado de móveis planejados Brasil` },
+          ],
+          max_tokens: 400,
+        },
       });
       if (error) throw error;
-      if (data?.content) {
-        setForm(f => ({
-          ...f,
-          dados_reais: data.content.slice(0, 500),
-          fonte: f.fonte,
-        }));
+      const content = (data?.reply || "").trim();
+      if (content) {
+        setForm(f => ({ ...f, dados_reais: content.slice(0, 500) }));
         toast.success("Dados reais encontrados e preenchidos!");
-      }
+      } else toast.error("Não foi possível buscar dados reais");
     } catch {
-      toast.error("Erro ao buscar dados reais via OpenAI.");
+      toast.error("Erro ao buscar dados reais via IA");
     }
     setSearchingData(false);
   };
