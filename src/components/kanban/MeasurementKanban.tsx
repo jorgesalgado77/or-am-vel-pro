@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Ruler, AlertTriangle, CheckCircle2, Clock, RefreshCw, Search,
-  User, FileText, ChevronRight, Loader2,
+  User, FileText, ChevronRight, Loader2, BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -23,6 +23,7 @@ import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { playNotificationSound } from "@/lib/notificationSound";
 
 interface MeasurementRequest {
   id: string;

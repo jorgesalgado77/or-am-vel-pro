@@ -17,6 +17,7 @@ import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
 import type { Client, LastSimInfo } from "./kanbanTypes";
 import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
 
@@ -185,6 +186,29 @@ export function MeasurementRequestModal({
       } as any);
 
       if (error) throw error;
+
+      // Send push notifications to gerentes/técnicos
+      try {
+        const { data: gerentes } = await supabase
+          .from("usuarios" as any)
+          .select("id, nome_completo, cargo_nome")
+          .eq("tenant_id", tenantId)
+          .eq("ativo", true);
+        if (gerentes) {
+          for (const g of gerentes as any[]) {
+            const cargo = (g.cargo_nome || "").toLowerCase();
+            if (cargo.includes("gerente") || cargo.includes("tecnico") || cargo.includes("técnico")) {
+              sendPushIfEnabled(
+                "medidas",
+                g.id,
+                "📐 Nova Solicitação de Medida",
+                `Cliente: ${client.nome} • ${environments.length} ambiente(s) • ${formatCurrency(totalValorAvista)}`,
+                "medida_nova",
+              );
+            }
+          }
+        }
+      } catch { /* silent */ }
 
       logAudit({
         acao: "solicitacao_medida_criada",
