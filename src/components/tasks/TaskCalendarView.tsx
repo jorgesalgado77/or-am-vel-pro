@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, forwardRef } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ interface Props {
   onTaskClick: (task: Task) => void;
 }
 
-export function TaskCalendarView({ tasks, onTaskClick }: Props) {
+export const TaskCalendarView = forwardRef<HTMLDivElement, Props>(function TaskCalendarView({ tasks, onTaskClick }, ref) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const start = startOfMonth(currentMonth);
   const end = endOfMonth(currentMonth);
@@ -30,7 +30,7 @@ export function TaskCalendarView({ tasks, onTaskClick }: Props) {
   }, [tasks]);
 
   return (
-    <div className="border rounded-lg bg-card">
+    <div ref={ref} className="border rounded-lg bg-card">
       <div className="flex items-center justify-between p-3 border-b">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}>
           <ChevronLeft className="h-4 w-4" />
@@ -87,4 +87,4 @@ export function TaskCalendarView({ tasks, onTaskClick }: Props) {
       </div>
     </div>
   );
-}
+});
