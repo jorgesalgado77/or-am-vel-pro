@@ -115,7 +115,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return;
     }
 
-    const contractClientIds = new Set((contracts as any[]).map(c => c.client_id));
+    const cIds = new Set((contracts as any[]).map(c => c.client_id));
+    setContractClientIds(cIds);
 
     // Step 2: Get tracking data for those clients (which has valor_contrato)
     let trackQuery = supabase
