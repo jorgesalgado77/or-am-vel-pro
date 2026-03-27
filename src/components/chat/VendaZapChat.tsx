@@ -570,7 +570,14 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       {/* WhatsApp Connection Status Bar */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/30">
         <span className="text-xs font-medium text-foreground">Chat de Vendas</span>
-        <WhatsAppStatusTag status={whatsappStatus} provider={whatsappProvider} />
+        <div className="flex items-center gap-2">
+          {whatsappStatus === "online" && (
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowWhatsAppContacts(true)}>
+              <Phone className="h-3 w-3" /> Contatos WA
+            </Button>
+          )}
+          <WhatsAppStatusTag status={whatsappStatus} provider={whatsappProvider} />
+        </div>
       </div>
       <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Conversation list */}
