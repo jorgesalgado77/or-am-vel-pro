@@ -72,20 +72,49 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
 
+    const isAdminOrManager = currentUser?.cargo_nome
+      ? ["administrador", "gerente", "admin"].includes(currentUser.cargo_nome.toLowerCase())
+      : false;
+
+    // Fetch client_tracking with client_id for role filtering
     let trackingQuery = supabase
       .from("client_tracking")
-      .select("id, numero_contrato, nome_cliente")
+      .select("id, numero_contrato, nome_cliente, client_id")
       .order("updated_at", { ascending: false });
     if (tenantId) trackingQuery = trackingQuery.eq("tenant_id", tenantId);
     const { data: trackings } = await trackingQuery;
 
     if (!trackings) { setLoading(false); return; }
 
+    let filteredTrackings = trackings as any[];
+
+    // Role-based filtering: vendedor/projetista only see their own clients
+    if (!isAdminOrManager && userId) {
+      const clientIds = [...new Set(filteredTrackings.map(t => t.client_id).filter(Boolean))];
+      if (clientIds.length > 0) {
+        const { data: clientsData } = await supabase
+          .from("clients")
+          .select("id, vendedor_id")
+          .in("id", clientIds);
+
+        const myClientIds = new Set(
+          (clientsData || [])
+            .filter((c: any) => c.vendedor_id === userId)
+            .map((c: any) => c.id)
+        );
+        filteredTrackings = filteredTrackings.filter(t => myClientIds.has(t.client_id));
+      }
+    }
+
+    const trackingIds = filteredTrackings.map(t => t.id);
+    if (trackingIds.length === 0) { setConversations([]); setLoading(false); return; }
+
     const { data: unreadData } = await supabase
       .from("tracking_messages")
       .select("tracking_id")
       .eq("remetente_tipo", "cliente")
-      .eq("lida", false);
+      .eq("lida", false)
+      .in("tracking_id", trackingIds);
 
     const unreadMap: Record<string, number> = {};
     (unreadData || []).forEach((m: any) => {
@@ -95,6 +124,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     const { data: lastMsgs } = await supabase
       .from("tracking_messages")
       .select("tracking_id, mensagem, created_at")
+      .in("tracking_id", trackingIds)
       .order("created_at", { ascending: false });
 
     const lastMsgMap: Record<string, { msg: string; at: string }> = {};
@@ -106,9 +136,9 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     const hasMessages = new Set(Object.keys(lastMsgMap));
 
-    const result: ChatConversation[] = (trackings as any[])
-      .filter((t) => hasMessages.has(t.id) || (unreadMap[t.id] || 0) > 0)
-      .map((t) => ({
+    const result: ChatConversation[] = filteredTrackings
+      .filter((t: any) => hasMessages.has(t.id) || (unreadMap[t.id] || 0) > 0)
+      .map((t: any) => ({
         id: t.id,
         numero_contrato: t.numero_contrato,
         nome_cliente: t.nome_cliente,
@@ -124,7 +154,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     setConversations(result);
     setLoading(false);
-  }, [tenantId]);
+  }, [tenantId, userId, currentUser?.cargo_nome]);
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
@@ -360,6 +390,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         tenantId={tenantId}
         currentUserName={currentUser?.nome_completo || null}
         currentUserRole={currentUser?.cargo_nome || null}
+        currentUserId={userId || currentUser?.id || null}
         existingConversationIds={existingConvIds}
       />
     </div>
