@@ -247,11 +247,16 @@ export function WhatsAppTab() {
           setTesting(false);
           return;
         }
+        if (!zapiClientToken) {
+          toast.error("O Client-Token é obrigatório para a Z-API. Copie-o no painel Z-API → Dados da instância web.");
+          setTesting(false);
+          return;
+        }
 
         const url = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/status`;
         const res = await fetch(url, {
           headers: {
-            ...(zapiClientToken ? { "Client-Token": zapiClientToken } : {}),
+            "Client-Token": zapiClientToken,
             ...(zapiSecurityToken ? { "Security-Token": zapiSecurityToken } : {}),
           },
         });
