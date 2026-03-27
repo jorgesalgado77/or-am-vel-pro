@@ -162,20 +162,29 @@ export function useVoiceEnrollment(usuarioId: string | null) {
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        await processAndSave(blob);
+        setRecordedBlob(blob);
+        // Don't auto-save; let user preview first
       };
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setIsRecording(true);
+      setRecordedBlob(null);
+      setRecordingSeconds(0);
 
-      // Auto-stop after 5 seconds
-      setTimeout(() => {
+      // Timer
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingSeconds(s => s + 1);
+      }, 1000);
+
+      // Auto-stop after 3 minutes (180s)
+      autoStopRef.current = window.setTimeout(() => {
         if (mediaRecorderRef.current?.state === "recording") {
           mediaRecorderRef.current.stop();
           setIsRecording(false);
+          if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
         }
-      }, 5000);
+      }, 180000);
     } catch {
       toast.error("Erro ao acessar microfone");
     }

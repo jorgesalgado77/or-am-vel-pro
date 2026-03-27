@@ -17,8 +17,12 @@ interface Props {
 export const AutoPilotPanel = memo(function AutoPilotPanel({ settings, isActive, onToggle, onUpdateSettings }: Props) {
   const [showConfig, setShowConfig] = useState(false);
 
-  const tokensPercent = settings ? Math.min(100, Math.round((settings.tokens_usados_hoje / (settings.max_tokens_dia || 1)) * 100)) : 0;
-  const respostasPercent = settings ? Math.min(100, Math.round((settings.respostas_hoje / (settings.max_respostas_dia || 1)) * 100)) : 0;
+  const respostasPercent = settings && settings.max_respostas_dia > 0
+    ? Math.min(100, Math.round((settings.respostas_hoje / settings.max_respostas_dia) * 100))
+    : 0;
+  const tokensPercent = settings && settings.max_tokens_dia > 0
+    ? Math.min(100, Math.round((settings.tokens_usados_hoje / settings.max_tokens_dia) * 100))
+    : 0;
 
   return (
     <div className="border-b border-border bg-card">
