@@ -674,6 +674,13 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         currentUserId={userId || currentUser?.id || null}
         existingConversationIds={existingConvIds}
       />
+
+      {/* WhatsApp Contacts */}
+      <WhatsAppContactsList
+        tenantId={tenantId}
+        open={showWhatsAppContacts}
+        onClose={() => setShowWhatsAppContacts(false)}
+      />
       </div>
     </div>
   );
