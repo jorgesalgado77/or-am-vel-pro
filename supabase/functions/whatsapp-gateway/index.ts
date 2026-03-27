@@ -88,6 +88,61 @@ async function resolveEvolutionConfig(tenantId: string | null): Promise<{ apiUrl
   return { apiUrl, apiKey };
 }
 
+// Resolve Z-API credentials from whatsapp_settings
+async function resolveZapiConfig(tenantId: string | null): Promise<{ instanceId: string; token: string; clientToken: string; securityToken?: string } | null> {
+  const sb = getSupabaseAdmin();
+
+  try {
+    let query = sb.from("whatsapp_settings").select("*");
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    let { data: ws, error } = await query.maybeSingle();
+
+    if (error?.code === "42703" || error?.code === "PGRST204" || error?.message?.includes("tenant_id")) {
+      const fallback = await sb.from("whatsapp_settings").select("*").limit(1).maybeSingle();
+      ws = fallback.data;
+    }
+
+    if (ws?.zapi_instance_id && ws?.zapi_token && ws?.zapi_client_token) {
+      return {
+        instanceId: ws.zapi_instance_id,
+        token: ws.zapi_token,
+        clientToken: ws.zapi_client_token,
+        securityToken: ws.zapi_security_token || undefined,
+      };
+    }
+  } catch (e) {
+    console.warn("[resolveZapiConfig] Error:", e);
+  }
+
+  return null;
+}
+
+// Detect which provider is configured for a tenant
+async function detectProvider(tenantId: string | null): Promise<"zapi" | "evolution" | "twilio" | "simulation"> {
+  const sb = getSupabaseAdmin();
+
+  try {
+    let query = sb.from("whatsapp_settings").select("api_provider, ativo");
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    let { data: ws, error } = await query.maybeSingle();
+
+    if (error?.code === "42703" || error?.code === "PGRST204" || error?.message?.includes("tenant_id")) {
+      const fallback = await sb.from("whatsapp_settings").select("api_provider, ativo").limit(1).maybeSingle();
+      ws = fallback.data;
+    }
+
+    if (ws?.ativo && ws?.api_provider) {
+      return ws.api_provider as "zapi" | "evolution";
+    }
+  } catch (e) {
+    console.warn("[detectProvider] Error:", e);
+  }
+
+  const envProvider = Deno.env.get("WHATSAPP_PROVIDER");
+  if (envProvider === "evolution" || envProvider === "twilio") return envProvider;
+  return "simulation";
+}
+
 // ── Instance Management ──
 
 async function createInstance(config: { apiUrl: string; apiKey: string }, instanceName: string, tenantId: string) {
@@ -280,6 +335,44 @@ async function sendViaTwilio(phone: string, message: string, mediaUrl?: string) 
   return { success: true };
 }
 
+async function sendViaZapi(phone: string, message: string, config: { instanceId: string; token: string; clientToken: string; securityToken?: string }, mediaUrl?: string) {
+  const baseUrl = `https://api.z-api.io/instances/${config.instanceId}/token/${config.token}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Client-Token": config.clientToken,
+  };
+  if (config.securityToken) headers["Security-Token"] = config.securityToken;
+
+  // Normalize phone number (remove +, spaces, dashes)
+  const normalizedPhone = phone.replace(/[\s\-\+]/g, "");
+
+  if (mediaUrl) {
+    const res = await fetch(`${baseUrl}/send-image`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ phone: normalizedPhone, image: mediaUrl, caption: message }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      return { success: false, error: `Z-API [${res.status}]: ${errText}` };
+    }
+    return { success: true };
+  }
+
+  const res = await fetch(`${baseUrl}/send-text`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ phone: normalizedPhone, message }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, error: `Z-API [${res.status}]: ${errText}` };
+  }
+
+  return { success: true };
+}
+
 // ── Main Handler ──
 
 serve(async (req) => {
@@ -346,7 +439,7 @@ serve(async (req) => {
     // ── Status ──
 
     if (action === "status") {
-      const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
+      const provider = await detectProvider(tenant_id || null);
       return respond({
         provider,
         connected: provider !== "simulation",
@@ -362,7 +455,7 @@ serve(async (req) => {
         return respond({ error: "phone e message são obrigatórios" }, 400);
       }
 
-      const provider = Deno.env.get("WHATSAPP_PROVIDER") || "simulation";
+      const provider = await detectProvider(tenant_id || null);
 
       if (provider === "simulation") {
         return respond({
@@ -372,12 +465,18 @@ serve(async (req) => {
         });
       }
 
+      if (provider === "zapi") {
+        const zapiConfig = await resolveZapiConfig(tenant_id || null);
+        if (!zapiConfig) return respond({ error: "Z-API não configurada. Adicione as credenciais em Configurações > WhatsApp." }, 400);
+        const result = await sendViaZapi(phone, message, zapiConfig, media_url);
+        if (!result.success) return respond({ error: result.error }, 502);
+        return respond({ success: true, provider: "zapi" });
+      }
+
       if (provider === "evolution") {
         if (!config) return respond({ error: "Evolution API não configurada" }, 400);
-        // Determine instance name
         let instName = instance_name || Deno.env.get("WHATSAPP_INSTANCE") || "default";
         if (tenant_id && !instance_name) {
-          // Try to find active instance from DB
           const sb = getSupabaseAdmin();
           const { data: inst } = await sb
             .from("whatsapp_instances")
