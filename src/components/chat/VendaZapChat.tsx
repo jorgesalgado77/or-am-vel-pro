@@ -465,7 +465,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       </div>
 
       {/* Chat window */}
-      <div className={`flex-1 ${selected ? "flex flex-col" : "hidden md:flex md:flex-col md:items-center md:justify-center"}`}>
+      <div className={`flex-1 min-h-0 ${selected ? "flex flex-col" : "hidden md:flex md:flex-col md:items-center md:justify-center"}`}>
         {selected ? (
           <>
             <AutoPilotPanel

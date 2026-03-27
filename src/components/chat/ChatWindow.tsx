@@ -216,9 +216,9 @@ export function ChatWindow({
   const tempConfig = conversation.lead_temperature ? TEMPERATURE_CONFIG[conversation.lead_temperature] : null;
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card">
+    <div className="flex flex-col h-full min-h-0 bg-background">
+      {/* Header — fixed */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card shrink-0">
         <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -263,10 +263,10 @@ export function ChatWindow({
         )}
       </div>
 
-      {/* Messages area */}
+      {/* Messages area — scrollable, takes remaining space */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-3 py-2"
+        className="flex-1 overflow-y-auto min-h-0 px-3 py-2"
         style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='p' width='60' height='60' patternUnits='userSpaceOnUse'%3E%3Ccircle cx='30' cy='30' r='1' fill='%23e5e7eb' opacity='.3'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='60' height='60' fill='url(%23p)'/%3E%3C/svg%3E\")" }}
       >
         {hasMore && (
@@ -298,40 +298,43 @@ export function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
-      {/* Typing indicator */}
-      <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
+      {/* Bottom pinned area — never scrolls away */}
+      <div className="shrink-0 border-t border-border bg-card">
+        {/* Typing indicator */}
+        <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
 
-      {/* Auto-Pilot History */}
-      <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId ?? null} />
+        {/* Auto-Pilot History */}
+        <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId ?? null} />
 
-      {/* DISC Profile Indicator */}
-      {aiDiscProfile && (
-        <DISCProfileBadge profile={aiDiscProfile} />
-      )}
+        {/* DISC Profile Indicator */}
+        {aiDiscProfile && (
+          <DISCProfileBadge profile={aiDiscProfile} />
+        )}
 
-      {/* AI Suggestion */}
-      <ChatAISuggestion
-        suggestion={aiSuggestion}
-        loading={aiLoading}
-        tipoCopy={aiTipoCopy}
-        discProfile={aiDiscProfile}
-        onUse={onUseSuggestion}
-      />
+        {/* AI Suggestion */}
+        <ChatAISuggestion
+          suggestion={aiSuggestion}
+          loading={aiLoading}
+          tipoCopy={aiTipoCopy}
+          discProfile={aiDiscProfile}
+          onUse={onUseSuggestion}
+        />
 
-      {/* Input */}
-      <ChatInput
-        value={inputValue}
-        onChange={onInputChange}
-        onSend={handleSend}
-        onAttachmentSent={handleAttachmentSent}
-        sending={sending}
-        trackingId={conversation.id}
-        onKeystroke={onKeystroke}
-        quickReplies={quickReplies}
-        quickRepliesLoading={qrLoading}
-        onAddQuickReply={addQR}
-        onRemoveQuickReply={removeQR}
-      />
+        {/* Input */}
+        <ChatInput
+          value={inputValue}
+          onChange={onInputChange}
+          onSend={handleSend}
+          onAttachmentSent={handleAttachmentSent}
+          sending={sending}
+          trackingId={conversation.id}
+          onKeystroke={onKeystroke}
+          quickReplies={quickReplies}
+          quickRepliesLoading={qrLoading}
+          onAddQuickReply={addQR}
+          onRemoveQuickReply={removeQR}
+        />
+      </div>
     </div>
   );
 }
