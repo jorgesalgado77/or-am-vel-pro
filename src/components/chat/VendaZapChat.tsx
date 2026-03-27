@@ -79,86 +79,104 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     // Fetch client_tracking with client_id
     const { data: trackings } = await supabase
       .from("client_tracking")
-      .select("id, numero_contrato, nome_cliente, client_id")
+      .select("id, numero_contrato, nome_cliente, client_id, projetista")
       .eq("tenant_id", tenantId)
       .order("updated_at", { ascending: false });
 
-    if (!trackings || trackings.length === 0) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
+    // Also fetch clients directly to ensure we have all available clients
+    const { data: allClients } = await supabase
+      .from("clients")
+      .select("id, nome, numero_orcamento, vendedor, status")
+      .eq("tenant_id", tenantId)
+      .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"]);
 
-    let filteredTrackings = trackings as any[];
-
-    // Fetch vendedor name from clients table
-    const allClientIds = [...new Set(filteredTrackings.map(t => t.client_id).filter(Boolean))];
+    // Build vendedor map from clients
     let vendedorMap: Record<string, { vendedor: string | null }> = {};
+    (allClients || []).forEach((c: any) => {
+      vendedorMap[c.id] = { vendedor: c.vendedor };
+    });
 
-    if (allClientIds.length > 0) {
-      const { data: clientsData } = await supabase
-        .from("clients")
-        .select("id, vendedor")
-        .in("id", allClientIds);
+    // Build tracking entries — merge client_tracking with clients fallback
+    let allEntries: Array<{ id: string; nome_cliente: string; numero_contrato: string; client_id: string; projetista?: string; isClientDirect?: boolean }> = [];
 
-      (clientsData || []).forEach((c: any) => {
-        vendedorMap[c.id] = { vendedor: c.vendedor };
-      });
+    if (trackings && trackings.length > 0) {
+      allEntries = (trackings as any[]).map(t => ({
+        id: t.id,
+        nome_cliente: t.nome_cliente,
+        numero_contrato: t.numero_contrato,
+        client_id: t.client_id,
+        projetista: t.projetista,
+      }));
     }
 
-    // Role-based filtering: vendedor/projetista only see their own clients
+    // Add clients that don't have a tracking record
+    const trackedClientIds = new Set(allEntries.map(t => t.client_id));
+    (allClients || []).forEach((c: any) => {
+      if (!trackedClientIds.has(c.id)) {
+        allEntries.push({
+          id: c.id, // Will use client ID — handleStartConversation creates tracking
+          nome_cliente: c.nome,
+          numero_contrato: c.numero_orcamento || "",
+          client_id: c.id,
+          isClientDirect: true,
+        });
+      }
+    });
+
+    // Role-based filtering
+    let filteredEntries = allEntries;
     if (!isAdminOrManager && currentUser?.nome_completo) {
       const nameLower = currentUser.nome_completo.toLowerCase();
-      const myClientIds = new Set(
-        Object.entries(vendedorMap)
-          .filter(([, v]) => v.vendedor?.toLowerCase() === nameLower)
-          .map(([id]) => id)
-      );
-      // Also check projetista field on tracking itself
-      filteredTrackings = filteredTrackings.filter(t =>
-        myClientIds.has(t.client_id) ||
+      filteredEntries = allEntries.filter(t =>
+        vendedorMap[t.client_id]?.vendedor?.toLowerCase() === nameLower ||
         (t.projetista && t.projetista.toLowerCase() === nameLower)
       );
     }
 
-    const trackingIds = filteredTrackings.map(t => t.id);
-    if (trackingIds.length === 0) { setConversations([]); setLoading(false); return; }
+    if (filteredEntries.length === 0) { setConversations([]); setLoading(false); return; }
 
-    const { data: unreadData } = await supabase
-      .from("tracking_messages")
-      .select("tracking_id")
-      .eq("remetente_tipo", "cliente")
-      .eq("lida", false)
-      .in("tracking_id", trackingIds);
+    // Only query messages for entries that have tracking records (not direct client IDs)
+    const trackingOnlyIds = filteredEntries.filter(t => !t.isClientDirect).map(t => t.id);
 
-    const unreadMap: Record<string, number> = {};
-    (unreadData || []).forEach((m: any) => {
-      unreadMap[m.tracking_id] = (unreadMap[m.tracking_id] || 0) + 1;
-    });
+    let unreadMap: Record<string, number> = {};
+    let lastMsgMap: Record<string, { msg: string; at: string }> = {};
 
-    const { data: lastMsgs } = await supabase
-      .from("tracking_messages")
-      .select("tracking_id, mensagem, created_at")
-      .in("tracking_id", trackingIds)
-      .order("created_at", { ascending: false });
+    if (trackingOnlyIds.length > 0) {
+      const { data: unreadData } = await supabase
+        .from("tracking_messages")
+        .select("tracking_id")
+        .eq("remetente_tipo", "cliente")
+        .eq("lida", false)
+        .in("tracking_id", trackingOnlyIds);
 
-    const lastMsgMap: Record<string, { msg: string; at: string }> = {};
-    (lastMsgs || []).forEach((m: any) => {
-      if (!lastMsgMap[m.tracking_id]) {
-        lastMsgMap[m.tracking_id] = { msg: m.mensagem?.substring(0, 60) || "", at: m.created_at };
-      }
-    });
+      (unreadData || []).forEach((m: any) => {
+        unreadMap[m.tracking_id] = (unreadMap[m.tracking_id] || 0) + 1;
+      });
+
+      const { data: lastMsgs } = await supabase
+        .from("tracking_messages")
+        .select("tracking_id, mensagem, created_at")
+        .in("tracking_id", trackingOnlyIds)
+        .order("created_at", { ascending: false });
+
+      (lastMsgs || []).forEach((m: any) => {
+        if (!lastMsgMap[m.tracking_id]) {
+          lastMsgMap[m.tracking_id] = { msg: m.mensagem?.substring(0, 60) || "", at: m.created_at };
+        }
+      });
+    }
 
     const hasMessages = new Set(Object.keys(lastMsgMap));
 
-    const result: ChatConversation[] = filteredTrackings
-      .filter((t: any) => hasMessages.has(t.id) || (unreadMap[t.id] || 0) > 0)
-      .map((t: any) => ({
+    // Show: entries with messages, entries with unread, AND all direct client entries (so they appear in the list)
+    const result: ChatConversation[] = filteredEntries
+      .filter((t) => hasMessages.has(t.id) || (unreadMap[t.id] || 0) > 0 || t.isClientDirect)
+      .map((t) => ({
         id: t.id,
         numero_contrato: t.numero_contrato,
         nome_cliente: t.nome_cliente,
         unread_count: unreadMap[t.id] || 0,
-        last_message: lastMsgMap[t.id]?.msg,
+        last_message: lastMsgMap[t.id]?.msg || (t.isClientDirect ? "Clique para iniciar conversa" : undefined),
         last_message_at: lastMsgMap[t.id]?.at,
         vendedor_nome: vendedorMap[t.client_id]?.vendedor || null,
       }))
@@ -291,9 +309,40 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       return;
     }
 
+    let actualTrackingId = trackingId;
+
+    // Check if a client_tracking record exists for this ID
+    const { data: existingTracking } = await supabase
+      .from("client_tracking")
+      .select("id")
+      .eq("id", trackingId)
+      .maybeSingle();
+
+    if (!existingTracking) {
+      // trackingId is a client ID — create a client_tracking record
+      const { data: newTracking, error: trackError } = await supabase
+        .from("client_tracking")
+        .insert({
+          client_id: trackingId,
+          nome_cliente: clientName,
+          numero_contrato: contractNumber || `CHAT-${Date.now()}`,
+          tenant_id: tenantId,
+          status: "em_negociacao",
+        })
+        .select("id")
+        .single();
+
+      if (trackError || !newTracking) {
+        toast.error("Erro ao criar registro de conversa");
+        console.error("client_tracking insert error:", trackError);
+        return;
+      }
+      actualTrackingId = newTracking.id;
+    }
+
     // Send a system message to initialize the conversation
     const { error } = await supabase.from("tracking_messages").insert({
-      tracking_id: trackingId,
+      tracking_id: actualTrackingId,
       mensagem: `Conversa iniciada por ${currentUser?.nome_completo || "Usuário"}`,
       remetente_tipo: "loja",
       remetente_nome: currentUser?.nome_completo || "Loja",
@@ -302,6 +351,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     if (error) {
       toast.error("Erro ao iniciar conversa");
+      console.error("tracking_messages insert error:", error);
       return;
     }
 
@@ -310,13 +360,13 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     // Select the new conversation
     const newConv: ChatConversation = {
-      id: trackingId,
+      id: actualTrackingId,
       numero_contrato: contractNumber,
       nome_cliente: clientName,
       unread_count: 0,
     };
     handleSelectConversation(newConv);
-  }, [conversations, currentUser, fetchConversations]);
+  }, [conversations, currentUser, fetchConversations, tenantId]);
 
   const existingConvIds = useMemo(() => new Set(conversations.map((c) => c.id)), [conversations]);
 
