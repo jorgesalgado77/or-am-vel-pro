@@ -211,6 +211,8 @@ export function WhatsAppTab() {
           toast.error(`Erro na conexão Z-API: ${res.status} ${res.statusText}`);
         }
       }
+    } catch {
+      toast.error("Erro ao testar conexão. Verifique as credenciais.");
     }
     setTesting(false);
   };
