@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PanelRightClose, PanelRightOpen, Bot, Brain, BarChart3 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { PanelRightClose, PanelRightOpen, Bot, Brain, BarChart3, X, Sparkles } from "lucide-react";
 import { AutoPilotHistory } from "./AutoPilotHistory";
 import { ChatAISuggestion } from "./ChatAISuggestion";
 import { ChatDealInsights } from "./ChatDealInsights";
 import type { ChatConversation } from "./types";
 
-const DISC_PROFILES: Record<string, { label: string; emoji: string; color: string; tips: string }> = {
-  D: { label: "Dominante", emoji: "🔴", color: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800", tips: "Seja objetivo, mostre ROI e resultados rápidos" },
-  I: { label: "Influente", emoji: "🟡", color: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800", tips: "Use entusiasmo, depoimentos e exclusividade" },
-  S: { label: "Estável", emoji: "🟢", color: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800", tips: "Ofereça garantias, prazos claros e suporte" },
-  C: { label: "Conforme", emoji: "🔵", color: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800", tips: "Apresente dados, comparativos e especificações" },
+const DISC_PROFILES: Record<string, { label: string; emoji: string; tips: string }> = {
+  D: { label: "Dominante", emoji: "🔴", tips: "Seja objetivo, mostre ROI e resultados rápidos" },
+  I: { label: "Influente", emoji: "🟡", tips: "Use entusiasmo, depoimentos e exclusividade" },
+  S: { label: "Estável", emoji: "🟢", tips: "Ofereça garantias, prazos claros e suporte" },
+  C: { label: "Conforme", emoji: "🔵", tips: "Apresente dados, comparativos e especificações" },
 };
 
 interface Props {
@@ -23,18 +24,99 @@ interface Props {
   aiTipoCopy: string;
   aiDiscProfile?: string;
   onUseSuggestion: () => void;
+  isMobile?: boolean;
+  mobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
 }
 
 export function ChatRightPanel({
-  conversation, tenantId, messageCount,
-  aiSuggestion, aiLoading, aiTipoCopy, aiDiscProfile, onUseSuggestion,
+  conversation,
+  tenantId,
+  messageCount,
+  aiSuggestion,
+  aiLoading,
+  aiTipoCopy,
+  aiDiscProfile,
+  onUseSuggestion,
+  isMobile = false,
+  mobileOpen = false,
+  onMobileOpenChange,
 }: Props) {
   const [expanded, setExpanded] = useState(true);
   const disc = aiDiscProfile ? DISC_PROFILES[aiDiscProfile] : null;
 
+  const content = (
+    <div className="p-3 space-y-3">
+      {disc && (
+        <div className="px-3 py-2 rounded-lg border border-border bg-muted/40 text-xs flex items-center gap-2">
+          <span className="text-sm">{disc.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold text-foreground">DISC: {disc.label}</span>
+            <p className="text-muted-foreground mt-0.5">{disc.tips}</p>
+          </div>
+        </div>
+      )}
+
+      <ChatAISuggestion
+        suggestion={aiSuggestion}
+        loading={aiLoading}
+        tipoCopy={aiTipoCopy}
+        discProfile={aiDiscProfile}
+        onUse={onUseSuggestion}
+      />
+
+      <ChatDealInsights
+        conversation={conversation}
+        tenantId={tenantId}
+        messageCount={messageCount}
+      />
+
+      <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId} />
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        {mobileOpen && (
+          <button
+            type="button"
+            aria-label="Fechar painel IA"
+            className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden"
+            onClick={() => onMobileOpenChange?.(false)}
+          />
+        )}
+
+        <aside
+          className={cn(
+            "fixed inset-y-0 right-0 z-50 w-[88vw] max-w-sm border-l border-border bg-card shadow-2xl transition-transform duration-300 md:hidden flex flex-col",
+            mobileOpen ? "translate-x-0" : "translate-x-full pointer-events-none"
+          )}
+        >
+          <div className="flex items-center justify-between px-3 py-3 border-b border-border">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">Assistente IA</p>
+                <p className="text-[11px] text-muted-foreground">Sugestões e histórico</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onMobileOpenChange?.(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <ScrollArea className="flex-1 min-h-0">{content}</ScrollArea>
+        </aside>
+      </>
+    );
+  }
+
   if (!expanded) {
     return (
-      <div className="shrink-0 flex flex-col items-center py-2 px-1 border-l border-border bg-card gap-2">
+      <div className="hidden md:flex shrink-0 flex-col items-center py-2 px-1 border-l border-border bg-card gap-2">
         <Button
           variant="ghost"
           size="icon"
@@ -54,8 +136,7 @@ export function ChatRightPanel({
   }
 
   return (
-    <div className="shrink-0 w-[320px] border-l border-border bg-card flex flex-col min-h-0 hidden lg:flex">
-      {/* Header */}
+    <div className="hidden md:flex shrink-0 w-[320px] border-l border-border bg-card flex-col min-h-0">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
           <Brain className="h-3.5 w-3.5 text-primary" />
@@ -72,40 +153,7 @@ export function ChatRightPanel({
         </Button>
       </div>
 
-      {/* Scrollable content */}
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="p-3 space-y-3">
-          {/* DISC Profile */}
-          {disc && (
-            <div className={`px-3 py-2 rounded-lg border text-xs flex items-center gap-2 ${disc.color}`}>
-              <span className="text-sm">{disc.emoji}</span>
-              <div className="flex-1 min-w-0">
-                <span className="font-semibold">DISC: {disc.label}</span>
-                <p className="opacity-80 mt-0.5">{disc.tips}</p>
-              </div>
-            </div>
-          )}
-
-          {/* AI Suggestion */}
-          <ChatAISuggestion
-            suggestion={aiSuggestion}
-            loading={aiLoading}
-            tipoCopy={aiTipoCopy}
-            discProfile={aiDiscProfile}
-            onUse={onUseSuggestion}
-          />
-
-          {/* Deal Insights */}
-          <ChatDealInsights
-            conversation={conversation}
-            tenantId={tenantId}
-            messageCount={messageCount}
-          />
-
-          {/* Auto-Pilot History */}
-          <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId} />
-        </div>
-      </ScrollArea>
+      <ScrollArea className="flex-1 min-h-0">{content}</ScrollArea>
     </div>
   );
 }

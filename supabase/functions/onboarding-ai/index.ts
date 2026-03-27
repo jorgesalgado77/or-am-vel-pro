@@ -7,20 +7,68 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface OnboardingCapabilities {
+  companyInfo: boolean;
+  salesAI: boolean;
+  whatsappApi: boolean;
+  whatsappConnected: boolean;
+  email: boolean;
+  pdf: boolean;
+}
+
 interface OnboardingContext {
   tenant: Record<string, unknown> | null;
   apiKeys: string[];
   whatsappConnected: boolean;
+  whatsappProvider: string | null;
   companySettings: Record<string, unknown> | null;
   onboardingPrefs: Record<string, unknown> | null;
+  capabilities: OnboardingCapabilities;
   completedSteps: string[];
+}
+
+async function getWhatsAppSettings(
+  supabase: ReturnType<typeof createClient>,
+  tenantId: string
+) {
+  let response = await supabase
+    .from("whatsapp_settings")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .limit(1)
+    .maybeSingle();
+
+  if (
+    response.error?.code === "42703" ||
+    response.error?.code === "PGRST204" ||
+    response.error?.message?.includes("tenant_id")
+  ) {
+    response = await supabase
+      .from("whatsapp_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
+  }
+
+  return response.data as Record<string, unknown> | null;
+}
+
+function detectWhatsAppProvider(
+  whatsappSettings: Record<string, unknown> | null,
+  activeApis: string[]
+) {
+  if (typeof whatsappSettings?.provider === "string") return whatsappSettings.provider;
+  if (whatsappSettings?.zapi_instance_id || whatsappSettings?.zapi_token || whatsappSettings?.zapi_client_token) return "zapi";
+  if (whatsappSettings?.evolution_api_url || whatsappSettings?.evolution_api_key || activeApis.includes("evolution")) return "evolution";
+  if (whatsappSettings?.twilio_account_sid || whatsappSettings?.twilio_auth_token || whatsappSettings?.twilio_phone_number) return "twilio";
+  return null;
 }
 
 async function getOnboardingContext(
   supabase: ReturnType<typeof createClient>,
   tenantId: string
 ): Promise<OnboardingContext> {
-  const [tenantRes, apiKeysRes, whatsappRes, companyRes, prefsRes] =
+  const [tenantRes, apiKeysRes, whatsappRes, companyRes, prefsRes, whatsappSettings] =
     await Promise.all([
       supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle(),
       supabase
@@ -43,26 +91,62 @@ async function getOnboardingContext(
         .select("*")
         .eq("tenant_id", tenantId)
         .maybeSingle(),
+      getWhatsAppSettings(supabase, tenantId),
     ]);
 
   const activeApis = (apiKeysRes.data || []).map(
     (k: { provider: string }) => k.provider
   );
-  const whatsappConnected = (whatsappRes.data || []).length > 0;
+  const whatsappProvider = detectWhatsAppProvider(whatsappSettings, activeApis);
+
+  const hasZapiConfig = Boolean(
+    whatsappSettings?.ativo &&
+    whatsappSettings?.zapi_instance_id &&
+    whatsappSettings?.zapi_token &&
+    whatsappSettings?.zapi_client_token
+  );
+  const hasEvolutionConfig = Boolean(
+    activeApis.includes("evolution") ||
+    (whatsappSettings?.ativo && whatsappSettings?.evolution_api_url && whatsappSettings?.evolution_api_key)
+  );
+  const hasTwilioConfig = Boolean(
+    whatsappSettings?.ativo &&
+    whatsappSettings?.twilio_account_sid &&
+    whatsappSettings?.twilio_auth_token &&
+    whatsappSettings?.twilio_phone_number
+  );
+
+  const whatsappApi = hasZapiConfig || hasEvolutionConfig || hasTwilioConfig;
+  const whatsappConnected =
+    hasTwilioConfig ||
+    (whatsappRes.data || []).length > 0 ||
+    (whatsappProvider === "zapi" && hasZapiConfig);
+
+  const capabilities: OnboardingCapabilities = {
+    companyInfo: Boolean(companyRes.data?.company_name),
+    salesAI: activeApis.includes("openai"),
+    whatsappApi,
+    whatsappConnected,
+    email: activeApis.includes("resend"),
+    pdf: true,
+  };
 
   const completedSteps: string[] = [];
-  if (companyRes.data?.company_name) completedSteps.push("company_info");
-  if (activeApis.includes("openai")) completedSteps.push("openai_api");
-  if (activeApis.includes("evolution")) completedSteps.push("evolution_api");
-  if (activeApis.includes("resend")) completedSteps.push("resend_api");
-  if (whatsappConnected) completedSteps.push("whatsapp_connected");
+  if (capabilities.companyInfo) completedSteps.push("company_info");
+  if (capabilities.salesAI) completedSteps.push("openai_api");
+  if (capabilities.whatsappApi) completedSteps.push("whatsapp_api");
+  if (capabilities.whatsappConnected) completedSteps.push("whatsapp_connected");
+  if (capabilities.email) completedSteps.push("resend_api");
+  if (capabilities.pdf) completedSteps.push("pdf_configured");
 
   return {
     tenant: tenantRes.data,
     apiKeys: activeApis,
-    whatsappConnected,
+    whatsappConnected: capabilities.whatsappConnected,
+    whatsappProvider,
     companySettings: companyRes.data,
     onboardingPrefs: prefsRes.data,
+    capabilities,
     completedSteps,
   };
 }
@@ -90,20 +174,19 @@ LOJA: "${storeName}" | PLANO: ${plan}
 ${storeContext}
 PROGRESSO ATUAL:
 - APIs configuradas: ${ctx.apiKeys.length > 0 ? ctx.apiKeys.join(", ") : "nenhuma"}
-- WhatsApp: ${ctx.whatsappConnected ? "✅ conectado" : "❌ não conectado"}
+- WhatsApp: ${ctx.capabilities.whatsappApi ? `✅ ${ctx.whatsappProvider || "configurado"}` : "❌ não configurado"}
 - Etapas concluídas: ${ctx.completedSteps.length > 0 ? ctx.completedSteps.join(", ") : "nenhuma"}
 
 REGRAS:
 1. Guie o usuário passo a passo pela configuração da loja
 2. Quando o usuário enviar uma API key, identifique o provedor e responda com JSON de ação:
    {"action":"save_api_key","provider":"openai","key":"sk-..."}
-3. Se o usuário perguntar sobre WhatsApp/Evolution, explique como conectar via QR Code
+3. Se o usuário perguntar sobre WhatsApp, explique como conectar via Z-API, Evolution ou Twilio
 4. Se todas as etapas estiverem completas, parabenize e sugira criar o primeiro orçamento
 5. Fale como especialista em móveis planejados - use termos do setor
 6. Nunca invente dados da loja - use apenas o contexto fornecido
 7. Quando perguntar sobre o tipo de loja, ofereça opções: Alto Padrão, Popular, Corporativo, Misto
 8. Seja BREVE - respostas de no máximo 3 parágrafos
-
 9. Quando APIs estiverem configuradas, sugira "Configurar VendaZap AI" automaticamente
 10. Após configurar VendaZap, sugira "Executar testes" para validar tudo
 11. Após testes OK, sugira "Criar primeiro projeto" para guiar o usuário
@@ -111,7 +194,7 @@ REGRAS:
 FLUXO IDEAL:
 1. Saudação → perguntar tipo de loja e ticket médio
 2. Configurar OpenAI API (IA de vendas)
-3. Configurar Evolution API (WhatsApp)
+3. Configurar WhatsApp (Z-API, Evolution ou Twilio)
 4. Configurar VendaZap AI automaticamente (prompt + tom + respostas)
 5. Executar auto-testes (IA, WhatsApp, Email, PDF)
 6. Criar primeiro projeto/orçamento guiado
