@@ -2,6 +2,8 @@
  * ProductCatalog — Full product catalog management UI
  */
 import { useState, useRef, useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Package, Plus, Trash2, Pencil, Search, Loader2, Upload, Image as ImageIcon,
-  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X,
+  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart,
 } from "lucide-react";
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
 import { toast } from "sonner";
@@ -285,6 +287,9 @@ export function ProductCatalog() {
                               <TableCell className="text-xs hidden lg:table-cell">{p.supplier?.name || "—"}</TableCell>
                               <TableCell>
                                 <div className="flex gap-1">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Registrar venda" onClick={() => openSaleDialog(p)}>
+                                    <ShoppingCart className="h-3.5 w-3.5" />
+                                  </Button>
                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditProduct(p)}>
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
