@@ -1119,6 +1119,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 interface TrackingRow {
   id: string;
+  contract_id: string;
+  tracking_id: string | null;
+  client_id: string;
+  simulation_id: string | null;
   numero_contrato: string;
   nome_cliente: string;
   cpf_cnpj: string | null;
@@ -1128,6 +1132,7 @@ interface TrackingRow {
   projetista: string | null;
   vendedor: string | null;
   status: string;
+  created_at: string;
 }
 
 function ContractTrackingList() {
@@ -1147,51 +1152,164 @@ function ContractTrackingList() {
     setLoading(true);
     const tenantId = await getResolvedTenantId();
 
-    // Step 1: Get client IDs that have actual issued contracts
     let contractQuery = supabase
       .from("client_contracts")
-      .select("client_id");
-    if (tenantId) contractQuery = contractQuery.eq("tenant_id", tenantId);
-    const { data: contractData } = await contractQuery;
-    const contractClientIds = new Set((contractData as any[] || []).map((c: any) => c.client_id));
-
-    // Step 2: Fetch tracking records, but only show those with real contracts
-    let query = supabase
-      .from("client_tracking")
-      .select("id, numero_contrato, nome_cliente, cpf_cnpj, quantidade_ambientes, valor_contrato, data_fechamento, projetista, status, vendedor, client_id")
+      .select("id, client_id, simulation_id, created_at")
       .order("created_at", { ascending: false });
-    if (tenantId) query = query.eq("tenant_id", tenantId);
-    const { data } = await query;
-    if (data) {
-      // Filter: only show tracking records for clients with actual contracts
-      const filtered = (data as any[]).filter((t: any) => contractClientIds.has(t.client_id));
-      setTrackings(filtered as any);
+    let trackingQuery = supabase
+      .from("client_tracking")
+      .select("id, client_id, numero_contrato, nome_cliente, cpf_cnpj, quantidade_ambientes, valor_contrato, data_fechamento, projetista, status, vendedor, created_at")
+      .order("created_at", { ascending: false });
+    let transactionQuery = supabase
+      .from("dealroom_transactions")
+      .select("client_id, simulation_id, numero_contrato, nome_cliente, nome_vendedor, valor_venda, created_at")
+      .order("created_at", { ascending: false });
+
+    if (tenantId) {
+      contractQuery = contractQuery.eq("tenant_id", tenantId);
+      trackingQuery = trackingQuery.eq("tenant_id", tenantId);
+      transactionQuery = transactionQuery.eq("tenant_id", tenantId);
     }
+
+    const [contractsRes, trackingRes, transactionsRes] = await Promise.all([
+      contractQuery,
+      trackingQuery,
+      transactionQuery,
+    ]);
+
+    if (contractsRes.error) {
+      toast.error("Erro ao carregar contratos fechados");
+      setTrackings([]);
+      setLoading(false);
+      return;
+    }
+
+    const latestContractByClient = new Map<string, any>();
+    for (const contract of contractsRes.data || []) {
+      if (contract.client_id && !latestContractByClient.has(contract.client_id)) {
+        latestContractByClient.set(contract.client_id, contract);
+      }
+    }
+
+    const latestTrackingByClient = new Map<string, any>();
+    for (const tracking of trackingRes.data || []) {
+      if (tracking.client_id && !latestTrackingByClient.has(tracking.client_id)) {
+        latestTrackingByClient.set(tracking.client_id, tracking);
+      }
+    }
+
+    const latestTransactionByClient = new Map<string, any>();
+    const latestTransactionBySimulation = new Map<string, any>();
+    for (const transaction of transactionsRes.data || []) {
+      if (transaction.client_id && !latestTransactionByClient.has(transaction.client_id)) {
+        latestTransactionByClient.set(transaction.client_id, transaction);
+      }
+      if (transaction.simulation_id && !latestTransactionBySimulation.has(transaction.simulation_id)) {
+        latestTransactionBySimulation.set(transaction.simulation_id, transaction);
+      }
+    }
+
+    const clientMap = new Map(clients.map((client) => [client.id, client]));
+
+    const rows: TrackingRow[] = Array.from(latestContractByClient.values())
+      .map((contract: any) => {
+        const client = clientMap.get(contract.client_id);
+        const tracking = latestTrackingByClient.get(contract.client_id);
+        const transaction = latestTransactionBySimulation.get(contract.simulation_id) || latestTransactionByClient.get(contract.client_id);
+        const sim = lastSims[contract.client_id];
+
+        return {
+          id: contract.id,
+          contract_id: contract.id,
+          tracking_id: tracking?.id || null,
+          client_id: contract.client_id,
+          simulation_id: contract.simulation_id || null,
+          numero_contrato: tracking?.numero_contrato || transaction?.numero_contrato || client?.numero_orcamento || "—",
+          nome_cliente: tracking?.nome_cliente || client?.nome || transaction?.nome_cliente || "Cliente sem nome",
+          cpf_cnpj: tracking?.cpf_cnpj || client?.cpf || null,
+          quantidade_ambientes: tracking?.quantidade_ambientes || client?.quantidade_ambientes || 0,
+          valor_contrato: Number(tracking?.valor_contrato) || Number(transaction?.valor_venda) || sim?.valor_com_desconto || sim?.valor_final || 0,
+          data_fechamento: tracking?.data_fechamento || transaction?.created_at || contract.created_at,
+          projetista: tracking?.projetista || client?.vendedor || null,
+          vendedor: tracking?.vendedor || transaction?.nome_vendedor || client?.vendedor || null,
+          status: tracking?.status || "fechado",
+          created_at: tracking?.created_at || transaction?.created_at || contract.created_at,
+        };
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    setTrackings(rows);
     setLoading(false);
-  }, []);
+  }, [clients, lastSims]);
 
   useEffect(() => { fetchTrackings(); }, [fetchTrackings]);
 
-  const handleStatusChange = useCallback(async (id: string, newStatus: string) => {
-    const { error } = await supabase
-      .from("client_tracking")
-      .update({ status: newStatus, updated_at: new Date().toISOString() } as any)
-      .eq("id", id);
-    if (error) toast.error("Erro ao atualizar status");
-    else {
+  const handleStatusChange = useCallback(async (row: TrackingRow, newStatus: string) => {
+    if (row.tracking_id) {
+      const { error } = await supabase
+        .from("client_tracking")
+        .update({ status: newStatus, updated_at: new Date().toISOString() } as any)
+        .eq("id", row.tracking_id);
+
+      if (error) {
+        toast.error("Erro ao atualizar status");
+        return;
+      }
+
       toast.success("Status atualizado!");
-      setTrackings((prev) => prev.map((t) => t.id === id ? { ...t, status: newStatus } : t));
+      setTrackings((prev) => prev.map((t) => t.id === row.id ? { ...t, status: newStatus } : t));
 
       const userInfo = getAuditUserInfo();
       logAudit({
         acao: "status_tracking_alterado",
         entidade: "tracking",
-        entidade_id: id,
+        entidade_id: row.tracking_id,
         detalhes: { novo_status: newStatus },
         ...userInfo,
       });
+      return;
     }
-  }, []);
+
+    const tenantId = await getResolvedTenantId();
+    const comissaoResult = calcularComissao(row.valor_contrato, 0, comissaoPolicy, null);
+    const { data, error } = await supabase
+      .from("client_tracking")
+      .insert({
+        client_id: row.client_id,
+        numero_contrato: row.numero_contrato !== "—" ? row.numero_contrato : "",
+        nome_cliente: row.nome_cliente,
+        cpf_cnpj: row.cpf_cnpj,
+        quantidade_ambientes: row.quantidade_ambientes,
+        valor_contrato: row.valor_contrato,
+        data_fechamento: row.data_fechamento,
+        projetista: row.projetista,
+        vendedor: row.vendedor,
+        status: newStatus,
+        comissao_percentual: comissaoResult.percentual,
+        comissao_valor: Math.round((row.valor_contrato * comissaoResult.percentual / 100) * 100) / 100,
+        comissao_status: "pendente",
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+      } as any)
+      .select("id")
+      .single();
+
+    if (error) {
+      toast.error("Erro ao atualizar status");
+      return;
+    }
+
+    toast.success("Status atualizado!");
+    setTrackings((prev) => prev.map((t) => t.id === row.id ? { ...t, status: newStatus, tracking_id: data?.id || null } : t));
+
+    const userInfo = getAuditUserInfo();
+    logAudit({
+      acao: "tracking_criado_por_contrato_emitido",
+      entidade: "tracking",
+      entidade_id: data?.id,
+      detalhes: { client_id: row.client_id, novo_status: newStatus },
+      ...userInfo,
+    });
+  }, [comissaoPolicy]);
 
   const handleAdd = useCallback(async () => {
     if (!form.numero_contrato.trim() || !form.nome_cliente.trim()) {
@@ -1205,7 +1323,6 @@ function ContractTrackingList() {
 
     const comissaoResult = calcularComissao(form.valor_contrato, 0, comissaoPolicy, null);
 
-    
     const { error } = await supabase.from("client_tracking").insert({
       client_id: clientData?.id || "00000000-0000-0000-0000-000000000000",
       numero_contrato: form.numero_contrato.trim(),
@@ -1229,7 +1346,7 @@ function ContractTrackingList() {
       setForm({ numero_contrato: "", nome_cliente: "", cpf_cnpj: "", quantidade_ambientes: 0, valor_contrato: 0, data_fechamento: "", projetista: "" });
       fetchTrackings();
     }
-  }, [form, fetchTrackings]);
+  }, [comissaoPolicy, form, fetchTrackings]);
 
   const uniqueProjetistas = useMemo(() => {
     const set = new Set<string>();
