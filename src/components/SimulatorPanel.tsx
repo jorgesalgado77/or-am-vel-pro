@@ -7,7 +7,7 @@ import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
-import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu} from "lucide-react";
+import {Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package} from "lucide-react";
 import {Badge} from "@/components/ui/badge";
 import {LoadSimulationModal} from "@/components/simulator/LoadSimulationModal";
 import {SimulatorEnvironmentsTable, type ImportedEnvironment} from "@/components/simulator/SimulatorEnvironmentsTable";

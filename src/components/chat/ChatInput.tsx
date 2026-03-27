@@ -19,9 +19,11 @@ interface Props {
   quickRepliesLoading?: boolean;
   onAddQuickReply?: (titulo: string, mensagem: string) => void;
   onRemoveQuickReply?: (id: string) => void;
+  tenantId?: string | null;
+  onSendProductText?: (text: string, imageUrl?: string) => void;
 }
 
-export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke, quickReplies, quickRepliesLoading, onAddQuickReply, onRemoveQuickReply }: Props) {
+export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke, quickReplies, quickRepliesLoading, onAddQuickReply, onRemoveQuickReply, tenantId, onSendProductText }: Props) {
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);

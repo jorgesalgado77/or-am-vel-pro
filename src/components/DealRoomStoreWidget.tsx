@@ -13,7 +13,7 @@ import {
   DollarSign, TrendingUp, Target, Percent, Trophy, Plus,
   Send, Eye, CheckCircle, XCircle, FileText, ExternalLink,
   Handshake, BarChart3, RefreshCw, Video, Calendar, Bot,
-  Mic, MicOff, AlertTriangle,
+  Mic, MicOff, AlertTriangle, Package,
 } from "lucide-react";
 import { useDealRoom, type DealRoomProposal } from "@/hooks/useDealRoom";
 import { OnboardingDialog, useOnboarding } from "@/components/OnboardingDialog";
@@ -295,6 +295,7 @@ export const DealRoomStoreWidget = forwardRef<HTMLDivElement, DealRoomStoreWidge
       <Tabs defaultValue="propostas" className="space-y-4">
         <TabsList className="overflow-x-auto">
           <TabsTrigger value="propostas" className="gap-2"><FileText className="h-4 w-4" /> Propostas</TabsTrigger>
+          <TabsTrigger value="produtos" className="gap-2"><Package className="h-4 w-4" /> Produtos</TabsTrigger>
           <TabsTrigger value="vendazap-ai" className="gap-2"><Bot className="h-4 w-4" /> VendaZap AI</TabsTrigger>
           <TabsTrigger value="metricas" className="gap-2"><BarChart3 className="h-4 w-4" /> Métricas</TabsTrigger>
           <TabsTrigger value="ranking" className="gap-2"><Trophy className="h-4 w-4" /> Ranking</TabsTrigger>
