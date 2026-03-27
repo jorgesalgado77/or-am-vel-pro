@@ -1,5 +1,4 @@
-[project]
-id = "bdhfzjuwtkiexyeusnqq"
+project_id = "bdhfzjuwtkiexyeusnqq"
 
 [functions.vendazap-ai]
 verify_jwt = false
