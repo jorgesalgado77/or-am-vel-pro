@@ -261,6 +261,21 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Log the notification
+      try {
+        const tenantId = subs[0]?.tenant_id;
+        await supabase.from("push_notification_logs").insert({
+          tenant_id: tenantId,
+          user_id,
+          title,
+          body: msgBody || "",
+          tag: tag || "default",
+          status: sent > 0 ? "sent" : "failed",
+        });
+      } catch (_e) {
+        // Table may not exist yet
+      }
+
       return new Response(
         JSON.stringify({ sent }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
