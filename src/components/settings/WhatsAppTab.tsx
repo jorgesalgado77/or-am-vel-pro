@@ -123,7 +123,7 @@ export function WhatsAppTab() {
       return;
     }
 
-    let missingTenantColumn = false;
+    // Try with tenant_id first, then without if column doesn't exist
     let response = await supabase
       .from("whatsapp_settings")
       .select("*")
@@ -132,18 +132,11 @@ export function WhatsAppTab() {
       .maybeSingle();
 
     if (isMissingTenantColumnError(response.error)) {
-      missingTenantColumn = true;
       response = await supabase
         .from("whatsapp_settings")
         .select("*")
         .limit(1)
         .maybeSingle();
-    }
-
-    if (response.error) {
-      toast.error("Erro ao carregar configurações do WhatsApp");
-      setLoading(false);
-      return;
     }
 
     if (response.data) {
@@ -152,26 +145,8 @@ export function WhatsAppTab() {
       return;
     }
 
-    let createdResponse = await supabase
-      .from("whatsapp_settings")
-      .insert((missingTenantColumn ? {} : { tenant_id: tenantId }) as any)
-      .select("*")
-      .single();
-
-    if (isMissingTenantColumnError(createdResponse.error)) {
-      createdResponse = await supabase
-        .from("whatsapp_settings")
-        .insert({} as any)
-        .select("*")
-        .single();
-    }
-
-    if (createdResponse.data) {
-      applySettings(createdResponse.data as unknown as WhatsAppSettings);
-    } else if (createdResponse.error) {
-      toast.error("Erro ao inicializar configurações do WhatsApp");
-    }
-
+    // No existing record — just finish loading. 
+    // The user can fill in the form and we'll upsert on save.
     setLoading(false);
   };
 
@@ -191,31 +166,52 @@ export function WhatsAppTab() {
   }, []);
 
   const handleSave = async () => {
-    if (!settings) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("whatsapp_settings")
-      .update({
-        provider,
-        evolution_api_url: evolutionUrl.trim() || null,
-        evolution_api_key: evolutionKey.trim() || null,
-        evolution_instance_name: evolutionInstance.trim() || null,
-        twilio_account_sid: twilioSid.trim() || null,
-        twilio_auth_token: twilioToken.trim() || null,
-        twilio_phone_number: twilioPhone.trim() || null,
-        zapi_instance_id: zapiInstanceId.trim() || null,
-        zapi_token: zapiToken.trim() || null,
-        zapi_security_token: zapiSecurityToken.trim() || null,
-        zapi_webhook_url: zapiWebhookUrl.trim() || null,
-        zapi_client_token: zapiClientToken.trim() || null,
-        ativo,
-        enviar_contrato: enviarContrato,
-        enviar_notificacoes: enviarNotificacoes,
-      } as any)
-      .eq("id", settings.id);
+    const payload = {
+      provider,
+      evolution_api_url: evolutionUrl.trim() || null,
+      evolution_api_key: evolutionKey.trim() || null,
+      evolution_instance_name: evolutionInstance.trim() || null,
+      twilio_account_sid: twilioSid.trim() || null,
+      twilio_auth_token: twilioToken.trim() || null,
+      twilio_phone_number: twilioPhone.trim() || null,
+      zapi_instance_id: zapiInstanceId.trim() || null,
+      zapi_token: zapiToken.trim() || null,
+      zapi_security_token: zapiSecurityToken.trim() || null,
+      zapi_webhook_url: zapiWebhookUrl.trim() || null,
+      zapi_client_token: zapiClientToken.trim() || null,
+      ativo,
+      enviar_contrato: enviarContrato,
+      enviar_notificacoes: enviarNotificacoes,
+    } as any;
+
+    let error: any = null;
+
+    if (settings?.id) {
+      // Update existing record
+      const res = await supabase
+        .from("whatsapp_settings")
+        .update(payload)
+        .eq("id", settings.id);
+      error = res.error;
+    } else {
+      // No record exists — try to insert
+      const res = await supabase
+        .from("whatsapp_settings")
+        .insert(payload)
+        .select("*")
+        .single();
+      error = res.error;
+      if (res.data) {
+        applySettings(res.data as unknown as WhatsAppSettings);
+      }
+    }
+
     setSaving(false);
-    if (error) toast.error("Erro ao salvar configurações");
-    else {
+    if (error) {
+      console.error("WhatsApp save error:", error);
+      toast.error("Erro ao salvar configurações. Verifique as permissões do banco.");
+    } else {
       toast.success("Configurações do WhatsApp salvas!");
       fetchSettings();
     }
