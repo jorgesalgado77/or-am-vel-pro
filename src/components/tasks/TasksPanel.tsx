@@ -1,13 +1,14 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, CalendarDays, CalendarSync } from "lucide-react";
+import { Plus, LayoutGrid, CalendarDays } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { TaskKanbanBoard } from "./TaskKanbanBoard";
 import { TaskCalendarView } from "./TaskCalendarView";
 import { TaskCreateModal } from "./TaskCreateModal";
 import { TaskFilters } from "./TaskFilters";
+import { GoogleCalendarConnect } from "./GoogleCalendarConnect";
 import { type Task, type DateFilterPreset } from "./taskTypes";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { playNotificationSound } from "@/lib/notificationSound";
@@ -86,7 +87,7 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
     return filtered;
   }, [tasks, dateFilter, typeFilter, customStart, customEnd]);
 
-  const { syncTaskToCalendar, syncing: calendarSyncing } = useGoogleCalendar(tenantId);
+  const { syncTaskToCalendar, syncing: calendarSyncing } = useGoogleCalendar(tenantId, userId);
 
   const handleSave = async (data: Partial<Task>) => {
     if (editingTask) {
@@ -133,6 +134,7 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
           onCustomEndChange={setCustomEnd}
         />
         <div className="flex items-center gap-2">
+          <GoogleCalendarConnect tenantId={tenantId} userId={userId} />
           <Tabs value={view} onValueChange={(v) => setView(v as any)}>
             <TabsList className="h-8">
               <TabsTrigger value="kanban" className="text-xs gap-1 px-2 h-7"><LayoutGrid className="h-3.5 w-3.5" />Kanban</TabsTrigger>
