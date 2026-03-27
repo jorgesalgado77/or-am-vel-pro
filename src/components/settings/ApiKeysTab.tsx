@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { KeyRound, Plus, Trash2, Eye, EyeOff, Shield, CheckCircle2, XCircle } from "lucide-react";
+import { KeyRound, Plus, Trash2, Eye, EyeOff, Shield, CheckCircle2, XCircle, Webhook, Copy, ExternalLink } from "lucide-react";
 import { useApiKeys, API_PROVIDERS, type ApiProvider } from "@/hooks/useApiKeys";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
@@ -178,6 +178,90 @@ export function ApiKeysTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Asaas Webhook Configuration */}
+      <AsaasWebhookConfig tenantId={tenantId} />
     </div>
+  );
+}
+
+function AsaasWebhookConfig({ tenantId }: { tenantId: string | null }) {
+  const supabaseProjectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || "";
+  const webhookUrl = supabaseProjectId
+    ? `https://${supabaseProjectId}.supabase.co/functions/v1/asaas-billing`
+    : "";
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("URL copiada!");
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Webhook className="h-5 w-5 text-primary" />
+          <CardTitle className="text-lg">Webhook Asaas</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Configure o webhook no painel do Asaas para receber atualizações automáticas de status de pagamento (PIX e Boleto).
+        </p>
+
+        <div className="space-y-3">
+          <div>
+            <Label className="text-sm font-medium">URL do Webhook</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <Input
+                readOnly
+                value={webhookUrl || "Configure VITE_SUPABASE_PROJECT_ID para gerar a URL"}
+                className="font-mono text-xs bg-muted"
+              />
+              {webhookUrl && (
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(webhookUrl)} title="Copiar URL">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground">📋 Como configurar:</h4>
+            <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside">
+              <li>Acesse o <strong>Painel do Asaas</strong> → Integrações → Webhooks</li>
+              <li>Clique em <strong>"Adicionar Webhook"</strong></li>
+              <li>Cole a URL acima no campo <strong>"URL"</strong></li>
+              <li>Selecione os eventos:
+                <ul className="ml-4 mt-1 space-y-0.5 list-disc list-inside">
+                  <li><code className="bg-muted px-1 rounded">PAYMENT_RECEIVED</code> — Pagamento confirmado</li>
+                  <li><code className="bg-muted px-1 rounded">PAYMENT_CONFIRMED</code> — Pagamento compensado</li>
+                  <li><code className="bg-muted px-1 rounded">PAYMENT_OVERDUE</code> — Pagamento vencido</li>
+                  <li><code className="bg-muted px-1 rounded">PAYMENT_REFUNDED</code> — Pagamento estornado</li>
+                </ul>
+              </li>
+              <li>Marque <strong>"Ativo"</strong> e salve</li>
+            </ol>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs gap-1">
+              <Shield className="h-3 w-3" />
+              Método: POST
+            </Badge>
+            <Badge variant="outline" className="text-xs gap-1">
+              Body: JSON (application/json)
+            </Badge>
+          </div>
+
+          <Button variant="outline" size="sm" className="gap-1.5" asChild>
+            <a href="https://docs.asaas.com/docs/webhook" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Documentação Asaas Webhooks
+            </a>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
