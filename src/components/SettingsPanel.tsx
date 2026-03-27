@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion, Lightbulb, Clock, Factory, KeyRound, BellRing, CalendarSync } from "lucide-react";
+import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion, Lightbulb, Clock, Factory, KeyRound, BellRing, CalendarSync, ShieldCheck } from "lucide-react";
 
 // Lazy load each tab to reduce initial chunk from 1.5MB
 const CompanySettingsTab = lazy(() => import("@/components/settings/CompanySettingsTab").then(m => ({ default: m.CompanySettingsTab })));
@@ -24,6 +24,7 @@ const FornecedoresTab = lazy(() => import("@/components/settings/FornecedoresTab
 const ApiKeysTab = lazy(() => import("@/components/settings/ApiKeysTab").then(m => ({ default: m.ApiKeysTab })));
 const PushNotificationsTab = lazy(() => import("@/components/settings/PushNotificationsTab").then(m => ({ default: m.PushNotificationsTab })));
 const GoogleCalendarTab = lazy(() => import("@/components/settings/GoogleCalendarTab").then(m => ({ default: m.GoogleCalendarTab })));
+const SalesRulesTab = lazy(() => import("@/components/settings/SalesRulesTab").then(m => ({ default: m.SalesRulesTab })));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-12">
@@ -70,6 +71,7 @@ export function SettingsPanel() {
           <TabsTrigger value="apikeys" className="gap-2"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
           <TabsTrigger value="push" className="gap-2"><BellRing className="h-4 w-4" />Push</TabsTrigger>
           <TabsTrigger value="google_calendar" className="gap-2"><CalendarSync className="h-4 w-4" />Google Agenda</TabsTrigger>
+          <TabsTrigger value="sales_rules" className="gap-2"><ShieldCheck className="h-4 w-4" />Regras Comerciais</TabsTrigger>
         </TabsList>
 
         <Suspense fallback={<TabLoader />}>
@@ -94,6 +96,7 @@ export function SettingsPanel() {
           {activeTab === "apikeys" && <TabsContent value="apikeys" forceMount><ApiKeysTab /></TabsContent>}
           {activeTab === "push" && <TabsContent value="push" forceMount><PushNotificationsTab /></TabsContent>}
           {activeTab === "google_calendar" && <TabsContent value="google_calendar" forceMount><GoogleCalendarTab /></TabsContent>}
+          {activeTab === "sales_rules" && <TabsContent value="sales_rules" forceMount><SalesRulesTab /></TabsContent>}
         </Suspense>
       </Tabs>
     </div>
