@@ -24,6 +24,7 @@ import {buildContractHtml} from "@/services/contractService";
 import {generateSaleCommissions} from "@/services/commissionService";
 import {validateFileUpload} from "@/lib/validation";
 import {generateSimulationPdf} from "@/lib/generatePdf";
+import {generateAndOpenBudgetPdf} from "@/lib/pdfService";
 import {ContractEditorDialog} from "@/components/ContractEditorDialog";
 import {CloseSaleModal} from "@/components/CloseSaleModal";
 import {ProductPickerForSimulator} from "@/components/simulator/ProductPickerForSimulator";
