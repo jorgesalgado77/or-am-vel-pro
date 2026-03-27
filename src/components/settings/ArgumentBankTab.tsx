@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Trash2, Pencil, Lightbulb, Search, Globe } from "lucide-react";
+import { Plus, Trash2, Pencil, Lightbulb, Search, Globe, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { toast } from "sonner";
@@ -59,6 +59,9 @@ export function ArgumentBankTab() {
   const [filterCategoria, setFilterCategoria] = useState("all");
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<{ content: string; citations: string[] } | null>(null);
+  const [improvingTitle, setImprovingTitle] = useState(false);
+  const [improvingArg, setImprovingArg] = useState(false);
+  const [searchingData, setSearchingData] = useState(false);
 
   const tenantId = getTenantId();
 
@@ -91,26 +94,38 @@ export function ArgumentBankTab() {
           fonte: form.fonte.trim() || null,
         } as any)
         .eq("id", editingId));
-      if (error) toast.error("Erro ao atualizar");
-      else toast.success("Argumento atualizado!");
+      if (error) { toast.error("Erro ao atualizar"); return; }
+      // Update locally for instant feedback
+      setArgumentos(prev => prev.map(a =>
+        a.id === editingId
+          ? { ...a, categoria: form.categoria, titulo: form.titulo.trim(), argumento: form.argumento.trim(), dados_reais: form.dados_reais.trim() || undefined, fonte: form.fonte.trim() || undefined }
+          : a
+      ));
+      toast.success("Argumento atualizado!");
     } else {
-      const { error } = await (supabase.from("argument_bank" as any)
-        .insert({
-          tenant_id: tenantId,
-          categoria: form.categoria,
-          titulo: form.titulo.trim(),
-          argumento: form.argumento.trim(),
-          dados_reais: form.dados_reais.trim() || null,
-          fonte: form.fonte.trim() || null,
-        } as any));
-      if (error) toast.error("Erro ao adicionar");
-      else toast.success("Argumento adicionado!");
+      const newEntry = {
+        tenant_id: tenantId,
+        categoria: form.categoria,
+        titulo: form.titulo.trim(),
+        argumento: form.argumento.trim(),
+        dados_reais: form.dados_reais.trim() || null,
+        fonte: form.fonte.trim() || null,
+      };
+      const { data, error } = await (supabase.from("argument_bank" as any)
+        .insert(newEntry as any)
+        .select("*")
+        .single());
+      if (error) { toast.error("Erro ao adicionar"); return; }
+      // Add to list immediately
+      if (data) {
+        setArgumentos(prev => [data as unknown as Argumento, ...prev]);
+      }
+      toast.success("Argumento adicionado!");
     }
 
     setForm(EMPTY_FORM);
     setEditingId(null);
     setDialogOpen(false);
-    loadArgumentos();
   };
 
   const handleEdit = (arg: Argumento) => {
@@ -129,10 +144,13 @@ export function ArgumentBankTab() {
     if (!confirm("Excluir este argumento?")) return;
     const { error } = await (supabase.from("argument_bank" as any).delete().eq("id", id));
     if (error) toast.error("Erro ao excluir");
-    else { toast.success("Excluído!"); loadArgumentos(); }
+    else {
+      setArgumentos(prev => prev.filter(a => a.id !== id));
+      toast.success("Excluído!");
+    }
   };
 
-  // Perplexity real-time search
+  // Perplexity real-time search (top card)
   const handlePerplexitySearch = async (query: string) => {
     if (!query.trim()) return;
     setSearching(true);
@@ -147,6 +165,75 @@ export function ArgumentBankTab() {
       toast.error("Erro ao pesquisar. Verifique a conexão com Perplexity.");
     }
     setSearching(false);
+  };
+
+  // AI improve title
+  const handleImproveTitle = async () => {
+    if (!form.titulo.trim()) { toast.error("Digite um título primeiro"); return; }
+    setImprovingTitle(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
+        body: {
+          prompt: `Melhore este título de argumento de venda de móveis planejados para ser mais persuasivo, profissional e impactante. Retorne APENAS o título melhorado, sem explicações:\n\nTítulo original: "${form.titulo}"`,
+          mode: "improve",
+        },
+      });
+      if (error) throw error;
+      const improved = (data?.text || data?.content || "").trim();
+      if (improved) setForm(f => ({ ...f, titulo: improved }));
+      else toast.error("Não foi possível melhorar o título");
+    } catch {
+      toast.error("Erro ao melhorar título com IA");
+    }
+    setImprovingTitle(false);
+  };
+
+  // AI improve argument
+  const handleImproveArgument = async () => {
+    if (!form.argumento.trim()) { toast.error("Digite um argumento primeiro"); return; }
+    setImprovingArg(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
+        body: {
+          prompt: `Melhore este argumento de venda de móveis planejados para ser mais convincente, com dados e linguagem persuasiva. Retorne APENAS o argumento melhorado, sem explicações:\n\nArgumento original: "${form.argumento}"`,
+          mode: "improve",
+        },
+      });
+      if (error) throw error;
+      const improved = (data?.text || data?.content || "").trim();
+      if (improved) setForm(f => ({ ...f, argumento: improved }));
+      else toast.error("Não foi possível melhorar o argumento");
+    } catch {
+      toast.error("Erro ao melhorar argumento com IA");
+    }
+    setImprovingArg(false);
+  };
+
+  // Search real data about the topic
+  const handleSearchRealData = async () => {
+    const topic = form.titulo.trim() || form.argumento.trim();
+    if (!topic) { toast.error("Preencha o título ou argumento para buscar dados reais"); return; }
+    setSearchingData(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("perplexity-search", {
+        body: {
+          query: `Dados reais, estatísticas e pesquisas sobre: ${topic} - mercado de móveis planejados Brasil`,
+          context: "Busca de dados reais para fundamentar argumento de venda",
+        },
+      });
+      if (error) throw error;
+      if (data?.content) {
+        setForm(f => ({
+          ...f,
+          dados_reais: data.content.slice(0, 500),
+          fonte: data.citations?.[0] || f.fonte,
+        }));
+        toast.success("Dados reais encontrados e preenchidos!");
+      }
+    } catch {
+      toast.error("Erro ao buscar dados reais. Verifique a conexão com Perplexity.");
+    }
+    setSearchingData(false);
   };
 
   const filtered = argumentos.filter(a => {
@@ -169,7 +256,7 @@ export function ArgumentBankTab() {
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Cadastre seus diferenciais reais para a IA usar nas argumentações de venda. Vendedores, projetistas, administradores e gerentes podem adicionar argumentos.
+            Cadastre seus diferenciais reais para a IA usar nas argumentações de venda.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -318,15 +405,54 @@ export function ArgumentBankTab() {
               </Select>
             </div>
             <div>
-              <Label>Título *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Título *</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-[10px] gap-1 text-primary"
+                  disabled={improvingTitle || !form.titulo.trim()}
+                  onClick={handleImproveTitle}
+                >
+                  {improvingTitle ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  Melhorar com IA
+                </Button>
+              </div>
               <Input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} className="mt-1" placeholder="Ex: Ferragens Blum com garantia vitalícia" />
             </div>
             <div>
-              <Label>Argumento *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Argumento *</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-[10px] gap-1 text-primary"
+                  disabled={improvingArg || !form.argumento.trim()}
+                  onClick={handleImproveArgument}
+                >
+                  {improvingArg ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  Melhorar com IA
+                </Button>
+              </div>
               <Textarea value={form.argumento} onChange={e => setForm(f => ({ ...f, argumento: e.target.value }))} className="mt-1" rows={3} placeholder="Descreva o argumento que a IA deve usar..." />
             </div>
             <div>
-              <Label>Dados Reais (opcional)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Dados Reais (opcional)</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-[10px] gap-1 text-primary"
+                  disabled={searchingData || (!form.titulo.trim() && !form.argumento.trim())}
+                  onClick={handleSearchRealData}
+                >
+                  {searchingData ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+                  Buscar na Internet
+                </Button>
+              </div>
               <Textarea value={form.dados_reais} onChange={e => setForm(f => ({ ...f, dados_reais: e.target.value }))} className="mt-1" rows={2} placeholder="Números, estatísticas, pesquisas que suportam o argumento..." />
             </div>
             <div>
