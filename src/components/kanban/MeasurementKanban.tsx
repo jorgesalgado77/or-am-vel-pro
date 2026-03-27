@@ -7,13 +7,15 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MeasurementReport } from "./MeasurementReport";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Ruler, AlertTriangle, CheckCircle2, Clock, RefreshCw, Search,
-  User, FileText, ChevronRight, Loader2,
+  User, FileText, ChevronRight, Loader2, BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -23,6 +25,7 @@ import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { playNotificationSound } from "@/lib/notificationSound";
 
 interface MeasurementRequest {
   id: string;
@@ -76,7 +79,16 @@ export function MeasurementKanban() {
       .on("postgres_changes" as any, {
         event: "*", schema: "public", table: "measurement_requests",
         filter: `tenant_id=eq.${tenantId}`,
-      }, () => { fetchRequests(); })
+      }, (payload: any) => {
+        fetchRequests();
+        if (payload.eventType === "INSERT") {
+          playNotificationSound();
+          toast.info("📐 Nova solicitação de medida recebida!", {
+            description: payload.new?.nome_cliente || "Novo pedido",
+            duration: 5000,
+          });
+        }
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchRequests]);
@@ -158,6 +170,13 @@ export function MeasurementKanban() {
   );
 
   return (
+    <Tabs defaultValue="kanban" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="kanban" className="gap-1.5"><Ruler className="h-3.5 w-3.5" />Kanban</TabsTrigger>
+        <TabsTrigger value="report" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" />Relatório</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="kanban" className="space-y-4">
     <div className="space-y-4">
       {/* Stalled alert */}
       {stalledCount > 0 && (
@@ -348,5 +367,11 @@ export function MeasurementKanban() {
         </div>
       </div>
     </div>
+      </TabsContent>
+
+      <TabsContent value="report">
+        <MeasurementReport />
+      </TabsContent>
+    </Tabs>
   );
 }
