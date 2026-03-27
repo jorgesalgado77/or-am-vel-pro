@@ -1428,7 +1428,7 @@ function ContractTrackingList({ clients, lastSims }: { clients: Client[]; lastSi
                 filtered.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell>
-                      <Select value={t.status} onValueChange={(val) => handleStatusChange(t.id, val)}>
+                      <Select value={t.status} onValueChange={(val) => handleStatusChange(t, val)}>
                         <SelectTrigger className="h-8 text-xs w-[130px]">
                           <Badge className={`${STATUS_COLORS[t.status] || ""} text-xs font-medium border-0`}>
                             {getStatusLabel(t.status)}
