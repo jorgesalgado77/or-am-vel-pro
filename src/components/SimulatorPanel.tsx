@@ -889,6 +889,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
 
     if (contractError) { toast.error("Erro ao salvar contrato"); setClosingSale(false); return; }
 
+    // Auto-update client status to "fechado"
+    await supabase.from("clients").update({ status: "fechado" } as any).eq("id", client.id);
+
     // === AUTO-GENERATE COMMISSIONS ===
     try {
       const valorAVista = applyDiscounts(valorTelaComComissao, desconto1, desconto2, desconto3);
