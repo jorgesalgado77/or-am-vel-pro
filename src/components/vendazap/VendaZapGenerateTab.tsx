@@ -123,6 +123,48 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
     return detectDiscFromMessages(liveMessages);
   }, [historico.entries, mensagemCliente]);
+
+  // DISC recalibration every 10 client messages — auto-adjusts tone + copy type
+  const clientMessageCount = useMemo(() => {
+    return historico.entries.filter(e => e.remetente_tipo === "cliente").length;
+  }, [historico.entries]);
+
+  useEffect(() => {
+    if (clientMessageCount === 0) return;
+    const recalibrationThreshold = Math.floor(clientMessageCount / 10);
+    if (recalibrationThreshold <= lastDiscRecalibration) return;
+
+    setLastDiscRecalibration(recalibrationThreshold);
+    setDiscRecalibrationCount(prev => prev + 1);
+
+    // Auto-adjust tone based on DISC profile
+    const discToTone: Record<string, string> = {
+      D: "direto",
+      I: "persuasivo",
+      S: "consultivo",
+      C: "consultivo",
+    };
+    // Auto-adjust copy type based on DISC + conversation stage
+    const discToCopy: Record<string, string> = {
+      D: "fechamento",     // Dominantes querem ação rápida
+      I: "reuniao",        // Influentes respondem a conexão
+      S: "reuniao",        // Estáveis precisam de segurança
+      C: "objecao",        // Conformes querem dados e provas
+    };
+
+    if (discInsight.profile && discInsight.confidence > 50) {
+      const newTone = discToTone[discInsight.profile];
+      const newCopy = discToCopy[discInsight.profile];
+      if (newTone) { setTom(newTone); setAutoChanged(prev => ({ ...prev, tone: newTone })); }
+      if (newCopy) { setTipoCopy(newCopy); setAutoChanged(prev => ({ ...prev, copy: newCopy })); }
+      toast.info(
+        `🔄 Recalibração DISC (${discRecalibrationCount + 1}ª): perfil ${DISC_PROFILE_META[discInsight.profile]?.label} ${DISC_PROFILE_META[discInsight.profile]?.emoji} confirmado com ${discInsight.confidence}% de confiança. Tom e estratégia ajustados automaticamente.`,
+        { duration: 5000 }
+      );
+      setTimeout(() => setAutoChanged({}), 2000);
+    }
+  }, [clientMessageCount, discInsight.profile, discInsight.confidence]);
+
   const discMeta = discInsight.profile ? DISC_PROFILE_META[discInsight.profile] : null;
 
   // Auto-detect and select appropriate copy type AND tone based on client message — real-time on every keystroke
