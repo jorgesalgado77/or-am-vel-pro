@@ -565,12 +565,14 @@ serve(async (req) => {
     let perplexity_data = typeof body.perplexity_data === "string" ? body.perplexity_data.slice(0, 2000) : "";
     const disc_profile = typeof body.disc_profile === "string" ? body.disc_profile : "";
     const openai_model = typeof body.openai_model === "string" ? body.openai_model.slice(0, 100) : "gpt-4o-mini";
+    const tenant_id = typeof body.tenant_id === "string" ? body.tenant_id : null;
 
     // Direct messages array (DealRoom AI Assistant)
     const messages = Array.isArray(body.messages) ? body.messages : null;
 
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) return respond({ error: "OPENAI_API_KEY não configurada" }, 500);
+    // Resolve tenant-specific API keys with global fallback
+    const OPENAI_API_KEY = await resolveApiKey(tenant_id, "openai");
+    if (!OPENAI_API_KEY) return respond({ error: "OPENAI_API_KEY não configurada. Configure nas Configurações > APIs." }, 500);
 
     // DealRoom AI direct messages
     if (messages && messages.length > 0) {
