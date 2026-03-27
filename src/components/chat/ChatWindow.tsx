@@ -12,30 +12,7 @@ import { TypingIndicator } from "./TypingIndicator";
 import { TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { useQuickReplies } from "@/hooks/useQuickReplies";
-import { ChatDealInsights } from "./ChatDealInsights";
 import type { ChatConversation, ChatMessage } from "./types";
-
-const DISC_PROFILES: Record<string, { label: string; emoji: string; color: string; desc: string; tips: string }> = {
-  D: { label: "Dominante", emoji: "🔴", color: "bg-red-100 text-red-800 border-red-200", desc: "Direto, decisivo, orientado a resultados", tips: "Seja objetivo, mostre ROI e resultados rápidos" },
-  I: { label: "Influente", emoji: "🟡", color: "bg-yellow-100 text-yellow-800 border-yellow-200", desc: "Entusiasmado, sociável, emotivo", tips: "Use entusiasmo, depoimentos e exclusividade" },
-  S: { label: "Estável", emoji: "🟢", color: "bg-green-100 text-green-800 border-green-200", desc: "Cauteloso, busca segurança e garantias", tips: "Ofereça garantias, prazos claros e suporte" },
-  C: { label: "Conforme", emoji: "🔵", color: "bg-blue-100 text-blue-800 border-blue-200", desc: "Analítico, detalhista, precisa de dados", tips: "Apresente dados, comparativos e especificações" },
-};
-
-function DISCProfileBadge({ profile }: { profile: string }) {
-  const disc = DISC_PROFILES[profile];
-  if (!disc) return null;
-  return (
-    <div className={`mx-3 mb-1 px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 animate-in fade-in duration-300 ${disc.color}`}>
-      <span className="text-sm">{disc.emoji}</span>
-      <div className="flex-1 min-w-0">
-        <span className="font-semibold">DISC: {disc.label}</span>
-        <span className="mx-1.5 opacity-50">•</span>
-        <span className="opacity-80">{disc.tips}</span>
-      </div>
-    </div>
-  );
-}
 
 interface Props {
   conversation: ChatConversation;
@@ -43,14 +20,11 @@ interface Props {
   tenantId?: string | null;
   onBack: () => void;
   onStartDealRoom?: () => void;
-  aiSuggestion: string;
-  aiLoading: boolean;
-  aiTipoCopy: string;
-  aiDiscProfile?: string;
-  onUseSuggestion: () => void;
   inputValue: string;
   onInputChange: (v: string) => void;
   onMessageSent?: (message: string) => void;
+  messageCount?: number;
+  onMessagesLoaded?: (count: number) => void;
 }
 
 const PAGE_SIZE = 40;
