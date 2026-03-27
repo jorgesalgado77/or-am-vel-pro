@@ -741,9 +741,19 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                   <Target className="h-4 w-4 text-primary" />
                   Perfil DISC em tempo real
                 </CardTitle>
-                <Badge variant="outline" className="text-[10px]">
-                  {discInsight.profile ? `${discInsight.confidence}% de confiança` : "Em análise"}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  {discRecalibrationCount > 0 && (
+                    <Badge className="text-[9px] h-4 bg-primary/10 text-primary border-primary/20">
+                      🔄 {discRecalibrationCount}ª recalibração
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-[10px]">
+                    {discInsight.profile ? `${discInsight.confidence}% confiança` : "Em análise"}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[9px] h-4">
+                    {clientMessageCount} msgs · próx. recal. em {10 - (clientMessageCount % 10)}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
