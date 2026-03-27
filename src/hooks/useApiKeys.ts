@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-export type ApiProvider = "openai" | "perplexity" | "evolution" | "resend" | "stripe" | "asaas" | "pdf" | "google_calendar";
+export type ApiProvider = "openai" | "perplexity" | "evolution" | "resend" | "stripe" | "asaas" | "pdf" | "google_calendar" | "google_calendar_oauth";
 
 export interface ApiKeyRecord {
   id: string;
@@ -23,7 +23,8 @@ export const API_PROVIDERS: { value: ApiProvider; label: string; description: st
   { value: "stripe", label: "Stripe", description: "Pagamentos internacionais", urlRequired: false },
   { value: "asaas", label: "Asaas", description: "Cobranças PIX/Boleto (Brasil)", urlRequired: true },
   { value: "pdf", label: "PDF Generator", description: "Geração de documentos PDF", urlRequired: true },
-  { value: "google_calendar", label: "Google Calendar", description: "Sincronizar tarefas com Google Agenda", urlRequired: false },
+  { value: "google_calendar", label: "Google Calendar (API Key)", description: "Sincronizar tarefas (somente leitura)", urlRequired: false },
+  { value: "google_calendar_oauth", label: "Google Calendar (OAuth)", description: "Client ID para OAuth 2.0 (Client Secret na URL)", urlRequired: true },
 ];
 
 export function useApiKeys(tenantId: string | null) {
