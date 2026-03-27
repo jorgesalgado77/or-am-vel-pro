@@ -1147,6 +1147,22 @@ function ContractTrackingList({ clients, lastSims }: { clients: Client[]; lastSi
     quantidade_ambientes: 0, valor_contrato: 0, data_fechamento: "", projetista: "",
   });
   const [saving, setSaving] = useState(false);
+  const [allSellers, setAllSellers] = useState<string[]>([]);
+
+  // Fetch all active sellers/projetistas for the filter
+  const fetchSellers = useCallback(async () => {
+    const tenantId = await getResolvedTenantId();
+    let query = supabase
+      .from("usuarios")
+      .select("nome, cargo_nome")
+      .eq("ativo", true);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data } = await query;
+    if (data) {
+      const names = data.map((u: any) => u.nome).filter(Boolean).sort();
+      setAllSellers(names);
+    }
+  }, []);
 
   const fetchTrackings = useCallback(async () => {
     setLoading(true);
@@ -1211,12 +1227,27 @@ function ContractTrackingList({ clients, lastSims }: { clients: Client[]; lastSi
 
     const clientMap = new Map<string, Client>(clients.map((client) => [client.id, client]));
 
+    // Post-close statuses that should be preserved from tracking
+    const POST_CLOSE_STATUSES = new Set(["medicao", "liberacao", "entrega", "montagem", "assistencia", "finalizado"]);
+
     const rows: TrackingRow[] = Array.from(latestContractByClient.values())
       .map((contract) => {
         const client = clientMap.get(contract.client_id);
         const tracking = latestTrackingByClient.get(contract.client_id);
         const transaction = (contract.simulation_id ? latestTransactionBySimulation.get(contract.simulation_id) : undefined) || latestTransactionByClient.get(contract.client_id);
         const sim = lastSims[contract.client_id];
+
+        // STATUS: since this client has a contract, default to "fechado"
+        // Only use tracking status if it's a post-close workflow status
+        const resolvedStatus = tracking?.status && POST_CLOSE_STATUSES.has(tracking.status)
+          ? tracking.status
+          : "fechado";
+
+        // VALOR: priority is valor_com_desconto (valor à vista) from simulation
+        const resolvedValor = sim?.valor_com_desconto
+          || sim?.valor_final
+          || Number(tracking?.valor_contrato) || Number(transaction?.valor_venda)
+          || 0;
 
         return {
           id: contract.id,
@@ -1228,11 +1259,11 @@ function ContractTrackingList({ clients, lastSims }: { clients: Client[]; lastSi
           nome_cliente: tracking?.nome_cliente || client?.nome || transaction?.nome_cliente || "Cliente sem nome",
           cpf_cnpj: tracking?.cpf_cnpj || client?.cpf || null,
           quantidade_ambientes: tracking?.quantidade_ambientes || client?.quantidade_ambientes || 0,
-          valor_contrato: Number(tracking?.valor_contrato) || Number(transaction?.valor_venda) || sim?.valor_com_desconto || sim?.valor_final || 0,
+          valor_contrato: resolvedValor,
           data_fechamento: tracking?.data_fechamento || transaction?.created_at || contract.created_at,
           projetista: tracking?.projetista || client?.vendedor || null,
           vendedor: transaction?.nome_vendedor || client?.vendedor || null,
-          status: tracking?.status || "fechado",
+          status: resolvedStatus,
           created_at: tracking?.created_at || transaction?.created_at || contract.created_at,
         };
       })
@@ -1242,7 +1273,7 @@ function ContractTrackingList({ clients, lastSims }: { clients: Client[]; lastSi
     setLoading(false);
   }, [clients, lastSims]);
 
-  useEffect(() => { fetchTrackings(); }, [fetchTrackings]);
+  useEffect(() => { fetchTrackings(); fetchSellers(); }, [fetchTrackings, fetchSellers]);
 
   const handleStatusChange = useCallback(async (row: TrackingRow, newStatus: string) => {
     if (row.tracking_id) {
