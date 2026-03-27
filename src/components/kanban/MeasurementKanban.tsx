@@ -170,6 +170,13 @@ export function MeasurementKanban() {
   );
 
   return (
+    <Tabs defaultValue="kanban" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="kanban" className="gap-1.5"><Ruler className="h-3.5 w-3.5" />Kanban</TabsTrigger>
+        <TabsTrigger value="report" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" />Relatório</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="kanban" className="space-y-4">
     <div className="space-y-4">
       {/* Stalled alert */}
       {stalledCount > 0 && (
