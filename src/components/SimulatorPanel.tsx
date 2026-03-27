@@ -267,6 +267,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const canHideIndicador = isFeatureAllowed("ocultar_indicador");
   const { validateAccess, recordSale, access: dealRoomAccess, loading: dealRoomLoading } = useDealRoom();
   const conversionStats = useConversionHistory((settings as any)?.tenant_id || null);
+  const { loadRules: loadDiscountRules, checkDiscount, requestApproval, pendingApproval } = useDiscountApproval();
+
+  // Load sales rules on mount
+  useEffect(() => { loadDiscountRules(); }, [loadDiscountRules]);
 
   // Get the selected indicador's commission
   const selectedIndicador = activeIndicadores.find(i => i.id === selectedIndicadorId);
