@@ -347,6 +347,7 @@ export default function Onboarding() {
             })}
           </div>
         </div>
+        <Suspense fallback={null}><OnboardingAIAssistant /></Suspense>
       </div>
     );
   }
