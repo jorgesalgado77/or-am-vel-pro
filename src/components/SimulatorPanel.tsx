@@ -162,6 +162,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeMsg, setUpgradeMsg] = useState("");
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [catalogProductsTotal, setCatalogProductsTotal] = useState(0);
 
   // Imported file state
   const [importedFile, setImportedFile] = useState<File | null>(null);
