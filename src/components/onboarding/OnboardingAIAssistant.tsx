@@ -255,6 +255,42 @@ export function OnboardingAIAssistant() {
             </div>
           )}
 
+          {/* Advanced action buttons (FASES 6, 7, 8) */}
+          {messages.length > 2 && (hasOpenAI || hasEvolution) && (
+            <div className="px-3 py-2 border-t border-border flex flex-wrap gap-1.5 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={configureVendaZap}
+                disabled={loading}
+              >
+                <Zap className="h-3 w-3" />
+                Configurar VendaZap
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={runTests}
+                disabled={loading}
+              >
+                <FlaskConical className="h-3 w-3" />
+                Executar Testes
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={suggestFirstProject}
+                disabled={loading}
+              >
+                <FolderPlus className="h-3 w-3" />
+                Primeiro Projeto
+              </Button>
+            </div>
+          )}
+
           {/* Input */}
           <div className="p-3 border-t border-border shrink-0">
             <form
