@@ -15,30 +15,13 @@ interface SuggestionCache {
 const CACHE_TTL_MS = 2 * 60 * 1000;
 const TIMEOUT_MS = 15_000;
 
-// DISC detection on client-side for UI display
-const DISC_CLIENT_PATTERNS: Record<string, RegExp[]> = {
-  D: [/rápido/i, /direto/i, /logo/i, /agora/i, /resolve/i, /preciso saber/i, /sem enrol/i, /fecha/i, /vamos/i, /decide/i],
-  I: [/kkk/i, /haha/i, /rsrs/i, /😂|😄|💪|👍|❤|🔥|😍/i, /amei/i, /lindo/i, /maravilh/i, /show/i, /top/i, /adorei/i, /sonho/i],
-  S: [/pensar/i, /calma/i, /segur/i, /garantia/i, /preocup/i, /tranquil/i, /certeza/i, /medo/i, /risco/i, /depois/i],
-  C: [/detalh/i, /especific/i, /técnic/i, /medid/i, /material/i, /compar/i, /pesquis/i, /dado/i, /como funciona/i, /explica/i],
-};
+// DISC detection delegated to centralized vendazapAnalysis.ts via CommercialDecisionEngine
+import { detectDiscFromMessages, type VendaZapMessageLike } from "@/lib/vendazapAnalysis";
 
 function detectDISCFromMessages(messages: Array<{ mensagem: string; remetente_tipo: string }>): string {
-  const clientMsgs = messages.filter(m => m.remetente_tipo === "cliente").map(m => m.mensagem || "");
-  if (clientMsgs.length < 2) return "";
-  const allText = clientMsgs.join(" ");
-  const scores: Record<string, number> = { D: 0, I: 0, S: 0, C: 0 };
-  for (const [type, patterns] of Object.entries(DISC_CLIENT_PATTERNS)) {
-    for (const p of patterns) {
-      const matches = allText.match(new RegExp(p, "gi"));
-      if (matches) scores[type] += matches.length;
-    }
-  }
-  const avgLen = clientMsgs.reduce((s, m) => s + m.length, 0) / clientMsgs.length;
-  if (avgLen < 30) scores.D += 2;
-  else if (avgLen > 120) scores.C += 2;
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  return sorted[0][1] > 0 ? sorted[0][0] : "";
+  // Delegate to central implementation (no more duplicated patterns)
+  const result = detectDiscFromMessages(messages as VendaZapMessageLike[]);
+  return result.profile || "";
 }
 
 interface UseAutoSuggestionParams {
