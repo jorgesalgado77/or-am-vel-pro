@@ -730,6 +730,11 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           <ClosingThermometer score={closingScore} label="Potencial de fechamento da resposta" />
         )}
 
+        {/* Quality Validator */}
+        {mensagemGerada && lastQuality && (
+          <QualityValidatorPanel result={lastQuality} />
+        )}
+
         <Card className="min-h-[300px]">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
