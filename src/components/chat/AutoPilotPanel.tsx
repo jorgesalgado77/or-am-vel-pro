@@ -40,7 +40,7 @@ export const AutoPilotPanel = memo(function AutoPilotPanel({ settings, isActive,
         <div className="flex items-center gap-2">
           {isActive && settings && (
             <span className="text-[10px] text-muted-foreground">
-              {settings.respostas_hoje}/{settings.max_respostas_dia} respostas
+              {settings.respostas_hoje}/{settings.max_respostas_dia} respostas · {(settings.tokens_usados_hoje || 0).toLocaleString()}/{(settings.max_tokens_dia || 0).toLocaleString()} tokens
             </span>
           )}
           <Switch
