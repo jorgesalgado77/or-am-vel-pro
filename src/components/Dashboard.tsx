@@ -57,7 +57,7 @@ const CHART_COLORS = [
 const currencyFormatter = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
-type ChartKey = "evolucao" | "projetista" | "indicador" | "contratos" | "leads_origem";
+type ChartKey = "evolucao" | "projetista" | "indicador" | "contratos" | "leads_origem" | "vendedor_leads";
 
 // Date filter types and utilities now imported from @/lib/dateFilterUtils
 
@@ -72,6 +72,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     indicador: false,
     contratos: false,
     leads_origem: false,
+    vendedor_leads: false,
   });
 
   // Lead filter by projetista
