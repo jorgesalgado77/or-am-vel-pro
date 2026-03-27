@@ -69,48 +69,56 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   // Cleanup simulator on unmount
   useEffect(() => () => cleanupSim(), [cleanupSim]);
 
+  const isAdminOrManager = currentUser?.cargo_nome
+    ? ["administrador", "gerente", "admin"].includes(currentUser.cargo_nome.toLowerCase())
+    : false;
+
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
 
-    const isAdminOrManager = currentUser?.cargo_nome
-      ? ["administrador", "gerente", "admin"].includes(currentUser.cargo_nome.toLowerCase())
-      : false;
-
-    // Fetch client_tracking with client_id for role filtering
-    let trackingQuery = supabase
+    // Fetch client_tracking with client_id
+    const { data: trackings } = await supabase
       .from("client_tracking")
       .select("id, numero_contrato, nome_cliente, client_id")
+      .eq("tenant_id", tenantId)
       .order("updated_at", { ascending: false });
-    if (tenantId) trackingQuery = trackingQuery.eq("tenant_id", tenantId);
-    const { data: trackings } = await trackingQuery;
 
-    if (!trackings) { setLoading(false); return; }
+    if (!trackings || trackings.length === 0) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
 
     let filteredTrackings = trackings as any[];
 
-    // Fetch client vendedor info for all trackings
+    // Fetch vendedor name from clients table
     const allClientIds = [...new Set(filteredTrackings.map(t => t.client_id).filter(Boolean))];
-    let vendedorMap: Record<string, { vendedor_id: string | null; vendedor: string | null }> = {};
+    let vendedorMap: Record<string, { vendedor: string | null }> = {};
 
     if (allClientIds.length > 0) {
       const { data: clientsData } = await supabase
         .from("clients")
-        .select("id, vendedor_id, vendedor")
+        .select("id, vendedor")
         .in("id", allClientIds);
 
       (clientsData || []).forEach((c: any) => {
-        vendedorMap[c.id] = { vendedor_id: c.vendedor_id, vendedor: c.vendedor };
+        vendedorMap[c.id] = { vendedor: c.vendedor };
       });
     }
 
     // Role-based filtering: vendedor/projetista only see their own clients
-    if (!isAdminOrManager && userId) {
+    if (!isAdminOrManager && currentUser?.nome_completo) {
+      const nameLower = currentUser.nome_completo.toLowerCase();
       const myClientIds = new Set(
         Object.entries(vendedorMap)
-          .filter(([, v]) => v.vendedor_id === userId)
+          .filter(([, v]) => v.vendedor?.toLowerCase() === nameLower)
           .map(([id]) => id)
       );
-      filteredTrackings = filteredTrackings.filter(t => myClientIds.has(t.client_id));
+      // Also check projetista field on tracking itself
+      filteredTrackings = filteredTrackings.filter(t =>
+        myClientIds.has(t.client_id) ||
+        (t.projetista && t.projetista.toLowerCase() === nameLower)
+      );
     }
 
     const trackingIds = filteredTrackings.map(t => t.id);
@@ -162,16 +170,15 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     setConversations(result);
     setLoading(false);
-  }, [tenantId, userId, currentUser?.cargo_nome]);
+  }, [tenantId, isAdminOrManager, currentUser?.nome_completo]);
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
-  // AI auto-suggestion with debounce — now fetches recent messages for context
+  // AI auto-suggestion with debounce
   const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
     if (!addon?.ativo) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      // Fetch recent messages for context
       const { data: recentMsgs } = await supabase
         .from("tracking_messages")
         .select("mensagem, remetente_tipo")
@@ -216,12 +223,10 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               });
             }
 
-            // Re-trigger AI with fresh context for the selected conversation
             if (selected && selected.id === msg.tracking_id) {
               triggerAI(selected, true);
             }
 
-            // AUTO-PILOT: process the message automatically
             if (autoPilotActive && conv) {
               const { data: recentMsgs } = await supabase
                 .from("tracking_messages")
