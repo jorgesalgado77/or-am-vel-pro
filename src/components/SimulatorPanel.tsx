@@ -36,6 +36,7 @@ import {useCurrentUser} from "@/hooks/useCurrentUser";
 import {useCompanySettings} from "@/hooks/useCompanySettings";
 import {useDiscountOptions} from "@/hooks/useDiscountOptions";
 import {useUsuarios} from "@/hooks/useUsuarios";
+import {useDiscountApproval} from "@/hooks/useDiscountApproval";
 import {useIndicadores} from "@/hooks/useIndicadores";
 import {useTenantPlanContext} from "@/hooks/useTenantPlan";
 import {getResolvedTenantId} from "@/contexts/TenantContext";
@@ -266,6 +267,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const canHideIndicador = isFeatureAllowed("ocultar_indicador");
   const { validateAccess, recordSale, access: dealRoomAccess, loading: dealRoomLoading } = useDealRoom();
   const conversionStats = useConversionHistory((settings as any)?.tenant_id || null);
+  const { loadRules: loadDiscountRules, checkDiscount, requestApproval, pendingApproval } = useDiscountApproval();
+
+  // Load sales rules on mount
+  useEffect(() => { loadDiscountRules(); }, [loadDiscountRules]);
 
   // Get the selected indicador's commission
   const selectedIndicador = activeIndicadores.find(i => i.id === selectedIndicadorId);
@@ -607,6 +612,23 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     }
     if (valorEntrada > result.valorComDesconto) {
       toast.error("Valor de Entrada não pode ser maior que o valor com desconto");
+      return;
+    }
+
+    // Check discount rules before saving
+    const discountCheck = checkDiscount(
+      valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual
+    );
+    if (!discountCheck.allowed) {
+      const valorDesc = valorTelaComComissao * (1 - desconto1/100) * (1 - desconto2/100) * (1 - desconto3/100);
+      const discPct = valorTelaComComissao > 0 ? ((valorTelaComComissao - valorDesc) / valorTelaComComissao) * 100 : 0;
+      await requestApproval({
+        clientName: client?.nome || newClient.nome || "Novo cliente",
+        vendedorName: currentUser?.nome_completo || currentUser?.apelido || "Vendedor",
+        valorFinal: result.valorFinal,
+        discountPercent: discPct,
+        violations: discountCheck.violations,
+      });
       return;
     }
 
