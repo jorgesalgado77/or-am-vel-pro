@@ -15,6 +15,7 @@ const DEFAULT_PREFS: PushPreferences = {
   tarefas: true,
   mensagens: true,
   leads: true,
+  medidas: true,
 };
 
 export function usePushPreferences() {
