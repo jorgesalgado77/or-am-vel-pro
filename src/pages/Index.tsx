@@ -167,6 +167,15 @@ export default function Index() {
   const handleContracts = (client: Client) => { setContractsClient(client); setSimulatingClient(null); setHistoryClient(null); setActiveView("contracts"); };
   const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null); };
 
+  // Listen for navigate-to-dealroom events from VendaZap and other components
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setActiveView("dealroom");
+    };
+    window.addEventListener("navigate-to-dealroom", handler);
+    return () => window.removeEventListener("navigate-to-dealroom", handler);
+  }, []);
+
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
   const storeName = settings.company_name || "OrçaMóvel PRO";
   const cargoLabel = authUser?.cargo_nome || "Usuário";
