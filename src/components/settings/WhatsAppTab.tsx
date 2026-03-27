@@ -111,6 +111,11 @@ export function WhatsAppTab() {
       setTwilioSid(s.twilio_account_sid || "");
       setTwilioToken(s.twilio_auth_token || "");
       setTwilioPhone(s.twilio_phone_number || "");
+      setZapiInstanceId(s.zapi_instance_id || "");
+      setZapiToken(s.zapi_token || "");
+      setZapiSecurityToken(s.zapi_security_token || "");
+      setZapiWebhookUrl(s.zapi_webhook_url || "");
+      setZapiClientToken(s.zapi_client_token || "");
       setAtivo(s.ativo);
       setEnviarContrato(s.enviar_contrato);
       setEnviarNotificacoes(s.enviar_notificacoes);
@@ -153,6 +158,11 @@ export function WhatsAppTab() {
         twilio_account_sid: twilioSid.trim() || null,
         twilio_auth_token: twilioToken.trim() || null,
         twilio_phone_number: twilioPhone.trim() || null,
+        zapi_instance_id: zapiInstanceId.trim() || null,
+        zapi_token: zapiToken.trim() || null,
+        zapi_security_token: zapiSecurityToken.trim() || null,
+        zapi_webhook_url: zapiWebhookUrl.trim() || null,
+        zapi_client_token: zapiClientToken.trim() || null,
         ativo,
         enviar_contrato: enviarContrato,
         enviar_notificacoes: enviarNotificacoes,
