@@ -70,6 +70,7 @@ interface HistoricoEntry {
   mensagem: string;
   intent?: string;
   score?: number;
+  timestamp?: string;
 }
 
 export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSugg, currentUserId, lastQuality }: VendaZapGenerateTabProps) {
