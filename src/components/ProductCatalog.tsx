@@ -82,6 +82,39 @@ export function ProductCatalog() {
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
   const [supplierForm, setSupplierForm] = useState({ id: "", name: "", contact_name: "", contact_phone: "", contact_email: "", whatsapp: "" });
 
+  // Sale registration
+  const [saleDialogOpen, setSaleDialogOpen] = useState(false);
+  const [saleProduct, setSaleProduct] = useState<Product | null>(null);
+  const [saleQty, setSaleQty] = useState(1);
+  const [saleSaving, setSaleSaving] = useState(false);
+
+  const openSaleDialog = (p: Product) => {
+    setSaleProduct(p);
+    setSaleQty(1);
+    setSaleDialogOpen(true);
+  };
+
+  const handleRegisterSale = async () => {
+    if (!saleProduct) return;
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Tenant não identificado"); return; }
+    setSaleSaving(true);
+    const { error } = await supabase.from("product_sales" as any).insert({
+      tenant_id: tenantId,
+      product_id: saleProduct.id,
+      quantity: saleQty,
+      unit_price: saleProduct.sale_price,
+      total_price: saleProduct.sale_price * saleQty,
+    } as any);
+    if (error) {
+      toast.error("Erro ao registrar venda: " + error.message);
+    } else {
+      toast.success(`Venda de ${saleQty}x ${saleProduct.name} registrada!`);
+      setSaleDialogOpen(false);
+    }
+    setSaleSaving(false);
+  };
+
   const computedPrice = calculateSalePrice(form.cost_price, form.markup_percentage);
 
   const openNewProduct = () => {
