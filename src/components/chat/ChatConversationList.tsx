@@ -90,11 +90,15 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [showFilters, setShowFilters] = useState(false);
   const [isListOpen, setIsListOpen] = useState(!selectedId);
 
-  const vendedores = useMemo(() => {
-    const names = new Set<string>();
-    conversations.forEach(c => { if (c.vendedor_nome) names.add(c.vendedor_nome); });
-    return Array.from(names).sort();
+  const vendedorCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    conversations.forEach(c => {
+      if (c.vendedor_nome) map.set(c.vendedor_nome, (map.get(c.vendedor_nome) || 0) + 1);
+    });
+    return map;
   }, [conversations]);
+
+  const vendedores = useMemo(() => Array.from(vendedorCounts.keys()).sort(), [vendedorCounts]);
 
   const hasActiveFilter = tempFilter !== "all" || unreadOnly || !!dateFilter || vendedorFilter !== "all";
   const totalUnread = useMemo(() => conversations.reduce((sum, c) => sum + c.unread_count, 0), [conversations]);
@@ -243,22 +247,24 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                       <button
                         onClick={() => setVendedorFilter("all")}
                         className={cn(
-                          "text-xs px-2 py-1.5 rounded text-left transition-colors",
+                          "text-xs px-2 py-1.5 rounded text-left transition-colors flex items-center justify-between",
                           vendedorFilter === "all" ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
                         )}
                       >
-                        Todos os vendedores
+                        <span>Todos os vendedores</span>
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1.5 ml-2">{conversations.length}</Badge>
                       </button>
                       {vendedores.map(v => (
                         <button
                           key={v}
                           onClick={() => setVendedorFilter(v)}
                           className={cn(
-                            "text-xs px-2 py-1.5 rounded text-left transition-colors truncate",
+                            "text-xs px-2 py-1.5 rounded text-left transition-colors truncate flex items-center justify-between",
                             vendedorFilter === v ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
                           )}
                         >
-                          👤 {v}
+                          <span className="truncate">👤 {v}</span>
+                          <Badge variant="secondary" className="text-[9px] h-4 px-1.5 ml-2 shrink-0">{vendedorCounts.get(v) || 0}</Badge>
                         </button>
                       ))}
                     </div>
