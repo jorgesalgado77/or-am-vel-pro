@@ -156,7 +156,11 @@ export function ClientsKanban({
   useEffect(() => {
     const tenantId = getTenantId();
     if (!tenantId || localClients.length === 0) return;
-    const missing = localClients.filter(c => !(c as any).numero_orcamento);
+    const missing = localClients.filter(c => {
+      const orc = (c as any).numero_orcamento;
+      // Missing or contains a phone/WhatsApp number instead of a real budget number
+      return !orc || /^(WA-?|55|\+?\d{10,})/i.test(orc);
+    });
     if (missing.length === 0) return;
 
     const assignNumbers = async () => {
