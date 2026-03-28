@@ -30,7 +30,7 @@ interface Props {
 const PAGE_SIZE = 40;
 
 export function ChatWindow({
-  conversation, onBack, onStartDealRoom,
+  conversation, onBack, onStartDealRoom, onCreateLead,
   inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -244,6 +244,19 @@ export function ChatWindow({
           tenantId={tenantId ?? null}
           userId={userId}
         />
+
+        {/* Criar Lead button — show when conversation has no linked client */}
+        {onCreateLead && !conversation.client_id && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs h-7 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+            onClick={onCreateLead}
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Criar Lead
+          </Button>
+        )}
 
         {onStartDealRoom && (
           <Button
