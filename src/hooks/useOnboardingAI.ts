@@ -1400,7 +1400,41 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
-    if (/(meus tickets|ver tickets|tickets de suporte|status dos tickets)/.test(lower) && currentUserId) {
+    // === Email composition wizard trigger ===
+    if (/(criar|compor|escrever|enviar|novo)\s*e-?mail/i.test(lower) && !emailWizard.active) {
+      setEmailWizard({ active: true, step: "destinatario" });
+      appendAssistant("📧 **Vamos compor um novo email!**\n\n**Qual o email do destinatário?**\n\n_A qualquer momento, diga \"cancelar\" para desistir._");
+      return true;
+    }
+
+    // === Email history query ===
+    if (/(hist[óo]rico\s+(?:de\s+)?e-?mails?|e-?mails?\s+enviados?|meus\s+e-?mails?|ver\s+e-?mails?)/i.test(lower)) {
+      const { data: emails } = await (supabase as any)
+        .from("mia_email_history")
+        .select("to_email, cc_email, subject, status, created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const emailList = (emails || []) as any[];
+      if (emailList.length === 0) {
+        appendAssistant("📭 **Nenhum email enviado ainda.**\n\nDiga **\"criar email\"** para compor e enviar seu primeiro email pela Mia!");
+        return true;
+      }
+
+      let response = `📬 **Histórico de Emails Enviados** (últimos ${emailList.length})\n\n`;
+      response += `| Data | Para | Assunto | Status |\n|---|---|---|---|\n`;
+      for (const e of emailList) {
+        const date = new Date(e.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        const statusIcon = e.status === "sent" ? "✅" : e.status === "failed" ? "❌" : "⏳";
+        response += `| ${date} | ${e.to_email} | ${(e.subject || "").slice(0, 30)} | ${statusIcon} ${e.status} |\n`;
+      }
+      response += `\n📊 Total: **${emailList.length}** email(s) no histórico`;
+      appendAssistant(response);
+      return true;
+    }
+
+
       const { data } = await (supabase as any)
         .from("support_tickets")
         .select("tipo, status, mensagem, created_at, resposta_admin")
