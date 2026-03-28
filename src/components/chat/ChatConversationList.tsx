@@ -129,6 +129,10 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
     return result;
   }, [conversations, search, tempFilter, vendedorFilter, unreadOnly, dateFilter]);
 
+  // Split into system clients vs WhatsApp imported contacts
+  const systemClients = useMemo(() => filtered.filter(c => !c.numero_contrato?.startsWith("WA-")), [filtered]);
+  const waContacts = useMemo(() => filtered.filter(c => c.numero_contrato?.startsWith("WA-")), [filtered]);
+
   const clearFilters = () => {
     setTempFilter("all");
     setVendedorFilter("all");
