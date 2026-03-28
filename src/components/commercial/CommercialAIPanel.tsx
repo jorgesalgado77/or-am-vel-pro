@@ -167,7 +167,8 @@ export function CommercialAIPanel() {
 
   // Auto-scroll chat
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [chatMessages]);
 
   // Check alerts for push notifications (once per session)
@@ -540,7 +541,7 @@ export function CommercialAIPanel() {
                 </div>
               </CardTitle>
             </CardHeader>
-            <ScrollArea className="flex-1 p-4">
+            <div className="flex-1 overflow-y-auto p-4" ref={scrollRef}>
               <div className="space-y-3">
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
