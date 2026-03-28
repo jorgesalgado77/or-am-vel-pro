@@ -1455,7 +1455,6 @@ export function MeasurementRequestModal({
       setEditingAddress(true);
       return;
     }
-    }
 
     setSaving(true);
     try {
