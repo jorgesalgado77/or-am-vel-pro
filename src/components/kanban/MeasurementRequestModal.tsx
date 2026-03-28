@@ -1234,21 +1234,22 @@ export function MeasurementRequestModal({
     };
 
     const drawPhotoPages = async () => {
-      const imageEntries = imageGalleryEntries;
+      // Use ALL attachments (images + PDFs with thumbnails)
+      const allEntries = attachmentGalleryEntries;
 
-      if (imageEntries.length === 0) return;
+      if (allEntries.length === 0) return;
 
       const slotHeight = 84;
       const imageMaxHeight = 62;
-      const imagePages = imageEntries.reduce<typeof imageEntries[]>((pages, entry, index) => {
-        if (index % 3 === 0) pages.push(imageEntries.slice(index, index + 3));
+      const entryPages = allEntries.reduce<typeof allEntries[]>((pages, entry, index) => {
+        if (index % 3 === 0) pages.push(allEntries.slice(index, index + 3));
         return pages;
       }, []);
 
-      for (const pageEntries of imagePages) {
+      for (const pageEntries of entryPages) {
         doc.addPage();
         y = topStart;
-        drawCard("FOTOS DOS AMBIENTES", 12, WHITE);
+        drawCard("IMAGENS ANEXADAS À SOLICITAÇÃO", 12, WHITE);
         y += 16;
 
         for (const entry of pageEntries) {
@@ -1265,10 +1266,16 @@ export function MeasurementRequestModal({
           doc.setFont(FONT, "normal");
           doc.setFontSize(7.5);
           doc.setTextColor(...GRAY);
-          doc.text(entry.attachment.name || "Imagem enviada", mx + 4, y + 12);
+          const label = entry.attachment.kind === "pdf"
+            ? `${entry.attachment.name || "Arquivo PDF"} [PDF]`
+            : (entry.attachment.name || "Imagem enviada");
+          doc.text(label, mx + 4, y + 12);
 
           try {
-            const imageSource = entry.attachment.file || entry.attachment.sourceUrl || entry.attachment.previewUrl;
+            // For PDFs, use the thumbnail; for images, use the source
+            const imageSource = entry.attachment.kind === "pdf"
+              ? entry.attachment.thumbnailUrl || entry.attachment.previewUrl
+              : (entry.attachment.file || entry.attachment.sourceUrl || entry.attachment.previewUrl);
             const imageAsset = await loadImageAsset(imageSource, entry.attachment.name);
             const ratio = imageAsset.width / imageAsset.height;
             let drawW = cw - 8;
@@ -1283,6 +1290,20 @@ export function MeasurementRequestModal({
             doc.addImage(imageAsset.dataUrl, imageAsset.format, drawX, drawY, drawW, drawH);
             doc.setDrawColor(...BORDER);
             doc.roundedRect(drawX, drawY, drawW, drawH, 1, 1, "S");
+
+            // Add PDF badge overlay
+            if (entry.attachment.kind === "pdf") {
+              const badgeW = 12;
+              const badgeH = 5;
+              const badgeX = drawX + drawW - badgeW - 2;
+              const badgeY = drawY + drawH - badgeH - 2;
+              doc.setFillColor(...PRIMARY);
+              doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, "F");
+              doc.setFont(FONT, "bold");
+              doc.setFontSize(7);
+              doc.setTextColor(...WHITE);
+              doc.text("PDF", badgeX + badgeW / 2, badgeY + 3.8, { align: "center" });
+            }
           } catch {
             doc.setFont(FONT, "normal");
             doc.setFontSize(8);
@@ -1376,7 +1397,7 @@ export function MeasurementRequestModal({
     addFooter();
 
     return doc;
-  }, [addressForm, client, editableFields, environments, formatCurrency, imageGalleryEntries, observacoes, sourceToDataUrl, storeData, totalValorAvista, tracking]);
+  }, [addressForm, client, editableFields, environments, formatCurrency, attachmentGalleryEntries, observacoes, sourceToDataUrl, storeData, totalValorAvista, tracking]);
 
   const generatePdfPreview = useCallback(async () => {
     setPdfPreviewLoading(true);
@@ -1963,10 +1984,10 @@ export function MeasurementRequestModal({
               <Button
                 onClick={handleSubmit}
                 disabled={saving || !allEnvsHaveImages}
-                className="gap-2"
+                className="gap-2 bg-success hover:bg-success/90 text-success-foreground shadow-md"
               >
                 <Ruler className="h-4 w-4" />
-                {saving ? "Enviando..." : "Salvar e Enviar Solicitação"}
+                {saving ? "Enviando..." : "💾 Salvar e Enviar Solicitação"}
               </Button>
             </div>
           </div>
