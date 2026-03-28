@@ -133,9 +133,12 @@ export function ChatWindow({
     setSending(true);
     stopTyping();
 
+    const text = inputValue.trim();
+
+    // Save to DB
     const { error } = await supabase.from("tracking_messages").insert({
       tracking_id: conversation.id,
-      mensagem: inputValue.trim(),
+      mensagem: text,
       remetente_tipo: "loja",
       remetente_nome: "Loja",
       lida: false,
@@ -143,15 +146,25 @@ export function ChatWindow({
     } as any);
 
     if (error) {
-      toast.error("Erro ao enviar mensagem");
-    } else {
-      const sentText = inputValue.trim();
-      onInputChange("");
-      onMessageSent?.(sentText);
-      requestAnimationFrame(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      });
+      console.error("DB insert error:", error);
+      toast.error("Erro ao salvar mensagem");
+      setSending(false);
+      return;
     }
+
+    // Send via WhatsApp if phone is available
+    if (conversation.phone) {
+      const sent = await sendWhatsAppText(conversation.phone, text);
+      if (!sent) {
+        console.warn("[WA] Failed to send via WhatsApp, message saved locally only");
+      }
+    }
+
+    onInputChange("");
+    onMessageSent?.(text);
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
     setSending(false);
   };
 
@@ -168,7 +181,15 @@ export function ChatWindow({
       tenant_id: tenantId || undefined,
     } as any);
 
-    if (error) toast.error("Erro ao enviar anexo");
+    if (error) {
+      toast.error("Erro ao enviar anexo");
+      return;
+    }
+
+    // Send media via WhatsApp
+    if (conversation.phone) {
+      await sendWhatsAppMedia(conversation.phone, url, name, tipo);
+    }
   };
 
   const handleLoadMore = () => {
