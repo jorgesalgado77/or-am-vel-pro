@@ -699,7 +699,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               numero_contrato: `WA-${contact.phone}`,
               tenant_id: tenantId,
               status: "em_negociacao",
-            })
+              client_id: "00000000-0000-0000-0000-000000000000",
+            } as any)
             .select("id")
             .single();
 
