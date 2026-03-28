@@ -56,3 +56,9 @@ verify_jwt = false
 
 [functions.generate-pdf]
 verify_jwt = false
+
+[functions.google-calendar]
+verify_jwt = false
+
+[functions.google-calendar-auth]
+verify_jwt = false

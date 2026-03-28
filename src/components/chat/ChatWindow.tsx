@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Video, RefreshCw } from "lucide-react";
+import { ArrowLeft, Video, RefreshCw, UserPlus } from "lucide-react";
 import { CloseDealButton } from "./CloseDealButton";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ interface Props {
   tenantId?: string | null;
   onBack: () => void;
   onStartDealRoom?: () => void;
+  onCreateLead?: () => void;
   inputValue: string;
   onInputChange: (v: string) => void;
   onMessageSent?: (message: string) => void;

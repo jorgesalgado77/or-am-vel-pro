@@ -52,11 +52,17 @@ async function streamChat(opts: {
   onError: (msg: string) => void;
 }) {
   try {
+    // Get current session token for proper auth
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+
     const resp = await fetch(CHAT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_wbUKLbibswCqDaXfCYMnZQ_otmy7ZEn"}`,
+        apikey: anonKey,
+        Authorization: `Bearer ${accessToken || anonKey}`,
       },
       body: JSON.stringify({
         action: "chat",
