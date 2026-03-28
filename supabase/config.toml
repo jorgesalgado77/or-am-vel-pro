@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.asaas-billing]
 verify_jwt = false
+
+[functions.create-reminder]
+verify_jwt = false
