@@ -357,9 +357,13 @@ export function useOnboardingAI(tenantId: string | null) {
   const [emailWizard, setEmailWizard] = useState<EmailWizardState>(INITIAL_EMAIL_WIZARD);
   const initialized = useRef(false);
   const messagesRef = useRef<AIMessage[]>(messages);
+  const taskWizardRef = useRef<TaskWizardState>(taskWizard);
+  const emailWizardRef = useRef<EmailWizardState>(emailWizard);
   const alertTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { taskWizardRef.current = taskWizard; }, [taskWizard]);
+  useEffect(() => { emailWizardRef.current = emailWizard; }, [emailWizard]);
 
   // Alert scheduler
   useEffect(() => {
@@ -501,9 +505,11 @@ export function useOnboardingAI(tenantId: string | null) {
     if (!tenantId) return false;
     const lower = content.toLowerCase();
     const currentUserId = localStorage.getItem("current_user_id");
+    const currentTaskWizard = taskWizardRef.current;
+    const currentEmailWizard = emailWizardRef.current;
 
     // === Task wizard steps (priority — intercept all input while active) ===
-    if (taskWizard.active) {
+    if (currentTaskWizard.active) {
       // Cancel command
       if (/cancelar|sair|parar|desistir/i.test(lower)) {
         setTaskWizard(INITIAL_WIZARD);
@@ -511,7 +517,7 @@ export function useOnboardingAI(tenantId: string | null) {
         return true;
       }
 
-      const step = taskWizard.step;
+      const step = currentTaskWizard.step;
 
       if (step === "titulo") {
         setTaskWizard(prev => ({ ...prev, titulo: content.trim(), step: "data" }));
@@ -589,7 +595,7 @@ export function useOnboardingAI(tenantId: string | null) {
           }
         }
 
-        const wizard = { ...taskWizard, notificacao_minutos: notifMin };
+        const wizard = { ...currentTaskWizard, notificacao_minutos: notifMin };
         const { data: userData } = await (supabase as any).from("usuarios").select("id, nome_completo").eq("id", currentUserId).maybeSingle();
         const dateFormatted = (wizard.data_tarefa || "").split("-").reverse().join("/");
 
@@ -636,14 +642,14 @@ export function useOnboardingAI(tenantId: string | null) {
     }
 
     // === Email wizard steps (priority — intercept all input while active) ===
-    if (emailWizard.active) {
+    if (currentEmailWizard.active) {
       if (/cancelar|sair|parar|desistir/i.test(lower)) {
         setEmailWizard(INITIAL_EMAIL_WIZARD);
         appendAssistant("❌ Composição de email cancelada.");
         return true;
       }
 
-      const emailStep = emailWizard.step;
+      const emailStep = currentEmailWizard.step;
 
       if (emailStep === "destinatario") {
         const email = content.trim();
@@ -735,11 +741,11 @@ export function useOnboardingAI(tenantId: string | null) {
         if (/enviar|confirmar|sim|mandar|disparar/i.test(lower)) {
           // Build HTML body
           let htmlBody = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">`;
-          htmlBody += `<div style="white-space:pre-wrap;line-height:1.6;">${(emailWizard.body || "").replace(/\n/g, "<br>")}</div>`;
-          if (emailWizard.attachments && emailWizard.attachments.length > 0) {
+          htmlBody += `<div style="white-space:pre-wrap;line-height:1.6;">${(currentEmailWizard.body || "").replace(/\n/g, "<br>")}</div>`;
+          if (currentEmailWizard.attachments && currentEmailWizard.attachments.length > 0) {
             htmlBody += `<hr style="margin:20px 0;border:none;border-top:1px solid #eee;">`;
             htmlBody += `<p style="font-size:13px;color:#666;"><strong>Anexos:</strong></p><ul>`;
-            for (const att of emailWizard.attachments) {
+            for (const att of currentEmailWizard.attachments) {
               htmlBody += `<li><a href="${att}" target="_blank" style="color:#2563eb;">${att}</a></li>`;
             }
             htmlBody += `</ul>`;
@@ -753,9 +759,9 @@ export function useOnboardingAI(tenantId: string | null) {
               body: {
                 action: "send",
                 tenant_id: tenantId,
-                to: emailWizard.to,
-                cc: emailWizard.cc || undefined,
-                subject: emailWizard.subject,
+                to: currentEmailWizard.to,
+                cc: currentEmailWizard.cc || undefined,
+                subject: currentEmailWizard.subject,
                 html: htmlBody,
                 sent_by: currentUserId,
               },
@@ -767,9 +773,9 @@ export function useOnboardingAI(tenantId: string | null) {
               appendAssistant(
                 `✅ **Email enviado com sucesso!**\n\n` +
                 `| Campo | Valor |\n|---|---|\n` +
-                `| **Para** | ${emailWizard.to} |\n` +
-                `| **CC** | ${emailWizard.cc || "—"} |\n` +
-                `| **Assunto** | ${emailWizard.subject} |\n` +
+                `| **Para** | ${currentEmailWizard.to} |\n` +
+                `| **CC** | ${currentEmailWizard.cc || "—"} |\n` +
+                `| **Assunto** | ${currentEmailWizard.subject} |\n` +
                 `| **ID** | ${sendResult.email_id || "—"} |\n\n` +
                 `📬 O email foi entregue ao servidor de envio.`
               );
@@ -1395,14 +1401,14 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
-    if (/(criar|agendar|nova)\s*tarefa/i.test(lower) && !taskWizard.active) {
+    if (/(criar|agendar|nova)\s*tarefa/i.test(lower) && !currentTaskWizard.active) {
       setTaskWizard({ active: true, step: "titulo" });
       appendAssistant("📋 **Vamos criar uma nova tarefa!**\n\n✏️ **Qual o título da tarefa?**\n\n_A qualquer momento, diga \"cancelar\" para desistir._");
       return true;
     }
 
     // === Email composition wizard trigger ===
-    if (/(criar|compor|escrever|enviar|novo)\s*e-?mail/i.test(lower) && !emailWizard.active) {
+    if (/(criar|compor|escrever|enviar|novo)\s*e-?mail/i.test(lower) && !currentEmailWizard.active) {
       setEmailWizard({ active: true, step: "destinatario" });
       appendAssistant("📧 **Vamos compor um novo email!**\n\n**Qual o email do destinatário?**\n\n_A qualquer momento, diga \"cancelar\" para desistir._");
       return true;
@@ -1478,7 +1484,7 @@ export function useOnboardingAI(tenantId: string | null) {
     }
 
     return false;
-  }, [appendAssistant, context, tenantId, addAlert, taskWizard, emailWizard]);
+  }, [appendAssistant, context, tenantId, addAlert]);
 
   const chatWithAI = useCallback(async (tid: string, chatMessages: { role: string; content: string }[]) => {
     try {
