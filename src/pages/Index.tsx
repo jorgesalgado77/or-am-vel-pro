@@ -35,6 +35,7 @@ const TaskReminderOverlay = lazy(() => import("@/components/tasks/TaskReminderOv
 const MeasurementKanban = lazy(() => import("@/components/kanban/MeasurementKanban").then(m => ({ default: m.MeasurementKanban })));
 const ProductCatalog = lazy(() => import("@/components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
 const CommercialAIPanel = lazy(() => import("@/components/commercial/CommercialAIPanel").then(m => ({ default: m.CommercialAIPanel })));
+const EmailPanel = lazy(() => import("@/components/EmailPanel").then(m => ({ default: m.EmailPanel })));
 const OnboardingAIAssistant = lazy(() => import("@/components/onboarding/OnboardingAIAssistant").then(m => ({ default: m.OnboardingAIAssistant })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
@@ -72,6 +73,7 @@ const VIEW_TITLES: Record<string, { title: string; subtitle: string }> = {
   measurements: { title: "Solicitações de Medida", subtitle: "Gerencie e distribua solicitações de medida para os técnicos" },
   catalog: { title: "Catálogo de Produtos", subtitle: "Gerencie produtos, fornecedores, estoque e precificação" },
   "commercial-ai": { title: "IA Gerente Comercial", subtitle: "Monitoramento inteligente de vendas, alertas e coaching" },
+  emails: { title: "Email", subtitle: "Compose e envie emails, veja o histórico de envios" },
 };
 
 export default function Index() {
@@ -202,6 +204,7 @@ export default function Index() {
       "navigate-to-dashboard": () => setActiveView("dashboard"),
       "navigate-to-contracts": () => setActiveView("contracts"),
       "navigate-to-briefing": () => setActiveView("vendazap"),
+      "navigate-to-emails": () => setActiveView("emails"),
     };
     const handlers = Object.entries(navMap).map(([event, handler]) => {
       window.addEventListener(event, handler);
@@ -430,6 +433,7 @@ export default function Index() {
               {activeView === "measurements" && <MeasurementKanban />}
               {activeView === "catalog" && <ProductCatalog />}
               {activeView === "commercial-ai" && <CommercialAIPanel />}
+              {activeView === "emails" && <EmailPanel />}
 
               <ClientDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingClient(null); }} onSave={onSaveClient} client={editingClient} saving={saving} />
             </Suspense>

@@ -80,6 +80,7 @@ export function AppSidebar({
     { id: "catalog", label: "Catálogo", icon: Package, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "commercial-ai", label: "IA Gerente", icon: Bot, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "tasks", label: "Tarefas", icon: ClipboardCheck, perm: "clientes" as const, show: true, badge: null },
+    { id: "emails", label: "Email", icon: Mail, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "measurements", label: "Medidas", icon: Ruler, perm: "clientes" as const, show: cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador"), badge: null },
     { id: "tutorials", label: "Tutoriais", icon: GraduationCap, perm: "clientes" as const, show: true, badge: null },
   ];
