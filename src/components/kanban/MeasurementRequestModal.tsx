@@ -82,6 +82,10 @@ export function MeasurementRequestModal({
   const [addressForm, setAddressForm] = useState({
     cep: "", street: "", number: "", complement: "", district: "", city: "", state: "",
   });
+  const addressHydrationLockedRef = useRef(false);
+  const isAddressComplete = useCallback((value: typeof addressForm) => (
+    !!(value.cep && value.street && value.city && value.state)
+  ), []);
   const [cepLoading, setCepLoading] = useState(false);
 
   // Editable client phone/email
@@ -324,31 +328,7 @@ export function MeasurementRequestModal({
       ) || "",
     );
 
-    setEditableFields({
-      telefone: maskPhone(String(pickFirstFilled(
-        nestedClient?.telefone1,
-        nestedClient?.telefone,
-        nestedClient?.telefone_whatsapp,
-        merged.telefone1,
-        merged.telefone,
-        merged.telefone_whatsapp,
-        client.telefone1,
-      ) || "")),
-      email: String(pickFirstFilled(
-        nestedClient?.email,
-        merged.email,
-        client.email,
-      ) || ""),
-      cpf: maskCpfCnpj(String(pickFirstFilled(
-        nestedClient?.cpf,
-        nestedClient?.cpf_cnpj,
-        merged.cpf,
-        merged.cpf_cnpj,
-        client.cpf,
-        tracking.cpf_cnpj,
-      ) || "")),
-    });
-    setAddressForm({
+    const nextAddressForm = {
       cep: maskCep(String(pickFirstFilled(
         deliveryAddressCandidate?.cep,
         nestedClient?.delivery_address_zip,
@@ -443,35 +423,53 @@ export function MeasurementRequestModal({
         (client as any)?.estado,
         (client as any)?.uf,
       ) || ""),
+    };
+
+    setEditableFields({
+      telefone: maskPhone(String(pickFirstFilled(
+        nestedClient?.telefone1,
+        nestedClient?.telefone,
+        nestedClient?.telefone_whatsapp,
+        merged.telefone1,
+        merged.telefone,
+        merged.telefone_whatsapp,
+        client.telefone1,
+      ) || "")),
+      email: String(pickFirstFilled(
+        nestedClient?.email,
+        merged.email,
+        client.email,
+      ) || ""),
+      cpf: maskCpfCnpj(String(pickFirstFilled(
+        nestedClient?.cpf,
+        nestedClient?.cpf_cnpj,
+        merged.cpf,
+        merged.cpf_cnpj,
+        client.cpf,
+        tracking.cpf_cnpj,
+      ) || "")),
     });
-    // Auto-open address editor if address is empty
-    const addrFilled = !!(
-      pickFirstFilled(
-        deliveryAddressCandidate?.cep, nestedClient?.cep_entrega, nestedClient?.cep,
-        merged.cep_entrega, merged.cep, (client as any)?.cep_entrega, (client as any)?.cep,
-      ) &&
-      pickFirstFilled(
-        deliveryAddressCandidate?.street, deliveryAddressCandidate?.endereco,
-        nestedClient?.endereco_entrega, nestedClient?.endereco,
-        merged.endereco_entrega, merged.endereco,
-        (client as any)?.endereco_entrega, (client as any)?.endereco,
-      )
-    );
-    if (!addrFilled) {
-      setEditingAddress(true);
-      // Delay toast to avoid rendering conflicts
-      setTimeout(() => toast.warning("⚠️ Endereço de entrega não encontrado. Por favor, preencha o endereço abaixo."), 500);
-    } else {
-      setEditingAddress(false);
+
+    if (!addressHydrationLockedRef.current) {
+      setAddressForm(nextAddressForm);
+
+      if (!isAddressComplete(nextAddressForm)) {
+        setEditingAddress(true);
+        setTimeout(() => toast.warning("⚠️ Endereço de entrega não encontrado. Por favor, preencha o endereço abaixo."), 500);
+      } else {
+        setEditingAddress(false);
+      }
     }
+
     setEditingField(null);
-  }, [client, parsePersistedValue, tracking.cpf_cnpj]);
+  }, [client, isAddressComplete, parsePersistedValue, tracking.cpf_cnpj]);
 
   useEffect(() => {
     if (!open || !client?.id) return;
     let active = true;
 
     initialLoadDoneRef.current = false;
+    addressHydrationLockedRef.current = false;
     clearPreviewUrls();
     setEnvAttachments({});
     setUploadProgress({});
@@ -603,26 +601,43 @@ export function MeasurementRequestModal({
   }, [client?.id]);
 
   const saveAddress = useCallback(async () => {
+    const nextAddressForm = {
+      cep: maskCep(addressForm.cep),
+      street: addressForm.street.trim(),
+      number: addressForm.number.trim(),
+      complement: addressForm.complement.trim(),
+      district: addressForm.district.trim(),
+      city: addressForm.city.trim(),
+      state: addressForm.state.trim().toUpperCase(),
+    };
+
+    addressHydrationLockedRef.current = true;
+    setAddressForm(nextAddressForm);
+
     try {
-      await (supabase as any).from("clients").update({
-        delivery_address_zip: addressForm.cep,
-        delivery_address_street: addressForm.street,
-        delivery_address_number: addressForm.number,
-        delivery_address_complement: addressForm.complement,
-        delivery_address_district: addressForm.district,
-        delivery_address_city: addressForm.city,
-        delivery_address_state: addressForm.state,
-        cep_entrega: addressForm.cep,
-        endereco_entrega: addressForm.street,
-        numero_entrega: addressForm.number,
-        complemento_entrega: addressForm.complement,
-        bairro_entrega: addressForm.district,
-        cidade_entrega: addressForm.city,
-        uf_entrega: addressForm.state,
+      const { error } = await (supabase as any).from("clients").update({
+        delivery_address_zip: nextAddressForm.cep,
+        delivery_address_street: nextAddressForm.street,
+        delivery_address_number: nextAddressForm.number,
+        delivery_address_complement: nextAddressForm.complement,
+        delivery_address_district: nextAddressForm.district,
+        delivery_address_city: nextAddressForm.city,
+        delivery_address_state: nextAddressForm.state,
+        cep_entrega: nextAddressForm.cep,
+        endereco_entrega: nextAddressForm.street,
+        numero_entrega: nextAddressForm.number,
+        complemento_entrega: nextAddressForm.complement,
+        bairro_entrega: nextAddressForm.district,
+        cidade_entrega: nextAddressForm.city,
+        uf_entrega: nextAddressForm.state,
       } as any).eq("id", client.id);
+
+      if (error) throw error;
+
       toast.success("Endereço salvo!");
       setEditingAddress(false);
     } catch {
+      addressHydrationLockedRef.current = false;
       toast.error("Erro ao salvar endereço.");
     }
   }, [client?.id, addressForm]);
@@ -918,7 +933,7 @@ export function MeasurementRequestModal({
   const allEnvsHaveAttachments = environments.length > 0 &&
     environments.every(env => (envAttachments[env.id] || []).length >= 1);
 
-  const hasAddress = !!(addressForm.cep && addressForm.street && addressForm.city && addressForm.state);
+  const hasAddress = isAddressComplete(addressForm);
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
@@ -937,24 +952,37 @@ export function MeasurementRequestModal({
   );
 
   const persistClientSnapshot = useCallback(async () => {
+    const normalizedAddress = {
+      cep: maskCep(addressForm.cep),
+      street: addressForm.street.trim(),
+      number: addressForm.number.trim(),
+      complement: addressForm.complement.trim(),
+      district: addressForm.district.trim(),
+      city: addressForm.city.trim(),
+      state: addressForm.state.trim().toUpperCase(),
+    };
+
+    addressHydrationLockedRef.current = true;
+    setAddressForm(normalizedAddress);
+
     await (supabase as any).from("clients").update({
       telefone1: editableFields.telefone,
       email: editableFields.email,
       cpf: editableFields.cpf,
-      delivery_address_zip: addressForm.cep,
-      delivery_address_street: addressForm.street,
-      delivery_address_number: addressForm.number,
-      delivery_address_complement: addressForm.complement,
-      delivery_address_district: addressForm.district,
-      delivery_address_city: addressForm.city,
-      delivery_address_state: addressForm.state,
-      cep_entrega: addressForm.cep,
-      endereco_entrega: addressForm.street,
-      numero_entrega: addressForm.number,
-      complemento_entrega: addressForm.complement,
-      bairro_entrega: addressForm.district,
-      cidade_entrega: addressForm.city,
-      uf_entrega: addressForm.state,
+      delivery_address_zip: normalizedAddress.cep,
+      delivery_address_street: normalizedAddress.street,
+      delivery_address_number: normalizedAddress.number,
+      delivery_address_complement: normalizedAddress.complement,
+      delivery_address_district: normalizedAddress.district,
+      delivery_address_city: normalizedAddress.city,
+      delivery_address_state: normalizedAddress.state,
+      cep_entrega: normalizedAddress.cep,
+      endereco_entrega: normalizedAddress.street,
+      numero_entrega: normalizedAddress.number,
+      complemento_entrega: normalizedAddress.complement,
+      bairro_entrega: normalizedAddress.district,
+      cidade_entrega: normalizedAddress.city,
+      uf_entrega: normalizedAddress.state,
     } as any).eq("id", client.id);
   }, [addressForm, client.id, editableFields]);
 
@@ -1470,6 +1498,7 @@ export function MeasurementRequestModal({
       return;
     }
     if (!hasAddress) {
+      addressHydrationLockedRef.current = false;
       toast.error("Complete o endereço de entrega antes de enviar a solicitação");
       setEditingAddress(true);
       return;
@@ -1602,8 +1631,10 @@ export function MeasurementRequestModal({
         duration: 6000,
       });
 
+      addressHydrationLockedRef.current = false;
       onOpenChange(false);
     } catch (err: any) {
+      addressHydrationLockedRef.current = false;
       toast.error("Erro ao enviar solicitação: " + (err.message || "erro desconhecido"));
     } finally {
       setSaving(false);
