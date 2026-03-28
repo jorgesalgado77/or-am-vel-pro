@@ -42,12 +42,12 @@ Deno.serve(async (req) => {
         .single();
 
       if (error) {
-        console.error("Insert error:", error);
-        // Return a fallback response so client can still use localStorage
+        console.error("Insert error:", JSON.stringify(error));
         return new Response(
           JSON.stringify({
             fallback: true,
-            message: "DB insert failed, using local storage.",
+            db_error: error.message,
+            code: error.code,
             reminder: { id: crypto.randomUUID(), title, content: content || title, scheduled_for, status: "pending" },
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
