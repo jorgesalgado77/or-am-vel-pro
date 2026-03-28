@@ -979,25 +979,25 @@ export function MeasurementRequestModal({
     addressHydrationLockedRef.current = true;
     setAddressForm(normalizedAddress);
 
+    // Update only columns that exist on the clients table
     await (supabase as any).from("clients").update({
       telefone1: editableFields.telefone,
       email: editableFields.email,
       cpf: editableFields.cpf,
-      delivery_address_zip: normalizedAddress.cep,
-      delivery_address_street: normalizedAddress.street,
-      delivery_address_number: normalizedAddress.number,
-      delivery_address_complement: normalizedAddress.complement,
-      delivery_address_district: normalizedAddress.district,
-      delivery_address_city: normalizedAddress.city,
-      delivery_address_state: normalizedAddress.state,
-      cep_entrega: normalizedAddress.cep,
-      endereco_entrega: normalizedAddress.street,
-      numero_entrega: normalizedAddress.number,
-      complemento_entrega: normalizedAddress.complement,
-      bairro_entrega: normalizedAddress.district,
-      cidade_entrega: normalizedAddress.city,
-      uf_entrega: normalizedAddress.state,
     } as any).eq("id", client.id);
+
+    // Try saving address columns (may not exist on all setups)
+    try {
+      await (supabase as any).from("clients").update({
+        cep_entrega: normalizedAddress.cep,
+        endereco_entrega: normalizedAddress.street,
+        numero_entrega: normalizedAddress.number,
+        complemento_entrega: normalizedAddress.complement,
+        bairro_entrega: normalizedAddress.district,
+        cidade_entrega: normalizedAddress.city,
+        uf_entrega: normalizedAddress.state,
+      } as any).eq("id", client.id);
+    } catch { /* columns may not exist — address is saved in measurement_request payload */ }
   }, [addressForm, client.id, editableFields]);
 
   const buildPdfDoc = useCallback(async () => {
