@@ -52,7 +52,7 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     // Compute metrics from real CRM data
     const { data: clients } = await (supabase as any)
       .from("clients")
-      .select("id, nome, status, created_at, valor_fechamento, responsavel_id, vendedor, updated_at, telefone, email")
+      .select("id, nome, status, created_at, valor_fechamento, responsavel_id, vendedor, updated_at, telefone1, email")
       .eq("tenant_id", tenantId);
 
     if (!clients) return;

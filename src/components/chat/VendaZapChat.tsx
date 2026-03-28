@@ -217,14 +217,14 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     // Also fetch clients directly to ensure we have all available clients
     const { data: allClients } = await supabase
       .from("clients")
-      .select("id, nome, numero_orcamento, vendedor, status, telefone")
+      .select("id, nome, numero_orcamento, vendedor, status, telefone1")
       .eq("tenant_id", tenantId)
       .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"]);
 
     // Build vendedor/phone map from clients
     let clientDataMap: Record<string, { vendedor: string | null; telefone: string | null }> = {};
     (allClients || []).forEach((c: any) => {
-      clientDataMap[c.id] = { vendedor: c.vendedor, telefone: c.telefone || null };
+      clientDataMap[c.id] = { vendedor: c.vendedor, telefone: c.telefone1 || null };
     });
 
     // Build tracking entries — merge client_tracking with clients fallback
@@ -509,7 +509,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
           .insert({
             tenant_id: tenantId,
             nome: clientName,
-            telefone: normalizedPhone,
+            telefone1: normalizedPhone,
             numero_orcamento: contractNumber,
             status: "em_negociacao",
           } as any)
@@ -867,7 +867,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 .insert({
                   tenant_id: tenantId,
                   nome: clientName,
-                  telefone: normalizedPhone,
+                  telefone1: normalizedPhone,
                   numero_orcamento: contractNumber,
                   status: "em_negociacao",
                 } as any)
