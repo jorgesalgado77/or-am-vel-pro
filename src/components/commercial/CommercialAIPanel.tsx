@@ -75,7 +75,13 @@ async function streamChat(opts: {
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ error: "Erro desconhecido" }));
-      opts.onError(err.error || `Erro ${resp.status}`);
+      if (resp.status === 429) {
+        opts.onError("Limite de requisições excedido. Aguarde um momento e tente novamente.");
+      } else if (resp.status === 402) {
+        opts.onError("Créditos de IA esgotados. Adicione créditos em Configurações > Workspace > Usage.");
+      } else {
+        opts.onError(err.error || `Erro ${resp.status}`);
+      }
       return;
     }
 
