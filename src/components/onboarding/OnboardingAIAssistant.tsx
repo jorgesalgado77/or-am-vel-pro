@@ -21,6 +21,14 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import {
+  ListTodo,
+  Headset,
+  GraduationCap,
+  DollarSign,
+  Users,
+  Bell,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
@@ -52,7 +60,7 @@ const prefersReducedMotion =
 
 export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
-  const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject } = useOnboardingAI(tenantId);
+  const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject, navigateTo, pendingItems } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -71,14 +79,14 @@ export function OnboardingAIAssistant() {
   const hasWhatsApp = Boolean(context?.completedSteps?.includes("whatsapp_api") || context?.completedSteps?.includes("whatsapp_connected"));
   const missingCriticalKeys = !hasOpenAI || !hasWhatsApp;
 
-  // Scroll tracking
   const userScrolledUp = useRef(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [fabUnread, setFabUnread] = useState(0);
-  const prevMsgCount = useRef(messages.length);
+  const prevMsgCount = useRef(0);
   const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
   const prevLastAssistantId = useRef<string | null>(null);
+  const initializedUnread = useRef(false);
 
   // Init notification audio (lazy)
   useEffect(() => {
@@ -88,13 +96,17 @@ export function OnboardingAIAssistant() {
 
   // Count new messages while scrolled up or closed
   useEffect(() => {
+    // Skip the first hydration to avoid counting cached messages as "new"
+    if (!initializedUnread.current) {
+      initializedUnread.current = true;
+      prevMsgCount.current = messages.length;
+      return;
+    }
     const newCount = messages.length - prevMsgCount.current;
     prevMsgCount.current = messages.length;
-    if (newCount > 0 && userScrolledUp.current) {
-      setUnreadCount(prev => prev + newCount);
-    }
-    if (newCount > 0 && !open) {
-      setFabUnread(prev => prev + newCount);
+    if (newCount > 0) {
+      if (userScrolledUp.current) setUnreadCount(prev => prev + newCount);
+      if (!open) setFabUnread(prev => prev + newCount);
     }
   }, [messages.length, open]);
 
@@ -425,6 +437,46 @@ export function OnboardingAIAssistant() {
               </Button>
             </div>
           )}
+
+          {/* Navigation quick actions — always visible */}
+          <div className="px-3 py-2 border-t border-border bg-muted/20 shrink-0">
+            {/* Pending items summary */}
+            {pendingItems.length > 0 && pendingItems.length < 6 && (
+              <div className="mb-2 p-2 rounded-lg bg-accent/30 border border-accent/50">
+                <p className="text-[10px] font-semibold text-foreground mb-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  {pendingItems.length} pendência{pendingItems.length > 1 ? "s" : ""}
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {pendingItems.map((item) => (
+                    <Badge key={item.key} variant="outline" className="text-[9px] py-0 gap-1 border-amber-500/30 text-amber-700 dark:text-amber-400">
+                      <Circle className="h-2 w-2" />
+                      {item.label}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick navigation buttons */}
+            <div className="flex flex-wrap gap-1">
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("tarefas"); }}>
+                <ListTodo className="h-3 w-3" /> Tarefas
+              </Button>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("suporte"); }}>
+                <Headset className="h-3 w-3" /> Suporte
+              </Button>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("tutoriais"); }}>
+                <GraduationCap className="h-3 w-3" /> Tutoriais
+              </Button>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("financeiro"); }}>
+                <DollarSign className="h-3 w-3" /> Financeiro
+              </Button>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("configuracoes"); }}>
+                <Settings className="h-3 w-3" /> Config
+              </Button>
+            </div>
+          </div>
 
           {/* Input — always pinned at bottom with safe area */}
           <div className="p-3 border-t border-border bg-background shrink-0" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
@@ -26,6 +26,10 @@ function getMessagesKey(tenantId: string | null) {
 
 function getContextKey(tenantId: string | null) {
   return `mia_context_${getStorageScope(tenantId)}`;
+}
+
+function getSeenCountKey(tenantId: string | null) {
+  return `mia_seen_count_${getStorageScope(tenantId)}`;
 }
 
 function parseStored<T>(value: string | null, fallback: T): T {
@@ -111,31 +115,44 @@ async function buildRuntimeContext(tenantId: string): Promise<OnboardingAIContex
 }
 
 export function useOnboardingAI(tenantId: string | null) {
-  const [messages, setMessages] = useState<AIMessage[]>([]);
+  // Hydrate messages synchronously from localStorage to avoid unread flash
+  const [messages, setMessages] = useState<AIMessage[]>(() => {
+    if (!tenantId) return [];
+    return parseStored<AIMessage[]>(localStorage.getItem(getMessagesKey(tenantId)), []).map((m) => ({
+      ...m,
+      timestamp: new Date(m.timestamp),
+    }));
+  });
   const [loading, setLoading] = useState(false);
-  const [context, setContext] = useState<OnboardingAIContext | null>(null);
+  const [context, setContext] = useState<OnboardingAIContext | null>(() => {
+    if (!tenantId) return null;
+    return parseStored<OnboardingAIContext | null>(localStorage.getItem(getContextKey(tenantId)), null);
+  });
   const initialized = useRef(false);
+  const messagesRef = useRef<AIMessage[]>(messages);
+
+  // Keep ref in sync
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   useEffect(() => {
     if (!tenantId || initialized.current) return;
     initialized.current = true;
 
     const bootstrap = async () => {
-      const storedMessages = parseStored<AIMessage[]>(localStorage.getItem(getMessagesKey(tenantId)), []).map((m) => ({
-        ...m,
-        timestamp: new Date(m.timestamp),
-      }));
-      const storedContext = parseStored<OnboardingAIContext | null>(localStorage.getItem(getContextKey(tenantId)), null);
-
-      const runtimeContext = await buildRuntimeContext(tenantId).catch(() => storedContext);
+      const runtimeContext = await buildRuntimeContext(tenantId).catch(() => null);
       if (runtimeContext) {
-        const mergedSteps = [...new Set([...(storedContext?.completedSteps || []), ...(runtimeContext.completedSteps || [])])];
-        setContext({
-          apiKeys: runtimeContext.apiKeys || storedContext?.apiKeys || [],
-          whatsappConnected: runtimeContext.whatsappConnected || storedContext?.whatsappConnected || false,
-          completedSteps: mergedSteps,
+        setContext((prev) => {
+          const mergedSteps = [...new Set([...(prev?.completedSteps || []), ...(runtimeContext.completedSteps || [])])];
+          return {
+            apiKeys: runtimeContext.apiKeys || prev?.apiKeys || [],
+            whatsappConnected: runtimeContext.whatsappConnected || prev?.whatsappConnected || false,
+            completedSteps: mergedSteps,
+          };
         });
       }
+
+      // If we already have messages from localStorage, skip DB/initial
+      if (messagesRef.current.length > 0) return;
 
       try {
         const { data } = await (supabase as any)
@@ -158,15 +175,16 @@ export function useOnboardingAI(tenantId: string | null) {
         // fallback to local cache
       }
 
-      if (storedMessages.length > 0) {
-        setMessages(storedMessages);
-      } else {
-        await sendMessage("Olá, acabei de criar minha conta!", true);
-      }
+      // No messages at all — send initial greeting via chatWithAI directly
+      const initialMsg = createMessage("user", "Olá, acabei de criar minha conta!");
+      setMessages([initialMsg]);
+      setLoading(true);
+      await chatWithAI(tenantId, [{ role: "user", content: initialMsg.content }]);
     };
 
     void bootstrap();
-  }, [tenantId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId]); // chatWithAI is stable via useCallback
 
   useEffect(() => {
     if (!tenantId) return;
@@ -401,7 +419,7 @@ export function useOnboardingAI(tenantId: string | null) {
       }
 
       const nextHistory = [
-        ...messages.map((message) => ({ role: message.role, content: message.content })),
+        ...messagesRef.current.map((message) => ({ role: message.role, content: message.content })),
         { role: "user", content },
       ];
       await chatWithAI(tenantId, nextHistory);
@@ -410,7 +428,40 @@ export function useOnboardingAI(tenantId: string | null) {
       toast.error("Erro ao comunicar com a Mia");
       setLoading(false);
     }
-  }, [tenantId, messages, appendAssistant, refreshContext, handleLocalAction, chatWithAI]);
+  }, [tenantId, appendAssistant, refreshContext, handleLocalAction, chatWithAI]);
+
+  // Navigation helper — dispatches sidebar navigation events
+  const navigateTo = useCallback((target: string, detail?: Record<string, string>) => {
+    const eventMap: Record<string, string> = {
+      tarefas: "navigate-to-tasks",
+      tutoriais: "navigate-to-tutorials",
+      financeiro: "navigate-to-financial",
+      suporte: "navigate-to-support",
+      configuracoes: "navigate-to-settings",
+      clientes: "navigate-to-clients",
+      dealroom: "navigate-to-dealroom",
+      chat: "navigate-to-chat",
+    };
+    const eventName = eventMap[target] || `navigate-to-${target}`;
+    window.dispatchEvent(new CustomEvent(eventName, { detail }));
+  }, []);
+
+  // Pending items computed from context
+  const pendingItems = useMemo(() => {
+    const allSteps = ["company_info", "openai_api", "whatsapp_api", "whatsapp_connected", "resend_api", "pdf_configured"];
+    const labels: Record<string, string> = {
+      company_info: "Dados da loja",
+      openai_api: "IA de vendas (OpenAI)",
+      whatsapp_api: "WhatsApp",
+      whatsapp_connected: "WhatsApp ativo",
+      resend_api: "Email (Resend)",
+      pdf_configured: "PDF",
+    };
+    const completed = context?.completedSteps || [];
+    return allSteps
+      .filter((step) => !completed.includes(step))
+      .map((step) => ({ key: step, label: labels[step] || step }));
+  }, [context?.completedSteps]);
 
   const savePreferences = useCallback(async (preferences: Record<string, string>) => {
     if (!tenantId) return;
@@ -534,6 +585,8 @@ export function useOnboardingAI(tenantId: string | null) {
     configureVendaZap,
     runTests,
     suggestFirstProject,
+    navigateTo,
+    pendingItems,
   };
 }
 
