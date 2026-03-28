@@ -1,8 +1,8 @@
 /**
- * SalesGoalsPanel — Monthly sales goals per seller with progress bars and deadline alerts
+ * SalesGoalsPanel — Monthly sales goals per seller with progress bars, deadline alerts, and Realtime sync
  */
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { format, differenceInDays, endOfMonth, startOfMonth } from "date-fns";
+import { format, endOfMonth, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface SalesGoal {
@@ -51,12 +51,29 @@ function getCurrentMonth() {
   return format(new Date(), "yyyy-MM");
 }
 
+/** Calculate remaining days in the target month correctly */
+function getRemainingDays(selectedMonth: string): number {
+  const now = new Date();
+  const targetDate = new Date(selectedMonth + "-01");
+  const end = endOfMonth(targetDate);
+
+  // If the selected month is in the past, 0 days remaining
+  if (end < now) return 0;
+
+  // If the selected month is in the future, return total days
+  const start = startOfMonth(targetDate);
+  if (start > now) return end.getDate();
+
+  // Current month: days from now until end of month
+  return Math.max(0, end.getDate() - now.getDate());
+}
+
 interface SalesGoalsPanelProps {
   tenantId: string | null;
 }
 
 export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
-  const [goals, setGoals] = useState<SalesGoal[]>([]);
+  const [rawGoals, setRawGoals] = useState<SalesGoal[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -69,9 +86,19 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     target_value: 0,
   });
 
+  // Deduplicate goals by id
+  const goals = useMemo(() => {
+    const map = new Map<string, SalesGoal>();
+    for (const g of rawGoals) {
+      map.set(g.id, g);
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [rawGoals]);
+
   const loadUsers = useCallback(async () => {
     if (!tenantId) return;
-    // Load users with cargo info — only show vendedor/projetista
     const { data } = await supabase
       .from("usuarios" as any)
       .select("id, nome_completo, cargo_id, cargos(nome)")
@@ -91,7 +118,6 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     if (!tenantId) return;
     setLoading(true);
 
-    // Load goals from sales_goals (localStorage fallback if table doesn't exist)
     const { data: goalsData, error } = await supabase
       .from("sales_goals" as any)
       .select("*")
@@ -99,21 +125,18 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       .eq("month", selectedMonth);
 
     if (error) {
-      // Fallback to localStorage if table doesn't exist yet
       const stored = localStorage.getItem(`sales_goals_${tenantId}_${selectedMonth}`);
       if (stored) {
-        setGoals(JSON.parse(stored));
+        setRawGoals(JSON.parse(stored));
       } else {
-        setGoals([]);
+        setRawGoals([]);
       }
       setLoading(false);
       return;
     }
 
-    // Enrich with user names and compute current values
     const userMap = new Map(users.map(u => [u.id, u.nome_completo]));
 
-    // Get real data for current values
     const { data: clients } = await supabase
       .from("clients" as any)
       .select("responsavel_id, status, valor_fechamento, created_at")
@@ -146,12 +169,45 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       };
     });
 
-    setGoals(enriched);
+    setRawGoals(enriched);
     setLoading(false);
   }, [tenantId, selectedMonth, users]);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
   useEffect(() => { if (users.length > 0) loadGoals(); }, [loadGoals, users]);
+
+  // Realtime subscription for sales_goals changes
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel(`sales-goals-rt-${tenantId}`)
+      .on(
+        "postgres_changes" as any,
+        {
+          event: "*",
+          schema: "public",
+          table: "sales_goals",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        (payload: any) => {
+          const eventType = payload.eventType;
+          if (eventType === "DELETE") {
+            const oldId = payload.old?.id;
+            if (oldId) {
+              setRawGoals(prev => prev.filter(g => g.id !== oldId));
+            }
+          } else {
+            // INSERT or UPDATE — reload to get enriched data
+            loadGoals();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, loadGoals]);
 
   const handleSave = async () => {
     if (!tenantId || !form.user_id || form.target_value <= 0) {
@@ -176,10 +232,15 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     }
 
     if (error) {
-      // Fallback: save to localStorage
       const key = `sales_goals_${tenantId}_${selectedMonth}`;
       const stored = JSON.parse(localStorage.getItem(key) || "[]");
-      const newGoal = { ...payload, id: form.id || crypto.randomUUID(), user_name: users.find(u => u.id === form.user_id)?.nome_completo || "", current_value: 0, created_at: new Date().toISOString() };
+      const newGoal = {
+        ...payload,
+        id: form.id || crypto.randomUUID(),
+        user_name: users.find(u => u.id === form.user_id)?.nome_completo || "",
+        current_value: 0,
+        created_at: new Date().toISOString(),
+      };
       if (form.id) {
         const idx = stored.findIndex((g: any) => g.id === form.id);
         if (idx >= 0) stored[idx] = newGoal;
@@ -188,9 +249,10 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       }
       localStorage.setItem(key, JSON.stringify(stored));
       toast.success("Meta salva (local)!");
-      setGoals(stored);
+      setRawGoals(stored);
     } else {
       toast.success("Meta salva!");
+      // Realtime will trigger reload, but also reload now for immediate feedback
       await loadGoals();
     }
 
@@ -199,14 +261,15 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   };
 
   const handleDelete = async (id: string) => {
+    // Optimistic removal
+    setRawGoals(prev => prev.filter(g => g.id !== id));
+
     const { error } = await supabase.from("sales_goals" as any).delete().eq("id", id);
     if (error) {
       const key = `sales_goals_${tenantId}_${selectedMonth}`;
       const stored = JSON.parse(localStorage.getItem(key) || "[]").filter((g: any) => g.id !== id);
       localStorage.setItem(key, JSON.stringify(stored));
-      setGoals(stored);
-    } else {
-      await loadGoals();
+      setRawGoals(stored);
     }
     toast.success("Meta removida");
   };
@@ -221,11 +284,10 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     setDialogOpen(true);
   };
 
-  // Deadline calculations
-  const now = new Date();
-  const monthEnd = endOfMonth(new Date(selectedMonth + "-01"));
-  const daysRemaining = Math.max(0, differenceInDays(monthEnd, now));
+  // Deadline calculations — correct for the target month
+  const daysRemaining = getRemainingDays(selectedMonth);
   const isCurrentMonth = selectedMonth === getCurrentMonth();
+  const isPastMonth = endOfMonth(new Date(selectedMonth + "-01")) < new Date();
 
   // Month options
   const monthOptions = [];
@@ -254,12 +316,13 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
               ))}
             </SelectContent>
           </Select>
-          {isCurrentMonth && (
-            <Badge variant={daysRemaining <= 5 ? "destructive" : "secondary"} className="text-xs gap-1">
-              <Clock className="h-3 w-3" />
-              {daysRemaining}d restantes
-            </Badge>
-          )}
+          <Badge
+            variant={isPastMonth ? "outline" : daysRemaining <= 5 ? "destructive" : "secondary"}
+            className="text-xs gap-1"
+          >
+            <Clock className="h-3 w-3" />
+            {isPastMonth ? "Encerrado" : `${daysRemaining}d restantes`}
+          </Badge>
         </div>
         <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNew}>
           <Plus className="h-3.5 w-3.5" /> Nova Meta
