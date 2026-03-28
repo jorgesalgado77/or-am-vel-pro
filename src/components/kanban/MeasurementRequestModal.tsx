@@ -896,8 +896,10 @@ export function MeasurementRequestModal({
     });
   };
 
-  const allEnvsHaveImages = environments.length > 0 &&
-    environments.every(env => (envAttachments[env.id] || []).some((attachment) => attachment.kind === "image"));
+  const allEnvsHaveAttachments = environments.length > 0 &&
+    environments.every(env => (envAttachments[env.id] || []).length >= 1);
+
+  const hasAddress = !!(addressForm.cep && addressForm.street && addressForm.city && addressForm.state);
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
