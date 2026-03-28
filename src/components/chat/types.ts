@@ -8,6 +8,7 @@ export interface ChatConversation {
   lead_temperature?: "quente" | "morno" | "frio";
   vendedor_nome?: string | null;
   isClientDirect?: boolean;
+  isTemporary?: boolean;
   client_id?: string;
   phone?: string; // WhatsApp phone number for direct sending
 }
