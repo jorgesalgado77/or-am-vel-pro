@@ -44,6 +44,8 @@ export function MeasurementRequestModal({
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [envImages, setEnvImages] = useState<Record<string, File[]>>({});
   const [saving, setSaving] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const { settings } = useCompanySettings();
 
   // Store data
