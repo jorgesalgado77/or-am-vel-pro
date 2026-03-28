@@ -42,6 +42,7 @@ const ConversationItem = memo(function ConversationItem({
   conv, isSelected, onSelect,
 }: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void }) {
   const tempConfig = conv.lead_temperature ? TEMPERATURE_CONFIG[conv.lead_temperature] : null;
+  const displayPhone = conv.phone || (conv.numero_contrato?.startsWith("WA-") ? conv.numero_contrato.replace("WA-", "") : null);
   return (
     <button
       onClick={() => onSelect(conv)}
@@ -70,13 +71,22 @@ const ConversationItem = memo(function ConversationItem({
               )}
             </div>
           </div>
-          {conv.vendedor_nome && (
-            <div className="mt-0.5">
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            {displayPhone && (
+              <span className="text-[10px] text-emerald-600 flex items-center gap-0.5">
+                <Phone className="h-2.5 w-2.5" />
+                {displayPhone}
+              </span>
+            )}
+            {!displayPhone && conv.numero_contrato && !conv.numero_contrato.startsWith("WA-") && (
+              <span className="text-[10px] text-muted-foreground">📋 {conv.numero_contrato}</span>
+            )}
+            {conv.vendedor_nome && (
               <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">
                 👤 {conv.vendedor_nome}
               </Badge>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </button>
