@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Target, Plus, Pencil, Trash2, Loader2, AlertTriangle, Clock,
-  TrendingUp, Award, CalendarDays,
+  TrendingUp, Award, CalendarDays, ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
