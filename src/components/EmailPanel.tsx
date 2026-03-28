@@ -1,7 +1,7 @@
 /**
- * Email Panel — Compose emails and view sent email history (20 per page).
+ * Email Panel — Compose emails with attachments and contact memorization.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,12 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Mail, Send, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Plus, Loader2, Inbox } from "lucide-react";
+import {
+  Mail, Send, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
+  Plus, Loader2, Inbox, Paperclip, X, FileText, Image, Upload, Users,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 20;
+const CONTACTS_KEY = "email-saved-contacts";
 
 interface EmailRecord {
   id: string;
@@ -29,8 +33,35 @@ interface EmailRecord {
   sent_by?: string;
 }
 
-// === Compose Step-by-Step Wizard ===
+interface AttachmentFile {
+  file: File;
+  previewUrl: string;
+  kind: "image" | "pdf" | "other";
+}
+
 type ComposeStep = "to" | "cc" | "subject" | "body" | "review";
+
+function getSavedContacts(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(CONTACTS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveContact(email: string) {
+  const contacts = getSavedContacts();
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || contacts.includes(normalized)) return;
+  const updated = [normalized, ...contacts].slice(0, 50);
+  localStorage.setItem(CONTACTS_KEY, JSON.stringify(updated));
+}
+
+function getFileKind(file: File): "image" | "pdf" | "other" {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type === "application/pdf" || file.name.endsWith(".pdf")) return "pdf";
+  return "other";
+}
 
 export function EmailPanel() {
   const [tab, setTab] = useState("compose");
@@ -42,6 +73,10 @@ export function EmailPanel() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [savedContacts, setSavedContacts] = useState<string[]>(getSavedContacts);
+  const [showContactSuggestions, setShowContactSuggestions] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // History state
   const [emails, setEmails] = useState<EmailRecord[]>([]);
@@ -56,14 +91,14 @@ export function EmailPanel() {
     try {
       const tenantId = await getResolvedTenantId();
       const from = (p - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+      const toRange = from + PAGE_SIZE - 1;
 
       const { data, count, error } = await (supabase as any)
         .from("mia_email_history")
         .select("id, to_email, cc_email, subject, body_html, status, created_at, sent_by", { count: "exact" })
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
-        .range(from, to);
+        .range(from, toRange);
 
       if (!error) {
         setEmails((data || []) as EmailRecord[]);
@@ -89,6 +124,32 @@ export function EmailPanel() {
 
       let htmlBody = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">`;
       htmlBody += `<div style="white-space:pre-wrap;line-height:1.6;">${body.replace(/\n/g, "<br>")}</div>`;
+
+      // Add attachment info to email body
+      if (attachments.length > 0) {
+        htmlBody += `<hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0;">`;
+        htmlBody += `<p style="font-size:12px;color:#64748b;">📎 ${attachments.length} anexo(s) incluído(s)</p>`;
+        htmlBody += `<div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+        for (const att of attachments) {
+          if (att.kind === "image") {
+            // Upload to storage and include link
+            const path = `email-attachments/${tenantId}/${Date.now()}-${att.file.name}`;
+            const { data: uploadData } = await supabase.storage
+              .from("attachments")
+              .upload(path, att.file, { upsert: true });
+            if (uploadData) {
+              const { data: urlData } = supabase.storage.from("attachments").getPublicUrl(path);
+              htmlBody += `<a href="${urlData.publicUrl}" target="_blank" style="display:inline-block;margin:4px;">`;
+              htmlBody += `<img src="${urlData.publicUrl}" alt="${att.file.name}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e2e8f0;">`;
+              htmlBody += `</a>`;
+            }
+          } else {
+            htmlBody += `<p style="font-size:12px;">📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)</p>`;
+          }
+        }
+        htmlBody += `</div>`;
+      }
+
       htmlBody += `</div>`;
 
       const { data, error } = await supabase.functions.invoke("resend-email", {
@@ -106,6 +167,11 @@ export function EmailPanel() {
       if (error || !data?.success) {
         toast.error("Erro ao enviar: " + (data?.error || error?.message || "Erro desconhecido"));
       } else {
+        // Save contacts
+        saveContact(to);
+        if (cc) saveContact(cc);
+        setSavedContacts(getSavedContacts());
+
         toast.success("✅ Email enviado com sucesso!");
         resetCompose();
         setTab("history");
@@ -124,6 +190,9 @@ export function EmailPanel() {
     setCc("");
     setSubject("");
     setBody("");
+    // Revoke preview URLs
+    attachments.forEach(a => URL.revokeObjectURL(a.previewUrl));
+    setAttachments([]);
   };
 
   const canAdvance = () => {
@@ -146,6 +215,39 @@ export function EmailPanel() {
     if (idx > 0) setStep(steps[idx - 1]);
   };
 
+  const handleFileAdd = (files: FileList | null) => {
+    if (!files) return;
+    const newAttachments: AttachmentFile[] = Array.from(files).map(file => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      kind: getFileKind(file),
+    }));
+    setAttachments(prev => [...prev, ...newAttachments]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => {
+      const target = prev[index];
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const selectContact = (email: string) => {
+    setTo(email);
+    setShowContactSuggestions(false);
+  };
+
+  const removeContact = (email: string) => {
+    const updated = savedContacts.filter(c => c !== email);
+    setSavedContacts(updated);
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(updated));
+  };
+
+  const filteredContacts = savedContacts.filter(c =>
+    !to || c.toLowerCase().includes(to.toLowerCase())
+  );
+
   const stepNumber = ["to", "cc", "subject", "body", "review"].indexOf(step) + 1;
 
   return (
@@ -167,7 +269,6 @@ export function EmailPanel() {
                 <Mail className="h-5 w-5 text-primary" />
                 Compor Email — Etapa {stepNumber} de 5
               </CardTitle>
-              {/* Progress bar */}
               <div className="flex gap-1 mt-2">
                 {[1, 2, 3, 4, 5].map(s => (
                   <div key={s} className={`h-1.5 flex-1 rounded-full transition-colors ${s <= stepNumber ? "bg-primary" : "bg-muted"}`} />
@@ -178,14 +279,52 @@ export function EmailPanel() {
               {step === "to" && (
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">📧 Para quem deseja enviar?</Label>
-                  <Input
-                    type="email"
-                    placeholder="destinatario@email.com"
-                    value={to}
-                    onChange={e => setTo(e.target.value)}
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground">Informe o email do destinatário principal.</p>
+                  <div className="relative">
+                    <Input
+                      type="email"
+                      placeholder="destinatario@email.com"
+                      value={to}
+                      onChange={e => { setTo(e.target.value); setShowContactSuggestions(true); }}
+                      onFocus={() => setShowContactSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowContactSuggestions(false), 200)}
+                      autoFocus
+                    />
+                    {showContactSuggestions && filteredContacts.length > 0 && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        <div className="p-2">
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide px-2 pb-1 flex items-center gap-1">
+                            <Users className="h-3 w-3" /> Contatos Salvos
+                          </p>
+                          {filteredContacts.map(contact => (
+                            <div
+                              key={contact}
+                              className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer group"
+                            >
+                              <button
+                                type="button"
+                                className="flex-1 text-left text-sm"
+                                onMouseDown={(e) => { e.preventDefault(); selectContact(contact); }}
+                              >
+                                {contact}
+                              </button>
+                              <button
+                                type="button"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                                onMouseDown={(e) => { e.preventDefault(); removeContact(contact); }}
+                                title="Remover contato"
+                              >
+                                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Informe o email do destinatário principal.
+                    {savedContacts.length > 0 && ` • ${savedContacts.length} contato(s) memorizado(s)`}
+                  </p>
                 </div>
               )}
 
@@ -216,17 +355,81 @@ export function EmailPanel() {
               )}
 
               {step === "body" && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold">✏️ Escreva o corpo do email</Label>
-                  <Textarea
-                    placeholder="Escreva aqui o conteúdo do email..."
-                    value={body}
-                    onChange={e => setBody(e.target.value)}
-                    rows={8}
-                    className="resize-y"
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground">Dica: Quebre linhas para melhor formatação.</p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">✏️ Escreva o corpo do email</Label>
+                    <Textarea
+                      placeholder="Escreva aqui o conteúdo do email..."
+                      value={body}
+                      onChange={e => setBody(e.target.value)}
+                      rows={8}
+                      className="resize-y"
+                      autoFocus
+                    />
+                    <p className="text-xs text-muted-foreground">Dica: Quebre linhas para melhor formatação.</p>
+                  </div>
+
+                  {/* Attachments Section */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold flex items-center gap-2">
+                      <Paperclip className="h-4 w-4" />
+                      Anexos ({attachments.length})
+                    </Label>
+
+                    {attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {attachments.map((att, idx) => (
+                          <div key={`${att.file.name}-${idx}`} className="relative group">
+                            <div className="h-20 w-20 rounded-lg border-2 border-border bg-muted flex items-center justify-center overflow-hidden shadow-sm">
+                              {att.kind === "image" ? (
+                                <img
+                                  src={att.previewUrl}
+                                  alt={att.file.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : att.kind === "pdf" ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  <FileText className="h-6 w-6 text-destructive" />
+                                  <span className="text-[8px] font-bold text-muted-foreground">PDF</span>
+                                </div>
+                              ) : (
+                                <FileText className="h-6 w-6 text-muted-foreground" />
+                              )}
+                            </div>
+                            <p className="text-[9px] text-muted-foreground truncate w-20 mt-0.5 text-center">
+                              {att.file.name}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(idx)}
+                              className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed border-muted-foreground/30 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Adicionar anexo</span>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                        className="hidden"
+                        onChange={e => {
+                          handleFileAdd(e.target.files);
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                    <p className="text-[10px] text-muted-foreground">
+                      Imagens, PDFs e documentos. As imagens aparecerão no corpo do email.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -237,8 +440,25 @@ export function EmailPanel() {
                     <div><span className="text-muted-foreground">Para:</span> <span className="font-medium">{to}</span></div>
                     {cc && <div><span className="text-muted-foreground">CC:</span> <span className="font-medium">{cc}</span></div>}
                     <div><span className="text-muted-foreground">Assunto:</span> <span className="font-medium">{subject}</span></div>
+                    {attachments.length > 0 && (
+                      <div><span className="text-muted-foreground">Anexos:</span> <span className="font-medium">{attachments.length} arquivo(s)</span></div>
+                    )}
                     <Separator />
                     <div className="whitespace-pre-wrap text-foreground">{body}</div>
+                    {attachments.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="flex flex-wrap gap-2">
+                          {attachments.map((att, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 bg-background rounded-md px-2 py-1 border text-xs">
+                              {att.kind === "image" ? <Image className="h-3 w-3 text-primary" /> : <FileText className="h-3 w-3 text-muted-foreground" />}
+                              <span className="truncate max-w-[120px]">{att.file.name}</span>
+                              <span className="text-muted-foreground">({(att.file.size / 1024).toFixed(0)} KB)</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -296,11 +516,11 @@ export function EmailPanel() {
                       const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
                       const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
                       const statusIcon = email.status === "sent" ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <CheckCircle2 className="h-4 w-4 text-success" />
                       ) : email.status === "failed" ? (
                         <XCircle className="h-4 w-4 text-destructive" />
                       ) : (
-                        <Clock className="h-4 w-4 text-amber-500" />
+                        <Clock className="h-4 w-4 text-warning" />
                       );
                       return (
                         <div key={email.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
@@ -327,7 +547,6 @@ export function EmailPanel() {
                 </ScrollArea>
               )}
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t">
                   <Button
