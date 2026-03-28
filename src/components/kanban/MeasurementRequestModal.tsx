@@ -109,6 +109,35 @@ export function MeasurementRequestModal({
     localPreviewUrlsRef.current.clear();
   }, []);
 
+  const resolveStoredAssetUrl = useCallback((rawAttachment: any) => {
+    if (!rawAttachment) return "";
+
+    const directUrl = typeof rawAttachment === "string"
+      ? rawAttachment
+      : rawAttachment?.url || rawAttachment?.publicUrl || rawAttachment?.previewUrl || rawAttachment?.sourceUrl || rawAttachment?.source_url || "";
+
+    if (typeof directUrl === "string" && /^(https?:|blob:|data:)/i.test(directUrl)) {
+      return directUrl;
+    }
+
+    const bucket = typeof rawAttachment === "string"
+      ? "company-assets"
+      : rawAttachment?.bucket || rawAttachment?.bucket_name || rawAttachment?.storageBucket || "company-assets";
+
+    const rawPath = typeof rawAttachment === "string"
+      ? rawAttachment
+      : rawAttachment?.path || rawAttachment?.storagePath || rawAttachment?.storage_path || rawAttachment?.filePath || rawAttachment?.file_path || "";
+
+    if (!rawPath) return "";
+
+    const normalizedPath = String(rawPath)
+      .replace(/^\/+/, "")
+      .replace(new RegExp(`^${bucket}/`), "");
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(normalizedPath);
+    return data?.publicUrl || "";
+  }, []);
+
   const hydrateClientState = useCallback((source: any) => {
     const merged = source || {};
     const nestedDeliveryAddress = merged.delivery_address && typeof merged.delivery_address === "object"
