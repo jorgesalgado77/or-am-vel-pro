@@ -82,7 +82,12 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 )}
                 <div className="flex items-center gap-1 mt-0.5">
                   <p className="text-[11px] text-muted-foreground font-mono">
-                    {(client as any).numero_orcamento || "Sem orçamento"}
+                    {(() => {
+                      const orc = (client as any).numero_orcamento;
+                      // Guard: skip if it looks like a phone/WhatsApp number
+                      if (!orc || /^(WA-?|55|\+?\d{10,})/i.test(orc)) return "Sem orçamento";
+                      return orc;
+                    })()}
                   </p>
                   {(() => {
                     const temp = (client as any).lead_temperature as LeadTemperature | null;
