@@ -48,6 +48,16 @@ interface EnvironmentAttachment {
   sourceUrl?: string;
 }
 
+interface AddressFormState {
+  cep: string;
+  street: string;
+  number: string;
+  complement: string;
+  district: string;
+  city: string;
+  state: string;
+}
+
 interface MeasurementRequestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -79,11 +89,75 @@ export function MeasurementRequestModal({
 
   // Editable client address
   const [editingAddress, setEditingAddress] = useState(false);
-  const [addressForm, setAddressForm] = useState({
+  const [addressForm, setAddressForm] = useState<AddressFormState>({
     cep: "", street: "", number: "", complement: "", district: "", city: "", state: "",
   });
   const addressHydrationLockedRef = useRef(false);
-  const isAddressComplete = useCallback((value: typeof addressForm) => (
+  const modalSessionKeyRef = useRef<string | null>(null);
+  const modalSessionKey = useMemo(
+    () => (client?.id ? `${client.id}:${tracking?.id || "no-tracking"}` : null),
+    [client?.id, tracking?.id],
+  );
+  const addressDraftStorageKey = useMemo(
+    () => (client?.id ? `measurement-request-address:${client.id}:${tracking?.id || "no-tracking"}` : null),
+    [client?.id, tracking?.id],
+  );
+  const sanitizeAddressForm = useCallback((value?: Partial<AddressFormState> | null): AddressFormState => ({
+    cep: maskCep(String(value?.cep || "")),
+    street: String(value?.street || ""),
+    number: String(value?.number || ""),
+    complement: String(value?.complement || ""),
+    district: String(value?.district || ""),
+    city: String(value?.city || ""),
+    state: String(value?.state || "").toUpperCase().slice(0, 2),
+  }), []);
+  const normalizeAddressForm = useCallback((value?: Partial<AddressFormState> | null): AddressFormState => ({
+    cep: maskCep(String(value?.cep || "")),
+    street: String(value?.street || "").trim(),
+    number: String(value?.number || "").trim(),
+    complement: String(value?.complement || "").trim(),
+    district: String(value?.district || "").trim(),
+    city: String(value?.city || "").trim(),
+    state: String(value?.state || "").trim().toUpperCase().slice(0, 2),
+  }), []);
+  const loadAddressDraft = useCallback((): AddressFormState | null => {
+    if (!addressDraftStorageKey) return null;
+
+    try {
+      const stored = sessionStorage.getItem(addressDraftStorageKey);
+      if (!stored) return null;
+      return sanitizeAddressForm(JSON.parse(stored));
+    } catch {
+      return null;
+    }
+  }, [addressDraftStorageKey, sanitizeAddressForm]);
+  const persistAddressDraft = useCallback((value: Partial<AddressFormState>) => {
+    if (!addressDraftStorageKey) return;
+
+    try {
+      sessionStorage.setItem(addressDraftStorageKey, JSON.stringify(sanitizeAddressForm(value)));
+    } catch {
+      // ignore storage issues
+    }
+  }, [addressDraftStorageKey, sanitizeAddressForm]);
+  const clearAddressDraft = useCallback(() => {
+    if (!addressDraftStorageKey) return;
+
+    try {
+      sessionStorage.removeItem(addressDraftStorageKey);
+    } catch {
+      // ignore storage issues
+    }
+  }, [addressDraftStorageKey]);
+  const updateAddressForm = useCallback((updates: Partial<AddressFormState>) => {
+    addressHydrationLockedRef.current = true;
+    setAddressForm((prev) => {
+      const next = sanitizeAddressForm({ ...prev, ...updates });
+      persistAddressDraft(next);
+      return next;
+    });
+  }, [persistAddressDraft, sanitizeAddressForm]);
+  const isAddressComplete = useCallback((value: AddressFormState) => (
     !!(value.cep && value.street && value.city && value.state)
   ), []);
   const [cepLoading, setCepLoading] = useState(false);
@@ -129,7 +203,7 @@ export function MeasurementRequestModal({
     } catch {
       return value;
     }
-  }, []);
+  }, [persistAddressDraft, sanitizeAddressForm]);
 
   const toPersistedArray = useCallback((value: any): any[] => {
     const parsed = parsePersistedValue(value);
@@ -328,7 +402,8 @@ export function MeasurementRequestModal({
       ) || "",
     );
 
-    const nextAddressForm = {
+    const persistedDraft = loadAddressDraft();
+    const resolvedAddressForm = {
       cep: maskCep(String(pickFirstFilled(
         deliveryAddressCandidate?.cep,
         nestedClient?.delivery_address_zip,
@@ -424,6 +499,7 @@ export function MeasurementRequestModal({
         (client as any)?.uf,
       ) || ""),
     };
+    const nextAddressForm = persistedDraft || resolvedAddressForm;
 
     setEditableFields({
       telefone: maskPhone(String(pickFirstFilled(
@@ -462,21 +538,25 @@ export function MeasurementRequestModal({
     }
 
     setEditingField(null);
-  }, [client, isAddressComplete, parsePersistedValue, tracking.cpf_cnpj]);
+  }, [client, isAddressComplete, loadAddressDraft, parsePersistedValue, tracking.cpf_cnpj]);
 
   useEffect(() => {
-    if (!open || !client?.id) return;
+    if (!open || !client?.id || !modalSessionKey) return;
     let active = true;
+    const isFreshSession = modalSessionKeyRef.current !== modalSessionKey;
 
-    initialLoadDoneRef.current = false;
-    addressHydrationLockedRef.current = false;
-    clearPreviewUrls();
-    setEnvAttachments({});
-    setUploadProgress({});
-    setObservacoes("");
-    setPdfPreviewImages([]);
-    setPdfPreviewOpen(false);
-    hydrateClientState(client as any);
+    if (isFreshSession) {
+      modalSessionKeyRef.current = modalSessionKey;
+      initialLoadDoneRef.current = false;
+      addressHydrationLockedRef.current = false;
+      clearPreviewUrls();
+      setEnvAttachments({});
+      setUploadProgress({});
+      setObservacoes("");
+      setPdfPreviewImages([]);
+      setPdfPreviewOpen(false);
+      hydrateClientState(client as any);
+    }
 
     const loadFreshClient = async () => {
       const [clientRes, latestRequest] = await Promise.all([
@@ -493,12 +573,20 @@ export function MeasurementRequestModal({
       }
     };
 
-    void loadFreshClient();
+    if (isFreshSession) {
+      void loadFreshClient();
+    }
 
     return () => {
       active = false;
     };
-  }, [clearPreviewUrls, client, hydrateClientState, loadLatestMeasurementRequest, open]);
+  }, [clearPreviewUrls, client, hydrateClientState, loadLatestMeasurementRequest, modalSessionKey, open]);
+
+  useEffect(() => {
+    if (!open) {
+      modalSessionKeyRef.current = null;
+    }
+  }, [open]);
 
   useEffect(() => () => {
     clearPreviewUrls();
@@ -572,13 +660,18 @@ export function MeasurementRequestModal({
       const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
       const data = await res.json();
       if (!data.erro) {
-        setAddressForm(prev => ({
-          ...prev,
-          street: data.logradouro || prev.street,
-          district: data.bairro || prev.district,
-          city: data.localidade || prev.city,
-          state: data.uf || prev.state,
-        }));
+        addressHydrationLockedRef.current = true;
+        setAddressForm(prev => {
+          const next = sanitizeAddressForm({
+            ...prev,
+            street: data.logradouro || prev.street,
+            district: data.bairro || prev.district,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state,
+          });
+          persistAddressDraft(next);
+          return next;
+        });
         toast.success("CEP encontrado! Endereço preenchido automaticamente.");
       } else {
         toast.error("CEP não encontrado.");
@@ -601,18 +694,11 @@ export function MeasurementRequestModal({
   }, [client?.id]);
 
   const saveAddress = useCallback(async () => {
-    const nextAddressForm = {
-      cep: maskCep(addressForm.cep),
-      street: addressForm.street.trim(),
-      number: addressForm.number.trim(),
-      complement: addressForm.complement.trim(),
-      district: addressForm.district.trim(),
-      city: addressForm.city.trim(),
-      state: addressForm.state.trim().toUpperCase(),
-    };
+    const nextAddressForm = normalizeAddressForm(addressForm);
 
     addressHydrationLockedRef.current = true;
     setAddressForm(nextAddressForm);
+    persistAddressDraft(nextAddressForm);
 
     try {
       // Try updating with all possible address column names; ignore errors from non-existent columns
@@ -654,7 +740,7 @@ export function MeasurementRequestModal({
       toast.success("Endereço salvo localmente!");
       setEditingAddress(false);
     }
-  }, [client?.id, addressForm]);
+  }, [addressForm, client?.id, normalizeAddressForm, persistAddressDraft]);
 
   // Load environments from simulations
   useEffect(() => {
@@ -966,18 +1052,11 @@ export function MeasurementRequestModal({
   );
 
   const persistClientSnapshot = useCallback(async () => {
-    const normalizedAddress = {
-      cep: maskCep(addressForm.cep),
-      street: addressForm.street.trim(),
-      number: addressForm.number.trim(),
-      complement: addressForm.complement.trim(),
-      district: addressForm.district.trim(),
-      city: addressForm.city.trim(),
-      state: addressForm.state.trim().toUpperCase(),
-    };
+    const normalizedAddress = normalizeAddressForm(addressForm);
 
     addressHydrationLockedRef.current = true;
     setAddressForm(normalizedAddress);
+    persistAddressDraft(normalizedAddress);
 
     // Update only columns that exist on the clients table
     await (supabase as any).from("clients").update({
@@ -998,7 +1077,7 @@ export function MeasurementRequestModal({
         uf_entrega: normalizedAddress.state,
       } as any).eq("id", client.id);
     } catch { /* columns may not exist — address is saved in measurement_request payload */ }
-  }, [addressForm, client.id, editableFields]);
+  }, [addressForm, client.id, editableFields, normalizeAddressForm, persistAddressDraft]);
 
   const buildPdfDoc = useCallback(async () => {
     const { default: jsPDF } = await import("jspdf");
@@ -1507,12 +1586,16 @@ export function MeasurementRequestModal({
   }, [buildPdfDoc, client.nome]);
 
   const handleSubmit = async () => {
+    const normalizedAddress = normalizeAddressForm(addressForm);
+    addressHydrationLockedRef.current = true;
+    setAddressForm(normalizedAddress);
+    persistAddressDraft(normalizedAddress);
+
     if (!allEnvsHaveAttachments) {
       toast.error("Cada ambiente precisa ter pelo menos 1 arquivo anexado (imagem ou PDF)");
       return;
     }
-    if (!hasAddress) {
-      addressHydrationLockedRef.current = false;
+    if (!isAddressComplete(normalizedAddress)) {
       toast.error("Complete o endereço de entrega antes de enviar a solicitação");
       setEditingAddress(true);
       return;
@@ -1593,13 +1676,13 @@ export function MeasurementRequestModal({
           cpf: editableFields.cpf,
         },
         delivery_address: {
-          cep: addressForm.cep,
-          street: addressForm.street,
-          number: addressForm.number,
-          complement: addressForm.complement,
-          district: addressForm.district,
-          city: addressForm.city,
-          state: addressForm.state,
+          cep: normalizedAddress.cep,
+          street: normalizedAddress.street,
+          number: normalizedAddress.number,
+          complement: normalizedAddress.complement,
+          district: normalizedAddress.district,
+          city: normalizedAddress.city,
+          state: normalizedAddress.state,
         },
       } as any);
 
@@ -1645,10 +1728,10 @@ export function MeasurementRequestModal({
         duration: 6000,
       });
 
+      clearAddressDraft();
       addressHydrationLockedRef.current = false;
       onOpenChange(false);
     } catch (err: any) {
-      addressHydrationLockedRef.current = false;
       toast.error("Erro ao enviar solicitação: " + (err.message || "erro desconhecido"));
     } finally {
       setSaving(false);
@@ -1792,7 +1875,7 @@ export function MeasurementRequestModal({
                             value={addressForm.cep}
                             onChange={e => {
                               const maskedCep = maskCep(e.target.value);
-                              setAddressForm(p => ({ ...p, cep: maskedCep }));
+                              updateAddressForm({ cep: maskedCep });
                               if (maskedCep.replace(/\D/g, "").length === 8) {
                                 void fetchCep(maskedCep);
                               }
@@ -1809,31 +1892,31 @@ export function MeasurementRequestModal({
                     <div className="grid grid-cols-3 gap-2">
                       <div className="col-span-2">
                         <Label className="text-[10px]">Rua</Label>
-                        <Input className="h-7 text-xs" value={addressForm.street} onChange={e => setAddressForm(p => ({ ...p, street: e.target.value }))} />
+                        <Input className="h-7 text-xs" value={addressForm.street} onChange={e => updateAddressForm({ street: e.target.value })} />
                       </div>
                       <div>
                         <Label className="text-[10px]">Nº</Label>
-                        <Input className="h-7 text-xs" value={addressForm.number} onChange={e => setAddressForm(p => ({ ...p, number: e.target.value }))} />
+                        <Input className="h-7 text-xs" value={addressForm.number} onChange={e => updateAddressForm({ number: e.target.value })} />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-[10px]">Complemento</Label>
-                        <Input className="h-7 text-xs" value={addressForm.complement} onChange={e => setAddressForm(p => ({ ...p, complement: e.target.value }))} />
+                        <Input className="h-7 text-xs" value={addressForm.complement} onChange={e => updateAddressForm({ complement: e.target.value })} />
                       </div>
                       <div>
                         <Label className="text-[10px]">Bairro</Label>
-                        <Input className="h-7 text-xs" value={addressForm.district} onChange={e => setAddressForm(p => ({ ...p, district: e.target.value }))} />
+                        <Input className="h-7 text-xs" value={addressForm.district} onChange={e => updateAddressForm({ district: e.target.value })} />
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="col-span-2">
                         <Label className="text-[10px]">Cidade</Label>
-                        <Input className="h-7 text-xs" value={addressForm.city} onChange={e => setAddressForm(p => ({ ...p, city: e.target.value }))} />
+                        <Input className="h-7 text-xs" value={addressForm.city} onChange={e => updateAddressForm({ city: e.target.value })} />
                       </div>
                       <div>
                         <Label className="text-[10px]">UF</Label>
-                        <Input className="h-7 text-xs" maxLength={2} value={addressForm.state} onChange={e => setAddressForm(p => ({ ...p, state: e.target.value.toUpperCase() }))} />
+                        <Input className="h-7 text-xs" maxLength={2} value={addressForm.state} onChange={e => updateAddressForm({ state: e.target.value.toUpperCase() })} />
                       </div>
                     </div>
                     <Button size="sm" className="w-full h-7 text-xs" onClick={saveAddress}>
