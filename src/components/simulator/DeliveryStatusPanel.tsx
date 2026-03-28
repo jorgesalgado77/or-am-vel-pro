@@ -151,8 +151,8 @@ export const DeliveryStatusPanel = memo(function DeliveryStatusPanel({
       }
 
       const [emailResult, waResult] = await Promise.all([
-        emailPromise.then(r => r.data).catch(() => null),
-        waQuery.then(r => r.data).catch(() => null),
+        emailPromise.then(r => r.data as any[] | null, () => null),
+        waQuery.then(r => r.data as any[] | null, () => null),
       ]);
 
       if (emailResult) {
