@@ -373,6 +373,107 @@ async function sendViaZapi(phone: string, message: string, config: { instanceId:
   return { success: true };
 }
 
+// ── Inbound Webhook Handler ──
+
+function normalizePhone(raw: string): string {
+  return String(raw || "").replace(/\D/g, "").replace(/^55(\d{10,11})$/, "$1");
+}
+
+async function handleInboundWebhook(body: any, isEvolution: boolean) {
+  const sb = getSupabaseAdmin();
+
+  let senderPhone = "";
+  let messageText = "";
+  let instanceId = "";
+
+  if (isEvolution) {
+    // Evolution API webhook format
+    const data = body.data || {};
+    senderPhone = data.key?.remoteJid?.replace(/@.*/, "") || "";
+    messageText = data.message?.conversation || data.message?.extendedTextMessage?.text || "";
+    instanceId = body.instance || "";
+  } else {
+    // Z-API webhook format
+    senderPhone = body.phone || body.sender || "";
+    messageText = body.text?.message || body.text || body.message || "";
+    instanceId = body.instanceId || "";
+  }
+
+  const cleanPhone = normalizePhone(senderPhone);
+  if (!cleanPhone || !messageText) {
+    console.log("[Webhook] Ignored: no phone or text", { cleanPhone, messageText: messageText?.substring(0, 30) });
+    return respond({ status: "ignored" });
+  }
+
+  console.log(`[Webhook Inbound] Phone: ${cleanPhone}, Text: ${messageText.substring(0, 60)}`);
+
+  // Find client by phone (try multiple formats)
+  const { data: client } = await sb
+    .from("clients")
+    .select("id, nome, tenant_id")
+    .or(`telefone.like.%${cleanPhone},celular.like.%${cleanPhone},whatsapp.like.%${cleanPhone}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (!client) {
+    console.log(`[Webhook] No client found for phone ${cleanPhone}`);
+    // Still save the message to a general tracking if possible
+    return respond({ status: "no_client_match", phone: cleanPhone });
+  }
+
+  // Find or create a tracking record for this client
+  let trackingId: string | null = null;
+
+  const { data: existingTracking } = await sb
+    .from("client_tracking")
+    .select("id")
+    .eq("client_id", client.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingTracking) {
+    trackingId = existingTracking.id;
+  } else {
+    // Create a tracking entry for this client
+    const { data: newTracking } = await sb
+      .from("client_tracking")
+      .insert({
+        client_id: client.id,
+        tenant_id: client.tenant_id,
+        nome_cliente: client.nome || "Cliente",
+        numero_contrato: `WA-${cleanPhone.slice(-4)}`,
+        status: "em_andamento",
+      })
+      .select("id")
+      .single();
+    trackingId = newTracking?.id || null;
+  }
+
+  if (!trackingId) {
+    console.error("[Webhook] Could not find/create tracking for client", client.id);
+    return respond({ status: "tracking_error" }, 500);
+  }
+
+  // Insert inbound message into tracking_messages
+  const { error: insertError } = await sb.from("tracking_messages").insert({
+    tracking_id: trackingId,
+    mensagem: messageText,
+    remetente_tipo: "cliente",
+    remetente_nome: client.nome || "Cliente",
+    lida: false,
+    tenant_id: client.tenant_id,
+  });
+
+  if (insertError) {
+    console.error("[Webhook] Insert error:", insertError);
+    return respond({ status: "insert_error", error: insertError.message }, 500);
+  }
+
+  console.log(`[Webhook] Message saved to tracking ${trackingId} from ${client.nome}`);
+  return respond({ status: "ok", tracking_id: trackingId, client_id: client.id });
+}
+
 // ── Main Handler ──
 
 serve(async (req) => {
