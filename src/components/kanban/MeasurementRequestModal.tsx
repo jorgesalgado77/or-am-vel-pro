@@ -872,6 +872,11 @@ export function MeasurementRequestModal({
             <Ruler className="h-5 w-5 text-primary" />
             Solicitação de Medida
           </DialogTitle>
+          {tracking.numero_contrato && (
+            <p className="text-xs text-muted-foreground font-mono mt-1">
+              Nº Contrato: <span className="font-semibold text-foreground">{tracking.numero_contrato}</span>
+            </p>
+          )}
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 pb-2" style={{ maxHeight: "calc(90vh - 140px)" }}>
