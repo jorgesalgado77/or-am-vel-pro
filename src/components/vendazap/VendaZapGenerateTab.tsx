@@ -684,7 +684,12 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                         <button key={c.id} onClick={() => { setSelectedClient(c); updateForm({ selectedClientId: c.id, searchClient: "", mensagemGerada: "" }); setClosingScore(null); }}
                           className="w-full text-left px-3 py-2.5 hover:bg-secondary/80 transition-colors text-sm flex items-center justify-between cursor-pointer">
                           <div className="min-w-0">
-                            <span className="font-medium text-foreground block truncate">{c.nome}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-foreground block truncate">{c.nome}</span>
+                              {clientsWithChat.has(c.id) && (
+                                <MessageSquare className="h-3.5 w-3.5 text-emerald-500 shrink-0" title="Tem conversa no chat" />
+                              )}
+                            </div>
                             {c.numero_orcamento && <span className="text-[11px] text-muted-foreground">#{c.numero_orcamento}</span>}
                           </div>
                           <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{score.emoji} {score.label}</Badge>
