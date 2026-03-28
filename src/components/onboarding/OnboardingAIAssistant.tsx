@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 const ONBOARDING_STEPS = [
   { key: "company_info", label: "Dados da loja" },
