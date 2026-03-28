@@ -152,19 +152,34 @@ export function ClientsKanban({
     fetchContractClients();
   }, [localClients.length]);
 
-  // Auto-assign orçamento numbers to clients missing them
+  // Auto-assign orçamento numbers to clients missing or with duplicates/invalid values
   useEffect(() => {
     const tenantId = getTenantId();
     if (!tenantId || localClients.length === 0) return;
-    const missing = localClients.filter(c => {
+
+    // Detect duplicates
+    const orcCounts = new Map<string, string[]>();
+    localClients.forEach(c => {
       const orc = (c as any).numero_orcamento;
-      // Missing or contains a phone/WhatsApp number instead of a real budget number
-      return !orc || /^(WA-?|55|\+?\d{10,})/i.test(orc);
+      if (orc) {
+        const ids = orcCounts.get(orc) || [];
+        ids.push(c.id);
+        orcCounts.set(orc, ids);
+      }
     });
-    if (missing.length === 0) return;
+
+    const needsFix = localClients.filter(c => {
+      const orc = (c as any).numero_orcamento;
+      // Missing, invalid (phone number), or duplicate
+      if (!orc || /^(WA-?|55|\+?\d{10,})/i.test(orc)) return true;
+      const ids = orcCounts.get(orc);
+      if (ids && ids.length > 1 && ids[0] !== c.id) return true; // keep first, fix rest
+      return false;
+    });
+    if (needsFix.length === 0) return;
 
     const assignNumbers = async () => {
-      for (const client of missing) {
+      for (const client of needsFix) {
         try {
           const orc = await generateOrcamentoNumber(tenantId);
           await supabase.from("clients").update(orc as any).eq("id", client.id);

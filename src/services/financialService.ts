@@ -41,12 +41,25 @@ export const FORMAS_PAGAMENTO_LABELS: Record<string, string> = {
 
 /**
  * Generates the next sequential budget (orçamento) number.
- * Used in both Index.tsx and SimulatorPanel.tsx — now centralized.
+ * Format: CCC.CCC.SSS.SS where CCC.CCC is the store code (immutable)
+ * and SSS.SS is the sequential part (00001–99999).
+ * When SSS reaches 999, SS increments: 000.01 → 001.01 → ... → 999.01 → 000.02 ...
  */
 export async function generateOrcamentoNumber(tenantId?: string | null): Promise<{
   numero_orcamento: string;
   numero_orcamento_seq: number;
 }> {
+  // 1. Get the store code from company_settings
+  let storeCode = "000000";
+  const settingsQuery = tenantId
+    ? (supabase as any).from("company_settings").select("codigo_loja, orcamento_numero_inicial").eq("tenant_id", tenantId).maybeSingle()
+    : (supabase as any).from("company_settings").select("codigo_loja, orcamento_numero_inicial").limit(1).maybeSingle();
+  const { data: settingsData } = await settingsQuery;
+  if (settingsData?.codigo_loja) {
+    storeCode = String(settingsData.codigo_loja).replace(/\D/g, "").padStart(6, "0").slice(0, 6);
+  }
+
+  // 2. Find the max existing sequential number for this tenant
   let maxQuery = supabase
     .from("clients")
     .select("numero_orcamento_seq")
@@ -57,18 +70,14 @@ export async function generateOrcamentoNumber(tenantId?: string | null): Promise
 
   let nextSeq: number;
   if (!maxData?.numero_orcamento_seq) {
-    const { data: settingsData } = await supabase
-      .from("company_settings")
-      .select("orcamento_numero_inicial")
-      .limit(1)
-      .single() as any;
     nextSeq = settingsData?.orcamento_numero_inicial || 1;
   } else {
     nextSeq = (maxData.numero_orcamento_seq as number) + 1;
   }
 
-  const padded = String(nextSeq).padStart(11, "0");
-  const formatted = `${padded.slice(0, 3)}.${padded.slice(3, 6)}.${padded.slice(6, 9)}.${padded.slice(9, 11)}`;
+  // 3. Format: storeCode (6 digits) + sequential (5 digits) = CCC.CCC.SSS.SS
+  const seqPadded = String(nextSeq).padStart(5, "0").slice(-5);
+  const formatted = `${storeCode.slice(0, 3)}.${storeCode.slice(3, 6)}.${seqPadded.slice(0, 3)}.${seqPadded.slice(3, 5)}`;
   return { numero_orcamento: formatted, numero_orcamento_seq: nextSeq };
 }
 
