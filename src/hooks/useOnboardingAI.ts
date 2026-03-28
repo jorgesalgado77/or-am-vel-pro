@@ -82,21 +82,108 @@ function detectNavigationCommand(text: string): CommandMatch | null {
   return null;
 }
 
-function detectAlertCommand(text: string): { title: string; minutes: number } | null {
+function detectAlertCommand(text: string): { title: string; minutes: number; absoluteDate?: Date } | null {
   const lower = text.toLowerCase();
-  const match = lower.match(/(criar|agendar|definir|setar?)\s+(lembrete|alerta|alarme)\s*[:\-]?\s*(.*)/i);
-  if (!match) return null;
-  const rest = match[3] || text;
-  // Try to extract time like "em 5 minutos", "em 1 hora", "em 30 min"
-  const timeMatch = rest.match(/em\s+(\d+)\s*(min|minuto|hora|h)/i);
-  let minutes = 5; // default 5 min
-  if (timeMatch) {
-    const val = parseInt(timeMatch[1]);
-    const unit = timeMatch[2].toLowerCase();
-    minutes = (unit.startsWith("h")) ? val * 60 : val;
+
+  // Match patterns: "criar lembrete", "agendar lembrete", "me lembre", "lembrete para", "quero um lembrete"
+  const intentMatch = lower.match(
+    /(criar|agendar|definir|setar?|me\s+lembr[ae]|quero\s+um\s+lembrete|lembrete\s+(para|de|:))\s*/i
+  );
+  // Also match if user just says "lembrete" followed by content
+  const simpleMatch = !intentMatch && /^lembrete\s+/i.test(lower);
+  if (!intentMatch && !simpleMatch) return null;
+
+  const rest = text.replace(/^.*?(lembrete|alarme|alerta)\s*[:\-]?\s*/i, "").trim();
+
+  // Try absolute date/time: "amanhã às 23:15", "hoje às 10:00", "dia 28 às 14:00", "28/03 às 14:00"
+  let absoluteDate: Date | undefined;
+  let minutes = 5;
+  let cleanedTitle = rest;
+
+  // Pattern: "amanhã às HH:MM"
+  const tomorrowMatch = rest.match(/amanh[ãa]\s+[àa]s?\s+(\d{1,2})[:\.](\d{2})/i);
+  if (tomorrowMatch) {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(parseInt(tomorrowMatch[1]), parseInt(tomorrowMatch[2]), 0, 0);
+    absoluteDate = d;
+    minutes = Math.max(1, Math.round((d.getTime() - Date.now()) / 60000));
+    cleanedTitle = rest.replace(/amanh[ãa]\s+[àa]s?\s+\d{1,2}[:\.]?\d{0,2}/i, "").trim();
   }
-  const title = rest.replace(/em\s+\d+\s*(min|minuto|hora|h)[s]?/i, "").replace(/[:\-]/g, "").trim() || "Lembrete da Mia";
-  return { title, minutes };
+
+  // Pattern: "hoje às HH:MM"
+  if (!absoluteDate) {
+    const todayMatch = rest.match(/hoje\s+[àa]s?\s+(\d{1,2})[:\.](\d{2})/i);
+    if (todayMatch) {
+      const d = new Date();
+      d.setHours(parseInt(todayMatch[1]), parseInt(todayMatch[2]), 0, 0);
+      if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1); // if past, set to tomorrow
+      absoluteDate = d;
+      minutes = Math.max(1, Math.round((d.getTime() - Date.now()) / 60000));
+      cleanedTitle = rest.replace(/hoje\s+[àa]s?\s+\d{1,2}[:\.]?\d{0,2}/i, "").trim();
+    }
+  }
+
+  // Pattern: "dia DD às HH:MM" or "dia DD/MM às HH:MM"
+  if (!absoluteDate) {
+    const dayMatch = rest.match(/dia\s+(\d{1,2})(?:\/(\d{1,2}))?\s+[àa]s?\s+(\d{1,2})[:\.](\d{2})/i);
+    if (dayMatch) {
+      const d = new Date();
+      const day = parseInt(dayMatch[1]);
+      const month = dayMatch[2] ? parseInt(dayMatch[2]) - 1 : d.getMonth();
+      d.setMonth(month, day);
+      d.setHours(parseInt(dayMatch[3]), parseInt(dayMatch[4]), 0, 0);
+      if (d.getTime() < Date.now()) d.setMonth(d.getMonth() + 1);
+      absoluteDate = d;
+      minutes = Math.max(1, Math.round((d.getTime() - Date.now()) / 60000));
+      cleanedTitle = rest.replace(/dia\s+\d{1,2}(?:\/\d{1,2})?\s+[àa]s?\s+\d{1,2}[:\.]?\d{0,2}/i, "").trim();
+    }
+  }
+
+  // Pattern: "DD/MM às HH:MM" or "DD/MM/AAAA às HH:MM"
+  if (!absoluteDate) {
+    const dateMatch = rest.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s+[àa]s?\s+(\d{1,2})[:\.](\d{2})/i);
+    if (dateMatch) {
+      const d = new Date();
+      const day = parseInt(dateMatch[1]);
+      const month = parseInt(dateMatch[2]) - 1;
+      const year = dateMatch[3] ? (dateMatch[3].length === 2 ? 2000 + parseInt(dateMatch[3]) : parseInt(dateMatch[3])) : d.getFullYear();
+      d.setFullYear(year, month, day);
+      d.setHours(parseInt(dateMatch[4]), parseInt(dateMatch[5]), 0, 0);
+      if (d.getTime() < Date.now()) d.setFullYear(d.getFullYear() + 1);
+      absoluteDate = d;
+      minutes = Math.max(1, Math.round((d.getTime() - Date.now()) / 60000));
+      cleanedTitle = rest.replace(/\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s+[àa]s?\s+\d{1,2}[:\.]?\d{0,2}/i, "").trim();
+    }
+  }
+
+  // Pattern: "às HH:MM" (today, or tomorrow if past)
+  if (!absoluteDate) {
+    const timeOnlyMatch = rest.match(/[àa]s?\s+(\d{1,2})[:\.](\d{2})/i);
+    if (timeOnlyMatch) {
+      const d = new Date();
+      d.setHours(parseInt(timeOnlyMatch[1]), parseInt(timeOnlyMatch[2]), 0, 0);
+      if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
+      absoluteDate = d;
+      minutes = Math.max(1, Math.round((d.getTime() - Date.now()) / 60000));
+      cleanedTitle = rest.replace(/[àa]s?\s+\d{1,2}[:\.]?\d{0,2}/i, "").trim();
+    }
+  }
+
+  // Fallback: "em X minutos/horas"
+  if (!absoluteDate) {
+    const timeMatch = rest.match(/em\s+(\d+)\s*(min|minuto|hora|h)/i);
+    if (timeMatch) {
+      const val = parseInt(timeMatch[1]);
+      const unit = timeMatch[2].toLowerCase();
+      minutes = unit.startsWith("h") ? val * 60 : val;
+      cleanedTitle = rest.replace(/em\s+\d+\s*(min|minuto|hora|h)[s]?/i, "").trim();
+    }
+  }
+
+  // Clean up title: remove "para", "de", ":" prefixes
+  const title = cleanedTitle.replace(/^(para|de|que|:|\s)+/i, "").trim() || "Lembrete da Mia";
+  return { title, minutes, absoluteDate };
 }
 
 // --- Storage helpers ---
@@ -355,12 +442,32 @@ export function useOnboardingAI(tenantId: string | null) {
     // === Alert/Reminder commands ===
     const alertCmd = detectAlertCommand(content);
     if (alertCmd) {
+      const scheduledDate = alertCmd.absoluteDate || new Date(Date.now() + alertCmd.minutes * 60000);
       const alert = addAlert(alertCmd.title, alertCmd.minutes);
-      const timeStr = alertCmd.minutes >= 60
-        ? `${Math.floor(alertCmd.minutes / 60)}h${alertCmd.minutes % 60 > 0 ? `${alertCmd.minutes % 60}min` : ""}`
-        : `${alertCmd.minutes} minutos`;
+
+      // Persist to DB via edge function
+      const { data: session } = await supabase.auth.getSession();
+      supabase.functions.invoke("create-reminder", {
+        body: {
+          action: "create",
+          tenant_id: tenantId,
+          user_id: session?.session?.user?.id || currentUserId,
+          title: alertCmd.title,
+          content: alertCmd.title,
+          scheduled_for: scheduledDate.toISOString(),
+        },
+      }).catch(() => { /* fallback to localStorage already saved */ });
+
+      const dateStr = scheduledDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const timeStr = scheduledDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const diffMs = scheduledDate.getTime() - Date.now();
+      const diffMin = Math.round(diffMs / 60000);
+      const diffStr = diffMin >= 60
+        ? `${Math.floor(diffMin / 60)}h${diffMin % 60 > 0 ? `${diffMin % 60}min` : ""}`
+        : `${diffMin} minutos`;
+
       appendAssistant(
-        `⏰ **Lembrete criado!**\n\n• **${alertCmd.title}**\n• Disparo em: ${timeStr}\n• Horário: ${new Date(alert.datetime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}\n\nVocê receberá uma notificação visual e sonora quando o momento chegar.`
+        `⏰ **Lembrete criado com sucesso!**\n\n• **${alertCmd.title}**\n• 📅 Data: ${dateStr}\n• 🕐 Horário: ${timeStr}\n• ⏳ Disparo em: ${diffStr}\n\nVocê receberá uma notificação visual e sonora quando o momento chegar.`
       );
       return true;
     }
