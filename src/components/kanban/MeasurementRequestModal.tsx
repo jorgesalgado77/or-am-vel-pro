@@ -288,100 +288,300 @@ export function MeasurementRequestModal({
     setPdfPreviewLoading(true);
     try {
       const { default: jsPDF } = await import("jspdf");
-      const doc = new jsPDF();
-      const c = client as any;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+      const mx = 14;
+      const cw = pw - mx * 2;
 
-      doc.setFontSize(16);
-      doc.text("Solicitação de Medida", 20, 20);
-      doc.setFontSize(10);
-      doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 20, 28);
+      // Colors
+      const PRIMARY: [number, number, number] = [8, 145, 178];
+      const PRIMARY_LIGHT: [number, number, number] = [230, 247, 250];
+      const DARK: [number, number, number] = [30, 41, 59];
+      const GRAY: [number, number, number] = [100, 116, 139];
+      const WHITE: [number, number, number] = [255, 255, 255];
+      const BORDER: [number, number, number] = [203, 213, 225];
+      const BG_ALT: [number, number, number] = [248, 250, 252];
 
-      doc.setFontSize(12);
-      doc.text("Dados da Loja", 20, 40);
-      doc.setFontSize(10);
-      const storeInfo = [
-        `Loja: ${storeData.name || "—"}`,
-        `CNPJ: ${storeData.cnpj || "—"}`,
-        `Código da Loja: ${storeData.codigo_loja || "—"}`,
-        `Gerente: ${storeData.gerente_nome || "—"}`,
-      ];
+      let y = 0;
 
-      let y = 48;
-      for (const line of storeInfo) {
-        const lines = doc.splitTextToSize(line, 170);
-        doc.text(lines, 20, y);
-        y += lines.length * 6;
+      const checkPage = (need = 20) => {
+        if (y + need > ph - 18) { doc.addPage(); y = 14; }
+      };
+
+      const drawSectionFrame = (startY: number, height: number, title: string) => {
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(mx, startY, cw, height, 2, 2, "S");
+        // Title bar
+        doc.setFillColor(...PRIMARY);
+        doc.roundedRect(mx, startY, cw, 8, 2, 2, "F");
+        // Cover bottom corners of title bar
+        doc.rect(mx, startY + 5, cw, 3, "F");
+        doc.setTextColor(...WHITE);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text(title, mx + 4, startY + 5.5);
+      };
+
+      const fieldLabel = (label: string, value: string, xPos: number, yPos: number, maxW = 80) => {
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text(label, xPos, yPos);
+        doc.setTextColor(...DARK);
+        doc.setFont("helvetica", "bold");
+        doc.text(value || "—", xPos, yPos + 4, { maxWidth: maxW });
+      };
+
+      // ══════════════════ HEADER ══════════════════
+      doc.setFillColor(...PRIMARY);
+      doc.rect(0, 0, pw, 28, "F");
+
+      // Logo
+      let logoX = mx;
+      if (storeData.logo_url) {
+        try {
+          const img = new window.Image();
+          img.crossOrigin = "anonymous";
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject();
+            img.src = storeData.logo_url;
+          });
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const logoData = canvas.toDataURL("image/png");
+            const logoH = 16;
+            const logoW = (img.width / img.height) * logoH;
+            doc.addImage(logoData, "PNG", mx + 2, 6, logoW, logoH);
+            logoX = mx + logoW + 6;
+          }
+        } catch {
+          // skip logo if load fails
+        }
       }
 
-      y += 4;
-      doc.setFontSize(12);
-      doc.text("Dados do Cliente", 20, y);
-      y += 8;
-      doc.setFontSize(10);
+      doc.setTextColor(...WHITE);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("SOLICITAÇÃO DE MEDIDA", logoX, 14);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }), logoX, 20);
+      doc.text(`Nº Contrato: ${tracking.numero_contrato || "—"}`, pw - mx, 14, { align: "right" });
+
+      y = 34;
+
+      // ══════════════════ DADOS DA LOJA ══════════════════
+      const storeH = 28;
+      drawSectionFrame(y, storeH, "DADOS DA LOJA");
+      const sy = y + 12;
+      const col1 = mx + 4;
+      const col2 = mx + cw / 2 + 2;
+      fieldLabel("Loja", storeData.name, col1, sy);
+      fieldLabel("CNPJ", storeData.cnpj, col2, sy);
+      fieldLabel("Código da Loja", storeData.codigo_loja, col1, sy + 10);
+      fieldLabel("Gerente", storeData.gerente_nome, col2, sy + 10);
+      y += storeH + 4;
+
+      // ══════════════════ DADOS DO CLIENTE ══════════════════
       const fullAddr = [
-        addressForm.street,
-        addressForm.number,
-        addressForm.complement,
-        addressForm.district,
+        addressForm.street, addressForm.number, addressForm.complement, addressForm.district,
         addressForm.city && addressForm.state ? `${addressForm.city} - ${addressForm.state}` : addressForm.city || addressForm.state,
         addressForm.cep,
-      ].filter(Boolean).join(", ") || c.endereco_entrega || c.endereco || "Não informado";
+      ].filter(Boolean).join(", ") || "Não informado";
 
-      const info = [
-        `Nome: ${client.nome}`,
-        `CPF/CNPJ: ${editableFields.cpf || "—"}`,
-        `Telefone: ${editableFields.telefone || "—"}`,
-        `Email: ${editableFields.email || "—"}`,
-        `Nº Contrato: ${tracking.numero_contrato || "—"}`,
-        `Vendedor: ${client.vendedor || "—"}`,
-        `Endereço de Entrega: ${fullAddr}`,
+      const clientH = 42;
+      drawSectionFrame(y, clientH, "DADOS DO CLIENTE");
+      const cy = y + 12;
+      fieldLabel("Nome", client.nome, col1, cy, cw / 2 - 10);
+      fieldLabel("CPF/CNPJ", editableFields.cpf, col2, cy);
+      fieldLabel("Telefone", editableFields.telefone, col1, cy + 10);
+      fieldLabel("Email", editableFields.email, col2, cy + 10);
+      fieldLabel("Vendedor", client.vendedor || "—", col1, cy + 20);
+      fieldLabel("Endereço de Entrega", fullAddr, col2, cy + 20, cw / 2 - 8);
+      y += clientH + 4;
+
+      // ══════════════════ VALOR TOTAL ══════════════════
+      doc.setFillColor(...PRIMARY_LIGHT);
+      doc.setDrawColor(...PRIMARY);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(mx, y, cw, 12, 2, 2, "FD");
+      doc.setTextColor(...PRIMARY);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("VALOR TOTAL À VISTA", mx + 4, y + 7.5);
+      doc.text(formatCurrency(totalValorAvista), pw - mx - 4, y + 7.5, { align: "right" });
+      y += 16;
+
+      // ══════════════════ AMBIENTES ══════════════════
+      if (environments.length > 0) {
+        checkPage(30);
+        const envStartY = y;
+        // Table header
+        doc.setFillColor(...PRIMARY);
+        doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
+        doc.rect(mx, y + 5, cw, 3, "F");
+        doc.setTextColor(...WHITE);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text(`AMBIENTES VENDIDOS (${environments.length})`, mx + 4, y + 5.5);
+        y += 10;
+
+        // Column headers
+        doc.setFillColor(...BG_ALT);
+        doc.rect(mx, y, cw, 7, "F");
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text("Ambiente", mx + 4, y + 5);
+        doc.text("Arquivo", mx + cw * 0.5, y + 5);
+        doc.text("Fotos", mx + cw * 0.75, y + 5);
+        doc.text("Valor", pw - mx - 4, y + 5, { align: "right" });
+        y += 8;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        for (let i = 0; i < environments.length; i++) {
+          checkPage(8);
+          const env = environments[i];
+          const imgs = envImages[env.id] || [];
+          if (i % 2 === 0) {
+            doc.setFillColor(...BG_ALT);
+            doc.rect(mx, y - 3.5, cw, 7, "F");
+          }
+          doc.setDrawColor(...BORDER);
+          doc.setLineWidth(0.1);
+          doc.line(mx, y + 3.5, pw - mx, y + 3.5);
+
+          doc.setTextColor(...DARK);
+          doc.text(env.name, mx + 4, y + 1);
+          doc.setTextColor(...GRAY);
+          doc.text(env.fileName || "—", mx + cw * 0.5, y + 1, { maxWidth: cw * 0.22 });
+          doc.text(`${imgs.length} img`, mx + cw * 0.75, y + 1);
+          doc.setTextColor(...DARK);
+          doc.setFont("helvetica", "bold");
+          doc.text(formatCurrency(env.value), pw - mx - 4, y + 1, { align: "right" });
+          doc.setFont("helvetica", "normal");
+          y += 7;
+        }
+
+        // Border around table
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(mx, envStartY, cw, y - envStartY + 2, 2, 2, "S");
+        y += 6;
+      }
+
+      // ══════════════════ DIMENSÕES DE UTILITÁRIOS ══════════════════
+      checkPage(100);
+      const utilitarios = [
+        "Refrigerador", "Fogão / Cooktop", "Forno Elétrico", "Micro-ondas",
+        "Lava Louças", "Lava Roupas", "Aquecedor", "Adega",
+        "Climatizador", "Ar Condicionado", "TV", "Cama Box",
+        "", "", "", "",
       ];
 
-      for (const line of info) {
-        const lines = doc.splitTextToSize(line, 170);
-        doc.text(lines, 20, y);
-        y += lines.length * 6;
-      }
-
-      y += 6;
-      doc.setFontSize(12);
-      doc.text(`Valor Total à Vista: ${formatCurrency(totalValorAvista)}`, 20, y);
+      const tblStartY = y;
+      // Title bar
+      doc.setFillColor(...PRIMARY);
+      doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
+      doc.rect(mx, y + 5, cw, 3, "F");
+      doc.setTextColor(...WHITE);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("DIMENSÕES DE UTILITÁRIOS", mx + 4, y + 5.5);
       y += 10;
 
-      doc.text(`Ambientes Vendidos (${environments.length})`, 20, y);
+      // Column widths
+      const nameW = cw * 0.40;
+      const dimW = (cw - nameW) / 3;
+      const colStarts = [mx, mx + nameW, mx + nameW + dimW, mx + nameW + dimW * 2];
+
+      // Table header row
+      doc.setFillColor(...PRIMARY);
+      doc.rect(mx, y, cw, 7, "F");
+      doc.setTextColor(...WHITE);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("UTILITÁRIO", colStarts[0] + 4, y + 5);
+      doc.text("LARGURA", colStarts[1] + 3, y + 5);
+      doc.text("ALTURA", colStarts[2] + 3, y + 5);
+      doc.text("PROFUNDIDADE", colStarts[3] + 3, y + 5);
       y += 8;
-      doc.setFontSize(10);
-      for (const env of environments) {
-        doc.text(`• ${env.name} — ${formatCurrency(env.value)}`, 24, y);
-        y += 6;
-        if (env.fileName) {
-          doc.text(`  Arquivo: ${env.fileName}`, 28, y);
-          y += 6;
+
+      // Data rows
+      doc.setFontSize(8);
+      const rowH = 7;
+      for (let i = 0; i < utilitarios.length; i++) {
+        checkPage(rowH + 2);
+        if (i % 2 === 0) {
+          doc.setFillColor(...BG_ALT);
+          doc.rect(mx, y - 1, cw, rowH, "F");
         }
-        const imgs = envImages[env.id] || [];
-        doc.text(`  Imagens anexadas: ${imgs.length}`, 28, y);
-        y += 8;
-        if (y > 270) {
-          doc.addPage();
-          y = 20;
+
+        // Vertical lines
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.2);
+        for (let c = 1; c < 4; c++) {
+          doc.line(colStarts[c], y - 1, colStarts[c], y + rowH - 1);
         }
+
+        // Horizontal bottom line
+        doc.line(mx, y + rowH - 1, pw - mx, y + rowH - 1);
+
+        // Name
+        doc.setTextColor(...DARK);
+        doc.setFont("helvetica", utilitarios[i] ? "normal" : "italic");
+        doc.text(utilitarios[i] || "", colStarts[0] + 4, y + 4);
+
+        // Empty dimension cells (for manual fill)
+        // Just draw light dotted placeholders
+        if (!utilitarios[i]) {
+          doc.setTextColor(200, 200, 200);
+          doc.text("________________", colStarts[0] + 4, y + 4);
+        }
+
+        y += rowH;
       }
 
+      // Border around entire table
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(mx, tblStartY, cw, y - tblStartY + 1, 2, 2, "S");
+      y += 8;
+
+      // ══════════════════ FOOTER ══════════════════
+      const footerY = ph - 12;
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.3);
+      doc.line(mx, footerY - 3, pw - mx, footerY - 3);
+      doc.setTextColor(...GRAY);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.text(
+        `${storeData.name || "Empresa"} — Solicitação de Medida gerada automaticamente pelo sistema.`,
+        pw / 2, footerY, { align: "center" }
+      );
+
+      // ── Render to images ──
       const arrayBuffer = doc.output("arraybuffer");
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const images: string[] = [];
 
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
         const page = await pdf.getPage(pageNumber);
-        const viewport = page.getViewport({ scale: 1.5 });
+        const viewport = page.getViewport({ scale: 2 });
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
-
         if (!context) continue;
-
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-
         await page.render({ canvas, canvasContext: context, viewport }).promise;
         images.push(canvas.toDataURL("image/png"));
       }
