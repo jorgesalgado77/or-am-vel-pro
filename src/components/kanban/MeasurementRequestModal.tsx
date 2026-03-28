@@ -43,68 +43,6 @@ export function MeasurementRequestModal({
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [envImages, setEnvImages] = useState<Record<string, File[]>>({});
   const [saving, setSaving] = useState(false);
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
-
-  const generatePdfPreview = useCallback(async () => {
-    const { default: jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    const c = client as any;
-
-    doc.setFontSize(16);
-    doc.text("Solicitação de Medida", 20, 20);
-    doc.setFontSize(10);
-    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 20, 28);
-
-    doc.setFontSize(12);
-    doc.text("Dados do Cliente", 20, 40);
-    doc.setFontSize(10);
-    const info = [
-      `Nome: ${client.nome}`,
-      `CPF/CNPJ: ${client.cpf || tracking.cpf_cnpj || "—"}`,
-      `Telefone: ${client.telefone1 || "—"}`,
-      `Email: ${client.email || "—"}`,
-      `Nº Contrato: ${tracking.numero_contrato || "—"}`,
-      `Vendedor: ${client.vendedor || "—"}`,
-    ];
-    const fullAddress = c.delivery_address_street
-      ? [c.delivery_address_street, c.delivery_address_number, c.delivery_address_complement,
-         c.delivery_address_district,
-         c.delivery_address_city && c.delivery_address_state ? `${c.delivery_address_city} - ${c.delivery_address_state}` : c.delivery_address_city || c.delivery_address_state,
-         c.delivery_address_zip].filter(Boolean).join(", ")
-      : c.endereco_entrega || c.endereco || "Não informado";
-    info.push(`Endereço de Entrega: ${fullAddress}`);
-
-    let y = 48;
-    for (const line of info) {
-      doc.text(line, 20, y);
-      y += 6;
-    }
-
-    y += 6;
-    doc.setFontSize(12);
-    doc.text(`Valor Total à Vista: ${formatCurrency(totalValorAvista)}`, 20, y);
-    y += 10;
-
-    doc.text(`Ambientes Vendidos (${environments.length})`, 20, y);
-    y += 8;
-    doc.setFontSize(10);
-    for (const env of environments) {
-      doc.text(`• ${env.name} — ${formatCurrency(env.value)}`, 24, y);
-      y += 6;
-      if (env.fileName) {
-        doc.text(`  Arquivo: ${env.fileName}`, 28, y);
-        y += 6;
-      }
-      const imgs = envImages[env.id] || [];
-      doc.text(`  Imagens anexadas: ${imgs.length}`, 28, y);
-      y += 8;
-      if (y > 270) { doc.addPage(); y = 20; }
-    }
-
-    const blob = doc.output("blob");
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  }, [client, tracking, environments, envImages, totalValorAvista]);
 
   // Load environments from simulations
   useEffect(() => {
