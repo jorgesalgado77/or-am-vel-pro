@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {} from "@/components/ui/scroll-area";
 import {
   TrendingUp, TrendingDown, Users, Target, DollarSign, Clock,
   AlertTriangle, Lightbulb, Trophy, MessageCircle, Send, Bot,
