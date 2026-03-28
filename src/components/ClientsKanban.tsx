@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { ScrollableContainer } from "@/components/ui/scrollable-container";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, UserPlus, CalendarIcon, FileText, Calculator } from "lucide-react";
-import { generateOrcamentoNumber } from "@/services/financialService";
+import { generateOrcamentoNumber, formatOrcamentoFromSeq, parseOrcamentoInitial } from "@/services/financialService";
 import { addDays, isPast } from "date-fns";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -152,43 +152,73 @@ export function ClientsKanban({
     fetchContractClients();
   }, [localClients.length]);
 
-  // Auto-assign orçamento numbers to clients missing or with duplicates/invalid values
+  // One-time fix: reassign ALL orçamento numbers sequentially by creation order
+  const fixedRef = React.useRef(false);
   useEffect(() => {
     const tenantId = getTenantId();
-    if (!tenantId || localClients.length === 0) return;
+    if (!tenantId || localClients.length === 0 || fixedRef.current) return;
+    if (!cargoNome.includes("administrador")) return; // only admin triggers fix
 
-    // Detect duplicates
-    const orcCounts = new Map<string, string[]>();
-    localClients.forEach(c => {
+    // Check if any duplicates or invalid numbers exist
+    const orcSet = new Set<string>();
+    let hasProblem = false;
+    for (const c of localClients) {
       const orc = (c as any).numero_orcamento;
-      if (orc) {
-        const ids = orcCounts.get(orc) || [];
-        ids.push(c.id);
-        orcCounts.set(orc, ids);
+      if (!orc || /^(WA-?|55|\+?\d{10,})/i.test(orc) || orcSet.has(orc)) {
+        hasProblem = true;
+        break;
       }
-    });
+      orcSet.add(orc);
+    }
+    if (!hasProblem) return;
+    fixedRef.current = true;
 
-    const needsFix = localClients.filter(c => {
-      const orc = (c as any).numero_orcamento;
-      // Missing, invalid (phone number), or duplicate
-      if (!orc || /^(WA-?|55|\+?\d{10,})/i.test(orc)) return true;
-      const ids = orcCounts.get(orc);
-      if (ids && ids.length > 1 && ids[0] !== c.id) return true; // keep first, fix rest
-      return false;
-    });
-    if (needsFix.length === 0) return;
+    const reassignAll = async () => {
+      // Get store code and initial seq
+      const { data: settings } = await (supabase as any)
+        .from("company_settings")
+        .select("codigo_loja, orcamento_numero_inicial")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
 
-    const assignNumbers = async () => {
-      for (const client of needsFix) {
-        try {
-          const orc = await generateOrcamentoNumber(tenantId);
-          await supabase.from("clients").update(orc as any).eq("id", client.id);
-          setLocalClients(prev => prev.map(c => c.id === client.id ? { ...c, ...orc } as any : c));
-        } catch { /* skip */ }
+      let storeCode = "000000";
+      if (settings?.codigo_loja) {
+        storeCode = String(settings.codigo_loja).replace(/\D/g, "").padStart(6, "0").slice(0, 6);
       }
+      const initialSeq = parseOrcamentoInitial(settings?.orcamento_numero_inicial);
+
+      // Sort clients by creation date (oldest first) to assign in order
+      const sorted = [...localClients].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
+      let currentSeq = initialSeq;
+      const updates: Array<{ id: string; numero_orcamento: string; numero_orcamento_seq: number }> = [];
+
+      for (const client of sorted) {
+        const formatted = formatOrcamentoFromSeq(storeCode, currentSeq);
+        updates.push({ id: client.id, numero_orcamento: formatted, numero_orcamento_seq: currentSeq });
+        currentSeq++;
+      }
+
+      // Apply updates
+      for (const u of updates) {
+        await supabase.from("clients").update({
+          numero_orcamento: u.numero_orcamento,
+          numero_orcamento_seq: u.numero_orcamento_seq,
+        } as any).eq("id", u.id);
+      }
+
+      // Update local state
+      setLocalClients(prev => prev.map(c => {
+        const u = updates.find(x => x.id === c.id);
+        return u ? { ...c, numero_orcamento: u.numero_orcamento, numero_orcamento_seq: u.numero_orcamento_seq } as any : c;
+      }));
+
+      console.log(`[Kanban] Reassigned ${updates.length} orçamento numbers starting from seq ${initialSeq}`);
     };
-    assignNumbers();
-  }, [localClients.length]);
+    reassignAll();
+  }, [localClients.length, cargoNome]);
 
   // Realtime: listen for new leads sent to the current user
   useEffect(() => {
