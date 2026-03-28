@@ -471,7 +471,7 @@ export function MeasurementRequestModal({
     envName: string,
     rawAttachment: any,
     index: number,
-  ): Promise<EnvironmentAttachment | null> => {
+  ): Promise<EnvironmentAttachment | null> {
     const sourceUrl = typeof rawAttachment === "string"
       ? rawAttachment
       : rawAttachment?.url || rawAttachment?.publicUrl || rawAttachment?.previewUrl || "";
@@ -891,7 +891,8 @@ export function MeasurementRequestModal({
         doc.text(entry.attachment.name || "Imagem enviada", mx + 4, y + 12);
 
         try {
-          const imageAsset = await loadImageAsset(entry.attachment.file, entry.attachment.name);
+          const imageSource = entry.attachment.file || entry.attachment.sourceUrl || entry.attachment.previewUrl;
+          const imageAsset = await loadImageAsset(imageSource, entry.attachment.name);
           const ratio = imageAsset.width / imageAsset.height;
           let drawW = cw - 8;
           let drawH = drawW / ratio;
@@ -1063,8 +1064,21 @@ export function MeasurementRequestModal({
         const imageUrls: string[] = [];
         const attachmentUrls: Array<{ kind: AttachmentKind; name: string; type: string; url: string }> = [];
         for (const attachment of attachments) {
+          if (!attachment.file) {
+            const existingUrl = attachment.sourceUrl || attachment.previewUrl;
+            if (!existingUrl) continue;
+            if (attachment.kind === "image") imageUrls.push(existingUrl);
+            attachmentUrls.push({
+              kind: attachment.kind,
+              name: attachment.name,
+              type: attachment.mimeType || attachment.kind,
+              url: existingUrl,
+            });
+            continue;
+          }
+
           const path = `measurement-requests/${client.id}/${env.id}/${Date.now()}-${attachment.name}`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from("company-assets")
             .upload(path, attachment.file);
           if (uploadError) {
