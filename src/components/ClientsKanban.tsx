@@ -549,9 +549,6 @@ export function ClientsKanban({
             </div>
           </ScrollableContainer>
         </DragDropContext>
-            </div>
-          </ScrollableContainer>
-        </DragDropContext>
       )}
 
       {/* Client detail dialog */}
