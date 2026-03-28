@@ -20,34 +20,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, user_id, tenant_id, title, content, scheduled_for, reminder_id } = body;
 
-    // Ensure reminders table exists
-    await supabase.rpc("exec_sql_if_not_exists", {
-      p_sql: `
-        CREATE TABLE IF NOT EXISTS public.reminders (
-          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          tenant_id text,
-          user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-          title text NOT NULL,
-          content text,
-          scheduled_for timestamptz NOT NULL,
-          status text NOT NULL DEFAULT 'pending',
-          created_at timestamptz DEFAULT now(),
-          updated_at timestamptz DEFAULT now()
-        );
-        CREATE INDEX IF NOT EXISTS idx_reminders_user ON public.reminders(user_id);
-        CREATE INDEX IF NOT EXISTS idx_reminders_status ON public.reminders(status);
-        ALTER TABLE public.reminders ENABLE ROW LEVEL SECURITY;
-        DO $$ BEGIN
-          IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'reminders' AND policyname = 'Users can manage own reminders') THEN
-            CREATE POLICY "Users can manage own reminders" ON public.reminders FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
-          END IF;
-        END $$;
-      `
-    }).catch(() => {
-      // RPC may not exist, try direct table creation via REST-compatible approach
-      console.log("exec_sql_if_not_exists RPC not available, table should exist already");
-    });
-
     if (action === "create") {
       if (!title || !scheduled_for) {
         return new Response(
@@ -60,7 +32,7 @@ Deno.serve(async (req) => {
         .from("reminders")
         .insert({
           tenant_id,
-          user_id,
+          user_id: user_id || null,
           title,
           content: content || title,
           scheduled_for,
@@ -70,37 +42,15 @@ Deno.serve(async (req) => {
         .single();
 
       if (error) {
-        // If table doesn't exist, create it directly
-        if (error.message?.includes("relation") || error.code === "42P01") {
-          // Table doesn't exist yet - create via raw SQL
-          const createTableSQL = `
-            CREATE TABLE IF NOT EXISTS public.reminders (
-              id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-              tenant_id text,
-              user_id uuid,
-              title text NOT NULL,
-              content text,
-              scheduled_for timestamptz NOT NULL,
-              status text NOT NULL DEFAULT 'pending',
-              created_at timestamptz DEFAULT now(),
-              updated_at timestamptz DEFAULT now()
-            );
-          `;
-          // Use service role to execute via pg
-          // Fallback: return success with localStorage hint
-          return new Response(
-            JSON.stringify({ 
-              fallback: true, 
-              message: "Table not yet created. Using local storage.",
-              reminder: { id: crypto.randomUUID(), title, content, scheduled_for, status: "pending" }
-            }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
         console.error("Insert error:", error);
+        // Return a fallback response so client can still use localStorage
         return new Response(
-          JSON.stringify({ error: error.message }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({
+            fallback: true,
+            message: "DB insert failed, using local storage.",
+            reminder: { id: crypto.randomUUID(), title, content: content || title, scheduled_for, status: "pending" },
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
@@ -111,22 +61,19 @@ Deno.serve(async (req) => {
     }
 
     if (action === "list") {
-      const { data, error } = await supabase
+      const query = supabase
         .from("reminders")
         .select("*")
-        .eq("user_id", user_id)
         .eq("status", "pending")
         .order("scheduled_for", { ascending: true });
 
-      if (error) {
-        return new Response(
-          JSON.stringify({ reminders: [] }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
+      if (user_id) query.eq("user_id", user_id);
+      if (tenant_id) query.eq("tenant_id", tenant_id);
+
+      const { data, error } = await query;
 
       return new Response(
-        JSON.stringify({ reminders: data || [] }),
+        JSON.stringify({ reminders: error ? [] : (data || []) }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -151,7 +98,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ error: "Unknown action" }),
+      JSON.stringify({ error: "Unknown action. Use: create, list, mark_fired" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
