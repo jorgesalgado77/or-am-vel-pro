@@ -312,6 +312,19 @@ async function buildRuntimeContext(tenantId: string): Promise<OnboardingAIContex
   };
 }
 
+// --- Task creation wizard state ---
+interface TaskWizardState {
+  active: boolean;
+  step: "titulo" | "data" | "horario" | "descricao" | "notificacao" | "confirmar";
+  titulo?: string;
+  data_tarefa?: string;
+  horario?: string;
+  descricao?: string;
+  notificacao_minutos?: number;
+}
+
+const INITIAL_WIZARD: TaskWizardState = { active: false, step: "titulo" };
+
 export function useOnboardingAI(tenantId: string | null) {
   const [messages, setMessages] = useState<AIMessage[]>(() => {
     if (!tenantId) return [];
@@ -326,6 +339,7 @@ export function useOnboardingAI(tenantId: string | null) {
     return parseStored<OnboardingAIContext | null>(localStorage.getItem(getContextKey(tenantId)), null);
   });
   const [alerts, setAlerts] = useState<ScheduledAlert[]>(() => loadAlerts(tenantId));
+  const [taskWizard, setTaskWizard] = useState<TaskWizardState>(INITIAL_WIZARD);
   const initialized = useRef(false);
   const messagesRef = useRef<AIMessage[]>(messages);
   const alertTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
