@@ -109,6 +109,35 @@ export function MeasurementRequestModal({
     localPreviewUrlsRef.current.clear();
   }, []);
 
+  const resolveStoredAssetUrl = useCallback((rawAttachment: any) => {
+    if (!rawAttachment) return "";
+
+    const directUrl = typeof rawAttachment === "string"
+      ? rawAttachment
+      : rawAttachment?.url || rawAttachment?.publicUrl || rawAttachment?.previewUrl || rawAttachment?.sourceUrl || rawAttachment?.source_url || "";
+
+    if (typeof directUrl === "string" && /^(https?:|blob:|data:)/i.test(directUrl)) {
+      return directUrl;
+    }
+
+    const bucket = typeof rawAttachment === "string"
+      ? "company-assets"
+      : rawAttachment?.bucket || rawAttachment?.bucket_name || rawAttachment?.storageBucket || "company-assets";
+
+    const rawPath = typeof rawAttachment === "string"
+      ? rawAttachment
+      : rawAttachment?.path || rawAttachment?.storagePath || rawAttachment?.storage_path || rawAttachment?.filePath || rawAttachment?.file_path || "";
+
+    if (!rawPath) return "";
+
+    const normalizedPath = String(rawPath)
+      .replace(/^\/+/, "")
+      .replace(new RegExp(`^${bucket}/`), "");
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(normalizedPath);
+    return data?.publicUrl || "";
+  }, []);
+
   const hydrateClientState = useCallback((source: any) => {
     const merged = source || {};
     const nestedDeliveryAddress = merged.delivery_address && typeof merged.delivery_address === "object"
@@ -148,13 +177,31 @@ export function MeasurementRequestModal({
     hydrateClientState(client as any);
 
     const loadFreshClient = async () => {
-      const { data } = await (supabase as any)
-        .from("clients")
-        .select("*")
-        .eq("id", client.id)
-        .maybeSingle();
+      const [clientRes, requestRes] = await Promise.all([
+        (supabase as any)
+          .from("clients")
+          .select("*")
+          .eq("id", client.id)
+          .maybeSingle(),
+        tracking?.id
+          ? (supabase as any)
+              .from("measurement_requests")
+              .select("*")
+              .eq("tracking_id", tracking.id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+          : (supabase as any)
+              .from("measurement_requests")
+              .select("*")
+              .eq("client_id", client.id)
+              .order("created_at", { ascending: false })
+              .limit(1),
+      ]);
 
-      if (active && data) hydrateClientState(data);
+      const latestRequest = Array.isArray(requestRes.data) ? requestRes.data[0] : null;
+      if (active) {
+        hydrateClientState({ ...(clientRes.data || {}), ...(latestRequest || {}) });
+      }
     };
 
     void loadFreshClient();
@@ -162,7 +209,7 @@ export function MeasurementRequestModal({
     return () => {
       active = false;
     };
-  }, [clearPreviewUrls, client, hydrateClientState, open]);
+  }, [clearPreviewUrls, client, hydrateClientState, open, tracking?.id]);
 
   useEffect(() => () => {
     clearPreviewUrls();
@@ -472,20 +519,18 @@ export function MeasurementRequestModal({
     rawAttachment: any,
     index: number,
   ): Promise<EnvironmentAttachment | null> {
-    const sourceUrl = typeof rawAttachment === "string"
-      ? rawAttachment
-      : rawAttachment?.url || rawAttachment?.publicUrl || rawAttachment?.previewUrl || "";
+    const sourceUrl = resolveStoredAssetUrl(rawAttachment);
 
     if (!sourceUrl) return null;
 
     const name = typeof rawAttachment === "string"
       ? `${envName} ${index + 1}`
-      : rawAttachment?.name || `${envName} ${index + 1}`;
+      : rawAttachment?.name || rawAttachment?.file_name || `${envName} ${index + 1}`;
     const mimeType = typeof rawAttachment === "string"
       ? ""
-      : rawAttachment?.type || rawAttachment?.mimeType || "";
+      : rawAttachment?.type || rawAttachment?.mimeType || rawAttachment?.mime_type || "";
     const inferredKind = typeof rawAttachment === "string"
-      ? "image"
+      ? getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` })
       : rawAttachment?.kind || getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` });
 
     if (inferredKind === "other") return null;
@@ -495,7 +540,7 @@ export function MeasurementRequestModal({
       : sourceUrl;
 
     return {
-      id: `${envId}-persisted-${rawAttachment?.id || index}`,
+      id: `${envId}-persisted-${rawAttachment?.id || rawAttachment?.path || index}`,
       kind: inferredKind,
       mimeType,
       name,
@@ -1513,6 +1558,35 @@ export function MeasurementRequestModal({
                 onChange={e => setObservacoes(e.target.value)}
               />
             </div>
+
+            {Object.values(envAttachments).flat().filter((attachment) => attachment.kind === "image").length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold">Imagens anexadas à solicitação</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {Object.entries(envAttachments).flatMap(([envId, attachments]) =>
+                    attachments
+                      .filter((attachment) => attachment.kind === "image")
+                      .map((attachment) => {
+                        const env = environments.find((item) => item.id === envId);
+                        const preview = attachment.thumbnailUrl || attachment.previewUrl || attachment.sourceUrl;
+                        if (!preview) return null;
+                        return (
+                          <div key={`gallery-${attachment.id}`} className="space-y-1 rounded-lg border border-border bg-card p-2">
+                            <img
+                              src={preview}
+                              alt={attachment.name}
+                              className="h-28 w-full rounded-md object-cover"
+                              loading="lazy"
+                            />
+                            <p className="text-[10px] font-medium truncate">{env?.name || "Ambiente"}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{attachment.name}</p>
+                          </div>
+                        );
+                      }),
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
