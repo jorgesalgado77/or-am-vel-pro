@@ -126,7 +126,7 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
+      <DialogContent className="w-[95vw] max-w-lg max-h-[85vh] sm:max-h-[80vh] flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Phone className="h-4 w-4 text-primary" />
@@ -153,7 +153,7 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
               </div>
               <Badge variant="secondary" className="text-xs shrink-0">{filtered.length} contatos</Badge>
             </div>
-            <ScrollArea className="flex-1 max-h-[50vh]">
+            <ScrollArea className="flex-1 h-[50vh] sm:h-[55vh]">
               {filtered.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Nenhum contato encontrado</p>
               ) : (
