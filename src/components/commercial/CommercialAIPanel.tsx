@@ -46,6 +46,7 @@ async function streamChat(opts: {
   tenantId: string;
   messages: ChatMsg[];
   metricsSummary: string;
+  preferredProvider?: "lovable" | "openai";
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (msg: string) => void;
@@ -62,6 +63,7 @@ async function streamChat(opts: {
         tenant_id: opts.tenantId,
         messages: opts.messages,
         metrics_summary: opts.metricsSummary,
+        preferred_provider: opts.preferredProvider,
       }),
     });
 
@@ -114,24 +116,30 @@ export function CommercialAIPanel() {
   const [chatInput, setChatInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [aiConnected, setAiConnected] = useState(false);
+  const [availableProviders, setAvailableProviders] = useState<Array<{ value: "lovable" | "openai"; label: string }>>([]);
+  const [preferredProvider, setPreferredProvider] = useState<"lovable" | "openai">("lovable");
   const scrollRef = useRef<HTMLDivElement>(null);
   const pushChecked = useRef(false);
 
-  // Check AI connection on mount
   useEffect(() => {
     if (!tenantId) return;
+    const storageKey = `commercial_ai_provider_${tenantId}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved === "openai" || saved === "lovable") setPreferredProvider(saved);
+
     (async () => {
-      try {
-        const resp = await fetch(CHAT_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_wbUKLbibswCqDaXfCYMnZQ_otmy7ZEn"}`,
-          },
-          body: JSON.stringify({ action: "check_alerts", tenant_id: tenantId }),
-        });
-        setAiConnected(resp.ok);
-      } catch {
+      const { data, error } = await supabase.functions.invoke("commercial-ai", {
+        body: { action: "get_available_providers", tenant_id: tenantId },
+      });
+      if (!error && data?.providers) {
+        setAvailableProviders(data.providers);
+        setAiConnected(data.providers.length > 0);
+        const nextProvider = saved && data.providers.some((p: any) => p.value === saved)
+          ? saved
+          : (data.default_provider || data.providers[0]?.value || "lovable");
+        setPreferredProvider(nextProvider);
+        localStorage.setItem(storageKey, nextProvider);
+      } else {
         setAiConnected(false);
       }
     })();
@@ -194,6 +202,7 @@ export function CommercialAIPanel() {
       tenantId,
       messages: newMessages.filter(m => m.role === "user" || m.role === "assistant").slice(-10),
       metricsSummary,
+      preferredProvider,
       onDelta: updateAssistant,
       onDone: () => setIsStreaming(false),
       onError: (msg) => {
@@ -202,7 +211,7 @@ export function CommercialAIPanel() {
         setIsStreaming(false);
       },
     });
-  }, [chatInput, chatMessages, tenantId, isStreaming, metricsSummary]);
+  }, [chatInput, chatMessages, tenantId, isStreaming, metricsSummary, preferredProvider]);
 
   if (loading) {
     return (
@@ -497,7 +506,21 @@ export function CommercialAIPanel() {
             <CardHeader className="pb-2 border-b border-border">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Bot className="h-4 w-4 text-primary" /> IA Gerente Comercial
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
+                  {availableProviders.map((provider) => (
+                    <Button
+                      key={provider.value}
+                      type="button"
+                      variant={preferredProvider === provider.value ? "default" : "outline"}
+                      className="h-6 px-2 text-[10px]"
+                      onClick={() => {
+                        setPreferredProvider(provider.value);
+                        if (tenantId) localStorage.setItem(`commercial_ai_provider_${tenantId}`, provider.value);
+                      }}
+                    >
+                      {provider.label}
+                    </Button>
+                  ))}
                   <Badge variant="outline" className="text-[10px] gap-1">
                     <span className={cn("h-1.5 w-1.5 rounded-full", aiConnected ? "bg-emerald-500" : "bg-destructive")} />
                     {aiConnected ? "Conectada" : "Desconectada"}

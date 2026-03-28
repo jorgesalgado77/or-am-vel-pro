@@ -178,16 +178,18 @@ export default function Index() {
   const handleContracts = (client: Client) => { setContractsClient(client); setSimulatingClient(null); setHistoryClient(null); setActiveView("contracts"); };
   const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null); };
 
-  // Listen for navigate-to-dealroom events from VendaZap and other components
+  // Listen for navigation events from Mia and other assistants
   useEffect(() => {
     const handler = () => setActiveView("dealroom");
     const settingsHandler = () => setActiveView("settings");
     const tasksHandler = () => setActiveView("tasks");
     const tutorialsHandler = () => setActiveView("tutorials");
     const financialHandler = () => setActiveView("financial");
-    const supportHandler = () => setActiveView("settings"); // Support opens via settings/support
+    const supportHandler = () => setShowSupport(true);
     const clientsHandler = () => setActiveView("clients");
-    const chatHandler = () => setActiveView("chat");
+    const funnelHandler = () => setActiveView("funnel");
+    const plansHandler = () => setActiveView("plans");
+    const chatHandler = () => setActiveView("vendazap-chat");
     window.addEventListener("navigate-to-dealroom", handler);
     window.addEventListener("navigate-to-settings", settingsHandler);
     window.addEventListener("navigate-to-tasks", tasksHandler);
@@ -195,6 +197,8 @@ export default function Index() {
     window.addEventListener("navigate-to-financial", financialHandler);
     window.addEventListener("navigate-to-support", supportHandler);
     window.addEventListener("navigate-to-clients", clientsHandler);
+    window.addEventListener("navigate-to-funnel", funnelHandler);
+    window.addEventListener("navigate-to-plans", plansHandler);
     window.addEventListener("navigate-to-chat", chatHandler);
     return () => {
       window.removeEventListener("navigate-to-dealroom", handler);
@@ -204,6 +208,8 @@ export default function Index() {
       window.removeEventListener("navigate-to-financial", financialHandler);
       window.removeEventListener("navigate-to-support", supportHandler);
       window.removeEventListener("navigate-to-clients", clientsHandler);
+      window.removeEventListener("navigate-to-funnel", funnelHandler);
+      window.removeEventListener("navigate-to-plans", plansHandler);
       window.removeEventListener("navigate-to-chat", chatHandler);
     };
   }, []);
