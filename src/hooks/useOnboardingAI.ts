@@ -1435,6 +1435,7 @@ export function useOnboardingAI(tenantId: string | null) {
     }
 
 
+    if (/(meus tickets|ver tickets|tickets de suporte|status dos tickets)/.test(lower) && currentUserId) {
       const { data } = await (supabase as any)
         .from("support_tickets")
         .select("tipo, status, mensagem, created_at, resposta_admin")
