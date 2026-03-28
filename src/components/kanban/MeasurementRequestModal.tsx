@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye } from "lucide-react";
+import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
