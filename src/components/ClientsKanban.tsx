@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
-import { ScrollableContainer } from "@/components/ui/scrollable-container";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -512,7 +511,7 @@ export function ClientsKanban({
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-w-0">
       <KanbanFilters
         search={search} setSearch={setSearch}
         showFilters={showFilters} setShowFilters={setShowFilters}
@@ -573,33 +572,42 @@ export function ClientsKanban({
         <div className="flex items-center justify-center py-16 text-muted-foreground">Carregando...</div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex-1 min-h-0 pb-2 overflow-x-scroll overflow-y-hidden [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted/40 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-primary/50" style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "auto", scrollbarColor: "hsl(var(--primary) / 0.3) hsl(var(--muted) / 0.4)" }}>
-            <div className="flex gap-2 sm:gap-3" style={{ minWidth: isAdmin ? (comercialExpanded && operacionalExpanded ? "3200px" : comercialExpanded || operacionalExpanded ? "1800px" : "200px") : "1200px" }}>
-              {/* Comercial section */}
-              {isAdmin && (
-                <button
-                  onClick={() => setComercialExpanded(prev => !prev)}
-                  className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group"
-                >
-                  <ChevronRight className={cn("h-3.5 w-3.5 text-primary/70 transition-transform duration-200", comercialExpanded && "rotate-90")} />
-                  <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Comercial</span>
-                </button>
-              )}
-              {(!isAdmin || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => renderColumn(col))}
-
-              {/* Operacional section — admin only */}
-              {isAdmin && (
-                <>
+          <div className="flex-1 min-h-0 min-w-0">
+            <div
+              className="w-full max-w-full min-w-0 overflow-x-scroll overflow-y-hidden pb-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted/40 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-primary/50"
+              style={{
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "auto",
+                scrollbarColor: "hsl(var(--primary) / 0.3) hsl(var(--muted) / 0.4)",
+              }}
+            >
+              <div className="inline-flex min-w-max gap-2 sm:gap-3 px-1">
+                {/* Comercial section */}
+                {isAdmin && (
                   <button
-                    onClick={() => setOperacionalExpanded(prev => !prev)}
-                    className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group border-l border-border/60 ml-1"
+                    onClick={() => setComercialExpanded(prev => !prev)}
+                    className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group"
                   >
-                    <ChevronRight className={cn("h-3.5 w-3.5 text-accent-foreground/70 transition-transform duration-200", operacionalExpanded && "rotate-90")} />
-                    <span className="text-[10px] font-bold text-accent-foreground/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Operacional</span>
+                    <ChevronRight className={cn("h-3.5 w-3.5 text-primary/70 transition-transform duration-200", comercialExpanded && "rotate-90")} />
+                    <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Comercial</span>
                   </button>
-                  {operacionalExpanded && KANBAN_COLUMNS_OPERACIONAL.map(col => renderColumn(col))}
-                </>
-              )}
+                )}
+                {(!isAdmin || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => renderColumn(col))}
+
+                {/* Operacional section — admin only */}
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => setOperacionalExpanded(prev => !prev)}
+                      className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group border-l border-border/60 ml-1"
+                    >
+                      <ChevronRight className={cn("h-3.5 w-3.5 text-accent-foreground/70 transition-transform duration-200", operacionalExpanded && "rotate-90")} />
+                      <span className="text-[10px] font-bold text-accent-foreground/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Operacional</span>
+                    </button>
+                    {operacionalExpanded && KANBAN_COLUMNS_OPERACIONAL.map(col => renderColumn(col))}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </DragDropContext>

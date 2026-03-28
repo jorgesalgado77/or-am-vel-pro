@@ -307,7 +307,7 @@ export default function Index() {
           />
 
           <main className={cn(
-            "flex-1 transition-all duration-300",
+            "flex-1 min-w-0 transition-all duration-300",
             isMobile ? "ml-[60px] p-3" : sidebarCollapsed ? "ml-[60px] p-6" : "ml-60 p-6"
           )}>
             <PlanBanner onNavigateToPlans={() => setActiveView("plans")} />
