@@ -431,7 +431,25 @@ export function MeasurementRequestModal({
 
         <div className="flex-1 overflow-y-auto px-6 pb-2" style={{ maxHeight: "calc(90vh - 140px)" }}>
           <div className="space-y-4 py-4">
-            {/* Client Info */}
+            {/* Store Info */}
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
+              <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
+                <Building2 className="h-4 w-4" /> Dados da Loja
+              </h4>
+              <div className="flex items-center gap-3">
+                {storeData.logo_url && (
+                  <img src={storeData.logo_url} alt="Logo" className="h-10 w-10 rounded-md object-contain border bg-background" />
+                )}
+                <div className="flex-1 grid grid-cols-2 gap-1 text-sm">
+                  <div><span className="text-muted-foreground">Loja:</span> <span className="font-medium">{storeData.name || "—"}</span></div>
+                  <div><span className="text-muted-foreground">CNPJ:</span> <span className="font-medium font-mono">{storeData.cnpj || "—"}</span></div>
+                  <div><span className="text-muted-foreground">Código:</span> <span className="font-medium font-mono">{storeData.codigo_loja || "—"}</span></div>
+                  <div><span className="text-muted-foreground">Gerente:</span> <span className="font-medium">{storeData.gerente_nome || "—"}</span></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Client Info — Editable */}
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 space-y-2">
               <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                 Dados do Cliente
@@ -441,17 +459,62 @@ export function MeasurementRequestModal({
                   <span className="text-muted-foreground">Nome:</span>
                   <span className="ml-2 font-medium">{client.nome}</span>
                 </div>
-                <div>
+                {/* Editable CPF */}
+                <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">CPF/CNPJ:</span>
-                  <span className="ml-2 font-medium">{client.cpf || tracking.cpf_cnpj || "—"}</span>
+                  {editingField === "cpf" ? (
+                    <Input
+                      className="h-6 text-xs w-36 ml-1"
+                      value={editableFields.cpf}
+                      onChange={e => setEditableFields(p => ({ ...p, cpf: e.target.value }))}
+                      onBlur={() => { setEditingField(null); saveClientField("cpf", editableFields.cpf); }}
+                      onKeyDown={e => { if (e.key === "Enter") { setEditingField(null); saveClientField("cpf", editableFields.cpf); } }}
+                      autoFocus
+                    />
+                  ) : (
+                    <button className="ml-1 font-medium hover:underline flex items-center gap-1" onClick={() => setEditingField("cpf")}>
+                      {editableFields.cpf || "Clique para informar"}
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
                 </div>
-                <div>
+                {/* Editable Phone */}
+                <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">Telefone:</span>
-                  <span className="ml-2 font-medium">{client.telefone1 || "—"}</span>
+                  {editingField === "telefone" ? (
+                    <Input
+                      className="h-6 text-xs w-36 ml-1"
+                      value={editableFields.telefone}
+                      onChange={e => setEditableFields(p => ({ ...p, telefone: e.target.value }))}
+                      onBlur={() => { setEditingField(null); saveClientField("telefone", editableFields.telefone); }}
+                      onKeyDown={e => { if (e.key === "Enter") { setEditingField(null); saveClientField("telefone", editableFields.telefone); } }}
+                      autoFocus
+                    />
+                  ) : (
+                    <button className="ml-1 font-medium hover:underline flex items-center gap-1" onClick={() => setEditingField("telefone")}>
+                      {editableFields.telefone || "Clique para informar"}
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
                 </div>
-                <div>
+                {/* Editable Email */}
+                <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">Email:</span>
-                  <span className="ml-2 font-medium">{client.email || "—"}</span>
+                  {editingField === "email" ? (
+                    <Input
+                      className="h-6 text-xs w-36 ml-1"
+                      value={editableFields.email}
+                      onChange={e => setEditableFields(p => ({ ...p, email: e.target.value }))}
+                      onBlur={() => { setEditingField(null); saveClientField("email", editableFields.email); }}
+                      onKeyDown={e => { if (e.key === "Enter") { setEditingField(null); saveClientField("email", editableFields.email); } }}
+                      autoFocus
+                    />
+                  ) : (
+                    <button className="ml-1 font-medium hover:underline flex items-center gap-1" onClick={() => setEditingField("email")}>
+                      {editableFields.email || "Clique para informar"}
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Nº Contrato:</span>
@@ -462,27 +525,78 @@ export function MeasurementRequestModal({
                   <span className="ml-2 font-medium">{client.vendedor || "—"}</span>
                 </div>
               </div>
-              {/* Endereço de Entrega — always show */}
+
+              {/* Endereço de Entrega — editable */}
               <div className="mt-2 pt-2 border-t border-emerald-500/20">
-                <span className="text-muted-foreground text-xs">📍 Endereço de Entrega:</span>
-                <p className="text-sm font-medium mt-0.5">
-                  {(() => {
-                    const c = client as any;
-                    const fullAddress = c.delivery_address_street
-                      ? [
-                          c.delivery_address_street,
-                          c.delivery_address_number,
-                          c.delivery_address_complement,
-                          c.delivery_address_district,
-                          c.delivery_address_city && c.delivery_address_state
-                            ? `${c.delivery_address_city} - ${c.delivery_address_state}`
-                            : c.delivery_address_city || c.delivery_address_state,
-                          c.delivery_address_zip,
-                        ].filter(Boolean).join(", ")
-                      : c.endereco_entrega || c.endereco || "";
-                    return fullAddress || "Endereço não informado";
-                  })()}
-                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs">📍 Endereço de Entrega:</span>
+                  <Button variant="ghost" size="sm" className="h-5 text-[10px] gap-1 px-1.5" onClick={() => setEditingAddress(!editingAddress)}>
+                    <Pencil className="h-3 w-3" /> {editingAddress ? "Fechar" : "Editar"}
+                  </Button>
+                </div>
+                {editingAddress ? (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Label className="text-[10px]">CEP</Label>
+                        <div className="flex gap-1">
+                          <Input
+                            className="h-7 text-xs"
+                            placeholder="00000-000"
+                            value={addressForm.cep}
+                            onChange={e => setAddressForm(p => ({ ...p, cep: e.target.value }))}
+                          />
+                          <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => fetchCep(addressForm.cep)} disabled={cepLoading}>
+                            <Search className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Rua</Label>
+                        <Input className="h-7 text-xs" value={addressForm.street} onChange={e => setAddressForm(p => ({ ...p, street: e.target.value }))} />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Nº</Label>
+                        <Input className="h-7 text-xs" value={addressForm.number} onChange={e => setAddressForm(p => ({ ...p, number: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Complemento</Label>
+                        <Input className="h-7 text-xs" value={addressForm.complement} onChange={e => setAddressForm(p => ({ ...p, complement: e.target.value }))} />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Bairro</Label>
+                        <Input className="h-7 text-xs" value={addressForm.district} onChange={e => setAddressForm(p => ({ ...p, district: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Cidade</Label>
+                        <Input className="h-7 text-xs" value={addressForm.city} onChange={e => setAddressForm(p => ({ ...p, city: e.target.value }))} />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">UF</Label>
+                        <Input className="h-7 text-xs" maxLength={2} value={addressForm.state} onChange={e => setAddressForm(p => ({ ...p, state: e.target.value.toUpperCase() }))} />
+                      </div>
+                    </div>
+                    <Button size="sm" className="w-full h-7 text-xs" onClick={saveAddress}>
+                      💾 Salvar Endereço
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium mt-0.5">
+                    {[addressForm.street, addressForm.number, addressForm.complement, addressForm.district,
+                      addressForm.city && addressForm.state ? `${addressForm.city} - ${addressForm.state}` : addressForm.city || addressForm.state,
+                      addressForm.cep].filter(Boolean).join(", ") || (
+                      <button className="text-muted-foreground hover:underline flex items-center gap-1" onClick={() => setEditingAddress(true)}>
+                        Clique para informar endereço <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                  </p>
+                )}
               </div>
             </div>
 
