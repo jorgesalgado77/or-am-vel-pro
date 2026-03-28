@@ -1446,9 +1446,15 @@ export function MeasurementRequestModal({
   }, [buildPdfDoc, client.nome]);
 
   const handleSubmit = async () => {
-    if (!allEnvsHaveImages) {
-      toast.error("Cada ambiente precisa ter pelo menos 1 imagem anexada");
+    if (!allEnvsHaveAttachments) {
+      toast.error("Cada ambiente precisa ter pelo menos 1 arquivo anexado (imagem ou PDF)");
       return;
+    }
+    if (!hasAddress) {
+      toast.error("Complete o endereço de entrega antes de enviar a solicitação");
+      setEditingAddress(true);
+      return;
+    }
     }
 
     setSaving(true);
@@ -1985,7 +1991,7 @@ export function MeasurementRequestModal({
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={saving || !allEnvsHaveImages}
+                disabled={saving || !allEnvsHaveAttachments}
                 className="gap-2 bg-success hover:bg-success/90 text-success-foreground shadow-md"
               >
                 <Ruler className="h-4 w-4" />
