@@ -444,7 +444,26 @@ export function MeasurementRequestModal({
         (client as any)?.uf,
       ) || ""),
     });
-    setEditingAddress(false);
+    // Auto-open address editor if address is empty
+    const addrFilled = !!(
+      pickFirstFilled(
+        deliveryAddressCandidate?.cep, nestedClient?.cep_entrega, nestedClient?.cep,
+        merged.cep_entrega, merged.cep, (client as any)?.cep_entrega, (client as any)?.cep,
+      ) &&
+      pickFirstFilled(
+        deliveryAddressCandidate?.street, deliveryAddressCandidate?.endereco,
+        nestedClient?.endereco_entrega, nestedClient?.endereco,
+        merged.endereco_entrega, merged.endereco,
+        (client as any)?.endereco_entrega, (client as any)?.endereco,
+      )
+    );
+    if (!addrFilled) {
+      setEditingAddress(true);
+      // Delay toast to avoid rendering conflicts
+      setTimeout(() => toast.warning("⚠️ Endereço de entrega não encontrado. Por favor, preencha o endereço abaixo."), 500);
+    } else {
+      setEditingAddress(false);
+    }
     setEditingField(null);
   }, [client, parsePersistedValue, tracking.cpf_cnpj]);
 
@@ -896,8 +915,10 @@ export function MeasurementRequestModal({
     });
   };
 
-  const allEnvsHaveImages = environments.length > 0 &&
-    environments.every(env => (envAttachments[env.id] || []).some((attachment) => attachment.kind === "image"));
+  const allEnvsHaveAttachments = environments.length > 0 &&
+    environments.every(env => (envAttachments[env.id] || []).length >= 1);
+
+  const hasAddress = !!(addressForm.cep && addressForm.street && addressForm.city && addressForm.state);
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
@@ -1444,8 +1465,13 @@ export function MeasurementRequestModal({
   }, [buildPdfDoc, client.nome]);
 
   const handleSubmit = async () => {
-    if (!allEnvsHaveImages) {
-      toast.error("Cada ambiente precisa ter pelo menos 1 imagem anexada");
+    if (!allEnvsHaveAttachments) {
+      toast.error("Cada ambiente precisa ter pelo menos 1 arquivo anexado (imagem ou PDF)");
+      return;
+    }
+    if (!hasAddress) {
+      toast.error("Complete o endereço de entrega antes de enviar a solicitação");
+      setEditingAddress(true);
       return;
     }
 
@@ -1801,16 +1827,15 @@ export function MeasurementRequestModal({
               ) : (
                 environments.map((env) => {
                   const attachments = envAttachments[env.id] || [];
-                  const imageCount = attachments.filter((attachment) => attachment.kind === "image").length;
-                  const hasMinImages = imageCount >= 1;
+                  const hasMinAttachments = attachments.length >= 1;
                   return (
                     <div key={env.id} className={cn(
                       "rounded-lg border p-3 space-y-2",
-                      hasMinImages ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
+                      hasMinAttachments ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
                     )}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          {hasMinImages ? (
+                          {hasMinAttachments ? (
                             <CheckCircle2 className="h-4 w-4 text-success" />
                           ) : (
                             <AlertTriangle className="h-4 w-4 text-warning" />
@@ -1825,11 +1850,11 @@ export function MeasurementRequestModal({
                           <span>{env.fileName}</span>
                         </div>
                       )}
-                      {/* Image uploads */}
+                      {/* File uploads */}
                       <div className="space-y-1.5">
                         <Label className="text-xs flex items-center gap-1">
                           <Image className="h-3 w-3" />
-                          Arquivos enviados (mín. 1 imagem) * — {attachments.length} item(ns)
+                          Arquivos enviados (mín. 1) * — {attachments.length} item(ns)
                         </Label>
 
                         {uploadProgress[env.id] !== undefined && (
@@ -1983,7 +2008,7 @@ export function MeasurementRequestModal({
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={saving || !allEnvsHaveImages}
+                disabled={saving || !allEnvsHaveAttachments}
                 className="gap-2 bg-success hover:bg-success/90 text-success-foreground shadow-md"
               >
                 <Ruler className="h-4 w-4" />
