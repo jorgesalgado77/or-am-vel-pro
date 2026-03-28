@@ -53,7 +53,7 @@ const NAVIGATION_COMMANDS: Array<{ patterns: RegExp[]; target: string; label: st
   { patterns: [/deal\s?room|sala de venda|reunião/i], target: "dealroom", label: "Deal Room", description: "Vou abrir a Deal Room." },
   { patterns: [/simulador|simular|calcular|orçamento/i], target: "simulator", label: "Simulador", description: "Vou abrir o Simulador de Vendas." },
   { patterns: [/vendazap|ia de vendas|mensagem ia/i], target: "vendazap", label: "VendaZap AI", description: "Vou abrir o VendaZap AI." },
-  { patterns: [/tarefas|minhas tarefas|task|agenda/i], target: "tarefas", label: "Tarefas", description: "Vou abrir as Tarefas." },
+  { patterns: [/^(?!.*(?:criar|nova|agendar)\s*tarefa)(?:tarefas|minhas tarefas|task|agenda)/i], target: "tarefas", label: "Tarefas", description: "Vou abrir as Tarefas." },
   { patterns: [/suporte|ajuda|ticket/i], target: "suporte", label: "Suporte", description: "Vou abrir o Suporte." },
   { patterns: [/tutori|vídeo|como (faço|usar|funciona)|me (mostre|ensine)/i], target: "tutoriais", label: "Tutoriais", description: "Entendido, vou abrir nos Tutoriais o vídeo que mais se aproxima da sua dúvida." },
   { patterns: [/financeiro|contas a pagar|contas a receber|caixa|fluxo/i], target: "financeiro", label: "Financeiro", description: "Vou abrir o módulo Financeiro." },
