@@ -486,7 +486,110 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const handleStartConversation = useCallback(async (trackingId: string, clientName: string, contractNumber: string) => {
     setShowStartModal(false);
 
-    // Check if conversation already exists in the list
+    // Manual phone number flow (from "Novo Número" tab)
+    const isManualWA = trackingId.startsWith("WA-");
+
+    if (isManualWA) {
+      const normalizedPhone = trackingId.replace("WA-", "").replace(/\D/g, "");
+      // Check if conversation already exists for this phone
+      const existingConv = conversations.find((c) => {
+        const cPhone = normalizePhone(c.phone || (c.numero_contrato?.startsWith("WA-") ? c.numero_contrato.replace("WA-", "") : ""));
+        return cPhone === normalizedPhone;
+      });
+      if (existingConv) {
+        handleSelectConversation(existingConv);
+        toast.info(`Conversa com ${clientName} já existe`);
+        return;
+      }
+
+      try {
+        // Create client
+        const { data: createdClient, error: clientError } = await supabase
+          .from("clients")
+          .insert({
+            tenant_id: tenantId,
+            nome: clientName,
+            telefone: normalizedPhone,
+            numero_orcamento: contractNumber,
+            status: "em_negociacao",
+          } as any)
+          .select("id")
+          .maybeSingle();
+
+        let clientId = createdClient?.id;
+        if (clientError || !clientId) {
+          const { data: existing } = await supabase
+            .from("clients")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .eq("numero_orcamento", contractNumber)
+            .limit(1);
+          clientId = ((existing as any[]) || [])[0]?.id;
+        }
+
+        if (!clientId) {
+          toast.error("Erro ao criar contato");
+          return;
+        }
+
+        // Create tracking
+        const { data: tracking, error: trackErr } = await supabase
+          .from("client_tracking")
+          .insert({
+            tenant_id: tenantId,
+            client_id: clientId,
+            nome_cliente: clientName,
+            numero_contrato: contractNumber,
+            status: "em_negociacao",
+          } as any)
+          .select("id")
+          .maybeSingle();
+
+        let trackId = tracking?.id;
+        if (trackErr || !trackId) {
+          const { data: existT } = await supabase
+            .from("client_tracking")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .eq("numero_contrato", contractNumber)
+            .limit(1);
+          trackId = ((existT as any[]) || [])[0]?.id;
+        }
+
+        if (!trackId) {
+          toast.error("Erro ao criar conversa");
+          return;
+        }
+
+        // Send initial message
+        await supabase.from("tracking_messages").insert({
+          tracking_id: trackId,
+          mensagem: `Conversa iniciada por ${currentUser?.nome_completo || "Usuário"}`,
+          remetente_tipo: "loja",
+          remetente_nome: currentUser?.nome_completo || "Loja",
+          lida: true,
+          tenant_id: tenantId,
+        });
+
+        toast.success(`Conversa com ${clientName} iniciada!`);
+        await fetchConversations();
+
+        const newConv: ChatConversation = {
+          id: trackId,
+          numero_contrato: contractNumber,
+          nome_cliente: clientName,
+          unread_count: 0,
+          phone: normalizedPhone,
+        };
+        handleSelectConversation(newConv);
+      } catch (err) {
+        console.error("[Manual WA] error:", err);
+        toast.error("Erro inesperado ao criar conversa");
+      }
+      return;
+    }
+
+    // Standard client flow
     const existing = conversations.find((c) => c.id === trackingId);
     if (existing) {
       handleSelectConversation(existing);
@@ -495,7 +598,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     let actualTrackingId = trackingId;
 
-    // Check if a client_tracking record exists for this ID
     const { data: existingTracking } = await supabase
       .from("client_tracking")
       .select("id")
@@ -503,7 +605,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       .maybeSingle();
 
     if (!existingTracking) {
-      // trackingId is a client ID — create a client_tracking record
       const { data: newTracking, error: trackError } = await supabase
         .from("client_tracking")
         .insert({
@@ -524,7 +625,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       actualTrackingId = newTracking.id;
     }
 
-    // Send a system message to initialize the conversation
     const { error } = await supabase.from("tracking_messages").insert({
       tracking_id: actualTrackingId,
       mensagem: `Conversa iniciada por ${currentUser?.nome_completo || "Usuário"}`,
@@ -543,7 +643,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     toast.success(`Conversa com ${clientName} iniciada!`);
     await fetchConversations();
 
-    // Select the new conversation
     const newConv: ChatConversation = {
       id: actualTrackingId,
       numero_contrato: contractNumber,
@@ -551,7 +650,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       unread_count: 0,
     };
     handleSelectConversation(newConv);
-  }, [conversations, currentUser, fetchConversations, tenantId]);
+  }, [conversations, currentUser, fetchConversations, tenantId, normalizePhone]);
 
   const existingConvIds = useMemo(() => new Set(conversations.map((c) => c.id)), [conversations]);
 
