@@ -19,7 +19,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { format, endOfDay, startOfDay, startOfMonth, subMonths, subDays, isAfter, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { KANBAN_COLUMNS, type Client, type LastSimInfo, type ClientsKanbanProps } from "./kanban/kanbanTypes";
+import { KANBAN_COLUMNS, KANBAN_ALL_COLUMNS, KANBAN_COLUMNS_COMERCIAL, KANBAN_COLUMNS_OPERACIONAL, type Client, type LastSimInfo, type ClientsKanbanProps } from "./kanban/kanbanTypes";
 import { KanbanCard } from "./kanban/KanbanCard";
 import { KanbanClientDialog } from "./kanban/KanbanClientDialog";
 import { KanbanFilters } from "./kanban/KanbanFilters";
@@ -319,10 +319,13 @@ export function ClientsKanban({
     });
   }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome]);
 
+  const isAdmin = cargoNome.includes("administrador");
+  const activeColumns = isAdmin ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
+
   // Column data — sorted by created_at descending (most recent first)
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
-    KANBAN_COLUMNS.forEach(col => { map[col.id] = []; });
+    activeColumns.forEach(col => { map[col.id] = []; });
     filtered.forEach(client => {
       let status = (client as any).status || "novo";
       // Legacy: map proposta_enviada to em_negociacao
@@ -331,12 +334,16 @@ export function ClientsKanban({
       
       // Auto-move clients with closed contracts to "fechado"
       if (contractClientIds.has(client.id)) {
-        status = "fechado";
+        // Only auto-set to fechado if not already in an operational column
+        const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
+        if (!operationalIds.includes(status)) {
+          status = "fechado";
+        }
       }
       
       // Auto-expire: if client has a simulation and it's past validity, move to expirado
       const sim = lastSims[client.id];
-      if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado") {
+      if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado" && !KANBAN_COLUMNS_OPERACIONAL.some(c => c.id === status)) {
         const isExpired = isPast(addDays(new Date(sim.created_at), settings.budget_validity_days));
         if (isExpired) status = "expirado";
       }
@@ -349,7 +356,7 @@ export function ClientsKanban({
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, activeColumns]);
 
   // Drag and drop handler
   const handleDragEnd = useCallback(async (result: DropResult) => {
