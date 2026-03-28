@@ -406,6 +406,46 @@ export function MeasurementRequestModal({
       name: file.name,
       previewUrl,
       thumbnailUrl,
+      sourceUrl: previewUrl,
+    };
+  }, [createPdfThumbnail]);
+
+  const buildPersistedAttachment = useCallback(async (
+    envId: string,
+    envName: string,
+    rawAttachment: any,
+    index: number,
+  ): Promise<EnvironmentAttachment | null> => {
+    const sourceUrl = typeof rawAttachment === "string"
+      ? rawAttachment
+      : rawAttachment?.url || rawAttachment?.publicUrl || rawAttachment?.previewUrl || "";
+
+    if (!sourceUrl) return null;
+
+    const name = typeof rawAttachment === "string"
+      ? `${envName} ${index + 1}`
+      : rawAttachment?.name || `${envName} ${index + 1}`;
+    const mimeType = typeof rawAttachment === "string"
+      ? ""
+      : rawAttachment?.type || rawAttachment?.mimeType || "";
+    const inferredKind = typeof rawAttachment === "string"
+      ? "image"
+      : rawAttachment?.kind || getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` });
+
+    if (inferredKind === "other") return null;
+
+    const thumbnailUrl = inferredKind === "pdf"
+      ? (await createPdfThumbnail(sourceUrl)) || sourceUrl
+      : sourceUrl;
+
+    return {
+      id: `${envId}-persisted-${rawAttachment?.id || index}`,
+      kind: inferredKind,
+      mimeType,
+      name,
+      previewUrl: sourceUrl,
+      thumbnailUrl,
+      sourceUrl,
     };
   }, [createPdfThumbnail]);
 
