@@ -302,7 +302,7 @@ export function MeasurementRequestModal({
         requestQuery,
       ]);
 
-      const latestRequest = Array.isArray(requestRows) ? requestRows[0] : null;
+      const latestRequest: any = Array.isArray(requestRows) ? requestRows[0] : null;
       let nextEnvironments: EnvironmentData[] = [];
       let nextImportedFiles: { name: string; url: string; type: string }[] = [];
 
