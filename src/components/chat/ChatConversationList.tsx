@@ -91,6 +91,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
   const [isListOpen, setIsListOpen] = useState(!selectedId);
+  const [isWaListOpen, setIsWaListOpen] = useState(false);
 
   const vendedorCounts = useMemo(() => {
     const map = new Map<string, number>();
