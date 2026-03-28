@@ -31,6 +31,7 @@ const FinancialPanel = lazy(() => import("@/components/FinancialPanel").then(m =
 const TutorialsPanel = lazy(() => import("@/components/tutorials/TutorialsPanel").then(m => ({ default: m.TutorialsPanel })));
 const SmartImport3DView = lazy(() => import("@/components/smartimport/SmartImport3DView").then(m => ({ default: m.SmartImport3DView })));
 const TasksPanel = lazy(() => import("@/components/tasks/TasksPanel").then(m => ({ default: m.TasksPanel })));
+const TaskReminderOverlay = lazy(() => import("@/components/tasks/TaskReminderOverlay").then(m => ({ default: m.TaskReminderOverlay })));
 const MeasurementKanban = lazy(() => import("@/components/kanban/MeasurementKanban").then(m => ({ default: m.MeasurementKanban })));
 const ProductCatalog = lazy(() => import("@/components/ProductCatalog").then(m => ({ default: m.ProductCatalog })));
 const CommercialAIPanel = lazy(() => import("@/components/commercial/CommercialAIPanel").then(m => ({ default: m.CommercialAIPanel })));
@@ -452,6 +453,9 @@ export default function Index() {
           <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
           <Suspense fallback={null}>
             <OnboardingAIAssistant />
+          </Suspense>
+          <Suspense fallback={null}>
+            <TaskReminderOverlay tenantId={authUser?.tenant_id ?? null} userId={authUser?.id} />
           </Suspense>
         </div>
       </TenantPlanContext.Provider>
