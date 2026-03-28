@@ -20,6 +20,9 @@ import {
   ArrowDown,
   ChevronUp,
   ChevronDown,
+  Maximize2,
+  Minimize2,
+  FileDown,
 } from "lucide-react";
 import {
   ListTodo,
@@ -33,6 +36,13 @@ import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import jsPDF from "jspdf";
 
 const ONBOARDING_STEPS = [
   { key: "company_info", label: "Dados da loja" },
