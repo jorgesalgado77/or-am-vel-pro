@@ -637,6 +637,7 @@ export function MeasurementRequestModal({
       toast.success("Endereço salvo!");
       setEditingAddress(false);
     } catch {
+      addressHydrationLockedRef.current = false;
       toast.error("Erro ao salvar endereço.");
     }
   }, [client?.id, addressForm]);
