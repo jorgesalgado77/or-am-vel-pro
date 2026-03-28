@@ -560,10 +560,10 @@ export function useOnboardingAI(tenantId: string | null) {
         let valor = 0;
         const sim = contract.simulation_id ? simMap.get(contract.simulation_id) : null;
         if (sim) {
-          valor = sim.valor_tela || 0;
-          if (sim.desconto1) valor *= (1 - sim.desconto1 / 100);
-          if (sim.desconto2) valor *= (1 - sim.desconto2 / 100);
-          if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
+          valor = (sim as any).valor_tela || 0;
+          if ((sim as any).desconto1) valor *= (1 - (sim as any).desconto1 / 100);
+          if ((sim as any).desconto2) valor *= (1 - (sim as any).desconto2 / 100);
+          if ((sim as any).desconto3) valor *= (1 - (sim as any).desconto3 / 100);
         }
         const track = trackingMap.get(contract.client_id) as any;
         if (valor === 0 && track?.valor_contrato) valor = Number(track.valor_contrato) || 0;
