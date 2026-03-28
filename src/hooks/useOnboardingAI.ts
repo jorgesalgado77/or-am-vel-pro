@@ -487,6 +487,139 @@ export function useOnboardingAI(tenantId: string | null) {
     const lower = content.toLowerCase();
     const currentUserId = localStorage.getItem("current_user_id");
 
+    // === Task wizard steps (priority — intercept all input while active) ===
+    if (taskWizard.active && currentUserId) {
+      // Cancel command
+      if (/cancelar|sair|parar|desistir/i.test(lower)) {
+        setTaskWizard(INITIAL_WIZARD);
+        appendAssistant("❌ Criação de tarefa cancelada.");
+        return true;
+      }
+
+      const step = taskWizard.step;
+
+      if (step === "titulo") {
+        setTaskWizard(prev => ({ ...prev, titulo: content.trim(), step: "data" }));
+        appendAssistant(`✅ Título: **${content.trim()}**\n\n📅 **Qual a data da tarefa?**\n\n_Ex: hoje, amanhã, 30/03/2026_`);
+        return true;
+      }
+
+      if (step === "data") {
+        let dateStr = "";
+        const today = new Date();
+        if (/hoje/i.test(lower)) {
+          dateStr = today.toISOString().slice(0, 10);
+        } else if (/amanh[ãa]/i.test(lower)) {
+          const d = new Date(today);
+          d.setDate(d.getDate() + 1);
+          dateStr = d.toISOString().slice(0, 10);
+        } else {
+          const dateMatch = content.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+          if (dateMatch) {
+            const day = dateMatch[1].padStart(2, "0");
+            const month = dateMatch[2].padStart(2, "0");
+            const year = dateMatch[3] ? (dateMatch[3].length === 2 ? `20${dateMatch[3]}` : dateMatch[3]) : String(today.getFullYear());
+            dateStr = `${year}-${month}-${day}`;
+          } else {
+            const isoMatch = content.match(/(\d{4}-\d{2}-\d{2})/);
+            if (isoMatch) dateStr = isoMatch[1];
+          }
+        }
+        if (!dateStr) {
+          appendAssistant("❌ Não entendi a data. Por favor, informe no formato **DD/MM/AAAA**, ou diga **hoje** ou **amanhã**.");
+          return true;
+        }
+        const dateFormatted = dateStr.split("-").reverse().join("/");
+        setTaskWizard(prev => ({ ...prev, data_tarefa: dateStr, step: "horario" }));
+        appendAssistant(`✅ Data: **${dateFormatted}**\n\n🕐 **Qual o horário da tarefa?**\n\n_Ex: 14:00, 09:30 (ou "sem horário")_`);
+        return true;
+      }
+
+      if (step === "horario") {
+        let horario: string | undefined;
+        if (/sem\s+hor[aá]rio|nenhum|pular|n[ãa]o/i.test(lower)) {
+          horario = undefined;
+        } else {
+          const timeMatch = content.match(/(\d{1,2})[:\.](\d{2})/);
+          if (timeMatch) {
+            horario = `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}`;
+          } else {
+            appendAssistant("❌ Não entendi o horário. Use **HH:MM** (ex: 14:00) ou diga **sem horário**.");
+            return true;
+          }
+        }
+        setTaskWizard(prev => ({ ...prev, horario, step: "descricao" }));
+        appendAssistant(`✅ Horário: **${horario || "Sem horário"}**\n\n📝 **Qual a descrição da tarefa?**\n\n_Descreva os detalhes ou diga "pular"._`);
+        return true;
+      }
+
+      if (step === "descricao") {
+        const descricao = /pular|sem descri[çc][ãa]o|nenhum/i.test(lower) ? undefined : content.trim();
+        setTaskWizard(prev => ({ ...prev, descricao, step: "notificacao" }));
+        appendAssistant(`✅ Descrição: **${descricao || "Nenhuma"}**\n\n⏰ **Quantos minutos antes deseja ser notificado?**\n\n_Ex: 5, 10, 15, 30 ou "sem notificação"_`);
+        return true;
+      }
+
+      if (step === "notificacao") {
+        let notifMin: number | undefined;
+        if (/sem\s+notifica[çc][ãa]o|nenhum|pular|n[ãa]o/i.test(lower)) {
+          notifMin = undefined;
+        } else {
+          const numMatch = content.match(/(\d+)/);
+          if (numMatch) {
+            notifMin = parseInt(numMatch[1]);
+          } else {
+            appendAssistant("❌ Informe um número de minutos (ex: **15**) ou diga **sem notificação**.");
+            return true;
+          }
+        }
+
+        const wizard = { ...taskWizard, notificacao_minutos: notifMin };
+        const { data: userData } = await (supabase as any).from("usuarios").select("id, nome_completo").eq("id", currentUserId).maybeSingle();
+        const dateFormatted = (wizard.data_tarefa || "").split("-").reverse().join("/");
+
+        const taskPayload: Record<string, any> = {
+          tenant_id: tenantId,
+          titulo: wizard.titulo || "Tarefa criada pela Mia",
+          descricao: wizard.descricao || null,
+          data_tarefa: wizard.data_tarefa || new Date().toISOString().slice(0, 10),
+          horario: wizard.horario || null,
+          tipo: "geral",
+          status: "nova",
+          responsavel_id: currentUserId,
+          responsavel_nome: userData?.nome_completo || null,
+          criado_por: currentUserId,
+        };
+
+        const { error } = await (supabase as any).from("tasks").insert(taskPayload);
+
+        if (error) {
+          appendAssistant(`❌ Não consegui criar a tarefa: ${error.message || "Erro desconhecido"}`);
+        } else {
+          if (notifMin && wizard.horario) {
+            try {
+              const { setReminderMinutes: setRemMin } = await import("@/hooks/useTaskReminders");
+              setRemMin(notifMin);
+            } catch {}
+          }
+          appendAssistant(
+            `✅ **Tarefa criada com sucesso!**\n\n` +
+            `| Campo | Valor |\n|---|---|\n` +
+            `| **Título** | ${wizard.titulo} |\n` +
+            `| **Data** | ${dateFormatted} |\n` +
+            `| **Horário** | ${wizard.horario || "Sem horário"} |\n` +
+            `| **Descrição** | ${wizard.descricao || "—"} |\n` +
+            `| **Notificação** | ${notifMin ? `${notifMin} min antes` : "Desativada"} |\n` +
+            `| **Responsável** | ${userData?.nome_completo || "Você"} |\n\n` +
+            `A tarefa já está visível na coluna **Nova Tarefa** do Kanban! 📋`
+          );
+        }
+
+        setTaskWizard(INITIAL_WIZARD);
+        return true;
+      }
+    }
+
     // === Alert/Reminder commands ===
     const alertCmd = detectAlertCommand(content);
     if (alertCmd) {
