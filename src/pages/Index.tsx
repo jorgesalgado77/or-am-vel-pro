@@ -182,11 +182,29 @@ export default function Index() {
   useEffect(() => {
     const handler = () => setActiveView("dealroom");
     const settingsHandler = () => setActiveView("settings");
+    const tasksHandler = () => setActiveView("tasks");
+    const tutorialsHandler = () => setActiveView("tutorials");
+    const financialHandler = () => setActiveView("financial");
+    const supportHandler = () => setActiveView("settings"); // Support opens via settings/support
+    const clientsHandler = () => setActiveView("clients");
+    const chatHandler = () => setActiveView("chat");
     window.addEventListener("navigate-to-dealroom", handler);
     window.addEventListener("navigate-to-settings", settingsHandler);
+    window.addEventListener("navigate-to-tasks", tasksHandler);
+    window.addEventListener("navigate-to-tutorials", tutorialsHandler);
+    window.addEventListener("navigate-to-financial", financialHandler);
+    window.addEventListener("navigate-to-support", supportHandler);
+    window.addEventListener("navigate-to-clients", clientsHandler);
+    window.addEventListener("navigate-to-chat", chatHandler);
     return () => {
       window.removeEventListener("navigate-to-dealroom", handler);
       window.removeEventListener("navigate-to-settings", settingsHandler);
+      window.removeEventListener("navigate-to-tasks", tasksHandler);
+      window.removeEventListener("navigate-to-tutorials", tutorialsHandler);
+      window.removeEventListener("navigate-to-financial", financialHandler);
+      window.removeEventListener("navigate-to-support", supportHandler);
+      window.removeEventListener("navigate-to-clients", clientsHandler);
+      window.removeEventListener("navigate-to-chat", chatHandler);
     };
   }, []);
 
