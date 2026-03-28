@@ -743,12 +743,14 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
             let clientId: string | null = null;
 
-            const { data: existingClient, error: existingClientError } = await supabase
+            const { data: existingClientRows, error: existingClientError } = await supabase
               .from("clients")
-              .select("id, nome, telefone")
+              .select("id, nome, numero_orcamento")
               .eq("tenant_id", tenantId)
-              .eq("telefone", normalizedPhone)
-              .maybeSingle();
+              .eq("numero_orcamento", contractNumber)
+              .limit(1);
+
+            const existingClient = ((existingClientRows as any[]) || [])[0] || null;
 
             if (existingClientError) {
               console.error("client lookup error:", existingClientError);
@@ -772,12 +774,14 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               if (clientError || !createdClient?.id) {
                 console.error("client insert error:", clientError);
 
-                const { data: recoveredClient, error: recoveredClientError } = await supabase
+                const { data: recoveredClientRows, error: recoveredClientError } = await supabase
                   .from("clients")
                   .select("id")
                   .eq("tenant_id", tenantId)
-                  .eq("telefone", normalizedPhone)
-                  .maybeSingle();
+                  .eq("numero_orcamento", contractNumber)
+                  .limit(1);
+
+                const recoveredClient = ((recoveredClientRows as any[]) || [])[0] || null;
 
                 if (recoveredClientError || !recoveredClient?.id) {
                   console.error("client recovery error:", recoveredClientError);
