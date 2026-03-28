@@ -232,6 +232,18 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           const restored = (data as Client[]).find((c: Client) => c.id === formState.selectedClientId);
           if (restored) setSelectedClient(restored);
         }
+
+        // Fetch which clients have VendaZap conversations
+        if (tenantId) {
+          const { data: chatData } = await (supabase as any)
+            .from("vendazap_messages")
+            .select("client_id")
+            .eq("tenant_id", tenantId);
+          if (chatData) {
+            const ids = new Set((chatData as any[]).map((m: any) => m.client_id).filter(Boolean));
+            setClientsWithChat(ids as Set<string>);
+          }
+        }
       }
     };
     loadClients();
