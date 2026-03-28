@@ -35,6 +35,18 @@ interface EnvironmentData {
   fileName?: string;
 }
 
+type AttachmentKind = "image" | "pdf";
+
+interface EnvironmentAttachment {
+  id: string;
+  file: File;
+  kind: AttachmentKind;
+  mimeType: string;
+  name: string;
+  previewUrl: string;
+  thumbnailUrl: string;
+}
+
 interface MeasurementRequestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -48,8 +60,7 @@ export function MeasurementRequestModal({
 }: MeasurementRequestModalProps) {
   const [environments, setEnvironments] = useState<EnvironmentData[]>([]);
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
-  const [envImages, setEnvImages] = useState<Record<string, File[]>>({});
-  const [envImagePreviews, setEnvImagePreviews] = useState<Record<string, string[]>>({});
+  const [envAttachments, setEnvAttachments] = useState<Record<string, EnvironmentAttachment[]>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
@@ -57,6 +68,7 @@ export function MeasurementRequestModal({
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   const [observacoes, setObservacoes] = useState("");
   const { settings } = useCompanySettings();
+  const localPreviewUrlsRef = useRef<Set<string>>(new Set());
 
   // Store data
   const [storeData, setStoreData] = useState<{ name: string; cnpj: string; logo_url: string; codigo_loja: string; gerente_nome: string }>({
@@ -85,27 +97,69 @@ export function MeasurementRequestModal({
       .trim()
       .toLowerCase();
 
-  // Init editable fields from client
-  useEffect(() => {
-    if (!open) return;
-    const c = client as any;
+  const revokePreviewUrl = useCallback((url?: string) => {
+    if (!url || !localPreviewUrlsRef.current.has(url)) return;
+    URL.revokeObjectURL(url);
+    localPreviewUrlsRef.current.delete(url);
+  }, []);
+
+  const clearPreviewUrls = useCallback(() => {
+    localPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    localPreviewUrlsRef.current.clear();
+  }, []);
+
+  const hydrateClientState = useCallback((source: any) => {
+    const merged = source || {};
     setEditableFields({
-      telefone: maskPhone(client.telefone1 || ""),
-      email: client.email || "",
-      cpf: maskCpfCnpj(client.cpf || tracking.cpf_cnpj || ""),
+      telefone: maskPhone(merged.telefone1 || client.telefone1 || ""),
+      email: merged.email || client.email || "",
+      cpf: maskCpfCnpj(merged.cpf || client.cpf || tracking.cpf_cnpj || ""),
     });
     setAddressForm({
-      cep: maskCep(c.delivery_address_zip || c.cep || ""),
-      street: c.delivery_address_street || c.endereco || "",
-      number: c.delivery_address_number || "",
-      complement: c.delivery_address_complement || "",
-      district: c.delivery_address_district || c.bairro || "",
-      city: c.delivery_address_city || c.cidade || "",
-      state: c.delivery_address_state || c.estado || "",
+      cep: maskCep(merged.delivery_address_zip || merged.cep_entrega || merged.cep || ""),
+      street: merged.delivery_address_street || merged.endereco_entrega || merged.endereco || "",
+      number: merged.delivery_address_number || merged.numero_entrega || merged.numero || "",
+      complement: merged.delivery_address_complement || merged.complemento_entrega || merged.complemento || "",
+      district: merged.delivery_address_district || merged.bairro_entrega || merged.bairro || "",
+      city: merged.delivery_address_city || merged.cidade_entrega || merged.cidade || "",
+      state: merged.delivery_address_state || merged.uf_entrega || merged.estado || merged.uf || "",
     });
     setEditingAddress(false);
     setEditingField(null);
-  }, [open, client?.id]);
+  }, [client.cpf, client.email, client.telefone1, tracking.cpf_cnpj]);
+
+  useEffect(() => {
+    if (!open || !client?.id) return;
+    let active = true;
+
+    clearPreviewUrls();
+    setEnvAttachments({});
+    setUploadProgress({});
+    setObservacoes("");
+    setPdfPreviewImages([]);
+    setPdfPreviewOpen(false);
+    hydrateClientState(client as any);
+
+    const loadFreshClient = async () => {
+      const { data } = await (supabase as any)
+        .from("clients")
+        .select("*")
+        .eq("id", client.id)
+        .maybeSingle();
+
+      if (active && data) hydrateClientState(data);
+    };
+
+    void loadFreshClient();
+
+    return () => {
+      active = false;
+    };
+  }, [clearPreviewUrls, client, hydrateClientState, open]);
+
+  useEffect(() => () => {
+    clearPreviewUrls();
+  }, [clearPreviewUrls]);
 
   // Load store data
   useEffect(() => {
@@ -206,6 +260,13 @@ export function MeasurementRequestModal({
         delivery_address_district: addressForm.district,
         delivery_address_city: addressForm.city,
         delivery_address_state: addressForm.state,
+        cep_entrega: addressForm.cep,
+        endereco_entrega: addressForm.street,
+        numero_entrega: addressForm.number,
+        complemento_entrega: addressForm.complement,
+        bairro_entrega: addressForm.district,
+        cidade_entrega: addressForm.city,
+        uf_entrega: addressForm.state,
       } as any).eq("id", client.id);
       toast.success("Endereço salvo!");
       setEditingAddress(false);
@@ -284,7 +345,64 @@ export function MeasurementRequestModal({
     return "other";
   };
 
-  const handleFileChange = (envId: string, files: FileList | null) => {
+  const sourceToDataUrl = useCallback((source: string | File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Falha ao processar arquivo"));
+
+    if (source instanceof File) {
+      reader.readAsDataURL(source);
+      return;
+    }
+
+    fetch(source)
+      .then((response) => response.blob())
+      .then((blob) => reader.readAsDataURL(blob))
+      .catch(reject);
+  }), []);
+
+  const createPdfThumbnail = useCallback(async (source: string | File) => {
+    try {
+      const data = source instanceof File
+        ? await source.arrayBuffer()
+        : await fetch(source).then((response) => response.arrayBuffer());
+      const pdf = await pdfjsLib.getDocument({ data }).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 0.42 });
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      if (!context) return null;
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvas, canvasContext: context, viewport }).promise;
+      return canvas.toDataURL("image/png");
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const buildAttachment = useCallback(async (file: File): Promise<EnvironmentAttachment | null> => {
+    const kind = getFileKind(file);
+    if (kind === "other") return null;
+
+    const previewUrl = URL.createObjectURL(file);
+    localPreviewUrlsRef.current.add(previewUrl);
+    const thumbnailUrl = kind === "pdf"
+      ? (await createPdfThumbnail(file)) || previewUrl
+      : previewUrl;
+
+    return {
+      id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      kind,
+      mimeType: file.type || "",
+      name: file.name,
+      previewUrl,
+      thumbnailUrl,
+    };
+  }, [createPdfThumbnail]);
+
+  const handleFileChange = async (envId: string, files: FileList | null) => {
     if (!files) return;
 
     const selectedFiles = Array.from(files);
@@ -310,34 +428,29 @@ export function MeasurementRequestModal({
       setUploadProgress(prev => ({ ...prev, [envId]: Math.min(progress, 100) }));
     }, 150);
 
-    const newPreviews = validFiles.map(file => URL.createObjectURL(file));
+    const nextAttachments = (await Promise.all(validFiles.map((file) => buildAttachment(file))))
+      .filter((attachment): attachment is EnvironmentAttachment => Boolean(attachment));
 
-    setEnvImages(prev => ({
+    setEnvAttachments(prev => ({
       ...prev,
-      [envId]: [...(prev[envId] || []), ...validFiles],
-    }));
-    setEnvImagePreviews(prev => ({
-      ...prev,
-      [envId]: [...(prev[envId] || []), ...newPreviews],
+      [envId]: [...(prev[envId] || []), ...nextAttachments],
     }));
   };
 
   const removeImage = (envId: string, index: number) => {
-    const previews = envImagePreviews[envId] || [];
-    if (previews[index]) URL.revokeObjectURL(previews[index]);
-
-    setEnvImages(prev => ({
-      ...prev,
-      [envId]: (prev[envId] || []).filter((_, i) => i !== index),
-    }));
-    setEnvImagePreviews(prev => ({
-      ...prev,
-      [envId]: (prev[envId] || []).filter((_, i) => i !== index),
-    }));
+    setEnvAttachments(prev => {
+      const current = prev[envId] || [];
+      const target = current[index];
+      revokePreviewUrl(target?.previewUrl);
+      return {
+        ...prev,
+        [envId]: current.filter((_, i) => i !== index),
+      };
+    });
   };
 
   const allEnvsHaveImages = environments.length > 0 &&
-    environments.every(env => (envImages[env.id] || []).length >= 1);
+    environments.every(env => (envAttachments[env.id] || []).some((attachment) => attachment.kind === "image"));
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
@@ -391,13 +504,14 @@ export function MeasurementRequestModal({
       return ref.includes("png") || ref.includes("image/png") ? "PNG" : "JPEG";
     };
 
-    const loadImageAsset = async (src: string, fallbackName?: string) => {
+    const loadImageAsset = async (src: string | File, fallbackName?: string) => {
+      const normalizedSrc = await sourceToDataUrl(src);
       const img = new window.Image();
       img.crossOrigin = "anonymous";
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = () => reject();
-        img.src = src;
+        img.src = normalizedSrc;
       });
 
       const canvas = document.createElement("canvas");
@@ -407,7 +521,7 @@ export function MeasurementRequestModal({
       if (!ctx) throw new Error("Falha ao processar imagem");
       ctx.drawImage(img, 0, 0);
 
-      const format = getImageFormat(src, fallbackName);
+      const format = getImageFormat(typeof src === "string" ? src : src.type, fallbackName);
       const mimeType = format === "PNG" ? "image/png" : "image/jpeg";
       const dataUrl = canvas.toDataURL(mimeType, 0.92);
 
@@ -638,15 +752,11 @@ export function MeasurementRequestModal({
 
     const drawPhotoPages = async () => {
       const imageEntries = environments.flatMap((env) =>
-        (envImages[env.id] || []).map((file, index) => ({
+        (envAttachments[env.id] || []).filter((attachment) => attachment.kind === "image").map((attachment) => ({
           envName: env.name,
-          file,
-          preview: (envImagePreviews[env.id] || [])[index],
+          attachment,
         })),
-      ).filter((entry) => {
-        const ref = `${entry.file?.type || ""} ${entry.file?.name || ""}`.toLowerCase();
-        return Boolean(entry.preview) && (ref.includes("image/") || /\.png$|\.jpe?g$|\.webp$|\.gif$|\.bmp$|\.svg$|\.heic$|\.heif$|\.avif$/.test(ref));
-      });
+      );
 
       if (imageEntries.length === 0) return;
 
@@ -675,10 +785,10 @@ export function MeasurementRequestModal({
         doc.setFont(FONT, "normal");
         doc.setFontSize(7.5);
         doc.setTextColor(...GRAY);
-        doc.text(entry.file.name || "Imagem enviada", mx + 4, y + 12);
+        doc.text(entry.attachment.name || "Imagem enviada", mx + 4, y + 12);
 
         try {
-          const imageAsset = await loadImageAsset(entry.preview!, entry.file.name);
+          const imageAsset = await loadImageAsset(entry.attachment.file, entry.attachment.name);
           const ratio = imageAsset.width / imageAsset.height;
           let drawW = cw - 8;
           let drawH = drawW / ratio;
@@ -785,7 +895,7 @@ export function MeasurementRequestModal({
     addFooter();
 
     return doc;
-  }, [addressForm, client, editableFields, environments, envImages, envImagePreviews, formatCurrency, observacoes, storeData, totalValorAvista, tracking]);
+  }, [addressForm, client, editableFields, environments, envAttachments, formatCurrency, observacoes, sourceToDataUrl, storeData, totalValorAvista, tracking]);
 
   const generatePdfPreview = useCallback(async () => {
     setPdfPreviewLoading(true);
@@ -844,23 +954,31 @@ export function MeasurementRequestModal({
 
       // Upload images to storage
       const uploadedImages: Record<string, string[]> = {};
+      const uploadedAttachments: Record<string, Array<{ kind: AttachmentKind; name: string; type: string; url: string }>> = {};
       for (const env of environments) {
-        const files = envImages[env.id] || [];
-        const urls: string[] = [];
-        for (const file of files) {
-          const path = `measurement-requests/${client.id}/${env.id}/${Date.now()}-${file.name}`;
+        const attachments = envAttachments[env.id] || [];
+        const imageUrls: string[] = [];
+        const attachmentUrls: Array<{ kind: AttachmentKind; name: string; type: string; url: string }> = [];
+        for (const attachment of attachments) {
+          const path = `measurement-requests/${client.id}/${env.id}/${Date.now()}-${attachment.name}`;
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from("company-assets")
-            .upload(path, file);
+            .upload(path, attachment.file);
           if (uploadError) {
             console.error("Upload error:", uploadError);
-            urls.push(""); // placeholder
           } else {
             const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
-            urls.push(urlData.publicUrl);
+            if (attachment.kind === "image") imageUrls.push(urlData.publicUrl);
+            attachmentUrls.push({
+              kind: attachment.kind,
+              name: attachment.name,
+              type: attachment.mimeType || attachment.kind,
+              url: urlData.publicUrl,
+            });
           }
         }
-        uploadedImages[env.id] = urls;
+        uploadedImages[env.id] = imageUrls;
+        uploadedAttachments[env.id] = attachmentUrls;
       }
 
       // Insert measurement request
@@ -877,6 +995,7 @@ export function MeasurementRequestModal({
           fileName: e.fileName,
           fileUrl: e.fileUrl,
           images: uploadedImages[e.id] || [],
+          attachments: uploadedAttachments[e.id] || [],
         })),
         imported_files: importedFiles,
         status: "novo",
@@ -1149,8 +1268,9 @@ export function MeasurementRequestModal({
                 <p className="text-sm text-muted-foreground">Nenhum ambiente encontrado nas simulações.</p>
               ) : (
                 environments.map((env) => {
-                  const images = envImages[env.id] || [];
-                  const hasMinImages = images.length >= 1;
+                  const attachments = envAttachments[env.id] || [];
+                  const imageCount = attachments.filter((attachment) => attachment.kind === "image").length;
+                  const hasMinImages = imageCount >= 1;
                   return (
                     <div key={env.id} className={cn(
                       "rounded-lg border p-3 space-y-2",
@@ -1177,7 +1297,7 @@ export function MeasurementRequestModal({
                       <div className="space-y-1.5">
                         <Label className="text-xs flex items-center gap-1">
                           <Image className="h-3 w-3" />
-                          Arquivos enviados (mín. 1) * — {images.length} item(ns)
+                          Arquivos enviados (mín. 1 imagem) * — {attachments.length} item(ns)
                         </Label>
 
                         {uploadProgress[env.id] !== undefined && (
@@ -1189,30 +1309,29 @@ export function MeasurementRequestModal({
                         )}
 
                         <div className="flex flex-wrap gap-2">
-                          {images.map((file, idx) => {
-                            const preview = (envImagePreviews[env.id] || [])[idx];
-                            const kind = getFileKind(file);
+                          {attachments.map((attachment, idx) => {
+                            const preview = attachment.thumbnailUrl || attachment.previewUrl;
 
                             return (
-                              <div key={idx} className="relative group">
+                              <div key={attachment.id} className="relative group">
                                 <div className="h-20 w-20 rounded-lg border-2 border-border bg-muted flex items-center justify-center overflow-hidden shadow-sm">
-                                  {preview && kind === "image" ? (
+                                  {preview ? (
                                     <img
                                       src={preview}
-                                      alt={file.name}
+                                      alt={attachment.name}
                                       className="h-full w-full object-cover"
-                                    />
-                                  ) : preview && kind === "pdf" ? (
-                                    <iframe
-                                      src={`${preview}#toolbar=0&navpanes=0&scrollbar=0&page=1&view=FitH`}
-                                      title={file.name}
-                                      className="h-full w-full bg-background"
+                                      loading="lazy"
                                     />
                                   ) : (
                                     <FileText className="h-6 w-6 text-muted-foreground" />
                                   )}
+                                  {attachment.kind === "pdf" && (
+                                    <div className="absolute inset-x-0 bottom-0 bg-background/90 px-1 py-0.5 text-center text-[8px] font-semibold text-foreground">
+                                      PDF
+                                    </div>
+                                  )}
                                 </div>
-                                <p className="text-[9px] text-muted-foreground truncate w-20 mt-0.5 text-center">{file.name}</p>
+                                <p className="text-[9px] text-muted-foreground truncate w-20 mt-0.5 text-center">{attachment.name}</p>
                                 <button
                                   type="button"
                                   onClick={() => removeImage(env.id, idx)}
@@ -1231,7 +1350,10 @@ export function MeasurementRequestModal({
                               multiple
                               accept="image/*,.pdf"
                               className="hidden"
-                              onChange={(e) => handleFileChange(env.id, e.target.files)}
+                              onChange={(e) => {
+                                void handleFileChange(env.id, e.target.files);
+                                e.currentTarget.value = "";
+                              }}
                             />
                           </label>
                         </div>
