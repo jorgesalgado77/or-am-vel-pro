@@ -16,7 +16,8 @@ export function GoogleCalendarTab() {
   const tenantId = getTenantId();
   const { status, loading, checking, startOAuth, disconnect, checkStatus } = useGoogleCalendarOAuth(tenantId, user?.id);
 
-  const previewUri = "https://id-preview--6544673b-6b62-4fef-affb-85422e91f8f5.lovable.app/app?gcal_callback=1";
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const currentEnvironmentUri = currentOrigin ? `${currentOrigin}/app?gcal_callback=1` : "";
   const productionUri = "https://orcamovelpro.lovable.app/app?gcal_callback=1";
 
   return (
