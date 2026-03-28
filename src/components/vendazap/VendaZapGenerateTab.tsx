@@ -687,7 +687,9 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium text-foreground block truncate">{c.nome}</span>
                               {clientsWithChat.has(c.id) && (
-                                <MessageSquare className="h-3.5 w-3.5 text-emerald-500 shrink-0" title="Tem conversa no chat" />
+                                <span className="shrink-0" aria-label="Tem conversa no chat">
+                                  <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
+                                </span>
                               )}
                             </div>
                             {c.numero_orcamento && <span className="text-[11px] text-muted-foreground">#{c.numero_orcamento}</span>}
