@@ -932,7 +932,7 @@ export function MeasurementRequestModal({
   const allEnvsHaveAttachments = environments.length > 0 &&
     environments.every(env => (envAttachments[env.id] || []).length >= 1);
 
-  const hasAddress = !!(addressForm.cep && addressForm.street && addressForm.city && addressForm.state);
+  const hasAddress = isAddressComplete(addressForm);
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
@@ -951,24 +951,37 @@ export function MeasurementRequestModal({
   );
 
   const persistClientSnapshot = useCallback(async () => {
+    const normalizedAddress = {
+      cep: maskCep(addressForm.cep),
+      street: addressForm.street.trim(),
+      number: addressForm.number.trim(),
+      complement: addressForm.complement.trim(),
+      district: addressForm.district.trim(),
+      city: addressForm.city.trim(),
+      state: addressForm.state.trim().toUpperCase(),
+    };
+
+    addressHydrationLockedRef.current = true;
+    setAddressForm(normalizedAddress);
+
     await (supabase as any).from("clients").update({
       telefone1: editableFields.telefone,
       email: editableFields.email,
       cpf: editableFields.cpf,
-      delivery_address_zip: addressForm.cep,
-      delivery_address_street: addressForm.street,
-      delivery_address_number: addressForm.number,
-      delivery_address_complement: addressForm.complement,
-      delivery_address_district: addressForm.district,
-      delivery_address_city: addressForm.city,
-      delivery_address_state: addressForm.state,
-      cep_entrega: addressForm.cep,
-      endereco_entrega: addressForm.street,
-      numero_entrega: addressForm.number,
-      complemento_entrega: addressForm.complement,
-      bairro_entrega: addressForm.district,
-      cidade_entrega: addressForm.city,
-      uf_entrega: addressForm.state,
+      delivery_address_zip: normalizedAddress.cep,
+      delivery_address_street: normalizedAddress.street,
+      delivery_address_number: normalizedAddress.number,
+      delivery_address_complement: normalizedAddress.complement,
+      delivery_address_district: normalizedAddress.district,
+      delivery_address_city: normalizedAddress.city,
+      delivery_address_state: normalizedAddress.state,
+      cep_entrega: normalizedAddress.cep,
+      endereco_entrega: normalizedAddress.street,
+      numero_entrega: normalizedAddress.number,
+      complemento_entrega: normalizedAddress.complement,
+      bairro_entrega: normalizedAddress.district,
+      cidade_entrega: normalizedAddress.city,
+      uf_entrega: normalizedAddress.state,
     } as any).eq("id", client.id);
   }, [addressForm, client.id, editableFields]);
 
@@ -1484,6 +1497,7 @@ export function MeasurementRequestModal({
       return;
     }
     if (!hasAddress) {
+      addressHydrationLockedRef.current = false;
       toast.error("Complete o endereço de entrega antes de enviar a solicitação");
       setEditingAddress(true);
       return;
@@ -1616,8 +1630,10 @@ export function MeasurementRequestModal({
         duration: 6000,
       });
 
+      addressHydrationLockedRef.current = false;
       onOpenChange(false);
     } catch (err: any) {
+      addressHydrationLockedRef.current = false;
       toast.error("Erro ao enviar solicitação: " + (err.message || "erro desconhecido"));
     } finally {
       setSaving(false);
