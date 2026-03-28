@@ -237,16 +237,16 @@ export function MeasurementRequestModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <Ruler className="h-5 w-5 text-primary" />
             Solicitação de Medida
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-3" style={{ maxHeight: "calc(90vh - 180px)" }}>
-          <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 pb-2" style={{ maxHeight: "calc(90vh - 140px)" }}>
+          <div className="space-y-4 py-4">
             {/* Client Info */}
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 space-y-2">
               <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
@@ -278,30 +278,28 @@ export function MeasurementRequestModal({
                   <span className="ml-2 font-medium">{client.vendedor || "—"}</span>
                 </div>
               </div>
-              {/* Endereço de Entrega */}
-              {(() => {
-                const c = client as any;
-                const hasAddress = c.delivery_address_street || c.delivery_address_city || c.endereco_entrega;
-                if (!hasAddress) return null;
-                const fullAddress = c.delivery_address_street
-                  ? [
-                      c.delivery_address_street,
-                      c.delivery_address_number,
-                      c.delivery_address_complement,
-                      c.delivery_address_district,
-                      c.delivery_address_city && c.delivery_address_state
-                        ? `${c.delivery_address_city} - ${c.delivery_address_state}`
-                        : c.delivery_address_city || c.delivery_address_state,
-                      c.delivery_address_zip,
-                    ].filter(Boolean).join(", ")
-                  : c.endereco_entrega || "";
-                return (
-                  <div className="mt-2 pt-2 border-t border-emerald-500/20">
-                    <span className="text-muted-foreground text-xs">📍 Endereço de Entrega:</span>
-                    <p className="text-sm font-medium mt-0.5">{fullAddress || "—"}</p>
-                  </div>
-                );
-              })()}
+              {/* Endereço de Entrega — always show */}
+              <div className="mt-2 pt-2 border-t border-emerald-500/20">
+                <span className="text-muted-foreground text-xs">📍 Endereço de Entrega:</span>
+                <p className="text-sm font-medium mt-0.5">
+                  {(() => {
+                    const c = client as any;
+                    const fullAddress = c.delivery_address_street
+                      ? [
+                          c.delivery_address_street,
+                          c.delivery_address_number,
+                          c.delivery_address_complement,
+                          c.delivery_address_district,
+                          c.delivery_address_city && c.delivery_address_state
+                            ? `${c.delivery_address_city} - ${c.delivery_address_state}`
+                            : c.delivery_address_city || c.delivery_address_state,
+                          c.delivery_address_zip,
+                        ].filter(Boolean).join(", ")
+                      : c.endereco_entrega || c.endereco || "";
+                    return fullAddress || "Endereço não informado";
+                  })()}
+                </p>
+              </div>
             </div>
 
             {/* Sale Value */}
