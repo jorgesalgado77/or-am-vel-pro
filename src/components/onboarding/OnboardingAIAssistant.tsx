@@ -475,6 +475,9 @@ export function OnboardingAIAssistant() {
               <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("configuracoes"); }}>
                 <Settings className="h-3 w-3" /> Config
               </Button>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("criar lembrete: ")}>
+                <Bell className="h-3 w-3" /> Lembrete
+              </Button>
             </div>
           </div>
 

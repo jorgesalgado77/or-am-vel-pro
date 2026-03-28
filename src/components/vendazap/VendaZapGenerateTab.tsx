@@ -254,6 +254,72 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           setLastSim(data);
           if (addon?.ativo) autoSugg.generate(selectedClient, data);
         });
+
+      // Load Chat de Vendas conversations for this client to auto-populate context
+      (async () => {
+        // Find client_tracking for this client
+        const { data: trackings } = await supabase
+          .from("client_tracking")
+          .select("id")
+          .eq("client_id", selectedClient.id)
+          .limit(1);
+
+        const trackingId = (trackings as any[])?.[0]?.id;
+        if (!trackingId) return;
+
+        // Fetch all messages from Chat de Vendas
+        const { data: chatMsgs } = await supabase
+          .from("tracking_messages")
+          .select("mensagem, remetente_tipo, created_at")
+          .eq("tracking_id", trackingId)
+          .order("created_at", { ascending: true })
+          .limit(50);
+
+        if (chatMsgs && chatMsgs.length > 0) {
+          // Convert to historico entries and pre-populate
+          const entries: HistoricoEntry[] = (chatMsgs as any[])
+            .filter((m) => m.mensagem?.trim())
+            .map((m) => ({
+              remetente_tipo: m.remetente_tipo === "loja" ? "ia" as const : "cliente" as const,
+              mensagem: m.mensagem,
+              timestamp: m.created_at,
+            }));
+
+          if (entries.length > 0 && historico.clientId !== selectedClient.id) {
+            setHistorico({ entries: entries.slice(-20), clientId: selectedClient.id });
+
+            // Auto-detect DISC from chat messages and adjust settings
+            const discResult = detectDiscFromMessages(
+              entries.map(e => ({
+                remetente_tipo: e.remetente_tipo === "ia" ? "loja" : e.remetente_tipo,
+                mensagem: e.mensagem,
+              }))
+            );
+
+            if (discResult.profile && discResult.confidence > 40) {
+              const discToTone: Record<string, string> = { D: "direto", I: "persuasivo", S: "consultivo", C: "consultivo" };
+              const discToCopy: Record<string, string> = { D: "fechamento", I: "reuniao", S: "reuniao", C: "objecao" };
+              const newTone = discToTone[discResult.profile];
+              const newCopy = discToCopy[discResult.profile];
+              if (newTone) setTom(newTone);
+              if (newCopy) setTipoCopy(newCopy);
+
+              const meta = DISC_PROFILE_META[discResult.profile];
+              toast.info(
+                `📊 Perfil DISC detectado: ${meta?.label} ${meta?.emoji} (${discResult.confidence}% confiança). Tom e estratégia ajustados automaticamente a partir das conversas do Chat de Vendas.`,
+                { duration: 5000 }
+              );
+            }
+
+            // Analyze last client message for closing score
+            const lastClientMsg = entries.filter(e => e.remetente_tipo === "cliente").pop();
+            if (lastClientMsg) {
+              const analysis = analyzeClientMessage(lastClientMsg.mensagem);
+              if (analysis) setClosingScore(analysis.score);
+            }
+          }
+        }
+      })();
     } else {
       autoSugg.clear();
     }
@@ -262,20 +328,67 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const diasSemResposta = selectedClient ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
 
-  // Restore historico from saved session when client changes
+  // Restore historico from saved session when client changes (only if chat didn't populate)
   useEffect(() => {
     if (selectedClient && historico.clientId !== selectedClient.id) {
       const saved = getActiveSession(selectedClient.id);
       if (saved && saved.entries.length > 0) {
         setHistorico({ entries: saved.entries as HistoricoEntry[], clientId: selectedClient.id });
-        // Restore settings
         if (saved.settings.tipoCopy) setTipoCopy(saved.settings.tipoCopy);
         if (saved.settings.tom) setTom(saved.settings.tom);
         if (saved.settings.closingScore) setClosingScore(saved.settings.closingScore);
-      } else {
-        setHistorico({ entries: [], clientId: selectedClient.id });
       }
+      // Note: don't reset to empty here — the chat integration effect above handles it
     }
+  }, [selectedClient?.id]);
+
+  // Realtime: monitor Chat de Vendas messages for selected client
+  useEffect(() => {
+    if (!selectedClient) return;
+
+    // Find tracking id for this client
+    let trackingId: string | null = null;
+    const findTracking = async () => {
+      const { data } = await supabase
+        .from("client_tracking")
+        .select("id")
+        .eq("client_id", selectedClient.id)
+        .limit(1);
+      trackingId = (data as any[])?.[0]?.id || null;
+    };
+    findTracking();
+
+    const channel = supabase
+      .channel(`vendazap-monitor-${selectedClient.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "tracking_messages" },
+        (payload) => {
+          const msg = payload.new as any;
+          if (!trackingId || msg.tracking_id !== trackingId) return;
+          if (!msg.mensagem?.trim()) return;
+
+          const entry: HistoricoEntry = {
+            remetente_tipo: msg.remetente_tipo === "loja" ? "ia" : "cliente",
+            mensagem: msg.mensagem,
+            timestamp: msg.created_at,
+          };
+
+          if (msg.remetente_tipo === "cliente") {
+            const analysis = analyzeClientMessage(msg.mensagem);
+            entry.intent = analysis.intent;
+            entry.score = analysis.score;
+          }
+
+          setHistorico({
+            entries: [...historico.entries, entry].slice(-20),
+            clientId: historico.clientId,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [selectedClient?.id]);
 
   // Resume from history tab

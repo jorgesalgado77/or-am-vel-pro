@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 
@@ -18,9 +18,9 @@ const FIELD_LABELS: Record<string, string> = {
 export function useDiscountOptions() {
   const [options, setOptions] = useState<DiscountOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const skipNextSync = useRef(false);
 
   const fetchOptions = async () => {
-    setLoading(true);
     const tenantId = await getResolvedTenantId();
     let query = supabase
       .from("discount_options")
@@ -28,7 +28,10 @@ export function useDiscountOptions() {
       .order("field_name");
     if (tenantId) query = query.eq("tenant_id", tenantId);
     const { data } = await query;
-    setOptions((data as DiscountOption[]) || []);
+    if (!skipNextSync.current) {
+      setOptions((data as DiscountOption[]) || []);
+    }
+    skipNextSync.current = false;
     setLoading(false);
   };
 
@@ -53,7 +56,15 @@ export function useDiscountOptions() {
   const updateOptions = async (fieldName: string, percentages: number[]) => {
     const sorted = [...percentages].sort((a, b) => a - b);
     const existing = options.find((o) => o.field_name === fieldName);
-    
+
+    // Optimistically update local state so tags don't disappear
+    skipNextSync.current = true;
+    if (existing) {
+      setOptions(prev => prev.map(o => o.field_name === fieldName ? { ...o, percentages: sorted } : o));
+    } else {
+      setOptions(prev => [...prev, { id: `temp-${Date.now()}`, field_name: fieldName, percentages: sorted }]);
+    }
+
     let error;
     if (existing) {
       ({ error } = await supabase
@@ -66,8 +77,12 @@ export function useDiscountOptions() {
         .from("discount_options")
         .insert({ field_name: fieldName, percentages: sorted, tenant_id: tenantId } as any));
     }
-    if (error) console.error("[DiscountOptions] Save error:", error.message, error);
-    if (!error) fetchOptions();
+    if (error) {
+      console.error("[DiscountOptions] Save error:", error.message, error);
+      skipNextSync.current = false;
+      // Revert on error
+      fetchOptions();
+    }
     return error;
   };
 

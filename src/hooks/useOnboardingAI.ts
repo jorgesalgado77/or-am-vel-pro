@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { playNotificationSound } from "@/lib/notificationSound";
 
 export interface AIMessage {
   id: string;
@@ -15,6 +16,90 @@ export interface OnboardingAIContext {
   completedSteps: string[];
 }
 
+// --- Alerts / Reminders ---
+export interface ScheduledAlert {
+  id: string;
+  title: string;
+  datetime: string; // ISO
+  fired: boolean;
+}
+
+const ALERTS_KEY_PREFIX = "mia_alerts_";
+
+function getAlertsKey(tenantId: string | null) {
+  return `${ALERTS_KEY_PREFIX}${tenantId || "no-tenant"}`;
+}
+
+function loadAlerts(tenantId: string | null): ScheduledAlert[] {
+  try { return JSON.parse(localStorage.getItem(getAlertsKey(tenantId)) || "[]"); } catch { return []; }
+}
+
+function saveAlerts(tenantId: string | null, alerts: ScheduledAlert[]) {
+  localStorage.setItem(getAlertsKey(tenantId), JSON.stringify(alerts));
+}
+
+// --- Navigation command detection ---
+interface CommandMatch {
+  action: "navigate" | "local";
+  target: string;
+  label: string;
+  description: string;
+}
+
+const NAVIGATION_COMMANDS: Array<{ patterns: RegExp[]; target: string; label: string; description: string }> = [
+  { patterns: [/funil|captação|pipeline/i], target: "funnel", label: "Funil de Captação", description: "Vou abrir o Funil de Captação para você." },
+  { patterns: [/kanban|clientes|meus leads|lista de clientes/i], target: "clients", label: "Clientes", description: "Vou abrir o Kanban de Clientes." },
+  { patterns: [/chat de vendas|conversa|whatsapp chat|mensagens/i], target: "vendazap-chat", label: "Chat de Vendas", description: "Vou abrir o Chat de Vendas." },
+  { patterns: [/deal\s?room|sala de venda|reunião/i], target: "dealroom", label: "Deal Room", description: "Vou abrir a Deal Room." },
+  { patterns: [/simulador|simular|calcular|orçamento/i], target: "simulator", label: "Simulador", description: "Vou abrir o Simulador de Vendas." },
+  { patterns: [/vendazap|ia de vendas|mensagem ia/i], target: "vendazap", label: "VendaZap AI", description: "Vou abrir o VendaZap AI." },
+  { patterns: [/tarefas|minhas tarefas|task|agenda/i], target: "tarefas", label: "Tarefas", description: "Vou abrir as Tarefas." },
+  { patterns: [/suporte|ajuda|ticket/i], target: "suporte", label: "Suporte", description: "Vou abrir o Suporte." },
+  { patterns: [/tutori|vídeo|como (faço|usar|funciona)|me (mostre|ensine)/i], target: "tutoriais", label: "Tutoriais", description: "Entendido, vou abrir nos Tutoriais o vídeo que mais se aproxima da sua dúvida." },
+  { patterns: [/financeiro|contas a pagar|contas a receber|caixa|fluxo/i], target: "financeiro", label: "Financeiro", description: "Vou abrir o módulo Financeiro." },
+  { patterns: [/configura[çc]|ajust|preferência/i], target: "configuracoes", label: "Configurações", description: "Vou abrir as Configurações." },
+  { patterns: [/plano|assinatura|meu plano|qual.*plano/i], target: "plans", label: "Planos", description: "Vou abrir a tela de Planos para você verificar." },
+  { patterns: [/produto|catálogo|estoque/i], target: "products", label: "Produtos", description: "Vou abrir o Catálogo de Produtos." },
+  { patterns: [/campanha|marketing|campanha sazonal/i], target: "campaigns", label: "Campanhas", description: "Vou abrir o módulo de Campanhas." },
+  { patterns: [/comiss[ãa]o|comissões|pagamento vendedor/i], target: "payroll", label: "Folha/Comissões", description: "Vou abrir a Folha de Pagamento e Comissões." },
+  { patterns: [/gerente.*ia|ia.*gerente|comercial.*ia|inteligência comercial/i], target: "commercial-ai", label: "Gerente IA", description: "Vou abrir o Gerente IA Comercial." },
+  { patterns: [/dashboard|painel|visão geral|indicadores/i], target: "dashboard", label: "Dashboard", description: "Vou abrir o Dashboard." },
+  { patterns: [/contrato|meus contratos/i], target: "contracts", label: "Contratos", description: "Vou abrir os Contratos." },
+  { patterns: [/briefing/i], target: "briefing", label: "Briefing", description: "Vou abrir o Briefing." },
+  { patterns: [/usuário|usuários|equipe|time|colaborador|salário|maior salário/i], target: "configuracoes", label: "Usuários", description: "Vou abrir a gestão de Usuários nas Configurações." },
+  { patterns: [/cadastrar conta|nova conta|adicionar conta/i], target: "financeiro", label: "Financeiro", description: "Vou abrir o Financeiro para você cadastrar uma nova conta." },
+];
+
+function detectNavigationCommand(text: string): CommandMatch | null {
+  const lower = text.toLowerCase();
+  for (const cmd of NAVIGATION_COMMANDS) {
+    for (const pattern of cmd.patterns) {
+      if (pattern.test(lower)) {
+        return { action: "navigate", target: cmd.target, label: cmd.label, description: cmd.description };
+      }
+    }
+  }
+  return null;
+}
+
+function detectAlertCommand(text: string): { title: string; minutes: number } | null {
+  const lower = text.toLowerCase();
+  const match = lower.match(/(criar|agendar|definir|setar?)\s+(lembrete|alerta|alarme)\s*[:\-]?\s*(.*)/i);
+  if (!match) return null;
+  const rest = match[3] || text;
+  // Try to extract time like "em 5 minutos", "em 1 hora", "em 30 min"
+  const timeMatch = rest.match(/em\s+(\d+)\s*(min|minuto|hora|h)/i);
+  let minutes = 5; // default 5 min
+  if (timeMatch) {
+    const val = parseInt(timeMatch[1]);
+    const unit = timeMatch[2].toLowerCase();
+    minutes = (unit.startsWith("h")) ? val * 60 : val;
+  }
+  const title = rest.replace(/em\s+\d+\s*(min|minuto|hora|h)[s]?/i, "").replace(/[:\-]/g, "").trim() || "Lembrete da Mia";
+  return { title, minutes };
+}
+
+// --- Storage helpers ---
 function getStorageScope(tenantId: string | null) {
   const userId = typeof window !== "undefined" ? localStorage.getItem("current_user_id") || "anon" : "anon";
   return `${tenantId || "no-tenant"}_${userId}`;
@@ -28,17 +113,9 @@ function getContextKey(tenantId: string | null) {
   return `mia_context_${getStorageScope(tenantId)}`;
 }
 
-function getSeenCountKey(tenantId: string | null) {
-  return `mia_seen_count_${getStorageScope(tenantId)}`;
-}
-
 function parseStored<T>(value: string | null, fallback: T): T {
   if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
+  try { return JSON.parse(value) as T; } catch { return fallback; }
 }
 
 function createMessage(role: "user" | "assistant", content: string): AIMessage {
@@ -115,7 +192,6 @@ async function buildRuntimeContext(tenantId: string): Promise<OnboardingAIContex
 }
 
 export function useOnboardingAI(tenantId: string | null) {
-  // Hydrate messages synchronously from localStorage to avoid unread flash
   const [messages, setMessages] = useState<AIMessage[]>(() => {
     if (!tenantId) return [];
     return parseStored<AIMessage[]>(localStorage.getItem(getMessagesKey(tenantId)), []).map((m) => ({
@@ -128,11 +204,73 @@ export function useOnboardingAI(tenantId: string | null) {
     if (!tenantId) return null;
     return parseStored<OnboardingAIContext | null>(localStorage.getItem(getContextKey(tenantId)), null);
   });
+  const [alerts, setAlerts] = useState<ScheduledAlert[]>(() => loadAlerts(tenantId));
   const initialized = useRef(false);
   const messagesRef = useRef<AIMessage[]>(messages);
+  const alertTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
-  // Keep ref in sync
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // Alert scheduler
+  useEffect(() => {
+    if (!tenantId) return;
+    const unfired = alerts.filter(a => !a.fired);
+    
+    // Clear old timers
+    alertTimersRef.current.forEach((timer, id) => {
+      if (!unfired.find(a => a.id === id)) {
+        clearTimeout(timer);
+        alertTimersRef.current.delete(id);
+      }
+    });
+
+    for (const alert of unfired) {
+      if (alertTimersRef.current.has(alert.id)) continue;
+      const msUntil = new Date(alert.datetime).getTime() - Date.now();
+      if (msUntil <= 0) {
+        // Fire immediately
+        fireAlert(alert);
+        continue;
+      }
+      const timer = setTimeout(() => fireAlert(alert), msUntil);
+      alertTimersRef.current.set(alert.id, timer);
+    }
+
+    return () => {
+      alertTimersRef.current.forEach(t => clearTimeout(t));
+      alertTimersRef.current.clear();
+    };
+  }, [alerts, tenantId]);
+
+  const fireAlert = useCallback((alert: ScheduledAlert) => {
+    // Play sound
+    playNotificationSound();
+    // Visual toast
+    toast.warning(`⏰ Lembrete: ${alert.title}`, { duration: 15000 });
+    // Mark as fired
+    setAlerts(prev => {
+      const updated = prev.map(a => a.id === alert.id ? { ...a, fired: true } : a);
+      saveAlerts(tenantId, updated);
+      return updated;
+    });
+    // Add message in chat
+    setMessages(prev => [...prev, createMessage("assistant", `⏰ **Lembrete disparado!**\n\n${alert.title}`)]);
+  }, [tenantId]);
+
+  const addAlert = useCallback((title: string, minutes: number) => {
+    const alert: ScheduledAlert = {
+      id: `alert-${Date.now()}`,
+      title,
+      datetime: new Date(Date.now() + minutes * 60000).toISOString(),
+      fired: false,
+    };
+    setAlerts(prev => {
+      const updated = [...prev, alert];
+      saveAlerts(tenantId, updated);
+      return updated;
+    });
+    return alert;
+  }, [tenantId]);
 
   useEffect(() => {
     if (!tenantId || initialized.current) return;
@@ -151,7 +289,6 @@ export function useOnboardingAI(tenantId: string | null) {
         });
       }
 
-      // If we already have messages from localStorage, skip DB/initial
       if (messagesRef.current.length > 0) return;
 
       try {
@@ -175,7 +312,6 @@ export function useOnboardingAI(tenantId: string | null) {
         // fallback to local cache
       }
 
-      // No messages at all — send initial greeting via chatWithAI directly
       const initialMsg = createMessage("user", "Olá, acabei de criar minha conta!");
       setMessages([initialMsg]);
       setLoading(true);
@@ -183,8 +319,7 @@ export function useOnboardingAI(tenantId: string | null) {
     };
 
     void bootstrap();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId]); // chatWithAI is stable via useCallback
+  }, [tenantId]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -217,6 +352,101 @@ export function useOnboardingAI(tenantId: string | null) {
     const lower = content.toLowerCase();
     const currentUserId = localStorage.getItem("current_user_id");
 
+    // === Alert/Reminder commands ===
+    const alertCmd = detectAlertCommand(content);
+    if (alertCmd) {
+      const alert = addAlert(alertCmd.title, alertCmd.minutes);
+      const timeStr = alertCmd.minutes >= 60
+        ? `${Math.floor(alertCmd.minutes / 60)}h${alertCmd.minutes % 60 > 0 ? `${alertCmd.minutes % 60}min` : ""}`
+        : `${alertCmd.minutes} minutos`;
+      appendAssistant(
+        `⏰ **Lembrete criado!**\n\n• **${alertCmd.title}**\n• Disparo em: ${timeStr}\n• Horário: ${new Date(alert.datetime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}\n\nVocê receberá uma notificação visual e sonora quando o momento chegar.`
+      );
+      return true;
+    }
+
+    // === Navigation commands ===
+    const navCmd = detectNavigationCommand(content);
+    if (navCmd) {
+      // For tutorials, search for specific content
+      if (navCmd.target === "tutoriais") {
+        const { data } = await (supabase as any)
+          .from("tutorials")
+          .select("titulo, descricao, categoria, video_url")
+          .eq("ativo", true)
+          .order("ordem", { ascending: true })
+          .limit(30);
+
+        const terms = lower.split(/\s+/).filter((term) => term.length > 3);
+        const ranked = ((data as any[]) || [])
+          .map((tutorial) => {
+            const haystack = `${tutorial.titulo || ""} ${tutorial.descricao || ""} ${tutorial.categoria || ""}`.toLowerCase();
+            const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
+            return { ...tutorial, score };
+          })
+          .filter((tutorial) => tutorial.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+
+        if (ranked.length > 0) {
+          appendAssistant(
+            `🎬 **${navCmd.description}**\n\n${ranked.map((t) => `• **${t.titulo}** — ${t.categoria}`).join("\n")}\n\n👉 Clique em **Tutoriais** abaixo para acessar diretamente.`
+          );
+        } else {
+          appendAssistant(`📚 ${navCmd.description}\n\n👉 Clique em **Tutoriais** abaixo para ver todos os vídeos disponíveis.`);
+        }
+        // Still navigate
+        setTimeout(() => navigateTo("tutoriais"), 1500);
+        return true;
+      }
+
+      // For financial queries with specific data
+      if (navCmd.target === "financeiro" && /contas?\s+(a\s+)?(pagar|vencer|receber|vencid)/i.test(lower)) {
+        const today = new Date().toISOString().slice(0, 10);
+        const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const { data } = await (supabase as any)
+          .from("financial_accounts")
+          .select("name, amount, due_date, status")
+          .eq("tenant_id", tenantId)
+          .neq("status", "pago")
+          .order("due_date", { ascending: true })
+          .limit(30);
+
+        const accounts = (data as any[]) || [];
+        const overdue = accounts.filter((a) => a.due_date < today);
+        const dueSoon = accounts.filter((a) => a.due_date >= today && a.due_date <= nextWeek);
+
+        appendAssistant(
+          `💰 **Alertas financeiros**\n\n• Contas vencidas: **${overdue.length}**\n• A vencer em 7 dias: **${dueSoon.length}**${dueSoon.length > 0 ? `\n\nPróximas:\n${dueSoon.slice(0, 5).map((a) => `• ${a.name} — R$ ${Number(a.amount || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} — ${a.due_date}`).join("\n")}` : ""}\n\n👉 Abrindo o Financeiro...`
+        );
+        setTimeout(() => navigateTo("financeiro"), 1500);
+        return true;
+      }
+
+      // For plan queries
+      if (navCmd.target === "plans" && /qual.*plano|meu plano|plano atual/i.test(lower)) {
+        appendAssistant(`📋 **${navCmd.description}**\n\n👉 Abrindo a tela de Planos para verificar seu plano atual e opções de upgrade.`);
+        setTimeout(() => navigateTo("plans"), 1500);
+        return true;
+      }
+
+      // For user/salary queries
+      if (navCmd.target === "configuracoes" && /salário|maior salário|usuário/i.test(lower)) {
+        appendAssistant(`👥 **${navCmd.description}**\n\n👉 Abrindo a gestão de Usuários. Lá você pode ver todos os colaboradores, cargos e informações salariais.`);
+        setTimeout(() => {
+          navigateTo("configuracoes");
+          window.dispatchEvent(new CustomEvent("navigate-to-settings", { detail: { subtab: "usuarios" } }));
+        }, 1500);
+        return true;
+      }
+
+      // Generic navigation
+      appendAssistant(`✅ **${navCmd.description}**\n\n👉 Abrindo ${navCmd.label}...`);
+      setTimeout(() => navigateTo(navCmd.target), 1500);
+      return true;
+    }
+
+    // === Legacy local actions ===
     if (/pend[eê]ncias|o que falta|progresso/.test(lower)) {
       const liveContext = context || await buildRuntimeContext(tenantId).catch(() => null);
       const labels: Record<string, string> = {
@@ -254,7 +484,6 @@ export function useOnboardingAI(tenantId: string | null) {
       };
       const { error } = await (supabase as any).from("tasks").insert(taskPayload);
 
-      // If it failed, retry without optional fields
       let retryError = error;
       if (error) {
         console.error("[Mia] Task insert error:", JSON.stringify(error));
@@ -319,62 +548,8 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
-    if (/tutorial|v[ií]deo|como faço|como usar/.test(lower)) {
-      const { data } = await (supabase as any)
-        .from("tutorials")
-        .select("titulo, descricao, categoria, video_url")
-        .eq("ativo", true)
-        .order("ordem", { ascending: true })
-        .limit(30);
-
-      const terms = lower.split(/\s+/).filter((term) => term.length > 3);
-      const ranked = ((data as any[]) || [])
-        .map((tutorial) => {
-          const haystack = `${tutorial.titulo || ""} ${tutorial.descricao || ""} ${tutorial.categoria || ""}`.toLowerCase();
-          const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
-          return { ...tutorial, score };
-        })
-        .filter((tutorial) => tutorial.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3);
-
-      appendAssistant(
-        ranked.length === 0
-          ? "📚 Não encontrei um tutorial muito próximo dessa dúvida. Abra o menu **Tutoriais** para ver todos os vídeos disponíveis."
-          : `🎬 **Tutoriais mais próximos da sua dúvida**\n\n${ranked.map((tutorial) => `• **${tutorial.titulo}** — ${tutorial.categoria}${tutorial.video_url ? `\n  ${tutorial.video_url}` : ""}`).join("\n\n")}`
-      );
-      return true;
-    }
-
-    if (/contas a vencer|contas vencidas|alerta financeiro|financeiro/.test(lower)) {
-      const today = new Date().toISOString().slice(0, 10);
-      const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const { data, error: finError } = await (supabase as any)
-        .from("financial_accounts")
-        .select("name, amount, due_date, status")
-        .eq("tenant_id", tenantId)
-        .neq("status", "pago")
-        .order("due_date", { ascending: true })
-        .limit(30);
-
-      if (finError) {
-        console.error("[Mia] Financial query error:", JSON.stringify(finError));
-        appendAssistant(`❌ Erro ao consultar contas: ${finError.message || "Tabela não encontrada"}. Verifique se o módulo financeiro está configurado.`);
-        return true;
-      }
-
-      const accounts = (data as any[]) || [];
-      const overdue = accounts.filter((account) => account.due_date < today);
-      const dueSoon = accounts.filter((account) => account.due_date >= today && account.due_date <= nextWeek);
-
-      appendAssistant(
-        `💰 **Alertas financeiros**\n\n• Contas vencidas: **${overdue.length}**\n• A vencer em 7 dias: **${dueSoon.length}**${dueSoon.length > 0 ? `\n\nPróximas contas:\n${dueSoon.slice(0, 5).map((account) => `• ${account.name} — ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.amount) || 0)} — ${account.due_date}`).join("\n")}` : ""}`
-      );
-      return true;
-    }
-
     return false;
-  }, [appendAssistant, context, tenantId]);
+  }, [appendAssistant, context, tenantId, addAlert]);
 
   const chatWithAI = useCallback(async (tid: string, chatMessages: { role: string; content: string }[]) => {
     try {
@@ -453,7 +628,7 @@ export function useOnboardingAI(tenantId: string | null) {
     }
   }, [tenantId, appendAssistant, refreshContext, handleLocalAction, chatWithAI]);
 
-  // Navigation helper — dispatches sidebar navigation events
+  // Navigation helper
   const navigateTo = useCallback((target: string, detail?: Record<string, string>) => {
     const eventMap: Record<string, string> = {
       tarefas: "navigate-to-tasks",
@@ -464,12 +639,23 @@ export function useOnboardingAI(tenantId: string | null) {
       clientes: "navigate-to-clients",
       dealroom: "navigate-to-dealroom",
       chat: "navigate-to-chat",
+      funnel: "navigate-to-funnel",
+      plans: "navigate-to-plans",
+      "vendazap-chat": "navigate-to-vendazap-chat",
+      vendazap: "navigate-to-vendazap",
+      simulator: "navigate-to-simulator",
+      products: "navigate-to-products",
+      campaigns: "navigate-to-campaigns",
+      payroll: "navigate-to-payroll",
+      "commercial-ai": "navigate-to-commercial-ai",
+      dashboard: "navigate-to-dashboard",
+      contracts: "navigate-to-contracts",
+      briefing: "navigate-to-briefing",
     };
     const eventName = eventMap[target] || `navigate-to-${target}`;
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
   }, []);
 
-  // Pending items computed from context
   const pendingItems = useMemo(() => {
     const allSteps = ["company_info", "openai_api", "whatsapp_api", "whatsapp_connected", "resend_api", "pdf_configured"];
     const labels: Record<string, string> = {
@@ -610,6 +796,8 @@ export function useOnboardingAI(tenantId: string | null) {
     suggestFirstProject,
     navigateTo,
     pendingItems,
+    alerts,
+    addAlert,
   };
 }
 
