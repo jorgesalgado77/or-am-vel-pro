@@ -2,15 +2,14 @@
  * Modal for sending measurement requests (Solicitação de Medida).
  * Shows client data, sale value, environments, imported files and requires image uploads.
  */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X } from "lucide-react";
+import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
@@ -133,6 +132,68 @@ export function MeasurementRequestModal({
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
+  const generatePdfPreview = useCallback(async () => {
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF();
+    const c = client as any;
+
+    doc.setFontSize(16);
+    doc.text("Solicitação de Medida", 20, 20);
+    doc.setFontSize(10);
+    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 20, 28);
+
+    doc.setFontSize(12);
+    doc.text("Dados do Cliente", 20, 40);
+    doc.setFontSize(10);
+    const info = [
+      `Nome: ${client.nome}`,
+      `CPF/CNPJ: ${client.cpf || tracking.cpf_cnpj || "—"}`,
+      `Telefone: ${client.telefone1 || "—"}`,
+      `Email: ${client.email || "—"}`,
+      `Nº Contrato: ${tracking.numero_contrato || "—"}`,
+      `Vendedor: ${client.vendedor || "—"}`,
+    ];
+    const fullAddr = c.delivery_address_street
+      ? [c.delivery_address_street, c.delivery_address_number, c.delivery_address_complement,
+         c.delivery_address_district,
+         c.delivery_address_city && c.delivery_address_state ? `${c.delivery_address_city} - ${c.delivery_address_state}` : c.delivery_address_city || c.delivery_address_state,
+         c.delivery_address_zip].filter(Boolean).join(", ")
+      : c.endereco_entrega || c.endereco || "Não informado";
+    info.push(`Endereço de Entrega: ${fullAddr}`);
+
+    let y = 48;
+    for (const line of info) {
+      const lines = doc.splitTextToSize(line, 170);
+      doc.text(lines, 20, y);
+      y += lines.length * 6;
+    }
+
+    y += 6;
+    doc.setFontSize(12);
+    doc.text(`Valor Total à Vista: ${formatCurrency(totalValorAvista)}`, 20, y);
+    y += 10;
+
+    doc.text(`Ambientes Vendidos (${environments.length})`, 20, y);
+    y += 8;
+    doc.setFontSize(10);
+    for (const env of environments) {
+      doc.text(`• ${env.name} — ${formatCurrency(env.value)}`, 24, y);
+      y += 6;
+      if (env.fileName) {
+        doc.text(`  Arquivo: ${env.fileName}`, 28, y);
+        y += 6;
+      }
+      const imgs = envImages[env.id] || [];
+      doc.text(`  Imagens anexadas: ${imgs.length}`, 28, y);
+      y += 8;
+      if (y > 270) { doc.addPage(); y = 20; }
+    }
+
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  }, [client, tracking, environments, envImages, totalValorAvista]);
+
   const handleSubmit = async () => {
     if (!allEnvsHaveImages) {
       toast.error("Cada ambiente precisa ter pelo menos 1 imagem anexada");
@@ -237,16 +298,16 @@ export function MeasurementRequestModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <Ruler className="h-5 w-5 text-primary" />
             Solicitação de Medida
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-3" style={{ maxHeight: "calc(90vh - 180px)" }}>
-          <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 pb-2" style={{ maxHeight: "calc(90vh - 140px)" }}>
+          <div className="space-y-4 py-4">
             {/* Client Info */}
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 space-y-2">
               <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
@@ -278,30 +339,28 @@ export function MeasurementRequestModal({
                   <span className="ml-2 font-medium">{client.vendedor || "—"}</span>
                 </div>
               </div>
-              {/* Endereço de Entrega */}
-              {(() => {
-                const c = client as any;
-                const hasAddress = c.delivery_address_street || c.delivery_address_city || c.endereco_entrega;
-                if (!hasAddress) return null;
-                const fullAddress = c.delivery_address_street
-                  ? [
-                      c.delivery_address_street,
-                      c.delivery_address_number,
-                      c.delivery_address_complement,
-                      c.delivery_address_district,
-                      c.delivery_address_city && c.delivery_address_state
-                        ? `${c.delivery_address_city} - ${c.delivery_address_state}`
-                        : c.delivery_address_city || c.delivery_address_state,
-                      c.delivery_address_zip,
-                    ].filter(Boolean).join(", ")
-                  : c.endereco_entrega || "";
-                return (
-                  <div className="mt-2 pt-2 border-t border-emerald-500/20">
-                    <span className="text-muted-foreground text-xs">📍 Endereço de Entrega:</span>
-                    <p className="text-sm font-medium mt-0.5">{fullAddress || "—"}</p>
-                  </div>
-                );
-              })()}
+              {/* Endereço de Entrega — always show */}
+              <div className="mt-2 pt-2 border-t border-emerald-500/20">
+                <span className="text-muted-foreground text-xs">📍 Endereço de Entrega:</span>
+                <p className="text-sm font-medium mt-0.5">
+                  {(() => {
+                    const c = client as any;
+                    const fullAddress = c.delivery_address_street
+                      ? [
+                          c.delivery_address_street,
+                          c.delivery_address_number,
+                          c.delivery_address_complement,
+                          c.delivery_address_district,
+                          c.delivery_address_city && c.delivery_address_state
+                            ? `${c.delivery_address_city} - ${c.delivery_address_state}`
+                            : c.delivery_address_city || c.delivery_address_state,
+                          c.delivery_address_zip,
+                        ].filter(Boolean).join(", ")
+                      : c.endereco_entrega || c.endereco || "";
+                    return fullAddress || "Endereço não informado";
+                  })()}
+                </p>
+              </div>
             </div>
 
             {/* Sale Value */}
@@ -410,10 +469,18 @@ export function MeasurementRequestModal({
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="mt-3">
+        <DialogFooter className="px-6 pb-6 pt-3 border-t flex-wrap gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button
+            variant="secondary"
+            onClick={generatePdfPreview}
+            className="gap-2"
+          >
+            <Eye className="h-4 w-4" />
+            Visualizar PDF
+          </Button>
           <Button
             onClick={handleSubmit}
             disabled={saving || !allEnvsHaveImages}
