@@ -1910,8 +1910,10 @@ export function MeasurementRequestModal({
 
             {attachmentGalleryEntries.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-sm font-semibold">Galeria de anexos da solicitação</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  📸 Imagens anexadas à solicitação
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {attachmentGalleryEntries.map(({ envName, attachment }) => {
                     const preview = attachment.thumbnailUrl || attachment.previewUrl || attachment.sourceUrl;
                     if (!preview) return null;
