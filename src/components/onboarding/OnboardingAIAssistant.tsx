@@ -223,6 +223,93 @@ export function OnboardingAIAssistant() {
   const completedSteps = context?.completedSteps || [];
   const progress = (completedSteps.length / ONBOARDING_STEPS.length) * 100;
 
+  const exportConversationPdf = useCallback((filter: "all" | "today" | "this_month" | "last_month" | "custom", startDate?: Date, endDate?: Date) => {
+    let filtered = [...messages];
+    const now = new Date();
+
+    if (filter === "today") {
+      const todayStr = now.toISOString().slice(0, 10);
+      filtered = filtered.filter(m => new Date(m.timestamp).toISOString().slice(0, 10) === todayStr);
+    } else if (filter === "this_month") {
+      filtered = filtered.filter(m => {
+        const d = new Date(m.timestamp);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
+    } else if (filter === "last_month") {
+      const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+      const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      filtered = filtered.filter(m => {
+        const d = new Date(m.timestamp);
+        return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+      });
+    } else if (filter === "custom" && startDate && endDate) {
+      const start = startDate.getTime();
+      const end = endDate.getTime() + 86400000;
+      filtered = filtered.filter(m => {
+        const t = new Date(m.timestamp).getTime();
+        return t >= start && t < end;
+      });
+    }
+
+    if (filtered.length === 0) {
+      toast.info("Nenhuma mensagem encontrada para o período selecionado.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const maxWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    doc.setFontSize(16);
+    doc.text("Conversa com Mia — Assistente IA", margin, y);
+    y += 8;
+    doc.setFontSize(9);
+    const filterLabels: Record<string, string> = {
+      all: "Histórico completo",
+      today: `Hoje — ${now.toLocaleDateString("pt-BR")}`,
+      this_month: `Mês atual — ${now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`,
+      last_month: "Mês anterior",
+      custom: startDate && endDate ? `${startDate.toLocaleDateString("pt-BR")} a ${endDate.toLocaleDateString("pt-BR")}` : "Período personalizado",
+    };
+    doc.text(`Período: ${filterLabels[filter]}  •  ${filtered.length} mensagem(ns)`, margin, y);
+    y += 6;
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    for (const msg of filtered) {
+      const prefix = msg.role === "user" ? "Você" : "Mia";
+      const time = new Date(msg.timestamp).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      const plainText = msg.content.replace(/[#*_~`>|[\]()!]/g, "").replace(/\n{2,}/g, "\n");
+
+      doc.setFontSize(8);
+      doc.setTextColor(130);
+      doc.text(`${prefix} • ${time}`, margin, y);
+      y += 4;
+
+      doc.setFontSize(9);
+      doc.setTextColor(msg.role === "user" ? 30 : 60);
+      const lines = doc.splitTextToSize(plainText, maxWidth);
+      for (const line of lines) {
+        if (y > doc.internal.pageSize.getHeight() - 15) {
+          doc.addPage();
+          y = 15;
+        }
+        doc.text(line, margin, y);
+        y += 4;
+      }
+      y += 4;
+    }
+
+    doc.save(`mia-conversa-${filter}-${now.toISOString().slice(0, 10)}.pdf`);
+    toast.success("PDF exportado com sucesso!");
+  }, [messages]);
+
+  const [exportDateStart, setExportDateStart] = useState("");
+  const [exportDateEnd, setExportDateEnd] = useState("");
+
   if (!tenantId) return null;
 
   const fabStyle: React.CSSProperties = fabPos
