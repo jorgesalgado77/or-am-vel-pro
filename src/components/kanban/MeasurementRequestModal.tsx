@@ -733,5 +733,20 @@ export function MeasurementRequestModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* PDF Preview Dialog */}
+    <Dialog open={pdfPreviewOpen} onOpenChange={(v) => { setPdfPreviewOpen(v); if (!v && pdfPreviewUrl) { URL.revokeObjectURL(pdfPreviewUrl); setPdfPreviewUrl(null); } }}>
+      <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-4 pb-2">
+          <DialogTitle>Pré-visualização do PDF</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 px-2 pb-2">
+          {pdfPreviewUrl && (
+            <iframe src={pdfPreviewUrl} className="w-full h-full border-0 rounded-md" title="PDF Preview" />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }
