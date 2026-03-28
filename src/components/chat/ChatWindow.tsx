@@ -34,6 +34,7 @@ export function ChatWindow({
   inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [trackingIds, setTrackingIds] = useState<string[]>([conversation.id]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -48,11 +49,48 @@ export function ChatWindow({
   const bottomRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
 
+  useEffect(() => {
+    let active = true;
+    setTrackingIds([conversation.id]);
+
+    if (!conversation.client_id) return () => {
+      active = false;
+    };
+
+    void (async () => {
+      const { data } = await supabase
+        .from("client_tracking")
+        .select("id")
+        .eq("client_id", conversation.client_id)
+        .order("updated_at", { ascending: false });
+
+      if (!active) return;
+
+      const ids = Array.from(new Set([
+        conversation.id,
+        ...((data as Array<{ id: string }> | null)?.map((row) => row.id) || []),
+      ]));
+
+      setTrackingIds(ids);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [conversation.id, conversation.client_id]);
+
   const fetchMessages = useCallback(async (before?: string) => {
+    if (trackingIds.length === 0) {
+      setMessages([]);
+      setHasMore(false);
+      setLoading(false);
+      return;
+    }
+
     let query = supabase
       .from("tracking_messages")
       .select("*")
-      .eq("tracking_id", conversation.id)
+      .in("tracking_id", trackingIds)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
 
@@ -71,23 +109,25 @@ export function ChatWindow({
 
     setHasMore((data?.length || 0) === PAGE_SIZE);
     setLoading(false);
-  }, [conversation.id]);
+  }, [trackingIds]);
 
   // Initial load + mark as read
   useEffect(() => {
     isInitialLoad.current = true;
     setLoading(true);
-    fetchMessages();
+    void fetchMessages();
+
+    if (trackingIds.length === 0) return;
 
     // Mark client messages as read
     supabase
       .from("tracking_messages")
       .update({ lida: true } as any)
-      .eq("tracking_id", conversation.id)
+      .in("tracking_id", trackingIds)
       .eq("remetente_tipo", "cliente")
       .eq("lida", false)
       .then();
-  }, [conversation.id, fetchMessages]);
+  }, [fetchMessages, trackingIds]);
 
   // Scroll to bottom on initial load and new messages
   useEffect(() => {
@@ -106,7 +146,7 @@ export function ChatWindow({
         { event: "INSERT", schema: "public", table: "tracking_messages" },
         (payload) => {
           const msg = payload.new as any;
-          if (msg.tracking_id === conversation.id) {
+          if (trackingIds.includes(msg.tracking_id)) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === msg.id)) return prev;
               return [...prev, msg as ChatMessage];
@@ -127,7 +167,7 @@ export function ChatWindow({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [conversation.id]);
+  }, [trackingIds]);
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;

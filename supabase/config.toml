@@ -36,6 +36,9 @@ verify_jwt = false
 [functions.whatsapp-gateway]
 verify_jwt = false
 
+[functions.whatsapp-webhook]
+verify_jwt = false
+
 [functions.admin-vendazap]
 verify_jwt = false
 
