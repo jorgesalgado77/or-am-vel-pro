@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2, Loader2 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
@@ -48,6 +49,8 @@ export function MeasurementRequestModal({
   const [environments, setEnvironments] = useState<EnvironmentData[]>([]);
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [envImages, setEnvImages] = useState<Record<string, File[]>>({});
+  const [envImagePreviews, setEnvImagePreviews] = useState<Record<string, string[]>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
@@ -120,16 +123,30 @@ export function MeasurementRequestModal({
         return;
       }
 
-      const [companyRes, gerenteRes] = await Promise.all([
+      const [companyRes, gerenteRes, cargosRes] = await Promise.all([
         (supabase as any).from("company_settings").select("*").eq("tenant_id", tenantId).maybeSingle(),
-        (supabase as any).from("usuarios").select("nome_completo, cargo_nome").eq("tenant_id", tenantId).eq("ativo", true),
+        (supabase as any).from("usuarios").select("nome_completo, cargo_nome, cargo_id").eq("tenant_id", tenantId).eq("ativo", true),
+        (supabase as any).from("cargos").select("id, nome").eq("tenant_id", tenantId),
       ]);
 
       const company = companyRes.data || {};
-      const gerente = ((gerenteRes.data || []) as any[]).find((u: any) => {
-        const cargo = normalizeText(u.cargo_nome);
-        return cargo.includes("gerente") || cargo.includes("administrador") || cargo.includes("gestor");
+      const cargos = (cargosRes.data || []) as any[];
+      const gerenteCargo = cargos.find((c: any) => {
+        const n = normalizeText(c.nome);
+        return n.includes("gerente") || n.includes("administrador") || n.includes("gestor");
       });
+
+      const usuarios = (gerenteRes.data || []) as any[];
+      // Try finding by cargo_id first, then fallback to cargo_nome text match
+      let gerente = gerenteCargo
+        ? usuarios.find((u: any) => u.cargo_id === gerenteCargo.id)
+        : null;
+      if (!gerente) {
+        gerente = usuarios.find((u: any) => {
+          const cargo = normalizeText(u.cargo_nome);
+          return cargo.includes("gerente") || cargo.includes("administrador") || cargo.includes("gestor");
+        });
+      }
 
       setStoreData({
         name: company.company_name || company.nome_empresa || settings.company_name || "",
@@ -267,14 +284,54 @@ export function MeasurementRequestModal({
     if (validFiles.length !== files.length) {
       toast.error("Apenas imagens (PNG, JPG, WebP) e PDF são permitidos");
     }
+
+    // Simulate progress
+    setUploadProgress(prev => ({ ...prev, [envId]: 0 }));
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 30 + 10;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        setTimeout(() => setUploadProgress(prev => {
+          const next = { ...prev };
+          delete next[envId];
+          return next;
+        }), 500);
+      }
+      setUploadProgress(prev => ({ ...prev, [envId]: Math.min(progress, 100) }));
+    }, 150);
+
+    // Generate preview URLs
+    const newPreviews: string[] = [];
+    for (const file of validFiles) {
+      if (file.type.startsWith("image/")) {
+        newPreviews.push(URL.createObjectURL(file));
+      } else {
+        newPreviews.push(""); // no preview for PDFs
+      }
+    }
+
     setEnvImages(prev => ({
       ...prev,
       [envId]: [...(prev[envId] || []), ...validFiles],
     }));
+    setEnvImagePreviews(prev => ({
+      ...prev,
+      [envId]: [...(prev[envId] || []), ...newPreviews],
+    }));
   };
 
   const removeImage = (envId: string, index: number) => {
+    // Revoke URL to prevent memory leak
+    const previews = envImagePreviews[envId] || [];
+    if (previews[index]) URL.revokeObjectURL(previews[index]);
+
     setEnvImages(prev => ({
+      ...prev,
+      [envId]: (prev[envId] || []).filter((_, i) => i !== index),
+    }));
+    setEnvImagePreviews(prev => ({
       ...prev,
       [envId]: (prev[envId] || []).filter((_, i) => i !== index),
     }));
@@ -829,6 +886,11 @@ export function MeasurementRequestModal({
             <Ruler className="h-5 w-5 text-primary" />
             Solicitação de Medida
           </DialogTitle>
+          {tracking.numero_contrato && (
+            <p className="text-xs text-muted-foreground font-mono mt-1">
+              Nº Contrato: <span className="font-semibold text-foreground">{tracking.numero_contrato}</span>
+            </p>
+          )}
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 pb-2" style={{ maxHeight: "calc(90vh - 140px)" }}>
@@ -1059,32 +1121,47 @@ export function MeasurementRequestModal({
                       <div className="space-y-1.5">
                         <Label className="text-xs flex items-center gap-1">
                           <Image className="h-3 w-3" />
-                          Imagens iniciais (mín. 1) *
+                          Imagens iniciais (mín. 1) * — {images.length} enviada(s)
                         </Label>
+
+                        {/* Upload progress */}
+                        {uploadProgress[env.id] !== undefined && (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            <Progress value={uploadProgress[env.id]} className="h-2 flex-1" />
+                            <span className="text-[10px] text-muted-foreground">{Math.round(uploadProgress[env.id])}%</span>
+                          </div>
+                        )}
+
                         <div className="flex flex-wrap gap-2">
-                          {images.map((file, idx) => (
-                            <div key={idx} className="relative group">
-                              <div className="h-16 w-16 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
-                                {file.type.startsWith("image/") ? (
-                                  <img
-                                    src={URL.createObjectURL(file)}
-                                    alt={file.name}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <FileText className="h-6 w-6 text-muted-foreground" />
-                                )}
+                          {images.map((file, idx) => {
+                            const preview = (envImagePreviews[env.id] || [])[idx];
+                            return (
+                              <div key={idx} className="relative group">
+                                <div className="h-20 w-20 rounded-lg border-2 border-border bg-muted flex items-center justify-center overflow-hidden shadow-sm">
+                                  {preview ? (
+                                    <img
+                                      src={preview}
+                                      alt={file.name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <FileText className="h-6 w-6 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <p className="text-[9px] text-muted-foreground truncate w-20 mt-0.5 text-center">{file.name}</p>
+                                <button
+                                  onClick={() => removeImage(env.id, idx)}
+                                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
                               </div>
-                              <button
-                                onClick={() => removeImage(env.id, idx)}
-                                className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                          <label className="h-16 w-16 rounded-md border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                            );
+                          })}
+                          <label className="h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors gap-1">
                             <Upload className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-[9px] text-muted-foreground">Adicionar</span>
                             <input
                               type="file"
                               multiple
