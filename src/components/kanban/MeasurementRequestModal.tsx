@@ -39,12 +39,13 @@ type AttachmentKind = "image" | "pdf";
 
 interface EnvironmentAttachment {
   id: string;
-  file: File;
+  file?: File;
   kind: AttachmentKind;
   mimeType: string;
   name: string;
   previewUrl: string;
   thumbnailUrl: string;
+  sourceUrl?: string;
 }
 
 interface MeasurementRequestModalProps {
@@ -110,19 +111,25 @@ export function MeasurementRequestModal({
 
   const hydrateClientState = useCallback((source: any) => {
     const merged = source || {};
+    const nestedDeliveryAddress = merged.delivery_address && typeof merged.delivery_address === "object"
+      ? merged.delivery_address
+      : {};
+    const plainDeliveryAddress = typeof merged.delivery_address === "string"
+      ? merged.delivery_address
+      : "";
     setEditableFields({
       telefone: maskPhone(merged.telefone1 || client.telefone1 || ""),
       email: merged.email || client.email || "",
       cpf: maskCpfCnpj(merged.cpf || client.cpf || tracking.cpf_cnpj || ""),
     });
     setAddressForm({
-      cep: maskCep(merged.delivery_address_zip || merged.cep_entrega || merged.cep || ""),
-      street: merged.delivery_address_street || merged.endereco_entrega || merged.endereco || "",
-      number: merged.delivery_address_number || merged.numero_entrega || merged.numero || "",
-      complement: merged.delivery_address_complement || merged.complemento_entrega || merged.complemento || "",
-      district: merged.delivery_address_district || merged.bairro_entrega || merged.bairro || "",
-      city: merged.delivery_address_city || merged.cidade_entrega || merged.cidade || "",
-      state: merged.delivery_address_state || merged.uf_entrega || merged.estado || merged.uf || "",
+      cep: maskCep(nestedDeliveryAddress.cep || merged.delivery_address_zip || merged.cep_entrega || merged.cep || ""),
+      street: nestedDeliveryAddress.street || nestedDeliveryAddress.endereco || merged.delivery_address_street || merged.endereco_entrega || plainDeliveryAddress || merged.endereco || "",
+      number: nestedDeliveryAddress.number || merged.delivery_address_number || merged.numero_entrega || merged.numero || "",
+      complement: nestedDeliveryAddress.complement || merged.delivery_address_complement || merged.complemento_entrega || merged.complemento || "",
+      district: nestedDeliveryAddress.district || nestedDeliveryAddress.bairro || merged.delivery_address_district || merged.bairro_entrega || merged.bairro || "",
+      city: nestedDeliveryAddress.city || nestedDeliveryAddress.cidade || merged.delivery_address_city || merged.cidade_entrega || merged.cidade || "",
+      state: nestedDeliveryAddress.state || nestedDeliveryAddress.uf || merged.delivery_address_state || merged.uf_entrega || merged.estado || merged.uf || "",
     });
     setEditingAddress(false);
     setEditingField(null);
@@ -278,22 +285,33 @@ export function MeasurementRequestModal({
   // Load environments from simulations
   useEffect(() => {
     if (!client?.id || !open) return;
+    let active = true;
 
     const loadData = async () => {
-      // Load simulation environments
-      const { data: sims } = await supabase
-        .from("simulations")
-        .select("arquivo_nome, valor_tela, desconto1, desconto2, desconto3")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      const requestQuery = tracking?.id
+        ? supabase.from("measurement_requests" as any).select("*").eq("tracking_id", tracking.id).order("created_at", { ascending: false }).limit(1)
+        : supabase.from("measurement_requests" as any).select("*").eq("client_id", client.id).order("created_at", { ascending: false }).limit(1);
+
+      const [{ data: sims }, { data: requestRows }] = await Promise.all([
+        supabase
+          .from("simulations")
+          .select("arquivo_nome, valor_tela, desconto1, desconto2, desconto3")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false })
+          .limit(1),
+        requestQuery,
+      ]);
+
+      const latestRequest: any = Array.isArray(requestRows) ? requestRows[0] : null;
+      let nextEnvironments: EnvironmentData[] = [];
+      let nextImportedFiles: { name: string; url: string; type: string }[] = [];
 
       if (sims && sims.length > 0) {
         const sim = sims[0];
         try {
           if (sim.arquivo_nome && sim.arquivo_nome.startsWith("[")) {
             const parsed = JSON.parse(sim.arquivo_nome) as any[];
-            const envs: EnvironmentData[] = parsed.map((e: any, i: number) => {
+            nextEnvironments = parsed.map((e: any, i: number) => {
               const vt = Number(e.totalValue) || 0;
               const d1 = Number(sim.desconto1) || 0;
               const d2 = Number(sim.desconto2) || 0;
@@ -309,20 +327,16 @@ export function MeasurementRequestModal({
                 fileName: e.fileName,
               };
             });
-            setEnvironments(envs);
 
-            // Collect imported files (txt/xml)
-            const files = parsed
+            nextImportedFiles = parsed
               .filter((e: any) => e.fileUrl && e.fileName)
               .map((e: any) => ({
                 name: e.fileName,
                 url: e.fileUrl,
                 type: e.fileName.split(".").pop()?.toLowerCase() || "",
               }));
-            setImportedFiles(files);
           }
         } catch {
-          // fallback: create single environment
           const vt = Number(sim.valor_tela) || 0;
           const d1 = Number(sim.desconto1) || 0;
           const d2 = Number(sim.desconto2) || 0;
@@ -330,13 +344,62 @@ export function MeasurementRequestModal({
           const after1 = vt * (1 - d1 / 100);
           const after2 = after1 * (1 - d2 / 100);
           const valorAvista = after2 * (1 - d3 / 100);
-          setEnvironments([{ id: "env-1", name: "Ambiente 1", value: valorAvista }]);
+          nextEnvironments = [{ id: "env-1", name: "Ambiente 1", value: valorAvista }];
         }
+      }
+
+      if (latestRequest?.ambientes?.length && nextEnvironments.length === 0) {
+        nextEnvironments = latestRequest.ambientes.map((env: any, index: number) => ({
+          id: env.id || `saved-env-${index}`,
+          name: env.name || `Ambiente ${index + 1}`,
+          value: Number(env.value) || 0,
+          fileUrl: env.fileUrl,
+          fileName: env.fileName,
+        }));
+      }
+
+      const attachmentEntries = await Promise.all(nextEnvironments.map(async (env) => {
+        const savedEnv = (latestRequest?.ambientes || []).find((item: any) =>
+          String(item?.id || "") === String(env.id) || normalizeText(item?.name) === normalizeText(env.name),
+        );
+
+        if (!savedEnv) return [env.id, []] as const;
+
+        const rawAttachments = Array.isArray(savedEnv.attachments) && savedEnv.attachments.length > 0
+          ? savedEnv.attachments
+          : Array.isArray(savedEnv.images)
+            ? savedEnv.images.map((url: string, index: number) => ({ kind: "image", url, name: `${env.name} ${index + 1}` }))
+            : [];
+
+        const normalized = (await Promise.all(rawAttachments.map((item: any, index: number) =>
+          buildPersistedAttachment(env.id, env.name, item, index),
+        ))).filter((attachment): attachment is EnvironmentAttachment => Boolean(attachment));
+
+        return [env.id, normalized] as const;
+      }));
+
+      if (!active) return;
+
+      setEnvironments(nextEnvironments);
+      setImportedFiles(
+        Array.isArray(latestRequest?.imported_files) && latestRequest.imported_files.length > 0
+          ? latestRequest.imported_files
+          : nextImportedFiles,
+      );
+      setEnvAttachments(Object.fromEntries(attachmentEntries.filter(([, attachments]) => attachments.length > 0)));
+      setObservacoes(latestRequest?.observacoes || "");
+
+      if (latestRequest) {
+        hydrateClientState({ ...(client as any), ...latestRequest });
       }
     };
 
-    loadData();
-  }, [client?.id, open]);
+    void loadData();
+
+    return () => {
+      active = false;
+    };
+  }, [client, hydrateClientState, open, tracking?.id]);
 
   const getFileKind = (file: Pick<File, "type" | "name">) => {
     const ref = `${file?.type || ""} ${file?.name || ""}`.toLowerCase();
@@ -399,8 +462,48 @@ export function MeasurementRequestModal({
       name: file.name,
       previewUrl,
       thumbnailUrl,
+      sourceUrl: previewUrl,
     };
   }, [createPdfThumbnail]);
+
+  async function buildPersistedAttachment(
+    envId: string,
+    envName: string,
+    rawAttachment: any,
+    index: number,
+  ): Promise<EnvironmentAttachment | null> {
+    const sourceUrl = typeof rawAttachment === "string"
+      ? rawAttachment
+      : rawAttachment?.url || rawAttachment?.publicUrl || rawAttachment?.previewUrl || "";
+
+    if (!sourceUrl) return null;
+
+    const name = typeof rawAttachment === "string"
+      ? `${envName} ${index + 1}`
+      : rawAttachment?.name || `${envName} ${index + 1}`;
+    const mimeType = typeof rawAttachment === "string"
+      ? ""
+      : rawAttachment?.type || rawAttachment?.mimeType || "";
+    const inferredKind = typeof rawAttachment === "string"
+      ? "image"
+      : rawAttachment?.kind || getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` });
+
+    if (inferredKind === "other") return null;
+
+    const thumbnailUrl = inferredKind === "pdf"
+      ? (await createPdfThumbnail(sourceUrl)) || sourceUrl
+      : sourceUrl;
+
+    return {
+      id: `${envId}-persisted-${rawAttachment?.id || index}`,
+      kind: inferredKind,
+      mimeType,
+      name,
+      previewUrl: sourceUrl,
+      thumbnailUrl,
+      sourceUrl,
+    };
+  }
 
   const handleFileChange = async (envId: string, files: FileList | null) => {
     if (!files) return;
@@ -788,7 +891,8 @@ export function MeasurementRequestModal({
         doc.text(entry.attachment.name || "Imagem enviada", mx + 4, y + 12);
 
         try {
-          const imageAsset = await loadImageAsset(entry.attachment.file, entry.attachment.name);
+          const imageSource = entry.attachment.file || entry.attachment.sourceUrl || entry.attachment.previewUrl;
+          const imageAsset = await loadImageAsset(imageSource, entry.attachment.name);
           const ratio = imageAsset.width / imageAsset.height;
           let drawW = cw - 8;
           let drawH = drawW / ratio;
@@ -960,8 +1064,21 @@ export function MeasurementRequestModal({
         const imageUrls: string[] = [];
         const attachmentUrls: Array<{ kind: AttachmentKind; name: string; type: string; url: string }> = [];
         for (const attachment of attachments) {
+          if (!attachment.file) {
+            const existingUrl = attachment.sourceUrl || attachment.previewUrl;
+            if (!existingUrl) continue;
+            if (attachment.kind === "image") imageUrls.push(existingUrl);
+            attachmentUrls.push({
+              kind: attachment.kind,
+              name: attachment.name,
+              type: attachment.mimeType || attachment.kind,
+              url: existingUrl,
+            });
+            continue;
+          }
+
           const path = `measurement-requests/${client.id}/${env.id}/${Date.now()}-${attachment.name}`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from("company-assets")
             .upload(path, attachment.file);
           if (uploadError) {
