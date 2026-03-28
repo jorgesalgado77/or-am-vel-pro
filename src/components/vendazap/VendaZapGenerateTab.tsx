@@ -380,10 +380,10 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
             entry.score = analysis.score;
           }
 
-          setHistorico(prev => ({
-            entries: [...prev.entries, entry].slice(-20),
-            clientId: prev.clientId,
-          }));
+          setHistorico({
+            entries: [...historico.entries, entry].slice(-20),
+            clientId: historico.clientId,
+          });
         }
       )
       .subscribe();
