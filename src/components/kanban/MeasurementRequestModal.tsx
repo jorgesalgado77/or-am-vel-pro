@@ -123,16 +123,30 @@ export function MeasurementRequestModal({
         return;
       }
 
-      const [companyRes, gerenteRes] = await Promise.all([
+      const [companyRes, gerenteRes, cargosRes] = await Promise.all([
         (supabase as any).from("company_settings").select("*").eq("tenant_id", tenantId).maybeSingle(),
-        (supabase as any).from("usuarios").select("nome_completo, cargo_nome").eq("tenant_id", tenantId).eq("ativo", true),
+        (supabase as any).from("usuarios").select("nome_completo, cargo_nome, cargo_id").eq("tenant_id", tenantId).eq("ativo", true),
+        (supabase as any).from("cargos").select("id, nome").eq("tenant_id", tenantId),
       ]);
 
       const company = companyRes.data || {};
-      const gerente = ((gerenteRes.data || []) as any[]).find((u: any) => {
-        const cargo = normalizeText(u.cargo_nome);
-        return cargo.includes("gerente") || cargo.includes("administrador") || cargo.includes("gestor");
+      const cargos = (cargosRes.data || []) as any[];
+      const gerenteCargo = cargos.find((c: any) => {
+        const n = normalizeText(c.nome);
+        return n.includes("gerente") || n.includes("administrador") || n.includes("gestor");
       });
+
+      const usuarios = (gerenteRes.data || []) as any[];
+      // Try finding by cargo_id first, then fallback to cargo_nome text match
+      let gerente = gerenteCargo
+        ? usuarios.find((u: any) => u.cargo_id === gerenteCargo.id)
+        : null;
+      if (!gerente) {
+        gerente = usuarios.find((u: any) => {
+          const cargo = normalizeText(u.cargo_nome);
+          return cargo.includes("gerente") || cargo.includes("administrador") || cargo.includes("gestor");
+        });
+      }
 
       setStoreData({
         name: company.company_name || company.nome_empresa || settings.company_name || "",
