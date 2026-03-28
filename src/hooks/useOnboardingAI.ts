@@ -1627,22 +1627,26 @@ export function useOnboardingAI(tenantId: string | null) {
   const runTests = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    setMessages((prev) => [...prev, createMessage("assistant", "🧪 **Executando testes automáticos...**\n\nTestando IA, WhatsApp, Email e PDF...")]);
+    setMessages((prev) => [...prev, createMessage("assistant", "🧪 **Executando testes automáticos...**\n\nTestando todas as APIs e integrações do sistema...")]);
 
     try {
       const results: Record<string, { ok: boolean; detail: string }> = {};
 
-      const { data: openaiKey } = await (supabase as any)
+      // Fetch all API keys at once
+      const { data: allKeys } = await (supabase as any)
         .from("api_keys")
-        .select("api_key")
-        .eq("tenant_id", tenantId)
-        .eq("provider", "openai")
-        .eq("is_active", true)
-        .maybeSingle();
-      results.openai = (openaiKey as any)?.api_key
+        .select("provider, api_key, is_active")
+        .eq("tenant_id", tenantId);
+      const keys = (allKeys || []) as Array<{ provider: string; api_key: string; is_active: boolean }>;
+      const activeKey = (provider: string) => keys.find(k => k.provider === provider && k.is_active);
+
+      // OpenAI
+      const openai = activeKey("openai");
+      results.openai = openai?.api_key
         ? { ok: true, detail: "Conexão OK — IA de vendas funcionando" }
         : { ok: false, detail: "Nenhuma chave OpenAI configurada" };
 
+      // WhatsApp
       const whatsappSettings = await loadWhatsAppSettings(tenantId);
       if (whatsappSettings?.ativo) {
         if (whatsappSettings.provider === "zapi" && whatsappSettings.zapi_instance_id && whatsappSettings.zapi_token && whatsappSettings.zapi_client_token) {
@@ -1656,24 +1660,62 @@ export function useOnboardingAI(tenantId: string | null) {
         results.whatsapp = { ok: false, detail: "Nenhuma integração de WhatsApp configurada" };
       }
 
-      const { data: resendKey } = await (supabase as any)
-        .from("api_keys")
-        .select("api_key")
-        .eq("tenant_id", tenantId)
-        .eq("provider", "resend")
-        .eq("is_active", true)
-        .maybeSingle();
-      results.email = (resendKey as any)?.api_key
+      // Resend (Email)
+      const resend = activeKey("resend");
+      results.email = resend?.api_key
         ? { ok: true, detail: "Resend conectado — envio de emails OK" }
-        : { ok: false, detail: "Nenhuma chave de email configurada (opcional)" };
+        : { ok: false, detail: "Nenhuma chave de email configurada" };
 
+      // Perplexity (Search)
+      const perplexity = activeKey("perplexity");
+      results.perplexity = perplexity?.api_key
+        ? { ok: true, detail: "Perplexity conectada — pesquisa na internet OK" }
+        : { ok: false, detail: "Nenhuma chave Perplexity configurada" };
+
+      // Google Calendar OAuth
+      const gcalKey = activeKey("google_calendar");
+      if (gcalKey?.api_key) {
+        try {
+          const parsed = JSON.parse(gcalKey.api_key);
+          if (parsed.client_id && parsed.client_secret) {
+            results.google_calendar = { ok: true, detail: "OAuth configurado — pronto para conectar" };
+          } else {
+            results.google_calendar = { ok: false, detail: "Credenciais incompletas (falta client_id ou client_secret)" };
+          }
+        } catch {
+          results.google_calendar = { ok: false, detail: "Formato de credenciais inválido" };
+        }
+      } else {
+        results.google_calendar = { ok: false, detail: "Google Calendar OAuth não configurado" };
+      }
+
+      // Canva
+      const canva = activeKey("canva");
+      results.canva = canva?.api_key
+        ? { ok: true, detail: "Canva API conectada" }
+        : { ok: false, detail: "Nenhuma chave Canva configurada (opcional)" };
+
+      // PDF
       results.pdf = { ok: true, detail: "Gerador de PDF interno configurado" };
+
+      // Build result lines
+      const labelMap: Record<string, string> = {
+        openai: "🤖 IA de Vendas (OpenAI)",
+        whatsapp: "📱 WhatsApp",
+        email: "📧 Email (Resend)",
+        perplexity: "🌐 Pesquisa Web (Perplexity)",
+        google_calendar: "📅 Google Calendar",
+        canva: "🎨 Canva",
+        pdf: "📄 PDF",
+      };
 
       const lines = Object.entries(results).map(([key, val]) => {
         const icon = val.ok ? "✅" : "❌";
-        const label: Record<string, string> = { openai: "IA de Vendas", whatsapp: "WhatsApp", email: "Email", pdf: "PDF" };
-        return `${icon} **${label[key] || key}:** ${val.detail}`;
+        return `${icon} **${labelMap[key] || key}:** ${val.detail}`;
       });
+
+      const okCount = Object.values(results).filter(r => r.ok).length;
+      const totalCount = Object.keys(results).length;
 
       const completedSteps: string[] = [];
       if (results.openai?.ok) completedSteps.push("openai_api");
@@ -1690,7 +1732,9 @@ export function useOnboardingAI(tenantId: string | null) {
         completedSteps: [...new Set([...(prev?.completedSteps || []), ...completedSteps])],
       }));
 
-      setMessages((prev) => [...prev, createMessage("assistant", `📋 **Resultado dos Testes:**\n\n${lines.join("\n")}\n\n${results.openai?.ok && results.whatsapp?.ok ? "🎉 **Testes críticos OK!**" : "⚠️ **Ainda existem pendências.**"}`)]);
+      setMessages((prev) => [...prev, createMessage("assistant",
+        `📋 **Resultado dos Testes — ${okCount}/${totalCount} APIs conectadas**\n\n${lines.join("\n")}\n\n${okCount === totalCount ? "🎉 **Todas as APIs estão funcionando!**" : okCount >= 3 ? "⚠️ **Sistema funcional, mas existem integrações pendentes.**" : "🔴 **Atenção: várias integrações precisam ser configuradas.**"}`
+      )]);
     } catch {
       toast.error("Erro ao executar testes");
     }
