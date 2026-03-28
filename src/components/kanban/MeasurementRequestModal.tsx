@@ -503,7 +503,7 @@ export function MeasurementRequestModal({
 
       const [companyRes, gerenteRes, cargosRes] = await Promise.all([
         (supabase as any).from("company_settings").select("*").eq("tenant_id", tenantId).maybeSingle(),
-        (supabase as any).from("usuarios").select("nome_completo, cargo_nome, cargo_id").eq("tenant_id", tenantId).eq("ativo", true),
+        (supabase as any).from("usuarios").select("nome_completo, cargo_id").eq("tenant_id", tenantId).eq("ativo", true),
         (supabase as any).from("cargos").select("id, nome").eq("tenant_id", tenantId),
       ]);
 
@@ -515,14 +515,17 @@ export function MeasurementRequestModal({
       });
 
       const usuarios = (gerenteRes.data || []) as any[];
-      // Try finding by cargo_id first, then fallback to cargo_nome text match
+      // Try finding by cargo_id matching a gerente-like cargo
       let gerente = gerenteCargo
         ? usuarios.find((u: any) => u.cargo_id === gerenteCargo.id)
         : null;
       if (!gerente) {
+        // Fallback: resolve each user's cargo name from cargos list
         gerente = usuarios.find((u: any) => {
-          const cargo = normalizeText(u.cargo_nome);
-          return cargo.includes("gerente") || cargo.includes("administrador") || cargo.includes("gestor");
+          const cargoObj = cargos.find((c: any) => c.id === u.cargo_id);
+          if (!cargoObj) return false;
+          const cargoName = normalizeText(cargoObj.nome);
+          return cargoName.includes("gerente") || cargoName.includes("administrador") || cargoName.includes("gestor");
         });
       }
 
@@ -1486,21 +1489,35 @@ export function MeasurementRequestModal({
         observacoes,
         status: "novo",
         created_by: userInfo.usuario_nome || "Sistema",
+        client_snapshot: {
+          telefone1: editableFields.telefone,
+          email: editableFields.email,
+          cpf: editableFields.cpf,
+        },
+        delivery_address: {
+          cep: addressForm.cep,
+          street: addressForm.street,
+          number: addressForm.number,
+          complement: addressForm.complement,
+          district: addressForm.district,
+          city: addressForm.city,
+          state: addressForm.state,
+        },
       } as any);
 
       if (error) throw error;
 
       // Send push notifications to gerentes/técnicos
       try {
-        const { data: gerentes } = await supabase
-          .from("usuarios" as any)
-          .select("id, nome_completo, cargo_nome")
-          .eq("tenant_id", tenantId)
-          .eq("ativo", true);
-        if (gerentes) {
-          for (const g of gerentes as any[]) {
-            const cargo = (g.cargo_nome || "").toLowerCase();
-            if (cargo.includes("gerente") || cargo.includes("tecnico") || cargo.includes("técnico")) {
+        const [{ data: pushUsuarios }, { data: pushCargos }] = await Promise.all([
+          supabase.from("usuarios" as any).select("id, nome_completo, cargo_id").eq("tenant_id", tenantId).eq("ativo", true),
+          supabase.from("cargos" as any).select("id, nome").eq("tenant_id", tenantId),
+        ]);
+        const cargoMap = new Map((pushCargos as any[] || []).map((c: any) => [c.id, normalizeText(c.nome)]));
+        if (pushUsuarios) {
+          for (const g of pushUsuarios as any[]) {
+            const cargoName = cargoMap.get(g.cargo_id) || "";
+            if (cargoName.includes("gerente") || cargoName.includes("tecnico") || cargoName.includes("técnico")) {
               sendPushIfEnabled(
                 "medidas",
                 g.id,
