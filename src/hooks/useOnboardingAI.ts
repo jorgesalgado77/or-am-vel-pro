@@ -66,6 +66,7 @@ const NAVIGATION_COMMANDS: Array<{ patterns: RegExp[]; target: string; label: st
   { patterns: [/dashboard|painel|visão geral|indicadores/i], target: "dashboard", label: "Dashboard", description: "Vou abrir o Dashboard." },
   { patterns: [/contrato|meus contratos/i], target: "contracts", label: "Contratos", description: "Vou abrir os Contratos." },
   { patterns: [/briefing/i], target: "briefing", label: "Briefing", description: "Vou abrir o Briefing." },
+  { patterns: [/^(?!.*(?:criar|compor|escrever|enviar|novo)\s*e-?mail)(?:e-?mails?|meus\s+e-?mails?|hist[óo]rico\s+e-?mail)/i], target: "emails", label: "Email", description: "Vou abrir o módulo de Email." },
   { patterns: [/usuário|usuários|equipe|time|colaborador|salário|maior salário/i], target: "configuracoes", label: "Usuários", description: "Vou abrir a gestão de Usuários nas Configurações." },
   { patterns: [/cadastrar conta|nova conta|adicionar conta/i], target: "financeiro", label: "Financeiro", description: "Vou abrir o Financeiro para você cadastrar uma nova conta." },
 ];
@@ -1579,6 +1580,7 @@ export function useOnboardingAI(tenantId: string | null) {
       dashboard: "navigate-to-dashboard",
       contracts: "navigate-to-contracts",
       briefing: "navigate-to-briefing",
+      emails: "navigate-to-emails",
     };
     const eventName = eventMap[target] || `navigate-to-${target}`;
     window.dispatchEvent(new CustomEvent(eventName, { detail }));
