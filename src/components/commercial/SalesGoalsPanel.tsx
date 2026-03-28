@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Target, Plus, Pencil, Trash2, Loader2, AlertTriangle, Clock,
-  TrendingUp, Award, CalendarDays,
+  TrendingUp, Award, CalendarDays, ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -322,6 +323,36 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
           <Plus className="h-3.5 w-3.5" /> Nova Meta
         </Button>
       </div>
+
+      {/* Automatic alerts: goals below 50% with < 7 days remaining */}
+      {isCurrentMonth && daysRemaining <= 7 && !loading && (() => {
+        const atRisk = goals.filter(g => {
+          const pct = g.target_value > 0 ? (g.current_value / g.target_value) * 100 : 0;
+          return pct < 50;
+        });
+        if (atRisk.length === 0) return null;
+        return (
+          <Alert variant="destructive" className="border-destructive/60 bg-destructive/10">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle className="text-sm font-semibold">⚠️ Alerta de Risco — {atRisk.length} meta(s) crítica(s)</AlertTitle>
+            <AlertDescription className="text-xs space-y-1 mt-1">
+              <p>Faltam apenas <strong>{daysRemaining} dia(s)</strong> para o fim do mês e as metas abaixo estão com menos de 50% de progresso:</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {atRisk.map(g => {
+                  const pct = g.target_value > 0 ? (g.current_value / g.target_value) * 100 : 0;
+                  const tc = GOAL_TYPE_LABELS[g.goal_type] || GOAL_TYPE_LABELS.revenue;
+                  return (
+                    <li key={`alert-${g.id}`}>
+                      <strong>{g.user_name}</strong> — {tc.label}: {pct.toFixed(0)}% atingido
+                      ({g.goal_type === "revenue" ? formatCurrency(g.current_value) : g.current_value} de {g.goal_type === "revenue" ? formatCurrency(g.target_value) : g.target_value})
+                    </li>
+                  );
+                })}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        );
+      })()}
 
       {/* Goals List */}
       {loading ? (
