@@ -44,6 +44,128 @@ export function MeasurementRequestModal({
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [envImages, setEnvImages] = useState<Record<string, File[]>>({});
   const [saving, setSaving] = useState(false);
+  const { settings } = useCompanySettings();
+
+  // Store data
+  const [storeData, setStoreData] = useState<{ name: string; cnpj: string; logo_url: string; codigo_loja: string; gerente_nome: string }>({
+    name: "", cnpj: "", logo_url: "", codigo_loja: "", gerente_nome: "",
+  });
+
+  // Editable client address
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [addressForm, setAddressForm] = useState({
+    cep: "", street: "", number: "", complement: "", district: "", city: "", state: "",
+  });
+  const [cepLoading, setCepLoading] = useState(false);
+
+  // Editable client phone/email
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editableFields, setEditableFields] = useState({
+    telefone: "",
+    email: "",
+    cpf: "",
+  });
+
+  // Init editable fields from client
+  useEffect(() => {
+    if (!open) return;
+    const c = client as any;
+    setEditableFields({
+      telefone: client.telefone1 || "",
+      email: client.email || "",
+      cpf: client.cpf || tracking.cpf_cnpj || "",
+    });
+    setAddressForm({
+      cep: c.delivery_address_zip || c.cep || "",
+      street: c.delivery_address_street || c.endereco || "",
+      number: c.delivery_address_number || "",
+      complement: c.delivery_address_complement || "",
+      district: c.delivery_address_district || c.bairro || "",
+      city: c.delivery_address_city || c.cidade || "",
+      state: c.delivery_address_state || c.estado || "",
+    });
+    setEditingAddress(false);
+    setEditingField(null);
+  }, [open, client?.id]);
+
+  // Load store data
+  useEffect(() => {
+    if (!open) return;
+    const load = async () => {
+      const tenantId = await getResolvedTenantId();
+      const [companyRes, gerenteRes] = await Promise.all([
+        (supabase as any).from("company_settings").select("company_name, cnpj, logo_url, codigo_loja").eq("tenant_id", tenantId).maybeSingle(),
+        (supabase as any).from("usuarios").select("nome_completo, cargo_nome").eq("tenant_id", tenantId).eq("ativo", true),
+      ]);
+      const gerente = ((gerenteRes.data || []) as any[]).find((u: any) => {
+        const cargo = (u.cargo_nome || "").toLowerCase();
+        return cargo.includes("gerente") || cargo.includes("administrador");
+      });
+      setStoreData({
+        name: companyRes.data?.company_name || settings.company_name || "",
+        cnpj: companyRes.data?.cnpj || "",
+        logo_url: companyRes.data?.logo_url || settings.logo_url || "",
+        codigo_loja: companyRes.data?.codigo_loja || settings.codigo_loja || "",
+        gerente_nome: gerente?.nome_completo || "",
+      });
+    };
+    load();
+  }, [open]);
+
+  // CEP auto-fill
+  const fetchCep = useCallback(async (cep: string) => {
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setAddressForm(prev => ({
+          ...prev,
+          street: data.logradouro || prev.street,
+          district: data.bairro || prev.district,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state,
+        }));
+        toast.success("CEP encontrado! Endereço preenchido automaticamente.");
+      } else {
+        toast.error("CEP não encontrado.");
+      }
+    } catch {
+      toast.error("Erro ao buscar CEP.");
+    }
+    setCepLoading(false);
+  }, []);
+
+  // Save editable fields to client in DB
+  const saveClientField = useCallback(async (field: string, value: string) => {
+    try {
+      const updateData: Record<string, string> = {};
+      if (field === "telefone") updateData.telefone1 = value;
+      else if (field === "email") updateData.email = value;
+      else if (field === "cpf") updateData.cpf = value;
+      await (supabase as any).from("clients").update(updateData).eq("id", client.id);
+    } catch { /* silent */ }
+  }, [client?.id]);
+
+  const saveAddress = useCallback(async () => {
+    try {
+      await (supabase as any).from("clients").update({
+        delivery_address_zip: addressForm.cep,
+        delivery_address_street: addressForm.street,
+        delivery_address_number: addressForm.number,
+        delivery_address_complement: addressForm.complement,
+        delivery_address_district: addressForm.district,
+        delivery_address_city: addressForm.city,
+        delivery_address_state: addressForm.state,
+      } as any).eq("id", client.id);
+      toast.success("Endereço salvo!");
+      setEditingAddress(false);
+    } catch {
+      toast.error("Erro ao salvar endereço.");
+    }
+  }, [client?.id, addressForm]);
 
   // Load environments from simulations
   useEffect(() => {
