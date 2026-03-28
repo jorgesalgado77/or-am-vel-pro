@@ -320,7 +320,11 @@ export function ChatWindow({
               lida: false,
               tenant_id: tenantId || undefined,
             } as any);
-            if (error) toast.error("Erro ao enviar produto");
+            if (error) {
+              toast.error("Erro ao enviar produto");
+            } else if (conversation.phone) {
+              await sendWhatsAppText(conversation.phone, text);
+            }
           }}
         />
       </div>
