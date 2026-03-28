@@ -399,7 +399,7 @@ export function MeasurementRequestModal({
     return () => {
       active = false;
     };
-  }, [buildPersistedAttachment, client, hydrateClientState, normalizeText, open, tracking?.id]);
+  }, [client, hydrateClientState, open, tracking?.id]);
 
   const getFileKind = (file: Pick<File, "type" | "name">) => {
     const ref = `${file?.type || ""} ${file?.name || ""}`.toLowerCase();
@@ -466,7 +466,7 @@ export function MeasurementRequestModal({
     };
   }, [createPdfThumbnail]);
 
-  const buildPersistedAttachment = useCallback(async (
+  async function buildPersistedAttachment(
     envId: string,
     envName: string,
     rawAttachment: any,
@@ -503,7 +503,7 @@ export function MeasurementRequestModal({
       thumbnailUrl,
       sourceUrl,
     };
-  }, [createPdfThumbnail]);
+  }
 
   const handleFileChange = async (envId: string, files: FileList | null) => {
     if (!files) return;
