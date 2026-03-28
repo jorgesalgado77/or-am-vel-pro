@@ -571,8 +571,8 @@ export function ClientsKanban({
         <div className="flex items-center justify-center py-16 text-muted-foreground">Carregando...</div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <ScrollableContainer direction="horizontal" className="flex-1 min-h-0 pb-4">
-            <div className="flex gap-2 sm:gap-3 min-w-max">
+          <div className="flex-1 min-h-0 pb-4 overflow-x-auto overflow-y-hidden" style={{ WebkitOverflowScrolling: "touch" }}>
+            <div className="flex gap-2 sm:gap-3" style={{ minWidth: isAdmin ? "3200px" : "1200px" }}>
               {/* Comercial section */}
               {isAdmin && (
                 <div className="flex items-center self-start">
@@ -592,7 +592,7 @@ export function ClientsKanban({
                 </>
               )}
             </div>
-          </ScrollableContainer>
+          </div>
         </DragDropContext>
       )}
 
