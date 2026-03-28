@@ -285,22 +285,33 @@ export function MeasurementRequestModal({
   // Load environments from simulations
   useEffect(() => {
     if (!client?.id || !open) return;
+    let active = true;
 
     const loadData = async () => {
-      // Load simulation environments
-      const { data: sims } = await supabase
-        .from("simulations")
-        .select("arquivo_nome, valor_tela, desconto1, desconto2, desconto3")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      const requestQuery = tracking?.id
+        ? supabase.from("measurement_requests" as any).select("*").eq("tracking_id", tracking.id).order("created_at", { ascending: false }).limit(1)
+        : supabase.from("measurement_requests" as any).select("*").eq("client_id", client.id).order("created_at", { ascending: false }).limit(1);
+
+      const [{ data: sims }, { data: requestRows }] = await Promise.all([
+        supabase
+          .from("simulations")
+          .select("arquivo_nome, valor_tela, desconto1, desconto2, desconto3")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false })
+          .limit(1),
+        requestQuery,
+      ]);
+
+      const latestRequest = Array.isArray(requestRows) ? requestRows[0] : null;
+      let nextEnvironments: EnvironmentData[] = [];
+      let nextImportedFiles: { name: string; url: string; type: string }[] = [];
 
       if (sims && sims.length > 0) {
         const sim = sims[0];
         try {
           if (sim.arquivo_nome && sim.arquivo_nome.startsWith("[")) {
             const parsed = JSON.parse(sim.arquivo_nome) as any[];
-            const envs: EnvironmentData[] = parsed.map((e: any, i: number) => {
+            nextEnvironments = parsed.map((e: any, i: number) => {
               const vt = Number(e.totalValue) || 0;
               const d1 = Number(sim.desconto1) || 0;
               const d2 = Number(sim.desconto2) || 0;
@@ -316,20 +327,16 @@ export function MeasurementRequestModal({
                 fileName: e.fileName,
               };
             });
-            setEnvironments(envs);
 
-            // Collect imported files (txt/xml)
-            const files = parsed
+            nextImportedFiles = parsed
               .filter((e: any) => e.fileUrl && e.fileName)
               .map((e: any) => ({
                 name: e.fileName,
                 url: e.fileUrl,
                 type: e.fileName.split(".").pop()?.toLowerCase() || "",
               }));
-            setImportedFiles(files);
           }
         } catch {
-          // fallback: create single environment
           const vt = Number(sim.valor_tela) || 0;
           const d1 = Number(sim.desconto1) || 0;
           const d2 = Number(sim.desconto2) || 0;
@@ -337,13 +344,62 @@ export function MeasurementRequestModal({
           const after1 = vt * (1 - d1 / 100);
           const after2 = after1 * (1 - d2 / 100);
           const valorAvista = after2 * (1 - d3 / 100);
-          setEnvironments([{ id: "env-1", name: "Ambiente 1", value: valorAvista }]);
+          nextEnvironments = [{ id: "env-1", name: "Ambiente 1", value: valorAvista }];
         }
+      }
+
+      if (latestRequest?.ambientes?.length && nextEnvironments.length === 0) {
+        nextEnvironments = latestRequest.ambientes.map((env: any, index: number) => ({
+          id: env.id || `saved-env-${index}`,
+          name: env.name || `Ambiente ${index + 1}`,
+          value: Number(env.value) || 0,
+          fileUrl: env.fileUrl,
+          fileName: env.fileName,
+        }));
+      }
+
+      const attachmentEntries = await Promise.all(nextEnvironments.map(async (env) => {
+        const savedEnv = (latestRequest?.ambientes || []).find((item: any) =>
+          String(item?.id || "") === String(env.id) || normalizeText(item?.name) === normalizeText(env.name),
+        );
+
+        if (!savedEnv) return [env.id, []] as const;
+
+        const rawAttachments = Array.isArray(savedEnv.attachments) && savedEnv.attachments.length > 0
+          ? savedEnv.attachments
+          : Array.isArray(savedEnv.images)
+            ? savedEnv.images.map((url: string, index: number) => ({ kind: "image", url, name: `${env.name} ${index + 1}` }))
+            : [];
+
+        const normalized = (await Promise.all(rawAttachments.map((item: any, index: number) =>
+          buildPersistedAttachment(env.id, env.name, item, index),
+        ))).filter((attachment): attachment is EnvironmentAttachment => Boolean(attachment));
+
+        return [env.id, normalized] as const;
+      }));
+
+      if (!active) return;
+
+      setEnvironments(nextEnvironments);
+      setImportedFiles(
+        Array.isArray(latestRequest?.imported_files) && latestRequest.imported_files.length > 0
+          ? latestRequest.imported_files
+          : nextImportedFiles,
+      );
+      setEnvAttachments(Object.fromEntries(attachmentEntries.filter(([, attachments]) => attachments.length > 0)));
+      setObservacoes(latestRequest?.observacoes || "");
+
+      if (latestRequest) {
+        hydrateClientState({ ...(client as any), ...latestRequest });
       }
     };
 
-    loadData();
-  }, [client?.id, open]);
+    void loadData();
+
+    return () => {
+      active = false;
+    };
+  }, [buildPersistedAttachment, client, hydrateClientState, normalizeText, open, tracking?.id]);
 
   const getFileKind = (file: Pick<File, "type" | "name">) => {
     const ref = `${file?.type || ""} ${file?.name || ""}`.toLowerCase();
