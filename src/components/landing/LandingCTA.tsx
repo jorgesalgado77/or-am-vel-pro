@@ -30,4 +30,4 @@ export const LandingCTA = forwardRef<HTMLElement, LandingCTAProps>(
       </div>
     </section>
   );
-}
+});
