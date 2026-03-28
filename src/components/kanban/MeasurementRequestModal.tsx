@@ -444,7 +444,26 @@ export function MeasurementRequestModal({
         (client as any)?.uf,
       ) || ""),
     });
-    setEditingAddress(false);
+    // Auto-open address editor if address is empty
+    const addrFilled = !!(
+      pickFirstFilled(
+        deliveryAddressCandidate?.cep, nestedClient?.cep_entrega, nestedClient?.cep,
+        merged.cep_entrega, merged.cep, (client as any)?.cep_entrega, (client as any)?.cep,
+      ) &&
+      pickFirstFilled(
+        deliveryAddressCandidate?.street, deliveryAddressCandidate?.endereco,
+        nestedClient?.endereco_entrega, nestedClient?.endereco,
+        merged.endereco_entrega, merged.endereco,
+        (client as any)?.endereco_entrega, (client as any)?.endereco,
+      )
+    );
+    if (!addrFilled) {
+      setEditingAddress(true);
+      // Delay toast to avoid rendering conflicts
+      setTimeout(() => toast.warning("⚠️ Endereço de entrega não encontrado. Por favor, preencha o endereço abaixo."), 500);
+    } else {
+      setEditingAddress(false);
+    }
     setEditingField(null);
   }, [client, parsePersistedValue, tracking.cpf_cnpj]);
 
