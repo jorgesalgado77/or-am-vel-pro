@@ -515,7 +515,9 @@ export function CommercialAIPanel() {
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-foreground"
                     )}>
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <div className="prose prose-sm prose-invert max-w-none">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
                     </div>
                   </div>
                 ))}
