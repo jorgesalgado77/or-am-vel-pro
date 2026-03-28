@@ -502,7 +502,7 @@ export function useOnboardingAI(tenantId: string | null) {
     const currentUserId = localStorage.getItem("current_user_id");
 
     // === Task wizard steps (priority — intercept all input while active) ===
-    if (taskWizard.active && currentUserId) {
+    if (taskWizard.active) {
       // Cancel command
       if (/cancelar|sair|parar|desistir/i.test(lower)) {
         setTaskWizard(INITIAL_WIZARD);
@@ -1394,9 +1394,9 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
-    if (/(criar|agendar|nova)\s*tarefa/i.test(lower) && currentUserId && !taskWizard.active) {
+    if (/(criar|agendar|nova)\s*tarefa/i.test(lower) && !taskWizard.active) {
       setTaskWizard({ active: true, step: "titulo" });
-      appendAssistant("📋 **Vamos criar uma nova tarefa!**\n\n**Qual o título da tarefa?**\n\n_A qualquer momento, diga \"cancelar\" para desistir._");
+      appendAssistant("📋 **Vamos criar uma nova tarefa!**\n\n✏️ **Qual o título da tarefa?**\n\n_A qualquer momento, diga \"cancelar\" para desistir._");
       return true;
     }
 
