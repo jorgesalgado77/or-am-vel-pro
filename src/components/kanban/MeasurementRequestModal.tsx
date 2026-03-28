@@ -452,7 +452,7 @@ export function MeasurementRequestModal({
         addressForm.cep,
       ].filter(Boolean).join(", ") || "Não informado";
 
-      const clientH = 42;
+      const clientH = 32;
       drawSectionFrame(y, clientH, "DADOS DO CLIENTE");
       const cy = y + 12;
       fieldLabel("Nome", client.nome, col1, cy, cw / 2 - 10);
@@ -460,8 +460,26 @@ export function MeasurementRequestModal({
       fieldLabel("Telefone", editableFields.telefone, col1, cy + 10);
       fieldLabel("Email", editableFields.email, col2, cy + 10);
       fieldLabel("Vendedor", client.vendedor || "—", col1, cy + 20);
-      fieldLabel("Endereço de Entrega", fullAddr, col2, cy + 20, cw / 2 - 8);
       y += clientH + 4;
+
+      // ══════════════════ ENDEREÇO DE ENTREGA ══════════════════
+      const ADDR_BLUE: [number, number, number] = [30, 64, 175];
+      const ADDR_BG: [number, number, number] = [239, 246, 255];
+      const addrLines = doc.splitTextToSize(fullAddr, cw - 12);
+      const addrH = 10 + addrLines.length * 5;
+      doc.setDrawColor(...ADDR_BLUE);
+      doc.setFillColor(...ADDR_BG);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(mx, y, cw, addrH, 2, 2, "FD");
+      doc.setTextColor(...ADDR_BLUE);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("📍 ENDEREÇO DE ENTREGA", mx + 4, y + 6);
+      doc.setTextColor(...DARK);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(addrLines, mx + 4, y + 12);
+      y += addrH + 4;
 
       // ══════════════════ VALOR TOTAL ══════════════════
       doc.setFillColor(...PRIMARY_LIGHT);
