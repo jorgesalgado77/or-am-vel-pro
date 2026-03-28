@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -22,18 +22,46 @@ interface Props {
   onStartChat?: (contact: WhatsAppContact) => void;
 }
 
+function getStorageKey(tenantId: string | null) {
+  return `wa_contacts_${tenantId || "default"}`;
+}
+
 export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantId, open, onClose, onStartChat }: Props) {
   const [contacts, setContacts] = useState<WhatsAppContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [imported, setImported] = useState(false);
   const [search, setSearch] = useState("");
 
+  // Load saved contacts from localStorage on open
+  useEffect(() => {
+    if (!open || !tenantId) return;
+    try {
+      const saved = localStorage.getItem(getStorageKey(tenantId));
+      if (saved) {
+        const parsed = JSON.parse(saved) as WhatsAppContact[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setContacts(parsed);
+          setImported(true);
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, [open, tenantId]);
+
+  const persistContacts = useCallback((list: WhatsAppContact[]) => {
+    try {
+      localStorage.setItem(getStorageKey(tenantId), JSON.stringify(list));
+    } catch {
+      // storage full — ignore
+    }
+  }, [tenantId]);
+
   const importContacts = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
 
     try {
-      // Get WhatsApp settings
       const { data: settings } = await supabase
         .from("whatsapp_settings")
         .select("*")
@@ -50,7 +78,6 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
       let fetchedContacts: WhatsAppContact[] = [];
 
       if (s.provider === "zapi" && s.zapi_instance_id && s.zapi_token) {
-        // Z-API paginated contacts fetch
         let page = 1;
         let hasMore = true;
         const baseUrl = `https://api.z-api.io/instances/${s.zapi_instance_id}/token/${s.zapi_token}`;
@@ -64,10 +91,7 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
             const res = await fetch(`${baseUrl}/contacts?page=${page}&pageSize=1000`, { headers });
             const data = await res.json().catch(() => []);
             const batch = Array.isArray(data) ? data : (data?.contacts || data?.results || []);
-            if (!Array.isArray(batch) || batch.length === 0) {
-              hasMore = false;
-              break;
-            }
+            if (!Array.isArray(batch) || batch.length === 0) { hasMore = false; break; }
             const mapped = batch
               .filter((c: any) => (c.name || c.notify || c.pushName) && (c.phone || c.id))
               .map((c: any) => ({
@@ -76,14 +100,9 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
                 profilePicUrl: c.imgUrl,
               }));
             fetchedContacts.push(...mapped);
-            if (batch.length < 1000) {
-              hasMore = false;
-            } else {
-              page++;
-            }
-          } catch {
-            hasMore = false;
-          }
+            if (batch.length < 1000) hasMore = false;
+            else page++;
+          } catch { hasMore = false; }
         }
       } else if (s.provider === "evolution" && s.evolution_api_url && s.evolution_api_key) {
         const instanceName = s.evolution_instance_name || "default";
@@ -108,14 +127,15 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
 
       setContacts(fetchedContacts);
       setImported(true);
-      toast.success(`${fetchedContacts.length} contatos importados!`);
+      persistContacts(fetchedContacts);
+      toast.success(`${fetchedContacts.length} contatos importados e salvos!`);
     } catch (err) {
       console.error("Import contacts error:", err);
       toast.error("Erro ao importar contatos do WhatsApp");
     }
 
     setLoading(false);
-  }, [tenantId]);
+  }, [tenantId, persistContacts]);
 
   const filtered = search.trim()
     ? contacts.filter(c =>
@@ -145,25 +165,24 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col gap-3 flex-1 min-h-0">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden">
+            <div className="flex items-center gap-2 shrink-0">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar contato..." className="pl-8 h-8 text-sm" />
               </div>
               <Badge variant="secondary" className="text-xs shrink-0">{filtered.length} contatos</Badge>
             </div>
-            <ScrollArea className="flex-1 h-[50vh] sm:h-[55vh]">
+
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {filtered.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Nenhum contato encontrado</p>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-0.5 pr-1">
                   {filtered.map((c, i) => (
                     <div key={`${c.phone}-${i}`} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors group">
                       <Avatar className="h-8 w-8 shrink-0">
-                        {c.profilePicUrl ? (
-                          <AvatarImage src={c.profilePicUrl} alt={c.name} />
-                        ) : null}
+                        {c.profilePicUrl ? <AvatarImage src={c.profilePicUrl} alt={c.name} /> : null}
                         <AvatarFallback className="bg-primary/10 text-primary text-xs">
                           {c.name?.charAt(0)?.toUpperCase() || <User className="h-3.5 w-3.5" />}
                         </AvatarFallback>
@@ -187,9 +206,15 @@ export const WhatsAppContactsList = memo(function WhatsAppContactsList({ tenantI
                   ))}
                 </div>
               )}
-            </ScrollArea>
-            <div className="flex justify-between pt-2 border-t border-border">
-              <Button variant="ghost" size="sm" onClick={() => { setImported(false); setContacts([]); setSearch(""); }}>
+            </div>
+
+            <div className="flex justify-between pt-2 border-t border-border shrink-0">
+              <Button variant="ghost" size="sm" onClick={() => {
+                setImported(false);
+                setContacts([]);
+                setSearch("");
+                localStorage.removeItem(getStorageKey(tenantId));
+              }}>
                 <Download className="h-3.5 w-3.5 mr-1.5" /> Reimportar
               </Button>
               <Button variant="outline" size="sm" onClick={onClose}>Fechar</Button>
