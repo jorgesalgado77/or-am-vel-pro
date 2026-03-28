@@ -1477,7 +1477,7 @@ export function useOnboardingAI(tenantId: string | null) {
     }
 
     return false;
-  }, [appendAssistant, context, tenantId, addAlert, taskWizard]);
+  }, [appendAssistant, context, tenantId, addAlert, taskWizard, emailWizard]);
 
   const chatWithAI = useCallback(async (tid: string, chatMessages: { role: string; content: string }[]) => {
     try {
