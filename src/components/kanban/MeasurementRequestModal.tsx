@@ -342,9 +342,7 @@ export function MeasurementRequestModal({
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
-  const generatePdfPreview = useCallback(async () => {
-    setPdfPreviewLoading(true);
-    try {
+  const buildPdfDoc = useCallback(async () => {
       const { default: jsPDF } = await import("jspdf");
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pw = doc.internal.pageSize.getWidth();
