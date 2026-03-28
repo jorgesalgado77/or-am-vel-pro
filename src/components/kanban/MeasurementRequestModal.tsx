@@ -511,23 +511,27 @@ export function MeasurementRequestModal({
 
       const company = companyRes.data || {};
       const cargos = (cargosRes.data || []) as any[];
-      const gerenteCargo = cargos.find((c: any) => {
-        const n = normalizeText(c.nome);
-        return n.includes("gerente") || n.includes("administrador") || n.includes("gestor");
-      });
+      // Priority: find cargo named "gerente" first, then fallback to "administrador"/"gestor"
+      const gerenteCargo = cargos.find((c: any) => normalizeText(c.nome).includes("gerente"))
+        || cargos.find((c: any) => {
+          const n = normalizeText(c.nome);
+          return n.includes("administrador") || n.includes("gestor");
+        });
 
       const usuarios = (gerenteRes.data || []) as any[];
-      // Try finding by cargo_id matching a gerente-like cargo
       let gerente = gerenteCargo
         ? usuarios.find((u: any) => u.cargo_id === gerenteCargo.id)
         : null;
       if (!gerente) {
-        // Fallback: resolve each user's cargo name from cargos list
+        // Fallback: resolve each user's cargo name from cargos list, prioritize "gerente"
         gerente = usuarios.find((u: any) => {
+          const cargoObj = cargos.find((c: any) => c.id === u.cargo_id);
+          return cargoObj && normalizeText(cargoObj.nome).includes("gerente");
+        }) || usuarios.find((u: any) => {
           const cargoObj = cargos.find((c: any) => c.id === u.cargo_id);
           if (!cargoObj) return false;
           const cargoName = normalizeText(cargoObj.nome);
-          return cargoName.includes("gerente") || cargoName.includes("administrador") || cargoName.includes("gestor");
+          return cargoName.includes("administrador") || cargoName.includes("gestor");
         });
       }
 
