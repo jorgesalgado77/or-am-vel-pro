@@ -1808,16 +1808,15 @@ export function MeasurementRequestModal({
               ) : (
                 environments.map((env) => {
                   const attachments = envAttachments[env.id] || [];
-                  const imageCount = attachments.filter((attachment) => attachment.kind === "image").length;
-                  const hasMinImages = imageCount >= 1;
+                  const hasMinAttachments = attachments.length >= 1;
                   return (
                     <div key={env.id} className={cn(
                       "rounded-lg border p-3 space-y-2",
-                      hasMinImages ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
+                      hasMinAttachments ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
                     )}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          {hasMinImages ? (
+                          {hasMinAttachments ? (
                             <CheckCircle2 className="h-4 w-4 text-success" />
                           ) : (
                             <AlertTriangle className="h-4 w-4 text-warning" />
@@ -1832,11 +1831,11 @@ export function MeasurementRequestModal({
                           <span>{env.fileName}</span>
                         </div>
                       )}
-                      {/* Image uploads */}
+                      {/* File uploads */}
                       <div className="space-y-1.5">
                         <Label className="text-xs flex items-center gap-1">
                           <Image className="h-3 w-3" />
-                          Arquivos enviados (mín. 1 imagem) * — {attachments.length} item(ns)
+                          Arquivos enviados (mín. 1) * — {attachments.length} item(ns)
                         </Label>
 
                         {uploadProgress[env.id] !== undefined && (
