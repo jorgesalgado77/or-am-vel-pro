@@ -320,9 +320,9 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     });
 
     const rankingList: SellerRanking[] = Array.from(scoreMap.entries())
-      .map(([uid, data]) => ({
-        user_id: uid,
-        user_name: (userMap.get(uid) as string) || "Desconhecido",
+      .map(([sellerName, data]) => ({
+        user_id: sellerName,
+        user_name: sellerName,
         score: data.deals * 100 + Math.floor(data.revenue / 1000),
         deals_closed: data.deals,
         revenue: data.revenue,
