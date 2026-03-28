@@ -941,6 +941,193 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
+    // === Task status change command ===
+    const statusChangeMatch = lower.match(
+      /(?:marcar|mudar|alterar|mover|colocar|passar|atualizar)\s+(?:a\s+)?tarefa\s+["""']?(.+?)["""']?\s+(?:como|para|pra)\s+(conclu[ií]da|pendente|em\s+execu[çc][ãa]o|nova|finalizada|feita|pronta)/i
+    );
+    if (statusChangeMatch && currentUserId) {
+      const searchTitle = statusChangeMatch[1].trim();
+      let targetStatus: string;
+      const statusText = statusChangeMatch[2].toLowerCase();
+      if (/conclu|finaliz|feita|pronta/i.test(statusText)) targetStatus = "concluida";
+      else if (/pendente/i.test(statusText)) targetStatus = "pendente";
+      else if (/execu/i.test(statusText)) targetStatus = "em_execucao";
+      else targetStatus = "nova";
+
+      // Search for tasks matching the title
+      const { data: matchedTasks } = await (supabase as any)
+        .from("tasks")
+        .select("id, titulo, status")
+        .eq("tenant_id", tenantId)
+        .ilike("titulo", `%${searchTitle}%`)
+        .limit(5);
+
+      const tasks = (matchedTasks || []) as any[];
+
+      if (tasks.length === 0) {
+        appendAssistant(`🔍 Não encontrei nenhuma tarefa com **"${searchTitle}"**. Verifique o nome e tente novamente.`);
+        return true;
+      }
+
+      const statusLabels: Record<string, string> = {
+        nova: "🆕 Nova",
+        pendente: "⏳ Pendente",
+        em_execucao: "🔧 Em Execução",
+        concluida: "✅ Concluída",
+      };
+
+      if (tasks.length === 1) {
+        const task = tasks[0];
+        if (task.status === targetStatus) {
+          appendAssistant(`ℹ️ A tarefa **"${task.titulo}"** já está com status **${statusLabels[targetStatus] || targetStatus}**.`);
+          return true;
+        }
+        const { error } = await (supabase as any)
+          .from("tasks")
+          .update({ status: targetStatus })
+          .eq("id", task.id);
+
+        if (error) {
+          appendAssistant(`❌ Erro ao atualizar a tarefa: ${error.message}`);
+        } else {
+          appendAssistant(
+            `✅ **Tarefa atualizada!**\n\n` +
+            `| Campo | Valor |\n|---|---|\n` +
+            `| **Tarefa** | ${task.titulo} |\n` +
+            `| **De** | ${statusLabels[task.status] || task.status} |\n` +
+            `| **Para** | ${statusLabels[targetStatus] || targetStatus} |\n`
+          );
+        }
+        return true;
+      }
+
+      // Multiple matches — update all or list
+      let response = `🔍 Encontrei **${tasks.length}** tarefas com **"${searchTitle}"**. Atualizando todas:\n\n`;
+      let updated = 0;
+      for (const task of tasks) {
+        if (task.status === targetStatus) continue;
+        const { error } = await (supabase as any)
+          .from("tasks")
+          .update({ status: targetStatus })
+          .eq("id", task.id);
+        if (!error) updated++;
+        response += `- ${!error ? "✅" : "❌"} **${task.titulo}** → ${statusLabels[targetStatus]}\n`;
+      }
+      response += `\n📊 ${updated} tarefa(s) atualizada(s) para **${statusLabels[targetStatus]}**.`;
+      appendAssistant(response);
+      return true;
+    }
+
+    // === Web search / Internet lookup ===
+    const searchPatterns = [
+      /(?:pesquisar?|buscar?|procurar?|mostrar?|me\s+mostr[ae]|encontrar?)\s+(?:na\s+internet|no\s+google|online|na\s+web)\s+(.+)/i,
+      /(?:pesquisar?|buscar?|procurar?)\s+(?:sobre|por|imagens?\s+de|fotos?\s+de|dados?\s+sobre|informações?\s+sobre)\s+(.+)/i,
+      /(?:me\s+)?(?:mostr[ae]|mostre|busqu?e?|pesquis[ae]|encontr[ae]|procur[ae])\s+(?:imagens?|fotos?)\s+(?:de|sobre|com)\s+(.+)/i,
+      /(?:quero|preciso)\s+(?:ver|saber|pesquisar)\s+(?:sobre|imagens?\s+de|fotos?\s+de|dados?\s+de)\s+(.+)/i,
+      /(?:o\s+que\s+[ée]|como\s+funciona|tendências?|mercado|dados?\s+(?:de|do|da|sobre))\s+(.+)/i,
+      /(?:pesquisa|busca)\s*:\s*(.+)/i,
+    ];
+
+    let searchQuery: string | null = null;
+    let isImageSearch = false;
+
+    for (const pattern of searchPatterns) {
+      const match = content.match(pattern);
+      if (match && match[1]) {
+        searchQuery = match[1].trim().replace(/[?!.,;]+$/, "");
+        isImageSearch = /imagens?|fotos?|imagem|foto/i.test(content);
+        break;
+      }
+    }
+
+    if (searchQuery && searchQuery.length >= 3) {
+      appendAssistant(`🔍 Pesquisando: **"${searchQuery}"**...\n\n_Aguarde, buscando informações na internet..._`);
+
+      try {
+        if (isImageSearch) {
+          // For image search, provide a Google Images link and search results
+          const googleImagesUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(searchQuery)}`;
+          const pinterestUrl = `https://br.pinterest.com/search/pins/?q=${encodeURIComponent(searchQuery)}`;
+
+          // Also try Perplexity for context
+          let aiContent = "";
+          let citations: string[] = [];
+          try {
+            const { data, error } = await supabase.functions.invoke("perplexity-search", {
+              body: { query: `${searchQuery} - mostre referências visuais, tendências e inspirações`, tenant_id: tenantId },
+            });
+            if (!error && data?.content) {
+              aiContent = data.content;
+              citations = data.citations || [];
+            }
+          } catch {}
+
+          // Update last assistant message
+          setMessages(prev => {
+            const updated = [...prev];
+            if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                content:
+                  `🖼️ **Imagens de "${searchQuery}"**\n\n` +
+                  `👉 [Abrir no Google Imagens](${googleImagesUrl})\n` +
+                  `👉 [Ver no Pinterest](${pinterestUrl})\n\n` +
+                  (aiContent ? `### 📝 Sobre o tema\n\n${aiContent}\n\n` : "") +
+                  (citations.length > 0 ? `### 🔗 Fontes\n${citations.map((c, i) => `${i + 1}. [${c}](${c})`).join("\n")}\n` : ""),
+              };
+            }
+            return updated;
+          });
+        } else {
+          // Text/data search via Perplexity
+          const { data, error } = await supabase.functions.invoke("perplexity-search", {
+            body: { query: searchQuery, tenant_id: tenantId },
+          });
+
+          if (error || !data?.content) {
+            setMessages(prev => {
+              const updated = [...prev];
+              if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  content: `❌ Não consegui buscar informações no momento. Verifique se a API Perplexity está configurada em **Configurações > APIs**.`,
+                };
+              }
+              return updated;
+            });
+          } else {
+            const citations = (data.citations || []) as string[];
+            setMessages(prev => {
+              const updated = [...prev];
+              if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  content:
+                    `🌐 **Resultados para "${searchQuery}"**\n\n` +
+                    `${data.content}\n\n` +
+                    (citations.length > 0 ? `### 🔗 Fontes\n${citations.map((c: string, i: number) => `${i + 1}. [${c}](${c})`).join("\n")}\n` : ""),
+                };
+              }
+              return updated;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Search error:", err);
+        setMessages(prev => {
+          const updated = [...prev];
+          if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              content: `❌ Erro ao pesquisar. Tente novamente mais tarde.`,
+            };
+          }
+          return updated;
+        });
+      }
+      return true;
+    }
+
     // === Navigation commands ===
     const navCmd = detectNavigationCommand(content);
     if (navCmd) {
