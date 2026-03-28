@@ -9,6 +9,7 @@ export interface ChatConversation {
   vendedor_nome?: string | null;
   isClientDirect?: boolean;
   client_id?: string;
+  phone?: string; // WhatsApp phone number for direct sending
 }
 
 export interface ChatMessage {
