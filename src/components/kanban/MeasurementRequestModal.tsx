@@ -590,6 +590,85 @@ export function MeasurementRequestModal({
       doc.roundedRect(mx, obsStartY, cw, y - obsStartY, 2, 2, "S");
       y += 8;
 
+      // ══════════════════ IMAGENS DOS AMBIENTES ══════════════════
+      // Convert uploaded File objects to data URLs and render 3 per page
+      const imgH = 75; // image height in mm
+      const imgGap = 6;
+      const imgContentW = cw;
+
+      for (const env of environments) {
+        const files = envImages[env.id] || [];
+        if (files.length === 0) continue;
+
+        // Load all images as data URLs
+        const dataUrls: string[] = [];
+        for (const file of files) {
+          if (!file.type.startsWith("image/")) continue;
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+          dataUrls.push(dataUrl);
+        }
+
+        if (dataUrls.length === 0) continue;
+
+        let imgCount = 0;
+        for (const dataUrl of dataUrls) {
+          // Check if we need a new page (3 images per page)
+          if (imgCount % 3 === 0 || y + imgH + 20 > ph - 18) {
+            doc.addPage();
+            y = 14;
+            imgCount = 0;
+
+            // Section title on each new image page
+            doc.setFillColor(...PRIMARY);
+            doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
+            doc.rect(mx, y + 5, cw, 3, "F");
+            doc.setTextColor(...WHITE);
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "bold");
+            doc.text(`FOTOS — ${env.name}`, mx + 4, y + 5.5);
+            y += 12;
+          }
+
+          // Draw image with border
+          doc.setDrawColor(...BORDER);
+          doc.setLineWidth(0.3);
+          try {
+            // Load image to get aspect ratio
+            const tempImg = new window.Image();
+            await new Promise<void>((resolve) => {
+              tempImg.onload = () => resolve();
+              tempImg.onerror = () => resolve();
+              tempImg.src = dataUrl;
+            });
+
+            const aspect = tempImg.width / tempImg.height;
+            let drawW = imgContentW;
+            let drawH = drawW / aspect;
+            if (drawH > imgH) {
+              drawH = imgH;
+              drawW = drawH * aspect;
+            }
+            const drawX = mx + (imgContentW - drawW) / 2;
+
+            doc.addImage(dataUrl, "JPEG", drawX, y, drawW, drawH);
+            doc.roundedRect(drawX, y, drawW, drawH, 1, 1, "S");
+            y += drawH + imgGap;
+          } catch {
+            // Skip failed image
+            doc.setTextColor(...GRAY);
+            doc.setFontSize(8);
+            doc.text("(Imagem não carregada)", mx + 4, y + 10);
+            y += 16;
+          }
+
+          imgCount++;
+        }
+      }
+
       // ══════════════════ FOOTER ══════════════════
       const addFooter = () => {
         const totalPages = (doc as any).internal.getNumberOfPages();
