@@ -238,7 +238,7 @@ export function ClientsKanban({
         const newStatus = (payload.new as any)?.status;
         const nome = (payload.new as any)?.nome || "Cliente";
         if (oldStatus && newStatus && oldStatus !== newStatus) {
-          const colLabel = KANBAN_COLUMNS.find(c => c.id === newStatus)?.label || newStatus;
+          const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label || newStatus;
           toast.info(`📋 ${nome} movido para "${colLabel}"`, { duration: 5000 });
         }
       })
@@ -377,7 +377,7 @@ export function ClientsKanban({
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
       toast.error("Erro ao mover cliente");
     } else {
-      const colLabel = KANBAN_COLUMNS.find(c => c.id === newStatus)?.label;
+      const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
       toast.success(`${client.nome} movido para "${colLabel}"`);
     }
   }, [localClients]);
