@@ -724,6 +724,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
             if (existingTrackingError) {
               console.error("tracking lookup error:", existingTrackingError);
+              toast.loading(`Buscando tracking ${contractNumber}...`, { id: "wa-flow", duration: 2000 });
             }
 
             if (existingTracking) {
@@ -758,7 +759,10 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
             if (existingClient?.id) {
               clientId = existingClient.id;
+              console.log("[WA Flow] Reusing existing client:", clientId);
             } else {
+              console.log("[WA Flow] Creating new client for:", clientName, normalizedPhone);
+              toast.loading("Criando contato...", { id: "wa-flow", duration: 3000 });
               const { data: createdClient, error: clientError } = await supabase
                 .from("clients")
                 .insert({
@@ -772,7 +776,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 .maybeSingle();
 
               if (clientError || !createdClient?.id) {
-                console.error("client insert error:", clientError);
+                console.error("[WA Flow] client insert error:", JSON.stringify(clientError));
+                toast.loading("Recuperando contato existente...", { id: "wa-flow", duration: 2000 });
 
                 const { data: recoveredClientRows, error: recoveredClientError } = await supabase
                   .from("clients")
@@ -784,8 +789,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 const recoveredClient = ((recoveredClientRows as any[]) || [])[0] || null;
 
                 if (recoveredClientError || !recoveredClient?.id) {
-                  console.error("client recovery error:", recoveredClientError);
-                  toast.error("Erro ao criar contato");
+                  console.error("[WA Flow] client recovery error:", JSON.stringify(recoveredClientError));
+                  toast.error(`Erro ao criar contato: ${recoveredClientError?.message || clientError?.message || "Verifique permissões RLS"}`, { id: "wa-flow" });
                   return;
                 }
 
@@ -795,6 +800,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               }
             }
 
+            console.log("[WA Flow] Creating tracking for client:", clientId, contractNumber);
+            toast.loading("Criando conversa...", { id: "wa-flow", duration: 3000 });
             const { data: createdTracking, error: trackError } = await supabase
               .from("client_tracking")
               .insert({
@@ -808,7 +815,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               .maybeSingle();
 
             if (trackError || !createdTracking?.id) {
-              console.error("client_tracking insert error:", trackError);
+              console.error("[WA Flow] tracking insert error:", JSON.stringify(trackError));
+              toast.loading("Recuperando conversa existente...", { id: "wa-flow", duration: 2000 });
 
               const { data: recoveredTracking, error: recoveredTrackingError } = await supabase
                 .from("client_tracking")
@@ -818,8 +826,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 .maybeSingle();
 
               if (recoveredTrackingError || !recoveredTracking?.id) {
-                console.error("tracking recovery error:", recoveredTrackingError);
-                toast.error("Erro ao criar conversa");
+                console.error("[WA Flow] tracking recovery error:", JSON.stringify(recoveredTrackingError));
+                toast.error(`Erro ao criar conversa: ${recoveredTrackingError?.message || trackError?.message || "Verifique permissões RLS"}`, { id: "wa-flow" });
                 return;
               }
 
@@ -834,7 +842,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
               setConversations((prev) => [recoveredConv, ...prev.filter((c) => c.id !== recoveredConv.id)]);
               handleSelectConversation(recoveredConv);
-              toast.success(`Conversa com ${clientName} iniciada!`);
+              toast.success(`Conversa com ${clientName} iniciada!`, { id: "wa-flow" });
               return;
             }
 
@@ -849,10 +857,10 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
             setConversations((prev) => [newConv, ...prev.filter((c) => c.id !== newConv.id)]);
             handleSelectConversation(newConv);
-            toast.success(`Conversa com ${clientName} iniciada!`);
+            toast.success(`Conversa com ${clientName} iniciada!`, { id: "wa-flow" });
           } catch (err) {
-            console.error("Error creating WA conversation:", err);
-            toast.error("Erro ao criar conversa");
+            console.error("[WA Flow] Unexpected error:", err);
+            toast.error(`Erro inesperado: ${(err as Error)?.message || "Tente novamente"}`, { id: "wa-flow" });
           }
         }}
       />

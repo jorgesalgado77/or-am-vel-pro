@@ -105,7 +105,8 @@ async function streamChat(opts: {
 export function CommercialAIPanel() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
-  const { metrics, insights, rankings, stalledLeads, hotLeads, loading, markInsightRead } = useCommercialAI(tenantId, user?.id);
+  const userRole = user?.cargo_nome || "";
+  const { metrics, insights, rankings, stalledLeads, hotLeads, loading, markInsightRead, clientsBySeller, isAdminOrManager } = useCommercialAI(tenantId, user?.id, userRole);
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([
     { role: "assistant", content: "Olá! Sou sua **IA Gerente Comercial** 🤖. Posso analisar suas vendas, identificar oportunidades e sugerir ações com base nos seus dados reais. Pergunte-me algo!" },
   ]);
@@ -303,6 +304,53 @@ export function CommercialAIPanel() {
           )}
 
           {/* Stalled & Hot Leads Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          </div>
+
+          {/* Clients by Seller — admin/manager full view */}
+          {isAdminOrManager && Object.keys(clientsBySeller).length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" /> Clientes em Aberto por Vendedor
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Object.entries(clientsBySeller).map(([sellerId, sellerClients]) => {
+                  const sellerName = sellerClients[0]?.seller_name || "Sem vendedor";
+                  return (
+                    <div key={sellerId} className="border border-border rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-foreground">{sellerName}</p>
+                        <Badge variant="secondary" className="text-[10px]">{sellerClients.length} lead{sellerClients.length > 1 ? "s" : ""}</Badge>
+                      </div>
+                      <div className="space-y-1">
+                        {sellerClients.slice(0, 5).map((c: any) => (
+                          <div key={c.id} className="flex items-center justify-between text-xs">
+                            <span className="text-foreground truncate max-w-[60%]">{c.nome}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[9px] py-0">
+                                {c.status === "novo" ? "Novo" : c.status === "em_negociacao" ? "Negociando" : "Proposta"}
+                              </Badge>
+                              {c.updated_at && (
+                                <span className="text-muted-foreground text-[10px]">
+                                  {Math.floor((Date.now() - new Date(c.updated_at).getTime()) / 86400000)}d atrás
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {sellerClients.length > 5 && (
+                          <p className="text-[10px] text-muted-foreground">+{sellerClients.length - 5} mais...</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Card>
               <CardHeader className="pb-2">
