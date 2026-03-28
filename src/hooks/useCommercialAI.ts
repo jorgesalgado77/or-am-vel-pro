@@ -50,11 +50,12 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     if (!tenantId) return;
 
     // Fetch all clients for the tenant
-    const { data: clients } = await (supabase as any)
+    const { data: clients, error: clientsError } = await (supabase as any)
       .from("clients")
-      .select("id, nome, status, created_at, responsavel_id, vendedor, updated_at, telefone1, email")
+      .select("id, nome, status, created_at, vendedor, updated_at, telefone1, email")
       .eq("tenant_id", tenantId);
 
+    if (clientsError) { console.error("Clients fetch error:", clientsError); }
     if (!clients) return;
 
     // Fetch contracts (source of truth for closed deals)
