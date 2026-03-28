@@ -287,7 +287,7 @@ export function MeasurementRequestModal({
           .limit(1);
 
     const { data } = await requestQuery;
-    return Array.isArray(data) ? data[0] : null;
+    return (Array.isArray(data) ? data[0] : null) as Record<string, any> | null;
   }, [client.id, tracking?.id]);
 
   const hydrateClientState = useCallback((source: any) => {
@@ -470,7 +470,7 @@ export function MeasurementRequestModal({
       ]);
 
       if (active) {
-        hydrateClientState({ ...(clientRes.data || {}), ...(latestRequest || {}) });
+        hydrateClientState({ ...(clientRes.data as Record<string, any> || {}), ...(latestRequest || {}) });
       }
     };
 
@@ -724,7 +724,7 @@ export function MeasurementRequestModal({
       setObservacoes(latestRequest?.observacoes || "");
 
       if (latestRequest) {
-        hydrateClientState({ ...(client as any), ...latestRequest });
+        hydrateClientState({ ...(client as any), ...(latestRequest as Record<string, any>) });
       }
     };
 
