@@ -1107,32 +1107,47 @@ export function MeasurementRequestModal({
                       <div className="space-y-1.5">
                         <Label className="text-xs flex items-center gap-1">
                           <Image className="h-3 w-3" />
-                          Imagens iniciais (mín. 1) *
+                          Imagens iniciais (mín. 1) * — {images.length} enviada(s)
                         </Label>
+
+                        {/* Upload progress */}
+                        {uploadProgress[env.id] !== undefined && (
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            <Progress value={uploadProgress[env.id]} className="h-2 flex-1" />
+                            <span className="text-[10px] text-muted-foreground">{Math.round(uploadProgress[env.id])}%</span>
+                          </div>
+                        )}
+
                         <div className="flex flex-wrap gap-2">
-                          {images.map((file, idx) => (
-                            <div key={idx} className="relative group">
-                              <div className="h-16 w-16 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
-                                {file.type.startsWith("image/") ? (
-                                  <img
-                                    src={URL.createObjectURL(file)}
-                                    alt={file.name}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <FileText className="h-6 w-6 text-muted-foreground" />
-                                )}
+                          {images.map((file, idx) => {
+                            const preview = (envImagePreviews[env.id] || [])[idx];
+                            return (
+                              <div key={idx} className="relative group">
+                                <div className="h-20 w-20 rounded-lg border-2 border-border bg-muted flex items-center justify-center overflow-hidden shadow-sm">
+                                  {preview ? (
+                                    <img
+                                      src={preview}
+                                      alt={file.name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <FileText className="h-6 w-6 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <p className="text-[9px] text-muted-foreground truncate w-20 mt-0.5 text-center">{file.name}</p>
+                                <button
+                                  onClick={() => removeImage(env.id, idx)}
+                                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
                               </div>
-                              <button
-                                onClick={() => removeImage(env.id, idx)}
-                                className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                          <label className="h-16 w-16 rounded-md border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                            );
+                          })}
+                          <label className="h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors gap-1">
                             <Upload className="h-5 w-5 text-muted-foreground" />
+                            <span className="text-[9px] text-muted-foreground">Adicionar</span>
                             <input
                               type="file"
                               multiple
