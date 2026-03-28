@@ -57,7 +57,7 @@ serve(async (req) => {
     const { action, tenant_id } = body;
 
     if (action === "send") {
-      const { to, subject, html, text, from, reply_to } = body;
+      const { to, subject, html, text, from, reply_to, cc, bcc } = body;
       if (!to || !subject || (!html && !text)) {
         return respond({ error: "to, subject e html/text são obrigatórios" }, 400);
       }
@@ -75,6 +75,8 @@ serve(async (req) => {
       if (html) payload.html = html;
       if (text) payload.text = text;
       if (reply_to) payload.reply_to = reply_to;
+      if (cc) payload.cc = Array.isArray(cc) ? cc : [cc];
+      if (bcc) payload.bcc = Array.isArray(bcc) ? bcc : [bcc];
 
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -91,6 +93,25 @@ serve(async (req) => {
       }
 
       const data = await res.json();
+
+      // Save to email history
+      try {
+        const sb = getSupabaseAdmin();
+        await sb.from("mia_email_history").insert({
+          tenant_id: tenant_id,
+          to_email: Array.isArray(to) ? to.join(", ") : to,
+          cc_email: cc ? (Array.isArray(cc) ? cc.join(", ") : cc) : null,
+          subject,
+          body_html: html || null,
+          body_text: text || null,
+          resend_id: data.id || null,
+          status: "sent",
+          sent_by: body.sent_by || null,
+        });
+      } catch (e) {
+        console.warn("Failed to save email history:", e);
+      }
+
       return respond({ success: true, email_id: data.id });
     }
 

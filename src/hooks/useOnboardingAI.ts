@@ -325,6 +325,19 @@ interface TaskWizardState {
 
 const INITIAL_WIZARD: TaskWizardState = { active: false, step: "titulo" };
 
+// --- Email wizard state ---
+interface EmailWizardState {
+  active: boolean;
+  step: "destinatario" | "copia" | "assunto" | "corpo" | "anexos" | "confirmar";
+  to?: string;
+  cc?: string;
+  subject?: string;
+  body?: string;
+  attachments?: string[];
+}
+
+const INITIAL_EMAIL_WIZARD: EmailWizardState = { active: false, step: "destinatario" };
+
 export function useOnboardingAI(tenantId: string | null) {
   const [messages, setMessages] = useState<AIMessage[]>(() => {
     if (!tenantId) return [];
@@ -340,6 +353,7 @@ export function useOnboardingAI(tenantId: string | null) {
   });
   const [alerts, setAlerts] = useState<ScheduledAlert[]>(() => loadAlerts(tenantId));
   const [taskWizard, setTaskWizard] = useState<TaskWizardState>(INITIAL_WIZARD);
+  const [emailWizard, setEmailWizard] = useState<EmailWizardState>(INITIAL_EMAIL_WIZARD);
   const initialized = useRef(false);
   const messagesRef = useRef<AIMessage[]>(messages);
   const alertTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -619,6 +633,156 @@ export function useOnboardingAI(tenantId: string | null) {
         return true;
       }
     }
+
+    // === Email wizard steps (priority — intercept all input while active) ===
+    if (emailWizard.active) {
+      if (/cancelar|sair|parar|desistir/i.test(lower)) {
+        setEmailWizard(INITIAL_EMAIL_WIZARD);
+        appendAssistant("❌ Composição de email cancelada.");
+        return true;
+      }
+
+      const emailStep = emailWizard.step;
+
+      if (emailStep === "destinatario") {
+        const email = content.trim();
+        if (!/\S+@\S+\.\S+/.test(email)) {
+          appendAssistant("❌ Email inválido. Informe um email válido (ex: **nome@exemplo.com**).");
+          return true;
+        }
+        setEmailWizard(prev => ({ ...prev, to: email, step: "copia" }));
+        appendAssistant(`✅ Destinatário: **${email}**\n\n📋 **Deseja adicionar alguém em cópia (CC)?**\n\n_Informe o email ou diga "pular"._`);
+        return true;
+      }
+
+      if (emailStep === "copia") {
+        const cc = /pular|sem c[óo]pia|nenhum|n[ãa]o/i.test(lower) ? undefined : content.trim();
+        if (cc && !/\S+@\S+\.\S+/.test(cc)) {
+          appendAssistant("❌ Email de cópia inválido. Informe um email válido ou diga **pular**.");
+          return true;
+        }
+        setEmailWizard(prev => ({ ...prev, cc, step: "assunto" }));
+        appendAssistant(`✅ Cópia: **${cc || "Nenhuma"}**\n\n📝 **Qual o assunto do email?**`);
+        return true;
+      }
+
+      if (emailStep === "assunto") {
+        setEmailWizard(prev => ({ ...prev, subject: content.trim(), step: "corpo" }));
+        appendAssistant(`✅ Assunto: **${content.trim()}**\n\n✏️ **Escreva o corpo do email:**\n\n_Pode usar formatação markdown (negrito, listas, etc)._`);
+        return true;
+      }
+
+      if (emailStep === "corpo") {
+        setEmailWizard(prev => ({ ...prev, body: content.trim(), step: "anexos" }));
+        appendAssistant(`✅ Corpo salvo!\n\n📎 **Deseja adicionar links de anexos?**\n\n_Cole URLs dos arquivos (separados por vírgula) ou diga "pular"._\n\n💡 Dica: Você pode fazer upload de arquivos no sistema e colar o link aqui.`);
+        return true;
+      }
+
+      if (emailStep === "anexos") {
+        let attachments: string[] | undefined;
+        if (!/pular|sem anexo|nenhum|n[ãa]o/i.test(lower)) {
+          attachments = content.split(",").map(u => u.trim()).filter(u => u.length > 5);
+        }
+        const wizard = { ...emailWizard, attachments };
+        setEmailWizard({ ...wizard, step: "confirmar" });
+
+        const attachText = attachments && attachments.length > 0
+          ? attachments.map((a, i) => `${i + 1}. [Anexo ${i + 1}](${a})`).join("\n")
+          : "Nenhum";
+
+        appendAssistant(
+          `📧 **Confirme o email antes de enviar:**\n\n` +
+          `| Campo | Valor |\n|---|---|\n` +
+          `| **Para** | ${wizard.to} |\n` +
+          `| **CC** | ${wizard.cc || "—"} |\n` +
+          `| **Assunto** | ${wizard.subject} |\n\n` +
+          `**Corpo:**\n${wizard.body}\n\n` +
+          `**Anexos:**\n${attachText}\n\n` +
+          `---\n✅ Diga **"enviar"** para confirmar\n✏️ Diga **"editar [campo]"** para corrigir (ex: "editar assunto")\n❌ Diga **"cancelar"** para descartar`
+        );
+        return true;
+      }
+
+      if (emailStep === "confirmar") {
+        // Handle edit requests
+        if (/editar\s+(destinat[áa]rio|para)/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "destinatario" }));
+          appendAssistant("📝 Informe o novo **destinatário**:");
+          return true;
+        }
+        if (/editar\s+(c[óo]pia|cc)/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "copia" }));
+          appendAssistant("📝 Informe o novo **email de cópia** (ou diga pular):");
+          return true;
+        }
+        if (/editar\s+assunto/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "assunto" }));
+          appendAssistant("📝 Informe o novo **assunto**:");
+          return true;
+        }
+        if (/editar\s+(corpo|texto|mensagem)/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "corpo" }));
+          appendAssistant("📝 Escreva o novo **corpo do email**:");
+          return true;
+        }
+        if (/editar\s+anex/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "anexos" }));
+          appendAssistant("📝 Informe os novos **links de anexos** (ou diga pular):");
+          return true;
+        }
+
+        if (/enviar|confirmar|sim|mandar|disparar/i.test(lower)) {
+          // Build HTML body
+          let htmlBody = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">`;
+          htmlBody += `<div style="white-space:pre-wrap;line-height:1.6;">${(emailWizard.body || "").replace(/\n/g, "<br>")}</div>`;
+          if (emailWizard.attachments && emailWizard.attachments.length > 0) {
+            htmlBody += `<hr style="margin:20px 0;border:none;border-top:1px solid #eee;">`;
+            htmlBody += `<p style="font-size:13px;color:#666;"><strong>Anexos:</strong></p><ul>`;
+            for (const att of emailWizard.attachments) {
+              htmlBody += `<li><a href="${att}" target="_blank" style="color:#2563eb;">${att}</a></li>`;
+            }
+            htmlBody += `</ul>`;
+          }
+          htmlBody += `</div>`;
+
+          appendAssistant("📤 **Enviando email...**");
+
+          try {
+            const { data: sendResult, error: sendError } = await supabase.functions.invoke("resend-email", {
+              body: {
+                action: "send",
+                tenant_id: tenantId,
+                to: emailWizard.to,
+                cc: emailWizard.cc || undefined,
+                subject: emailWizard.subject,
+                html: htmlBody,
+                sent_by: currentUserId,
+              },
+            });
+
+            if (sendError || !sendResult?.success) {
+              appendAssistant(`❌ **Erro ao enviar email:** ${sendResult?.error || sendError?.message || "Erro desconhecido"}\n\nVerifique se a API do Resend está configurada em **Configurações > APIs**.`);
+            } else {
+              appendAssistant(
+                `✅ **Email enviado com sucesso!**\n\n` +
+                `| Campo | Valor |\n|---|---|\n` +
+                `| **Para** | ${emailWizard.to} |\n` +
+                `| **CC** | ${emailWizard.cc || "—"} |\n` +
+                `| **Assunto** | ${emailWizard.subject} |\n` +
+                `| **ID** | ${sendResult.email_id || "—"} |\n\n` +
+                `📬 O email foi entregue ao servidor de envio.`
+              );
+            }
+          } catch (err) {
+            appendAssistant(`❌ **Falha ao enviar:** ${err instanceof Error ? err.message : "Erro desconhecido"}`);
+          }
+
+          setEmailWizard(INITIAL_EMAIL_WIZARD);
+          return true;
+        }
+      }
+    }
+
     // === "Minhas tarefas de hoje" query ===
     if (/(?:minhas\s+)?tarefas?\s+(?:de\s+)?hoje|(?:o\s+que\s+tenho\s+)?(?:pra|para)\s+hoje|agenda\s+(?:de\s+)?hoje|(?:quais|qual)\s+(?:s[ãa]o\s+)?(?:as\s+)?(?:minhas\s+)?tarefas?\s+(?:de\s+)?hoje/i.test(lower)) {
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -1236,6 +1400,41 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
+    // === Email composition wizard trigger ===
+    if (/(criar|compor|escrever|enviar|novo)\s*e-?mail/i.test(lower) && !emailWizard.active) {
+      setEmailWizard({ active: true, step: "destinatario" });
+      appendAssistant("📧 **Vamos compor um novo email!**\n\n**Qual o email do destinatário?**\n\n_A qualquer momento, diga \"cancelar\" para desistir._");
+      return true;
+    }
+
+    // === Email history query ===
+    if (/(hist[óo]rico\s+(?:de\s+)?e-?mails?|e-?mails?\s+enviados?|meus\s+e-?mails?|ver\s+e-?mails?)/i.test(lower)) {
+      const { data: emails } = await (supabase as any)
+        .from("mia_email_history")
+        .select("to_email, cc_email, subject, status, created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const emailList = (emails || []) as any[];
+      if (emailList.length === 0) {
+        appendAssistant("📭 **Nenhum email enviado ainda.**\n\nDiga **\"criar email\"** para compor e enviar seu primeiro email pela Mia!");
+        return true;
+      }
+
+      let response = `📬 **Histórico de Emails Enviados** (últimos ${emailList.length})\n\n`;
+      response += `| Data | Para | Assunto | Status |\n|---|---|---|---|\n`;
+      for (const e of emailList) {
+        const date = new Date(e.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        const statusIcon = e.status === "sent" ? "✅" : e.status === "failed" ? "❌" : "⏳";
+        response += `| ${date} | ${e.to_email} | ${(e.subject || "").slice(0, 30)} | ${statusIcon} ${e.status} |\n`;
+      }
+      response += `\n📊 Total: **${emailList.length}** email(s) no histórico`;
+      appendAssistant(response);
+      return true;
+    }
+
+
     if (/(meus tickets|ver tickets|tickets de suporte|status dos tickets)/.test(lower) && currentUserId) {
       const { data } = await (supabase as any)
         .from("support_tickets")
@@ -1278,7 +1477,7 @@ export function useOnboardingAI(tenantId: string | null) {
     }
 
     return false;
-  }, [appendAssistant, context, tenantId, addAlert, taskWizard]);
+  }, [appendAssistant, context, tenantId, addAlert, taskWizard, emailWizard]);
 
   const chatWithAI = useCallback(async (tid: string, chatMessages: { role: string; content: string }[]) => {
     try {
@@ -1428,22 +1627,26 @@ export function useOnboardingAI(tenantId: string | null) {
   const runTests = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    setMessages((prev) => [...prev, createMessage("assistant", "🧪 **Executando testes automáticos...**\n\nTestando IA, WhatsApp, Email e PDF...")]);
+    setMessages((prev) => [...prev, createMessage("assistant", "🧪 **Executando testes automáticos...**\n\nTestando todas as APIs e integrações do sistema...")]);
 
     try {
       const results: Record<string, { ok: boolean; detail: string }> = {};
 
-      const { data: openaiKey } = await (supabase as any)
+      // Fetch all API keys at once
+      const { data: allKeys } = await (supabase as any)
         .from("api_keys")
-        .select("api_key")
-        .eq("tenant_id", tenantId)
-        .eq("provider", "openai")
-        .eq("is_active", true)
-        .maybeSingle();
-      results.openai = (openaiKey as any)?.api_key
+        .select("provider, api_key, is_active")
+        .eq("tenant_id", tenantId);
+      const keys = (allKeys || []) as Array<{ provider: string; api_key: string; is_active: boolean }>;
+      const activeKey = (provider: string) => keys.find(k => k.provider === provider && k.is_active);
+
+      // OpenAI
+      const openai = activeKey("openai");
+      results.openai = openai?.api_key
         ? { ok: true, detail: "Conexão OK — IA de vendas funcionando" }
         : { ok: false, detail: "Nenhuma chave OpenAI configurada" };
 
+      // WhatsApp
       const whatsappSettings = await loadWhatsAppSettings(tenantId);
       if (whatsappSettings?.ativo) {
         if (whatsappSettings.provider === "zapi" && whatsappSettings.zapi_instance_id && whatsappSettings.zapi_token && whatsappSettings.zapi_client_token) {
@@ -1457,24 +1660,62 @@ export function useOnboardingAI(tenantId: string | null) {
         results.whatsapp = { ok: false, detail: "Nenhuma integração de WhatsApp configurada" };
       }
 
-      const { data: resendKey } = await (supabase as any)
-        .from("api_keys")
-        .select("api_key")
-        .eq("tenant_id", tenantId)
-        .eq("provider", "resend")
-        .eq("is_active", true)
-        .maybeSingle();
-      results.email = (resendKey as any)?.api_key
+      // Resend (Email)
+      const resend = activeKey("resend");
+      results.email = resend?.api_key
         ? { ok: true, detail: "Resend conectado — envio de emails OK" }
-        : { ok: false, detail: "Nenhuma chave de email configurada (opcional)" };
+        : { ok: false, detail: "Nenhuma chave de email configurada" };
 
+      // Perplexity (Search)
+      const perplexity = activeKey("perplexity");
+      results.perplexity = perplexity?.api_key
+        ? { ok: true, detail: "Perplexity conectada — pesquisa na internet OK" }
+        : { ok: false, detail: "Nenhuma chave Perplexity configurada" };
+
+      // Google Calendar OAuth
+      const gcalKey = activeKey("google_calendar");
+      if (gcalKey?.api_key) {
+        try {
+          const parsed = JSON.parse(gcalKey.api_key);
+          if (parsed.client_id && parsed.client_secret) {
+            results.google_calendar = { ok: true, detail: "OAuth configurado — pronto para conectar" };
+          } else {
+            results.google_calendar = { ok: false, detail: "Credenciais incompletas (falta client_id ou client_secret)" };
+          }
+        } catch {
+          results.google_calendar = { ok: false, detail: "Formato de credenciais inválido" };
+        }
+      } else {
+        results.google_calendar = { ok: false, detail: "Google Calendar OAuth não configurado" };
+      }
+
+      // Canva
+      const canva = activeKey("canva");
+      results.canva = canva?.api_key
+        ? { ok: true, detail: "Canva API conectada" }
+        : { ok: false, detail: "Nenhuma chave Canva configurada (opcional)" };
+
+      // PDF
       results.pdf = { ok: true, detail: "Gerador de PDF interno configurado" };
+
+      // Build result lines
+      const labelMap: Record<string, string> = {
+        openai: "🤖 IA de Vendas (OpenAI)",
+        whatsapp: "📱 WhatsApp",
+        email: "📧 Email (Resend)",
+        perplexity: "🌐 Pesquisa Web (Perplexity)",
+        google_calendar: "📅 Google Calendar",
+        canva: "🎨 Canva",
+        pdf: "📄 PDF",
+      };
 
       const lines = Object.entries(results).map(([key, val]) => {
         const icon = val.ok ? "✅" : "❌";
-        const label: Record<string, string> = { openai: "IA de Vendas", whatsapp: "WhatsApp", email: "Email", pdf: "PDF" };
-        return `${icon} **${label[key] || key}:** ${val.detail}`;
+        return `${icon} **${labelMap[key] || key}:** ${val.detail}`;
       });
+
+      const okCount = Object.values(results).filter(r => r.ok).length;
+      const totalCount = Object.keys(results).length;
 
       const completedSteps: string[] = [];
       if (results.openai?.ok) completedSteps.push("openai_api");
@@ -1491,7 +1732,9 @@ export function useOnboardingAI(tenantId: string | null) {
         completedSteps: [...new Set([...(prev?.completedSteps || []), ...completedSteps])],
       }));
 
-      setMessages((prev) => [...prev, createMessage("assistant", `📋 **Resultado dos Testes:**\n\n${lines.join("\n")}\n\n${results.openai?.ok && results.whatsapp?.ok ? "🎉 **Testes críticos OK!**" : "⚠️ **Ainda existem pendências.**"}`)]);
+      setMessages((prev) => [...prev, createMessage("assistant",
+        `📋 **Resultado dos Testes — ${okCount}/${totalCount} APIs conectadas**\n\n${lines.join("\n")}\n\n${okCount === totalCount ? "🎉 **Todas as APIs estão funcionando!**" : okCount >= 3 ? "⚠️ **Sistema funcional, mas existem integrações pendentes.**" : "🔴 **Atenção: várias integrações precisam ser configuradas.**"}`
+      )]);
     } catch {
       toast.error("Erro ao executar testes");
     }

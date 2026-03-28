@@ -23,6 +23,7 @@ import {
   Maximize2,
   Minimize2,
   FileDown,
+  Mail,
 } from "lucide-react";
 import {
   ListTodo,
@@ -632,6 +633,12 @@ export function OnboardingAIAssistant() {
               </Button>
               <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("criar lembrete: ")}>
                 <Bell className="h-3 w-3" /> Lembrete
+              </Button>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("criar email")}>
+                <Mail className="h-3 w-3" /> Criar Email
+              </Button>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("histórico de emails")}>
+                <Mail className="h-3 w-3" /> Emails Enviados
               </Button>
             </div>
           </div>
