@@ -442,12 +442,32 @@ export function useOnboardingAI(tenantId: string | null) {
     // === Alert/Reminder commands ===
     const alertCmd = detectAlertCommand(content);
     if (alertCmd) {
+      const scheduledDate = alertCmd.absoluteDate || new Date(Date.now() + alertCmd.minutes * 60000);
       const alert = addAlert(alertCmd.title, alertCmd.minutes);
-      const timeStr = alertCmd.minutes >= 60
-        ? `${Math.floor(alertCmd.minutes / 60)}h${alertCmd.minutes % 60 > 0 ? `${alertCmd.minutes % 60}min` : ""}`
-        : `${alertCmd.minutes} minutos`;
+
+      // Persist to DB via edge function
+      const { data: session } = await supabase.auth.getSession();
+      supabase.functions.invoke("create-reminder", {
+        body: {
+          action: "create",
+          tenant_id: tenantId,
+          user_id: session?.session?.user?.id || currentUserId,
+          title: alertCmd.title,
+          content: alertCmd.title,
+          scheduled_for: scheduledDate.toISOString(),
+        },
+      }).catch(() => { /* fallback to localStorage already saved */ });
+
+      const dateStr = scheduledDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const timeStr = scheduledDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const diffMs = scheduledDate.getTime() - Date.now();
+      const diffMin = Math.round(diffMs / 60000);
+      const diffStr = diffMin >= 60
+        ? `${Math.floor(diffMin / 60)}h${diffMin % 60 > 0 ? `${diffMin % 60}min` : ""}`
+        : `${diffMin} minutos`;
+
       appendAssistant(
-        `⏰ **Lembrete criado!**\n\n• **${alertCmd.title}**\n• Disparo em: ${timeStr}\n• Horário: ${new Date(alert.datetime).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}\n\nVocê receberá uma notificação visual e sonora quando o momento chegar.`
+        `⏰ **Lembrete criado com sucesso!**\n\n• **${alertCmd.title}**\n• 📅 Data: ${dateStr}\n• 🕐 Horário: ${timeStr}\n• ⏳ Disparo em: ${diffStr}\n\nVocê receberá uma notificação visual e sonora quando o momento chegar.`
       );
       return true;
     }
