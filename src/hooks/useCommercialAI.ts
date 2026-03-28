@@ -121,8 +121,8 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     const openClients = clients.filter((c: any) => openStatuses.includes(c.status) && !contractClientIds.has(c.id));
     const grouped: Record<string, any[]> = {};
     for (const client of openClients) {
-      const sellerId = client.responsavel_id || "sem_responsavel";
-      const sellerName = client.vendedor || (client.responsavel_id ? userNameMap.get(client.responsavel_id) : null) || "Sem vendedor";
+      const sellerName = client.vendedor || "Sem vendedor";
+      const sellerId = sellerName;
       if (!grouped[sellerId]) grouped[sellerId] = [];
       grouped[sellerId].push({ ...client, seller_name: sellerName });
     }
