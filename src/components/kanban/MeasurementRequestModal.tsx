@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2, Loader2 } from "lucide-react";
+import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2, Loader2, Download } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
@@ -342,9 +342,7 @@ export function MeasurementRequestModal({
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
-  const generatePdfPreview = useCallback(async () => {
-    setPdfPreviewLoading(true);
-    try {
+  const buildPdfDoc = useCallback(async () => {
       const { default: jsPDF } = await import("jspdf");
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pw = doc.internal.pageSize.getWidth();
@@ -747,7 +745,15 @@ export function MeasurementRequestModal({
       };
       addFooter();
 
-      // ── Render to images ──
+      return doc;
+  }, [addressForm, client, editableFields, environments, envImages, storeData, totalValorAvista, tracking.numero_contrato, observacoes]);
+
+  const generatePdfPreview = useCallback(async () => {
+    setPdfPreviewLoading(true);
+    try {
+      const doc = await buildPdfDoc();
+
+      // Render to images
       const arrayBuffer = doc.output("arraybuffer");
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const images: string[] = [];
@@ -773,7 +779,18 @@ export function MeasurementRequestModal({
     } finally {
       setPdfPreviewLoading(false);
     }
-  }, [addressForm, client, editableFields, environments, envImages, storeData, totalValorAvista, tracking.numero_contrato, observacoes]);
+  }, [buildPdfDoc]);
+
+  const downloadPdf = useCallback(async () => {
+    try {
+      const doc = await buildPdfDoc();
+      const safeName = (client.nome || "cliente").replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+      doc.save(`Solicitacao_Medida_${safeName}.pdf`);
+      toast.success("PDF baixado com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao gerar PDF", { description: err?.message });
+    }
+  }, [buildPdfDoc, client.nome]);
 
   const handleSubmit = async () => {
     if (!allEnvsHaveImages) {
@@ -1224,6 +1241,14 @@ export function MeasurementRequestModal({
             Visualizar PDF
           </Button>
           <Button
+            variant="secondary"
+            onClick={downloadPdf}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Baixar PDF
+          </Button>
+          <Button
             onClick={handleSubmit}
             disabled={saving || !allEnvsHaveImages}
             className="gap-2"
@@ -1238,8 +1263,12 @@ export function MeasurementRequestModal({
     {/* PDF Preview Dialog */}
     <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>
       <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-4 pb-2">
+        <DialogHeader className="px-6 pt-4 pb-2 flex flex-row items-center justify-between">
           <DialogTitle>Pré-visualização do PDF</DialogTitle>
+          <Button variant="secondary" size="sm" className="gap-1.5" onClick={downloadPdf}>
+            <Download className="h-4 w-4" />
+            Baixar PDF
+          </Button>
         </DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
           {pdfPreviewLoading ? (
