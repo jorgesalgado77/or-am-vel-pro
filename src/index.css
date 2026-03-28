@@ -49,6 +49,9 @@ All colors MUST be HSL.
 
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
   }
 
   .dark {
@@ -91,6 +94,9 @@ All colors MUST be HSL.
 
     --success: 160 84% 42%;
     --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
   }
 }
 
