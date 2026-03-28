@@ -791,6 +791,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 conversation={selected}
                 onBack={() => { setSelected(null); setMobileAiOpen(false); clear(); fetchConversations(); }}
                 onStartDealRoom={onDealRoom ? handleDealRoom : undefined}
+                onCreateLead={!selected.client_id ? () => setPendingLeadConv(selected) : undefined}
                 inputValue={inputValue}
                 onInputChange={setInputValue}
                 userId={userId}
