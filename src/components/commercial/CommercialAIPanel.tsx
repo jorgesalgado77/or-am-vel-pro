@@ -39,7 +39,8 @@ const PRIORITY_BADGE: Record<string, { variant: "destructive" | "secondary" | "o
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://bdhfzjuwtkiexyeusnqq.supabase.co";
+const SUPABASE_URL = "https://bdhfzjuwtkiexyeusnqq.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkaGZ6anV3dGtpZXh5ZXVzbnFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5MjcwOTEsImV4cCI6MjA4OTUwMzA5MX0.xnbTV67kuEgvz9nNKAPHEcCAzAiYpf1xIsdEvM7OB44";
 const CHAT_URL = `${SUPABASE_URL}/functions/v1/commercial-ai`;
 
 async function streamChat(opts: {
@@ -55,14 +56,13 @@ async function streamChat(opts: {
     // Get current session token for proper auth
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData?.session?.access_token;
-    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
 
     const resp = await fetch(CHAT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: anonKey,
-        Authorization: `Bearer ${accessToken || anonKey}`,
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${accessToken || SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
         action: "chat",
@@ -75,7 +75,13 @@ async function streamChat(opts: {
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ error: "Erro desconhecido" }));
-      opts.onError(err.error || `Erro ${resp.status}`);
+      if (resp.status === 429) {
+        opts.onError("Limite de requisições excedido. Aguarde um momento e tente novamente.");
+      } else if (resp.status === 402) {
+        opts.onError("Créditos de IA esgotados. Adicione créditos em Configurações > Workspace > Usage.");
+      } else {
+        opts.onError(err.error || `Erro ${resp.status}`);
+      }
       return;
     }
 
