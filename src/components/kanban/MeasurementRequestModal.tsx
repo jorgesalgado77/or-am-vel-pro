@@ -315,9 +315,11 @@ export function MeasurementRequestModal({
     }
 
     const blob = doc.output("blob");
+    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
     const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  }, [client, tracking, environments, envImages, totalValorAvista]);
+    setPdfPreviewUrl(url);
+    setPdfPreviewOpen(true);
+  }, [client, tracking, environments, envImages, totalValorAvista, pdfPreviewUrl]);
 
   const handleSubmit = async () => {
     if (!allEnvsHaveImages) {
