@@ -441,8 +441,6 @@ export function MeasurementRequestModal({
         doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
         doc.text("Ambiente", mx + 4, y + 5);
-        doc.text("Arquivo", mx + cw * 0.5, y + 5);
-        doc.text("Fotos", mx + cw * 0.75, y + 5);
         doc.text("Valor", pw - mx - 4, y + 5, { align: "right" });
         y += 8;
 
@@ -451,7 +449,6 @@ export function MeasurementRequestModal({
         for (let i = 0; i < environments.length; i++) {
           checkPage(8);
           const env = environments[i];
-          const imgs = envImages[env.id] || [];
           if (i % 2 === 0) {
             doc.setFillColor(...BG_ALT);
             doc.rect(mx, y - 3.5, cw, 7, "F");
@@ -462,9 +459,6 @@ export function MeasurementRequestModal({
 
           doc.setTextColor(...DARK);
           doc.text(env.name, mx + 4, y + 1);
-          doc.setTextColor(...GRAY);
-          doc.text(env.fileName || "—", mx + cw * 0.5, y + 1, { maxWidth: cw * 0.22 });
-          doc.text(`${imgs.length} img`, mx + cw * 0.75, y + 1);
           doc.setTextColor(...DARK);
           doc.setFont("helvetica", "bold");
           doc.text(formatCurrency(env.value), pw - mx - 4, y + 1, { align: "right" });
