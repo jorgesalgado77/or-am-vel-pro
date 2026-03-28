@@ -1509,15 +1509,15 @@ export function MeasurementRequestModal({
 
       // Send push notifications to gerentes/técnicos
       try {
-        const { data: gerentes } = await supabase
-          .from("usuarios" as any)
-          .select("id, nome_completo, cargo_id")
-          .eq("tenant_id", tenantId)
-          .eq("ativo", true);
-        if (gerentes) {
-          for (const g of gerentes as any[]) {
-            const cargo = (g.cargo_nome || "").toLowerCase();
-            if (cargo.includes("gerente") || cargo.includes("tecnico") || cargo.includes("técnico")) {
+        const [{ data: pushUsuarios }, { data: pushCargos }] = await Promise.all([
+          supabase.from("usuarios" as any).select("id, nome_completo, cargo_id").eq("tenant_id", tenantId).eq("ativo", true),
+          supabase.from("cargos" as any).select("id, nome").eq("tenant_id", tenantId),
+        ]);
+        const cargoMap = new Map((pushCargos as any[] || []).map((c: any) => [c.id, normalizeText(c.nome)]));
+        if (pushUsuarios) {
+          for (const g of pushUsuarios as any[]) {
+            const cargoName = cargoMap.get(g.cargo_id) || "";
+            if (cargoName.includes("gerente") || cargoName.includes("tecnico") || cargoName.includes("técnico")) {
               sendPushIfEnabled(
                 "medidas",
                 g.id,
