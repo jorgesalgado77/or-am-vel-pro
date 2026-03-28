@@ -385,6 +385,9 @@ async function handleInboundWebhook(body: any, isEvolution: boolean) {
   let senderPhone = "";
   let messageText = "";
   let instanceId = "";
+  let isFromMe = false;
+  let mediaUrl = "";
+  let mediaType = "";
 
   if (isEvolution) {
     // Evolution API webhook format
@@ -392,11 +395,49 @@ async function handleInboundWebhook(body: any, isEvolution: boolean) {
     senderPhone = data.key?.remoteJid?.replace(/@.*/, "") || "";
     messageText = data.message?.conversation || data.message?.extendedTextMessage?.text || "";
     instanceId = body.instance || "";
+    isFromMe = !!data.key?.fromMe;
   } else {
     // Z-API webhook format
     senderPhone = body.phone || body.sender || "";
-    messageText = body.text?.message || body.text || body.message || "";
+    // Z-API sends text as { message: "..." } or as a plain string
+    const textPayload = body.text;
+    if (typeof textPayload === "object" && textPayload !== null) {
+      messageText = textPayload.message || textPayload.text || "";
+    } else if (typeof textPayload === "string") {
+      messageText = textPayload;
+    } else {
+      messageText = body.message || body.body || "";
+    }
+    // Handle media messages (image, audio, video, document)
+    if (!messageText && body.image) {
+      mediaUrl = body.image?.imageUrl || body.image?.url || body.image?.link || "";
+      mediaType = "image";
+      messageText = body.image?.caption || body.image?.message || "[Imagem]";
+    }
+    if (!messageText && body.audio) {
+      mediaUrl = body.audio?.audioUrl || body.audio?.url || body.audio?.link || "";
+      mediaType = "audio";
+      messageText = "[Áudio]";
+    }
+    if (!messageText && body.video) {
+      mediaUrl = body.video?.videoUrl || body.video?.url || body.video?.link || "";
+      mediaType = "video";
+      messageText = body.video?.caption || "[Vídeo]";
+    }
+    if (!messageText && body.document) {
+      mediaUrl = body.document?.documentUrl || body.document?.url || body.document?.link || "";
+      mediaType = "document";
+      messageText = body.document?.caption || body.document?.fileName || "[Documento]";
+    }
     instanceId = body.instanceId || "";
+    // Z-API flags: isFromMe / fromMe indicates messages sent BY the store
+    isFromMe = body.isFromMe === true || body.fromMe === true;
+  }
+
+  // Skip messages sent by the store (already saved via ChatWindow)
+  if (isFromMe) {
+    console.log("[Webhook] Skipped fromMe message");
+    return respond({ status: "skipped_from_me" });
   }
 
   const cleanPhone = normalizePhone(senderPhone);
@@ -463,6 +504,7 @@ async function handleInboundWebhook(body: any, isEvolution: boolean) {
     remetente_nome: client.nome || "Cliente",
     lida: false,
     tenant_id: client.tenant_id,
+    ...(mediaUrl ? { anexo_url: mediaUrl, tipo_anexo: mediaType, anexo_nome: messageText } : {}),
   });
 
   if (insertError) {
@@ -486,7 +528,7 @@ serve(async (req) => {
 
     // ── Inbound Webhook Handler (Z-API / Evolution) ──
     // Z-API sends webhooks without auth headers, detect by payload shape
-    const isZapiWebhook = body.phone && !body.action && (body.text || body.image || body.audio || body.video || body.document);
+    const isZapiWebhook = body.phone && !body.action && (body.text || body.image || body.audio || body.video || body.document || body.sticker);
     const isEvolutionWebhook = body.event && (body.data || body.instance);
 
     if (isZapiWebhook || isEvolutionWebhook) {
