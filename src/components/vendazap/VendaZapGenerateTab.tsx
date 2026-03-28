@@ -90,6 +90,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [clientsWithChat, setClientsWithChat] = useState<Set<string>>(new Set());
   const [lastSim, setLastSim] = useState<any>(null);
   const [closingScore, setClosingScore] = useState<number | null>(null);
   const [customArguments, setCustomArguments] = useState("");
