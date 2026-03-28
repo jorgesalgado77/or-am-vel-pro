@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users } from "lucide-react";
+import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import { format } from "date-fns";
