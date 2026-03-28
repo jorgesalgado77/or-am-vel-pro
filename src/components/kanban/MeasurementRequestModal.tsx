@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2, Loader2 } from "lucide-react";
+import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2, Loader2, Download } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
@@ -1239,6 +1239,14 @@ export function MeasurementRequestModal({
           >
             <Eye className="h-4 w-4" />
             Visualizar PDF
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={downloadPdf}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Baixar PDF
           </Button>
           <Button
             onClick={handleSubmit}
