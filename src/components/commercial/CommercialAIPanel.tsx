@@ -565,7 +565,7 @@ export function CommercialAIPanel() {
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
             <div className="p-3 border-t border-border flex gap-2">
               <Input
                 value={chatInput}
