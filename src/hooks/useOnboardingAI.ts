@@ -82,6 +82,37 @@ function detectNavigationCommand(text: string): CommandMatch | null {
   return null;
 }
 
+// --- Client data query detection ---
+function detectClientQuery(text: string): { searchTerm: string } | null {
+  const patterns = [
+    /(?:telefone|fone|cel(?:ular)?|whatsapp|zap)\s+(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
+    /(?:endere[çc]o|endere[çc]o de entrega)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:email|e-mail)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:cpf|cnpj|documento)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:dados|informa[çc][õo]es|ficha|cadastro|perfil)\s+(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
+    /(?:contrato|contratos)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:simula[çc][ãa]o|or[çc]amento|simula[çc][õo]es)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:vendedor|projetista|respons[aá]vel)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:status|situa[çc][ãa]o)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:me\s+)?(?:passe|mostre|mostra|d[êe]|busque?|encontre?|procure?|pesquise?)\s+(?:o\s+|a\s+|os\s+|as\s+)?(?:telefone|endere[çc]o|email|cpf|dados|informa[çc][õo]es|contrato|ficha|cadastro)?\s*(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
+    /(?:cliente|buscar cliente|pesquisar cliente)\s+(.+)/i,
+    /(?:quem [eé]|qual [eé])\s+(?:o\s+)?(?:cliente\s+)?(.+)/i,
+    /(?:me\s+)?(?:fale?|conte|diga)\s+(?:sobre|tudo sobre)\s+(?:o\s+|a\s+)?(?:cliente\s+)?(.+)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      let term = match[1].trim()
+        .replace(/[?!.,;]+$/, "")
+        .replace(/^(o|a|os|as|do|da|de)\s+/i, "")
+        .replace(/\s+por\s+favor.*/i, "")
+        .trim();
+      if (term.length >= 2) return { searchTerm: term };
+    }
+  }
+  return null;
+}
+
 function detectAlertCommand(text: string): { title: string; minutes: number; absoluteDate?: Date } | null {
   const lower = text.toLowerCase();
 
@@ -469,6 +500,105 @@ export function useOnboardingAI(tenantId: string | null) {
       appendAssistant(
         `⏰ **Lembrete criado com sucesso!**\n\n• **${alertCmd.title}**\n• 📅 Data: ${dateStr}\n• 🕐 Horário: ${timeStr}\n• ⏳ Disparo em: ${diffStr}\n\nVocê receberá uma notificação visual e sonora quando o momento chegar.`
       );
+      return true;
+    }
+
+    // === Client data lookup ===
+    const clientQuery = detectClientQuery(lower);
+    if (clientQuery) {
+      const { data: matchedClients } = await (supabase as any)
+        .from("clients")
+        .select("id, nome, cpf, email, telefone1, telefone2, vendedor, status, quantidade_ambientes, descricao_ambientes, numero_orcamento, created_at, updated_at, origem_lead")
+        .eq("tenant_id", tenantId)
+        .or(`nome.ilike.%${clientQuery.searchTerm}%,email.ilike.%${clientQuery.searchTerm}%,telefone1.ilike.%${clientQuery.searchTerm}%,cpf.ilike.%${clientQuery.searchTerm}%`)
+        .limit(5);
+
+      if (!matchedClients || matchedClients.length === 0) {
+        appendAssistant(`🔍 Não encontrei nenhum cliente com **"${clientQuery.searchTerm}"** no sistema. Verifique o nome ou tente outro termo de busca.`);
+        return true;
+      }
+
+      // Fetch contracts and tracking for matched clients
+      const clientIds = matchedClients.map((c: any) => c.id);
+      const [contractsRes, trackingRes, simulationsRes] = await Promise.all([
+        (supabase as any).from("client_contracts").select("id, client_id, simulation_id, created_at, conteudo_html").in("client_id", clientIds),
+        (supabase as any).from("client_tracking").select("client_id, numero_contrato, valor_contrato, data_fechamento, status, projetista, quantidade_ambientes").in("client_id", clientIds),
+        (supabase as any).from("simulations").select("id, client_id, valor_tela, desconto1, desconto2, desconto3, forma_pagamento, parcelas, valor_entrada, valor_final, created_at").in("client_id", clientIds).order("created_at", { ascending: false }),
+      ]);
+
+      const contracts = contractsRes.data || [];
+      const trackings = trackingRes.data || [];
+      const simulations = simulationsRes.data || [];
+
+      let response = "";
+      for (const client of matchedClients) {
+        const clientContracts = contracts.filter((c: any) => c.client_id === client.id);
+        const clientTracking = trackings.find((t: any) => t.client_id === client.id);
+        const clientSims = simulations.filter((s: any) => s.client_id === client.id);
+        const lastSim = clientSims[0];
+
+        const statusLabels: Record<string, string> = {
+          novo: "🟢 Novo",
+          em_negociacao: "🟡 Em Negociação",
+          proposta_enviada: "📋 Proposta Enviada",
+          fechado: "✅ Fechado",
+          perdido: "❌ Perdido",
+        };
+
+        response += `## 👤 ${client.nome}\n\n`;
+        response += `| Campo | Valor |\n|---|---|\n`;
+        response += `| **Status** | ${statusLabels[client.status] || client.status} |\n`;
+        if (client.telefone1) response += `| **Telefone** | ${client.telefone1} |\n`;
+        if (client.telefone2) response += `| **Telefone 2** | ${client.telefone2} |\n`;
+        if (client.email) response += `| **Email** | ${client.email} |\n`;
+        if (client.cpf) response += `| **CPF/CNPJ** | ${client.cpf} |\n`;
+        if (client.vendedor) response += `| **Vendedor** | ${client.vendedor} |\n`;
+        if (client.quantidade_ambientes) response += `| **Ambientes** | ${client.quantidade_ambientes} |\n`;
+        if (client.descricao_ambientes) response += `| **Descrição** | ${client.descricao_ambientes} |\n`;
+        if (client.origem_lead) response += `| **Origem** | ${client.origem_lead} |\n`;
+        if (client.numero_orcamento) response += `| **Nº Orçamento** | ${client.numero_orcamento} |\n`;
+        response += `| **Cadastro** | ${new Date(client.created_at).toLocaleDateString("pt-BR")} |\n`;
+
+        // Contract info
+        if (clientContracts.length > 0) {
+          response += `\n### 📄 Contratos (${clientContracts.length})\n`;
+          for (const contract of clientContracts) {
+            const trackForContract = clientTracking;
+            response += `- **Contrato** ${trackForContract?.numero_contrato || contract.id.slice(0, 8)}`;
+            if (trackForContract?.valor_contrato) response += ` — R$ ${Number(trackForContract.valor_contrato).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+            if (trackForContract?.data_fechamento) response += ` — Fechado em ${new Date(trackForContract.data_fechamento).toLocaleDateString("pt-BR")}`;
+            response += `\n`;
+          }
+        }
+
+        // Simulation info
+        if (lastSim) {
+          let valorAvista = lastSim.valor_tela || 0;
+          if (lastSim.desconto1) valorAvista *= (1 - lastSim.desconto1 / 100);
+          if (lastSim.desconto2) valorAvista *= (1 - lastSim.desconto2 / 100);
+          if (lastSim.desconto3) valorAvista *= (1 - lastSim.desconto3 / 100);
+
+          response += `\n### 💰 Última Simulação\n`;
+          response += `- Valor de tela: R$ ${Number(lastSim.valor_tela).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n`;
+          response += `- Valor à vista: R$ ${valorAvista.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n`;
+          if (lastSim.forma_pagamento) response += `- Pagamento: ${lastSim.forma_pagamento}\n`;
+          if (lastSim.parcelas) response += `- Parcelas: ${lastSim.parcelas}x\n`;
+          response += `- Data: ${new Date(lastSim.created_at).toLocaleDateString("pt-BR")}\n`;
+          response += `- Total simulações: ${clientSims.length}\n`;
+        }
+
+        if (clientTracking?.projetista) {
+          response += `\n- **Projetista:** ${clientTracking.projetista}\n`;
+        }
+
+        response += "\n---\n\n";
+      }
+
+      if (matchedClients.length > 1) {
+        response += `\n_Encontrei ${matchedClients.length} cliente(s) com esse termo._`;
+      }
+
+      appendAssistant(response.trim());
       return true;
     }
 

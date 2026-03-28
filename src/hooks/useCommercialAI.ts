@@ -50,11 +50,12 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     if (!tenantId) return;
 
     // Fetch all clients for the tenant
-    const { data: clients } = await (supabase as any)
+    const { data: clients, error: clientsError } = await (supabase as any)
       .from("clients")
-      .select("id, nome, status, created_at, responsavel_id, vendedor, updated_at, telefone1, email")
+      .select("id, nome, status, created_at, vendedor, updated_at, telefone1, email")
       .eq("tenant_id", tenantId);
 
+    if (clientsError) { console.error("Clients fetch error:", clientsError); }
     if (!clients) return;
 
     // Fetch contracts (source of truth for closed deals)
@@ -120,8 +121,8 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     const openClients = clients.filter((c: any) => openStatuses.includes(c.status) && !contractClientIds.has(c.id));
     const grouped: Record<string, any[]> = {};
     for (const client of openClients) {
-      const sellerId = client.responsavel_id || "sem_responsavel";
-      const sellerName = client.vendedor || (client.responsavel_id ? userNameMap.get(client.responsavel_id) : null) || "Sem vendedor";
+      const sellerName = client.vendedor || "Sem vendedor";
+      const sellerId = sellerName;
       if (!grouped[sellerId]) grouped[sellerId] = [];
       grouped[sellerId].push({ ...client, seller_name: sellerName });
     }
@@ -268,12 +269,18 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
   const fetchRankings = useCallback(async () => {
     if (!tenantId) return;
 
-    // Build rankings from clients data
+    // Build rankings from clients + contracts data
     const { data: clients } = await (supabase as any)
       .from("clients")
-      .select("responsavel_id, status, valor_fechamento")
+      .select("id, vendedor, status")
       .eq("tenant_id", tenantId)
       .eq("status", "fechado");
+
+    // Also get contracts for revenue
+    const { data: contractsForRanking } = await (supabase as any)
+      .from("client_contracts")
+      .select("client_id, simulation_id")
+      .eq("tenant_id", tenantId);
 
     const { data: usuarios } = await (supabase as any)
       .from("usuarios")
@@ -283,21 +290,39 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
 
     if (!clients || !usuarios) return;
 
-    const userMap = new Map(usuarios.map((u: any) => [u.id, u.nome_completo]));
+    // Get simulations for revenue
+    const simIds = (contractsForRanking || []).map((c: any) => c.simulation_id).filter(Boolean);
+    let sims: any[] = [];
+    if (simIds.length > 0) {
+      const { data: s } = await (supabase as any).from("simulations").select("id, client_id, valor_tela, desconto1, desconto2, desconto3").in("id", simIds);
+      sims = s || [];
+    }
+    const simByClient = new Map(sims.map((s: any) => {
+      const contract = (contractsForRanking || []).find((c: any) => c.simulation_id === s.id);
+      return [contract?.client_id, s];
+    }));
+
     const scoreMap = new Map<string, { deals: number; revenue: number }>();
 
     clients.forEach((c: any) => {
-      if (!c.responsavel_id) return;
-      const existing = scoreMap.get(c.responsavel_id) || { deals: 0, revenue: 0 };
+      const seller = c.vendedor || "Sem vendedor";
+      const existing = scoreMap.get(seller) || { deals: 0, revenue: 0 };
       existing.deals += 1;
-      existing.revenue += Number(c.valor_fechamento) || 0;
-      scoreMap.set(c.responsavel_id, existing);
+      const sim = simByClient.get(c.id);
+      if (sim) {
+        let valor = sim.valor_tela || 0;
+        if (sim.desconto1) valor *= (1 - sim.desconto1 / 100);
+        if (sim.desconto2) valor *= (1 - sim.desconto2 / 100);
+        if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
+        existing.revenue += valor;
+      }
+      scoreMap.set(seller, existing);
     });
 
     const rankingList: SellerRanking[] = Array.from(scoreMap.entries())
-      .map(([uid, data]) => ({
-        user_id: uid,
-        user_name: (userMap.get(uid) as string) || "Desconhecido",
+      .map(([sellerName, data]) => ({
+        user_id: sellerName,
+        user_name: sellerName,
         score: data.deals * 100 + Math.floor(data.revenue / 1000),
         deals_closed: data.deals,
         revenue: data.revenue,
