@@ -692,7 +692,25 @@ export function KanbanClientDialog({
 
         <BriefingModal
           open={showBriefing}
-          onOpenChange={setShowBriefing}
+          onOpenChange={(isOpen) => {
+            setShowBriefing(isOpen);
+            if (!isOpen && client?.id) {
+              // Refresh briefing info when modal closes
+              supabase
+                .from("client_briefings" as any)
+                .select("created_at")
+                .eq("client_id", client.id)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .then(({ data }: any) => {
+                  if (data && data.length > 0) {
+                    setBriefingInfo({ exists: true, created_at: data[0].created_at });
+                  } else {
+                    setBriefingInfo({ exists: false, created_at: null });
+                  }
+                });
+            }
+          }}
           clientId={client.id}
           clientName={client.nome}
           orcamentoNumero={(client as any).numero_orcamento}
