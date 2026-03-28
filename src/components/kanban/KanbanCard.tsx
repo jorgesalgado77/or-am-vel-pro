@@ -7,7 +7,7 @@ import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2 } from "lucide-react";
+import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
@@ -74,6 +74,12 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
             <div className="flex items-start justify-between gap-1">
               <div className="flex-1 min-w-0">
                 <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{client.nome}</p>
+                {(client as any).telefone1 && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Phone className="h-2.5 w-2.5 text-emerald-500" />
+                    <span className="text-[10px] text-muted-foreground font-mono">{(client as any).telefone1}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1 mt-0.5">
                   <p className="text-[11px] text-muted-foreground font-mono">
                     {(client as any).numero_orcamento || "Sem orçamento"}
