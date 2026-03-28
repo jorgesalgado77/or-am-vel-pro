@@ -70,6 +70,7 @@ export function MeasurementRequestModal({
   const [observacoes, setObservacoes] = useState("");
   const { settings } = useCompanySettings();
   const localPreviewUrlsRef = useRef<Set<string>>(new Set());
+  const initialLoadDoneRef = useRef(false);
 
   // Store data
   const [storeData, setStoreData] = useState<{ name: string; cnpj: string; logo_url: string; codigo_loja: string; gerente_nome: string }>({
@@ -451,6 +452,7 @@ export function MeasurementRequestModal({
     if (!open || !client?.id) return;
     let active = true;
 
+    initialLoadDoneRef.current = false;
     clearPreviewUrls();
     setEnvAttachments({});
     setUploadProgress({});
@@ -605,6 +607,7 @@ export function MeasurementRequestModal({
   // Load environments from simulations
   useEffect(() => {
     if (!client?.id || !open) return;
+    if (initialLoadDoneRef.current) return;
     let active = true;
 
     const loadData = async () => {
@@ -725,6 +728,7 @@ export function MeasurementRequestModal({
       );
       setEnvAttachments(Object.fromEntries(attachmentEntries.filter(([, attachments]) => attachments.length > 0)));
       setObservacoes(latestRequest?.observacoes || "");
+      initialLoadDoneRef.current = true;
 
       if (latestRequest) {
         hydrateClientState({ ...(client as any), ...(latestRequest as Record<string, any>) });
@@ -1592,8 +1596,8 @@ export function MeasurementRequestModal({
             </div>
 
             {/* Client Info — Editable */}
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 space-y-2">
-              <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+            <div className="bg-success/10 border border-success/30 rounded-lg p-4 space-y-2">
+              <h4 className="text-sm font-semibold text-success">
                 Dados do Cliente
               </h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1673,7 +1677,7 @@ export function MeasurementRequestModal({
               </div>
 
               {/* Endereço de Entrega — editable */}
-              <div className="mt-2 pt-2 border-t border-emerald-500/20">
+              <div className="mt-2 pt-2 border-t border-success/20">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground text-xs">📍 Endereço de Entrega:</span>
                   <Button variant="ghost" size="sm" className="h-5 text-[10px] gap-1 px-1.5" onClick={() => setEditingAddress(!editingAddress)}>
@@ -1757,7 +1761,7 @@ export function MeasurementRequestModal({
             {/* Sale Value */}
             <div className="bg-primary/5 rounded-lg p-4 flex items-center justify-between">
               <span className="text-sm font-medium">Valor Total da Venda à Vista</span>
-              <span className="text-lg font-bold text-emerald-600">{formatCurrency(totalValorAvista)}</span>
+              <span className="text-lg font-bold text-success">{formatCurrency(totalValorAvista)}</span>
             </div>
 
             <Separator />
@@ -1777,14 +1781,14 @@ export function MeasurementRequestModal({
                   return (
                     <div key={env.id} className={cn(
                       "rounded-lg border p-3 space-y-2",
-                      hasMinImages ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"
+                      hasMinImages ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"
                     )}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {hasMinImages ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            <CheckCircle2 className="h-4 w-4 text-success" />
                           ) : (
-                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                            <AlertTriangle className="h-4 w-4 text-warning" />
                           )}
                           <span className="text-sm font-medium">{env.name}</span>
                         </div>

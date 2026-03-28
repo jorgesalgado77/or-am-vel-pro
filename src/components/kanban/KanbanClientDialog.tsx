@@ -292,7 +292,7 @@ export function KanbanClientDialog({
               variant="outline"
               className={cn(
                 "text-xs shrink-0",
-                hasContract && "border-emerald-500 text-emerald-600 bg-emerald-500/10"
+                hasContract && "border-success text-success bg-success/10"
               )}
               style={!hasContract ? { borderColor: colCfg?.color, color: colCfg?.color } : undefined}
             >
@@ -373,12 +373,12 @@ export function KanbanClientDialog({
               <div className={cn(
                 "rounded-lg p-3 border flex items-start gap-2.5",
                 briefingInfo.exists
-                  ? "bg-emerald-500/10 border-emerald-500/30"
-                  : "bg-amber-500/10 border-amber-500/30"
+                  ? "bg-success/10 border-success/30"
+                  : "bg-warning/10 border-warning/30"
               )}>
-                <ClipboardList className={cn("h-4 w-4 mt-0.5 shrink-0", briefingInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <ClipboardList className={cn("h-4 w-4 mt-0.5 shrink-0", briefingInfo.exists ? "text-success" : "text-warning")} />
                 <div className="min-w-0">
-                  <p className={cn("text-xs font-semibold", briefingInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                  <p className={cn("text-xs font-semibold", briefingInfo.exists ? "text-success" : "text-warning")}>
                     {briefingInfo.exists ? "✅ Briefing Preenchido" : "⚠️ Sem Briefing"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -391,12 +391,12 @@ export function KanbanClientDialog({
               <div className={cn(
                 "rounded-lg p-3 border flex items-start gap-2.5",
                 simInfo.exists
-                  ? "bg-emerald-500/10 border-emerald-500/30"
-                  : "bg-amber-500/10 border-amber-500/30"
+                  ? "bg-success/10 border-success/30"
+                  : "bg-warning/10 border-warning/30"
               )}>
-                <Calculator className={cn("h-4 w-4 mt-0.5 shrink-0", simInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <Calculator className={cn("h-4 w-4 mt-0.5 shrink-0", simInfo.exists ? "text-success" : "text-warning")} />
                 <div className="min-w-0">
-                  <p className={cn("text-xs font-semibold", simInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                  <p className={cn("text-xs font-semibold", simInfo.exists ? "text-success" : "text-warning")}>
                     {simInfo.exists ? `✅ ${simInfo.count} Simulação(ões)` : "⚠️ Sem Simulações"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -410,10 +410,10 @@ export function KanbanClientDialog({
 
             {/* Contract Closed Warning */}
             {hasContract && (
-              <div className="rounded-lg p-3 border bg-emerald-500/10 border-emerald-500/30 flex items-start gap-2.5">
-                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+              <div className="rounded-lg p-3 border bg-success/10 border-success/30 flex items-start gap-2.5">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-success" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  <p className="text-xs font-semibold text-success">
                     ✅ Contrato Fechado
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -429,12 +429,12 @@ export function KanbanClientDialog({
               <div className={cn(
                 "rounded-lg p-3 border flex items-start gap-2.5",
                 measurementInfo.exists
-                  ? "bg-emerald-500/10 border-emerald-500/30"
-                  : "bg-amber-500/10 border-amber-500/30"
+                  ? "bg-success/10 border-success/30"
+                  : "bg-warning/10 border-warning/30"
               )}>
-                <Ruler className={cn("h-4 w-4 mt-0.5 shrink-0", measurementInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <Ruler className={cn("h-4 w-4 mt-0.5 shrink-0", measurementInfo.exists ? "text-success" : "text-warning")} />
                 <div className="min-w-0">
-                  <p className={cn("text-xs font-semibold", measurementInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                  <p className={cn("text-xs font-semibold", measurementInfo.exists ? "text-success" : "text-warning")}>
                     {measurementInfo.exists ? "✅ Solicitação de Medida Enviada" : "⚠️ Solicitação de Medida Pendente"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -480,9 +480,9 @@ export function KanbanClientDialog({
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{colCfg?.icon} {colCfg?.label}</span>
                 <Badge variant="outline" className={cn("text-xs font-medium",
-                  daysInColumn <= 1 ? "border-emerald-400 text-emerald-600" :
-                  daysInColumn <= 3 ? "border-yellow-400 text-yellow-600" :
-                  daysInColumn <= 7 ? "border-orange-400 text-orange-600" :
+                  daysInColumn <= 1 ? "border-success text-success" :
+                  daysInColumn <= 3 ? "border-warning text-warning" :
+                  daysInColumn <= 7 ? "border-warning text-warning" :
                   "border-destructive text-destructive"
                 )}>
                   {daysInColumn === 0 ? "Hoje" : `${daysInColumn} dia${daysInColumn > 1 ? "s" : ""}`}
@@ -649,7 +649,7 @@ export function KanbanClientDialog({
           {/* Measurement Request button for closed contracts */}
           {hasContract && (
             <Button
-              className="gap-2 flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="gap-2 flex-1 bg-success hover:bg-success/90 text-success-foreground"
               onClick={() => setShowMeasurementRequest(true)}
             >
               <Ruler className="h-4 w-4" />Enviar Solicitação de Medida
@@ -692,7 +692,25 @@ export function KanbanClientDialog({
 
         <BriefingModal
           open={showBriefing}
-          onOpenChange={setShowBriefing}
+          onOpenChange={(isOpen) => {
+            setShowBriefing(isOpen);
+            if (!isOpen && client?.id) {
+              // Refresh briefing info when modal closes
+              supabase
+                .from("client_briefings" as any)
+                .select("created_at")
+                .eq("client_id", client.id)
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .then(({ data }: any) => {
+                  if (data && data.length > 0) {
+                    setBriefingInfo({ exists: true, created_at: data[0].created_at });
+                  } else {
+                    setBriefingInfo({ exists: false, created_at: null });
+                  }
+                });
+            }
+          }}
           clientId={client.id}
           clientName={client.nome}
           orcamentoNumero={(client as any).numero_orcamento}
