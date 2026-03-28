@@ -381,12 +381,23 @@ serve(async (req) => {
   }
 
   try {
+    const body = await req.json();
+
+    // ── Inbound Webhook Handler (Z-API / Evolution) ──
+    // Z-API sends webhooks without auth headers, detect by payload shape
+    const isZapiWebhook = body.phone && !body.action && (body.text || body.image || body.audio || body.video || body.document);
+    const isEvolutionWebhook = body.event && (body.data || body.instance);
+
+    if (isZapiWebhook || isEvolutionWebhook) {
+      return await handleInboundWebhook(body, isEvolutionWebhook);
+    }
+
+    // For action-based requests, require auth
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ") || authHeader.replace("Bearer ", "").length < 20) {
       return respond({ error: "Não autorizado" }, 401);
     }
 
-    const body = await req.json();
     const { action, phone, message, media_url, tenant_id, instance_name } = body;
 
     // Resolve Evolution config
