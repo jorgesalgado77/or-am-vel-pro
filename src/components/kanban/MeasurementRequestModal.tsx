@@ -70,6 +70,7 @@ export function MeasurementRequestModal({
   const [observacoes, setObservacoes] = useState("");
   const { settings } = useCompanySettings();
   const localPreviewUrlsRef = useRef<Set<string>>(new Set());
+  const initialLoadDoneRef = useRef(false);
 
   // Store data
   const [storeData, setStoreData] = useState<{ name: string; cnpj: string; logo_url: string; codigo_loja: string; gerente_nome: string }>({
