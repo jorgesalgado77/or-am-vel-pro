@@ -82,6 +82,37 @@ function detectNavigationCommand(text: string): CommandMatch | null {
   return null;
 }
 
+// --- Client data query detection ---
+function detectClientQuery(text: string): { searchTerm: string } | null {
+  const patterns = [
+    /(?:telefone|fone|cel(?:ular)?|whatsapp|zap)\s+(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
+    /(?:endere[çc]o|endere[çc]o de entrega)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:email|e-mail)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:cpf|cnpj|documento)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:dados|informa[çc][õo]es|ficha|cadastro|perfil)\s+(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
+    /(?:contrato|contratos)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:simula[çc][ãa]o|or[çc]amento|simula[çc][õo]es)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:vendedor|projetista|respons[aá]vel)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:status|situa[çc][ãa]o)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:me\s+)?(?:passe|mostre|mostra|d[êe]|busque?|encontre?|procure?|pesquise?)\s+(?:o\s+|a\s+|os\s+|as\s+)?(?:telefone|endere[çc]o|email|cpf|dados|informa[çc][õo]es|contrato|ficha|cadastro)?\s*(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
+    /(?:cliente|buscar cliente|pesquisar cliente)\s+(.+)/i,
+    /(?:quem [eé]|qual [eé])\s+(?:o\s+)?(?:cliente\s+)?(.+)/i,
+    /(?:me\s+)?(?:fale?|conte|diga)\s+(?:sobre|tudo sobre)\s+(?:o\s+|a\s+)?(?:cliente\s+)?(.+)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      let term = match[1].trim()
+        .replace(/[?!.,;]+$/, "")
+        .replace(/^(o|a|os|as|do|da|de)\s+/i, "")
+        .replace(/\s+por\s+favor.*/i, "")
+        .trim();
+      if (term.length >= 2) return { searchTerm: term };
+    }
+  }
+  return null;
+}
+
 function detectAlertCommand(text: string): { title: string; minutes: number; absoluteDate?: Date } | null {
   const lower = text.toLowerCase();
 
