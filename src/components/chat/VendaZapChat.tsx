@@ -678,6 +678,50 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     return sendSimulatedMessage(selected.id, selected.nome_cliente, customMessage);
   }, [selected, sendSimulatedMessage]);
 
+  // Create lead from conversation (confirmation flow)
+  const handleCreateLead = useCallback(async () => {
+    const conv = pendingLeadConv || selected;
+    if (!conv || !tenantId) return;
+    try {
+      const phone = conv.phone?.replace(/\D/g, "") || "";
+      const { data: createdClient, error: clientError } = await supabase
+        .from("clients")
+        .insert({
+          tenant_id: tenantId,
+          nome: conv.nome_cliente,
+          telefone1: phone,
+          numero_orcamento: conv.numero_contrato || `WA-${phone}`,
+          status: "novo",
+          origem_lead: "CHAT DE VENDAS",
+          vendedor: currentUser?.nome_completo || null,
+        } as any)
+        .select("id")
+        .maybeSingle();
+
+      if (clientError || !createdClient?.id) {
+        toast.error("Erro ao criar lead");
+        setPendingLeadConv(null);
+        return;
+      }
+
+      // Link client to tracking
+      await supabase
+        .from("client_tracking")
+        .update({ client_id: createdClient.id } as any)
+        .eq("id", conv.id);
+
+      const updatedConv = { ...conv, client_id: createdClient.id };
+      setConversations(prev => prev.map(c => c.id === conv.id ? updatedConv : c));
+      if (selected?.id === conv.id) setSelected(updatedConv);
+
+      toast.success(`✅ Lead "${conv.nome_cliente}" criado! Origem: CHAT DE VENDAS`);
+      fetchConversations();
+    } catch (err) {
+      toast.error("Erro ao criar lead");
+    }
+    setPendingLeadConv(null);
+  }, [pendingLeadConv, selected, tenantId, currentUser, fetchConversations]);
+
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
       {/* WhatsApp Connection Status Bar */}
