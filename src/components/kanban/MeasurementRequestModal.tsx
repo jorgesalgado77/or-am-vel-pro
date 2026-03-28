@@ -237,7 +237,7 @@ export function MeasurementRequestModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Ruler className="h-5 w-5 text-primary" />
@@ -278,6 +278,30 @@ export function MeasurementRequestModal({
                   <span className="ml-2 font-medium">{client.vendedor || "—"}</span>
                 </div>
               </div>
+              {/* Endereço de Entrega */}
+              {(() => {
+                const c = client as any;
+                const hasAddress = c.delivery_address_street || c.delivery_address_city || c.endereco_entrega;
+                if (!hasAddress) return null;
+                const fullAddress = c.delivery_address_street
+                  ? [
+                      c.delivery_address_street,
+                      c.delivery_address_number,
+                      c.delivery_address_complement,
+                      c.delivery_address_district,
+                      c.delivery_address_city && c.delivery_address_state
+                        ? `${c.delivery_address_city} - ${c.delivery_address_state}`
+                        : c.delivery_address_city || c.delivery_address_state,
+                      c.delivery_address_zip,
+                    ].filter(Boolean).join(", ")
+                  : c.endereco_entrega || "";
+                return (
+                  <div className="mt-2 pt-2 border-t border-emerald-500/20">
+                    <span className="text-muted-foreground text-xs">📍 Endereço de Entrega:</span>
+                    <p className="text-sm font-medium mt-0.5">{fullAddress || "—"}</p>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Sale Value */}
