@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
+import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
