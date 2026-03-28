@@ -460,6 +460,9 @@ export function OnboardingAIAssistant() {
 
             {/* Quick navigation buttons */}
             <div className="flex flex-wrap gap-1">
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("criar tarefa")}>
+                <ListTodo className="h-3 w-3" /> Criar Tarefa
+              </Button>
               <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("tarefas"); }}>
                 <ListTodo className="h-3 w-3" /> Tarefas
               </Button>
