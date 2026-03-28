@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   TrendingUp, TrendingDown, Users, Target, DollarSign, Clock,
   AlertTriangle, Lightbulb, Trophy, MessageCircle, Send, Bot,
@@ -167,7 +167,8 @@ export function CommercialAIPanel() {
 
   // Auto-scroll chat
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [chatMessages]);
 
   // Check alerts for push notifications (once per session)
@@ -540,7 +541,7 @@ export function CommercialAIPanel() {
                 </div>
               </CardTitle>
             </CardHeader>
-            <ScrollArea className="flex-1 p-4" ref={scrollRef as any}>
+            <div className="flex-1 overflow-y-auto p-4" ref={scrollRef}>
               <div className="space-y-3">
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
@@ -564,7 +565,7 @@ export function CommercialAIPanel() {
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
             <div className="p-3 border-t border-border flex gap-2">
               <Input
                 value={chatInput}
