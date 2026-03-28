@@ -39,12 +39,13 @@ type AttachmentKind = "image" | "pdf";
 
 interface EnvironmentAttachment {
   id: string;
-  file: File;
+  file?: File;
   kind: AttachmentKind;
   mimeType: string;
   name: string;
   previewUrl: string;
   thumbnailUrl: string;
+  sourceUrl?: string;
 }
 
 interface MeasurementRequestModalProps {
@@ -110,19 +111,25 @@ export function MeasurementRequestModal({
 
   const hydrateClientState = useCallback((source: any) => {
     const merged = source || {};
+    const nestedDeliveryAddress = merged.delivery_address && typeof merged.delivery_address === "object"
+      ? merged.delivery_address
+      : {};
+    const plainDeliveryAddress = typeof merged.delivery_address === "string"
+      ? merged.delivery_address
+      : "";
     setEditableFields({
       telefone: maskPhone(merged.telefone1 || client.telefone1 || ""),
       email: merged.email || client.email || "",
       cpf: maskCpfCnpj(merged.cpf || client.cpf || tracking.cpf_cnpj || ""),
     });
     setAddressForm({
-      cep: maskCep(merged.delivery_address_zip || merged.cep_entrega || merged.cep || ""),
-      street: merged.delivery_address_street || merged.endereco_entrega || merged.endereco || "",
-      number: merged.delivery_address_number || merged.numero_entrega || merged.numero || "",
-      complement: merged.delivery_address_complement || merged.complemento_entrega || merged.complemento || "",
-      district: merged.delivery_address_district || merged.bairro_entrega || merged.bairro || "",
-      city: merged.delivery_address_city || merged.cidade_entrega || merged.cidade || "",
-      state: merged.delivery_address_state || merged.uf_entrega || merged.estado || merged.uf || "",
+      cep: maskCep(nestedDeliveryAddress.cep || merged.delivery_address_zip || merged.cep_entrega || merged.cep || ""),
+      street: nestedDeliveryAddress.street || nestedDeliveryAddress.endereco || merged.delivery_address_street || merged.endereco_entrega || plainDeliveryAddress || merged.endereco || "",
+      number: nestedDeliveryAddress.number || merged.delivery_address_number || merged.numero_entrega || merged.numero || "",
+      complement: nestedDeliveryAddress.complement || merged.delivery_address_complement || merged.complemento_entrega || merged.complemento || "",
+      district: nestedDeliveryAddress.district || nestedDeliveryAddress.bairro || merged.delivery_address_district || merged.bairro_entrega || merged.bairro || "",
+      city: nestedDeliveryAddress.city || nestedDeliveryAddress.cidade || merged.delivery_address_city || merged.cidade_entrega || merged.cidade || "",
+      state: nestedDeliveryAddress.state || nestedDeliveryAddress.uf || merged.delivery_address_state || merged.uf_entrega || merged.estado || merged.uf || "",
     });
     setEditingAddress(false);
     setEditingField(null);
