@@ -202,6 +202,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     ? ["administrador", "gerente", "admin"].includes(currentUser.cargo_nome.toLowerCase())
     : false;
 
+  const normalizePhone = useCallback((value?: string | null) => (value || "").replace(/\D/g, ""), []);
+
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
 
@@ -682,136 +684,172 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         open={showWhatsAppContacts}
         onClose={() => setShowWhatsAppContacts(false)}
         onStartChat={async (contact) => {
-          setShowWhatsAppContacts(false);
-
-          // Check if conversation already exists for this phone
-          const existingConv = conversations.find(c => c.phone === contact.phone);
-          if (existingConv) {
-            handleSelectConversation(existingConv);
-            toast.info(`Conversa com ${contact.name} já existe`);
+          if (!tenantId) {
+            toast.error("Loja não identificada");
             return;
           }
 
-          // Check if a client_tracking with this WA number already exists
-          const { data: existingTracking } = await supabase
-            .from("client_tracking")
-            .select("id")
-            .eq("numero_contrato", `WA-${contact.phone}`)
-            .maybeSingle();
+          setShowWhatsAppContacts(false);
 
-          if (existingTracking) {
-            const conv: ChatConversation = {
-              id: existingTracking.id,
-              numero_contrato: `WA-${contact.phone}`,
-              nome_cliente: contact.name,
-              unread_count: 0,
-              phone: contact.phone,
-            };
-            setConversations(prev => [conv, ...prev.filter(c => c.id !== conv.id)]);
-            setSelected(conv);
+          const normalizedPhone = normalizePhone(contact.phone);
+          if (!normalizedPhone) {
+            toast.error("Contato sem telefone válido");
+            return;
+          }
+
+          const contractNumber = `WA-${normalizedPhone}`;
+          const clientName = contact.name?.trim() || normalizedPhone;
+
+          // Check if conversation already exists for this phone
+          const existingConv = conversations.find((c) => {
+            const conversationPhone = normalizePhone(
+              c.phone || (c.numero_contrato?.startsWith("WA-") ? c.numero_contrato.replace("WA-", "") : "")
+            );
+            return conversationPhone === normalizedPhone;
+          });
+
+          if (existingConv) {
+            handleSelectConversation(existingConv);
+            toast.info(`Conversa com ${clientName} já existe`);
             return;
           }
 
           try {
-            // First create a client record for this WhatsApp contact
-            const { data: newClient, error: clientError } = await supabase
-              .from("clients")
-              .insert({
-                nome: contact.name,
-                numero_orcamento: `WA-${contact.phone}`,
-                telefone: contact.phone,
-                tenant_id: tenantId,
-                status: "em_negociacao",
-                origem: "whatsapp_import",
-              } as any)
-              .select("id")
-              .single();
+            const { data: existingTracking, error: existingTrackingError } = await supabase
+              .from("client_tracking")
+              .select("id, client_id, nome_cliente, numero_contrato, status")
+              .eq("tenant_id", tenantId)
+              .eq("numero_contrato", contractNumber)
+              .maybeSingle();
 
-            if (clientError || !newClient) {
-              console.error("client insert error:", clientError);
-              // Try without origem field
-              const { data: fallbackClient, error: fallbackErr } = await supabase
+            if (existingTrackingError) {
+              console.error("tracking lookup error:", existingTrackingError);
+            }
+
+            if (existingTracking) {
+              const conv: ChatConversation = {
+                id: existingTracking.id,
+                numero_contrato: existingTracking.numero_contrato || contractNumber,
+                nome_cliente: existingTracking.nome_cliente || clientName,
+                unread_count: 0,
+                phone: normalizedPhone,
+                client_id: existingTracking.client_id || undefined,
+              };
+
+              setConversations((prev) => [conv, ...prev.filter((c) => c.id !== conv.id)]);
+              handleSelectConversation(conv);
+              return;
+            }
+
+            let clientId: string | null = null;
+
+            const { data: existingClientRows, error: existingClientError } = await supabase
+              .from("clients")
+              .select("id, nome, numero_orcamento")
+              .eq("tenant_id", tenantId)
+              .eq("numero_orcamento", contractNumber)
+              .limit(1);
+
+            const existingClient = ((existingClientRows as any[]) || [])[0] || null;
+
+            if (existingClientError) {
+              console.error("client lookup error:", existingClientError);
+            }
+
+            if (existingClient?.id) {
+              clientId = existingClient.id;
+            } else {
+              const { data: createdClient, error: clientError } = await supabase
                 .from("clients")
                 .insert({
-                  nome: contact.name,
-                  numero_orcamento: `WA-${contact.phone}`,
-                  telefone: contact.phone,
                   tenant_id: tenantId,
+                  nome: clientName,
+                  telefone: normalizedPhone,
+                  numero_orcamento: contractNumber,
                   status: "em_negociacao",
                 } as any)
                 .select("id")
-                .single();
+                .maybeSingle();
 
-              if (fallbackErr || !fallbackClient) {
-                console.error("client fallback insert error:", fallbackErr);
-                toast.error("Erro ao criar contato");
-                return;
+              if (clientError || !createdClient?.id) {
+                console.error("client insert error:", clientError);
+
+                const { data: recoveredClientRows, error: recoveredClientError } = await supabase
+                  .from("clients")
+                  .select("id")
+                  .eq("tenant_id", tenantId)
+                  .eq("numero_orcamento", contractNumber)
+                  .limit(1);
+
+                const recoveredClient = ((recoveredClientRows as any[]) || [])[0] || null;
+
+                if (recoveredClientError || !recoveredClient?.id) {
+                  console.error("client recovery error:", recoveredClientError);
+                  toast.error("Erro ao criar contato");
+                  return;
+                }
+
+                clientId = recoveredClient.id;
+              } else {
+                clientId = createdClient.id;
               }
+            }
 
-              // Create tracking with the fallback client
-              const { data: tracking, error: trackErr } = await supabase
+            const { data: createdTracking, error: trackError } = await supabase
+              .from("client_tracking")
+              .insert({
+                tenant_id: tenantId,
+                client_id: clientId,
+                nome_cliente: clientName,
+                numero_contrato: contractNumber,
+                status: "em_negociacao",
+              } as any)
+              .select("id, client_id, nome_cliente, numero_contrato")
+              .maybeSingle();
+
+            if (trackError || !createdTracking?.id) {
+              console.error("client_tracking insert error:", trackError);
+
+              const { data: recoveredTracking, error: recoveredTrackingError } = await supabase
                 .from("client_tracking")
-                .insert({
-                  client_id: fallbackClient.id,
-                  nome_cliente: contact.name,
-                  numero_contrato: `WA-${contact.phone}`,
-                  tenant_id: tenantId,
-                  status: "em_negociacao",
-                } as any)
-                .select("id")
-                .single();
+                .select("id, client_id, nome_cliente, numero_contrato")
+                .eq("tenant_id", tenantId)
+                .eq("numero_contrato", contractNumber)
+                .maybeSingle();
 
-              if (trackErr || !tracking) {
-                console.error("tracking insert error:", trackErr);
+              if (recoveredTrackingError || !recoveredTracking?.id) {
+                console.error("tracking recovery error:", recoveredTrackingError);
                 toast.error("Erro ao criar conversa");
                 return;
               }
 
-              const conv: ChatConversation = {
-                id: tracking.id,
-                numero_contrato: `WA-${contact.phone}`,
-                nome_cliente: contact.name,
+              const recoveredConv: ChatConversation = {
+                id: recoveredTracking.id,
+                numero_contrato: recoveredTracking.numero_contrato || contractNumber,
+                nome_cliente: recoveredTracking.nome_cliente || clientName,
                 unread_count: 0,
-                phone: contact.phone,
-                client_id: fallbackClient.id,
+                phone: normalizedPhone,
+                client_id: recoveredTracking.client_id || clientId || undefined,
               };
-              setConversations(prev => [conv, ...prev]);
-              setSelected(conv);
-              toast.success(`Conversa com ${contact.name} iniciada!`);
-              return;
-            }
 
-            // Create tracking with the new client
-            const { data: newTracking, error: trackError } = await supabase
-              .from("client_tracking")
-              .insert({
-                client_id: newClient.id,
-                nome_cliente: contact.name,
-                numero_contrato: `WA-${contact.phone}`,
-                tenant_id: tenantId,
-                status: "em_negociacao",
-              } as any)
-              .select("id")
-              .single();
-
-            if (trackError || !newTracking) {
-              console.error("client_tracking insert error:", trackError);
-              toast.error("Erro ao criar conversa");
+              setConversations((prev) => [recoveredConv, ...prev.filter((c) => c.id !== recoveredConv.id)]);
+              handleSelectConversation(recoveredConv);
+              toast.success(`Conversa com ${clientName} iniciada!`);
               return;
             }
 
             const newConv: ChatConversation = {
-              id: newTracking.id,
-              numero_contrato: `WA-${contact.phone}`,
-              nome_cliente: contact.name,
+              id: createdTracking.id,
+              numero_contrato: createdTracking.numero_contrato || contractNumber,
+              nome_cliente: createdTracking.nome_cliente || clientName,
               unread_count: 0,
-              phone: contact.phone,
-              client_id: newClient.id,
+              phone: normalizedPhone,
+              client_id: createdTracking.client_id || clientId || undefined,
             };
 
-            setConversations(prev => [newConv, ...prev]);
-            setSelected(newConv);
-            toast.success(`Conversa com ${contact.name} iniciada!`);
+            setConversations((prev) => [newConv, ...prev.filter((c) => c.id !== newConv.id)]);
+            handleSelectConversation(newConv);
+            toast.success(`Conversa com ${clientName} iniciada!`);
           } catch (err) {
             console.error("Error creating WA conversation:", err);
             toast.error("Erro ao criar conversa");
