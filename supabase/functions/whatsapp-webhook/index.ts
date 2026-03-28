@@ -86,23 +86,30 @@ function pickMedia(body: any, isEvolution: boolean): { url: string; type: string
 }
 
 async function findClientByPhone(cleanPhone: string) {
-  const candidates = Array.from(new Set([
-    cleanPhone,
-    cleanPhone.slice(-11),
-    cleanPhone.slice(-10),
-    cleanPhone.slice(-9),
-    cleanPhone.slice(-8),
-  ].filter((value) => value && value.length >= 8)));
+  // Use last 4 digits for broad LIKE match, then filter in code by stripped digits
+  const last4 = cleanPhone.slice(-4);
+  const last8 = cleanPhone.slice(-8);
 
-  for (const candidate of candidates) {
-    const { data } = await supabaseAdmin
-      .from("clients")
-      .select("id, nome, tenant_id, numero_orcamento, telefone1, telefone2")
-      .or(`telefone1.like.%${candidate},telefone2.like.%${candidate}`)
-      .limit(1)
-      .maybeSingle();
+  const { data: candidates } = await supabaseAdmin
+    .from("clients")
+    .select("id, nome, tenant_id, numero_orcamento, telefone1, telefone2")
+    .or(`telefone1.like.%${last4},telefone2.like.%${last4}`)
+    .limit(50);
 
-    if (data) return data;
+  if (!candidates || candidates.length === 0) return null;
+
+  // Strip formatting and compare digit suffixes
+  for (const c of candidates) {
+    const t1 = (c.telefone1 || "").replace(/\D/g, "");
+    const t2 = (c.telefone2 || "").replace(/\D/g, "");
+    if (t1.endsWith(last8) || t2.endsWith(last8)) return c;
+  }
+
+  // Fallback: try last 4 digits match
+  for (const c of candidates) {
+    const t1 = (c.telefone1 || "").replace(/\D/g, "");
+    const t2 = (c.telefone2 || "").replace(/\D/g, "");
+    if (t1.endsWith(last4) || t2.endsWith(last4)) return c;
   }
 
   return null;
