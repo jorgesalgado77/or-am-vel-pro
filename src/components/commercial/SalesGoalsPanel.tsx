@@ -17,7 +17,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { format, endOfMonth, startOfMonth } from "date-fns";
+import { format, getDaysInMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface SalesGoal {
@@ -48,24 +48,20 @@ function formatCurrency(val: number) {
 }
 
 function getCurrentMonth() {
-  return format(new Date(), "yyyy-MM");
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Calculate remaining days in the target month correctly */
-function getRemainingDays(selectedMonth: string): number {
+function getMonthInfo(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  const totalDays = getDaysInMonth(new Date(y, m - 1, 15));
   const now = new Date();
-  const targetDate = new Date(selectedMonth + "-01");
-  const end = endOfMonth(targetDate);
-
-  // If the selected month is in the past, 0 days remaining
-  if (end < now) return 0;
-
-  // If the selected month is in the future, return total days
-  const start = startOfMonth(targetDate);
-  if (start > now) return end.getDate();
-
-  // Current month: days from now until end of month
-  return Math.max(0, end.getDate() - now.getDate());
+  const cy = now.getFullYear(), cm = now.getMonth() + 1, cd = now.getDate();
+  const isSameMonth = y === cy && m === cm;
+  const isPast = y < cy || (y === cy && m < cm);
+  const isFuture = y > cy || (y === cy && m > cm);
+  const daysRemaining = isPast ? 0 : isFuture ? totalDays : Math.max(0, totalDays - cd);
+  return { totalDays, daysRemaining, isPast, isFuture, isSameMonth };
 }
 
 interface SalesGoalsPanelProps {
@@ -142,14 +138,10 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       .select("responsavel_id, status, valor_fechamento, created_at")
       .eq("tenant_id", tenantId);
 
-    const monthStart = startOfMonth(new Date(selectedMonth + "-01"));
-    const monthEnd = endOfMonth(new Date(selectedMonth + "-01"));
-
     const enriched = (goalsData as any[]).map((g: any) => {
       let currentValue = 0;
       const monthClients = (clients || []).filter((c: any) => {
-        const d = new Date(c.created_at);
-        return d >= monthStart && d <= monthEnd && c.responsavel_id === g.user_id;
+        return (c.created_at || "").substring(0, 7) === selectedMonth && c.responsavel_id === g.user_id;
       });
 
       if (g.goal_type === "revenue") {
@@ -285,9 +277,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   };
 
   // Deadline calculations — correct for the target month
-  const daysRemaining = getRemainingDays(selectedMonth);
-  const isCurrentMonth = selectedMonth === getCurrentMonth();
-  const isPastMonth = endOfMonth(new Date(selectedMonth + "-01")) < new Date();
+  const { daysRemaining, isPast: isPastMonth, isSameMonth: isCurrentMonth, totalDays } = getMonthInfo(selectedMonth);
 
   // Month options
   const monthOptions = [];
@@ -321,7 +311,11 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
             className="text-xs gap-1"
           >
             <Clock className="h-3 w-3" />
-            {isPastMonth ? "Encerrado" : `${daysRemaining}d restantes`}
+            {isPastMonth
+              ? "Encerrado"
+              : isCurrentMonth
+                ? `${daysRemaining} de ${totalDays} dias restantes`
+                : `${totalDays} dias no mês`}
           </Badge>
         </div>
         <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNew}>
@@ -425,6 +419,77 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       )}
 
       {/* Create/Edit Dialog */}
+
+      {/* Manager summary cards */}
+      {!loading && goals.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <Award className="h-4 w-4 text-primary" />
+            Resumo do Gerente Comercial
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(() => {
+              const revGoals = goals.filter(g => g.goal_type === "revenue");
+              const totalTarget = revGoals.reduce((s, g) => s + g.target_value, 0);
+              const totalCurrent = revGoals.reduce((s, g) => s + g.current_value, 0);
+              const overallPct = totalTarget > 0 ? Math.min(100, (totalCurrent / totalTarget) * 100) : 0;
+
+              const dealGoals = goals.filter(g => g.goal_type === "deals");
+              const dealsTarget = dealGoals.reduce((s, g) => s + g.target_value, 0);
+              const dealsCurrent = dealGoals.reduce((s, g) => s + g.current_value, 0);
+              const dealsPct = dealsTarget > 0 ? Math.min(100, (dealsCurrent / dealsTarget) * 100) : 0;
+
+              return (
+                <>
+                  {totalTarget > 0 && (
+                    <Card className={cn("border-l-4", overallPct >= 100 ? "border-l-emerald-500" : overallPct >= 60 ? "border-l-primary" : "border-l-amber-500")}>
+                      <CardContent className="pt-3 pb-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground font-medium">Faturamento da Equipe</p>
+                          <span className={cn("text-sm font-bold", overallPct >= 100 ? "text-emerald-600" : "text-foreground")}>{overallPct.toFixed(0)}%</span>
+                        </div>
+                        <Progress value={overallPct} className={cn("h-2", overallPct >= 100 && "[&>div]:bg-emerald-500")} />
+                        <p className="text-[11px] text-muted-foreground">{formatCurrency(totalCurrent)} de {formatCurrency(totalTarget)}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {dealsTarget > 0 && (
+                    <Card className={cn("border-l-4", dealsPct >= 100 ? "border-l-emerald-500" : dealsPct >= 60 ? "border-l-primary" : "border-l-amber-500")}>
+                      <CardContent className="pt-3 pb-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground font-medium">Vendas Fechadas (Equipe)</p>
+                          <span className={cn("text-sm font-bold", dealsPct >= 100 ? "text-emerald-600" : "text-foreground")}>{dealsPct.toFixed(0)}%</span>
+                        </div>
+                        <Progress value={dealsPct} className={cn("h-2", dealsPct >= 100 && "[&>div]:bg-emerald-500")} />
+                        <p className="text-[11px] text-muted-foreground">{dealsCurrent} de {dealsTarget} vendas</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {goals.map((g) => {
+                    const pct = g.target_value > 0 ? Math.min(100, (g.current_value / g.target_value) * 100) : 0;
+                    const tc = GOAL_TYPE_LABELS[g.goal_type] || GOAL_TYPE_LABELS.revenue;
+                    return (
+                      <Card key={`mgr-${g.id}`} className="border-l-4 border-l-muted">
+                        <CardContent className="pt-3 pb-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium truncate">{g.user_name}</p>
+                            <Badge variant={pct >= 100 ? "default" : "outline"} className="text-[10px]">{pct.toFixed(0)}%</Badge>
+                          </div>
+                          <Progress value={pct} className={cn("h-1.5", pct >= 100 && "[&>div]:bg-emerald-500")} />
+                          <p className="text-[10px] text-muted-foreground">
+                            {tc.label}: {g.goal_type === "revenue" ? formatCurrency(g.current_value) : g.current_value} / {g.goal_type === "revenue" ? formatCurrency(g.target_value) : g.target_value}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
