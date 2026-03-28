@@ -208,7 +208,7 @@ function detectAlertCommand(text: string): { title: string; minutes: number; abs
       const val = parseInt(timeMatch[1]);
       const unit = timeMatch[2].toLowerCase();
       minutes = unit.startsWith("h") ? val * 60 : val;
-      cleanedTitle = rest.replace(/em\s+\d+\s*(min|minuto|hora|h)[s]?/i, "").trim();
+      cleanedTitle = rest.replace(/em\s+\d+\s*(minutos?|mins?|horas?|h)\b/i, "").trim();
     }
   }
 
