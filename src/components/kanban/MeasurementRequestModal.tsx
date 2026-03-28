@@ -2,7 +2,7 @@
  * Modal for sending measurement requests (Solicitação de Medida).
  * Shows client data, sale value, environments, imported files and requires image uploads.
  */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +98,110 @@ export function MeasurementRequestModal({
       .trim()
       .toLowerCase();
 
+  const parsePersistedValue = useCallback((value: any) => {
+    if (typeof value !== "string") return value;
+
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+
+    const looksLikeJson = (trimmed.startsWith("{") && trimmed.endsWith("}"))
+      || (trimmed.startsWith("[") && trimmed.endsWith("]"));
+
+    if (!looksLikeJson) return value;
+
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return value;
+    }
+  }, []);
+
+  const toPersistedArray = useCallback((value: any): any[] => {
+    const parsed = parsePersistedValue(value);
+
+    if (Array.isArray(parsed)) {
+      return parsed.flatMap((entry) => {
+        const normalizedEntry = parsePersistedValue(entry);
+        return Array.isArray(normalizedEntry)
+          ? normalizedEntry
+          : normalizedEntry
+            ? [normalizedEntry]
+            : [];
+      });
+    }
+
+    return parsed ? [parsed] : [];
+  }, [parsePersistedValue]);
+
+  const collectPersistedAttachments = useCallback((value: any): any[] => {
+    const parsed = parsePersistedValue(value);
+
+    if (!parsed) return [];
+
+    if (Array.isArray(parsed)) {
+      return toPersistedArray(parsed);
+    }
+
+    if (typeof parsed !== "object") {
+      return toPersistedArray(parsed);
+    }
+
+    const candidateGroups = [
+      parsed.attachments,
+      parsed.images,
+      parsed.imagens,
+      parsed.photos,
+      parsed.fotos,
+      parsed.files,
+      parsed.arquivos,
+      parsed.gallery,
+      parsed.galeria,
+    ];
+
+    const collected = candidateGroups.flatMap((group) => toPersistedArray(group));
+
+    if (collected.length > 0) return collected;
+
+    if (parsed.url || parsed.publicUrl || parsed.sourceUrl || parsed.path || parsed.file_path) {
+      return [parsed];
+    }
+
+    return [];
+  }, [parsePersistedValue, toPersistedArray]);
+
+  const attachmentMatchesEnvironment = useCallback((value: any, env: EnvironmentData) => {
+    const parsed = parsePersistedValue(value);
+    if (!parsed || typeof parsed !== "object") return false;
+
+    const idCandidates = [
+      parsed.envId,
+      parsed.environmentId,
+      parsed.environment_id,
+      parsed.ambienteId,
+      parsed.ambiente_id,
+      parsed.requestEnvironmentId,
+    ].filter(Boolean).map((item) => String(item));
+
+    if (idCandidates.some((candidate) => candidate === String(env.id))) {
+      return true;
+    }
+
+    const nameCandidates = [
+      parsed.envName,
+      parsed.environmentName,
+      parsed.environment_name,
+      parsed.ambiente,
+      parsed.ambienteNome,
+      parsed.ambiente_nome,
+      parsed.name,
+      parsed.environment,
+    ]
+      .filter(Boolean)
+      .map((item) => normalizeText(String(item)));
+
+    return nameCandidates.some((candidate) => candidate === normalizeText(env.name));
+  }, [parsePersistedValue]);
+
   const revokePreviewUrl = useCallback((url?: string) => {
     if (!url || !localPreviewUrlsRef.current.has(url)) return;
     URL.revokeObjectURL(url);
@@ -110,23 +214,42 @@ export function MeasurementRequestModal({
   }, []);
 
   const resolveStoredAssetUrl = useCallback((rawAttachment: any) => {
-    if (!rawAttachment) return "";
+    const normalizedAttachment = parsePersistedValue(rawAttachment);
+    if (!normalizedAttachment) return "";
 
-    const directUrl = typeof rawAttachment === "string"
-      ? rawAttachment
-      : rawAttachment?.url || rawAttachment?.publicUrl || rawAttachment?.previewUrl || rawAttachment?.sourceUrl || rawAttachment?.source_url || "";
+    const attachmentSource = typeof normalizedAttachment === "object" && !Array.isArray(normalizedAttachment)
+      ? normalizedAttachment.asset || normalizedAttachment.file || normalizedAttachment.attachment || normalizedAttachment
+      : normalizedAttachment;
+
+    const directUrl = typeof attachmentSource === "string"
+      ? attachmentSource
+      : attachmentSource?.url
+        || attachmentSource?.publicUrl
+        || attachmentSource?.previewUrl
+        || attachmentSource?.sourceUrl
+        || attachmentSource?.source_url
+        || attachmentSource?.signedUrl
+        || attachmentSource?.signed_url
+        || "";
 
     if (typeof directUrl === "string" && /^(https?:|blob:|data:)/i.test(directUrl)) {
       return directUrl;
     }
 
-    const bucket = typeof rawAttachment === "string"
+    const bucket = typeof attachmentSource === "string"
       ? "company-assets"
-      : rawAttachment?.bucket || rawAttachment?.bucket_name || rawAttachment?.storageBucket || "company-assets";
+      : attachmentSource?.bucket || attachmentSource?.bucket_name || attachmentSource?.storageBucket || "company-assets";
 
-    const rawPath = typeof rawAttachment === "string"
-      ? rawAttachment
-      : rawAttachment?.path || rawAttachment?.storagePath || rawAttachment?.storage_path || rawAttachment?.filePath || rawAttachment?.file_path || "";
+    const rawPath = typeof attachmentSource === "string"
+      ? attachmentSource
+      : attachmentSource?.path
+        || attachmentSource?.storagePath
+        || attachmentSource?.storage_path
+        || attachmentSource?.filePath
+        || attachmentSource?.file_path
+        || attachmentSource?.fullPath
+        || attachmentSource?.full_path
+        || "";
 
     if (!rawPath) return "";
 
@@ -136,7 +259,7 @@ export function MeasurementRequestModal({
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(normalizedPath);
     return data?.publicUrl || "";
-  }, []);
+  }, [parsePersistedValue]);
 
   const hydrateClientState = useCallback((source: any) => {
     const merged = source || {};
@@ -412,11 +535,36 @@ export function MeasurementRequestModal({
 
         if (!savedEnv) return [env.id, []] as const;
 
-        const rawAttachments = Array.isArray(savedEnv.attachments) && savedEnv.attachments.length > 0
-          ? savedEnv.attachments
-          : Array.isArray(savedEnv.images)
-            ? savedEnv.images.map((url: string, index: number) => ({ kind: "image", url, name: `${env.name} ${index + 1}` }))
-            : [];
+        const envLevelAttachments = collectPersistedAttachments(savedEnv);
+        const requestLevelAttachments = collectPersistedAttachments(latestRequest).filter((item) =>
+          attachmentMatchesEnvironment(item, env),
+        );
+        const requestFallbackAttachments = collectPersistedAttachments(latestRequest).filter((item) => {
+          const parsed = parsePersistedValue(item);
+          if (!parsed || typeof parsed !== "object") return nextEnvironments[0]?.id === env.id;
+
+          const hasEnvironmentRef = Boolean(
+            parsed.envId
+            || parsed.environmentId
+            || parsed.environment_id
+            || parsed.ambienteId
+            || parsed.ambiente_id
+            || parsed.envName
+            || parsed.environmentName
+            || parsed.environment_name
+            || parsed.ambiente
+            || parsed.ambienteNome
+            || parsed.ambiente_nome,
+          );
+
+          return !hasEnvironmentRef && nextEnvironments[0]?.id === env.id;
+        });
+
+        const rawAttachments = envLevelAttachments.length > 0
+          ? envLevelAttachments
+          : requestLevelAttachments.length > 0
+            ? requestLevelAttachments
+            : requestFallbackAttachments;
 
         const normalized = (await Promise.all(rawAttachments.map((item: any, index: number) =>
           buildPersistedAttachment(env.id, env.name, item, index),
@@ -519,19 +667,20 @@ export function MeasurementRequestModal({
     rawAttachment: any,
     index: number,
   ): Promise<EnvironmentAttachment | null> {
-    const sourceUrl = resolveStoredAssetUrl(rawAttachment);
+    const normalizedAttachment = parsePersistedValue(rawAttachment);
+    const sourceUrl = resolveStoredAssetUrl(normalizedAttachment);
 
     if (!sourceUrl) return null;
 
-    const name = typeof rawAttachment === "string"
+    const name = typeof normalizedAttachment === "string"
       ? `${envName} ${index + 1}`
-      : rawAttachment?.name || rawAttachment?.file_name || `${envName} ${index + 1}`;
-    const mimeType = typeof rawAttachment === "string"
+      : normalizedAttachment?.name || normalizedAttachment?.file_name || `${envName} ${index + 1}`;
+    const mimeType = typeof normalizedAttachment === "string"
       ? ""
-      : rawAttachment?.type || rawAttachment?.mimeType || rawAttachment?.mime_type || "";
-    const inferredKind = typeof rawAttachment === "string"
+      : normalizedAttachment?.type || normalizedAttachment?.mimeType || normalizedAttachment?.mime_type || "";
+    const inferredKind = typeof normalizedAttachment === "string"
       ? getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` })
-      : rawAttachment?.kind || getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` });
+      : normalizedAttachment?.kind || getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` });
 
     if (inferredKind === "other") return null;
 
@@ -540,7 +689,7 @@ export function MeasurementRequestModal({
       : sourceUrl;
 
     return {
-      id: `${envId}-persisted-${rawAttachment?.id || rawAttachment?.path || index}`,
+      id: `${envId}-persisted-${normalizedAttachment?.id || normalizedAttachment?.path || index}`,
       kind: inferredKind,
       mimeType,
       name,
@@ -601,6 +750,16 @@ export function MeasurementRequestModal({
     environments.every(env => (envAttachments[env.id] || []).some((attachment) => attachment.kind === "image"));
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
+
+  const imageGalleryEntries = useMemo(() => environments.flatMap((env) =>
+    (envAttachments[env.id] || [])
+      .filter((attachment) => attachment.kind === "image")
+      .map((attachment) => ({
+        envId: env.id,
+        envName: env.name,
+        attachment,
+      })),
+  ), [environments, envAttachments]);
 
   const buildPdfDoc = useCallback(async () => {
     const { default: jsPDF } = await import("jspdf");
@@ -899,12 +1058,7 @@ export function MeasurementRequestModal({
     };
 
     const drawPhotoPages = async () => {
-      const imageEntries = environments.flatMap((env) =>
-        (envAttachments[env.id] || []).filter((attachment) => attachment.kind === "image").map((attachment) => ({
-          envName: env.name,
-          attachment,
-        })),
-      );
+      const imageEntries = imageGalleryEntries;
 
       if (imageEntries.length === 0) return;
 
@@ -1044,7 +1198,7 @@ export function MeasurementRequestModal({
     addFooter();
 
     return doc;
-  }, [addressForm, client, editableFields, environments, envAttachments, formatCurrency, observacoes, sourceToDataUrl, storeData, totalValorAvista, tracking]);
+  }, [addressForm, client, editableFields, environments, formatCurrency, imageGalleryEntries, observacoes, sourceToDataUrl, storeData, totalValorAvista, tracking]);
 
   const generatePdfPreview = useCallback(async () => {
     setPdfPreviewLoading(true);
@@ -1559,31 +1713,27 @@ export function MeasurementRequestModal({
               />
             </div>
 
-            {Object.values(envAttachments).flat().filter((attachment) => attachment.kind === "image").length > 0 && (
+            {imageGalleryEntries.length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold">Imagens anexadas à solicitação</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {Object.entries(envAttachments).flatMap(([envId, attachments]) =>
-                    attachments
-                      .filter((attachment) => attachment.kind === "image")
-                      .map((attachment) => {
-                        const env = environments.find((item) => item.id === envId);
-                        const preview = attachment.thumbnailUrl || attachment.previewUrl || attachment.sourceUrl;
-                        if (!preview) return null;
-                        return (
-                          <div key={`gallery-${attachment.id}`} className="space-y-1 rounded-lg border border-border bg-card p-2">
-                            <img
-                              src={preview}
-                              alt={attachment.name}
-                              className="h-28 w-full rounded-md object-cover"
-                              loading="lazy"
-                            />
-                            <p className="text-[10px] font-medium truncate">{env?.name || "Ambiente"}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{attachment.name}</p>
-                          </div>
-                        );
-                      }),
-                  )}
+                  {imageGalleryEntries.map(({ envName, attachment }) => {
+                    const preview = attachment.thumbnailUrl || attachment.previewUrl || attachment.sourceUrl;
+                    if (!preview) return null;
+
+                    return (
+                      <div key={`gallery-${attachment.id}`} className="space-y-1 rounded-lg border border-border bg-card p-2">
+                        <img
+                          src={preview}
+                          alt={attachment.name}
+                          className="h-28 w-full rounded-md object-cover"
+                          loading="lazy"
+                        />
+                        <p className="text-[10px] font-medium truncate">{envName || "Ambiente"}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{attachment.name}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
