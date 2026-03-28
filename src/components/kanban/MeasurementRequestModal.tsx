@@ -1263,8 +1263,12 @@ export function MeasurementRequestModal({
     {/* PDF Preview Dialog */}
     <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>
       <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-4 pb-2">
+        <DialogHeader className="px-6 pt-4 pb-2 flex flex-row items-center justify-between">
           <DialogTitle>Pré-visualização do PDF</DialogTitle>
+          <Button variant="secondary" size="sm" className="gap-1.5" onClick={downloadPdf}>
+            <Download className="h-4 w-4" />
+            Baixar PDF
+          </Button>
         </DialogHeader>
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
           {pdfPreviewLoading ? (
