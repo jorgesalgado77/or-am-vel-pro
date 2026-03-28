@@ -471,8 +471,16 @@ export function MeasurementRequestModal({
           </div>
         </div>
 
-        <DialogFooter className="px-6 pb-6 pt-3 border-t">
+        <DialogFooter className="px-6 pb-6 pt-3 border-t flex-wrap gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button
+            variant="secondary"
+            onClick={generatePdfPreview}
+            className="gap-2"
+          >
+            <Eye className="h-4 w-4" />
+            Visualizar PDF
+          </Button>
           <Button
             onClick={handleSubmit}
             disabled={saving || !allEnvsHaveImages}
