@@ -343,11 +343,13 @@ export function OnboardingAIAssistant() {
       {open && (
         <div
           className={cn(
-            "fixed z-50 flex flex-col overflow-hidden border border-border bg-background shadow-2xl",
-            // Mobile: full viewport
-            "inset-0 rounded-none",
-            // sm+: floating bottom-right card with explicit height
-            "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:h-[min(85dvh,680px)] sm:rounded-2xl",
+            "fixed z-50 flex flex-col overflow-hidden border border-border bg-background shadow-2xl transition-all duration-300",
+            fullscreen
+              ? "inset-0 rounded-none"
+              : cn(
+                  "inset-0 rounded-none",
+                  "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:h-[min(85dvh,680px)] sm:rounded-2xl"
+                ),
             !prefersReducedMotion && "animate-in slide-in-from-bottom-4 duration-300"
           )}
         >
@@ -360,6 +362,48 @@ export function OnboardingAIAssistant() {
               <p className="text-sm font-semibold text-primary-foreground">Mia — Assistente IA</p>
               <p className="text-xs text-primary-foreground/70">Configuração inteligente</p>
             </div>
+
+            {/* Export PDF dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+                  title="Exportar conversa em PDF"
+                >
+                  <FileDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={() => exportConversationPdf("all")}>
+                  📄 Histórico completo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportConversationPdf("today")}>
+                  📅 Hoje
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportConversationPdf("this_month")}>
+                  📆 Mês atual
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportConversationPdf("last_month")}>
+                  📆 Mês anterior
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const start = prompt("Data inicial (DD/MM/AAAA):");
+                  const end = prompt("Data final (DD/MM/AAAA):");
+                  if (start && end) {
+                    const [sd, sm, sy] = start.split("/").map(Number);
+                    const [ed, em, ey] = end.split("/").map(Number);
+                    if (sd && sm && sy && ed && em && ey) {
+                      exportConversationPdf("custom", new Date(sy, sm - 1, sd), new Date(ey, em - 1, ed));
+                    }
+                  }
+                }}>
+                  📊 Por período
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button
               variant="ghost"
               size="icon"
@@ -372,8 +416,17 @@ export function OnboardingAIAssistant() {
             <Button
               variant="ghost"
               size="icon"
+              className="hidden sm:flex h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+              onClick={() => setFullscreen(v => !v)}
+              title={fullscreen ? "Minimizar" : "Expandir tela cheia"}
+            >
+              {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
-              onClick={() => setOpen(false)}
+              onClick={() => { setOpen(false); setFullscreen(false); }}
             >
               <X className="h-4 w-4" />
             </Button>
