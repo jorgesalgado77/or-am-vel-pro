@@ -26,6 +26,7 @@ import {validateFileUpload} from "@/lib/validation";
 import {generateSimulationPdf} from "@/lib/generatePdf";
 import {generateAndOpenBudgetPdf} from "@/lib/pdfService";
 import {ContractEditorDialog} from "@/components/ContractEditorDialog";
+import {DeliveryStatusPanel} from "@/components/simulator/DeliveryStatusPanel";
 import {CloseSaleModal} from "@/components/CloseSaleModal";
 import {ProductPickerForSimulator} from "@/components/simulator/ProductPickerForSimulator";
 import {supabase} from "@/lib/supabaseClient";
@@ -1373,6 +1374,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               toast.success("Simulação limpa");
             }}
           />
+
+          {/* Delivery Status Panel — async, non-blocking */}
+          {effectiveClient && (
+            <DeliveryStatusPanel
+              clientId={effectiveClient.id}
+              contractNumber={effectiveClient.numero_orcamento || undefined}
+              tenantId={resolvedTenantId}
+            />
+          )}
 
           {/* Quick client picker when no client is linked */}
           {!effectiveClient && (
