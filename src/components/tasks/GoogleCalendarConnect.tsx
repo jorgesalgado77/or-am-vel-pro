@@ -45,7 +45,7 @@ export function GoogleCalendarConnect({ tenantId, userId }: Props) {
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1.5 text-xs border-emerald-300 text-emerald-700 dark:text-emerald-400 dark:border-emerald-700">
             <Check className="h-3.5 w-3.5" />
-            Google Agenda
+            {status.google_email ? `📅 ${status.google_email}` : "Google Agenda"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-72 p-3" align="end">
