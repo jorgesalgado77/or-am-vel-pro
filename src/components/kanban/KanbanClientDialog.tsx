@@ -373,12 +373,12 @@ export function KanbanClientDialog({
               <div className={cn(
                 "rounded-lg p-3 border flex items-start gap-2.5",
                 briefingInfo.exists
-                  ? "bg-emerald-500/10 border-emerald-500/30"
-                  : "bg-amber-500/10 border-amber-500/30"
+                  ? "bg-success/10 border-success/30"
+                  : "bg-warning/10 border-warning/30"
               )}>
-                <ClipboardList className={cn("h-4 w-4 mt-0.5 shrink-0", briefingInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <ClipboardList className={cn("h-4 w-4 mt-0.5 shrink-0", briefingInfo.exists ? "text-success" : "text-warning")} />
                 <div className="min-w-0">
-                  <p className={cn("text-xs font-semibold", briefingInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                  <p className={cn("text-xs font-semibold", briefingInfo.exists ? "text-success" : "text-warning")}>
                     {briefingInfo.exists ? "✅ Briefing Preenchido" : "⚠️ Sem Briefing"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -391,12 +391,12 @@ export function KanbanClientDialog({
               <div className={cn(
                 "rounded-lg p-3 border flex items-start gap-2.5",
                 simInfo.exists
-                  ? "bg-emerald-500/10 border-emerald-500/30"
-                  : "bg-amber-500/10 border-amber-500/30"
+                  ? "bg-success/10 border-success/30"
+                  : "bg-warning/10 border-warning/30"
               )}>
-                <Calculator className={cn("h-4 w-4 mt-0.5 shrink-0", simInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <Calculator className={cn("h-4 w-4 mt-0.5 shrink-0", simInfo.exists ? "text-success" : "text-warning")} />
                 <div className="min-w-0">
-                  <p className={cn("text-xs font-semibold", simInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                  <p className={cn("text-xs font-semibold", simInfo.exists ? "text-success" : "text-warning")}>
                     {simInfo.exists ? `✅ ${simInfo.count} Simulação(ões)` : "⚠️ Sem Simulações"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -410,10 +410,10 @@ export function KanbanClientDialog({
 
             {/* Contract Closed Warning */}
             {hasContract && (
-              <div className="rounded-lg p-3 border bg-emerald-500/10 border-emerald-500/30 flex items-start gap-2.5">
-                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600" />
+              <div className="rounded-lg p-3 border bg-success/10 border-success/30 flex items-start gap-2.5">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-success" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  <p className="text-xs font-semibold text-success">
                     ✅ Contrato Fechado
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -429,12 +429,12 @@ export function KanbanClientDialog({
               <div className={cn(
                 "rounded-lg p-3 border flex items-start gap-2.5",
                 measurementInfo.exists
-                  ? "bg-emerald-500/10 border-emerald-500/30"
-                  : "bg-amber-500/10 border-amber-500/30"
+                  ? "bg-success/10 border-success/30"
+                  : "bg-warning/10 border-warning/30"
               )}>
-                <Ruler className={cn("h-4 w-4 mt-0.5 shrink-0", measurementInfo.exists ? "text-emerald-600" : "text-amber-600")} />
+                <Ruler className={cn("h-4 w-4 mt-0.5 shrink-0", measurementInfo.exists ? "text-success" : "text-warning")} />
                 <div className="min-w-0">
-                  <p className={cn("text-xs font-semibold", measurementInfo.exists ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400")}>
+                  <p className={cn("text-xs font-semibold", measurementInfo.exists ? "text-success" : "text-warning")}>
                     {measurementInfo.exists ? "✅ Solicitação de Medida Enviada" : "⚠️ Solicitação de Medida Pendente"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
