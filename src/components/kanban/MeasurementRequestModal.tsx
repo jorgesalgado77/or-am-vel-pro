@@ -277,15 +277,23 @@ export function MeasurementRequestModal({
     loadData();
   }, [client?.id, open]);
 
+  const getFileKind = (file: Pick<File, "type" | "name">) => {
+    const ref = `${file?.type || ""} ${file?.name || ""}`.toLowerCase();
+    if (ref.includes("application/pdf") || ref.endsWith(".pdf")) return "pdf";
+    if (/(image\/|\.png$|\.jpe?g$|\.webp$|\.gif$|\.bmp$|\.svg$|\.heic$|\.heif$|\.avif$)/.test(ref)) return "image";
+    return "other";
+  };
+
   const handleFileChange = (envId: string, files: FileList | null) => {
     if (!files) return;
-    const validTypes = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
-    const validFiles = Array.from(files).filter(f => validTypes.includes(f.type));
-    if (validFiles.length !== files.length) {
-      toast.error("Apenas imagens (PNG, JPG, WebP) e PDF são permitidos");
+
+    const selectedFiles = Array.from(files);
+    const validFiles = selectedFiles.filter(file => getFileKind(file) !== "other");
+
+    if (validFiles.length !== selectedFiles.length) {
+      toast.error("Apenas PDF e formatos de imagem são permitidos");
     }
 
-    // Simulate progress
     setUploadProgress(prev => ({ ...prev, [envId]: 0 }));
     let progress = 0;
     const interval = setInterval(() => {
@@ -302,15 +310,7 @@ export function MeasurementRequestModal({
       setUploadProgress(prev => ({ ...prev, [envId]: Math.min(progress, 100) }));
     }, 150);
 
-    // Generate preview URLs
-    const newPreviews: string[] = [];
-    for (const file of validFiles) {
-      if (file.type.startsWith("image/")) {
-        newPreviews.push(URL.createObjectURL(file));
-      } else {
-        newPreviews.push(""); // no preview for PDFs
-      }
-    }
+    const newPreviews = validFiles.map(file => URL.createObjectURL(file));
 
     setEnvImages(prev => ({
       ...prev,
@@ -323,7 +323,6 @@ export function MeasurementRequestModal({
   };
 
   const removeImage = (envId: string, index: number) => {
-    // Revoke URL to prevent memory leak
     const previews = envImagePreviews[envId] || [];
     if (previews[index]) URL.revokeObjectURL(previews[index]);
 
@@ -1156,10 +1155,9 @@ export function MeasurementRequestModal({
                       <div className="space-y-1.5">
                         <Label className="text-xs flex items-center gap-1">
                           <Image className="h-3 w-3" />
-                          Imagens iniciais (mín. 1) * — {images.length} enviada(s)
+                          Arquivos enviados (mín. 1) * — {images.length} item(ns)
                         </Label>
 
-                        {/* Upload progress */}
                         {uploadProgress[env.id] !== undefined && (
                           <div className="flex items-center gap-2">
                             <Loader2 className="h-3 w-3 animate-spin text-primary" />
@@ -1171,14 +1169,22 @@ export function MeasurementRequestModal({
                         <div className="flex flex-wrap gap-2">
                           {images.map((file, idx) => {
                             const preview = (envImagePreviews[env.id] || [])[idx];
+                            const kind = getFileKind(file);
+
                             return (
                               <div key={idx} className="relative group">
                                 <div className="h-20 w-20 rounded-lg border-2 border-border bg-muted flex items-center justify-center overflow-hidden shadow-sm">
-                                  {preview ? (
+                                  {preview && kind === "image" ? (
                                     <img
                                       src={preview}
                                       alt={file.name}
                                       className="h-full w-full object-cover"
+                                    />
+                                  ) : preview && kind === "pdf" ? (
+                                    <iframe
+                                      src={`${preview}#toolbar=0&navpanes=0&scrollbar=0&page=1&view=FitH`}
+                                      title={file.name}
+                                      className="h-full w-full bg-background"
                                     />
                                   ) : (
                                     <FileText className="h-6 w-6 text-muted-foreground" />
@@ -1186,6 +1192,7 @@ export function MeasurementRequestModal({
                                 </div>
                                 <p className="text-[9px] text-muted-foreground truncate w-20 mt-0.5 text-center">{file.name}</p>
                                 <button
+                                  type="button"
                                   onClick={() => removeImage(env.id, idx)}
                                   className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                                 >
