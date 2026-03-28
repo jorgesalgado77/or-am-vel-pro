@@ -607,6 +607,7 @@ export function MeasurementRequestModal({
   // Load environments from simulations
   useEffect(() => {
     if (!client?.id || !open) return;
+    if (initialLoadDoneRef.current) return;
     let active = true;
 
     const loadData = async () => {
