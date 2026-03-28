@@ -328,20 +328,67 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
   const diasSemResposta = selectedClient ? Math.floor((Date.now() - new Date(selectedClient.updated_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const clientScore = selectedClient ? getClientScore(selectedClient, diasSemResposta) : null;
 
-  // Restore historico from saved session when client changes
+  // Restore historico from saved session when client changes (only if chat didn't populate)
   useEffect(() => {
     if (selectedClient && historico.clientId !== selectedClient.id) {
       const saved = getActiveSession(selectedClient.id);
       if (saved && saved.entries.length > 0) {
         setHistorico({ entries: saved.entries as HistoricoEntry[], clientId: selectedClient.id });
-        // Restore settings
         if (saved.settings.tipoCopy) setTipoCopy(saved.settings.tipoCopy);
         if (saved.settings.tom) setTom(saved.settings.tom);
         if (saved.settings.closingScore) setClosingScore(saved.settings.closingScore);
-      } else {
-        setHistorico({ entries: [], clientId: selectedClient.id });
       }
+      // Note: don't reset to empty here — the chat integration effect above handles it
     }
+  }, [selectedClient?.id]);
+
+  // Realtime: monitor Chat de Vendas messages for selected client
+  useEffect(() => {
+    if (!selectedClient) return;
+
+    // Find tracking id for this client
+    let trackingId: string | null = null;
+    const findTracking = async () => {
+      const { data } = await supabase
+        .from("client_tracking")
+        .select("id")
+        .eq("client_id", selectedClient.id)
+        .limit(1);
+      trackingId = (data as any[])?.[0]?.id || null;
+    };
+    findTracking();
+
+    const channel = supabase
+      .channel(`vendazap-monitor-${selectedClient.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "tracking_messages" },
+        (payload) => {
+          const msg = payload.new as any;
+          if (!trackingId || msg.tracking_id !== trackingId) return;
+          if (!msg.mensagem?.trim()) return;
+
+          const entry: HistoricoEntry = {
+            remetente_tipo: msg.remetente_tipo === "loja" ? "ia" : "cliente",
+            mensagem: msg.mensagem,
+            timestamp: msg.created_at,
+          };
+
+          if (msg.remetente_tipo === "cliente") {
+            const analysis = analyzeClientMessage(msg.mensagem);
+            entry.intent = analysis.intent;
+            entry.score = analysis.score;
+          }
+
+          setHistorico(prev => ({
+            entries: [...prev.entries, entry].slice(-20),
+            clientId: prev.clientId,
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [selectedClient?.id]);
 
   // Resume from history tab
