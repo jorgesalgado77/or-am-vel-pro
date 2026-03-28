@@ -310,6 +310,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         vendedor_nome: vendedorMap[t.client_id]?.vendedor || null,
         isClientDirect: t.isClientDirect || false,
         client_id: t.client_id,
+        phone: t.numero_contrato?.startsWith("WA-") ? t.numero_contrato.replace("WA-", "") : undefined,
       }))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
