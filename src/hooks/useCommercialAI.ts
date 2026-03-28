@@ -96,19 +96,19 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     });
     const avgCloseDays = closed.length > 0 ? totalDays / closed.length : 0;
 
-    // Stalled leads (no activity > 3 days, not closed)
+    // Stalled leads (no activity > 3 days, not closed — using updated_at for accuracy)
     const threeDaysAgo = new Date();
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
     const stalled = clients.filter((c: any) =>
       c.status !== "fechado" && c.status !== "perdido" &&
-      new Date(c.created_at) < threeDaysAgo
+      new Date(c.updated_at || c.created_at) < threeDaysAgo
     );
     setStalledLeads(stalled);
 
-    // Hot leads
+    // Hot leads — in negotiation with recent activity
     const hot = clients.filter((c: any) =>
       ["em_negociacao", "proposta_enviada"].includes(c.status) &&
-      new Date(c.created_at) >= threeDaysAgo
+      new Date(c.updated_at || c.created_at) >= threeDaysAgo
     );
     setHotLeads(hot);
 

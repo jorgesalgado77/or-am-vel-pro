@@ -71,13 +71,20 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
 
   const loadUsers = useCallback(async () => {
     if (!tenantId) return;
+    // Load users with cargo info — only show vendedor/projetista
     const { data } = await supabase
       .from("usuarios" as any)
-      .select("id, nome_completo")
+      .select("id, nome_completo, cargo_id, cargos(nome)")
       .eq("tenant_id", tenantId)
       .eq("ativo", true)
       .order("nome_completo");
-    if (data) setUsers(data as any);
+    if (data) {
+      const filtered = (data as any[]).filter((u: any) => {
+        const cargoNome = u.cargos?.nome?.toLowerCase() || "";
+        return cargoNome.includes("vendedor") || cargoNome.includes("projetista");
+      });
+      setUsers(filtered.map((u: any) => ({ id: u.id, nome_completo: u.nome_completo })));
+    }
   }, [tenantId]);
 
   const loadGoals = useCallback(async () => {
@@ -394,13 +401,26 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
               <Label className="text-xs">
                 Valor da Meta {form.goal_type === "revenue" ? "(R$)" : "(quantidade)"}
               </Label>
-              <Input
-                type="number"
-                min={1}
-                value={form.target_value}
-                onChange={e => setForm(f => ({ ...f, target_value: Number(e.target.value) }))}
-                className="mt-1"
-              />
+              {form.goal_type === "revenue" ? (
+                <Input
+                  value={form.target_value > 0 ? form.target_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : ""}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    setForm(f => ({ ...f, target_value: digits ? parseInt(digits, 10) / 100 : 0 }));
+                  }}
+                  placeholder="R$ 0,00"
+                  className="mt-1"
+                />
+              ) : (
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.target_value || ""}
+                  onChange={e => setForm(f => ({ ...f, target_value: Number(e.target.value) }))}
+                  placeholder="Ex: 10"
+                  className="mt-1"
+                />
+              )}
             </div>
           </div>
           <DialogFooter>

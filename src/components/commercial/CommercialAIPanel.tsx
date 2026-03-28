@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,8 +113,29 @@ export function CommercialAIPanel() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [aiConnected, setAiConnected] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pushChecked = useRef(false);
+
+  // Check AI connection on mount
+  useEffect(() => {
+    if (!tenantId) return;
+    (async () => {
+      try {
+        const resp = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_wbUKLbibswCqDaXfCYMnZQ_otmy7ZEn"}`,
+          },
+          body: JSON.stringify({ action: "check_alerts", tenant_id: tenantId }),
+        });
+        setAiConnected(resp.ok);
+      } catch {
+        setAiConnected(false);
+      }
+    })();
+  }, [tenantId]);
 
   // Build metrics summary for AI context
   const metricsSummary = metrics
@@ -303,9 +325,51 @@ export function CommercialAIPanel() {
               })
           )}
 
-          {/* Stalled & Hot Leads Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          </div>
+          {/* Stalled & Hot Leads Detail */}
+          {stalledLeads.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Snowflake className="h-4 w-4 text-blue-400" /> Leads Parados — Detalhes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {stalledLeads.slice(0, 8).map((l: any) => {
+                  const days = Math.floor((Date.now() - new Date(l.created_at).getTime()) / 86400000);
+                  return (
+                    <div key={l.id} className="flex items-center justify-between text-xs py-1 border-b border-border last:border-0">
+                      <span className="truncate max-w-[40%] text-foreground">{l.nome || "Sem nome"}</span>
+                      <span className="text-muted-foreground">{l.vendedor || "Sem vendedor"}</span>
+                      <Badge variant="outline" className="text-[9px]">{days}d parado</Badge>
+                    </div>
+                  );
+                })}
+                {stalledLeads.length > 8 && <p className="text-[10px] text-muted-foreground">+{stalledLeads.length - 8} mais...</p>}
+              </CardContent>
+            </Card>
+          )}
+
+          {hotLeads.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Flame className="h-4 w-4 text-red-500" /> Leads Quentes — Detalhes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {hotLeads.slice(0, 8).map((l: any) => (
+                  <div key={l.id} className="flex items-center justify-between text-xs py-1 border-b border-border last:border-0">
+                    <span className="truncate max-w-[40%] text-foreground">{l.nome || "Sem nome"}</span>
+                    <span className="text-muted-foreground">{l.vendedor || "Sem vendedor"}</span>
+                    <Badge variant="secondary" className="text-[9px]">
+                      {l.status === "em_negociacao" ? "Negociando" : "Proposta"}
+                    </Badge>
+                  </div>
+                ))}
+                {hotLeads.length > 8 && <p className="text-[10px] text-muted-foreground">+{hotLeads.length - 8} mais...</p>}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Clients by Seller — admin/manager full view */}
           {isAdminOrManager && Object.keys(clientsBySeller).length > 0 && (
@@ -433,7 +497,12 @@ export function CommercialAIPanel() {
             <CardHeader className="pb-2 border-b border-border">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Bot className="h-4 w-4 text-primary" /> IA Gerente Comercial
-                <Badge variant="outline" className="text-[10px] ml-auto">OpenAI / Gemini</Badge>
+                <div className="ml-auto flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <span className={cn("h-1.5 w-1.5 rounded-full", aiConnected ? "bg-emerald-500" : "bg-destructive")} />
+                    {aiConnected ? "Conectada" : "Desconectada"}
+                  </Badge>
+                </div>
               </CardTitle>
             </CardHeader>
             <ScrollArea className="flex-1 p-4" ref={scrollRef as any}>
@@ -446,7 +515,9 @@ export function CommercialAIPanel() {
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-foreground"
                     )}>
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <div className="prose prose-sm prose-invert max-w-none">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
                     </div>
                   </div>
                 ))}
