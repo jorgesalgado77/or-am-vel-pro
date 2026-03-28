@@ -16,7 +16,8 @@ export function GoogleCalendarTab() {
   const tenantId = getTenantId();
   const { status, loading, checking, startOAuth, disconnect, checkStatus } = useGoogleCalendarOAuth(tenantId, user?.id);
 
-  const previewUri = "https://id-preview--6544673b-6b62-4fef-affb-85422e91f8f5.lovable.app/app?gcal_callback=1";
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const currentEnvironmentUri = currentOrigin ? `${currentOrigin}/app?gcal_callback=1` : "";
   const productionUri = "https://orcamovelpro.lovable.app/app?gcal_callback=1";
 
   return (
@@ -136,9 +137,9 @@ export function GoogleCalendarTab() {
           </div>
           <Separator />
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Preview (desenvolvimento)</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ambiente atual</p>
             <div className="bg-muted/40 rounded-md p-2.5 font-mono text-xs text-foreground break-all select-all cursor-pointer" title="Clique para selecionar">
-              {previewUri}
+              {currentEnvironmentUri || "Abra esta página no ambiente desejado para copiar a URI correta"}
             </div>
           </div>
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mt-3">
