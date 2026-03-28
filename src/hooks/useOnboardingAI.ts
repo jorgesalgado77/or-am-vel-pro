@@ -353,6 +353,7 @@ export function useOnboardingAI(tenantId: string | null) {
   });
   const [alerts, setAlerts] = useState<ScheduledAlert[]>(() => loadAlerts(tenantId));
   const [taskWizard, setTaskWizard] = useState<TaskWizardState>(INITIAL_WIZARD);
+  const [emailWizard, setEmailWizard] = useState<EmailWizardState>(INITIAL_EMAIL_WIZARD);
   const initialized = useRef(false);
   const messagesRef = useRef<AIMessage[]>(messages);
   const alertTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
