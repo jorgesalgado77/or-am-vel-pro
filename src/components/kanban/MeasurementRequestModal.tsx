@@ -52,6 +52,7 @@ export function MeasurementRequestModal({
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
+  const [observacoes, setObservacoes] = useState("");
   const { settings } = useCompanySettings();
 
   // Store data
@@ -556,18 +557,65 @@ export function MeasurementRequestModal({
       doc.roundedRect(mx, tblStartY, cw, y - tblStartY + 1, 2, 2, "S");
       y += 8;
 
-      // ══════════════════ FOOTER ══════════════════
-      const footerY = ph - 12;
-      doc.setDrawColor(...BORDER);
-      doc.setLineWidth(0.3);
-      doc.line(mx, footerY - 3, pw - mx, footerY - 3);
-      doc.setTextColor(...GRAY);
-      doc.setFontSize(7);
+      // ══════════════════ OBSERVAÇÕES GERAIS ══════════════════
+      checkPage(40);
+      const obsText = observacoes.trim();
+      const obsStartY = y;
+      doc.setFillColor(...PRIMARY);
+      doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
+      doc.rect(mx, y + 5, cw, 3, "F");
+      doc.setTextColor(...WHITE);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("OBSERVAÇÕES GERAIS", mx + 4, y + 5.5);
+      y += 11;
+
+      doc.setTextColor(...DARK);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.text(
-        `${storeData.name || "Empresa"} — Solicitação de Medida gerada automaticamente pelo sistema.`,
-        pw / 2, footerY, { align: "center" }
-      );
+      if (obsText) {
+        const obsLines = doc.splitTextToSize(obsText, cw - 8);
+        for (const line of obsLines) {
+          checkPage(6);
+          doc.text(line, mx + 4, y);
+          y += 5;
+        }
+      } else {
+        // Empty lines for manual fill
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.15);
+        for (let i = 0; i < 5; i++) {
+          doc.line(mx + 4, y + 3, pw - mx - 4, y + 3);
+          y += 7;
+        }
+      }
+      y += 2;
+
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(mx, obsStartY, cw, y - obsStartY, 2, 2, "S");
+      y += 8;
+
+      // ══════════════════ FOOTER ══════════════════
+      const addFooter = () => {
+        const totalPages = (doc as any).internal.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+          doc.setPage(p);
+          const footerY = ph - 10;
+          doc.setDrawColor(...BORDER);
+          doc.setLineWidth(0.3);
+          doc.line(mx, footerY - 3, pw - mx, footerY - 3);
+          doc.setTextColor(...GRAY);
+          doc.setFontSize(7);
+          doc.setFont("helvetica", "normal");
+          doc.text(
+            `${storeData.name || "Empresa"} — Solicitação de Medida gerada automaticamente pelo sistema.`,
+            pw / 2, footerY, { align: "center" }
+          );
+          doc.text(`Página ${p} de ${totalPages}`, pw - mx, footerY, { align: "right" });
+        }
+      };
+      addFooter();
 
       // ── Render to images ──
       const arrayBuffer = doc.output("arraybuffer");
@@ -595,7 +643,7 @@ export function MeasurementRequestModal({
     } finally {
       setPdfPreviewLoading(false);
     }
-  }, [addressForm, client, editableFields, environments, envImages, storeData, totalValorAvista, tracking.numero_contrato]);
+  }, [addressForm, client, editableFields, environments, envImages, storeData, totalValorAvista, tracking.numero_contrato, observacoes]);
 
   const handleSubmit = async () => {
     if (!allEnvsHaveImages) {
@@ -998,6 +1046,20 @@ export function MeasurementRequestModal({
                 </div>
               </>
             )}
+
+            {/* Observações Gerais */}
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                📝 Observações Gerais
+              </h4>
+              <textarea
+                className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Digite observações gerais sobre a medição, pontos de atenção, detalhes especiais do local, etc."
+                value={observacoes}
+                onChange={e => setObservacoes(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
