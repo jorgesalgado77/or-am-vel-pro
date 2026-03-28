@@ -1374,6 +1374,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             }}
           />
 
+          {/* Delivery Status Panel — async, non-blocking */}
+          {effectiveClient && (
+            <DeliveryStatusPanel
+              clientId={effectiveClient.id}
+              contractNumber={effectiveClient.numero_contrato || undefined}
+              tenantId={resolvedTenantId}
+            />
+          )}
+
           {/* Quick client picker when no client is linked */}
           {!effectiveClient && (
             <Card className="border-dashed border-primary/30 bg-primary/5">
