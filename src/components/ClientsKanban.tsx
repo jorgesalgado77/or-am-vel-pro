@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, UserPlus, CalendarIcon, FileText, Calculator } from "lucide-react";
+import { generateOrcamentoNumber } from "@/services/financialService";
 import { addDays, isPast } from "date-fns";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -151,6 +152,25 @@ export function ClientsKanban({
     fetchContractClients();
   }, [localClients.length]);
 
+  // Auto-assign orçamento numbers to clients missing them
+  useEffect(() => {
+    const tenantId = getTenantId();
+    if (!tenantId || localClients.length === 0) return;
+    const missing = localClients.filter(c => !(c as any).numero_orcamento);
+    if (missing.length === 0) return;
+
+    const assignNumbers = async () => {
+      for (const client of missing) {
+        try {
+          const orc = await generateOrcamentoNumber(tenantId);
+          await supabase.from("clients").update(orc as any).eq("id", client.id);
+          setLocalClients(prev => prev.map(c => c.id === client.id ? { ...c, ...orc } as any : c));
+        } catch { /* skip */ }
+      }
+    };
+    assignNumbers();
+  }, [localClients.length]);
+
   // Realtime: listen for new leads sent to the current user
   useEffect(() => {
     const userName = currentUser?.nome_completo;
@@ -181,6 +201,47 @@ export function ClientsKanban({
 
     return () => { supabase.removeChannel(channel); };
   }, [currentUser?.nome_completo]);
+
+  // Realtime: notify admin/manager on new clients and status changes
+  useEffect(() => {
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    const isAdminOrManager = cargoNome.includes("administrador") || cargoNome.includes("gerente");
+    if (!isAdminOrManager) return;
+
+    const channel = supabase
+      .channel("kanban-admin-notifications")
+      .on("postgres_changes" as any, {
+        event: "INSERT",
+        schema: "public",
+        table: "clients",
+        filter: `tenant_id=eq.${tenantId}`,
+      }, (payload: any) => {
+        const c = payload.new;
+        playNotificationSound();
+        toast.info(`🆕 Novo cliente: ${c.nome || "Sem nome"}`, {
+          description: `Origem: ${c.origem_lead || "manual"} — Vendedor: ${c.vendedor || "não atribuído"}`,
+          duration: 8000,
+        });
+      })
+      .on("postgres_changes" as any, {
+        event: "UPDATE",
+        schema: "public",
+        table: "clients",
+        filter: `tenant_id=eq.${tenantId}`,
+      }, (payload: any) => {
+        const oldStatus = (payload.old as any)?.status;
+        const newStatus = (payload.new as any)?.status;
+        const nome = (payload.new as any)?.nome || "Cliente";
+        if (oldStatus && newStatus && oldStatus !== newStatus) {
+          const colLabel = KANBAN_COLUMNS.find(c => c.id === newStatus)?.label || newStatus;
+          toast.info(`📋 ${nome} movido para "${colLabel}"`, { duration: 5000 });
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [cargoNome]);
 
   // Date filter computation
   const effectiveDates = useMemo(() => {
