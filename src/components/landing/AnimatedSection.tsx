@@ -1,5 +1,5 @@
 import { motion, type Variants } from "framer-motion";
-import { type ReactNode } from "react";
+import { type ReactNode, forwardRef } from "react";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
