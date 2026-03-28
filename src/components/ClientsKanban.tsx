@@ -119,6 +119,39 @@ export function ClientsKanban({
     fetchFollowUpStatuses();
   }, [localClients]);
 
+  // Auto-move: expired clients without updates in 2+ days → perdidos
+  useEffect(() => {
+    const tenantId = getTenantId();
+    if (!tenantId || localClients.length === 0) return;
+
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const staleExpired = localClients.filter(c => {
+      const status = (c as any).status;
+      if (status !== "expirado") return false;
+      const updatedAt = new Date(c.updated_at);
+      return updatedAt < twoDaysAgo;
+    });
+
+    if (staleExpired.length === 0) return;
+
+    const moveToLost = async () => {
+      const ids = staleExpired.map(c => c.id);
+      const { error } = await supabase
+        .from("clients")
+        .update({ status: "perdido" } as any)
+        .in("id", ids);
+      if (!error) {
+        setLocalClients(prev =>
+          prev.map(c => ids.includes(c.id) ? { ...c, status: "perdido" } as any : c)
+        );
+        if (ids.length > 0) {
+          console.log(`[Kanban] Auto-moved ${ids.length} expired client(s) to 'perdido' (no update in 2+ days)`);
+        }
+      }
+    };
+    moveToLost();
+  }, [localClients.length]);
+
   // Fetch client_contracts to detect clients with actual issued contracts
   // and auto-sync their status to "fechado" in the database
   useEffect(() => {
