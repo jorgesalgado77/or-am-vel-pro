@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2, Loader2 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
@@ -48,6 +49,8 @@ export function MeasurementRequestModal({
   const [environments, setEnvironments] = useState<EnvironmentData[]>([]);
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [envImages, setEnvImages] = useState<Record<string, File[]>>({});
+  const [envImagePreviews, setEnvImagePreviews] = useState<Record<string, string[]>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
@@ -267,14 +270,54 @@ export function MeasurementRequestModal({
     if (validFiles.length !== files.length) {
       toast.error("Apenas imagens (PNG, JPG, WebP) e PDF são permitidos");
     }
+
+    // Simulate progress
+    setUploadProgress(prev => ({ ...prev, [envId]: 0 }));
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 30 + 10;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        setTimeout(() => setUploadProgress(prev => {
+          const next = { ...prev };
+          delete next[envId];
+          return next;
+        }), 500);
+      }
+      setUploadProgress(prev => ({ ...prev, [envId]: Math.min(progress, 100) }));
+    }, 150);
+
+    // Generate preview URLs
+    const newPreviews: string[] = [];
+    for (const file of validFiles) {
+      if (file.type.startsWith("image/")) {
+        newPreviews.push(URL.createObjectURL(file));
+      } else {
+        newPreviews.push(""); // no preview for PDFs
+      }
+    }
+
     setEnvImages(prev => ({
       ...prev,
       [envId]: [...(prev[envId] || []), ...validFiles],
     }));
+    setEnvImagePreviews(prev => ({
+      ...prev,
+      [envId]: [...(prev[envId] || []), ...newPreviews],
+    }));
   };
 
   const removeImage = (envId: string, index: number) => {
+    // Revoke URL to prevent memory leak
+    const previews = envImagePreviews[envId] || [];
+    if (previews[index]) URL.revokeObjectURL(previews[index]);
+
     setEnvImages(prev => ({
+      ...prev,
+      [envId]: (prev[envId] || []).filter((_, i) => i !== index),
+    }));
+    setEnvImagePreviews(prev => ({
       ...prev,
       [envId]: (prev[envId] || []).filter((_, i) => i !== index),
     }));
