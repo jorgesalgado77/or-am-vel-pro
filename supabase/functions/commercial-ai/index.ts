@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type AiProvider = "lovable" | "openai";
+type AiProvider = "openai" | "perplexity";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -22,16 +22,20 @@ async function getAvailableProviders(adminClient: ReturnType<typeof createClient
     .eq("tenant_id", tenantId)
     .eq("is_active", true);
 
-  // Check tenant-level OpenAI key first, then fallback to env var
   const openaiKey = (data || []).find((item: any) => item.provider === "openai")?.api_key 
     || Deno.env.get("OPENAI_API_KEY") 
     || null;
 
+  const perplexityKey = (data || []).find((item: any) => item.provider === "perplexity")?.api_key
+    || Deno.env.get("PERPLEXITY_API_KEY")
+    || null;
+
   return {
     openaiKey,
+    perplexityKey,
     availableProviders: [
-      { value: "lovable", label: "Lovable AI", active: Boolean(Deno.env.get("LOVABLE_API_KEY")) },
       { value: "openai", label: "OpenAI", active: Boolean(openaiKey) },
+      { value: "perplexity", label: "Perplexity", active: Boolean(perplexityKey) },
     ].filter((item) => item.active),
   };
 }
@@ -48,10 +52,10 @@ serve(async (req) => {
 
     if (!tenant_id) return jsonResponse({ error: "tenant_id obrigatório" }, 400);
 
-    const { openaiKey, availableProviders } = await getAvailableProviders(adminClient, tenant_id);
+    const { openaiKey, perplexityKey, availableProviders } = await getAvailableProviders(adminClient, tenant_id);
 
     if (action === "get_available_providers") {
-      return jsonResponse({ providers: availableProviders, default_provider: openaiKey ? "openai" : "lovable" });
+      return jsonResponse({ providers: availableProviders, default_provider: openaiKey ? "openai" : perplexityKey ? "perplexity" : null });
     }
 
     if (action === "check_alerts") {
@@ -102,12 +106,18 @@ serve(async (req) => {
       return jsonResponse({ success: true, alerts, providers: availableProviders, connected: availableProviders.length > 0 });
     }
 
-    const selectedProvider: AiProvider = preferred_provider === "openai" && openaiKey ? "openai" : "lovable";
-    const apiKey = selectedProvider === "openai" ? openaiKey : Deno.env.get("LOVABLE_API_KEY");
-
-    if (!apiKey) {
-      return jsonResponse({ error: "Nenhuma IA ativa disponível para este tenant.", providers: availableProviders }, 500);
+    let selectedProvider: AiProvider;
+    if (preferred_provider === "perplexity" && perplexityKey) {
+      selectedProvider = "perplexity";
+    } else if (openaiKey) {
+      selectedProvider = "openai";
+    } else if (perplexityKey) {
+      selectedProvider = "perplexity";
+    } else {
+      return jsonResponse({ error: "Nenhuma IA configurada. Adicione sua chave OpenAI ou Perplexity em Configurações > APIs.", providers: availableProviders }, 500);
     }
+
+    const apiKey = selectedProvider === "openai" ? openaiKey : perplexityKey;
 
     const systemPrompt = `Você é a IA Gerente Comercial do OrçaMóvel PRO.
 
@@ -127,37 +137,20 @@ Regras:
 - Baseie-se sempre nos dados fornecidos
 - Sugira ações específicas e mensuráveis`;
 
-    if (selectedProvider === "openai") {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [{ role: "system", content: systemPrompt }, ...(messages || [])],
-          stream: true,
-        }),
-      });
+    const aiUrl = selectedProvider === "openai"
+      ? "https://api.openai.com/v1/chat/completions"
+      : "https://api.perplexity.ai/chat/completions";
 
-      if (!response.ok) {
-        const text = await response.text();
-        console.error("commercial-ai openai error:", response.status, text);
-        return jsonResponse({ error: "Erro ao conectar com OpenAI", provider: selectedProvider, providers: availableProviders }, response.status >= 400 && response.status < 600 ? response.status : 500);
-      }
+    const aiModel = selectedProvider === "openai" ? "gpt-4o-mini" : "sonar";
 
-      return new Response(response.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
-    }
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(aiUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: aiModel,
         messages: [{ role: "system", content: systemPrompt }, ...(messages || [])],
         stream: true,
       }),
@@ -165,11 +158,9 @@ Regras:
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("commercial-ai lovable error:", response.status, text);
+      console.error(`commercial-ai ${selectedProvider} error:`, response.status, text);
       const errorMessage = response.status === 429
         ? "Limite de requisições excedido."
-        : response.status === 402
-        ? "Créditos de IA esgotados."
         : "Erro ao conectar com a IA.";
       return jsonResponse({ error: errorMessage, provider: selectedProvider, providers: availableProviders }, response.status >= 400 && response.status < 600 ? response.status : 500);
     }

@@ -47,7 +47,7 @@ async function streamChat(opts: {
   tenantId: string;
   messages: ChatMsg[];
   metricsSummary: string;
-  preferredProvider?: "lovable" | "openai";
+  preferredProvider?: "openai" | "perplexity";
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (msg: string) => void;
@@ -128,8 +128,8 @@ export function CommercialAIPanel() {
   const [chatInput, setChatInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [aiConnected, setAiConnected] = useState(false);
-  const [availableProviders, setAvailableProviders] = useState<Array<{ value: "lovable" | "openai"; label: string }>>([]);
-  const [preferredProvider, setPreferredProvider] = useState<"lovable" | "openai">("lovable");
+  const [availableProviders, setAvailableProviders] = useState<Array<{ value: "openai" | "perplexity"; label: string }>>([]);
+  const [preferredProvider, setPreferredProvider] = useState<"openai" | "perplexity">("openai");
   const scrollRef = useRef<HTMLDivElement>(null);
   const pushChecked = useRef(false);
 
@@ -137,7 +137,7 @@ export function CommercialAIPanel() {
     if (!tenantId) return;
     const storageKey = `commercial_ai_provider_${tenantId}`;
     const saved = localStorage.getItem(storageKey);
-    if (saved === "openai" || saved === "lovable") setPreferredProvider(saved);
+    if (saved === "openai" || saved === "perplexity") setPreferredProvider(saved);
 
     (async () => {
       const { data, error } = await supabase.functions.invoke("commercial-ai", {
@@ -148,7 +148,7 @@ export function CommercialAIPanel() {
         setAiConnected(data.providers.length > 0);
         const nextProvider = saved && data.providers.some((p: any) => p.value === saved)
           ? saved
-          : (data.default_provider || data.providers[0]?.value || "lovable");
+          : (data.default_provider || data.providers[0]?.value || "openai");
         setPreferredProvider(nextProvider);
         localStorage.setItem(storageKey, nextProvider);
       } else {

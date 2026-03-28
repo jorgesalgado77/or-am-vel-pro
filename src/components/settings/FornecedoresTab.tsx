@@ -1,5 +1,5 @@
 /**
- * Fornecedor Planejados Settings Tab — CRUD for supplier registration
+ * Fornecedor Planejados Settings Tab — CRUD for supplier registration (Planejados)
  */
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
