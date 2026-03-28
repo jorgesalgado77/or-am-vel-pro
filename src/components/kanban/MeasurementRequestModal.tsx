@@ -452,6 +452,7 @@ export function MeasurementRequestModal({
     if (!open || !client?.id) return;
     let active = true;
 
+    initialLoadDoneRef.current = false;
     clearPreviewUrls();
     setEnvAttachments({});
     setUploadProgress({});
