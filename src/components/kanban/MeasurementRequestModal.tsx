@@ -745,7 +745,15 @@ export function MeasurementRequestModal({
       };
       addFooter();
 
-      // ── Render to images ──
+      return doc;
+  }, [addressForm, client, editableFields, environments, envImages, storeData, totalValorAvista, tracking.numero_contrato, observacoes]);
+
+  const generatePdfPreview = useCallback(async () => {
+    setPdfPreviewLoading(true);
+    try {
+      const doc = await buildPdfDoc();
+
+      // Render to images
       const arrayBuffer = doc.output("arraybuffer");
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const images: string[] = [];
@@ -771,7 +779,18 @@ export function MeasurementRequestModal({
     } finally {
       setPdfPreviewLoading(false);
     }
-  }, [addressForm, client, editableFields, environments, envImages, storeData, totalValorAvista, tracking.numero_contrato, observacoes]);
+  }, [buildPdfDoc]);
+
+  const downloadPdf = useCallback(async () => {
+    try {
+      const doc = await buildPdfDoc();
+      const safeName = (client.nome || "cliente").replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+      doc.save(`Solicitacao_Medida_${safeName}.pdf`);
+      toast.success("PDF baixado com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao gerar PDF", { description: err?.message });
+    }
+  }, [buildPdfDoc, client.nome]);
 
   const handleSubmit = async () => {
     if (!allEnvsHaveImages) {
