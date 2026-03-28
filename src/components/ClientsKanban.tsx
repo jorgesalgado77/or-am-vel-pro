@@ -19,7 +19,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { format, endOfDay, startOfDay, startOfMonth, subMonths, subDays, isAfter, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { KANBAN_COLUMNS, type Client, type LastSimInfo, type ClientsKanbanProps } from "./kanban/kanbanTypes";
+import { KANBAN_COLUMNS, KANBAN_ALL_COLUMNS, KANBAN_COLUMNS_COMERCIAL, KANBAN_COLUMNS_OPERACIONAL, type Client, type LastSimInfo, type ClientsKanbanProps } from "./kanban/kanbanTypes";
 import { KanbanCard } from "./kanban/KanbanCard";
 import { KanbanClientDialog } from "./kanban/KanbanClientDialog";
 import { KanbanFilters } from "./kanban/KanbanFilters";
@@ -238,7 +238,7 @@ export function ClientsKanban({
         const newStatus = (payload.new as any)?.status;
         const nome = (payload.new as any)?.nome || "Cliente";
         if (oldStatus && newStatus && oldStatus !== newStatus) {
-          const colLabel = KANBAN_COLUMNS.find(c => c.id === newStatus)?.label || newStatus;
+          const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label || newStatus;
           toast.info(`📋 ${nome} movido para "${colLabel}"`, { duration: 5000 });
         }
       })
@@ -319,10 +319,13 @@ export function ClientsKanban({
     });
   }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome]);
 
+  const isAdmin = cargoNome.includes("administrador");
+  const activeColumns = isAdmin ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
+
   // Column data — sorted by created_at descending (most recent first)
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
-    KANBAN_COLUMNS.forEach(col => { map[col.id] = []; });
+    activeColumns.forEach(col => { map[col.id] = []; });
     filtered.forEach(client => {
       let status = (client as any).status || "novo";
       // Legacy: map proposta_enviada to em_negociacao
@@ -331,12 +334,16 @@ export function ClientsKanban({
       
       // Auto-move clients with closed contracts to "fechado"
       if (contractClientIds.has(client.id)) {
-        status = "fechado";
+        // Only auto-set to fechado if not already in an operational column
+        const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
+        if (!operationalIds.includes(status)) {
+          status = "fechado";
+        }
       }
       
       // Auto-expire: if client has a simulation and it's past validity, move to expirado
       const sim = lastSims[client.id];
-      if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado") {
+      if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado" && !KANBAN_COLUMNS_OPERACIONAL.some(c => c.id === status)) {
         const isExpired = isPast(addDays(new Date(sim.created_at), settings.budget_validity_days));
         if (isExpired) status = "expirado";
       }
@@ -349,7 +356,7 @@ export function ClientsKanban({
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, activeColumns]);
 
   // Drag and drop handler
   const handleDragEnd = useCallback(async (result: DropResult) => {
@@ -370,7 +377,7 @@ export function ClientsKanban({
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
       toast.error("Erro ao mover cliente");
     } else {
-      const colLabel = KANBAN_COLUMNS.find(c => c.id === newStatus)?.label;
+      const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
       toast.success(`${client.nome} movido para "${colLabel}"`);
     }
   }, [localClients]);
@@ -387,6 +394,75 @@ export function ClientsKanban({
     setLocalClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
     setExpandedClient(updatedClient);
   }, []);
+
+  const renderColumn = (col: typeof KANBAN_COLUMNS_COMERCIAL[0]) => (
+    <div key={col.id} className="flex flex-col min-w-[170px] w-[170px] sm:min-w-[200px] sm:w-[200px] md:min-w-[220px] md:w-[220px] lg:min-w-[240px] lg:w-[240px] shrink-0">
+      <div className="flex flex-col gap-1 mb-2 px-1">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="text-sm sm:text-base">{col.icon}</span>
+          <span className="text-xs sm:text-sm font-semibold text-foreground truncate">{col.label}</span>
+          <Badge variant="outline" className="ml-auto text-[9px] sm:text-[10px] h-4 sm:h-5 px-1 sm:px-1.5">
+            {columnData[col.id]?.length || 0}
+          </Badge>
+        </div>
+        {col.id === "novo" && (columnData["novo"]?.length || 0) > 0 && (
+          <div className="flex items-center gap-1.5 pl-6 sm:pl-7">
+            {(() => {
+              const novos = columnData["novo"] || [];
+              const recentes = novos.filter(c => !(c as any).origem_lead || (c as any).origem_lead === "manual").length;
+              const leads = novos.length - recentes;
+              return (
+                <>
+                  <Badge variant="outline" className="text-[8px] sm:text-[9px] h-3.5 sm:h-4 px-1 sm:px-1.5 border-emerald-500/30 text-emerald-600 gap-0.5">
+                    <UserPlus className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{recentes}
+                  </Badge>
+                  <Badge variant="outline" className="text-[8px] sm:text-[9px] h-3.5 sm:h-4 px-1 sm:px-1.5 border-primary/30 text-primary gap-0.5">
+                    <ArrowRight className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{leads}
+                  </Badge>
+                </>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+      <div
+        className="rounded-lg border border-border/60 bg-muted/20 p-1 sm:p-1.5 flex-1 min-h-[150px] sm:min-h-[200px]"
+        style={{ borderTopColor: col.color, borderTopWidth: 3 }}
+      >
+        <Droppable droppableId={col.id}>
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={cn(
+                "space-y-1.5 sm:space-y-2 min-h-[130px] sm:min-h-[180px] rounded-md transition-colors duration-200 p-0.5 sm:p-1",
+                snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20"
+              )}
+            >
+              {(columnData[col.id] || []).map((client, index) => (
+                <KanbanCard
+                  key={client.id}
+                  client={client}
+                  index={index}
+                  sim={lastSims[client.id]}
+                  budgetValidityDays={settings.budget_validity_days}
+                  cargoNome={cargoNome}
+                  followUpStatus={followUpStatus[client.id]}
+                  onClick={setExpandedClient}
+                  onQuickDelete={canDelete ? (c) => {
+                    if (window.confirm(`Excluir o lead "${c.nome}"? Esta ação não pode ser desfeita.`)) {
+                      onDelete(c.id);
+                    }
+                  } : undefined}
+                />
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -452,75 +528,24 @@ export function ClientsKanban({
         <DragDropContext onDragEnd={handleDragEnd}>
           <ScrollableContainer direction="horizontal" className="flex-1 min-h-0 pb-4">
             <div className="flex gap-2 sm:gap-3 min-w-max">
-              {KANBAN_COLUMNS.map(col => (
-                <div key={col.id} className="flex flex-col min-w-[170px] w-[170px] sm:min-w-[200px] sm:w-[200px] md:min-w-[220px] md:w-[220px] lg:min-w-[240px] lg:w-[240px] shrink-0">
-                  {/* Column header */}
-                  <div className="flex flex-col gap-1 mb-2 px-1">
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <span className="text-sm sm:text-base">{col.icon}</span>
-                      <span className="text-xs sm:text-sm font-semibold text-foreground truncate">{col.label}</span>
-                      <Badge variant="outline" className="ml-auto text-[9px] sm:text-[10px] h-4 sm:h-5 px-1 sm:px-1.5">
-                        {columnData[col.id]?.length || 0}
-                      </Badge>
-                    </div>
-                    {col.id === "novo" && (columnData["novo"]?.length || 0) > 0 && (
-                      <div className="flex items-center gap-1.5 pl-6 sm:pl-7">
-                        {(() => {
-                          const novos = columnData["novo"] || [];
-                          const recentes = novos.filter(c => !(c as any).origem_lead || (c as any).origem_lead === "manual").length;
-                          const leads = novos.length - recentes;
-                          return (
-                            <>
-                              <Badge variant="outline" className="text-[8px] sm:text-[9px] h-3.5 sm:h-4 px-1 sm:px-1.5 border-emerald-500/30 text-emerald-600 gap-0.5">
-                                <UserPlus className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{recentes}
-                              </Badge>
-                              <Badge variant="outline" className="text-[8px] sm:text-[9px] h-3.5 sm:h-4 px-1 sm:px-1.5 border-primary/30 text-primary gap-0.5">
-                                <ArrowRight className="h-2 w-2 sm:h-2.5 sm:w-2.5" />{leads}
-                              </Badge>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    className="rounded-lg border border-border/60 bg-muted/20 p-1 sm:p-1.5 flex-1 min-h-[150px] sm:min-h-[200px]"
-                    style={{ borderTopColor: col.color, borderTopWidth: 3 }}
-                  >
-                    <Droppable droppableId={col.id}>
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={cn(
-                            "space-y-1.5 sm:space-y-2 min-h-[130px] sm:min-h-[180px] rounded-md transition-colors duration-200 p-0.5 sm:p-1",
-                            snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20"
-                          )}
-                        >
-                          {(columnData[col.id] || []).map((client, index) => (
-                            <KanbanCard
-                              key={client.id}
-                              client={client}
-                              index={index}
-                              sim={lastSims[client.id]}
-                              budgetValidityDays={settings.budget_validity_days}
-                              cargoNome={cargoNome}
-                              followUpStatus={followUpStatus[client.id]}
-                              onClick={setExpandedClient}
-                              onQuickDelete={canDelete ? (c) => {
-                                if (window.confirm(`Excluir o lead "${c.nome}"? Esta ação não pode ser desfeita.`)) {
-                                  onDelete(c.id);
-                                }
-                              } : undefined}
-                            />
-                          ))}
-                          {provided.placeholder}
-                        </div>
-                      )}
-                    </Droppable>
-                  </div>
+              {/* Comercial section */}
+              {isAdmin && (
+                <div className="flex items-center self-start">
+                  <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180 mr-1">Comercial</span>
                 </div>
-              ))}
+              )}
+              {KANBAN_COLUMNS_COMERCIAL.map(col => renderColumn(col))}
+
+              {/* Operacional section — admin only */}
+              {isAdmin && (
+                <>
+                  <div className="flex items-center self-start">
+                    <div className="w-px h-full bg-border/60 mx-1" />
+                    <span className="text-[10px] font-bold text-accent-foreground/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180 mr-1">Operacional</span>
+                  </div>
+                  {KANBAN_COLUMNS_OPERACIONAL.map(col => renderColumn(col))}
+                </>
+              )}
             </div>
           </ScrollableContainer>
         </DragDropContext>
