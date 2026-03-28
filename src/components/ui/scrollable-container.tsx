@@ -153,13 +153,27 @@ export function ScrollableContainer({
       <div
         ref={scrollRef}
         className={cn(
-          "w-full",
+          "w-full scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-transparent",
           isHoriz && "overflow-x-auto",
           isVert && "overflow-y-auto",
         )}
-        style={{ maxHeight }}
+        style={{ maxHeight, scrollbarWidth: "thin" }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onMouseMove={(e) => {
+          // Auto-scroll when dragging near edges (for drag-and-drop)
+          if (!isHoriz || e.buttons === 0) return;
+          const el = scrollRef.current;
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const edgeZone = 60;
+          const speed = 8;
+          if (e.clientX - rect.left < edgeZone) {
+            el.scrollLeft -= speed;
+          } else if (rect.right - e.clientX < edgeZone) {
+            el.scrollLeft += speed;
+          }
+        }}
       >
         {children}
       </div>
