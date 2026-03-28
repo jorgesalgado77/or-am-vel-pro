@@ -1558,6 +1558,35 @@ export function MeasurementRequestModal({
                 onChange={e => setObservacoes(e.target.value)}
               />
             </div>
+
+            {Object.values(envAttachments).flat().filter((attachment) => attachment.kind === "image").length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold">Imagens anexadas à solicitação</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {Object.entries(envAttachments).flatMap(([envId, attachments]) =>
+                    attachments
+                      .filter((attachment) => attachment.kind === "image")
+                      .map((attachment) => {
+                        const env = environments.find((item) => item.id === envId);
+                        const preview = attachment.thumbnailUrl || attachment.previewUrl || attachment.sourceUrl;
+                        if (!preview) return null;
+                        return (
+                          <div key={`gallery-${attachment.id}`} className="space-y-1 rounded-lg border border-border bg-card p-2">
+                            <img
+                              src={preview}
+                              alt={attachment.name}
+                              className="h-28 w-full rounded-md object-cover"
+                              loading="lazy"
+                            />
+                            <p className="text-[10px] font-medium truncate">{env?.name || "Ambiente"}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{attachment.name}</p>
+                          </div>
+                        );
+                      }),
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
