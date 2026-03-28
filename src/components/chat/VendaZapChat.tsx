@@ -514,34 +514,15 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       }
 
       try {
-        // Create client
-        const { data: createdClient, error: clientError } = await supabase
+        // Check if client already exists — do NOT auto-create a lead
+        let clientId: string | null = null;
+        const { data: existing } = await supabase
           .from("clients")
-          .insert({
-            tenant_id: tenantId,
-            nome: clientName,
-            telefone1: normalizedPhone,
-            numero_orcamento: contractNumber,
-            status: "em_negociacao",
-          } as any)
           .select("id")
-          .maybeSingle();
-
-        let clientId = createdClient?.id;
-        if (clientError || !clientId) {
-          const { data: existing } = await supabase
-            .from("clients")
-            .select("id")
-            .eq("tenant_id", tenantId)
-            .eq("numero_orcamento", contractNumber)
-            .limit(1);
-          clientId = ((existing as any[]) || [])[0]?.id;
-        }
-
-        if (!clientId) {
-          toast.error("Erro ao criar contato");
-          return;
-        }
+          .eq("tenant_id", tenantId)
+          .eq("numero_orcamento", contractNumber)
+          .limit(1);
+        clientId = ((existing as any[]) || [])[0]?.id || null;
 
         // Create tracking
         const { data: tracking, error: trackErr } = await supabase
