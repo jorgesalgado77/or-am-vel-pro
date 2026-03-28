@@ -41,10 +41,37 @@ export const FORMAS_PAGAMENTO_LABELS: Record<string, string> = {
 
 /**
  * Generates the next sequential budget (orçamento) number.
- * Format: CCC.CCC.SSS.SS where CCC.CCC is the store code (immutable)
- * and SSS.SS is the sequential part (00001–99999).
- * When SSS reaches 999, SS increments: 000.01 → 001.01 → ... → 999.01 → 000.02 ...
+ * Format: CCC.CCC.SSS.GG where CCC.CCC is the store code (immutable),
+ * SSS increments 000–999, and GG only increments when SSS wraps from 999→000.
+ * Example: 487.559.101.26 → 487.559.102.26 → ... → 487.559.999.26 → 487.559.000.27
+ * 
+ * Internal seq = GG * 1000 + SSS (e.g., 101.26 = 26*1000+101 = 26101)
  */
+export function formatOrcamentoFromSeq(storeCode: string, seq: number): string {
+  const sss = seq % 1000;
+  const gg = Math.floor(seq / 1000);
+  const sssPad = String(sss).padStart(3, "0");
+  const ggPad = String(gg).padStart(2, "0");
+  return `${storeCode.slice(0, 3)}.${storeCode.slice(3, 6)}.${sssPad}.${ggPad}`;
+}
+
+export function parseOrcamentoInitial(value: number | string | null | undefined): number {
+  if (!value) return 26101; // default: 101.26
+  const str = String(value).replace(/\D/g, "");
+  if (str.length <= 2) {
+    // Just a GG value like "26" → start at GG*1000 + 1
+    return parseInt(str) * 1000 + 1;
+  }
+  if (str.length <= 5) {
+    // Raw seq number
+    return parseInt(str) || 26101;
+  }
+  // Full format like "10126" → GG=26, SSS=101 → 26*1000+101
+  const gg = parseInt(str.slice(-2));
+  const sss = parseInt(str.slice(0, -2));
+  return gg * 1000 + sss;
+}
+
 export async function generateOrcamentoNumber(tenantId?: string | null): Promise<{
   numero_orcamento: string;
   numero_orcamento_seq: number;
@@ -70,14 +97,12 @@ export async function generateOrcamentoNumber(tenantId?: string | null): Promise
 
   let nextSeq: number;
   if (!maxData?.numero_orcamento_seq) {
-    nextSeq = settingsData?.orcamento_numero_inicial || 1;
+    nextSeq = parseOrcamentoInitial(settingsData?.orcamento_numero_inicial);
   } else {
     nextSeq = (maxData.numero_orcamento_seq as number) + 1;
   }
 
-  // 3. Format: storeCode (6 digits) + sequential (5 digits) = CCC.CCC.SSS.SS
-  const seqPadded = String(nextSeq).padStart(5, "0").slice(-5);
-  const formatted = `${storeCode.slice(0, 3)}.${storeCode.slice(3, 6)}.${seqPadded.slice(0, 3)}.${seqPadded.slice(3, 5)}`;
+  const formatted = formatOrcamentoFromSeq(storeCode, nextSeq);
   return { numero_orcamento: formatted, numero_orcamento_seq: nextSeq };
 }
 
