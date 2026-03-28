@@ -241,7 +241,7 @@ export function useOnboardingAI(tenantId: string | null) {
       const title = content.split(":").slice(1).join(":").trim() || content.replace(/(criar|agendar) tarefa/gi, "").trim() || "Tarefa criada pela Mia";
       const { data: userData } = await (supabase as any).from("usuarios").select("id, nome_completo").eq("id", currentUserId).maybeSingle();
       const today = new Date().toISOString().slice(0, 10);
-      const { error } = await (supabase as any).from("tasks").insert({
+      const taskPayload: Record<string, any> = {
         tenant_id: tenantId,
         titulo: title,
         descricao: `Criada pela Mia a partir da conversa: ${content}`,
@@ -251,11 +251,28 @@ export function useOnboardingAI(tenantId: string | null) {
         responsavel_id: currentUserId,
         responsavel_nome: userData?.nome_completo || null,
         criado_por: currentUserId,
-      });
+      };
+      const { error } = await (supabase as any).from("tasks").insert(taskPayload);
+
+      // If it failed, retry without optional fields
+      let retryError = error;
+      if (error) {
+        console.error("[Mia] Task insert error:", JSON.stringify(error));
+        const { error: e2 } = await (supabase as any).from("tasks").insert({
+          tenant_id: tenantId,
+          titulo: title,
+          descricao: taskPayload.descricao,
+          status: "nova",
+          tipo: "geral",
+          responsavel_id: currentUserId,
+        });
+        retryError = e2;
+        if (e2) console.error("[Mia] Task retry error:", JSON.stringify(e2));
+      }
 
       appendAssistant(
-        error
-          ? "❌ Não consegui criar a tarefa agora."
+        retryError
+          ? `❌ Não consegui criar a tarefa: ${retryError.message || "Verifique permissões"}`
           : `✅ **Tarefa criada com sucesso**\n\n• ${title}\n• Data: hoje\n• Responsável: ${userData?.nome_completo || "usuário atual"}`
       );
       return true;
@@ -332,12 +349,19 @@ export function useOnboardingAI(tenantId: string | null) {
     if (/contas a vencer|contas vencidas|alerta financeiro|financeiro/.test(lower)) {
       const today = new Date().toISOString().slice(0, 10);
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const { data } = await (supabase as any)
+      const { data, error: finError } = await (supabase as any)
         .from("financial_accounts")
         .select("name, amount, due_date, status")
         .eq("tenant_id", tenantId)
         .neq("status", "pago")
         .order("due_date", { ascending: true })
+        .limit(30);
+
+      if (finError) {
+        console.error("[Mia] Financial query error:", JSON.stringify(finError));
+        appendAssistant(`❌ Erro ao consultar contas: ${finError.message || "Tabela não encontrada"}. Verifique se o módulo financeiro está configurado.`);
+        return true;
+      }
         .limit(20);
 
       const accounts = (data as any[]) || [];
