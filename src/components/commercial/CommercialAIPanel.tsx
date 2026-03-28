@@ -540,7 +540,7 @@ export function CommercialAIPanel() {
                 </div>
               </CardTitle>
             </CardHeader>
-            <ScrollArea className="flex-1 p-4" ref={scrollRef as any}>
+            <ScrollArea className="flex-1 p-4">
               <div className="space-y-3">
                 {chatMessages.map((msg, i) => (
                   <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
