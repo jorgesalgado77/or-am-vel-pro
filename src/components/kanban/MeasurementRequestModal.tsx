@@ -728,6 +728,7 @@ export function MeasurementRequestModal({
       );
       setEnvAttachments(Object.fromEntries(attachmentEntries.filter(([, attachments]) => attachments.length > 0)));
       setObservacoes(latestRequest?.observacoes || "");
+      initialLoadDoneRef.current = true;
 
       if (latestRequest) {
         hydrateClientState({ ...(client as any), ...(latestRequest as Record<string, any>) });
