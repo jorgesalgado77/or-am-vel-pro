@@ -505,9 +505,11 @@ export function useOnboardingAI(tenantId: string | null) {
     if (!tenantId) return false;
     const lower = content.toLowerCase();
     const currentUserId = localStorage.getItem("current_user_id");
+    const currentTaskWizard = taskWizardRef.current;
+    const currentEmailWizard = emailWizardRef.current;
 
     // === Task wizard steps (priority — intercept all input while active) ===
-    if (taskWizard.active) {
+    if (currentTaskWizard.active) {
       // Cancel command
       if (/cancelar|sair|parar|desistir/i.test(lower)) {
         setTaskWizard(INITIAL_WIZARD);
