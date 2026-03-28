@@ -1,5 +1,5 @@
 import { motion, type Variants } from "framer-motion";
-import { type ReactNode } from "react";
+import { type ReactNode, forwardRef } from "react";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -45,20 +45,23 @@ interface AnimatedSectionProps {
 
 const variantMap = { fadeUp, fadeIn, scaleUp, slideLeft, slideRight };
 
-export function AnimatedSection({ children, className, variant = "fadeUp", delay = 0 }: AnimatedSectionProps) {
-  return (
-    <motion.div
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: "-80px" }}
-      variants={variantMap[variant]}
-      transition={{ duration: 0.6, ease: "easeOut", delay }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-}
+export const AnimatedSection = forwardRef<HTMLDivElement, AnimatedSectionProps>(
+  function AnimatedSection({ children, className, variant = "fadeUp", delay = 0 }, ref) {
+    return (
+      <motion.div
+        ref={ref}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-80px" }}
+        variants={variantMap[variant]}
+        transition={{ duration: 0.6, ease: "easeOut", delay }}
+        className={className}
+      >
+        {children}
+      </motion.div>
+    );
+  }
+);
 
 export function StaggerContainer({ children, className }: { children: ReactNode; className?: string }) {
   return (

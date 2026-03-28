@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 
@@ -7,7 +8,8 @@ interface LandingCTAProps {
   secondaryColor: string;
 }
 
-export function LandingCTA({ text, primaryColor, secondaryColor }: LandingCTAProps) {
+export const LandingCTA = forwardRef<HTMLElement, LandingCTAProps>(
+  function LandingCTA({ text, primaryColor, secondaryColor }, ref) {
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
@@ -28,4 +30,4 @@ export function LandingCTA({ text, primaryColor, secondaryColor }: LandingCTAPro
       </div>
     </section>
   );
-}
+});
