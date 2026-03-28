@@ -26,10 +26,11 @@ export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete 
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
-            "rounded-lg border shadow-sm transition-all cursor-pointer group",
-            "hover:shadow-md active:scale-[0.98]",
+            "rounded-lg border shadow-sm cursor-pointer group",
+            "transition-all duration-300 ease-in-out",
+            "hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]",
             col?.cardBg || "bg-card",
-            snapshot.isDragging && "shadow-lg ring-2 ring-primary/40 scale-[1.02]",
+            snapshot.isDragging && "shadow-xl ring-2 ring-primary/40 scale-[1.03] rotate-[1deg] z-50",
           )}
           style={provided.draggableProps.style}
           onClick={() => onClick(task)}
