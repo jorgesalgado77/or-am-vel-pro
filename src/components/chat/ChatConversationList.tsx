@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users } from "lucide-react";
+import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import { format } from "date-fns";
@@ -91,6 +91,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
   const [isListOpen, setIsListOpen] = useState(!selectedId);
+  const [isWaListOpen, setIsWaListOpen] = useState(false);
 
   const vendedorCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -128,6 +129,10 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
     }
     return result;
   }, [conversations, search, tempFilter, vendedorFilter, unreadOnly, dateFilter]);
+
+  // Split into system clients vs WhatsApp imported contacts
+  const systemClients = useMemo(() => filtered.filter(c => !c.numero_contrato?.startsWith("WA-")), [filtered]);
+  const waContacts = useMemo(() => filtered.filter(c => c.numero_contrato?.startsWith("WA-")), [filtered]);
 
   const clearFilters = () => {
     setTempFilter("all");
@@ -317,15 +322,14 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
       )}
 
       {/* Collapsible Client List */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-y-auto flex flex-col">
+        {/* System Clients */}
         <Collapsible open={isListOpen} onOpenChange={setIsListOpen}>
           <CollapsibleTrigger asChild>
             <button className="w-full flex items-center justify-between px-3 py-2 bg-muted/30 border-b border-border hover:bg-muted/50 transition-colors">
               <div className="flex items-center gap-2">
                 <Users className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs font-semibold text-foreground">
-                  {selectedConv ? selectedConv.nome_cliente : "Selecionar Cliente"}
-                </span>
+                <span className="text-xs font-semibold text-foreground">Clientes da Loja</span>
                 {totalUnread > 0 && (
                   <Badge variant="destructive" className="text-[9px] h-4 min-w-[16px] px-1">
                     {totalUnread}
@@ -333,49 +337,58 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                 )}
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-muted-foreground">{filtered.length} cliente{filtered.length !== 1 ? "s" : ""}</span>
+                <span className="text-[10px] text-muted-foreground">{systemClients.length}</span>
                 {isListOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
               </div>
             </button>
           </CollapsibleTrigger>
-
-          <CollapsibleContent className="flex-1 overflow-hidden">
-            {/* Search inside collapsible */}
+          <CollapsibleContent>
             <div className="px-3 py-2 border-b border-border/50">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar cliente..."
-                  className="pl-8 h-8 text-sm"
-                />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cliente..." className="pl-8 h-8 text-sm" />
               </div>
             </div>
-
-            <ScrollArea className="flex-1" style={{ maxHeight: "calc(100vh - 340px)" }}>
+            <div className="max-h-[35vh] overflow-y-auto">
               {loading ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">Carregando...</div>
-              ) : filtered.length === 0 ? (
+              ) : systemClients.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">
                   {search || hasActiveFilter ? "Nenhum resultado" : "Nenhuma conversa"}
                 </div>
               ) : (
-                filtered.map((conv) => (
-                  <ConversationItem
-                    key={conv.id}
-                    conv={conv}
-                    isSelected={selectedId === conv.id}
-                    onSelect={(c) => {
-                      onSelect(c);
-                      setIsListOpen(false); // Collapse after selection
-                    }}
-                  />
+                systemClients.map((conv) => (
+                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsListOpen(false); }} />
                 ))
               )}
-            </ScrollArea>
+            </div>
           </CollapsibleContent>
         </Collapsible>
+
+        {/* WhatsApp Imported Contacts */}
+        {waContacts.length > 0 && (
+          <Collapsible open={isWaListOpen} onOpenChange={setIsWaListOpen}>
+            <CollapsibleTrigger asChild>
+              <button className="w-full flex items-center justify-between px-3 py-2 bg-emerald-500/5 border-b border-border hover:bg-emerald-500/10 transition-colors">
+                <div className="flex items-center gap-2">
+                  <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-xs font-semibold text-foreground">Contatos WhatsApp</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground">{waContacts.length}</span>
+                  {isWaListOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                </div>
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="max-h-[35vh] overflow-y-auto">
+                {waContacts.map((conv) => (
+                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsWaListOpen(false); }} />
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </div>
     </div>
   );
