@@ -1,5 +1,6 @@
 /**
  * Individual Kanban card rendered inside a Draggable.
+ * Card background tinted to match its column color.
  */
 import { memo } from "react";
 import { differenceInDays } from "date-fns";
@@ -11,6 +12,7 @@ import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat,
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
+import { KANBAN_ALL_COLUMNS } from "./kanbanTypes";
 import type { Client, LastSimInfo } from "./kanbanTypes";
 
 interface KanbanCardProps {
@@ -24,17 +26,47 @@ interface KanbanCardProps {
   onQuickDelete?: (client: Client) => void;
 }
 
+/** Map column id to card tint styles (border-left + subtle bg) */
+function getColumnTint(status: string): { borderColor: string; bgClass: string } {
+  const col = KANBAN_ALL_COLUMNS.find(c => c.id === status);
+  if (!col) return { borderColor: "hsl(var(--primary))", bgClass: "" };
+
+  switch (status) {
+    case "novo":
+      return { borderColor: col.color, bgClass: "bg-primary/5 dark:bg-primary/10" };
+    case "em_negociacao":
+      return { borderColor: col.color, bgClass: "bg-[hsl(270_70%_55%/0.06)] dark:bg-[hsl(270_70%_55%/0.12)]" };
+    case "expirado":
+      return { borderColor: col.color, bgClass: "bg-warning/5 dark:bg-warning/10" };
+    case "fechado":
+      return { borderColor: col.color, bgClass: "bg-success/5 dark:bg-success/10" };
+    case "perdido":
+      return { borderColor: col.color, bgClass: "bg-destructive/5 dark:bg-destructive/10" };
+    case "em_medicao":
+      return { borderColor: col.color, bgClass: "bg-[hsl(200_70%_50%/0.06)] dark:bg-[hsl(200_70%_50%/0.12)]" };
+    case "em_liberado":
+      return { borderColor: col.color, bgClass: "bg-[hsl(180_60%_45%/0.06)] dark:bg-[hsl(180_60%_45%/0.12)]" };
+    case "em_compras":
+      return { borderColor: col.color, bgClass: "bg-warning/5 dark:bg-warning/10" };
+    case "para_entrega":
+      return { borderColor: col.color, bgClass: "bg-primary/5 dark:bg-primary/10" };
+    case "para_montagem":
+      return { borderColor: col.color, bgClass: "bg-[hsl(280_60%_55%/0.06)] dark:bg-[hsl(280_60%_55%/0.12)]" };
+    case "assistencia":
+      return { borderColor: col.color, bgClass: "bg-warning/5 dark:bg-warning/10" };
+    case "finalizado":
+      return { borderColor: col.color, bgClass: "bg-success/5 dark:bg-success/10" };
+    default:
+      return { borderColor: col.color, bgClass: "" };
+  }
+}
+
 export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick, onQuickDelete }: KanbanCardProps) {
   const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
-  const agingColor =
-    daysInColumn <= 1 ? "hsl(142, 71%, 45%)" :
-    daysInColumn <= 3 ? "hsl(48, 96%, 53%)" :
-    daysInColumn <= 7 ? "hsl(25, 95%, 53%)" :
-    "hsl(0, 84%, 60%)";
-  const agingGlow =
-    daysInColumn > 7 ? "0 0 6px hsl(0 84% 60% / 0.3)" :
-    daysInColumn > 3 ? "0 0 4px hsl(25 95% 53% / 0.2)" : "none";
+
+  const clientStatus = (client as any).status || "novo";
+  const tint = getColumnTint(clientStatus);
 
   return (
     <Draggable key={client.id} draggableId={client.id} index={index}>
@@ -43,29 +75,30 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
-            "rounded-lg border bg-card shadow-sm transition-colors cursor-pointer group border-l-[3px] sm:border-l-[4px]",
+            "rounded-lg border shadow-sm transition-colors cursor-pointer group border-l-[3px] sm:border-l-[4px]",
+            tint.bgClass,
             "hover:shadow-md hover:border-primary/30",
             "active:scale-[0.98]",
             snapshot.isDragging && "shadow-lg ring-2 ring-primary/40 scale-[1.02]",
             expired && "border-destructive/30",
-            (client as any).status === "fechado" && "ring-2 ring-emerald-400/50 bg-emerald-50/30 dark:bg-emerald-950/20"
+            clientStatus === "fechado" && "ring-2 ring-success/50"
           )}
           style={{
             ...provided.draggableProps.style,
-            borderLeftColor: agingColor,
+            borderLeftColor: tint.borderColor,
           }}
           onClick={() => onClick(client)}
         >
           <div className="p-2 sm:p-3">
             {/* Badge de tipo na coluna Novo */}
-            {((client as any).status || "novo") === "novo" && (
+            {clientStatus === "novo" && (
               <div className="mb-1.5">
                 {(client as any).origem_lead && (client as any).origem_lead !== "manual" ? (
                   <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-primary/15 text-primary border-primary/30 gap-0.5" variant="outline">
                     <ArrowRight className="h-2.5 w-2.5" />Lead Recebido
                   </Badge>
                 ) : (
-                  <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-emerald-500/15 text-emerald-600 border-emerald-500/30 gap-0.5" variant="outline">
+                  <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-success/15 text-success border-success/30 gap-0.5" variant="outline">
                     <UserPlus className="h-2.5 w-2.5" />Cliente Loja
                   </Badge>
                 )}
@@ -76,7 +109,7 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{client.nome}</p>
                 {(client as any).telefone1 && (
                   <div className="flex items-center gap-1 mt-0.5">
-                    <Phone className="h-2.5 w-2.5 text-emerald-500" />
+                    <Phone className="h-2.5 w-2.5 text-success" />
                     <span className="text-[10px] text-muted-foreground font-mono">{(client as any).telefone1}</span>
                   </div>
                 )}
@@ -84,7 +117,6 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                   <p className="text-[11px] text-muted-foreground font-mono">
                     {(() => {
                       const orc = (client as any).numero_orcamento;
-                      // Guard: skip if it looks like a phone/WhatsApp number
                       if (!orc || /^(WA-?|55|\+?\d{10,})/i.test(orc)) return "Sem orçamento";
                       return orc;
                     })()}
@@ -106,9 +138,9 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                           variant="outline"
                           className={cn(
                             "text-[9px] h-4 px-1 font-medium gap-0.5",
-                            followUpStatus === "active" && "border-emerald-400 text-emerald-600 bg-emerald-50",
-                            followUpStatus === "paused" && "border-amber-400 text-amber-600 bg-amber-50",
-                            followUpStatus === "completed" && "border-sky-400 text-sky-600 bg-sky-50",
+                            followUpStatus === "active" && "border-success text-success bg-success/10",
+                            followUpStatus === "paused" && "border-warning text-warning bg-warning/10",
+                            followUpStatus === "completed" && "border-primary text-primary bg-primary/10",
                           )}
                         >
                           <Repeat className="h-2.5 w-2.5" />
@@ -137,9 +169,9 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                   variant="outline"
                   className={cn(
                     "text-[9px] h-4 px-1 font-medium",
-                    daysInColumn === 0 && "border-green-400 text-green-600",
-                    daysInColumn >= 1 && daysInColumn <= 3 && "border-yellow-400 text-yellow-600",
-                    daysInColumn >= 4 && daysInColumn <= 7 && "border-orange-400 text-orange-600",
+                    daysInColumn === 0 && "border-success text-success",
+                    daysInColumn >= 1 && daysInColumn <= 3 && "border-warning text-warning",
+                    daysInColumn >= 4 && daysInColumn <= 7 && "border-warning text-warning",
                     daysInColumn > 7 && "border-destructive text-destructive"
                   )}
                 >
@@ -187,10 +219,10 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 <span className="text-[10px] text-destructive font-medium">Orçamento expirado</span>
               </div>
             )}
-            {(client as any).status === "fechado" && (
+            {clientStatus === "fechado" && (
               <div className="flex items-center gap-1 mt-1.5">
-                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                <span className="text-[10px] text-emerald-600 font-semibold">✅ Contrato Fechado</span>
+                <CheckCircle2 className="h-3 w-3 text-success" />
+                <span className="text-[10px] text-success font-semibold">✅ Contrato Fechado</span>
               </div>
             )}
           </div>
