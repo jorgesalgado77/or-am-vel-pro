@@ -10,6 +10,7 @@ import { TypingIndicator } from "./TypingIndicator";
 import { TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { useQuickReplies } from "@/hooks/useQuickReplies";
+import { sendWhatsAppText, sendWhatsAppMedia } from "@/lib/whatsappSender";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
