@@ -11,6 +11,16 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Wifi, WifiOff, Loader2, Brain, Phone } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
@@ -154,6 +164,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const [showStartModal, setShowStartModal] = useState(false);
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
   const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
+  const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
@@ -503,34 +514,15 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
       }
 
       try {
-        // Create client
-        const { data: createdClient, error: clientError } = await supabase
+        // Check if client already exists — do NOT auto-create a lead
+        let clientId: string | null = null;
+        const { data: existing } = await supabase
           .from("clients")
-          .insert({
-            tenant_id: tenantId,
-            nome: clientName,
-            telefone1: normalizedPhone,
-            numero_orcamento: contractNumber,
-            status: "em_negociacao",
-          } as any)
           .select("id")
-          .maybeSingle();
-
-        let clientId = createdClient?.id;
-        if (clientError || !clientId) {
-          const { data: existing } = await supabase
-            .from("clients")
-            .select("id")
-            .eq("tenant_id", tenantId)
-            .eq("numero_orcamento", contractNumber)
-            .limit(1);
-          clientId = ((existing as any[]) || [])[0]?.id;
-        }
-
-        if (!clientId) {
-          toast.error("Erro ao criar contato");
-          return;
-        }
+          .eq("tenant_id", tenantId)
+          .eq("numero_orcamento", contractNumber)
+          .limit(1);
+        clientId = ((existing as any[]) || [])[0]?.id || null;
 
         // Create tracking
         const { data: tracking, error: trackErr } = await supabase
@@ -667,6 +659,50 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     return sendSimulatedMessage(selected.id, selected.nome_cliente, customMessage);
   }, [selected, sendSimulatedMessage]);
 
+  // Create lead from conversation (confirmation flow)
+  const handleCreateLead = useCallback(async () => {
+    const conv = pendingLeadConv || selected;
+    if (!conv || !tenantId) return;
+    try {
+      const phone = conv.phone?.replace(/\D/g, "") || "";
+      const { data: createdClient, error: clientError } = await supabase
+        .from("clients")
+        .insert({
+          tenant_id: tenantId,
+          nome: conv.nome_cliente,
+          telefone1: phone,
+          numero_orcamento: conv.numero_contrato || `WA-${phone}`,
+          status: "novo",
+          origem_lead: "CHAT DE VENDAS",
+          vendedor: currentUser?.nome_completo || null,
+        } as any)
+        .select("id")
+        .maybeSingle();
+
+      if (clientError || !createdClient?.id) {
+        toast.error("Erro ao criar lead");
+        setPendingLeadConv(null);
+        return;
+      }
+
+      // Link client to tracking
+      await supabase
+        .from("client_tracking")
+        .update({ client_id: createdClient.id } as any)
+        .eq("id", conv.id);
+
+      const updatedConv = { ...conv, client_id: createdClient.id };
+      setConversations(prev => prev.map(c => c.id === conv.id ? updatedConv : c));
+      if (selected?.id === conv.id) setSelected(updatedConv);
+
+      toast.success(`✅ Lead "${conv.nome_cliente}" criado! Origem: CHAT DE VENDAS`);
+      fetchConversations();
+    } catch (err) {
+      toast.error("Erro ao criar lead");
+    }
+    setPendingLeadConv(null);
+  }, [pendingLeadConv, selected, tenantId, currentUser, fetchConversations]);
+
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
       {/* WhatsApp Connection Status Bar */}
@@ -736,6 +772,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 conversation={selected}
                 onBack={() => { setSelected(null); setMobileAiOpen(false); clear(); fetchConversations(); }}
                 onStartDealRoom={onDealRoom ? handleDealRoom : undefined}
+                onCreateLead={!selected.client_id ? () => setPendingLeadConv(selected) : undefined}
                 inputValue={inputValue}
                 onInputChange={setInputValue}
                 userId={userId}
@@ -841,65 +878,19 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               return;
             }
 
+            // Only check if client already exists — do NOT auto-create a lead
             let clientId: string | null = null;
-
-            const { data: existingClientRows, error: existingClientError } = await supabase
+            const { data: existingClientRows } = await supabase
               .from("clients")
-              .select("id, nome, numero_orcamento")
+              .select("id")
               .eq("tenant_id", tenantId)
               .eq("numero_orcamento", contractNumber)
               .limit(1);
-
-            const existingClient = ((existingClientRows as any[]) || [])[0] || null;
-
-            if (existingClientError) {
-              console.error("client lookup error:", existingClientError);
+            if (((existingClientRows as any[]) || [])[0]?.id) {
+              clientId = ((existingClientRows as any[])[0]).id;
             }
 
-            if (existingClient?.id) {
-              clientId = existingClient.id;
-              console.log("[WA Flow] Reusing existing client:", clientId);
-            } else {
-              console.log("[WA Flow] Creating new client for:", clientName, normalizedPhone);
-              toast.loading("Criando contato...", { id: "wa-flow", duration: 3000 });
-              const { data: createdClient, error: clientError } = await supabase
-                .from("clients")
-                .insert({
-                  tenant_id: tenantId,
-                  nome: clientName,
-                  telefone1: normalizedPhone,
-                  numero_orcamento: contractNumber,
-                  status: "em_negociacao",
-                } as any)
-                .select("id")
-                .maybeSingle();
-
-              if (clientError || !createdClient?.id) {
-                console.error("[WA Flow] client insert error:", JSON.stringify(clientError));
-                toast.loading("Recuperando contato existente...", { id: "wa-flow", duration: 2000 });
-
-                const { data: recoveredClientRows, error: recoveredClientError } = await supabase
-                  .from("clients")
-                  .select("id")
-                  .eq("tenant_id", tenantId)
-                  .eq("numero_orcamento", contractNumber)
-                  .limit(1);
-
-                const recoveredClient = ((recoveredClientRows as any[]) || [])[0] || null;
-
-                if (recoveredClientError || !recoveredClient?.id) {
-                  console.error("[WA Flow] client recovery error:", JSON.stringify(recoveredClientError));
-                  toast.error(`Erro ao criar contato: ${recoveredClientError?.message || clientError?.message || "Verifique permissões RLS"}`, { id: "wa-flow" });
-                  return;
-                }
-
-                clientId = recoveredClient.id;
-              } else {
-                clientId = createdClient.id;
-              }
-            }
-
-            console.log("[WA Flow] Creating tracking for client:", clientId, contractNumber);
+            // Create tracking (conversation) only — NO lead auto-creation
             toast.loading("Criando conversa...", { id: "wa-flow", duration: 3000 });
             const { data: createdTracking, error: trackError } = await supabase
               .from("client_tracking")
@@ -914,19 +905,15 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               .maybeSingle();
 
             if (trackError || !createdTracking?.id) {
-              console.error("[WA Flow] tracking insert error:", JSON.stringify(trackError));
-              toast.loading("Recuperando conversa existente...", { id: "wa-flow", duration: 2000 });
-
-              const { data: recoveredTracking, error: recoveredTrackingError } = await supabase
+              const { data: recoveredTracking } = await supabase
                 .from("client_tracking")
                 .select("id, client_id, nome_cliente, numero_contrato")
                 .eq("tenant_id", tenantId)
                 .eq("numero_contrato", contractNumber)
                 .maybeSingle();
 
-              if (recoveredTrackingError || !recoveredTracking?.id) {
-                console.error("[WA Flow] tracking recovery error:", JSON.stringify(recoveredTrackingError));
-                toast.error(`Erro ao criar conversa: ${recoveredTrackingError?.message || trackError?.message || "Verifique permissões RLS"}`, { id: "wa-flow" });
+              if (!recoveredTracking?.id) {
+                toast.error("Erro ao criar conversa", { id: "wa-flow" });
                 return;
               }
 
@@ -936,9 +923,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 nome_cliente: recoveredTracking.nome_cliente || clientName,
                 unread_count: 0,
                 phone: normalizedPhone,
-                client_id: recoveredTracking.client_id || clientId || undefined,
+                client_id: recoveredTracking.client_id || undefined,
               };
-
               setConversations((prev) => [recoveredConv, ...prev.filter((c) => c.id !== recoveredConv.id)]);
               handleSelectConversation(recoveredConv);
               toast.success(`Conversa com ${clientName} iniciada!`, { id: "wa-flow" });
@@ -951,7 +937,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               nome_cliente: createdTracking.nome_cliente || clientName,
               unread_count: 0,
               phone: normalizedPhone,
-              client_id: createdTracking.client_id || clientId || undefined,
+              client_id: clientId || undefined,
             };
 
             setConversations((prev) => [newConv, ...prev.filter((c) => c.id !== newConv.id)]);
@@ -963,6 +949,25 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
           }
         }}
       />
+
+      {/* Lead Creation Confirmation Dialog */}
+      <AlertDialog open={!!pendingLeadConv} onOpenChange={(open) => !open && setPendingLeadConv(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Criar novo lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja criar um novo lead para <strong>{pendingLeadConv?.nome_cliente}</strong>?
+              {pendingLeadConv?.phone && <> (Tel: {pendingLeadConv.phone})</>}
+              <br />
+              O lead será adicionado na coluna <strong>&quot;Novo&quot;</strong> com origem <strong>&quot;CHAT DE VENDAS&quot;</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCreateLead}>Criar Lead</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );
