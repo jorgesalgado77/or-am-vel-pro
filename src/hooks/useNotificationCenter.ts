@@ -4,6 +4,8 @@ import { playNotificationSound } from "@/lib/notificationSound";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
 import { format } from "date-fns";
 
+const DUE_ALERTS_KEY = "scheduled_task_alerts_fired";
+
 export interface AppNotification {
   id: string;
   type: "lead" | "tarefa" | "mensagem" | "sistema";
