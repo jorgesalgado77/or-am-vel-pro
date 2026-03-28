@@ -15,6 +15,8 @@ export interface Task {
   responsavel_nome: string | null;
   criado_por: string | null;
   anexos: string[] | null;
+  google_event_id?: string | null;
+  google_calendar_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -22,10 +24,10 @@ export interface Task {
 export type TaskStatus = "nova" | "pendente" | "em_execucao" | "concluida";
 
 export const TASK_COLUMNS = [
-  { id: "nova" as TaskStatus, label: "Nova Tarefa", color: "hsl(var(--primary))", icon: "🆕", cardBg: "bg-primary/5 border-primary/20" },
-  { id: "pendente" as TaskStatus, label: "Pendente", color: "hsl(48 96% 53%)", icon: "⏳", cardBg: "bg-amber-50 dark:bg-amber-950/20 border-amber-300/40" },
-  { id: "em_execucao" as TaskStatus, label: "Em Execução", color: "hsl(220 70% 55%)", icon: "🔧", cardBg: "bg-blue-50 dark:bg-blue-950/20 border-blue-300/40" },
-  { id: "concluida" as TaskStatus, label: "Concluída", color: "hsl(142 71% 45%)", icon: "✅", cardBg: "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-300/40" },
+  { id: "nova" as TaskStatus, label: "Nova Tarefa", icon: "🆕", colBg: "bg-blue-500/10 border-blue-500/30", cardBg: "bg-blue-500/10 border-blue-400/30 hover:border-blue-400/50" },
+  { id: "pendente" as TaskStatus, label: "Pendente", icon: "⏳", colBg: "bg-red-500/10 border-red-500/30", cardBg: "bg-red-500/10 border-red-400/30 hover:border-red-400/50" },
+  { id: "em_execucao" as TaskStatus, label: "Em Execução", icon: "🔧", colBg: "bg-orange-500/10 border-orange-500/30", cardBg: "bg-orange-500/10 border-orange-400/30 hover:border-orange-400/50" },
+  { id: "concluida" as TaskStatus, label: "Concluída", icon: "✅", colBg: "bg-emerald-500/10 border-emerald-500/30", cardBg: "bg-emerald-500/10 border-emerald-400/30 hover:border-emerald-400/50" },
 ];
 
 export const TASK_TYPES = [

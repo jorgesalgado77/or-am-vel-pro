@@ -1,10 +1,11 @@
 import { memo } from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import { format } from "date-fns";
-import { Clock, GripVertical, User, Paperclip, Trash2 } from "lucide-react";
+import { Clock, GripVertical, User, Paperclip, Trash2, CalendarCheck, CalendarX2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { TASK_COLUMNS, TASK_TYPES, type Task, type TaskStatus } from "./taskTypes";
+import { TASK_COLUMNS, TASK_TYPES, type Task } from "./taskTypes";
 
 interface TaskCardProps {
   task: Task;
@@ -16,6 +17,7 @@ interface TaskCardProps {
 export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete }: TaskCardProps) {
   const col = TASK_COLUMNS.find(c => c.id === task.status);
   const typeLabel = TASK_TYPES.find(t => t.value === task.tipo)?.label || task.tipo;
+  const isSynced = !!task.google_event_id;
 
   return (
     <Draggable draggableId={task.id} index={index}>
@@ -36,9 +38,25 @@ export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete 
             <div className="flex items-start justify-between gap-1">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{task.titulo}</p>
-                <Badge variant="outline" className="text-[9px] h-4 px-1 mt-1 font-medium">
-                  {typeLabel}
-                </Badge>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Badge variant="outline" className="text-[9px] h-4 px-1 font-medium">
+                    {typeLabel}
+                  </Badge>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        {isSynced ? (
+                          <CalendarCheck className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <CalendarX2 className="h-3.5 w-3.5 text-muted-foreground/50" />
+                        )}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      {isSynced ? "Sincronizado com Google Agenda" : "Não sincronizado"}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
               <div {...provided.dragHandleProps} className="opacity-0 group-hover:opacity-60 transition-opacity pt-0.5">
                 <GripVertical className="h-4 w-4 text-muted-foreground" />

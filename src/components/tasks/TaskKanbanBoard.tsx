@@ -40,8 +40,8 @@ export function TaskKanbanBoard({ tasks, onStatusChange, onTaskClick, onTaskDele
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      "flex-1 rounded-lg border border-dashed p-2 space-y-2 transition-colors",
-                      snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : "border-border bg-muted/30"
+                      "flex-1 rounded-lg border p-2 space-y-2 transition-colors",
+                      snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : col.colBg
                     )}
                   >
                     {colTasks.map((task, idx) => (
