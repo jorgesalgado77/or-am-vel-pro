@@ -1489,6 +1489,20 @@ export function MeasurementRequestModal({
         observacoes,
         status: "novo",
         created_by: userInfo.usuario_nome || "Sistema",
+        client_snapshot: {
+          telefone1: editableFields.telefone,
+          email: editableFields.email,
+          cpf: editableFields.cpf,
+        },
+        delivery_address: {
+          cep: addressForm.cep,
+          street: addressForm.street,
+          number: addressForm.number,
+          complement: addressForm.complement,
+          district: addressForm.district,
+          city: addressForm.city,
+          state: addressForm.state,
+        },
       } as any);
 
       if (error) throw error;
@@ -1497,7 +1511,7 @@ export function MeasurementRequestModal({
       try {
         const { data: gerentes } = await supabase
           .from("usuarios" as any)
-          .select("id, nome_completo, cargo_nome")
+          .select("id, nome_completo, cargo_id")
           .eq("tenant_id", tenantId)
           .eq("ativo", true);
         if (gerentes) {
