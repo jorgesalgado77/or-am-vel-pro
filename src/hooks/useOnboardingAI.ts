@@ -94,10 +94,13 @@ function detectClientQuery(text: string): { searchTerm: string } | null {
     /(?:simula[çc][ãa]o|or[çc]amento|simula[çc][õo]es)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
     /(?:vendedor|projetista|respons[aá]vel)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
     /(?:status|situa[çc][ãa]o)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
-    /(?:me\s+)?(?:passe|mostre|mostra|d[êe]|busque?|encontre?|procure?|pesquise?)\s+(?:o\s+|a\s+|os\s+|as\s+)?(?:telefone|endere[çc]o|email|cpf|dados|informa[çc][õo]es|contrato|ficha|cadastro)?\s*(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
+    /(?:me\s+)?(?:passe|mostre|mostra|d[êe]|busque?|encontre?|procure?|pesquise?|informe?|diga)\s+(?:o\s+|a\s+|os\s+|as\s+)?(?:telefone|endere[çc]o|email|cpf|dados|informa[çc][õo]es|contrato|ficha|cadastro)?\s*(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
+    /(?:qual|quais)\s+(?:[eé]\s+)?(?:o\s+|a\s+|os\s+|as\s+)?(?:telefone|endere[çc]o|email|cpf|dados|contrato|nome|informa[çc][õo]es)\s+(?:do|da|de|del)\s+(?:cliente\s+)?(.+)/i,
     /(?:cliente|buscar cliente|pesquisar cliente)\s+(.+)/i,
     /(?:quem [eé]|qual [eé])\s+(?:o\s+)?(?:cliente\s+)?(.+)/i,
     /(?:me\s+)?(?:fale?|conte|diga)\s+(?:sobre|tudo sobre)\s+(?:o\s+|a\s+)?(?:cliente\s+)?(.+)/i,
+    /(?:preciso|quero|gostaria)\s+(?:d[eo]s?\s+)?(?:telefone|endere[çc]o|email|dados|informa[çc][õo]es|contrato)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
+    /(?:pode\s+)?(?:me\s+)?(?:passar|enviar|mandar|informar)\s+(?:o\s+|a\s+|os\s+)?(?:telefone|endere[çc]o|email|dados|contrato)\s+(?:do|da|de)\s+(?:cliente\s+)?(.+)/i,
   ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
