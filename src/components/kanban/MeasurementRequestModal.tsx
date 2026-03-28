@@ -98,6 +98,16 @@ export function MeasurementRequestModal({
       .trim()
       .toLowerCase();
 
+  const hasMeaningfulValue = (value: unknown) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "object") return Object.values(value as Record<string, unknown>).some(hasMeaningfulValue);
+    return true;
+  };
+
+  const pickFirstFilled = (...values: unknown[]) => values.find(hasMeaningfulValue);
+
   const parsePersistedValue = useCallback((value: any) => {
     if (typeof value !== "string") return value;
 
@@ -261,31 +271,181 @@ export function MeasurementRequestModal({
     return data?.publicUrl || "";
   }, [parsePersistedValue]);
 
+  const loadLatestMeasurementRequest = useCallback(async () => {
+    const requestQuery = tracking?.id
+      ? supabase
+          .from("measurement_requests" as any)
+          .select("*")
+          .or(`tracking_id.eq.${tracking.id},client_id.eq.${client.id}`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+      : supabase
+          .from("measurement_requests" as any)
+          .select("*")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+    const { data } = await requestQuery;
+    return Array.isArray(data) ? data[0] : null;
+  }, [client.id, tracking?.id]);
+
   const hydrateClientState = useCallback((source: any) => {
     const merged = source || {};
-    const nestedDeliveryAddress = merged.delivery_address && typeof merged.delivery_address === "object"
-      ? merged.delivery_address
-      : {};
-    const plainDeliveryAddress = typeof merged.delivery_address === "string"
-      ? merged.delivery_address
-      : "";
+    const nestedClient = [
+      merged.client_snapshot,
+      merged.clientSnapshot,
+      merged.dados_cliente,
+      merged.dadosCliente,
+      merged.client,
+      merged.cliente,
+    ]
+      .map((value) => parsePersistedValue(value))
+      .find((value) => value && typeof value === "object" && !Array.isArray(value)) as Record<string, any> | undefined;
+
+    const deliveryAddressCandidate = [
+      nestedClient?.delivery_address,
+      nestedClient?.deliveryAddress,
+      merged.delivery_address,
+      merged.deliveryAddress,
+      merged.client_address,
+      merged.clientAddress,
+      merged.endereco_entrega,
+    ]
+      .map((value) => parsePersistedValue(value))
+      .find((value) => value && typeof value === "object" && !Array.isArray(value)) as Record<string, any> | undefined;
+
+    const plainDeliveryAddress = String(
+      pickFirstFilled(
+        typeof merged.delivery_address === "string" ? merged.delivery_address : "",
+        typeof merged.client_address === "string" ? merged.client_address : "",
+        typeof merged.endereco_entrega === "string" ? merged.endereco_entrega : "",
+      ) || "",
+    );
+
     setEditableFields({
-      telefone: maskPhone(merged.telefone1 || client.telefone1 || ""),
-      email: merged.email || client.email || "",
-      cpf: maskCpfCnpj(merged.cpf || client.cpf || tracking.cpf_cnpj || ""),
+      telefone: maskPhone(String(pickFirstFilled(
+        nestedClient?.telefone1,
+        nestedClient?.telefone,
+        nestedClient?.telefone_whatsapp,
+        merged.telefone1,
+        merged.telefone,
+        merged.telefone_whatsapp,
+        client.telefone1,
+      ) || "")),
+      email: String(pickFirstFilled(
+        nestedClient?.email,
+        merged.email,
+        client.email,
+      ) || ""),
+      cpf: maskCpfCnpj(String(pickFirstFilled(
+        nestedClient?.cpf,
+        nestedClient?.cpf_cnpj,
+        merged.cpf,
+        merged.cpf_cnpj,
+        client.cpf,
+        tracking.cpf_cnpj,
+      ) || "")),
     });
     setAddressForm({
-      cep: maskCep(nestedDeliveryAddress.cep || merged.delivery_address_zip || merged.cep_entrega || merged.cep || ""),
-      street: nestedDeliveryAddress.street || nestedDeliveryAddress.endereco || merged.delivery_address_street || merged.endereco_entrega || plainDeliveryAddress || merged.endereco || "",
-      number: nestedDeliveryAddress.number || merged.delivery_address_number || merged.numero_entrega || merged.numero || "",
-      complement: nestedDeliveryAddress.complement || merged.delivery_address_complement || merged.complemento_entrega || merged.complemento || "",
-      district: nestedDeliveryAddress.district || nestedDeliveryAddress.bairro || merged.delivery_address_district || merged.bairro_entrega || merged.bairro || "",
-      city: nestedDeliveryAddress.city || nestedDeliveryAddress.cidade || merged.delivery_address_city || merged.cidade_entrega || merged.cidade || "",
-      state: nestedDeliveryAddress.state || nestedDeliveryAddress.uf || merged.delivery_address_state || merged.uf_entrega || merged.estado || merged.uf || "",
+      cep: maskCep(String(pickFirstFilled(
+        deliveryAddressCandidate?.cep,
+        nestedClient?.delivery_address_zip,
+        nestedClient?.cep_entrega,
+        nestedClient?.cep,
+        merged.delivery_address_zip,
+        merged.cep_entrega,
+        merged.cep,
+        (client as any)?.delivery_address_zip,
+        (client as any)?.cep_entrega,
+        (client as any)?.cep,
+      ) || "")),
+      street: String(pickFirstFilled(
+        deliveryAddressCandidate?.street,
+        deliveryAddressCandidate?.endereco,
+        nestedClient?.delivery_address_street,
+        nestedClient?.endereco_entrega,
+        nestedClient?.endereco,
+        merged.delivery_address_street,
+        merged.endereco_entrega,
+        plainDeliveryAddress,
+        merged.endereco,
+        (client as any)?.delivery_address_street,
+        (client as any)?.endereco_entrega,
+        (client as any)?.endereco,
+      ) || ""),
+      number: String(pickFirstFilled(
+        deliveryAddressCandidate?.number,
+        deliveryAddressCandidate?.numero,
+        nestedClient?.delivery_address_number,
+        nestedClient?.numero_entrega,
+        nestedClient?.numero,
+        merged.delivery_address_number,
+        merged.numero_entrega,
+        merged.numero,
+        (client as any)?.delivery_address_number,
+        (client as any)?.numero_entrega,
+        (client as any)?.numero,
+      ) || ""),
+      complement: String(pickFirstFilled(
+        deliveryAddressCandidate?.complement,
+        deliveryAddressCandidate?.complemento,
+        nestedClient?.delivery_address_complement,
+        nestedClient?.complemento_entrega,
+        nestedClient?.complemento,
+        merged.delivery_address_complement,
+        merged.complemento_entrega,
+        merged.complemento,
+        (client as any)?.delivery_address_complement,
+        (client as any)?.complemento_entrega,
+        (client as any)?.complemento,
+      ) || ""),
+      district: String(pickFirstFilled(
+        deliveryAddressCandidate?.district,
+        deliveryAddressCandidate?.bairro,
+        nestedClient?.delivery_address_district,
+        nestedClient?.bairro_entrega,
+        nestedClient?.bairro,
+        merged.delivery_address_district,
+        merged.bairro_entrega,
+        merged.bairro,
+        (client as any)?.delivery_address_district,
+        (client as any)?.bairro_entrega,
+        (client as any)?.bairro,
+      ) || ""),
+      city: String(pickFirstFilled(
+        deliveryAddressCandidate?.city,
+        deliveryAddressCandidate?.cidade,
+        nestedClient?.delivery_address_city,
+        nestedClient?.cidade_entrega,
+        nestedClient?.cidade,
+        merged.delivery_address_city,
+        merged.cidade_entrega,
+        merged.cidade,
+        (client as any)?.delivery_address_city,
+        (client as any)?.cidade_entrega,
+        (client as any)?.cidade,
+      ) || ""),
+      state: String(pickFirstFilled(
+        deliveryAddressCandidate?.state,
+        deliveryAddressCandidate?.uf,
+        nestedClient?.delivery_address_state,
+        nestedClient?.uf_entrega,
+        nestedClient?.estado,
+        nestedClient?.uf,
+        merged.delivery_address_state,
+        merged.uf_entrega,
+        merged.estado,
+        merged.uf,
+        (client as any)?.delivery_address_state,
+        (client as any)?.uf_entrega,
+        (client as any)?.estado,
+        (client as any)?.uf,
+      ) || ""),
     });
     setEditingAddress(false);
     setEditingField(null);
-  }, [client.cpf, client.email, client.telefone1, tracking.cpf_cnpj]);
+  }, [client, parsePersistedValue, tracking.cpf_cnpj]);
 
   useEffect(() => {
     if (!open || !client?.id) return;
@@ -300,28 +460,15 @@ export function MeasurementRequestModal({
     hydrateClientState(client as any);
 
     const loadFreshClient = async () => {
-      const [clientRes, requestRes] = await Promise.all([
+      const [clientRes, latestRequest] = await Promise.all([
         (supabase as any)
           .from("clients")
           .select("*")
           .eq("id", client.id)
           .maybeSingle(),
-        tracking?.id
-          ? (supabase as any)
-              .from("measurement_requests")
-              .select("*")
-              .eq("tracking_id", tracking.id)
-              .order("created_at", { ascending: false })
-              .limit(1)
-          : (supabase as any)
-              .from("measurement_requests")
-              .select("*")
-              .eq("client_id", client.id)
-              .order("created_at", { ascending: false })
-              .limit(1),
+        loadLatestMeasurementRequest(),
       ]);
 
-      const latestRequest = Array.isArray(requestRes.data) ? requestRes.data[0] : null;
       if (active) {
         hydrateClientState({ ...(clientRes.data || {}), ...(latestRequest || {}) });
       }
@@ -332,7 +479,7 @@ export function MeasurementRequestModal({
     return () => {
       active = false;
     };
-  }, [clearPreviewUrls, client, hydrateClientState, open, tracking?.id]);
+  }, [clearPreviewUrls, client, hydrateClientState, loadLatestMeasurementRequest, open]);
 
   useEffect(() => () => {
     clearPreviewUrls();
@@ -458,21 +605,15 @@ export function MeasurementRequestModal({
     let active = true;
 
     const loadData = async () => {
-      const requestQuery = tracking?.id
-        ? supabase.from("measurement_requests" as any).select("*").eq("tracking_id", tracking.id).order("created_at", { ascending: false }).limit(1)
-        : supabase.from("measurement_requests" as any).select("*").eq("client_id", client.id).order("created_at", { ascending: false }).limit(1);
-
-      const [{ data: sims }, { data: requestRows }] = await Promise.all([
+      const [{ data: sims }, latestRequest] = await Promise.all([
         supabase
           .from("simulations")
           .select("arquivo_nome, valor_tela, desconto1, desconto2, desconto3")
           .eq("client_id", client.id)
           .order("created_at", { ascending: false })
           .limit(1),
-        requestQuery,
+        loadLatestMeasurementRequest(),
       ]);
-
-      const latestRequest: any = Array.isArray(requestRows) ? requestRows[0] : null;
       let nextEnvironments: EnvironmentData[] = [];
       let nextImportedFiles: { name: string; url: string; type: string }[] = [];
 
@@ -533,9 +674,7 @@ export function MeasurementRequestModal({
           String(item?.id || "") === String(env.id) || normalizeText(item?.name) === normalizeText(env.name),
         );
 
-        if (!savedEnv) return [env.id, []] as const;
-
-        const envLevelAttachments = collectPersistedAttachments(savedEnv);
+        const envLevelAttachments = savedEnv ? collectPersistedAttachments(savedEnv) : [];
         const requestLevelAttachments = collectPersistedAttachments(latestRequest).filter((item) =>
           attachmentMatchesEnvironment(item, env),
         );
@@ -594,7 +733,7 @@ export function MeasurementRequestModal({
     return () => {
       active = false;
     };
-  }, [client, hydrateClientState, open, tracking?.id]);
+  }, [attachmentMatchesEnvironment, client, collectPersistedAttachments, hydrateClientState, loadLatestMeasurementRequest, normalizeText, open, parsePersistedValue]);
 
   const getFileKind = (file: Pick<File, "type" | "name">) => {
     const ref = `${file?.type || ""} ${file?.name || ""}`.toLowerCase();
@@ -751,15 +890,41 @@ export function MeasurementRequestModal({
 
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
-  const imageGalleryEntries = useMemo(() => environments.flatMap((env) =>
+  const attachmentGalleryEntries = useMemo(() => environments.flatMap((env) =>
     (envAttachments[env.id] || [])
-      .filter((attachment) => attachment.kind === "image")
       .map((attachment) => ({
         envId: env.id,
         envName: env.name,
         attachment,
       })),
   ), [environments, envAttachments]);
+
+  const imageGalleryEntries = useMemo(
+    () => attachmentGalleryEntries.filter(({ attachment }) => attachment.kind === "image"),
+    [attachmentGalleryEntries],
+  );
+
+  const persistClientSnapshot = useCallback(async () => {
+    await (supabase as any).from("clients").update({
+      telefone1: editableFields.telefone,
+      email: editableFields.email,
+      cpf: editableFields.cpf,
+      delivery_address_zip: addressForm.cep,
+      delivery_address_street: addressForm.street,
+      delivery_address_number: addressForm.number,
+      delivery_address_complement: addressForm.complement,
+      delivery_address_district: addressForm.district,
+      delivery_address_city: addressForm.city,
+      delivery_address_state: addressForm.state,
+      cep_entrega: addressForm.cep,
+      endereco_entrega: addressForm.street,
+      numero_entrega: addressForm.number,
+      complemento_entrega: addressForm.complement,
+      bairro_entrega: addressForm.district,
+      cidade_entrega: addressForm.city,
+      uf_entrega: addressForm.state,
+    } as any).eq("id", client.id);
+  }, [addressForm, client.id, editableFields]);
 
   const buildPdfDoc = useCallback(async () => {
     const { default: jsPDF } = await import("jspdf");
@@ -1064,56 +1229,58 @@ export function MeasurementRequestModal({
 
       const slotHeight = 84;
       const imageMaxHeight = 62;
-      let slotIndex = 0;
+      const imagePages = imageEntries.reduce<typeof imageEntries[]>((pages, entry, index) => {
+        if (index % 3 === 0) pages.push(imageEntries.slice(index, index + 3));
+        return pages;
+      }, []);
 
-      for (const entry of imageEntries) {
-        if (slotIndex % 3 === 0) {
-          doc.addPage();
-          y = topStart;
-          drawCard("FOTOS DOS AMBIENTES", 12, WHITE);
-          y += 16;
-        }
+      for (const pageEntries of imagePages) {
+        doc.addPage();
+        y = topStart;
+        drawCard("FOTOS DOS AMBIENTES", 12, WHITE);
+        y += 16;
 
-        ensureSpace(slotHeight);
-        doc.setDrawColor(...BORDER);
-        doc.setLineWidth(0.35);
-        doc.setFillColor(...WHITE);
-        doc.roundedRect(mx, y, cw, slotHeight - 4, 2, 2, "FD");
-
-        doc.setFont(FONT, "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(...DARK);
-        doc.text(entry.envName, mx + 4, y + 7);
-        doc.setFont(FONT, "normal");
-        doc.setFontSize(7.5);
-        doc.setTextColor(...GRAY);
-        doc.text(entry.attachment.name || "Imagem enviada", mx + 4, y + 12);
-
-        try {
-          const imageSource = entry.attachment.file || entry.attachment.sourceUrl || entry.attachment.previewUrl;
-          const imageAsset = await loadImageAsset(imageSource, entry.attachment.name);
-          const ratio = imageAsset.width / imageAsset.height;
-          let drawW = cw - 8;
-          let drawH = drawW / ratio;
-          if (drawH > imageMaxHeight) {
-            drawH = imageMaxHeight;
-            drawW = drawH * ratio;
-          }
-          const drawX = mx + (cw - drawW) / 2;
-          const drawY = y + 16;
-
-          doc.addImage(imageAsset.dataUrl, imageAsset.format, drawX, drawY, drawW, drawH);
+        for (const entry of pageEntries) {
+          ensureSpace(slotHeight);
           doc.setDrawColor(...BORDER);
-          doc.roundedRect(drawX, drawY, drawW, drawH, 1, 1, "S");
-        } catch {
-          doc.setFont(FONT, "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(...GRAY);
-          doc.text("Falha ao carregar imagem.", mx + 4, y + 22);
-        }
+          doc.setLineWidth(0.35);
+          doc.setFillColor(...WHITE);
+          doc.roundedRect(mx, y, cw, slotHeight - 4, 2, 2, "FD");
 
-        y += slotHeight;
-        slotIndex += 1;
+          doc.setFont(FONT, "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(...DARK);
+          doc.text(entry.envName, mx + 4, y + 7);
+          doc.setFont(FONT, "normal");
+          doc.setFontSize(7.5);
+          doc.setTextColor(...GRAY);
+          doc.text(entry.attachment.name || "Imagem enviada", mx + 4, y + 12);
+
+          try {
+            const imageSource = entry.attachment.file || entry.attachment.sourceUrl || entry.attachment.previewUrl;
+            const imageAsset = await loadImageAsset(imageSource, entry.attachment.name);
+            const ratio = imageAsset.width / imageAsset.height;
+            let drawW = cw - 8;
+            let drawH = drawW / ratio;
+            if (drawH > imageMaxHeight) {
+              drawH = imageMaxHeight;
+              drawW = drawH * ratio;
+            }
+            const drawX = mx + (cw - drawW) / 2;
+            const drawY = y + 16;
+
+            doc.addImage(imageAsset.dataUrl, imageAsset.format, drawX, drawY, drawW, drawH);
+            doc.setDrawColor(...BORDER);
+            doc.roundedRect(drawX, drawY, drawW, drawH, 1, 1, "S");
+          } catch {
+            doc.setFont(FONT, "normal");
+            doc.setFontSize(8);
+            doc.setTextColor(...GRAY);
+            doc.text("Falha ao carregar imagem.", mx + 4, y + 22);
+          }
+
+          y += slotHeight;
+        }
       }
     };
 
@@ -1255,6 +1422,8 @@ export function MeasurementRequestModal({
       const tenantId = await getResolvedTenantId();
       const userInfo = getAuditUserInfo();
 
+      await persistClientSnapshot();
+
       // Upload images to storage
       const uploadedImages: Record<string, string[]> = {};
       const uploadedAttachments: Record<string, Array<{ kind: AttachmentKind; name: string; type: string; url: string }>> = {};
@@ -1314,6 +1483,7 @@ export function MeasurementRequestModal({
           attachments: uploadedAttachments[e.id] || [],
         })),
         imported_files: importedFiles,
+        observacoes,
         status: "novo",
         created_by: userInfo.usuario_nome || "Sistema",
       } as any);
@@ -1713,11 +1883,11 @@ export function MeasurementRequestModal({
               />
             </div>
 
-            {imageGalleryEntries.length > 0 && (
+            {attachmentGalleryEntries.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-sm font-semibold">Imagens anexadas à solicitação</h4>
+                <h4 className="text-sm font-semibold">Galeria de anexos da solicitação</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {imageGalleryEntries.map(({ envName, attachment }) => {
+                  {attachmentGalleryEntries.map(({ envName, attachment }) => {
                     const preview = attachment.thumbnailUrl || attachment.previewUrl || attachment.sourceUrl;
                     if (!preview) return null;
 
@@ -1729,7 +1899,10 @@ export function MeasurementRequestModal({
                           className="h-28 w-full rounded-md object-cover"
                           loading="lazy"
                         />
-                        <p className="text-[10px] font-medium truncate">{envName || "Ambiente"}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-medium truncate">{envName || "Ambiente"}</p>
+                          {attachment.kind === "pdf" && <Badge variant="outline" className="h-5 px-1.5 text-[9px]">PDF</Badge>}
+                        </div>
                         <p className="text-[10px] text-muted-foreground truncate">{attachment.name}</p>
                       </div>
                     );
@@ -1740,32 +1913,36 @@ export function MeasurementRequestModal({
           </div>
         </div>
 
-        <DialogFooter className="px-6 pb-6 pt-3 border-t flex-wrap gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button
-            variant="secondary"
-            onClick={generatePdfPreview}
-            className="gap-2"
-          >
-            <Eye className="h-4 w-4" />
-            Visualizar PDF
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={downloadPdf}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Baixar PDF
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={saving || !allEnvsHaveImages}
-            className="gap-2"
-          >
-            <Ruler className="h-4 w-4" />
-            {saving ? "Enviando..." : "Salvar e Enviar Solicitação"}
-          </Button>
+        <DialogFooter className="px-6 pb-6 pt-3 border-t">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row sm:items-center">
+              <Button
+                variant="secondary"
+                onClick={generatePdfPreview}
+                className="gap-2"
+              >
+                <Eye className="h-4 w-4" />
+                Visualizar PDF
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={downloadPdf}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Baixar PDF
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={saving || !allEnvsHaveImages}
+                className="gap-2"
+              >
+                <Ruler className="h-4 w-4" />
+                {saving ? "Enviando..." : "Salvar e Enviar Solicitação"}
+              </Button>
+            </div>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
