@@ -142,11 +142,11 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                     {formatCurrency(sim.valor_com_desconto)}
                   </span>
                 )}
-                {onQuickDelete && ((client as any).status || "novo") === "novo" && cargoNome.includes("administrador") && (
+                {onQuickDelete && cargoNome.includes("administrador") && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onQuickDelete(client); }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10"
-                    title="Excluir lead"
+                    title="Excluir cliente"
                   >
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </button>

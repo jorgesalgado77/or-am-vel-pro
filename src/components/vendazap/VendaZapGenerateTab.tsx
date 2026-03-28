@@ -90,6 +90,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [clientsWithChat, setClientsWithChat] = useState<Set<string>>(new Set());
   const [lastSim, setLastSim] = useState<any>(null);
   const [closingScore, setClosingScore] = useState<number | null>(null);
   const [customArguments, setCustomArguments] = useState("");
@@ -230,6 +231,18 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
         if (formState.selectedClientId && !selectedClient) {
           const restored = (data as Client[]).find((c: Client) => c.id === formState.selectedClientId);
           if (restored) setSelectedClient(restored);
+        }
+
+        // Fetch which clients have VendaZap conversations
+        if (tenantId) {
+          const { data: chatData } = await (supabase as any)
+            .from("vendazap_messages")
+            .select("client_id")
+            .eq("tenant_id", tenantId);
+          if (chatData) {
+            const ids = new Set((chatData as any[]).map((m: any) => m.client_id).filter(Boolean));
+            setClientsWithChat(ids as Set<string>);
+          }
         }
       }
     };
@@ -671,7 +684,14 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                         <button key={c.id} onClick={() => { setSelectedClient(c); updateForm({ selectedClientId: c.id, searchClient: "", mensagemGerada: "" }); setClosingScore(null); }}
                           className="w-full text-left px-3 py-2.5 hover:bg-secondary/80 transition-colors text-sm flex items-center justify-between cursor-pointer">
                           <div className="min-w-0">
-                            <span className="font-medium text-foreground block truncate">{c.nome}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-foreground block truncate">{c.nome}</span>
+                              {clientsWithChat.has(c.id) && (
+                                <span className="shrink-0" aria-label="Tem conversa no chat">
+                                  <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
+                                </span>
+                              )}
+                            </div>
                             {c.numero_orcamento && <span className="text-[11px] text-muted-foreground">#{c.numero_orcamento}</span>}
                           </div>
                           <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{score.emoji} {score.label}</Badge>

@@ -506,6 +506,137 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
+    // === Business/Sales intelligence queries ===
+    const businessPatterns = [
+      /(?:última|ultima)\s+venda/i,
+      /(?:quanto|quantas?)\s+(?:foi|foram|temos|tivemos|vendemos|vendeu|faturou|faturamos)/i,
+      /(?:faturamento|receita|vendas?)\s+(?:do|de|no|deste|esse|neste)\s+m[eê]s/i,
+      /(?:vendas?|faturamento|receita)\s+(?:total|acumulad|mensal|semanal)/i,
+      /(?:meta|metas)\s+(?:de vendas?|dos? vendedor|falta|atingi)/i,
+      /(?:falta|faltam)\s+(?:quanto|para)\s+(?:bater|atingir|alcançar)/i,
+      /(?:quem|qual)\s+(?:vendeu|mais vendeu|melhor vendedor|vendedor.*mais)/i,
+      /(?:quantos?|total)\s+(?:clientes?|leads?|contratos?|vendas?)/i,
+      /(?:vendedor|vendedores?)\s+(?:do|da|no)\s+m[eê]s/i,
+      /(?:resultado|resultados|desempenho|performance)\s+(?:da loja|do m[eê]s|comercial|de vendas)/i,
+      /(?:ticket\s+m[eé]dio|valor\s+m[eé]dio)/i,
+      /(?:taxa\s+de\s+convers[ãa]o|convers[ãa]o)/i,
+      /(?:leads?\s+(?:parad|quente|frio|morno))/i,
+      /(?:atendimento|atendimentos)\s+(?:do dia|hoje|semana|m[eê]s)/i,
+      /(?:resumo|relatório|report)\s+(?:da loja|comercial|de vendas|geral)/i,
+    ];
+
+    if (businessPatterns.some(p => p.test(lower))) {
+      // Fetch comprehensive business data
+      const [clientsRes, contractsRes, simsRes, trackingRes, goalsRes, usersRes] = await Promise.all([
+        (supabase as any).from("clients").select("id, nome, status, vendedor, created_at, updated_at").eq("tenant_id", tenantId),
+        (supabase as any).from("client_contracts").select("id, client_id, simulation_id, created_at").eq("tenant_id", tenantId),
+        (supabase as any).from("simulations").select("id, client_id, valor_tela, desconto1, desconto2, desconto3, created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+        (supabase as any).from("client_tracking").select("client_id, valor_contrato, data_fechamento, status").eq("tenant_id", tenantId),
+        (supabase as any).from("sales_goals").select("*").eq("tenant_id", tenantId),
+        (supabase as any).from("usuarios").select("id, nome_completo, cargo_nome").eq("tenant_id", tenantId).eq("ativo", true),
+      ]);
+
+      const allClients = clientsRes.data || [];
+      const contracts = contractsRes.data || [];
+      const sims = simsRes.data || [];
+      const tracking = trackingRes.data || [];
+      const goals = goalsRes.data || [];
+      const users = usersRes.data || [];
+
+      // Calculate revenues from contracts
+      const contractClientIds = new Set(contracts.map((c: any) => c.client_id));
+      const simMap = new Map(sims.map((s: any) => [s.id, s]));
+      const trackingMap = new Map(tracking.map((t: any) => [t.client_id, t]));
+
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      let totalRevenue = 0;
+      let monthRevenue = 0;
+      let lastSale: { client: string; vendor: string; date: string; valor: number } | null = null;
+      const vendorSales: Record<string, { count: number; revenue: number }> = {};
+
+      for (const contract of contracts) {
+        let valor = 0;
+        const sim = contract.simulation_id ? simMap.get(contract.simulation_id) : null;
+        if (sim) {
+          valor = (sim as any).valor_tela || 0;
+          if ((sim as any).desconto1) valor *= (1 - (sim as any).desconto1 / 100);
+          if ((sim as any).desconto2) valor *= (1 - (sim as any).desconto2 / 100);
+          if ((sim as any).desconto3) valor *= (1 - (sim as any).desconto3 / 100);
+        }
+        const track = trackingMap.get(contract.client_id) as any;
+        if (valor === 0 && track?.valor_contrato) valor = Number(track.valor_contrato) || 0;
+
+        totalRevenue += valor;
+        const contractDate = new Date(track?.data_fechamento || contract.created_at);
+        if (contractDate >= monthStart) monthRevenue += valor;
+
+        const client = allClients.find((c: any) => c.id === contract.client_id);
+        const vendorName = client?.vendedor || "Sem vendedor";
+
+        if (!vendorSales[vendorName]) vendorSales[vendorName] = { count: 0, revenue: 0 };
+        vendorSales[vendorName].count++;
+        vendorSales[vendorName].revenue += valor;
+
+        if (!lastSale || contractDate > new Date(lastSale.date)) {
+          lastSale = {
+            client: client?.nome || "—",
+            vendor: vendorName,
+            date: contractDate.toISOString(),
+            valor,
+          };
+        }
+      }
+
+      const openLeads = allClients.filter((c: any) => !contractClientIds.has(c.id) && c.status !== "perdido").length;
+      const closedCount = contractClientIds.size;
+      const convRate = (openLeads + closedCount) > 0 ? ((closedCount / (openLeads + closedCount)) * 100).toFixed(1) : "0";
+      const avgTicket = closedCount > 0 ? totalRevenue / closedCount : 0;
+
+      // Goals progress
+      let goalsInfo = "";
+      if (goals.length > 0) {
+        const totalGoal = goals.reduce((s: number, g: any) => s + (Number(g.meta_valor) || 0), 0);
+        const remaining = totalGoal - monthRevenue;
+        goalsInfo = `\n\n### 🎯 Metas\n- Meta total: R$ ${totalGoal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n- Realizado no mês: R$ ${monthRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n- ${remaining > 0 ? `Falta: **R$ ${remaining.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}**` : "✅ **Meta batida!**"}`;
+      }
+
+      // Top sellers
+      const vendorRanking = Object.entries(vendorSales)
+        .sort(([, a], [, b]) => b.revenue - a.revenue)
+        .slice(0, 5)
+        .map(([name, data], i) => `${i + 1}. **${name}** — ${data.count} vendas — R$ ${data.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`)
+        .join("\n");
+
+      let response = `📊 **Relatório da Loja**\n\n### 💰 Resumo Financeiro\n`;
+      response += `- Faturamento total: **R$ ${totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}**\n`;
+      response += `- Faturamento do mês: **R$ ${monthRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}**\n`;
+      response += `- Ticket médio: **R$ ${avgTicket.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}**\n`;
+      response += `- Taxa de conversão: **${convRate}%**\n`;
+      response += `\n### 📈 Indicadores\n`;
+      response += `- Total de clientes: **${allClients.length}**\n`;
+      response += `- Leads abertos: **${openLeads}**\n`;
+      response += `- Contratos fechados: **${closedCount}**\n`;
+
+      if (lastSale) {
+        response += `\n### 🏷️ Última Venda\n`;
+        response += `- Cliente: **${lastSale.client}**\n`;
+        response += `- Vendedor: **${lastSale.vendor}**\n`;
+        response += `- Valor: R$ ${lastSale.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n`;
+        response += `- Data: ${new Date(lastSale.date).toLocaleDateString("pt-BR")}\n`;
+      }
+
+      if (vendorRanking) {
+        response += `\n### 🏆 Ranking de Vendedores\n${vendorRanking}\n`;
+      }
+
+      response += goalsInfo;
+
+      appendAssistant(response.trim());
+      return true;
+    }
+
     // === Client data lookup ===
     const clientQuery = detectClientQuery(lower);
     if (clientQuery) {
