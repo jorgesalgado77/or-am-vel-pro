@@ -574,14 +574,15 @@ export function ClientsKanban({
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex-1 min-h-0 min-w-0">
             <div
-              className="w-full max-w-full min-w-0 overflow-x-scroll overflow-y-hidden pb-3 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted/40 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-primary/50"
+              className="w-full max-w-full min-w-0 overflow-x-scroll overflow-y-hidden [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted/40 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-primary/50"
               style={{
                 WebkitOverflowScrolling: "touch",
                 scrollbarWidth: "auto",
                 scrollbarColor: "hsl(var(--primary) / 0.3) hsl(var(--muted) / 0.4)",
+                transform: "scaleY(-1)",
               }}
             >
-              <div className="inline-flex min-w-max gap-2 sm:gap-3 px-1">
+              <div className="inline-flex min-w-max gap-2 sm:gap-3 px-1 pb-1" style={{ transform: "scaleY(-1)" }}>
                 {/* Comercial section */}
                 {isAdmin && (
                   <button
