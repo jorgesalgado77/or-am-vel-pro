@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Mail, Phone, Gift } from "lucide-react";
 
 interface LandingFooterProps {
@@ -7,7 +8,8 @@ interface LandingFooterProps {
   primaryColor: string;
 }
 
-export function LandingFooter({ text, contactEmail, contactPhone, primaryColor }: LandingFooterProps) {
+export const LandingFooter = forwardRef<HTMLElement, LandingFooterProps>(
+  function LandingFooter({ text, contactEmail, contactPhone, primaryColor }, ref) {
   return (
     <footer className="bg-gray-900 text-white py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -65,4 +67,4 @@ export function LandingFooter({ text, contactEmail, contactPhone, primaryColor }
       </div>
     </footer>
   );
-}
+});
