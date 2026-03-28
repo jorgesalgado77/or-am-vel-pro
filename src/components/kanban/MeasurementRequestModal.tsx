@@ -10,16 +10,21 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2 } from "lucide-react";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { formatCurrency } from "@/lib/financing";
+import { maskCep, maskCodigoLoja, maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
 import type { Client, LastSimInfo } from "./kanbanTypes";
 import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface EnvironmentData {
   id: string;
@@ -44,8 +49,9 @@ export function MeasurementRequestModal({
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [envImages, setEnvImages] = useState<Record<string, File[]>>({});
   const [saving, setSaving] = useState(false);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
+  const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   const { settings } = useCompanySettings();
 
   // Store data
@@ -68,17 +74,24 @@ export function MeasurementRequestModal({
     cpf: "",
   });
 
+  const normalizeText = (value?: string | null) =>
+    (value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+
   // Init editable fields from client
   useEffect(() => {
     if (!open) return;
     const c = client as any;
     setEditableFields({
-      telefone: client.telefone1 || "",
+      telefone: maskPhone(client.telefone1 || ""),
       email: client.email || "",
-      cpf: client.cpf || tracking.cpf_cnpj || "",
+      cpf: maskCpfCnpj(client.cpf || tracking.cpf_cnpj || ""),
     });
     setAddressForm({
-      cep: c.delivery_address_zip || c.cep || "",
+      cep: maskCep(c.delivery_address_zip || c.cep || ""),
       street: c.delivery_address_street || c.endereco || "",
       number: c.delivery_address_number || "",
       complement: c.delivery_address_complement || "",
@@ -95,24 +108,38 @@ export function MeasurementRequestModal({
     if (!open) return;
     const load = async () => {
       const tenantId = await getResolvedTenantId();
+      if (!tenantId) {
+        setStoreData({
+          name: settings.company_name || "",
+          cnpj: maskCpfCnpj(settings.cnpj_loja || ""),
+          logo_url: settings.logo_url || "",
+          codigo_loja: maskCodigoLoja(settings.codigo_loja || ""),
+          gerente_nome: "",
+        });
+        return;
+      }
+
       const [companyRes, gerenteRes] = await Promise.all([
-        (supabase as any).from("company_settings").select("company_name, cnpj, logo_url, codigo_loja").eq("tenant_id", tenantId).maybeSingle(),
+        (supabase as any).from("company_settings").select("*").eq("tenant_id", tenantId).maybeSingle(),
         (supabase as any).from("usuarios").select("nome_completo, cargo_nome").eq("tenant_id", tenantId).eq("ativo", true),
       ]);
+
+      const company = companyRes.data || {};
       const gerente = ((gerenteRes.data || []) as any[]).find((u: any) => {
-        const cargo = (u.cargo_nome || "").toLowerCase();
-        return cargo.includes("gerente") || cargo.includes("administrador");
+        const cargo = normalizeText(u.cargo_nome);
+        return cargo.includes("gerente") || cargo.includes("administrador") || cargo.includes("gestor");
       });
+
       setStoreData({
-        name: companyRes.data?.company_name || settings.company_name || "",
-        cnpj: companyRes.data?.cnpj || "",
-        logo_url: companyRes.data?.logo_url || settings.logo_url || "",
-        codigo_loja: companyRes.data?.codigo_loja || settings.codigo_loja || "",
+        name: company.company_name || company.nome_empresa || settings.company_name || "",
+        cnpj: maskCpfCnpj(company.cnpj_loja || company.cnpj || settings.cnpj_loja || ""),
+        logo_url: company.logo_url || settings.logo_url || "",
+        codigo_loja: maskCodigoLoja(company.codigo_loja || settings.codigo_loja || ""),
         gerente_nome: gerente?.nome_completo || "",
       });
     };
     load();
-  }, [open]);
+  }, [open, settings]);
 
   // CEP auto-fill
   const fetchCep = useCallback(async (cep: string) => {
@@ -258,68 +285,117 @@ export function MeasurementRequestModal({
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
   const generatePdfPreview = useCallback(async () => {
-    const { default: jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
-    const c = client as any;
+    setPdfPreviewLoading(true);
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      const c = client as any;
 
-    doc.setFontSize(16);
-    doc.text("Solicitação de Medida", 20, 20);
-    doc.setFontSize(10);
-    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 20, 28);
+      doc.setFontSize(16);
+      doc.text("Solicitação de Medida", 20, 20);
+      doc.setFontSize(10);
+      doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 20, 28);
 
-    doc.setFontSize(12);
-    doc.text("Dados do Cliente", 20, 40);
-    doc.setFontSize(10);
-    const info = [
-      `Nome: ${client.nome}`,
-      `CPF/CNPJ: ${client.cpf || tracking.cpf_cnpj || "—"}`,
-      `Telefone: ${client.telefone1 || "—"}`,
-      `Email: ${client.email || "—"}`,
-      `Nº Contrato: ${tracking.numero_contrato || "—"}`,
-      `Vendedor: ${client.vendedor || "—"}`,
-    ];
-    const fullAddr = c.delivery_address_street
-      ? [c.delivery_address_street, c.delivery_address_number, c.delivery_address_complement,
-         c.delivery_address_district,
-         c.delivery_address_city && c.delivery_address_state ? `${c.delivery_address_city} - ${c.delivery_address_state}` : c.delivery_address_city || c.delivery_address_state,
-         c.delivery_address_zip].filter(Boolean).join(", ")
-      : c.endereco_entrega || c.endereco || "Não informado";
-    info.push(`Endereço de Entrega: ${fullAddr}`);
+      doc.setFontSize(12);
+      doc.text("Dados da Loja", 20, 40);
+      doc.setFontSize(10);
+      const storeInfo = [
+        `Loja: ${storeData.name || "—"}`,
+        `CNPJ: ${storeData.cnpj || "—"}`,
+        `Código da Loja: ${storeData.codigo_loja || "—"}`,
+        `Gerente: ${storeData.gerente_nome || "—"}`,
+      ];
 
-    let y = 48;
-    for (const line of info) {
-      const lines = doc.splitTextToSize(line, 170);
-      doc.text(lines, 20, y);
-      y += lines.length * 6;
-    }
-
-    y += 6;
-    doc.setFontSize(12);
-    doc.text(`Valor Total à Vista: ${formatCurrency(totalValorAvista)}`, 20, y);
-    y += 10;
-
-    doc.text(`Ambientes Vendidos (${environments.length})`, 20, y);
-    y += 8;
-    doc.setFontSize(10);
-    for (const env of environments) {
-      doc.text(`• ${env.name} — ${formatCurrency(env.value)}`, 24, y);
-      y += 6;
-      if (env.fileName) {
-        doc.text(`  Arquivo: ${env.fileName}`, 28, y);
-        y += 6;
+      let y = 48;
+      for (const line of storeInfo) {
+        const lines = doc.splitTextToSize(line, 170);
+        doc.text(lines, 20, y);
+        y += lines.length * 6;
       }
-      const imgs = envImages[env.id] || [];
-      doc.text(`  Imagens anexadas: ${imgs.length}`, 28, y);
-      y += 8;
-      if (y > 270) { doc.addPage(); y = 20; }
-    }
 
-    const blob = doc.output("blob");
-    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
-    const url = URL.createObjectURL(blob);
-    setPdfPreviewUrl(url);
-    setPdfPreviewOpen(true);
-  }, [client, tracking, environments, envImages, totalValorAvista, pdfPreviewUrl]);
+      y += 4;
+      doc.setFontSize(12);
+      doc.text("Dados do Cliente", 20, y);
+      y += 8;
+      doc.setFontSize(10);
+      const fullAddr = [
+        addressForm.street,
+        addressForm.number,
+        addressForm.complement,
+        addressForm.district,
+        addressForm.city && addressForm.state ? `${addressForm.city} - ${addressForm.state}` : addressForm.city || addressForm.state,
+        addressForm.cep,
+      ].filter(Boolean).join(", ") || c.endereco_entrega || c.endereco || "Não informado";
+
+      const info = [
+        `Nome: ${client.nome}`,
+        `CPF/CNPJ: ${editableFields.cpf || "—"}`,
+        `Telefone: ${editableFields.telefone || "—"}`,
+        `Email: ${editableFields.email || "—"}`,
+        `Nº Contrato: ${tracking.numero_contrato || "—"}`,
+        `Vendedor: ${client.vendedor || "—"}`,
+        `Endereço de Entrega: ${fullAddr}`,
+      ];
+
+      for (const line of info) {
+        const lines = doc.splitTextToSize(line, 170);
+        doc.text(lines, 20, y);
+        y += lines.length * 6;
+      }
+
+      y += 6;
+      doc.setFontSize(12);
+      doc.text(`Valor Total à Vista: ${formatCurrency(totalValorAvista)}`, 20, y);
+      y += 10;
+
+      doc.text(`Ambientes Vendidos (${environments.length})`, 20, y);
+      y += 8;
+      doc.setFontSize(10);
+      for (const env of environments) {
+        doc.text(`• ${env.name} — ${formatCurrency(env.value)}`, 24, y);
+        y += 6;
+        if (env.fileName) {
+          doc.text(`  Arquivo: ${env.fileName}`, 28, y);
+          y += 6;
+        }
+        const imgs = envImages[env.id] || [];
+        doc.text(`  Imagens anexadas: ${imgs.length}`, 28, y);
+        y += 8;
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+      }
+
+      const arrayBuffer = doc.output("arraybuffer");
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const images: string[] = [];
+
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context) continue;
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvas, canvasContext: context, viewport }).promise;
+        images.push(canvas.toDataURL("image/png"));
+      }
+
+      setPdfPreviewImages(images);
+      setPdfPreviewOpen(true);
+    } catch (err: any) {
+      toast.error("Erro ao gerar pré-visualização do PDF", {
+        description: err?.message || "Tente novamente.",
+      });
+    } finally {
+      setPdfPreviewLoading(false);
+    }
+  }, [addressForm, client, editableFields, environments, envImages, storeData, totalValorAvista, tracking.numero_contrato]);
 
   const handleSubmit = async () => {
     if (!allEnvsHaveImages) {
@@ -471,9 +547,11 @@ export function MeasurementRequestModal({
                     <Input
                       className="h-6 text-xs w-36 ml-1"
                       value={editableFields.cpf}
-                      onChange={e => setEditableFields(p => ({ ...p, cpf: e.target.value }))}
+                      onChange={e => setEditableFields(p => ({ ...p, cpf: maskCpfCnpj(e.target.value) }))}
                       onBlur={() => { setEditingField(null); saveClientField("cpf", editableFields.cpf); }}
                       onKeyDown={e => { if (e.key === "Enter") { setEditingField(null); saveClientField("cpf", editableFields.cpf); } }}
+                      inputMode="numeric"
+                      maxLength={18}
                       autoFocus
                     />
                   ) : (
@@ -490,9 +568,11 @@ export function MeasurementRequestModal({
                     <Input
                       className="h-6 text-xs w-36 ml-1"
                       value={editableFields.telefone}
-                      onChange={e => setEditableFields(p => ({ ...p, telefone: e.target.value }))}
+                      onChange={e => setEditableFields(p => ({ ...p, telefone: maskPhone(e.target.value) }))}
                       onBlur={() => { setEditingField(null); saveClientField("telefone", editableFields.telefone); }}
                       onKeyDown={e => { if (e.key === "Enter") { setEditingField(null); saveClientField("telefone", editableFields.telefone); } }}
+                      inputMode="tel"
+                      maxLength={15}
                       autoFocus
                     />
                   ) : (
@@ -549,7 +629,15 @@ export function MeasurementRequestModal({
                             className="h-7 text-xs"
                             placeholder="00000-000"
                             value={addressForm.cep}
-                            onChange={e => setAddressForm(p => ({ ...p, cep: e.target.value }))}
+                            onChange={e => {
+                              const maskedCep = maskCep(e.target.value);
+                              setAddressForm(p => ({ ...p, cep: maskedCep }));
+                              if (maskedCep.replace(/\D/g, "").length === 8) {
+                                void fetchCep(maskedCep);
+                              }
+                            }}
+                            inputMode="numeric"
+                            maxLength={9}
                           />
                           <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => fetchCep(addressForm.cep)} disabled={cepLoading}>
                             <Search className="h-3 w-3" />
@@ -736,14 +824,32 @@ export function MeasurementRequestModal({
     </Dialog>
 
     {/* PDF Preview Dialog */}
-    <Dialog open={pdfPreviewOpen} onOpenChange={(v) => { setPdfPreviewOpen(v); if (!v && pdfPreviewUrl) { URL.revokeObjectURL(pdfPreviewUrl); setPdfPreviewUrl(null); } }}>
+    <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>
       <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col">
         <DialogHeader className="px-6 pt-4 pb-2">
           <DialogTitle>Pré-visualização do PDF</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 min-h-0 px-2 pb-2">
-          {pdfPreviewUrl && (
-            <iframe src={pdfPreviewUrl} className="w-full h-full border-0 rounded-md" title="PDF Preview" />
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+          {pdfPreviewLoading ? (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Gerando pré-visualização...
+            </div>
+          ) : pdfPreviewImages.length > 0 ? (
+            <div className="space-y-4">
+              {pdfPreviewImages.map((src, index) => (
+                <img
+                  key={`${index}-${src.slice(0, 32)}`}
+                  src={src}
+                  alt={`Página ${index + 1} do PDF`}
+                  className="w-full rounded-md border border-border bg-background shadow-sm"
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Nenhuma pré-visualização disponível.
+            </div>
           )}
         </div>
       </DialogContent>
