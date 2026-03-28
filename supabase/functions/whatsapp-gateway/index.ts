@@ -448,26 +448,45 @@ async function handleInboundWebhook(body: any, isEvolution: boolean) {
 
   console.log(`[Webhook Inbound] Phone: ${cleanPhone}, Text: ${messageText.substring(0, 60)}`);
 
-  // Find client by phone (try telefone1 and telefone2 columns)
-  // Try exact suffix match first (last 8-11 digits)
-  const lastDigits = cleanPhone.slice(-8);
-  let { data: client } = await sb
+  // Find client by phone — broad LIKE on last 4 digits, then filter by stripped digits
+  const last4 = cleanPhone.slice(-4);
+  const last8 = cleanPhone.slice(-8);
+  const { data: phoneCandidates } = await sb
     .from("clients")
     .select("id, nome, tenant_id")
-    .or(`telefone1.like.%${lastDigits},telefone2.like.%${lastDigits}`)
-    .limit(1)
-    .maybeSingle();
+    .or(`telefone1.like.%${last4},telefone2.like.%${last4}`)
+    .limit(50);
 
-  // If multiple matches possible with 8 digits, refine with more digits
-  if (!client && cleanPhone.length >= 10) {
-    const moreDigits = cleanPhone.slice(-10);
-    const { data: refined } = await sb
+  let client: { id: string; nome: string | null; tenant_id: string | null } | null = null;
+  if (phoneCandidates && phoneCandidates.length > 0) {
+    // Read full phone columns for digit comparison
+    const ids = phoneCandidates.map(c => c.id);
+    const { data: withPhones } = await sb
       .from("clients")
-      .select("id, nome, tenant_id")
-      .or(`telefone1.like.%${moreDigits},telefone2.like.%${moreDigits}`)
-      .limit(1)
-      .maybeSingle();
-    client = refined;
+      .select("id, nome, tenant_id, telefone1, telefone2")
+      .in("id", ids);
+
+    if (withPhones) {
+      for (const c of withPhones) {
+        const t1 = ((c as any).telefone1 || "").replace(/\D/g, "");
+        const t2 = ((c as any).telefone2 || "").replace(/\D/g, "");
+        if (t1.endsWith(last8) || t2.endsWith(last8)) {
+          client = { id: c.id, nome: (c as any).nome, tenant_id: (c as any).tenant_id };
+          break;
+        }
+      }
+      // Fallback to last 4
+      if (!client) {
+        for (const c of withPhones) {
+          const t1 = ((c as any).telefone1 || "").replace(/\D/g, "");
+          const t2 = ((c as any).telefone2 || "").replace(/\D/g, "");
+          if (t1.endsWith(last4) || t2.endsWith(last4)) {
+            client = { id: c.id, nome: (c as any).nome, tenant_id: (c as any).tenant_id };
+            break;
+          }
+        }
+      }
+    }
   }
 
   if (!client) {
