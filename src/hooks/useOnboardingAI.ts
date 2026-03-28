@@ -633,6 +633,156 @@ export function useOnboardingAI(tenantId: string | null) {
         return true;
       }
     }
+
+    // === Email wizard steps (priority — intercept all input while active) ===
+    if (emailWizard.active) {
+      if (/cancelar|sair|parar|desistir/i.test(lower)) {
+        setEmailWizard(INITIAL_EMAIL_WIZARD);
+        appendAssistant("❌ Composição de email cancelada.");
+        return true;
+      }
+
+      const emailStep = emailWizard.step;
+
+      if (emailStep === "destinatario") {
+        const email = content.trim();
+        if (!/\S+@\S+\.\S+/.test(email)) {
+          appendAssistant("❌ Email inválido. Informe um email válido (ex: **nome@exemplo.com**).");
+          return true;
+        }
+        setEmailWizard(prev => ({ ...prev, to: email, step: "copia" }));
+        appendAssistant(`✅ Destinatário: **${email}**\n\n📋 **Deseja adicionar alguém em cópia (CC)?**\n\n_Informe o email ou diga "pular"._`);
+        return true;
+      }
+
+      if (emailStep === "copia") {
+        const cc = /pular|sem c[óo]pia|nenhum|n[ãa]o/i.test(lower) ? undefined : content.trim();
+        if (cc && !/\S+@\S+\.\S+/.test(cc)) {
+          appendAssistant("❌ Email de cópia inválido. Informe um email válido ou diga **pular**.");
+          return true;
+        }
+        setEmailWizard(prev => ({ ...prev, cc, step: "assunto" }));
+        appendAssistant(`✅ Cópia: **${cc || "Nenhuma"}**\n\n📝 **Qual o assunto do email?**`);
+        return true;
+      }
+
+      if (emailStep === "assunto") {
+        setEmailWizard(prev => ({ ...prev, subject: content.trim(), step: "corpo" }));
+        appendAssistant(`✅ Assunto: **${content.trim()}**\n\n✏️ **Escreva o corpo do email:**\n\n_Pode usar formatação markdown (negrito, listas, etc)._`);
+        return true;
+      }
+
+      if (emailStep === "corpo") {
+        setEmailWizard(prev => ({ ...prev, body: content.trim(), step: "anexos" }));
+        appendAssistant(`✅ Corpo salvo!\n\n📎 **Deseja adicionar links de anexos?**\n\n_Cole URLs dos arquivos (separados por vírgula) ou diga "pular"._\n\n💡 Dica: Você pode fazer upload de arquivos no sistema e colar o link aqui.`);
+        return true;
+      }
+
+      if (emailStep === "anexos") {
+        let attachments: string[] | undefined;
+        if (!/pular|sem anexo|nenhum|n[ãa]o/i.test(lower)) {
+          attachments = content.split(",").map(u => u.trim()).filter(u => u.length > 5);
+        }
+        const wizard = { ...emailWizard, attachments };
+        setEmailWizard({ ...wizard, step: "confirmar" });
+
+        const attachText = attachments && attachments.length > 0
+          ? attachments.map((a, i) => `${i + 1}. [Anexo ${i + 1}](${a})`).join("\n")
+          : "Nenhum";
+
+        appendAssistant(
+          `📧 **Confirme o email antes de enviar:**\n\n` +
+          `| Campo | Valor |\n|---|---|\n` +
+          `| **Para** | ${wizard.to} |\n` +
+          `| **CC** | ${wizard.cc || "—"} |\n` +
+          `| **Assunto** | ${wizard.subject} |\n\n` +
+          `**Corpo:**\n${wizard.body}\n\n` +
+          `**Anexos:**\n${attachText}\n\n` +
+          `---\n✅ Diga **"enviar"** para confirmar\n✏️ Diga **"editar [campo]"** para corrigir (ex: "editar assunto")\n❌ Diga **"cancelar"** para descartar`
+        );
+        return true;
+      }
+
+      if (emailStep === "confirmar") {
+        // Handle edit requests
+        if (/editar\s+(destinat[áa]rio|para)/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "destinatario" }));
+          appendAssistant("📝 Informe o novo **destinatário**:");
+          return true;
+        }
+        if (/editar\s+(c[óo]pia|cc)/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "copia" }));
+          appendAssistant("📝 Informe o novo **email de cópia** (ou diga pular):");
+          return true;
+        }
+        if (/editar\s+assunto/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "assunto" }));
+          appendAssistant("📝 Informe o novo **assunto**:");
+          return true;
+        }
+        if (/editar\s+(corpo|texto|mensagem)/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "corpo" }));
+          appendAssistant("📝 Escreva o novo **corpo do email**:");
+          return true;
+        }
+        if (/editar\s+anex/i.test(lower)) {
+          setEmailWizard(prev => ({ ...prev, step: "anexos" }));
+          appendAssistant("📝 Informe os novos **links de anexos** (ou diga pular):");
+          return true;
+        }
+
+        if (/enviar|confirmar|sim|mandar|disparar/i.test(lower)) {
+          // Build HTML body
+          let htmlBody = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">`;
+          htmlBody += `<div style="white-space:pre-wrap;line-height:1.6;">${(emailWizard.body || "").replace(/\n/g, "<br>")}</div>`;
+          if (emailWizard.attachments && emailWizard.attachments.length > 0) {
+            htmlBody += `<hr style="margin:20px 0;border:none;border-top:1px solid #eee;">`;
+            htmlBody += `<p style="font-size:13px;color:#666;"><strong>Anexos:</strong></p><ul>`;
+            for (const att of emailWizard.attachments) {
+              htmlBody += `<li><a href="${att}" target="_blank" style="color:#2563eb;">${att}</a></li>`;
+            }
+            htmlBody += `</ul>`;
+          }
+          htmlBody += `</div>`;
+
+          appendAssistant("📤 **Enviando email...**");
+
+          try {
+            const { data: sendResult, error: sendError } = await supabase.functions.invoke("resend-email", {
+              body: {
+                action: "send",
+                tenant_id: tenantId,
+                to: emailWizard.to,
+                cc: emailWizard.cc || undefined,
+                subject: emailWizard.subject,
+                html: htmlBody,
+                sent_by: currentUserId,
+              },
+            });
+
+            if (sendError || !sendResult?.success) {
+              appendAssistant(`❌ **Erro ao enviar email:** ${sendResult?.error || sendError?.message || "Erro desconhecido"}\n\nVerifique se a API do Resend está configurada em **Configurações > APIs**.`);
+            } else {
+              appendAssistant(
+                `✅ **Email enviado com sucesso!**\n\n` +
+                `| Campo | Valor |\n|---|---|\n` +
+                `| **Para** | ${emailWizard.to} |\n` +
+                `| **CC** | ${emailWizard.cc || "—"} |\n` +
+                `| **Assunto** | ${emailWizard.subject} |\n` +
+                `| **ID** | ${sendResult.email_id || "—"} |\n\n` +
+                `📬 O email foi entregue ao servidor de envio.`
+              );
+            }
+          } catch (err) {
+            appendAssistant(`❌ **Falha ao enviar:** ${err instanceof Error ? err.message : "Erro desconhecido"}`);
+          }
+
+          setEmailWizard(INITIAL_EMAIL_WIZARD);
+          return true;
+        }
+      }
+    }
+
     // === "Minhas tarefas de hoje" query ===
     if (/(?:minhas\s+)?tarefas?\s+(?:de\s+)?hoje|(?:o\s+que\s+tenho\s+)?(?:pra|para)\s+hoje|agenda\s+(?:de\s+)?hoje|(?:quais|qual)\s+(?:s[ãa]o\s+)?(?:as\s+)?(?:minhas\s+)?tarefas?\s+(?:de\s+)?hoje/i.test(lower)) {
       const todayStr = new Date().toISOString().slice(0, 10);
