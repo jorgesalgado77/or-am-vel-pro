@@ -292,7 +292,7 @@ export function KanbanClientDialog({
               variant="outline"
               className={cn(
                 "text-xs shrink-0",
-                hasContract && "border-emerald-500 text-emerald-600 bg-emerald-500/10"
+                hasContract && "border-success text-success bg-success/10"
               )}
               style={!hasContract ? { borderColor: colCfg?.color, color: colCfg?.color } : undefined}
             >
@@ -480,9 +480,9 @@ export function KanbanClientDialog({
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">{colCfg?.icon} {colCfg?.label}</span>
                 <Badge variant="outline" className={cn("text-xs font-medium",
-                  daysInColumn <= 1 ? "border-emerald-400 text-emerald-600" :
-                  daysInColumn <= 3 ? "border-yellow-400 text-yellow-600" :
-                  daysInColumn <= 7 ? "border-orange-400 text-orange-600" :
+                  daysInColumn <= 1 ? "border-success text-success" :
+                  daysInColumn <= 3 ? "border-warning text-warning" :
+                  daysInColumn <= 7 ? "border-warning text-warning" :
                   "border-destructive text-destructive"
                 )}>
                   {daysInColumn === 0 ? "Hoje" : `${daysInColumn} dia${daysInColumn > 1 ? "s" : ""}`}
