@@ -342,428 +342,450 @@ export function MeasurementRequestModal({
   const totalValorAvista = environments.reduce((sum, e) => sum + e.value, 0);
 
   const buildPdfDoc = useCallback(async () => {
-      const { default: jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pw = doc.internal.pageSize.getWidth();
-      const ph = doc.internal.pageSize.getHeight();
-      const mx = 14;
-      const cw = pw - mx * 2;
+    const { default: jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const mx = 12;
+    const cw = pw - mx * 2;
+    const bottomMargin = 14;
+    const topStart = 14;
+    const gap = 4;
+    const FONT = "helvetica";
 
-      // Colors
-      const PRIMARY: [number, number, number] = [8, 145, 178];
-      const PRIMARY_LIGHT: [number, number, number] = [230, 247, 250];
-      const DARK: [number, number, number] = [30, 41, 59];
-      const GRAY: [number, number, number] = [100, 116, 139];
-      const WHITE: [number, number, number] = [255, 255, 255];
-      const BORDER: [number, number, number] = [203, 213, 225];
-      const BG_ALT: [number, number, number] = [248, 250, 252];
+    const PRIMARY: [number, number, number] = [8, 145, 178];
+    const PRIMARY_LIGHT: [number, number, number] = [230, 247, 250];
+    const DARK: [number, number, number] = [30, 41, 59];
+    const GRAY: [number, number, number] = [100, 116, 139];
+    const WHITE: [number, number, number] = [255, 255, 255];
+    const BORDER: [number, number, number] = [203, 213, 225];
+    const BG_ALT: [number, number, number] = [248, 250, 252];
+    const ADDRESS_BORDER: [number, number, number] = [37, 99, 235];
+    const ADDRESS_BG: [number, number, number] = [239, 246, 255];
+    const ADDRESS_TITLE: [number, number, number] = [30, 64, 175];
 
-      let y = 0;
+    let y = topStart;
 
-      const checkPage = (need = 20) => {
-        if (y + need > ph - 18) { doc.addPage(); y = 14; }
-      };
+    const contractNumber = String(
+      tracking?.numero_contrato ||
+      (client as any)?.numero_orcamento ||
+      (client as any)?.numero_contrato ||
+      "—",
+    );
 
-      const drawSectionFrame = (startY: number, height: number, title: string) => {
-        doc.setDrawColor(...BORDER);
-        doc.setLineWidth(0.4);
-        doc.roundedRect(mx, startY, cw, height, 2, 2, "S");
-        // Title bar
-        doc.setFillColor(...PRIMARY);
-        doc.roundedRect(mx, startY, cw, 8, 2, 2, "F");
-        // Cover bottom corners of title bar
-        doc.rect(mx, startY + 5, cw, 3, "F");
-        doc.setTextColor(...WHITE);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-        doc.text(title, mx + 4, startY + 5.5);
-      };
-
-      const fieldLabel = (label: string, value: string, xPos: number, yPos: number, maxW = 80) => {
-        doc.setTextColor(...GRAY);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.text(label, xPos, yPos);
-        doc.setTextColor(...DARK);
-        doc.setFont("helvetica", "bold");
-        doc.text(value || "—", xPos, yPos + 4, { maxWidth: maxW });
-      };
-
-      // ══════════════════ HEADER ══════════════════
-      doc.setFillColor(...PRIMARY);
-      doc.rect(0, 0, pw, 28, "F");
-
-      // Logo
-      let logoX = mx;
-      if (storeData.logo_url) {
-        try {
-          const img = new window.Image();
-          img.crossOrigin = "anonymous";
-          await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = () => reject();
-            img.src = storeData.logo_url;
-          });
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0);
-            const logoData = canvas.toDataURL("image/png");
-            const logoH = 16;
-            const logoW = (img.width / img.height) * logoH;
-            doc.addImage(logoData, "PNG", mx + 2, 6, logoW, logoH);
-            logoX = mx + logoW + 6;
-          }
-        } catch {
-          // skip logo if load fails
-        }
-      }
-
-      doc.setTextColor(...WHITE);
-      doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
-      doc.text("SOLICITAÇÃO DE MEDIDA", logoX, 14);
+    const resetText = () => {
+      doc.setFont(FONT, "normal");
       doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }), logoX, 20);
-      doc.text(`Nº Contrato: ${tracking.numero_contrato || "—"}`, pw - mx, 14, { align: "right" });
-
-      y = 34;
-
-      // ══════════════════ DADOS DA LOJA ══════════════════
-      const storeH = 28;
-      drawSectionFrame(y, storeH, "DADOS DA LOJA");
-      const sy = y + 12;
-      const col1 = mx + 4;
-      const col2 = mx + cw / 2 + 2;
-      fieldLabel("Loja", storeData.name, col1, sy);
-      fieldLabel("CNPJ", storeData.cnpj, col2, sy);
-      fieldLabel("Código da Loja", storeData.codigo_loja, col1, sy + 10);
-      fieldLabel("Gerente", storeData.gerente_nome, col2, sy + 10);
-      y += storeH + 4;
-
-      // ══════════════════ DADOS DO CLIENTE ══════════════════
-      const fullAddr = [
-        addressForm.street, addressForm.number, addressForm.complement, addressForm.district,
-        addressForm.city && addressForm.state ? `${addressForm.city} - ${addressForm.state}` : addressForm.city || addressForm.state,
-        addressForm.cep,
-      ].filter(Boolean).join(", ") || "Não informado";
-
-      const clientH = 32;
-      drawSectionFrame(y, clientH, "DADOS DO CLIENTE");
-      const cy = y + 12;
-      fieldLabel("Nome", client.nome, col1, cy, cw / 2 - 10);
-      fieldLabel("CPF/CNPJ", editableFields.cpf, col2, cy);
-      fieldLabel("Telefone", editableFields.telefone, col1, cy + 10);
-      fieldLabel("Email", editableFields.email, col2, cy + 10);
-      fieldLabel("Vendedor", client.vendedor || "—", col1, cy + 20);
-      y += clientH + 4;
-
-      // ══════════════════ ENDEREÇO DE ENTREGA ══════════════════
-      const ADDR_BLUE: [number, number, number] = [30, 64, 175];
-      const ADDR_BG: [number, number, number] = [239, 246, 255];
-      const addrLines = doc.splitTextToSize(fullAddr, cw - 12);
-      const addrH = 10 + addrLines.length * 5;
-      doc.setDrawColor(...ADDR_BLUE);
-      doc.setFillColor(...ADDR_BG);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(mx, y, cw, addrH, 2, 2, "FD");
-      doc.setTextColor(...ADDR_BLUE);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text("📍 ENDEREÇO DE ENTREGA", mx + 4, y + 6);
       doc.setTextColor(...DARK);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(addrLines, mx + 4, y + 12);
-      y += addrH + 4;
+    };
 
-      // ══════════════════ VALOR TOTAL ══════════════════
-      doc.setFillColor(...PRIMARY_LIGHT);
+    const ensureSpace = (height: number) => {
+      if (y + height > ph - bottomMargin) {
+        doc.addPage();
+        y = topStart;
+      }
+    };
+
+    const getImageFormat = (src: string, fallbackName?: string) => {
+      const ref = `${src} ${fallbackName || ""}`.toLowerCase();
+      return ref.includes("png") || ref.includes("image/png") ? "PNG" : "JPEG";
+    };
+
+    const loadImageAsset = async (src: string, fallbackName?: string) => {
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject();
+        img.src = src;
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Falha ao processar imagem");
+      ctx.drawImage(img, 0, 0);
+
+      const format = getImageFormat(src, fallbackName);
+      const mimeType = format === "PNG" ? "image/png" : "image/jpeg";
+      const dataUrl = canvas.toDataURL(mimeType, 0.92);
+
+      return {
+        dataUrl,
+        format,
+        width: canvas.width,
+        height: canvas.height,
+      };
+    };
+
+    const drawCard = (title: string, height: number, bodyFill: [number, number, number] = WHITE) => {
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.45);
+      doc.setFillColor(...bodyFill);
+      doc.roundedRect(mx, y, cw, height, 2, 2, "FD");
+      doc.setFillColor(...PRIMARY);
+      doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
+      doc.rect(mx, y + 5, cw, 3, "F");
+      doc.setFont(FONT, "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...WHITE);
+      doc.text(title, mx + 4, y + 5.5);
+    };
+
+    const drawField = (label: string, value: string, xPos: number, yPos: number, maxWidth: number) => {
+      const safeValue = value?.trim() ? value : "—";
+      const lines = doc.splitTextToSize(safeValue, maxWidth);
+      doc.setFont(FONT, "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...GRAY);
+      doc.text(label, xPos, yPos);
+      doc.setFont(FONT, "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...DARK);
+      doc.text(lines, xPos, yPos + 4);
+      return lines.length;
+    };
+
+    const drawFieldGridSection = (
+      title: string,
+      rows: Array<[{ label: string; value: string }, { label: string; value: string }?]>,
+    ) => {
+      const innerX = mx + 4;
+      const columnGap = 8;
+      const colW = (cw - 8 - columnGap) / 2;
+
+      const rowHeights = rows.map(([left, right]) => {
+        const leftLines = doc.splitTextToSize(left.value?.trim() ? left.value : "—", colW).length;
+        const rightLines = right ? doc.splitTextToSize(right.value?.trim() ? right.value : "—", colW).length : 0;
+        return 9 + Math.max(leftLines, rightLines, 1) * 4.5;
+      });
+
+      const totalHeight = 12 + rowHeights.reduce((sum, h) => sum + h, 0) + 2;
+      ensureSpace(totalHeight + gap);
+      drawCard(title, totalHeight);
+
+      let cy = y + 12;
+      rows.forEach(([left, right], index) => {
+        drawField(left.label, left.value, innerX, cy, colW);
+        if (right) {
+          drawField(right.label, right.value, innerX + colW + columnGap, cy, colW);
+        }
+        cy += rowHeights[index];
+      });
+
+      y += totalHeight + gap;
+    };
+
+    const drawAddressSection = (address: string) => {
+      const lines = doc.splitTextToSize(address?.trim() ? address : "Não informado", cw - 10);
+      const totalHeight = 13 + lines.length * 5;
+      ensureSpace(totalHeight + gap);
+
+      doc.setDrawColor(...ADDRESS_BORDER);
+      doc.setLineWidth(0.5);
+      doc.setFillColor(...ADDRESS_BG);
+      doc.roundedRect(mx, y, cw, totalHeight, 2, 2, "FD");
+      doc.setFont(FONT, "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...ADDRESS_TITLE);
+      doc.text("ENDEREÇO DE ENTREGA", mx + 4, y + 6.5);
+      doc.setFont(FONT, "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...DARK);
+      doc.text(lines, mx + 4, y + 13);
+
+      y += totalHeight + gap;
+    };
+
+    const drawValueSection = () => {
+      const totalHeight = 14;
+      ensureSpace(totalHeight + gap);
       doc.setDrawColor(...PRIMARY);
       doc.setLineWidth(0.5);
-      doc.roundedRect(mx, y, cw, 12, 2, 2, "FD");
-      doc.setTextColor(...PRIMARY);
+      doc.setFillColor(...PRIMARY_LIGHT);
+      doc.roundedRect(mx, y, cw, totalHeight, 2, 2, "FD");
+      doc.setFont(FONT, "bold");
       doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text("VALOR TOTAL À VISTA", mx + 4, y + 7.5);
-      doc.text(formatCurrency(totalValorAvista), pw - mx - 4, y + 7.5, { align: "right" });
-      y += 16;
+      doc.setTextColor(...PRIMARY);
+      doc.text("VALOR TOTAL À VISTA", mx + 4, y + 8.5);
+      doc.text(formatCurrency(totalValorAvista), pw - mx - 4, y + 8.5, { align: "right" });
+      y += totalHeight + gap;
+    };
 
-      // ══════════════════ AMBIENTES ══════════════════
-      if (environments.length > 0) {
-        checkPage(30);
-        const envStartY = y;
-        // Table header
-        doc.setFillColor(...PRIMARY);
-        doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
-        doc.rect(mx, y + 5, cw, 3, "F");
-        doc.setTextColor(...WHITE);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-        doc.text(`AMBIENTES VENDIDOS (${environments.length})`, mx + 4, y + 5.5);
-        y += 10;
+    const drawEnvironmentsSection = () => {
+      if (environments.length === 0) return;
+      const totalHeight = 18 + environments.length * 7;
+      ensureSpace(totalHeight + gap);
+      drawCard(`AMBIENTES VENDIDOS (${environments.length})`, totalHeight);
 
-        // Column headers
-        doc.setFillColor(...BG_ALT);
-        doc.rect(mx, y, cw, 7, "F");
-        doc.setTextColor(...GRAY);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.text("Ambiente", mx + 4, y + 5);
-        doc.text("Valor", pw - mx - 4, y + 5, { align: "right" });
-        y += 8;
+      const tableTop = y + 10;
+      doc.setFillColor(...BG_ALT);
+      doc.rect(mx, tableTop, cw, 7, "F");
+      doc.setFont(FONT, "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...GRAY);
+      doc.text("Ambiente", mx + 4, tableTop + 5);
+      doc.text("Valor", pw - mx - 4, tableTop + 5, { align: "right" });
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        for (let i = 0; i < environments.length; i++) {
-          checkPage(8);
-          const env = environments[i];
-          if (i % 2 === 0) {
-            doc.setFillColor(...BG_ALT);
-            doc.rect(mx, y - 3.5, cw, 7, "F");
-          }
-          doc.setDrawColor(...BORDER);
-          doc.setLineWidth(0.1);
-          doc.line(mx, y + 3.5, pw - mx, y + 3.5);
-
-          doc.setTextColor(...DARK);
-          doc.text(env.name, mx + 4, y + 1);
-          doc.setTextColor(...DARK);
-          doc.setFont("helvetica", "bold");
-          doc.text(formatCurrency(env.value), pw - mx - 4, y + 1, { align: "right" });
-          doc.setFont("helvetica", "normal");
-          y += 7;
+      let rowY = tableTop + 9;
+      environments.forEach((env, index) => {
+        if (index % 2 === 0) {
+          doc.setFillColor(...BG_ALT);
+          doc.rect(mx, rowY - 3.5, cw, 7, "F");
         }
-
-        // Border around table
         doc.setDrawColor(...BORDER);
-        doc.setLineWidth(0.4);
-        doc.roundedRect(mx, envStartY, cw, y - envStartY + 2, 2, 2, "S");
-        y += 6;
-      }
+        doc.setLineWidth(0.1);
+        doc.line(mx, rowY + 3.5, pw - mx, rowY + 3.5);
+        doc.setFont(FONT, "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...DARK);
+        doc.text(env.name, mx + 4, rowY + 1);
+        doc.setFont(FONT, "bold");
+        doc.text(formatCurrency(env.value), pw - mx - 4, rowY + 1, { align: "right" });
+        rowY += 7;
+      });
 
-      // ══════════════════ DIMENSÕES DE UTILITÁRIOS ══════════════════
-      checkPage(100);
+      y += totalHeight + gap;
+    };
+
+    const drawUtilitiesSection = () => {
       const utilitarios = [
-        "Refrigerador", "Fogão / Cooktop", "Forno Elétrico", "Micro-ondas",
-        "Lava Louças", "Lava Roupas", "Aquecedor", "Adega",
-        "Climatizador", "Ar Condicionado", "TV", "Cama Box",
-        "", "", "", "",
+        "Refrigerador",
+        "Fogão / Cooktop",
+        "Forno Elétrico",
+        "Micro-ondas",
+        "Lava Louças",
+        "Lava Roupas",
+        "Aquecedor",
+        "Adega",
+        "Climatizador",
+        "Ar Condicionado",
+        "TV",
+        "Cama Box",
+        "",
+        "",
+        "",
+        "",
       ];
 
-      const tblStartY = y;
-      // Title bar
-      doc.setFillColor(...PRIMARY);
-      doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
-      doc.rect(mx, y + 5, cw, 3, "F");
-      doc.setTextColor(...WHITE);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text("DIMENSÕES DE UTILITÁRIOS", mx + 4, y + 5.5);
-      y += 10;
+      const totalHeight = 19 + utilitarios.length * 7;
+      ensureSpace(totalHeight + gap);
+      drawCard("DIMENSÕES DE UTILITÁRIOS", totalHeight);
 
-      // Column widths
-      const nameW = cw * 0.40;
+      const nameW = cw * 0.4;
       const dimW = (cw - nameW) / 3;
+      const tableY = y + 10;
       const colStarts = [mx, mx + nameW, mx + nameW + dimW, mx + nameW + dimW * 2];
 
-      // Table header row
       doc.setFillColor(...PRIMARY);
-      doc.rect(mx, y, cw, 7, "F");
+      doc.rect(mx, tableY, cw, 7, "F");
+      doc.setFont(FONT, "bold");
+      doc.setFontSize(8);
       doc.setTextColor(...WHITE);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.text("UTILITÁRIO", colStarts[0] + 4, y + 5);
-      doc.text("LARGURA", colStarts[1] + 3, y + 5);
-      doc.text("ALTURA", colStarts[2] + 3, y + 5);
-      doc.text("PROFUNDIDADE", colStarts[3] + 3, y + 5);
-      y += 8;
+      doc.text("UTILITÁRIO", colStarts[0] + 4, tableY + 5);
+      doc.text("LARGURA", colStarts[1] + 3, tableY + 5);
+      doc.text("ALTURA", colStarts[2] + 3, tableY + 5);
+      doc.text("PROFUNDIDADE", colStarts[3] + 3, tableY + 5);
 
-      // Data rows
-      doc.setFontSize(8);
-      const rowH = 7;
-      for (let i = 0; i < utilitarios.length; i++) {
-        checkPage(rowH + 2);
-        if (i % 2 === 0) {
+      let rowY = tableY + 8;
+      utilitarios.forEach((item, index) => {
+        if (index % 2 === 0) {
           doc.setFillColor(...BG_ALT);
-          doc.rect(mx, y - 1, cw, rowH, "F");
+          doc.rect(mx, rowY - 1, cw, 7, "F");
         }
-
-        // Vertical lines
         doc.setDrawColor(...BORDER);
         doc.setLineWidth(0.2);
-        for (let c = 1; c < 4; c++) {
-          doc.line(colStarts[c], y - 1, colStarts[c], y + rowH - 1);
+        for (let i = 1; i < 4; i++) {
+          doc.line(colStarts[i], rowY - 1, colStarts[i], rowY + 6);
         }
-
-        // Horizontal bottom line
-        doc.line(mx, y + rowH - 1, pw - mx, y + rowH - 1);
-
-        // Name
+        doc.line(mx, rowY + 6, pw - mx, rowY + 6);
+        doc.setFont(FONT, item ? "normal" : "italic");
+        doc.setFontSize(8);
         doc.setTextColor(...DARK);
-        doc.setFont("helvetica", utilitarios[i] ? "normal" : "italic");
-        doc.text(utilitarios[i] || "", colStarts[0] + 4, y + 4);
+        doc.text(item || "________________", colStarts[0] + 4, rowY + 4);
+        rowY += 7;
+      });
 
-        // Empty dimension cells (for manual fill)
-        // Just draw light dotted placeholders
-        if (!utilitarios[i]) {
-          doc.setTextColor(200, 200, 200);
-          doc.text("________________", colStarts[0] + 4, y + 4);
-        }
+      y += totalHeight + gap;
+    };
 
-        y += rowH;
-      }
-
-      // Border around entire table
-      doc.setDrawColor(...BORDER);
-      doc.setLineWidth(0.4);
-      doc.roundedRect(mx, tblStartY, cw, y - tblStartY + 1, 2, 2, "S");
-      y += 8;
-
-      // ══════════════════ OBSERVAÇÕES GERAIS ══════════════════
-      checkPage(40);
+    const drawObservationsSection = () => {
       const obsText = observacoes.trim();
-      const obsStartY = y;
-      doc.setFillColor(...PRIMARY);
-      doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
-      doc.rect(mx, y + 5, cw, 3, "F");
-      doc.setTextColor(...WHITE);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text("OBSERVAÇÕES GERAIS", mx + 4, y + 5.5);
-      y += 11;
+      const lines = obsText ? doc.splitTextToSize(obsText, cw - 8) : [];
+      const totalHeight = obsText ? 13 + lines.length * 5 : 13 + 5 * 7;
+      ensureSpace(totalHeight + gap);
+      drawCard("OBSERVAÇÕES GERAIS", totalHeight);
 
+      let currentY = y + 13;
+      doc.setFont(FONT, "normal");
+      doc.setFontSize(8.5);
       doc.setTextColor(...DARK);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
+
       if (obsText) {
-        const obsLines = doc.splitTextToSize(obsText, cw - 8);
-        for (const line of obsLines) {
-          checkPage(6);
-          doc.text(line, mx + 4, y);
-          y += 5;
-        }
+        doc.text(lines, mx + 4, currentY);
       } else {
-        // Empty lines for manual fill
         doc.setDrawColor(...BORDER);
         doc.setLineWidth(0.15);
         for (let i = 0; i < 5; i++) {
-          doc.line(mx + 4, y + 3, pw - mx - 4, y + 3);
-          y += 7;
-        }
-      }
-      y += 2;
-
-      doc.setDrawColor(...BORDER);
-      doc.setLineWidth(0.4);
-      doc.roundedRect(mx, obsStartY, cw, y - obsStartY, 2, 2, "S");
-      y += 8;
-
-      // ══════════════════ IMAGENS DOS AMBIENTES ══════════════════
-      // Convert uploaded File objects to data URLs and render 3 per page
-      const imgH = 75; // image height in mm
-      const imgGap = 6;
-      const imgContentW = cw;
-
-      for (const env of environments) {
-        const files = envImages[env.id] || [];
-        if (files.length === 0) continue;
-
-        // Load all images as data URLs
-        const dataUrls: string[] = [];
-        for (const file of files) {
-          if (!file.type.startsWith("image/")) continue;
-          const dataUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-          });
-          dataUrls.push(dataUrl);
-        }
-
-        if (dataUrls.length === 0) continue;
-
-        let imgCount = 0;
-        for (const dataUrl of dataUrls) {
-          // Check if we need a new page (3 images per page)
-          if (imgCount % 3 === 0 || y + imgH + 20 > ph - 18) {
-            doc.addPage();
-            y = 14;
-            imgCount = 0;
-
-            // Section title on each new image page
-            doc.setFillColor(...PRIMARY);
-            doc.roundedRect(mx, y, cw, 8, 2, 2, "F");
-            doc.rect(mx, y + 5, cw, 3, "F");
-            doc.setTextColor(...WHITE);
-            doc.setFontSize(9);
-            doc.setFont("helvetica", "bold");
-            doc.text(`FOTOS — ${env.name}`, mx + 4, y + 5.5);
-            y += 12;
-          }
-
-          // Draw image with border
-          doc.setDrawColor(...BORDER);
-          doc.setLineWidth(0.3);
-          try {
-            // Load image to get aspect ratio
-            const tempImg = new window.Image();
-            await new Promise<void>((resolve) => {
-              tempImg.onload = () => resolve();
-              tempImg.onerror = () => resolve();
-              tempImg.src = dataUrl;
-            });
-
-            const aspect = tempImg.width / tempImg.height;
-            let drawW = imgContentW;
-            let drawH = drawW / aspect;
-            if (drawH > imgH) {
-              drawH = imgH;
-              drawW = drawH * aspect;
-            }
-            const drawX = mx + (imgContentW - drawW) / 2;
-
-            doc.addImage(dataUrl, "JPEG", drawX, y, drawW, drawH);
-            doc.roundedRect(drawX, y, drawW, drawH, 1, 1, "S");
-            y += drawH + imgGap;
-          } catch {
-            // Skip failed image
-            doc.setTextColor(...GRAY);
-            doc.setFontSize(8);
-            doc.text("(Imagem não carregada)", mx + 4, y + 10);
-            y += 16;
-          }
-
-          imgCount++;
+          doc.line(mx + 4, currentY + 2, pw - mx - 4, currentY + 2);
+          currentY += 7;
         }
       }
 
-      // ══════════════════ FOOTER ══════════════════
-      const addFooter = () => {
-        const totalPages = (doc as any).internal.getNumberOfPages();
-        for (let p = 1; p <= totalPages; p++) {
-          doc.setPage(p);
-          const footerY = ph - 10;
+      y += totalHeight + gap;
+    };
+
+    const drawPhotoPages = async () => {
+      const imageEntries = environments.flatMap((env) =>
+        (envImages[env.id] || []).map((file, index) => ({
+          envName: env.name,
+          file,
+          preview: (envImagePreviews[env.id] || [])[index],
+        })),
+      ).filter((entry) => {
+        const ref = `${entry.file?.type || ""} ${entry.file?.name || ""}`.toLowerCase();
+        return Boolean(entry.preview) && (ref.includes("image/") || /\.png$|\.jpe?g$|\.webp$|\.gif$|\.bmp$|\.svg$|\.heic$|\.heif$|\.avif$/.test(ref));
+      });
+
+      if (imageEntries.length === 0) return;
+
+      const slotHeight = 84;
+      const imageMaxHeight = 62;
+      let slotIndex = 0;
+
+      for (const entry of imageEntries) {
+        if (slotIndex % 3 === 0) {
+          doc.addPage();
+          y = topStart;
+          drawCard("FOTOS DOS AMBIENTES", 12, WHITE);
+          y += 16;
+        }
+
+        ensureSpace(slotHeight);
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.35);
+        doc.setFillColor(...WHITE);
+        doc.roundedRect(mx, y, cw, slotHeight - 4, 2, 2, "FD");
+
+        doc.setFont(FONT, "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(...DARK);
+        doc.text(entry.envName, mx + 4, y + 7);
+        doc.setFont(FONT, "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...GRAY);
+        doc.text(entry.file.name || "Imagem enviada", mx + 4, y + 12);
+
+        try {
+          const imageAsset = await loadImageAsset(entry.preview!, entry.file.name);
+          const ratio = imageAsset.width / imageAsset.height;
+          let drawW = cw - 8;
+          let drawH = drawW / ratio;
+          if (drawH > imageMaxHeight) {
+            drawH = imageMaxHeight;
+            drawW = drawH * ratio;
+          }
+          const drawX = mx + (cw - drawW) / 2;
+          const drawY = y + 16;
+
+          doc.addImage(imageAsset.dataUrl, imageAsset.format, drawX, drawY, drawW, drawH);
           doc.setDrawColor(...BORDER);
-          doc.setLineWidth(0.3);
-          doc.line(mx, footerY - 3, pw - mx, footerY - 3);
+          doc.roundedRect(drawX, drawY, drawW, drawH, 1, 1, "S");
+        } catch {
+          doc.setFont(FONT, "normal");
+          doc.setFontSize(8);
           doc.setTextColor(...GRAY);
-          doc.setFontSize(7);
-          doc.setFont("helvetica", "normal");
-          doc.text(
-            `${storeData.name || "Empresa"} — Solicitação de Medida gerada automaticamente pelo sistema.`,
-            pw / 2, footerY, { align: "center" }
-          );
-          doc.text(`Página ${p} de ${totalPages}`, pw - mx, footerY, { align: "right" });
+          doc.text("Falha ao carregar imagem.", mx + 4, y + 22);
         }
-      };
-      addFooter();
 
-      return doc;
-  }, [addressForm, client, editableFields, environments, envImages, storeData, totalValorAvista, tracking.numero_contrato, observacoes]);
+        y += slotHeight;
+        slotIndex += 1;
+      }
+    };
+
+    const addFooter = () => {
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let page = 1; page <= totalPages; page++) {
+        doc.setPage(page);
+        const footerY = ph - 9;
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.25);
+        doc.line(mx, footerY - 3, pw - mx, footerY - 3);
+        doc.setFont(FONT, "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(...GRAY);
+        doc.text(`${storeData.name || "Empresa"} — Solicitação de Medida`, mx, footerY);
+        doc.text(`Página ${page} de ${totalPages}`, pw - mx, footerY, { align: "right" });
+      }
+    };
+
+    resetText();
+
+    const headerHeight = 26;
+    doc.setFillColor(...PRIMARY);
+    doc.rect(0, 0, pw, headerHeight, "F");
+
+    let logoRightX = mx;
+    if (storeData.logo_url) {
+      try {
+        const logoAsset = await loadImageAsset(storeData.logo_url, "logo.png");
+        const logoH = 14;
+        const logoW = (logoAsset.width / logoAsset.height) * logoH;
+        doc.addImage(logoAsset.dataUrl, logoAsset.format, mx, 5.5, logoW, logoH);
+        logoRightX = mx + logoW + 5;
+      } catch {
+        logoRightX = mx;
+      }
+    }
+
+    doc.setFont(FONT, "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(...WHITE);
+    doc.text("SOLICITAÇÃO DE MEDIDA", logoRightX, 11.5);
+    doc.setFont(FONT, "normal");
+    doc.setFontSize(8);
+    doc.text(new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }), logoRightX, 18);
+
+    doc.setFont(FONT, "bold");
+    doc.setFontSize(8);
+    doc.text("CONTRATO / ORÇAMENTO", pw - mx, 10, { align: "right" });
+    doc.setFont(FONT, "bold");
+    doc.setFontSize(11);
+    doc.text(doc.splitTextToSize(contractNumber, 72), pw - mx, 17, { align: "right" });
+
+    y = 32;
+
+    drawFieldGridSection("DADOS DA LOJA", [
+      [{ label: "Loja", value: storeData.name }, { label: "CNPJ", value: storeData.cnpj }],
+      [{ label: "Código da Loja", value: storeData.codigo_loja }, { label: "Gerente", value: storeData.gerente_nome }],
+    ]);
+
+    const fullAddr = [
+      addressForm.street,
+      addressForm.number,
+      addressForm.complement,
+      addressForm.district,
+      addressForm.city && addressForm.state ? `${addressForm.city} - ${addressForm.state}` : addressForm.city || addressForm.state,
+      addressForm.cep,
+    ].filter(Boolean).join(", ") || "Não informado";
+
+    drawFieldGridSection("DADOS DO CLIENTE", [
+      [{ label: "Nome", value: client.nome || "—" }, { label: "CPF/CNPJ", value: editableFields.cpf || "—" }],
+      [{ label: "Telefone", value: editableFields.telefone || "—" }, { label: "Email", value: editableFields.email || "—" }],
+      [{ label: "Vendedor", value: client.vendedor || "—" }],
+    ]);
+
+    drawAddressSection(fullAddr);
+    drawValueSection();
+    drawEnvironmentsSection();
+    drawUtilitiesSection();
+    drawObservationsSection();
+    await drawPhotoPages();
+    addFooter();
+
+    return doc;
+  }, [addressForm, client, editableFields, environments, envImages, envImagePreviews, formatCurrency, observacoes, storeData, totalValorAvista, tracking]);
 
   const generatePdfPreview = useCallback(async () => {
     setPdfPreviewLoading(true);
