@@ -1,5 +1,5 @@
 /**
- * Email Panel — Compose emails with attachments and contact memorization.
+ * Email Panel — Compose emails with attachments, contact memorization, drag & drop, resend/forward.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Mail, Send, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
   Plus, Loader2, Inbox, Paperclip, X, FileText, Image, Upload, Users,
+  RefreshCw, Forward,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
@@ -76,6 +77,8 @@ export function EmailPanel() {
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [savedContacts, setSavedContacts] = useState<string[]>(getSavedContacts);
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
+  const [showCcContactSuggestions, setShowCcContactSuggestions] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // History state
@@ -108,6 +111,7 @@ export function EmailPanel() {
     setLoadingHistory(false);
   }, []);
 
+  // Auto-refresh history when switching to tab or after send
   useEffect(() => {
     if (tab === "history") loadHistory(page);
   }, [tab, page, loadHistory]);
@@ -125,14 +129,12 @@ export function EmailPanel() {
       let htmlBody = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">`;
       htmlBody += `<div style="white-space:pre-wrap;line-height:1.6;">${body.replace(/\n/g, "<br>")}</div>`;
 
-      // Add attachment info to email body
       if (attachments.length > 0) {
         htmlBody += `<hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0;">`;
         htmlBody += `<p style="font-size:12px;color:#64748b;">📎 ${attachments.length} anexo(s) incluído(s)</p>`;
         htmlBody += `<div style="display:flex;flex-wrap:wrap;gap:8px;">`;
         for (const att of attachments) {
           if (att.kind === "image") {
-            // Upload to storage and include link
             const path = `email-attachments/${tenantId}/${Date.now()}-${att.file.name}`;
             const { data: uploadData } = await supabase.storage
               .from("attachments")
@@ -167,16 +169,16 @@ export function EmailPanel() {
       if (error || !data?.success) {
         toast.error("Erro ao enviar: " + (data?.error || error?.message || "Erro desconhecido"));
       } else {
-        // Save contacts
         saveContact(to);
         if (cc) saveContact(cc);
         setSavedContacts(getSavedContacts());
 
         toast.success("✅ Email enviado com sucesso!");
         resetCompose();
+        // Immediately refresh history
         setTab("history");
-        loadHistory(1);
         setPage(1);
+        await loadHistory(1);
       }
     } catch (err: any) {
       toast.error("Falha ao enviar: " + (err.message || "Erro desconhecido"));
@@ -190,7 +192,6 @@ export function EmailPanel() {
     setCc("");
     setSubject("");
     setBody("");
-    // Revoke preview URLs
     attachments.forEach(a => URL.revokeObjectURL(a.previewUrl));
     setAttachments([]);
   };
@@ -238,6 +239,11 @@ export function EmailPanel() {
     setShowContactSuggestions(false);
   };
 
+  const selectCcContact = (email: string) => {
+    setCc(email);
+    setShowCcContactSuggestions(false);
+  };
+
   const removeContact = (email: string) => {
     const updated = savedContacts.filter(c => c !== email);
     setSavedContacts(updated);
@@ -248,7 +254,98 @@ export function EmailPanel() {
     !to || c.toLowerCase().includes(to.toLowerCase())
   );
 
+  const filteredCcContacts = savedContacts.filter(c =>
+    !cc || c.toLowerCase().includes(cc.toLowerCase())
+  );
+
+  // Drag & drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  };
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    handleFileAdd(e.dataTransfer.files);
+  };
+
+  // Resend an email
+  const handleResend = (email: EmailRecord) => {
+    setTo(email.to_email);
+    setCc(email.cc_email || "");
+    setSubject(email.subject);
+    // Strip HTML for body
+    const tmp = document.createElement("div");
+    tmp.innerHTML = email.body_html || "";
+    setBody(tmp.textContent || tmp.innerText || "");
+    setStep("review");
+    setTab("compose");
+  };
+
+  // Forward an email
+  const handleForward = (email: EmailRecord) => {
+    setTo("");
+    setCc("");
+    setSubject(`Fwd: ${email.subject}`);
+    const tmp = document.createElement("div");
+    tmp.innerHTML = email.body_html || "";
+    const originalBody = tmp.textContent || tmp.innerText || "";
+    setBody(`\n\n---------- Email Encaminhado ----------\nDe: ${email.to_email}\nAssunto: ${email.subject}\n\n${originalBody}`);
+    setStep("to");
+    setTab("compose");
+  };
+
   const stepNumber = ["to", "cc", "subject", "body", "review"].indexOf(step) + 1;
+
+  const renderContactSuggestions = (
+    contacts: string[],
+    onSelect: (email: string) => void,
+    show: boolean,
+  ) => {
+    if (!show || contacts.length === 0) return null;
+    return (
+      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <div className="p-2">
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide px-2 pb-1 flex items-center gap-1">
+            <Users className="h-3 w-3" /> Contatos Salvos
+          </p>
+          {contacts.map(contact => (
+            <div
+              key={contact}
+              className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer group"
+            >
+              <button
+                type="button"
+                className="flex-1 text-left text-sm"
+                onMouseDown={(e) => { e.preventDefault(); onSelect(contact); }}
+              >
+                {contact}
+              </button>
+              <button
+                type="button"
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
+                onMouseDown={(e) => { e.preventDefault(); removeContact(contact); }}
+                title="Remover contato"
+              >
+                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -289,37 +386,7 @@ export function EmailPanel() {
                       onBlur={() => setTimeout(() => setShowContactSuggestions(false), 200)}
                       autoFocus
                     />
-                    {showContactSuggestions && filteredContacts.length > 0 && (
-                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        <div className="p-2">
-                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide px-2 pb-1 flex items-center gap-1">
-                            <Users className="h-3 w-3" /> Contatos Salvos
-                          </p>
-                          {filteredContacts.map(contact => (
-                            <div
-                              key={contact}
-                              className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer group"
-                            >
-                              <button
-                                type="button"
-                                className="flex-1 text-left text-sm"
-                                onMouseDown={(e) => { e.preventDefault(); selectContact(contact); }}
-                              >
-                                {contact}
-                              </button>
-                              <button
-                                type="button"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
-                                onMouseDown={(e) => { e.preventDefault(); removeContact(contact); }}
-                                title="Remover contato"
-                              >
-                                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    {renderContactSuggestions(filteredContacts, selectContact, showContactSuggestions)}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Informe o email do destinatário principal.
@@ -331,14 +398,22 @@ export function EmailPanel() {
               {step === "cc" && (
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">📋 Deseja adicionar alguém em cópia (CC)?</Label>
-                  <Input
-                    type="email"
-                    placeholder="copia@email.com (opcional)"
-                    value={cc}
-                    onChange={e => setCc(e.target.value)}
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground">Opcional — deixe em branco para pular.</p>
+                  <div className="relative">
+                    <Input
+                      type="email"
+                      placeholder="copia@email.com (opcional)"
+                      value={cc}
+                      onChange={e => { setCc(e.target.value); setShowCcContactSuggestions(true); }}
+                      onFocus={() => setShowCcContactSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowCcContactSuggestions(false), 200)}
+                      autoFocus
+                    />
+                    {renderContactSuggestions(filteredCcContacts, selectCcContact, showCcContactSuggestions)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Opcional — deixe em branco para pular.
+                    {savedContacts.length > 0 && ` • ${savedContacts.length} contato(s) disponíveis`}
+                  </p>
                 </div>
               )}
 
@@ -369,7 +444,7 @@ export function EmailPanel() {
                     <p className="text-xs text-muted-foreground">Dica: Quebre linhas para melhor formatação.</p>
                   </div>
 
-                  {/* Attachments Section */}
+                  {/* Attachments Section with Drag & Drop */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold flex items-center gap-2">
                       <Paperclip className="h-4 w-4" />
@@ -411,9 +486,23 @@ export function EmailPanel() {
                       </div>
                     )}
 
-                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed border-muted-foreground/30 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
-                      <Upload className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Adicionar anexo</span>
+                    {/* Drag & Drop zone */}
+                    <div
+                      onDragEnter={handleDragEnter}
+                      onDragLeave={handleDragLeave}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      className={`flex flex-col items-center justify-center gap-2 p-6 rounded-lg border-2 border-dashed transition-colors cursor-pointer ${
+                        isDraggingOver
+                          ? "border-primary bg-primary/10"
+                          : "border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5"
+                      }`}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className={`h-6 w-6 ${isDraggingOver ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`text-sm ${isDraggingOver ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                        {isDraggingOver ? "Solte os arquivos aqui" : "Arraste arquivos ou clique para anexar"}
+                      </span>
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -425,7 +514,7 @@ export function EmailPanel() {
                           e.currentTarget.value = "";
                         }}
                       />
-                    </label>
+                    </div>
                     <p className="text-[10px] text-muted-foreground">
                       Imagens, PDFs e documentos. As imagens aparecerão no corpo do email.
                     </p>
@@ -539,6 +628,26 @@ export function EmailPanel() {
                             <p className="text-[10px] text-muted-foreground mt-0.5">
                               {dateStr} às {timeStr}
                             </p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleResend(email)}
+                              title="Reenviar email"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleForward(email)}
+                              title="Encaminhar email"
+                            >
+                              <Forward className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
                       );
