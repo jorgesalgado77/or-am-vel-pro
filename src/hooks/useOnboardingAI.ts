@@ -362,7 +362,6 @@ export function useOnboardingAI(tenantId: string | null) {
         appendAssistant(`❌ Erro ao consultar contas: ${finError.message || "Tabela não encontrada"}. Verifique se o módulo financeiro está configurado.`);
         return true;
       }
-        .limit(20);
 
       const accounts = (data as any[]) || [];
       const overdue = accounts.filter((account) => account.due_date < today);
