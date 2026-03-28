@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, CalendarDays } from "lucide-react";
+import { Plus, LayoutGrid, CalendarDays, RefreshCw } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
 import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 import { useUsuarios } from "@/hooks/useUsuarios";
@@ -108,6 +108,15 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
   const handleSave = async (data: Partial<Task>) => {
     if (editingTask) {
       await updateTask(editingTask.id, data);
+      // Auto-sync edited task to Google Calendar
+      syncTaskToCalendar({
+        id: editingTask.id,
+        titulo: data.titulo || editingTask.titulo,
+        descricao: data.descricao,
+        data_tarefa: data.data_tarefa || editingTask.data_tarefa,
+        horario: data.horario,
+        responsavel_nome: data.responsavel_nome,
+      });
     } else {
       const created = await createTask(data);
       if (created) {
@@ -121,6 +130,24 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
         });
       }
     }
+  };
+
+  const handleResyncAll = async () => {
+    if (!tasks.length) return;
+    toast.info("🔄 Resincronizando tarefas com Google Agenda...");
+    let synced = 0;
+    for (const task of tasks.filter(t => t.status !== "concluida")) {
+      await syncTaskToCalendar({
+        id: task.id,
+        titulo: task.titulo,
+        descricao: task.descricao,
+        data_tarefa: task.data_tarefa,
+        horario: task.horario,
+        responsavel_nome: task.responsavel_nome,
+      });
+      synced++;
+    }
+    toast.success(`✅ ${synced} tarefa(s) sincronizada(s) com Google Agenda`);
   };
 
   const handleTaskClick = (task: Task) => {
@@ -159,6 +186,17 @@ export function TasksPanel({ tenantId, userId, userName }: Props) {
               <TabsTrigger value="calendar" className="text-xs gap-1 px-2 h-7"><CalendarDays className="h-3.5 w-3.5" />Calendário</TabsTrigger>
             </TabsList>
           </Tabs>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={handleResyncAll}
+            disabled={calendarSyncing}
+            title="Resincronizar todas as tarefas com Google Agenda"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${calendarSyncing ? "animate-spin" : ""}`} />
+            Resincronizar
+          </Button>
           <Button size="sm" className="gap-1.5" onClick={() => { setEditingTask(null); setModalOpen(true); }}>
             <Plus className="h-4 w-4" />Nova Tarefa
           </Button>
