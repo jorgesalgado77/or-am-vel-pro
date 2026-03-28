@@ -325,6 +325,19 @@ interface TaskWizardState {
 
 const INITIAL_WIZARD: TaskWizardState = { active: false, step: "titulo" };
 
+// --- Email wizard state ---
+interface EmailWizardState {
+  active: boolean;
+  step: "destinatario" | "copia" | "assunto" | "corpo" | "anexos" | "confirmar";
+  to?: string;
+  cc?: string;
+  subject?: string;
+  body?: string;
+  attachments?: string[];
+}
+
+const INITIAL_EMAIL_WIZARD: EmailWizardState = { active: false, step: "destinatario" };
+
 export function useOnboardingAI(tenantId: string | null) {
   const [messages, setMessages] = useState<AIMessage[]>(() => {
     if (!tenantId) return [];
