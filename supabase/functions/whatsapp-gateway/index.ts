@@ -449,12 +449,26 @@ async function handleInboundWebhook(body: any, isEvolution: boolean) {
   console.log(`[Webhook Inbound] Phone: ${cleanPhone}, Text: ${messageText.substring(0, 60)}`);
 
   // Find client by phone (try telefone1 and telefone2 columns)
-  const { data: client } = await sb
+  // Try exact suffix match first (last 8-11 digits)
+  const lastDigits = cleanPhone.slice(-8);
+  let { data: client } = await sb
     .from("clients")
     .select("id, nome, tenant_id")
-    .or(`telefone1.like.%${cleanPhone},telefone2.like.%${cleanPhone}`)
+    .or(`telefone1.like.%${lastDigits},telefone2.like.%${lastDigits}`)
     .limit(1)
     .maybeSingle();
+
+  // If multiple matches possible with 8 digits, refine with more digits
+  if (!client && cleanPhone.length >= 10) {
+    const moreDigits = cleanPhone.slice(-10);
+    const { data: refined } = await sb
+      .from("clients")
+      .select("id, nome, tenant_id")
+      .or(`telefone1.like.%${moreDigits},telefone2.like.%${moreDigits}`)
+      .limit(1)
+      .maybeSingle();
+    client = refined;
+  }
 
   if (!client) {
     console.log(`[Webhook] No client found for phone ${cleanPhone}`);
