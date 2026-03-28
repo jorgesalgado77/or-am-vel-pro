@@ -342,7 +342,7 @@ export function MeasurementRequestModal({
       let logoX = mx;
       if (storeData.logo_url) {
         try {
-          const img = new Image();
+          const img = new window.Image();
           img.crossOrigin = "anonymous";
           await new Promise<void>((resolve, reject) => {
             img.onload = () => resolve();
