@@ -408,9 +408,9 @@ export function MeasurementRequestModal({
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="mt-3">
+        <DialogFooter className="px-6 pb-6 pt-3 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button
             onClick={handleSubmit}
