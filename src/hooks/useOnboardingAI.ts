@@ -852,44 +852,145 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
-    if (/(criar|agendar) tarefa|nova tarefa/.test(lower) && currentUserId) {
-      const title = content.split(":").slice(1).join(":").trim() || content.replace(/(criar|agendar) tarefa/gi, "").trim() || "Tarefa criada pela Mia";
-      const { data: userData } = await (supabase as any).from("usuarios").select("id, nome_completo").eq("id", currentUserId).maybeSingle();
-      const today = new Date().toISOString().slice(0, 10);
-      const taskPayload: Record<string, any> = {
-        tenant_id: tenantId,
-        titulo: title,
-        descricao: `Criada pela Mia a partir da conversa: ${content}`,
-        data_tarefa: today,
-        tipo: "geral",
-        status: "nova",
-        responsavel_id: currentUserId,
-        responsavel_nome: userData?.nome_completo || null,
-        criado_por: currentUserId,
-      };
-      const { error } = await (supabase as any).from("tasks").insert(taskPayload);
+    if (/(criar|agendar|nova)\s*tarefa/i.test(lower) && currentUserId && !taskWizard.active) {
+      setTaskWizard({ active: true, step: "titulo" });
+      appendAssistant("📋 **Vamos criar uma nova tarefa!**\n\n**Qual o título da tarefa?**");
+      return true;
+    }
 
-      let retryError = error;
-      if (error) {
-        console.error("[Mia] Task insert error:", JSON.stringify(error));
-        const { error: e2 } = await (supabase as any).from("tasks").insert({
-          tenant_id: tenantId,
-          titulo: title,
-          descricao: taskPayload.descricao,
-          status: "nova",
-          tipo: "geral",
-          responsavel_id: currentUserId,
-        });
-        retryError = e2;
-        if (e2) console.error("[Mia] Task retry error:", JSON.stringify(e2));
+    // === Task wizard steps ===
+    if (taskWizard.active && currentUserId) {
+      const step = taskWizard.step;
+
+      if (step === "titulo") {
+        setTaskWizard(prev => ({ ...prev, titulo: content.trim(), step: "data" }));
+        appendAssistant(`✅ Título: **${content.trim()}**\n\n📅 **Qual a data da tarefa?**\n\n_Ex: hoje, amanhã, 30/03/2026_`);
+        return true;
       }
 
-      appendAssistant(
-        retryError
-          ? `❌ Não consegui criar a tarefa: ${retryError.message || "Verifique permissões"}`
-          : `✅ **Tarefa criada com sucesso**\n\n• ${title}\n• Data: hoje\n• Responsável: ${userData?.nome_completo || "usuário atual"}`
-      );
-      return true;
+      if (step === "data") {
+        let dateStr = "";
+        const today = new Date();
+        if (/hoje/i.test(lower)) {
+          dateStr = today.toISOString().slice(0, 10);
+        } else if (/amanh[ãa]/i.test(lower)) {
+          const d = new Date(today);
+          d.setDate(d.getDate() + 1);
+          dateStr = d.toISOString().slice(0, 10);
+        } else {
+          // Try DD/MM/YYYY or DD/MM
+          const dateMatch = content.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+          if (dateMatch) {
+            const day = dateMatch[1].padStart(2, "0");
+            const month = dateMatch[2].padStart(2, "0");
+            const year = dateMatch[3] ? (dateMatch[3].length === 2 ? `20${dateMatch[3]}` : dateMatch[3]) : String(today.getFullYear());
+            dateStr = `${year}-${month}-${day}`;
+          } else {
+            // Try ISO
+            const isoMatch = content.match(/(\d{4}-\d{2}-\d{2})/);
+            if (isoMatch) dateStr = isoMatch[1];
+          }
+        }
+
+        if (!dateStr) {
+          appendAssistant("❌ Não entendi a data. Por favor, informe no formato **DD/MM/AAAA**, ou diga **hoje** ou **amanhã**.");
+          return true;
+        }
+
+        const dateFormatted = dateStr.split("-").reverse().join("/");
+        setTaskWizard(prev => ({ ...prev, data_tarefa: dateStr, step: "horario" }));
+        appendAssistant(`✅ Data: **${dateFormatted}**\n\n🕐 **Qual o horário da tarefa?**\n\n_Ex: 14:00, 09:30 (ou digite "sem horário")_`);
+        return true;
+      }
+
+      if (step === "horario") {
+        let horario: string | undefined;
+        if (/sem\s+hor[aá]rio|nenhum|pular|n[ãa]o/i.test(lower)) {
+          horario = undefined;
+        } else {
+          const timeMatch = content.match(/(\d{1,2})[:\.](\d{2})/);
+          if (timeMatch) {
+            horario = `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}`;
+          } else {
+            appendAssistant("❌ Não entendi o horário. Use o formato **HH:MM** (ex: 14:00) ou diga **sem horário**.");
+            return true;
+          }
+        }
+        setTaskWizard(prev => ({ ...prev, horario, step: "descricao" }));
+        appendAssistant(`✅ Horário: **${horario || "Sem horário"}**\n\n📝 **Qual a descrição da tarefa?**\n\n_Descreva os detalhes ou digite "pular" para não adicionar descrição._`);
+        return true;
+      }
+
+      if (step === "descricao") {
+        const descricao = /pular|sem descri[çc][ãa]o|nenhum/i.test(lower) ? undefined : content.trim();
+        setTaskWizard(prev => ({ ...prev, descricao, step: "notificacao" }));
+        appendAssistant(`✅ Descrição: **${descricao || "Nenhuma"}**\n\n⏰ **Quantos minutos antes do horário deseja ser notificado?**\n\n_Ex: 5, 10, 15, 30 ou "sem notificação"_`);
+        return true;
+      }
+
+      if (step === "notificacao") {
+        let notifMin: number | undefined;
+        if (/sem\s+notifica[çc][ãa]o|nenhum|pular|n[ãa]o/i.test(lower)) {
+          notifMin = undefined;
+        } else {
+          const numMatch = content.match(/(\d+)/);
+          if (numMatch) {
+            notifMin = parseInt(numMatch[1]);
+          } else {
+            appendAssistant("❌ Não entendi. Informe um número de minutos (ex: **15**) ou diga **sem notificação**.");
+            return true;
+          }
+        }
+
+        const wizard = { ...taskWizard, notificacao_minutos: notifMin };
+
+        // Show summary and save
+        const { data: userData } = await (supabase as any).from("usuarios").select("id, nome_completo").eq("id", currentUserId).maybeSingle();
+        const dateFormatted = (wizard.data_tarefa || "").split("-").reverse().join("/");
+
+        const taskPayload: Record<string, any> = {
+          tenant_id: tenantId,
+          titulo: wizard.titulo || "Tarefa criada pela Mia",
+          descricao: wizard.descricao || null,
+          data_tarefa: wizard.data_tarefa || new Date().toISOString().slice(0, 10),
+          horario: wizard.horario || null,
+          tipo: "geral",
+          status: "nova",
+          responsavel_id: currentUserId,
+          responsavel_nome: userData?.nome_completo || null,
+          criado_por: currentUserId,
+        };
+
+        const { error } = await (supabase as any).from("tasks").insert(taskPayload);
+
+        if (error) {
+          console.error("[Mia] Task wizard insert error:", JSON.stringify(error));
+          appendAssistant(`❌ Não consegui criar a tarefa: ${error.message || "Erro desconhecido"}`);
+        } else {
+          // Set notification preference if specified
+          if (notifMin && wizard.horario) {
+            try {
+              const { setReminderMinutes: setRemMin } = await import("@/hooks/useTaskReminders");
+              setRemMin(notifMin);
+            } catch {}
+          }
+
+          appendAssistant(
+            `✅ **Tarefa criada com sucesso!**\n\n` +
+            `| Campo | Valor |\n|---|---|\n` +
+            `| **Título** | ${wizard.titulo} |\n` +
+            `| **Data** | ${dateFormatted} |\n` +
+            `| **Horário** | ${wizard.horario || "Sem horário"} |\n` +
+            `| **Descrição** | ${wizard.descricao || "—"} |\n` +
+            `| **Notificação** | ${notifMin ? `${notifMin} min antes` : "Desativada"} |\n` +
+            `| **Responsável** | ${userData?.nome_completo || "Você"} |\n\n` +
+            `A tarefa já está visível na coluna **Nova Tarefa** do Kanban! 📋`
+          );
+        }
+
+        setTaskWizard(INITIAL_WIZARD);
+        return true;
+      }
     }
 
     if (/(meus tickets|ver tickets|tickets de suporte|status dos tickets)/.test(lower) && currentUserId) {
