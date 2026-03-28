@@ -33,13 +33,18 @@ export interface SellerRanking {
   badges: string[];
 }
 
-export function useCommercialAI(tenantId: string | null, userId?: string) {
+export function useCommercialAI(tenantId: string | null, userId?: string, userRole?: string) {
   const [metrics, setMetrics] = useState<SalesMetrics | null>(null);
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [rankings, setRankings] = useState<SellerRanking[]>([]);
   const [loading, setLoading] = useState(true);
   const [stalledLeads, setStalledLeads] = useState<any[]>([]);
   const [hotLeads, setHotLeads] = useState<any[]>([]);
+  const [clientsBySeller, setClientsBySeller] = useState<Record<string, any[]>>({});
+
+  const isAdminOrManager = userRole
+    ? ["administrador", "gerente", "admin"].includes(userRole.toLowerCase())
+    : false;
 
   const fetchMetrics = useCallback(async () => {
     if (!tenantId) return;
@@ -47,10 +52,32 @@ export function useCommercialAI(tenantId: string | null, userId?: string) {
     // Compute metrics from real CRM data
     const { data: clients } = await (supabase as any)
       .from("clients")
-      .select("id, status, created_at, valor_fechamento, responsavel_id")
+      .select("id, nome, status, created_at, valor_fechamento, responsavel_id, vendedor, updated_at, telefone, email")
       .eq("tenant_id", tenantId);
 
     if (!clients) return;
+
+    // Fetch user info for mapping
+    const { data: usuarios } = await (supabase as any)
+      .from("usuarios")
+      .select("id, nome_completo")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true);
+
+    const userNameMap = new Map((usuarios || []).map((u: any) => [u.id, u.nome_completo]));
+
+    // Group clients by seller/responsavel for individual tracking
+    const grouped: Record<string, any[]> = {};
+    const openStatuses = ["novo", "em_negociacao", "proposta_enviada"];
+    const openClients = clients.filter((c: any) => openStatuses.includes(c.status));
+
+    for (const client of openClients) {
+      const sellerId = client.responsavel_id || "sem_responsavel";
+      const sellerName = client.vendedor || (client.responsavel_id ? userNameMap.get(client.responsavel_id) : null) || "Sem vendedor";
+      if (!grouped[sellerId]) grouped[sellerId] = [];
+      grouped[sellerId].push({ ...client, seller_name: sellerName });
+    }
+    setClientsBySeller(grouped);
 
     const totalLeads = clients.length;
     const proposalStatuses = ["proposta_enviada", "em_negociacao", "fechado"];
@@ -95,7 +122,7 @@ export function useCommercialAI(tenantId: string | null, userId?: string) {
       avg_close_days: Math.round(avgCloseDays),
       response_rate: totalLeads > 0 ? Math.round((proposals.length / totalLeads) * 100) : 0,
     });
-  }, [tenantId]);
+  }, [tenantId, userId, isAdminOrManager]);
 
   const generateInsights = useCallback(async () => {
     if (!tenantId || !metrics) return;
@@ -104,9 +131,17 @@ export function useCommercialAI(tenantId: string | null, userId?: string) {
 
     // Alert: stalled leads
     if (stalledLeads.length > 0) {
+      // Group stalled by seller
+      const stalledBySeller: Record<string, number> = {};
+      stalledLeads.forEach((l: any) => {
+        const seller = l.vendedor || "Sem vendedor";
+        stalledBySeller[seller] = (stalledBySeller[seller] || 0) + 1;
+      });
+      const sellerDetail = Object.entries(stalledBySeller).map(([s, c]) => `${s}: ${c}`).join(", ");
+
       newInsights.push({
         type: "alert",
-        message: `Você tem ${stalledLeads.length} lead(s) sem resposta há mais de 3 dias! Atenda agora para não perder a venda.`,
+        message: `${stalledLeads.length} lead(s) sem resposta há mais de 3 dias! ${isAdminOrManager ? `Por vendedor: ${sellerDetail}.` : "Atenda agora para não perder a venda."}`,
         priority: "high",
         is_read: false,
         action_type: "follow_up",
@@ -126,9 +161,19 @@ export function useCommercialAI(tenantId: string | null, userId?: string) {
 
     // Suggestion: hot leads
     if (hotLeads.length > 0) {
+      const hotBySeller: Record<string, string[]> = {};
+      hotLeads.forEach((l: any) => {
+        const seller = l.vendedor || "Sem vendedor";
+        if (!hotBySeller[seller]) hotBySeller[seller] = [];
+        hotBySeller[seller].push(l.nome || "Cliente");
+      });
+      const hotDetail = isAdminOrManager
+        ? "\n" + Object.entries(hotBySeller).map(([s, names]) => `• **${s}:** ${names.slice(0, 3).join(", ")}${names.length > 3 ? ` +${names.length - 3}` : ""}`).join("\n")
+        : "";
+
       newInsights.push({
         type: "suggestion",
-        message: `${hotLeads.length} lead(s) quente(s) aguardando ação. Foque nesses clientes para fechar vendas rapidamente!`,
+        message: `${hotLeads.length} lead(s) quente(s) aguardando ação. Foque nesses clientes para fechar vendas rapidamente!${hotDetail}`,
         priority: "high",
         is_read: false,
         action_type: "send_message",
@@ -161,7 +206,7 @@ export function useCommercialAI(tenantId: string | null, userId?: string) {
       id: `generated-${i}`,
       created_at: new Date().toISOString(),
     })) as AIInsight[]);
-  }, [tenantId, metrics, stalledLeads, hotLeads]);
+  }, [tenantId, metrics, stalledLeads, hotLeads, isAdminOrManager]);
 
   const fetchRankings = useCallback(async () => {
     if (!tenantId) return;
@@ -229,5 +274,7 @@ export function useCommercialAI(tenantId: string | null, userId?: string) {
     loading,
     markInsightRead,
     refreshMetrics: fetchMetrics,
+    clientsBySeller,
+    isAdminOrManager,
   };
 }
