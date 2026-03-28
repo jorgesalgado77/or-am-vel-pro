@@ -310,6 +310,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         vendedor_nome: vendedorMap[t.client_id]?.vendedor || null,
         isClientDirect: t.isClientDirect || false,
         client_id: t.client_id,
+        phone: t.numero_contrato?.startsWith("WA-") ? t.numero_contrato.replace("WA-", "") : undefined,
       }))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
@@ -680,27 +681,49 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         tenantId={tenantId}
         open={showWhatsAppContacts}
         onClose={() => setShowWhatsAppContacts(false)}
-        onStartChat={(contact) => {
+        onStartChat={async (contact) => {
           setShowWhatsAppContacts(false);
+
+          // Check if conversation already exists for this phone
+          const existingConv = conversations.find(c => c.phone === contact.phone);
+          if (existingConv) {
+            handleSelectConversation(existingConv);
+            toast.info(`Conversa com ${contact.name} já existe`);
+            return;
+          }
+
+          // Create a client_tracking record for this WhatsApp contact
+          const { data: newTracking, error: trackError } = await supabase
+            .from("client_tracking")
+            .insert({
+              nome_cliente: contact.name,
+              numero_contrato: `WA-${contact.phone}`,
+              tenant_id: tenantId,
+              status: "em_negociacao",
+              client_id: "00000000-0000-0000-0000-000000000000",
+            } as any)
+            .select("id")
+            .single();
+
+          if (trackError || !newTracking) {
+            console.error("client_tracking insert error:", trackError);
+            toast.error("Erro ao criar conversa");
+            return;
+          }
+
           const newConv: ChatConversation = {
-            id: `wa-${contact.phone}`,
-            numero_contrato: "",
+            id: newTracking.id,
+            numero_contrato: `WA-${contact.phone}`,
             nome_cliente: contact.name,
             unread_count: 0,
             last_message: "",
             last_message_at: new Date().toISOString(),
+            phone: contact.phone,
           };
-          setConversations(prev => {
-            const exists = prev.find(c => c.nome_cliente === contact.name && c.numero_contrato === "");
-            if (exists) {
-              setSelected(exists);
-              return prev;
-            }
-            const updated = [newConv, ...prev];
-            setSelected(newConv);
-            return updated;
-          });
-          toast.success(`Conversa iniciada com ${contact.name}`);
+
+          setConversations(prev => [newConv, ...prev]);
+          setSelected(newConv);
+          toast.success(`Conversa com ${contact.name} iniciada!`);
         }}
       />
       </div>
