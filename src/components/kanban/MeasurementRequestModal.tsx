@@ -58,6 +58,16 @@ interface AddressFormState {
   state: string;
 }
 
+const EMPTY_ADDRESS_FORM: AddressFormState = {
+  cep: "",
+  street: "",
+  number: "",
+  complement: "",
+  district: "",
+  city: "",
+  state: "",
+};
+
 interface MeasurementRequestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -89,9 +99,8 @@ export function MeasurementRequestModal({
 
   // Editable client address
   const [editingAddress, setEditingAddress] = useState(false);
-  const [addressForm, setAddressForm] = useState<AddressFormState>({
-    cep: "", street: "", number: "", complement: "", district: "", city: "", state: "",
-  });
+  const [addressForm, setAddressForm] = useState<AddressFormState>(EMPTY_ADDRESS_FORM);
+  const addressFormRef = useRef<AddressFormState>(EMPTY_ADDRESS_FORM);
   const addressHydrationLockedRef = useRef(false);
   const modalSessionKeyRef = useRef<string | null>(null);
   const modalSessionKey = useMemo(
@@ -149,13 +158,16 @@ export function MeasurementRequestModal({
       // ignore storage issues
     }
   }, [addressDraftStorageKey]);
+  const getLatestAddressForm = useCallback(() => {
+    const persistedDraft = loadAddressDraft();
+    return persistedDraft ? normalizeAddressForm(persistedDraft) : normalizeAddressForm(addressFormRef.current);
+  }, [loadAddressDraft, normalizeAddressForm]);
   const updateAddressForm = useCallback((updates: Partial<AddressFormState>) => {
     addressHydrationLockedRef.current = true;
-    setAddressForm((prev) => {
-      const next = sanitizeAddressForm({ ...prev, ...updates });
-      persistAddressDraft(next);
-      return next;
-    });
+    const next = sanitizeAddressForm({ ...addressFormRef.current, ...updates });
+    addressFormRef.current = next;
+    persistAddressDraft(next);
+    setAddressForm(next);
   }, [persistAddressDraft, sanitizeAddressForm]);
   const isAddressComplete = useCallback((value: AddressFormState) => (
     !!(value.cep && value.street && value.city && value.state)
@@ -527,6 +539,7 @@ export function MeasurementRequestModal({
     });
 
     if (!addressHydrationLockedRef.current) {
+      addressFormRef.current = nextAddressForm;
       setAddressForm(nextAddressForm);
 
       if (!isAddressComplete(nextAddressForm)) {
@@ -661,17 +674,16 @@ export function MeasurementRequestModal({
       const data = await res.json();
       if (!data.erro) {
         addressHydrationLockedRef.current = true;
-        setAddressForm(prev => {
-          const next = sanitizeAddressForm({
-            ...prev,
-            street: data.logradouro || prev.street,
-            district: data.bairro || prev.district,
-            city: data.localidade || prev.city,
-            state: data.uf || prev.state,
-          });
-          persistAddressDraft(next);
-          return next;
+        const next = sanitizeAddressForm({
+          ...addressFormRef.current,
+          street: data.logradouro || addressFormRef.current.street,
+          district: data.bairro || addressFormRef.current.district,
+          city: data.localidade || addressFormRef.current.city,
+          state: data.uf || addressFormRef.current.state,
         });
+        addressFormRef.current = next;
+        persistAddressDraft(next);
+        setAddressForm(next);
         toast.success("CEP encontrado! Endereço preenchido automaticamente.");
       } else {
         toast.error("CEP não encontrado.");
@@ -680,7 +692,7 @@ export function MeasurementRequestModal({
       toast.error("Erro ao buscar CEP.");
     }
     setCepLoading(false);
-  }, []);
+  }, [persistAddressDraft, sanitizeAddressForm]);
 
   // Save editable fields to client in DB
   const saveClientField = useCallback(async (field: string, value: string) => {
@@ -694,9 +706,10 @@ export function MeasurementRequestModal({
   }, [client?.id]);
 
   const saveAddress = useCallback(async () => {
-    const nextAddressForm = normalizeAddressForm(addressForm);
+    const nextAddressForm = getLatestAddressForm();
 
     addressHydrationLockedRef.current = true;
+    addressFormRef.current = nextAddressForm;
     setAddressForm(nextAddressForm);
     persistAddressDraft(nextAddressForm);
 
@@ -740,7 +753,7 @@ export function MeasurementRequestModal({
       toast.success("Endereço salvo localmente!");
       setEditingAddress(false);
     }
-  }, [addressForm, client?.id, normalizeAddressForm, persistAddressDraft]);
+  }, [client?.id, getLatestAddressForm, persistAddressDraft]);
 
   // Load environments from simulations
   useEffect(() => {
@@ -1052,9 +1065,10 @@ export function MeasurementRequestModal({
   );
 
   const persistClientSnapshot = useCallback(async () => {
-    const normalizedAddress = normalizeAddressForm(addressForm);
+    const normalizedAddress = getLatestAddressForm();
 
     addressHydrationLockedRef.current = true;
+    addressFormRef.current = normalizedAddress;
     setAddressForm(normalizedAddress);
     persistAddressDraft(normalizedAddress);
 
@@ -1077,7 +1091,7 @@ export function MeasurementRequestModal({
         uf_entrega: normalizedAddress.state,
       } as any).eq("id", client.id);
     } catch { /* columns may not exist — address is saved in measurement_request payload */ }
-  }, [addressForm, client.id, editableFields, normalizeAddressForm, persistAddressDraft]);
+  }, [client.id, editableFields, getLatestAddressForm, persistAddressDraft]);
 
   const buildPdfDoc = useCallback(async () => {
     const { default: jsPDF } = await import("jspdf");
@@ -1586,8 +1600,9 @@ export function MeasurementRequestModal({
   }, [buildPdfDoc, client.nome]);
 
   const handleSubmit = async () => {
-    const normalizedAddress = normalizeAddressForm(addressForm);
+    const normalizedAddress = getLatestAddressForm();
     addressHydrationLockedRef.current = true;
+    addressFormRef.current = normalizedAddress;
     setAddressForm(normalizedAddress);
     persistAddressDraft(normalizedAddress);
 
@@ -1729,6 +1744,7 @@ export function MeasurementRequestModal({
       });
 
       clearAddressDraft();
+      addressFormRef.current = EMPTY_ADDRESS_FORM;
       addressHydrationLockedRef.current = false;
       onOpenChange(false);
     } catch (err: any) {
