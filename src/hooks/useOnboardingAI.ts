@@ -619,6 +619,64 @@ export function useOnboardingAI(tenantId: string | null) {
         return true;
       }
     }
+    // === "Minhas tarefas de hoje" query ===
+    if (/(?:minhas\s+)?tarefas?\s+(?:de\s+)?hoje|(?:o\s+que\s+tenho\s+)?(?:pra|para)\s+hoje|agenda\s+(?:de\s+)?hoje|(?:quais|qual)\s+(?:s[ãa]o\s+)?(?:as\s+)?(?:minhas\s+)?tarefas?\s+(?:de\s+)?hoje/i.test(lower)) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { data: todayTasks } = await (supabase as any)
+        .from("tasks")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("data_tarefa", todayStr)
+        .order("horario", { ascending: true });
+
+      const tasks = (todayTasks || []) as any[];
+
+      if (tasks.length === 0) {
+        appendAssistant("📋 **Nenhuma tarefa para hoje!**\n\nSua agenda está livre. Aproveite para planejar novas atividades ou diga **criar tarefa** para adicionar uma. 🎯");
+        return true;
+      }
+
+      const statusIcons: Record<string, string> = {
+        nova: "🆕",
+        pendente: "⏳",
+        em_execucao: "🔧",
+        concluida: "✅",
+      };
+      const statusLabels: Record<string, string> = {
+        nova: "Nova",
+        pendente: "Pendente",
+        em_execucao: "Em Execução",
+        concluida: "Concluída",
+      };
+
+      const myTasks = currentUserId ? tasks.filter((t: any) => t.responsavel_id === currentUserId) : [];
+      const otherTasks = currentUserId ? tasks.filter((t: any) => t.responsavel_id !== currentUserId) : tasks;
+
+      let response = `📋 **Tarefas de Hoje** — ${new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}\n\n`;
+
+      if (myTasks.length > 0) {
+        response += `### 👤 Suas Tarefas (${myTasks.length})\n\n`;
+        response += `| Horário | Tarefa | Status |\n|---|---|---|\n`;
+        for (const t of myTasks) {
+          response += `| ${t.horario || "—"} | ${t.titulo} | ${statusIcons[t.status] || ""} ${statusLabels[t.status] || t.status} |\n`;
+        }
+      }
+
+      if (otherTasks.length > 0) {
+        response += `\n### 👥 Outras Tarefas da Equipe (${otherTasks.length})\n\n`;
+        response += `| Horário | Tarefa | Responsável | Status |\n|---|---|---|---|\n`;
+        for (const t of otherTasks) {
+          response += `| ${t.horario || "—"} | ${t.titulo} | ${t.responsavel_nome || "—"} | ${statusIcons[t.status] || ""} ${statusLabels[t.status] || t.status} |\n`;
+        }
+      }
+
+      const pending = tasks.filter((t: any) => t.status !== "concluida").length;
+      const done = tasks.filter((t: any) => t.status === "concluida").length;
+      response += `\n---\n📊 **Resumo:** ${pending} pendente(s) | ${done} concluída(s) | ${tasks.length} total`;
+
+      appendAssistant(response.trim());
+      return true;
+    }
 
     // === Alert/Reminder commands ===
     const alertCmd = detectAlertCommand(content);
