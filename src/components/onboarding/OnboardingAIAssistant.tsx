@@ -20,6 +20,9 @@ import {
   ArrowDown,
   ChevronUp,
   ChevronDown,
+  Maximize2,
+  Minimize2,
+  FileDown,
 } from "lucide-react";
 import {
   ListTodo,
@@ -33,6 +36,14 @@ import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 const ONBOARDING_STEPS = [
   { key: "company_info", label: "Dados da loja" },
@@ -65,6 +76,7 @@ export function OnboardingAIAssistant() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [compactMode, setCompactMode] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -212,6 +224,93 @@ export function OnboardingAIAssistant() {
   const completedSteps = context?.completedSteps || [];
   const progress = (completedSteps.length / ONBOARDING_STEPS.length) * 100;
 
+  const exportConversationPdf = useCallback((filter: "all" | "today" | "this_month" | "last_month" | "custom", startDate?: Date, endDate?: Date) => {
+    let filtered = [...messages];
+    const now = new Date();
+
+    if (filter === "today") {
+      const todayStr = now.toISOString().slice(0, 10);
+      filtered = filtered.filter(m => new Date(m.timestamp).toISOString().slice(0, 10) === todayStr);
+    } else if (filter === "this_month") {
+      filtered = filtered.filter(m => {
+        const d = new Date(m.timestamp);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
+    } else if (filter === "last_month") {
+      const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+      const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      filtered = filtered.filter(m => {
+        const d = new Date(m.timestamp);
+        return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+      });
+    } else if (filter === "custom" && startDate && endDate) {
+      const start = startDate.getTime();
+      const end = endDate.getTime() + 86400000;
+      filtered = filtered.filter(m => {
+        const t = new Date(m.timestamp).getTime();
+        return t >= start && t < end;
+      });
+    }
+
+    if (filtered.length === 0) {
+      toast.info("Nenhuma mensagem encontrada para o período selecionado.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const maxWidth = pageWidth - margin * 2;
+    let y = 20;
+
+    doc.setFontSize(16);
+    doc.text("Conversa com Mia — Assistente IA", margin, y);
+    y += 8;
+    doc.setFontSize(9);
+    const filterLabels: Record<string, string> = {
+      all: "Histórico completo",
+      today: `Hoje — ${now.toLocaleDateString("pt-BR")}`,
+      this_month: `Mês atual — ${now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}`,
+      last_month: "Mês anterior",
+      custom: startDate && endDate ? `${startDate.toLocaleDateString("pt-BR")} a ${endDate.toLocaleDateString("pt-BR")}` : "Período personalizado",
+    };
+    doc.text(`Período: ${filterLabels[filter]}  •  ${filtered.length} mensagem(ns)`, margin, y);
+    y += 6;
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    for (const msg of filtered) {
+      const prefix = msg.role === "user" ? "Você" : "Mia";
+      const time = new Date(msg.timestamp).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      const plainText = msg.content.replace(/[#*_~`>|[\]()!]/g, "").replace(/\n{2,}/g, "\n");
+
+      doc.setFontSize(8);
+      doc.setTextColor(130);
+      doc.text(`${prefix} • ${time}`, margin, y);
+      y += 4;
+
+      doc.setFontSize(9);
+      doc.setTextColor(msg.role === "user" ? 30 : 60);
+      const lines = doc.splitTextToSize(plainText, maxWidth);
+      for (const line of lines) {
+        if (y > doc.internal.pageSize.getHeight() - 15) {
+          doc.addPage();
+          y = 15;
+        }
+        doc.text(line, margin, y);
+        y += 4;
+      }
+      y += 4;
+    }
+
+    doc.save(`mia-conversa-${filter}-${now.toISOString().slice(0, 10)}.pdf`);
+    toast.success("PDF exportado com sucesso!");
+  }, [messages]);
+
+  const [exportDateStart, setExportDateStart] = useState("");
+  const [exportDateEnd, setExportDateEnd] = useState("");
+
   if (!tenantId) return null;
 
   const fabStyle: React.CSSProperties = fabPos
@@ -244,11 +343,13 @@ export function OnboardingAIAssistant() {
       {open && (
         <div
           className={cn(
-            "fixed z-50 flex flex-col overflow-hidden border border-border bg-background shadow-2xl",
-            // Mobile: full viewport
-            "inset-0 rounded-none",
-            // sm+: floating bottom-right card with explicit height
-            "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:h-[min(85dvh,680px)] sm:rounded-2xl",
+            "fixed z-50 flex flex-col overflow-hidden border border-border bg-background shadow-2xl transition-all duration-300",
+            fullscreen
+              ? "inset-0 rounded-none"
+              : cn(
+                  "inset-0 rounded-none",
+                  "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:h-[min(85dvh,680px)] sm:rounded-2xl"
+                ),
             !prefersReducedMotion && "animate-in slide-in-from-bottom-4 duration-300"
           )}
         >
@@ -261,6 +362,48 @@ export function OnboardingAIAssistant() {
               <p className="text-sm font-semibold text-primary-foreground">Mia — Assistente IA</p>
               <p className="text-xs text-primary-foreground/70">Configuração inteligente</p>
             </div>
+
+            {/* Export PDF dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+                  title="Exportar conversa em PDF"
+                >
+                  <FileDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={() => exportConversationPdf("all")}>
+                  📄 Histórico completo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportConversationPdf("today")}>
+                  📅 Hoje
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportConversationPdf("this_month")}>
+                  📆 Mês atual
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportConversationPdf("last_month")}>
+                  📆 Mês anterior
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const start = prompt("Data inicial (DD/MM/AAAA):");
+                  const end = prompt("Data final (DD/MM/AAAA):");
+                  if (start && end) {
+                    const [sd, sm, sy] = start.split("/").map(Number);
+                    const [ed, em, ey] = end.split("/").map(Number);
+                    if (sd && sm && sy && ed && em && ey) {
+                      exportConversationPdf("custom", new Date(sy, sm - 1, sd), new Date(ey, em - 1, ed));
+                    }
+                  }
+                }}>
+                  📊 Por período
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button
               variant="ghost"
               size="icon"
@@ -273,8 +416,17 @@ export function OnboardingAIAssistant() {
             <Button
               variant="ghost"
               size="icon"
+              className="hidden sm:flex h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+              onClick={() => setFullscreen(v => !v)}
+              title={fullscreen ? "Minimizar" : "Expandir tela cheia"}
+            >
+              {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
-              onClick={() => setOpen(false)}
+              onClick={() => { setOpen(false); setFullscreen(false); }}
             >
               <X className="h-4 w-4" />
             </Button>
