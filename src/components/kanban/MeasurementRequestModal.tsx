@@ -177,13 +177,31 @@ export function MeasurementRequestModal({
     hydrateClientState(client as any);
 
     const loadFreshClient = async () => {
-      const { data } = await (supabase as any)
-        .from("clients")
-        .select("*")
-        .eq("id", client.id)
-        .maybeSingle();
+      const [clientRes, requestRes] = await Promise.all([
+        (supabase as any)
+          .from("clients")
+          .select("*")
+          .eq("id", client.id)
+          .maybeSingle(),
+        tracking?.id
+          ? (supabase as any)
+              .from("measurement_requests")
+              .select("*")
+              .eq("tracking_id", tracking.id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+          : (supabase as any)
+              .from("measurement_requests")
+              .select("*")
+              .eq("client_id", client.id)
+              .order("created_at", { ascending: false })
+              .limit(1),
+      ]);
 
-      if (active && data) hydrateClientState(data);
+      const latestRequest = Array.isArray(requestRes.data) ? requestRes.data[0] : null;
+      if (active) {
+        hydrateClientState({ ...(clientRes.data || {}), ...(latestRequest || {}) });
+      }
     };
 
     void loadFreshClient();
@@ -191,7 +209,7 @@ export function MeasurementRequestModal({
     return () => {
       active = false;
     };
-  }, [clearPreviewUrls, client, hydrateClientState, open]);
+  }, [clearPreviewUrls, client, hydrateClientState, open, tracking?.id]);
 
   useEffect(() => () => {
     clearPreviewUrls();
@@ -501,20 +519,18 @@ export function MeasurementRequestModal({
     rawAttachment: any,
     index: number,
   ): Promise<EnvironmentAttachment | null> {
-    const sourceUrl = typeof rawAttachment === "string"
-      ? rawAttachment
-      : rawAttachment?.url || rawAttachment?.publicUrl || rawAttachment?.previewUrl || "";
+    const sourceUrl = resolveStoredAssetUrl(rawAttachment);
 
     if (!sourceUrl) return null;
 
     const name = typeof rawAttachment === "string"
       ? `${envName} ${index + 1}`
-      : rawAttachment?.name || `${envName} ${index + 1}`;
+      : rawAttachment?.name || rawAttachment?.file_name || `${envName} ${index + 1}`;
     const mimeType = typeof rawAttachment === "string"
       ? ""
-      : rawAttachment?.type || rawAttachment?.mimeType || "";
+      : rawAttachment?.type || rawAttachment?.mimeType || rawAttachment?.mime_type || "";
     const inferredKind = typeof rawAttachment === "string"
-      ? "image"
+      ? getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` })
       : rawAttachment?.kind || getFileKind({ type: mimeType, name: `${name} ${sourceUrl}` });
 
     if (inferredKind === "other") return null;
@@ -524,7 +540,7 @@ export function MeasurementRequestModal({
       : sourceUrl;
 
     return {
-      id: `${envId}-persisted-${rawAttachment?.id || index}`,
+      id: `${envId}-persisted-${rawAttachment?.id || rawAttachment?.path || index}`,
       kind: inferredKind,
       mimeType,
       name,
