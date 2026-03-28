@@ -44,6 +44,8 @@ export function MeasurementRequestModal({
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [envImages, setEnvImages] = useState<Record<string, File[]>>({});
   const [saving, setSaving] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const { settings } = useCompanySettings();
 
   // Store data
@@ -313,9 +315,11 @@ export function MeasurementRequestModal({
     }
 
     const blob = doc.output("blob");
+    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
     const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  }, [client, tracking, environments, envImages, totalValorAvista]);
+    setPdfPreviewUrl(url);
+    setPdfPreviewOpen(true);
+  }, [client, tracking, environments, envImages, totalValorAvista, pdfPreviewUrl]);
 
   const handleSubmit = async () => {
     if (!allEnvsHaveImages) {
@@ -420,6 +424,7 @@ export function MeasurementRequestModal({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-0">
@@ -729,5 +734,20 @@ export function MeasurementRequestModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* PDF Preview Dialog */}
+    <Dialog open={pdfPreviewOpen} onOpenChange={(v) => { setPdfPreviewOpen(v); if (!v && pdfPreviewUrl) { URL.revokeObjectURL(pdfPreviewUrl); setPdfPreviewUrl(null); } }}>
+      <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-4 pb-2">
+          <DialogTitle>Pré-visualização do PDF</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 px-2 pb-2">
+          {pdfPreviewUrl && (
+            <iframe src={pdfPreviewUrl} className="w-full h-full border-0 rounded-md" title="PDF Preview" />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }
