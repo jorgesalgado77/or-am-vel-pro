@@ -22,7 +22,10 @@ async function getAvailableProviders(adminClient: ReturnType<typeof createClient
     .eq("tenant_id", tenantId)
     .eq("is_active", true);
 
-  const openaiKey = (data || []).find((item: any) => item.provider === "openai")?.api_key || null;
+  // Check tenant-level OpenAI key first, then fallback to env var
+  const openaiKey = (data || []).find((item: any) => item.provider === "openai")?.api_key 
+    || Deno.env.get("OPENAI_API_KEY") 
+    || null;
 
   return {
     openaiKey,
