@@ -217,14 +217,14 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     // Also fetch clients directly to ensure we have all available clients
     const { data: allClients } = await supabase
       .from("clients")
-      .select("id, nome, numero_orcamento, vendedor, status")
+      .select("id, nome, numero_orcamento, vendedor, status, telefone")
       .eq("tenant_id", tenantId)
       .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"]);
 
-    // Build vendedor map from clients
-    let vendedorMap: Record<string, { vendedor: string | null }> = {};
+    // Build vendedor/phone map from clients
+    let clientDataMap: Record<string, { vendedor: string | null; telefone: string | null }> = {};
     (allClients || []).forEach((c: any) => {
-      vendedorMap[c.id] = { vendedor: c.vendedor };
+      clientDataMap[c.id] = { vendedor: c.vendedor, telefone: c.telefone || null };
     });
 
     // Build tracking entries — merge client_tracking with clients fallback
@@ -259,7 +259,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     if (!isAdminOrManager && currentUser?.nome_completo) {
       const nameLower = currentUser.nome_completo.toLowerCase();
       filteredEntries = allEntries.filter(t =>
-        vendedorMap[t.client_id]?.vendedor?.toLowerCase() === nameLower ||
+        clientDataMap[t.client_id]?.vendedor?.toLowerCase() === nameLower ||
         (t.projetista && t.projetista.toLowerCase() === nameLower)
       );
     }
