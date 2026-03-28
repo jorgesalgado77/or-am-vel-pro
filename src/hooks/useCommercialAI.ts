@@ -107,7 +107,7 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
         if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
       }
       // Fallback to tracking valor_contrato
-      const track = trackingMap.get(contract.client_id);
+      const track = trackingMap.get(contract.client_id) as any;
       if (valor === 0 && track?.valor_contrato) {
         valor = Number(track.valor_contrato) || 0;
       }
