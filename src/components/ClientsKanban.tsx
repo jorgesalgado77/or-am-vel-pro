@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, UserPlus, CalendarIcon, FileText, Calculator } from "lucide-react";
-import { generateOrcamentoNumber } from "@/services/financialService";
+import { generateOrcamentoNumber, formatOrcamentoFromSeq, parseOrcamentoInitial } from "@/services/financialService";
 import { addDays, isPast } from "date-fns";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
