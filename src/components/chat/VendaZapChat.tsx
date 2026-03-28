@@ -309,10 +309,10 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         unread_count: unreadMap[t.id] || 0,
         last_message: lastMsgMap[t.id]?.msg || (t.isClientDirect ? "Clique para iniciar conversa" : undefined),
         last_message_at: lastMsgMap[t.id]?.at,
-        vendedor_nome: vendedorMap[t.client_id]?.vendedor || null,
+        vendedor_nome: clientDataMap[t.client_id]?.vendedor || null,
         isClientDirect: t.isClientDirect || false,
         client_id: t.client_id,
-        phone: t.numero_contrato?.startsWith("WA-") ? t.numero_contrato.replace("WA-", "") : undefined,
+        phone: clientDataMap[t.client_id]?.telefone || (t.numero_contrato?.startsWith("WA-") ? t.numero_contrato.replace("WA-", "") : undefined),
       }))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
