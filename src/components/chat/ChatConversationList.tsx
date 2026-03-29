@@ -95,9 +95,13 @@ const ConversationItem = memo(function ConversationItem({
               {!displayPhone && conv.numero_contrato && !conv.numero_contrato.startsWith("WA-") && (
                 <span className="text-[10px] text-muted-foreground">📋 {conv.numero_contrato}</span>
               )}
-              {conv.vendedor_nome && (
-                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">
-                  👤 {conv.vendedor_nome}
+              {isDuplicate && isAdmin && onShowDuplicates && (
+                <Badge
+                  variant="outline"
+                  className="text-[9px] h-4 px-1.5 font-normal border-amber-500/50 text-amber-600 cursor-pointer hover:bg-amber-500/10"
+                  onClick={(e) => { e.stopPropagation(); onShowDuplicates(); }}
+                >
+                  <Copy className="h-2.5 w-2.5 mr-0.5" /> Duplicada
                 </Badge>
               )}
             </div>
