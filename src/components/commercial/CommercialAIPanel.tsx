@@ -556,8 +556,51 @@ export function CommercialAIPanel() {
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-foreground"
                     )}>
-                      <div className="prose prose-sm prose-invert max-w-none">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <div className="prose prose-sm prose-invert max-w-none [&_a]:text-blue-400 [&_a]:underline [&_a]:break-all">
+                        <ReactMarkdown
+                          components={{
+                            a: ({ href, children }) => {
+                              const isYouTube = href && (href.includes("youtube.com/watch") || href.includes("youtu.be/"));
+                              const getYouTubeId = (url: string) => {
+                                const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                return match?.[1];
+                              };
+                              if (isYouTube && href) {
+                                const videoId = getYouTubeId(href);
+                                return (
+                                  <div className="my-2">
+                                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline text-xs">
+                                      🎬 {children}
+                                    </a>
+                                    {videoId && (
+                                      <div className="mt-1 rounded-lg overflow-hidden border border-border">
+                                        <iframe
+                                          src={`https://www.youtube.com/embed/${videoId}`}
+                                          className="w-full aspect-video"
+                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                          allowFullScreen
+                                          title={String(children)}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              return (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 underline hover:text-blue-300 inline-flex items-center gap-1"
+                                >
+                                  🔗 {children}
+                                </a>
+                              );
+                            },
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   </div>
@@ -597,6 +640,8 @@ export function CommercialAIPanel() {
               "Analise meus gargalos",
               "Qual o status da meta da loja?",
               "Quais leads estão parados e precisam de ação?",
+              "Me indique vídeos de treinamento de vendas para melhorar meu desempenho",
+              "Quais estratégias posso usar para aumentar meu ticket médio?",
             ].map(q => (
               <Button
                 key={q}
