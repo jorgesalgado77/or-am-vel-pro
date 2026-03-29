@@ -479,32 +479,56 @@ export function MeasurementKanban() {
                                 <Separator />
 
                                 <div className="space-y-1.5">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1">
                                     <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                    <Select
-                                      value={request.assigned_to || "__none__"}
-                                      onValueChange={(value) => handleAssign(request.id, value)}
-                                      onOpenChange={(open) => {
-                                        if (open && !request.assigned_to && nextQueueAssignee) {
-                                          handleAssign(request.id, nextQueueAssignee);
-                                        }
-                                      }}
-                                    >
-                                      <SelectTrigger className="h-7 text-[11px] flex-1">
-                                        <SelectValue>{request.technician_name || request.assigned_to || (nextQueueAssignee ? `Atribuir técnico · ${nextQueueAssignee}` : "Atribuir técnico")}</SelectValue>
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="__none__">Sem responsável</SelectItem>
-                                        {nextQueueAssignee && (
-                                          <SelectItem value={nextQueueAssignee}>1º da fila · {nextQueueAssignee}</SelectItem>
-                                        )}
-                                        {tecnicosEProjetistas.filter((user) => user.nome_completo !== nextQueueAssignee).map((user) => (
-                                          <SelectItem key={user.id} value={user.nome_completo}>
-                                            {user.nome_completo} ({user.cargo_nome})
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                    {!request.assigned_to && nextQueueAssignee ? (
+                                      <>
+                                        <Button
+                                          variant="default"
+                                          size="sm"
+                                          className="h-7 text-[10px] flex-1 gap-1"
+                                          onClick={() => handleAssign(request.id, nextQueueAssignee)}
+                                        >
+                                          ⚡ Atribuir · {nextQueueAssignee.split(" ")[0]}
+                                        </Button>
+                                        <Select
+                                          value="__none__"
+                                          onValueChange={(value) => handleAssign(request.id, value)}
+                                        >
+                                          <SelectTrigger className="h-7 w-7 p-0 flex items-center justify-center">
+                                            <ChevronRight className="h-3 w-3" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="__none__">Sem responsável</SelectItem>
+                                            {tecnicosEProjetistas.map((user) => (
+                                              <SelectItem key={user.id} value={user.nome_completo}>
+                                                {user.nome_completo} ({user.cargo_nome})
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </>
+                                    ) : (
+                                      <Select
+                                        value={request.assigned_to || "__none__"}
+                                        onValueChange={(value) => handleAssign(request.id, value)}
+                                      >
+                                        <SelectTrigger className="h-7 text-[11px] flex-1">
+                                          <SelectValue>{request.technician_name || request.assigned_to || "Atribuir técnico"}</SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="__none__">Sem responsável</SelectItem>
+                                          {nextQueueAssignee && (
+                                            <SelectItem value={nextQueueAssignee}>1º da fila · {nextQueueAssignee}</SelectItem>
+                                          )}
+                                          {tecnicosEProjetistas.filter((user) => user.nome_completo !== nextQueueAssignee).map((user) => (
+                                            <SelectItem key={user.id} value={user.nome_completo}>
+                                              {user.nome_completo} ({user.cargo_nome})
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
                                   </div>
 
                                   {request.status !== "novo" && (
@@ -598,11 +622,13 @@ function FilaLiberacaoTab({
   requests, liberadores, metas, tetoOverrides,
   setTetoOverrides, editingTeto, setEditingTeto, tetoEditValue, setTetoEditValue,
 }: FilaLiberacaoProps) {
-  // Check if current user is admin
+  // Check if current user is admin - uses useCurrentUser from auth context
   const isAdmin = useMemo(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("usuario_atual") || "{}");
-      return (user.cargo_nome || "").toLowerCase().includes("administrador");
+      // Check from Supabase session metadata first, fallback to localStorage for display name
+      const sessionUser = JSON.parse(localStorage.getItem("usuario_atual") || "{}");
+      const cargoNome = (sessionUser.cargo_nome || "").toLowerCase();
+      return cargoNome.includes("administrador") || cargoNome.includes("gerente");
     } catch { return false; }
   }, []);
 

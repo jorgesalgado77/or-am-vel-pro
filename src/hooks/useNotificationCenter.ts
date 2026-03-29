@@ -62,7 +62,7 @@ export function useNotificationCenter(userId: string | undefined, userName: stri
         .select("id, titulo, data_tarefa, horario, status, created_at, criado_por")
         .eq("tenant_id", tenantId)
         .eq("responsavel_id", userId)
-        .in("status", ["nova", "pendente"])
+        .in("status", ["nova", "pendente", "em_execucao"])
         .order("created_at", { ascending: false })
         .limit(15);
 
