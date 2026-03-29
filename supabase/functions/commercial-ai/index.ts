@@ -115,6 +115,82 @@ async function fetchLearningContext(adminClient: ReturnType<typeof createClient>
   }
 }
 
+/**
+ * Build a director-level context from pipeline + forecast data.
+ */
+async function fetchDirectorContext(adminClient: ReturnType<typeof createClient>, tenantId: string): Promise<string> {
+  try {
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+
+    // Parallel fetches
+    const [clientsRes, contractsRes, goalsRes, forecastRes, trackingRes] = await Promise.all([
+      adminClient.from("clients").select("id, status, updated_at, created_at, vendedor").eq("tenant_id", tenantId),
+      adminClient.from("client_contracts").select("id, client_id, created_at").eq("tenant_id", tenantId),
+      adminClient.from("sales_goals").select("*").eq("tenant_id", tenantId).eq("month", currentMonth),
+      adminClient.from("revenue_forecast").select("*").eq("tenant_id", tenantId).eq("month", currentMonth).maybeSingle(),
+      adminClient.from("client_tracking").select("client_id, valor_contrato").eq("tenant_id", tenantId),
+    ]);
+
+    const clients = clientsRes.data || [];
+    const contracts = contractsRes.data || [];
+    const goals = goalsRes.data || [];
+    const forecast = forecastRes.data;
+    const trackings = trackingRes.data || [];
+
+    const contractIds = new Set(contracts.map((c: any) => c.client_id));
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    const openClients = clients.filter((c: any) => !contractIds.has(c.id) && c.status !== "perdido" && c.status !== "fechado");
+    const stalled = openClients.filter((c: any) => new Date(c.updated_at || c.created_at) < threeDaysAgo);
+    const hot = openClients.filter((c: any) => ["em_negociacao", "proposta_enviada"].includes(c.status) && new Date(c.updated_at || c.created_at) >= threeDaysAgo);
+
+    const trackingMap = new Map(trackings.map((t: any) => [t.client_id, Number(t.valor_contrato) || 0]));
+    const pipelineValue = openClients.reduce((sum: number, c: any) => sum + (trackingMap.get(c.id) || 0), 0);
+
+    const metaLoja = goals.find((g: any) => g.goal_type === "meta_loja");
+    const metaValue = metaLoja?.target_value || 0;
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysRemaining = Math.max(0, daysInMonth - now.getDate());
+
+    // Sellers breakdown
+    const sellerMap: Record<string, { total: number; stalled: number; hot: number }> = {};
+    for (const c of openClients) {
+      const seller = (c as any).vendedor || "Sem vendedor";
+      if (!sellerMap[seller]) sellerMap[seller] = { total: 0, stalled: 0, hot: 0 };
+      sellerMap[seller].total++;
+      if (stalled.some((s: any) => s.id === c.id)) sellerMap[seller].stalled++;
+      if (hot.some((h: any) => h.id === c.id)) sellerMap[seller].hot++;
+    }
+
+    const parts: string[] = ["\n\n=== ANÁLISE DA DIRETORA COMERCIAL ==="];
+    parts.push(`📊 Pipeline: ${openClients.length} leads (${hot.length} 🔥 quentes, ${stalled.length} ❄️ parados)`);
+    parts.push(`   Valor pipeline: R$ ${pipelineValue.toFixed(2)}`);
+    if (metaValue > 0) {
+      parts.push(`🎯 Meta loja: R$ ${metaValue.toFixed(2)} | ${daysRemaining} dias restantes`);
+    }
+
+    if (forecast) {
+      parts.push(`📈 Previsão: Otimista R$ ${(forecast.previsao_otimista || 0).toFixed(2)} | Realista R$ ${(forecast.previsao_realista || 0).toFixed(2)} | Pessimista R$ ${(forecast.previsao_pessimista || 0).toFixed(2)}`);
+      parts.push(`   Risco: ${(forecast.risco || "desconhecido").toUpperCase()} | Confiança: ${forecast.confianca || 0}%`);
+    }
+
+    if (Object.keys(sellerMap).length > 0) {
+      parts.push("\n👥 Por vendedor:");
+      for (const [seller, data] of Object.entries(sellerMap)) {
+        parts.push(`   • ${seller}: ${data.total} leads, ${data.hot} quentes, ${data.stalled} parados`);
+      }
+    }
+
+    parts.push("\nComo DIRETORA COMERCIAL, use dados acima para decisões estratégicas, cobrança de resultados e ações por vendedor.");
+    return parts.join("\n");
+  } catch (e) {
+    console.error("fetchDirectorContext error:", e);
+    return "";
+  }
+}
+
 async function fetchPreviousMonthsData(adminClient: ReturnType<typeof createClient>, tenantId: string) {
   const now = new Date();
   const months: string[] = [];
@@ -136,10 +212,10 @@ async function fetchPreviousMonthsData(adminClient: ReturnType<typeof createClie
 
   const summary: string[] = [];
   for (const month of months) {
-    const goals = (prevGoals || []).filter((g: any) => g.month === month);
-    const contracts = (prevContracts || []).filter((c: any) => (c.created_at || "").substring(0, 7) === month);
-    if (goals.length > 0 || contracts.length > 0) {
-      summary.push(`Mês ${month}: ${contracts.length} vendas fechadas, ${goals.length} metas definidas`);
+    const mGoals = (prevGoals || []).filter((g: any) => g.month === month);
+    const mContracts = (prevContracts || []).filter((c: any) => (c.created_at || "").substring(0, 7) === month);
+    if (mGoals.length > 0 || mContracts.length > 0) {
+      summary.push(`Mês ${month}: ${mContracts.length} vendas fechadas, ${mGoals.length} metas definidas`);
     }
   }
   return summary.length > 0 ? `\n\nHistórico meses anteriores:\n${summary.join("\n")}` : "";
@@ -224,45 +300,48 @@ serve(async (req) => {
 
     const apiKey = selectedProvider === "openai" ? openaiKey : perplexityKey;
 
-    // Fetch historical data and learning insights in parallel
-    const [historyContext, learningContext] = await Promise.all([
+    // Fetch historical data, learning insights, and director context in parallel
+    const [historyContext, learningContext, directorContext] = await Promise.all([
       fetchPreviousMonthsData(adminClient, tenant_id),
       fetchLearningContext(adminClient, tenant_id),
+      fetchDirectorContext(adminClient, tenant_id),
     ]);
 
-    const systemPrompt = `Você é a IA Gerente Comercial do OrçaMóvel PRO.
+    const systemPrompt = `Você é a IA DIRETORA COMERCIAL do OrçaMóvel PRO.
 
-Seu papel é:
-- Analisar dados de vendas e orientar vendedores
-- Identificar gargalos e oportunidades
-- Cobrar resultados de forma assertiva, mas motivacional
-- Sugerir ações ESPECÍFICAS baseadas em DADOS REAIS da loja (não genéricas)
-- Usar insights do sistema de aprendizado para fundamentar estratégias
-- Aprender com os resultados dos meses anteriores para melhorar estratégias
-- SEMPRE focar em bater a meta da loja
-- Monitorar cada vendedor projetista individualmente
-- Recomendar a melhor estratégia de vendas com base no histórico real de conversão
-- Alertar quando uma estratégia está com baixa conversão e sugerir alternativa
-- Sugerir links de treinamento e vídeos relevantes do YouTube quando apropriado
+Seu papel ESTRATÉGICO é:
+- Definir e monitorar metas de vendas da loja e de cada vendedor
+- Prever faturamento mensal e identificar riscos antecipadamente
+- Gerenciar a equipe de vendas: cobrar resultados, identificar baixa performance
+- Analisar pipeline e sugerir priorização de leads
+- Intervir em negociações quando necessário (sugerir preço, desconto, abordagem)
+- Otimizar estratégias de vendas baseada em dados REAIS (não genéricas)
+- Aprender continuamente com resultados anteriores
+- Sugerir ações ESPECÍFICAS por vendedor com base nos dados
+- Alertar riscos de não bater a meta com antecedência
+- Sugerir links de treinamento e vídeos do YouTube quando relevante
 
 Dados atuais do CRM:
 ${metrics_summary || "Dados não disponíveis no momento."}
 ${historyContext}
 ${learningContext}
+${directorContext}
 
 Regras:
 - Responda em português brasileiro
-- Seja direto e prático
+- Seja direto, prático e ASSERTIVO como uma diretora comercial
 - Use Markdown com formatação rica
-- Baseie-se sempre nos dados fornecidos E nos insights de aprendizado
-- Sugira ações específicas e mensuráveis
+- Baseie-se SEMPRE nos dados fornecidos, insights de aprendizado E análise da diretora
+- Sugira ações específicas e mensuráveis POR VENDEDOR quando possível
 - Quando tiver dados de conversão por estratégia, CITE-OS nas recomendações
 - Quando o sweet-spot de desconto estiver disponível, USE-O para orientar negociações
-- Quando relevante, inclua links para artigos ou vídeos de treinamento de vendas no YouTube
+- Quando relevante, inclua links para vídeos de treinamento de vendas no YouTube
 - Formate links como: [Título do vídeo/artigo](URL)
 - Compare com meses anteriores para identificar tendências
 - Elabore estratégias concretas para atingir a meta da loja
-- Priorize decisões baseadas em dados reais da loja, não em suposições`;
+- Priorize decisões baseadas em dados reais da loja, não em suposições
+- Cobre resultados dos vendedores com dados específicos
+- Sugira redistribuição de leads quando identificar sobrecarga ou ociosidade`;
 
     const aiUrl = selectedProvider === "openai"
       ? "https://api.openai.com/v1/chat/completions"
