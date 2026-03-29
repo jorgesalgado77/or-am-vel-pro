@@ -130,12 +130,33 @@ function pickTextMessage(body: any, isEvolution: boolean) {
 
 function isPlaceholderText(value = "") {
   const normalized = value.trim().toLowerCase();
-  return [
+  const placeholders = [
     "[mensagem recebida]",
     "mensagem recebida",
     "[message received]",
     "message received",
-  ].includes(normalized);
+    "[mídia recebida]",
+    "[media received]",
+    "[sticker]",
+    "[figurinha]",
+    "[áudio]",
+    "[audio]",
+    "[imagem]",
+    "[image]",
+    "[vídeo]",
+    "[video]",
+    "[documento]",
+    "[document]",
+    "[contato]",
+    "[contact]",
+    "[localização]",
+    "[location]",
+  ];
+  if (placeholders.includes(normalized)) return true;
+  // Also catch patterns like "[Mensagem recebida]" with any casing or brackets
+  if (/^\[.*recebid[ao]\]$/i.test(normalized)) return true;
+  if (/^\[.*received\]$/i.test(normalized)) return true;
+  return false;
 }
 
 function pickContactName(body: any, isEvolution: boolean) {
