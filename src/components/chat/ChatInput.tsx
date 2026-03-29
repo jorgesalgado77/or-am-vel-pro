@@ -244,6 +244,7 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
             onAdd={onAddQuickReply}
             onRemove={onRemoveQuickReply}
             loading={quickRepliesLoading}
+            detectedDiscProfile={detectedDiscProfile}
           />
         )}
 
