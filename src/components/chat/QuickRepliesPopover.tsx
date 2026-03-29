@@ -61,7 +61,7 @@ interface Props {
   detectedDiscProfile?: string;
 }
 
-export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loading }: Props) {
+export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loading, detectedDiscProfile }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
