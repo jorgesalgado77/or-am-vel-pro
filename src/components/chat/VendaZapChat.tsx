@@ -185,10 +185,12 @@ function WhatsAppStatusTag({ status, provider }: { status: WhatsAppConnectionSta
 interface Props {
   tenantId: string | null;
   userId?: string;
+  initialClientId?: string | null;
+  onInitialClientHandled?: () => void;
   onDealRoom?: (clientName: string, contractId: string) => void;
 }
 
-export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
+export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClientHandled, onDealRoom }: Props) {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selected, setSelected] = useState<ChatConversation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -448,6 +450,16 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   }, [tenantId, isAdminOrManager, currentUser?.nome_completo]);
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
+
+  // Handle initialClientId from dashboard alerts
+  useEffect(() => {
+    if (!initialClientId || conversations.length === 0) return;
+    const match = conversations.find(c => c.client_id === initialClientId);
+    if (match) {
+      setSelected(match);
+      onInitialClientHandled?.();
+    }
+  }, [initialClientId, conversations, onInitialClientHandled]);
 
   // AI auto-suggestion with debounce
   const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
