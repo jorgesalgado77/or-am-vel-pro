@@ -2247,6 +2247,30 @@ export function MeasurementRequestModal({
                 </div>
               </div>
             )}
+
+            {/* Edit History */}
+            {editHistory.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" /> Histórico de Alterações
+                </h4>
+                <div className="space-y-1.5">
+                  {editHistory.map((entry, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs bg-muted/30 rounded-md px-3 py-2 border">
+                      <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">
+                        <span className="font-semibold text-foreground">{entry.by}</span>
+                        {entry.cargo && <span className="text-primary"> ({entry.cargo})</span>}
+                        {" — "}{entry.action}
+                        {entry.at && (
+                          <span> em {new Date(entry.at).toLocaleDateString("pt-BR")} às {new Date(entry.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2284,30 +2308,7 @@ export function MeasurementRequestModal({
       </DialogContent>
     </Dialog>
 
-
-            {/* Edit History */}
-            {editHistory.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" /> Histórico de Alterações
-                </h4>
-                <div className="space-y-1.5">
-                  {editHistory.map((entry, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs bg-muted/30 rounded-md px-3 py-2 border">
-                      <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="text-muted-foreground">
-                        <span className="font-semibold text-foreground">{entry.by}</span>
-                        {entry.cargo && <span className="text-primary"> ({entry.cargo})</span>}
-                        {" — "}{entry.action}
-                        {entry.at && (
-                          <span> em {new Date(entry.at).toLocaleDateString("pt-BR")} às {new Date(entry.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+    {/* PDF Preview Dialog */}
     <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>
       <DialogContent className="max-w-4xl h-[85vh] p-0 flex flex-col">
         <DialogHeader className="px-6 pt-4 pb-2 flex flex-row items-center justify-between">
