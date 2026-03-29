@@ -1683,8 +1683,8 @@ export function MeasurementRequestModal({
         uploadedAttachments[env.id] = attachmentUrls;
       }
 
-      // Insert measurement request
-      const { error } = await supabase.from("measurement_requests" as any).insert({
+      // Build the payload
+      const payload = {
         client_id: client.id,
         tracking_id: tracking.id,
         tenant_id: tenantId,
@@ -1701,8 +1701,6 @@ export function MeasurementRequestModal({
         })),
         imported_files: importedFiles,
         observacoes,
-        status: "novo",
-        created_by: userInfo.usuario_nome || "Sistema",
         client_snapshot: {
           telefone1: editableFields.telefone,
           email: editableFields.email,
@@ -1717,9 +1715,27 @@ export function MeasurementRequestModal({
           city: normalizedAddress.city,
           state: normalizedAddress.state,
         },
-      } as any);
+        updated_at: new Date().toISOString(),
+      } as any;
 
-      if (error) throw error;
+      let error: any = null;
+
+      if (existingRequestId) {
+        // UPDATE existing request
+        payload.last_edited_by = userInfo.usuario_nome || "Sistema";
+        payload.last_edited_by_cargo = userInfo.cargo_nome || "";
+        payload.last_edited_at = new Date().toISOString();
+        const res = await supabase.from("measurement_requests" as any)
+          .update(payload)
+          .eq("id", existingRequestId);
+        error = res.error;
+      } else {
+        // INSERT new request
+        payload.status = "novo";
+        payload.created_by = userInfo.usuario_nome || "Sistema";
+        const res = await supabase.from("measurement_requests" as any).insert(payload);
+        error = res.error;
+      }
 
       // Send push notifications to gerentes/técnicos
       try {
