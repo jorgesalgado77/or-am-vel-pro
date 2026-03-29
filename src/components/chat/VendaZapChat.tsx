@@ -919,7 +919,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/30">
         <span className="text-xs font-medium text-foreground">Chat de Vendas</span>
         <div className="flex items-center gap-2">
-          {whatsappStatus === "online" && (
+          {whatsappStatus === "online" && isAdminOrManager && (
             <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowWhatsAppContacts(true)}>
               <Phone className="h-3 w-3" /> Contatos WA
             </Button>
