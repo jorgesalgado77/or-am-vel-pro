@@ -86,17 +86,36 @@ export function CopysTab({ tenantId, readyCopies, onCopy, addon }: Props) {
   const [editMensagem, setEditMensagem] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const loadCopies = useCallback(async () => {
+    if (!tenantId) return;
+    const { data } = await (supabase as any)
+      .from("vendazap_copys")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false });
+    if (data) setSavedCopies(data);
+  }, [tenantId]);
+
+  useEffect(() => {
+    loadCopies();
+  }, [loadCopies]);
+
+  // Real-time subscription for copys
   useEffect(() => {
     if (!tenantId) return;
-    (async () => {
-      const { data } = await (supabase as any)
-        .from("vendazap_copys")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false });
-      if (data) setSavedCopies(data);
-    })();
-  }, [tenantId]);
+    const channel = supabase
+      .channel(`copys-realtime-${tenantId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "vendazap_copys",
+        filter: `tenant_id=eq.${tenantId}`,
+      }, () => {
+        loadCopies();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, loadCopies]);
 
   const allCopies: CopyItem[] = [
     ...readyCopies.map((c, i) => ({ id: `ready-${i}`, tipo: c.tipo, label: c.label, mensagem: c.mensagem, is_ai: false, disc_profile: null })),
