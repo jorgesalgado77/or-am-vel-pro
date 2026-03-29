@@ -12,6 +12,7 @@ import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { useQuickReplies } from "@/hooks/useQuickReplies";
 import { sendWhatsAppText, sendWhatsAppMedia } from "@/lib/whatsappSender";
 import { VendaZapMonitorIndicator } from "./VendaZapMonitorIndicator";
+import { AICloserBanner } from "./AICloserBanner";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
@@ -28,6 +29,7 @@ interface Props {
   onMessagesLoaded?: (count: number) => void;
   detectedDiscProfile?: string;
   vendazapActive?: boolean;
+  onCloseSale?: () => void;
 }
 
 const PAGE_SIZE = 40;
@@ -65,7 +67,7 @@ function getConversationPhone(conversation: ChatConversation | null | undefined)
 export function ChatWindow({
   conversation, onBack, onStartDealRoom, onCreateLead,
   inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded, detectedDiscProfile,
-  vendazapActive = false,
+  vendazapActive = false, onCloseSale,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [trackingIds, setTrackingIds] = useState<string[]>([conversation.id]);
@@ -469,6 +471,30 @@ export function ChatWindow({
       </div>
 
       <div className="shrink-0 border-t border-border bg-card">
+        <AICloserBanner
+          conversation={conversation}
+          tenantId={tenantId ?? null}
+          lastClientMessage={
+            messages
+              .filter((m) => m.remetente_tipo === "cliente")
+              .slice(-1)[0]?.mensagem
+          }
+          onSendProposal={async (text) => {
+            const { error } = await supabase.from("tracking_messages").insert({
+              tracking_id: conversation.id,
+              mensagem: text,
+              remetente_tipo: "loja",
+              remetente_nome: "🎯 IA Fechadora",
+              lida: false,
+              tenant_id: tenantId || undefined,
+            } as any);
+            if (!error && conversation.phone) {
+              await sendWhatsAppText(conversation.phone, text);
+            }
+          }}
+          onCloseSale={onCloseSale}
+        />
+
         <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
 
         <ChatInput

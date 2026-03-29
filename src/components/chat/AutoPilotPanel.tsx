@@ -4,17 +4,50 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bot, Settings, X, Zap, Shield, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Bot, Settings, X, Zap, Shield, Clock, User, Sparkles, Hand } from "lucide-react";
 import type { AutoPilotSettings } from "@/hooks/useAutoPilot";
+
+export type InterventionMode = "automatico" | "assistido" | "manual";
+
+const MODE_CONFIG: Record<InterventionMode, { label: string; icon: typeof Bot; emoji: string; desc: string; color: string }> = {
+  automatico: {
+    label: "Automático",
+    icon: Bot,
+    emoji: "🤖",
+    desc: "IA responde automaticamente sem intervenção",
+    color: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30 dark:text-emerald-400",
+  },
+  assistido: {
+    label: "Assistido",
+    icon: Sparkles,
+    emoji: "💡",
+    desc: "IA sugere respostas, vendedor aprova e envia",
+    color: "bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-400",
+  },
+  manual: {
+    label: "Manual",
+    icon: Hand,
+    emoji: "✋",
+    desc: "Vendedor controla 100%, IA apenas analisa",
+    color: "bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400",
+  },
+};
 
 interface Props {
   settings: AutoPilotSettings | null;
   isActive: boolean;
   onToggle: (v: boolean) => void;
   onUpdateSettings: (updates: Partial<AutoPilotSettings>) => void;
+  interventionMode?: InterventionMode;
+  onModeChange?: (mode: InterventionMode) => void;
 }
 
-export const AutoPilotPanel = memo(function AutoPilotPanel({ settings, isActive, onToggle, onUpdateSettings }: Props) {
+export const AutoPilotPanel = memo(function AutoPilotPanel({
+  settings, isActive, onToggle, onUpdateSettings,
+  interventionMode = "assistido", onModeChange,
+}: Props) {
   const [showConfig, setShowConfig] = useState(false);
 
   const respostasPercent = settings && settings.max_respostas_dia > 0
@@ -23,6 +56,9 @@ export const AutoPilotPanel = memo(function AutoPilotPanel({ settings, isActive,
   const tokensPercent = settings && settings.max_tokens_dia > 0
     ? Math.min(100, Math.round((settings.tokens_usados_hoje / settings.max_tokens_dia) * 100))
     : 0;
+
+  const currentMode = MODE_CONFIG[interventionMode];
+  const ModeIcon = currentMode.icon;
 
   return (
     <div className="border-b border-border bg-card">
@@ -36,11 +72,23 @@ export const AutoPilotPanel = memo(function AutoPilotPanel({ settings, isActive,
               <Zap className="h-2.5 w-2.5" /> ATIVO
             </span>
           )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 gap-0.5 cursor-help ${currentMode.color}`}>
+                <ModeIcon className="h-2.5 w-2.5" />
+                {currentMode.label}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs max-w-[220px]">
+              <p className="font-semibold">{currentMode.emoji} Modo {currentMode.label}</p>
+              <p className="text-muted-foreground">{currentMode.desc}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         <div className="flex items-center gap-2">
           {isActive && settings && (
             <span className="text-[10px] text-muted-foreground">
-              {settings.respostas_hoje}/{settings.max_respostas_dia} respostas · {(settings.tokens_usados_hoje || 0).toLocaleString()}/{(settings.max_tokens_dia || 0).toLocaleString()} tokens
+              {settings.respostas_hoje}/{settings.max_respostas_dia} · {(settings.tokens_usados_hoje || 0).toLocaleString()} tk
             </span>
           )}
           <Switch
@@ -92,6 +140,35 @@ export const AutoPilotPanel = memo(function AutoPilotPanel({ settings, isActive,
       {/* Config panel */}
       {showConfig && (
         <div className="px-3 pb-3 pt-1 border-t border-border space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+          {/* Intervention Mode Selector */}
+          <div className="space-y-1.5">
+            <Label className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+              <User className="h-2.5 w-2.5" /> Modo de Intervenção
+            </Label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(Object.entries(MODE_CONFIG) as [InterventionMode, typeof MODE_CONFIG[InterventionMode]][]).map(([key, cfg]) => {
+                const Icon = cfg.icon;
+                const isSelected = interventionMode === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => onModeChange?.(key)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-[10px] transition-all ${
+                      isSelected
+                        ? `${cfg.color} border-current font-semibold`
+                        : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{cfg.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[9px] text-muted-foreground">{currentMode.desc}</p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-[10px] text-muted-foreground">Máx respostas/dia</Label>

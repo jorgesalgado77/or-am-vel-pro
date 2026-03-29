@@ -208,6 +208,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
   const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
   const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
+  const [interventionMode, setInterventionMode] = useState<"automatico" | "assistido" | "manual">("assistido");
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
@@ -552,7 +553,8 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
               triggerAI(selected, true);
             }
 
-            if (autoPilotActive && conv) {
+            // Auto-pilot: only auto-send in "automatico" mode
+            if (autoPilotActive && conv && interventionMode === "automatico") {
               const { data: recentMsgs } = await supabase
                 .from("tracking_messages")
                 .select("mensagem, remetente_tipo")
@@ -572,6 +574,13 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 toast.success(`🤖 Auto-Pilot respondeu ${conv.nome_cliente}`, {
                   description: `Intenção: ${result.intencao} | ${result.tokensUsed} tokens`,
                   duration: 5000,
+                });
+              }
+            } else if (autoPilotActive && conv && interventionMode === "assistido") {
+              // In assisted mode, just trigger AI suggestion (already done above via triggerAI)
+              if (!isSelectedConversation) {
+                toast.info(`💡 Nova mensagem de ${conv.nome_cliente} — IA preparou sugestão`, {
+                  duration: 4000,
                 });
               }
             }
@@ -989,6 +998,8 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 isActive={autoPilotActive}
                 onToggle={toggleAutoPilot}
                 onUpdateSettings={updateAutoPilotSettings}
+                interventionMode={interventionMode}
+                onModeChange={setInterventionMode}
               />
               {isMobile && (
                 <Button
