@@ -100,6 +100,7 @@ export interface NegotiationDecision {
   deal_analysis: DealAnalysis;
   arbitrage?: ArbitrageResult;
   optimization?: OptimizationResult;
+  warnings?: string[];
 }
 
 export interface PricingDecision {
@@ -251,6 +252,7 @@ export class NegotiationControlEngine {
       deal_analysis: analysis,
       arbitrage: arbitrage ?? undefined,
       optimization: optimization ?? undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   }
 
