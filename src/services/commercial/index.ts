@@ -27,3 +27,7 @@ export type {
 export { LearningEngine, getLearningEngine } from "@/services/ai/LearningEngine";
 export { OptimizationEngine, getOptimizationEngine } from "@/services/ai/OptimizationEngine";
 export type { LearningEvent, StrategyType, OptimizationResult } from "@/services/ai/types";
+
+// Director Engine
+export { CommercialDirectorEngine, getDirectorEngine } from "./CommercialDirectorEngine";
+export type { BusinessAnalysis, RevenueForecast, VendorAnalysis, DirectorAlert, StrategyDefinition } from "./CommercialDirectorEngine";

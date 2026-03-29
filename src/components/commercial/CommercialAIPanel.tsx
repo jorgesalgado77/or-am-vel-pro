@@ -308,6 +308,11 @@ export function CommercialAIPanel() {
           <TabsTrigger value="chat" className="gap-1 text-xs"><Bot className="h-3.5 w-3.5" /> IA</TabsTrigger>
         </TabsList>
 
+        {/* Director Tab */}
+        <TabsContent value="director">
+          <DirectorDashboard tenantId={tenantId} />
+        </TabsContent>
+
         {/* Insights Tab */}
         <TabsContent value="insights" className="space-y-3">
           {insights.length === 0 ? (
