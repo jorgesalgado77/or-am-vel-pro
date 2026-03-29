@@ -919,7 +919,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/30">
         <span className="text-xs font-medium text-foreground">Chat de Vendas</span>
         <div className="flex items-center gap-2">
-          {whatsappStatus === "online" && (
+          {whatsappStatus === "online" && isAdminOrManager && (
             <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowWhatsAppContacts(true)}>
               <Phone className="h-3 w-3" /> Contatos WA
             </Button>
@@ -1106,6 +1106,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
             }
 
             // Create tracking (conversation) only — NO lead auto-creation
+            // Tag with current user's name so the conversation is private to them
             toast.loading("Criando conversa...", { id: "wa-flow", duration: 3000 });
             const { data: createdTracking, error: trackError } = await supabase
               .from("client_tracking")
@@ -1115,6 +1116,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 nome_cliente: clientName,
                 numero_contrato: contractNumber,
                 status: "em_negociacao",
+                projetista: currentUser?.nome_completo || null,
               } as any)
               .select("id, client_id, nome_cliente, numero_contrato")
               .maybeSingle();
