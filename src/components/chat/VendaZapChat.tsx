@@ -955,6 +955,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
             onStartConversation={() => setShowStartModal(true)}
             currentUserName={currentUser?.nome_completo || null}
             isAdminOrManager={isAdminOrManager}
+            deletedIds={deletedIds}
           />
         </div>
       </div>
