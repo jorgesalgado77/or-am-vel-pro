@@ -1778,7 +1778,6 @@ export function MeasurementRequestModal({
         payload.last_edited_at = new Date().toISOString();
         const res = await supabase.from("measurement_requests" as any).insert(payload);
         error = res.error;
-        error = res.error;
       }
 
       // Send push notifications to gerentes/técnicos
