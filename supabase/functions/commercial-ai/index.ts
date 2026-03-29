@@ -115,6 +115,82 @@ async function fetchLearningContext(adminClient: ReturnType<typeof createClient>
   }
 }
 
+/**
+ * Build a director-level context from pipeline + forecast data.
+ */
+async function fetchDirectorContext(adminClient: ReturnType<typeof createClient>, tenantId: string): Promise<string> {
+  try {
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+
+    // Parallel fetches
+    const [clientsRes, contractsRes, goalsRes, forecastRes, trackingRes] = await Promise.all([
+      adminClient.from("clients").select("id, status, updated_at, created_at, vendedor").eq("tenant_id", tenantId),
+      adminClient.from("client_contracts").select("id, client_id, created_at").eq("tenant_id", tenantId),
+      adminClient.from("sales_goals").select("*").eq("tenant_id", tenantId).eq("month", currentMonth),
+      adminClient.from("revenue_forecast").select("*").eq("tenant_id", tenantId).eq("month", currentMonth).maybeSingle(),
+      adminClient.from("client_tracking").select("client_id, valor_contrato").eq("tenant_id", tenantId),
+    ]);
+
+    const clients = clientsRes.data || [];
+    const contracts = contractsRes.data || [];
+    const goals = goalsRes.data || [];
+    const forecast = forecastRes.data;
+    const trackings = trackingRes.data || [];
+
+    const contractIds = new Set(contracts.map((c: any) => c.client_id));
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    const openClients = clients.filter((c: any) => !contractIds.has(c.id) && c.status !== "perdido" && c.status !== "fechado");
+    const stalled = openClients.filter((c: any) => new Date(c.updated_at || c.created_at) < threeDaysAgo);
+    const hot = openClients.filter((c: any) => ["em_negociacao", "proposta_enviada"].includes(c.status) && new Date(c.updated_at || c.created_at) >= threeDaysAgo);
+
+    const trackingMap = new Map(trackings.map((t: any) => [t.client_id, Number(t.valor_contrato) || 0]));
+    const pipelineValue = openClients.reduce((sum: number, c: any) => sum + (trackingMap.get(c.id) || 0), 0);
+
+    const metaLoja = goals.find((g: any) => g.goal_type === "meta_loja");
+    const metaValue = metaLoja?.target_value || 0;
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysRemaining = Math.max(0, daysInMonth - now.getDate());
+
+    // Sellers breakdown
+    const sellerMap: Record<string, { total: number; stalled: number; hot: number }> = {};
+    for (const c of openClients) {
+      const seller = (c as any).vendedor || "Sem vendedor";
+      if (!sellerMap[seller]) sellerMap[seller] = { total: 0, stalled: 0, hot: 0 };
+      sellerMap[seller].total++;
+      if (stalled.some((s: any) => s.id === c.id)) sellerMap[seller].stalled++;
+      if (hot.some((h: any) => h.id === c.id)) sellerMap[seller].hot++;
+    }
+
+    const parts: string[] = ["\n\n=== ANÁLISE DA DIRETORA COMERCIAL ==="];
+    parts.push(`📊 Pipeline: ${openClients.length} leads (${hot.length} 🔥 quentes, ${stalled.length} ❄️ parados)`);
+    parts.push(`   Valor pipeline: R$ ${pipelineValue.toFixed(2)}`);
+    if (metaValue > 0) {
+      parts.push(`🎯 Meta loja: R$ ${metaValue.toFixed(2)} | ${daysRemaining} dias restantes`);
+    }
+
+    if (forecast) {
+      parts.push(`📈 Previsão: Otimista R$ ${(forecast.previsao_otimista || 0).toFixed(2)} | Realista R$ ${(forecast.previsao_realista || 0).toFixed(2)} | Pessimista R$ ${(forecast.previsao_pessimista || 0).toFixed(2)}`);
+      parts.push(`   Risco: ${(forecast.risco || "desconhecido").toUpperCase()} | Confiança: ${forecast.confianca || 0}%`);
+    }
+
+    if (Object.keys(sellerMap).length > 0) {
+      parts.push("\n👥 Por vendedor:");
+      for (const [seller, data] of Object.entries(sellerMap)) {
+        parts.push(`   • ${seller}: ${data.total} leads, ${data.hot} quentes, ${data.stalled} parados`);
+      }
+    }
+
+    parts.push("\nComo DIRETORA COMERCIAL, use dados acima para decisões estratégicas, cobrança de resultados e ações por vendedor.");
+    return parts.join("\n");
+  } catch (e) {
+    console.error("fetchDirectorContext error:", e);
+    return "";
+  }
+}
+
 async function fetchPreviousMonthsData(adminClient: ReturnType<typeof createClient>, tenantId: string) {
   const now = new Date();
   const months: string[] = [];
@@ -136,10 +212,10 @@ async function fetchPreviousMonthsData(adminClient: ReturnType<typeof createClie
 
   const summary: string[] = [];
   for (const month of months) {
-    const goals = (prevGoals || []).filter((g: any) => g.month === month);
-    const contracts = (prevContracts || []).filter((c: any) => (c.created_at || "").substring(0, 7) === month);
-    if (goals.length > 0 || contracts.length > 0) {
-      summary.push(`Mês ${month}: ${contracts.length} vendas fechadas, ${goals.length} metas definidas`);
+    const mGoals = (prevGoals || []).filter((g: any) => g.month === month);
+    const mContracts = (prevContracts || []).filter((c: any) => (c.created_at || "").substring(0, 7) === month);
+    if (mGoals.length > 0 || mContracts.length > 0) {
+      summary.push(`Mês ${month}: ${mContracts.length} vendas fechadas, ${mGoals.length} metas definidas`);
     }
   }
   return summary.length > 0 ? `\n\nHistórico meses anteriores:\n${summary.join("\n")}` : "";
