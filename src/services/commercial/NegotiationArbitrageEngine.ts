@@ -378,11 +378,9 @@ export class NegotiationArbitrageEngine {
 
   // ─── Record Outcome (Feedback Loop) ────────────────────────
   async recordOutcome(outcome: ArbitrageOutcome): Promise<void> {
-    const engine = getLearningEngine();
-
-    const event: LearningEvent = {
+    const payload = {
       tenant_id: outcome.tenant_id,
-      user_id: outcome.user_id,
+      user_id: outcome.user_id || null,
       client_id: outcome.client_id,
       event_type: "arbitrage_scenario",
       strategy_used: outcome.gift_included ? "brinde" : "desconto",
@@ -398,7 +396,9 @@ export class NegotiationArbitrageEngine {
       },
     };
 
-    await engine.recordEvent(event);
+    await supabase
+      .from("ai_learning_events" as unknown as "clients")
+      .insert(payload);
   }
 
   // ─── Private: Calculate Probability ────────────────────────
