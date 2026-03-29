@@ -81,7 +81,11 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
       if (settings.provider === "zapi" && settings.zapi_instance_id && settings.zapi_token && settings.zapi_client_token) {
         try {
           if (settings.zapi_webhook_url) {
-            const syncKey = `${settings.zapi_instance_id}:${settings.zapi_webhook_url}`;
+            const webhookUrl = settings.zapi_webhook_url.includes("whatsapp-bot")
+              ? settings.zapi_webhook_url.replace("whatsapp-bot", "whatsapp-webhook")
+              : settings.zapi_webhook_url;
+            
+            const syncKey = `${settings.zapi_instance_id}:${webhookUrl}`;
             if (syncedWebhookRef.current !== syncKey) {
               const headers = {
                 "Content-Type": "application/json",
@@ -89,26 +93,37 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
                 ...(settings.zapi_security_token ? { "Security-Token": settings.zapi_security_token } : {}),
               };
 
-              const [syncRes, notifyRes] = await Promise.all([
-                fetch(
-                  `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/update-webhook-received-delivery`,
-                  {
-                    method: "PUT",
-                    headers,
-                    body: JSON.stringify({ value: settings.zapi_webhook_url }),
-                  }
-                ),
-                fetch(
-                  `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/update-notify-sent-by-me`,
-                  {
-                    method: "PUT",
-                    headers,
-                    body: JSON.stringify({ notifySentByMe: true }),
-                  }
-                ),
+              const baseUrl = `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}`;
+
+              const [receivedRes, deliveryRes, notifyRes] = await Promise.all([
+                // Incoming messages webhook
+                fetch(`${baseUrl}/update-webhook-received`, {
+                  method: "PUT",
+                  headers,
+                  body: JSON.stringify({ value: webhookUrl }),
+                }),
+                // Delivery receipts webhook
+                fetch(`${baseUrl}/update-webhook-received-delivery`, {
+                  method: "PUT",
+                  headers,
+                  body: JSON.stringify({ value: webhookUrl }),
+                }),
+                // Also mirror outbound messages
+                fetch(`${baseUrl}/update-notify-sent-by-me`, {
+                  method: "PUT",
+                  headers,
+                  body: JSON.stringify({ notifySentByMe: true }),
+                }),
               ]);
 
-              if (syncRes.ok && notifyRes.ok) {
+              console.log("[WhatsApp] Webhook sync:", {
+                received: receivedRes.ok,
+                delivery: deliveryRes.ok,
+                notify: notifyRes.ok,
+                url: webhookUrl,
+              });
+
+              if (receivedRes.ok && deliveryRes.ok && notifyRes.ok) {
                 syncedWebhookRef.current = syncKey;
               }
             }
