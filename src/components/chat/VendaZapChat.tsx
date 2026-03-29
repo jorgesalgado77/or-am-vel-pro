@@ -76,6 +76,17 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
         return;
       }
 
+      // Auto-fix webhook URL if it points to whatsapp-bot
+      if (settings.zapi_webhook_url && settings.zapi_webhook_url.includes("whatsapp-bot")) {
+        const correctedUrl = settings.zapi_webhook_url.replace("whatsapp-bot", "whatsapp-webhook");
+        settings.zapi_webhook_url = correctedUrl;
+        await supabase
+          .from("whatsapp_settings")
+          .update({ zapi_webhook_url: correctedUrl } as any)
+          .eq("id", settings.id);
+        console.log("[WhatsApp] Auto-corrected webhook URL on chat open:", correctedUrl);
+      }
+
       setProvider(settings.provider);
 
       if (settings.provider === "zapi" && settings.zapi_instance_id && settings.zapi_token && settings.zapi_client_token) {
