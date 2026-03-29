@@ -198,6 +198,7 @@ export function ChatDealInsights({ conversation, tenantId, messageCount }: Props
           <span className="text-xs font-semibold text-foreground">
             {analysis.closing_probability}%
           </span>
+          <ProbabilitySparkline points={probHistory} />
 
           <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${risk.color}`}>
             Risco {risk.label}
