@@ -23,6 +23,8 @@ export interface ChatMessage {
   remetente_nome: string | null;
   created_at: string;
   lida: boolean;
+  status?: "sent" | "delivered" | "read";
+  external_id?: string | null;
   tipo_anexo?: string | null;
   anexo_url?: string | null;
   anexo_nome?: string | null;

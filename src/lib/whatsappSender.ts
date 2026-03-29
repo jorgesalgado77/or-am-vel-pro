@@ -46,6 +46,7 @@ export async function sendWhatsAppText(phone: string, text: string): Promise<boo
   if (!s) return false;
 
   const formattedPhone = formatPhone(phone);
+  const maxRetries = 2;
 
   try {
     if (s.provider === "zapi" && s.zapi_instance_id && s.zapi_token) {
@@ -56,37 +57,45 @@ export async function sendWhatsAppText(phone: string, text: string): Promise<boo
       };
       if (s.zapi_security_token) headers["Security-Token"] = s.zapi_security_token;
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ phone: formattedPhone, message: text }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        console.error("[WA Send] Z-API error:", data);
-        return false;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ phone: formattedPhone, message: text }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) return true;
+          console.error(`[WA Send] Z-API error (attempt ${attempt + 1}):`, data);
+          if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        } catch (fetchErr) {
+          console.error(`[WA Send] Z-API fetch error (attempt ${attempt + 1}):`, fetchErr);
+          if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
       }
-      return true;
+      return false;
     }
 
     if (s.provider === "evolution" && s.evolution_api_url && s.evolution_api_key) {
       const instanceName = s.evolution_instance_name || "default";
       const url = `${s.evolution_api_url.replace(/\/$/, "")}/message/sendText/${instanceName}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { apikey: s.evolution_api_key, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          number: formattedPhone,
-          text,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        console.error("[WA Send] Evolution error:", data);
-        return false;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { apikey: s.evolution_api_key, "Content-Type": "application/json" },
+            body: JSON.stringify({ number: formattedPhone, text }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) return true;
+          console.error(`[WA Send] Evolution error (attempt ${attempt + 1}):`, data);
+          if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        } catch (fetchErr) {
+          console.error(`[WA Send] Evolution fetch error (attempt ${attempt + 1}):`, fetchErr);
+          if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
       }
-      return true;
+      return false;
     }
   } catch (err) {
     console.error("[WA Send] Error:", err);
