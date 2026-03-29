@@ -29,6 +29,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 const AutoPilotAnalyticsLazy = lazy(() => import("@/components/chat/AutoPilotAnalytics").then(m => ({ default: m.AutoPilotAnalytics })));
 const FollowUpPanelLazy = lazy(() => import("@/components/chat/FollowUpPanel").then(m => ({ default: m.FollowUpPanel })));
+const CopysTabLazy = lazy(() => import("@/components/vendazap/CopysTab").then(m => ({ default: m.CopysTab })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -187,23 +188,14 @@ export function VendaZapPanel({ tenantId, onBack }: VendaZapPanelProps) {
         </TabsContent>
 
         <TabsContent value="prontas" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-sm flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" />Copys Prontas</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-3">
-                {READY_COPIES.map((copy, i) => (
-                  <div key={i} className="border rounded-lg p-3 space-y-2 hover:border-primary/50 transition-colors">
-                    <Badge variant="secondary" className="text-[10px]">{copy.label}</Badge>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{copy.mensagem.substring(0, 100)}...</p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => toast.success("Copy aplicada!")}><Sparkles className="h-3 w-3" />Usar</Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => handleCopy(copy.mensagem.replace(/\[NOME\]/g, "Cliente"))}><Copy className="h-3 w-3" />Copiar</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <Suspense fallback={<div className="text-center py-8 text-sm text-muted-foreground">Carregando...</div>}>
+            <CopysTabLazy
+              tenantId={tenantId}
+              readyCopies={READY_COPIES}
+              onCopy={handleCopy}
+              addon={addon}
+            />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="historico">
