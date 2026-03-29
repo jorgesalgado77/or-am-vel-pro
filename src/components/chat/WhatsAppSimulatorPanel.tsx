@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { SimulationPersona } from "@/hooks/useWhatsAppSimulator";
+import { SimulatorBehaviorMetrics } from "./SimulatorBehaviorMetrics";
 
 const PERSONA_META: Record<SimulationPersona, { label: string; emoji: string; desc: string }> = {
   interessado: { label: "Interessado", emoji: "😊", desc: "Cliente animado, faz perguntas, quer comprar" },
@@ -37,9 +38,12 @@ interface Props {
   onUpdateConfig: (updates: Partial<Props["config"]>) => void;
   onSendManual: (message?: string) => Promise<boolean>;
   hasSelectedConversation: boolean;
+  conversationHistory?: Array<{ mensagem: string; remetente_tipo: string }>;
+  clientName?: string;
+  lastStoreMessage?: string;
 }
 
-export function WhatsAppSimulatorPanel({ config, onUpdateConfig, onSendManual, hasSelectedConversation }: Props) {
+export function WhatsAppSimulatorPanel({ config, onUpdateConfig, onSendManual, hasSelectedConversation, conversationHistory = [], clientName = "Cliente", lastStoreMessage }: Props) {
   const [open, setOpen] = useState(false);
   const [manualMsg, setManualMsg] = useState("");
   const [sending, setSending] = useState(false);
@@ -168,6 +172,16 @@ export function WhatsAppSimulatorPanel({ config, onUpdateConfig, onSendManual, h
                   className="w-full"
                 />
               </div>
+
+              {/* Behavior Metrics — Real-time */}
+              {conversationHistory.length > 0 && (
+                <SimulatorBehaviorMetrics
+                  persona={config.persona}
+                  conversationHistory={conversationHistory}
+                  clientName={clientName}
+                  lastStoreMessage={lastStoreMessage}
+                />
+              )}
 
               {/* Manual send */}
               {hasSelectedConversation && (

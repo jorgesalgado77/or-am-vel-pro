@@ -3,6 +3,7 @@ import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {logAudit} from "@/services/auditService";
 import {type LeadTemperature} from "@/lib/leadTemperature";
+import {getBehaviorEngine, type BehaviorContext} from "@/services/commercial/ClientBehaviorEngine";
 
 export interface AutoPilotSettings {
   id: string;
@@ -138,9 +139,37 @@ export function useAutoPilot({ tenantId, userId, addon }: UseAutoPilotParams) {
     clientName: string,
     temperature?: LeadTemperature | string,
     recentMessages?: Array<{ mensagem: string; remetente_tipo: string }>,
+    clientStatus?: string,
+    daysInactive?: number,
+    hasSimulation?: boolean,
   ) => {
     if (!canAutoRespond(temperature)) return null;
     if (!tenantId || !addon) return null;
+
+    // --- Behavior Engine gate: skip auto-reply when engagement is too low or resistance too high ---
+    const behaviorEngine = getBehaviorEngine();
+    const behaviorCtx: BehaviorContext = {
+      clientName,
+      status: clientStatus || "em_negociacao",
+      daysInactive: daysInactive ?? 0,
+      hasSimulation: hasSimulation ?? false,
+      lastStoreMessage: undefined,
+      conversationHistory: recentMessages,
+    };
+    const engagement = behaviorEngine.calculateEngagementScore(behaviorCtx);
+    const resistance = behaviorEngine.detectResistanceLevel(behaviorCtx);
+
+    // Don't auto-respond to clients who explicitly gave up (resistance >= 80 & desistencia)
+    if (resistance.level >= 80 && resistance.category === "desistencia") {
+      console.log(`[AutoPilot] Skipping ${clientName}: desistência explícita (resistance=${resistance.level})`);
+      return null;
+    }
+
+    // For very low engagement (lost), only respond if configured for cold leads
+    if (engagement.level === "perdido" && !settings?.responder_frio) {
+      console.log(`[AutoPilot] Skipping ${clientName}: engagement perdido (${engagement.score})`);
+      return null;
+    }
 
     // Prevent duplicate processing
     const key = `${trackingId}-${Date.now()}`;
@@ -153,11 +182,14 @@ export function useAutoPilot({ tenantId, userId, addon }: UseAutoPilotParams) {
       await new Promise((r) => setTimeout(r, delay));
 
       // Call AI with context
+      // Predict next move for AI context enrichment
+      const prediction = behaviorEngine.predictNextMove(behaviorCtx);
+
       const { data, error } = await supabase.functions.invoke("vendazap-ai", {
         body: {
           nome_cliente: clientName,
           mensagem_cliente: clientMessage,
-          status_negociacao: "em_negociacao",
+          status_negociacao: clientStatus || "em_negociacao",
           tipo_copy: "resposta_automatica",
           tom: settings?.tom_padrao || "amigavel",
           prompt_sistema: addon.prompt_sistema,
@@ -166,6 +198,13 @@ export function useAutoPilot({ tenantId, userId, addon }: UseAutoPilotParams) {
           max_tokens: Math.min(addon.max_tokens_mensagem, 300),
           modo: "autopilot",
           historico: recentMessages?.slice(-5) || [],
+          // Behavior Engine context
+          engagement_score: engagement.score,
+          engagement_level: engagement.level,
+          resistance_level: resistance.level,
+          resistance_category: resistance.category,
+          predicted_move: prediction.nextMove,
+          prediction_confidence: prediction.confidence,
         },
       });
 
