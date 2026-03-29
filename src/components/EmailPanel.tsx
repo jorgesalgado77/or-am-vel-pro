@@ -1023,7 +1023,145 @@ export function EmailPanel() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="contacts" className="mt-4">
+        <TabsContent value="templates" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-base">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Templates de Email
+                </span>
+                <Button
+                  variant={showNewTplForm ? "secondary" : "default"}
+                  size="sm"
+                  className="gap-1 text-xs"
+                  onClick={() => setShowNewTplForm(!showNewTplForm)}
+                >
+                  {showNewTplForm ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                  {showNewTplForm ? "Cancelar" : "Novo Template"}
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {showNewTplForm && (
+                <div className="space-y-3 p-4 rounded-lg border border-primary/30 bg-primary/5">
+                  <Label className="text-sm font-semibold">Criar Novo Template</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Emoji ícone"
+                      value={newTplIcon}
+                      onChange={e => setNewTplIcon(e.target.value)}
+                      className="w-16 text-center"
+                      maxLength={2}
+                    />
+                    <Input
+                      placeholder="Nome do template"
+                      value={newTplName}
+                      onChange={e => setNewTplName(e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+                  <Input
+                    placeholder="Assunto do email"
+                    value={newTplSubject}
+                    onChange={e => setNewTplSubject(e.target.value)}
+                  />
+                  <textarea
+                    placeholder="Corpo do email (suporta HTML)..."
+                    value={newTplBody}
+                    onChange={e => setNewTplBody(e.target.value)}
+                    className="w-full min-h-[120px] rounded-lg border border-border bg-background p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    disabled={!newTplName.trim() || !newTplSubject.trim() || !newTplBody.trim()}
+                    onClick={() => {
+                      const tpl: CustomTemplate = {
+                        name: newTplName.trim(),
+                        icon: newTplIcon || "📄",
+                        subject: newTplSubject.trim(),
+                        body: newTplBody.trim(),
+                      };
+                      const updated = [...customTemplates, tpl];
+                      setCustomTemplates(updated);
+                      localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(updated));
+                      setNewTplName(""); setNewTplIcon("📄"); setNewTplSubject(""); setNewTplBody("");
+                      setShowNewTplForm(false);
+                      toast.success(`Template "${tpl.name}" criado!`);
+                    }}
+                  >
+                    <Save className="h-3.5 w-3.5" /> Salvar Template
+                  </Button>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Templates Padrão</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {EMAIL_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.name}
+                      type="button"
+                      className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-colors text-left group"
+                      onClick={() => {
+                        setSubject(tpl.subject);
+                        setBodyHtml(tpl.body);
+                        if (editorRef.current) editorRef.current.innerHTML = tpl.body;
+                        setTab("compose");
+                        setStep("to");
+                        toast.success(`Template "${tpl.name}" carregado!`);
+                      }}
+                    >
+                      <span className="text-lg">{tpl.icon}</span>
+                      <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">{tpl.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {customTemplates.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Meus Templates</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {customTemplates.map((tpl, idx) => (
+                      <div key={`${tpl.name}-${idx}`} className="relative group">
+                        <button
+                          type="button"
+                          className="w-full flex items-center gap-2 p-2.5 rounded-lg border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-colors text-left"
+                          onClick={() => {
+                            setSubject(tpl.subject);
+                            setBodyHtml(tpl.body);
+                            if (editorRef.current) editorRef.current.innerHTML = tpl.body;
+                            setTab("compose");
+                            setStep("to");
+                            toast.success(`Template "${tpl.name}" carregado!`);
+                          }}
+                        >
+                          <span className="text-lg">{tpl.icon}</span>
+                          <span className="text-xs font-medium text-foreground">{tpl.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                          onClick={() => {
+                            const updated = customTemplates.filter((_, i) => i !== idx);
+                            setCustomTemplates(updated);
+                            localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(updated));
+                            toast.success("Template removido");
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
