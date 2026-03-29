@@ -909,34 +909,98 @@ export function EmailPanel() {
                       ) : email.status === "failed" ? (
                         <XCircle className="h-4 w-4 text-destructive" />
                       ) : (
-                        <Clock className="h-4 w-4 text-yellow-500" />
+                        <Clock className="h-4 w-4 text-amber-500" />
                       );
+                      const isExpanded = expandedEmailId === email.id;
+
+                      // Extract inline images from body_html for thumbnails
+                      const inlineImages: string[] = [];
+                      if (email.body_html) {
+                        const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+                        let match;
+                        while ((match = imgRegex.exec(email.body_html)) !== null) {
+                          inlineImages.push(match[1]);
+                        }
+                      }
+                      const hasAttachments = inlineImages.length > 0 || (email.body_html?.includes("📎") ?? false);
+
                       return (
-                        <div key={email.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
-                          <div className="mt-1">{statusIcon}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium truncate">{email.subject || "(sem assunto)"}</span>
-                              <Badge variant="outline" className="text-[9px] shrink-0">
-                                {email.status === "sent" ? "Enviado" : email.status === "failed" ? "Falhou" : "Pendente"}
-                              </Badge>
+                        <div key={email.id} className="rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+                          <div
+                            className="flex items-start gap-3 p-3 cursor-pointer"
+                            onClick={() => setExpandedEmailId(isExpanded ? null : email.id)}
+                          >
+                            <div className="mt-1">{statusIcon}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium truncate">{email.subject || "(sem assunto)"}</span>
+                                <Badge variant="outline" className="text-[9px] shrink-0">
+                                  {email.status === "sent" ? "Enviado" : email.status === "failed" ? "Falhou" : "Pendente"}
+                                </Badge>
+                                {hasAttachments && (
+                                  <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                Para: {email.to_email}
+                                {email.cc_email ? ` • CC: ${email.cc_email}` : ""}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {dateStr} às {timeStr}
+                              </p>
+                              {/* Attachment thumbnails preview */}
+                              {!isExpanded && inlineImages.length > 0 && (
+                                <div className="flex gap-1.5 mt-1.5">
+                                  {inlineImages.slice(0, 3).map((src, idx) => (
+                                    <img
+                                      key={idx}
+                                      src={src}
+                                      alt={`Anexo ${idx + 1}`}
+                                      className="h-10 w-10 rounded border border-border object-cover"
+                                    />
+                                  ))}
+                                  {inlineImages.length > 3 && (
+                                    <div className="h-10 w-10 rounded border border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
+                                      +{inlineImages.length - 3}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                              Para: {email.to_email}
-                              {email.cc_email ? ` • CC: ${email.cc_email}` : ""}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {dateStr} às {timeStr}
-                            </p>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleResend(email); }} title="Reenviar">
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleForward(email); }} title="Encaminhar">
+                                <Forward className="h-3.5 w-3.5" />
+                              </Button>
+                              {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleResend(email)} title="Reenviar">
-                              <RefreshCw className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleForward(email)} title="Encaminhar">
-                              <Forward className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          {isExpanded && email.body_html && (
+                            <div className="px-3 pb-3 border-t border-border">
+                              <div
+                                className="mt-2 text-sm text-foreground prose prose-sm max-w-none bg-muted/30 rounded-lg p-3 max-h-[300px] overflow-y-auto"
+                                dangerouslySetInnerHTML={{ __html: email.body_html }}
+                              />
+                              {inlineImages.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-[10px] text-muted-foreground font-semibold mb-1">📎 Anexos ({inlineImages.length})</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {inlineImages.map((src, idx) => (
+                                      <a key={idx} href={src} target="_blank" rel="noopener noreferrer">
+                                        <img
+                                          src={src}
+                                          alt={`Anexo ${idx + 1}`}
+                                          className="h-16 w-16 rounded-lg border border-border object-cover hover:ring-2 hover:ring-primary/50 transition-all"
+                                        />
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
