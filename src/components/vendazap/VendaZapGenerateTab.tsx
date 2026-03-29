@@ -69,7 +69,7 @@ interface VendaZapGenerateTabProps {
     tom_padrao: string;
     max_mensagens_dia: number;
   } | null;
-  autoSugg: { generate: (client: Client, sim: unknown) => void; clear: () => void; suggestion: string | null; loading: boolean; markUsed?: () => void };
+  autoSugg: { generate: (...args: unknown[]) => void; clear: () => void; suggestion: string | null; loading: boolean; markUsed?: (...args: unknown[]) => void; tipoCopy?: string; discProfile?: string };
   currentUserId?: string;
   lastQuality?: QualityValidationResult | null;
   resumeSession?: ConversationSession | null;
