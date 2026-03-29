@@ -128,7 +128,8 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
       c.label.toLowerCase().includes(search.toLowerCase()) ||
       c.tipo.toLowerCase().includes(search.toLowerCase());
     const matchType = copyTypeFilter === "all" || c.tipo === copyTypeFilter;
-    const matchDisc = discFilter === "all" || c.disc_profile === discFilter || (!c.disc_profile && discFilter === "all");
+    // Show items without disc_profile regardless of filter (they're universal)
+    const matchDisc = discFilter === "all" || !c.disc_profile || c.disc_profile === discFilter;
     return matchSearch && matchType && matchDisc;
   });
 
