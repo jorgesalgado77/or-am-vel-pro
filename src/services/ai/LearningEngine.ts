@@ -378,12 +378,10 @@ export class LearningEngine {
         confidence: Math.min(100, Math.max(0, confidence)),
         updated_at: new Date().toISOString(),
       };
-      await supabase
-        .from("ai_learned_patterns" as unknown as "clients")
-        .upsert(
-          [row as unknown as Record<string, unknown>],
-          { onConflict: "tenant_id,user_id,pattern_type,pattern_key" as unknown as "id" }
-        );
+      const table = supabase.from("ai_learned_patterns" as unknown as "clients");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (table as unknown as { upsert: (rows: unknown[], opts: { onConflict: string }) => Promise<unknown> })
+        .upsert([row], { onConflict: "tenant_id,user_id,pattern_type,pattern_key" });
     } catch (err) {
       console.error("[LearningEngine] upsert pattern error:", err);
     }
