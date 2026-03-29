@@ -702,6 +702,23 @@ function FilaLiberacaoTab({
     );
   }
 
+  // Build assignment history from all requests that have been assigned
+  const assignmentHistory = useMemo(() => {
+    return requests
+      .filter(r => r.assigned_to)
+      .map(r => ({
+        id: r.id,
+        cliente: r.nome_cliente,
+        tecnico: r.technician_name || r.assigned_to || "",
+        valor: Number(r.valor_venda_avista) || 0,
+        data: r.updated_at || r.created_at,
+        status: r.status,
+      }))
+      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+  }, [requests]);
+
+  const [showHistory, setShowHistory] = useState(false);
+
   return (
     <div className="space-y-4">
       {/* Queue order indicator */}
@@ -715,9 +732,12 @@ function FilaLiberacaoTab({
             <Badge
               key={lib.id}
               variant={idx === 0 ? "default" : "outline"}
-              className={cn("text-xs gap-1", idx === 0 && "bg-primary text-primary-foreground")}
+              className={cn(
+                "text-xs gap-1 transition-all duration-500",
+                idx === 0 && "bg-primary text-primary-foreground animate-pulse shadow-md shadow-primary/30 scale-110"
+              )}
             >
-              {idx + 1}º {lib.nome.split(" ")[0]}
+              {idx === 0 && "⚡ "}{idx + 1}º {lib.nome.split(" ")[0]}
               {lib.remaining > 0 && <span className="opacity-70">({formatCurrency(lib.remaining)})</span>}
             </Badge>
           ))}
@@ -730,21 +750,36 @@ function FilaLiberacaoTab({
       {/* Liberador cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {queueData.map((lib, idx) => (
-          <Card key={lib.id} className={cn("transition-all", idx === 0 && "border-primary/50 ring-1 ring-primary/20")}>
+          <Card
+            key={lib.id}
+            className={cn(
+              "transition-all duration-500",
+              idx === 0 && "border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/10 relative overflow-hidden"
+            )}
+          >
+            {idx === 0 && (
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/60 to-primary animate-pulse" />
+            )}
             <CardContent className="pt-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={idx === 0 ? "default" : "secondary"} className="text-[10px] h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                    <Badge
+                      variant={idx === 0 ? "default" : "secondary"}
+                      className={cn(
+                        "text-[10px] h-5 w-5 p-0 flex items-center justify-center rounded-full",
+                        idx === 0 && "animate-bounce"
+                      )}
+                    >
                       {idx + 1}
                     </Badge>
-                    <p className="text-sm font-semibold">{lib.nome}</p>
+                    <p className={cn("text-sm font-semibold", idx === 0 && "text-primary")}>{lib.nome}</p>
                   </div>
                   <p className="text-[11px] text-muted-foreground">{lib.cargo}</p>
                 </div>
                 {idx === 0 && (
-                  <Badge className="bg-primary/10 text-primary text-[9px] border-primary/30">
-                    Próximo da Fila
+                  <Badge className="bg-primary text-primary-foreground text-[9px] border-primary/30 shadow-sm">
+                    ⚡ 1º da Fila
                   </Badge>
                 )}
               </div>
@@ -832,6 +867,62 @@ function FilaLiberacaoTab({
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Assignment History */}
+      <div className="space-y-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setShowHistory(!showHistory)}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          Histórico de Atribuições ({assignmentHistory.length})
+          <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", showHistory && "rotate-90")} />
+        </Button>
+
+        {showHistory && (
+          <Card>
+            <CardContent className="p-0">
+              <ScrollArea className="max-h-[400px]">
+                <div className="divide-y">
+                  {assignmentHistory.length === 0 ? (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      Nenhuma atribuição registrada
+                    </div>
+                  ) : (
+                    assignmentHistory.map((item) => (
+                      <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <User className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{item.cliente}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Atribuído a <span className="font-semibold text-foreground">{item.tecnico}</span>
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-semibold text-emerald-600">{formatCurrency(item.valor)}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {format(new Date(item.data), "dd/MM/yy HH:mm", { locale: ptBR })}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={item.status === "concluido" ? "default" : "outline"}
+                          className={cn("text-[9px] shrink-0", item.status === "concluido" && "bg-emerald-500")}
+                        >
+                          {item.status === "concluido" ? "✅" : item.status === "em_andamento" ? "🔧" : "🆕"}
+                        </Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
