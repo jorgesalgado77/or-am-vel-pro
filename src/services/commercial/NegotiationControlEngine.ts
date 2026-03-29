@@ -100,6 +100,7 @@ export interface NegotiationDecision {
   deal_analysis: DealAnalysis;
   arbitrage?: ArbitrageResult;
   optimization?: OptimizationResult;
+  warnings?: string[];
 }
 
 export interface PricingDecision {
@@ -215,10 +216,19 @@ export class NegotiationControlEngine {
       ? this._buildClosingAction(closingSignals, ctx, pricing)
       : undefined;
 
-    // 7. Approval requirement
+    // 7. Approval requirement — use sales_rules max_discount
+    const salesRules = await this._fetchSalesRules(ctx.tenant_id);
+    const salesRulesMaxDiscount = salesRules?.max_discount ?? 100;
+    const discountLimitForApproval = salesRulesMaxDiscount < 100 ? salesRulesMaxDiscount : 15;
     const requiresApproval = ctx.modo === "assistido" ||
-      (pricing.desconto_recomendado > 15) ||
-      (pricing.margem_estimada < 10);
+      (pricing.desconto_recomendado > discountLimitForApproval) ||
+      (pricing.margem_estimada < (salesRules?.min_margin ?? 10));
+
+    // 8. Warning if no discount policy configured
+    const warnings: string[] = [];
+    if (salesRulesMaxDiscount >= 100 && (!dealCtx.discounts.available_options)) {
+      warnings.push("⚠️ Nenhuma política de desconto cadastrada. Configure em Configurações > Regras Comerciais.");
+    }
 
     return {
       strategy: finalStrategy,
@@ -242,6 +252,7 @@ export class NegotiationControlEngine {
       deal_analysis: analysis,
       arbitrage: arbitrage ?? undefined,
       optimization: optimization ?? undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   }
 
@@ -629,6 +640,20 @@ export class NegotiationControlEngine {
 
   private _formatCurrency(val: number): string {
     return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  private async _fetchSalesRules(tenantId: string): Promise<{ min_margin: number; max_discount: number } | null> {
+    try {
+      const { data } = await supabase
+        .from("sales_rules" as any)
+        .select("min_margin, max_discount")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!data) return null;
+      return { min_margin: Number((data as any).min_margin) || 0, max_discount: Number((data as any).max_discount) || 100 };
+    } catch {
+      return null;
+    }
   }
 }
 

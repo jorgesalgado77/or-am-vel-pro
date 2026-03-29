@@ -316,11 +316,14 @@ export class CommercialDirectorEngine {
       const totalAttempted = open.length + closed.length;
       const convRate = totalAttempted > 0 ? (closed.length / totalAttempted) * 100 : 0;
 
-      // Revenue
+      // Revenue — use valor_com_desconto (valor à vista)
       let revenue = 0;
       for (const c of closed) {
         const contract = contracts.find(ct => ct.client_id === c.id);
-        if (contract?.valor_contrato) revenue += Number(contract.valor_contrato);
+        if (contract) {
+          const val = Number(contract.valor_com_desconto) || Number(contract.valor_contrato) || 0;
+          revenue += val;
+        }
       }
 
       // Avg days
@@ -374,9 +377,11 @@ export class CommercialDirectorEngine {
    * Define strategy based on current data + learned patterns
    */
   async defineStrategy(): Promise<StrategyDefinition> {
-    const [analysis, forecast] = await Promise.all([
+    const [analysis, forecast, salesRules, discountOpts] = await Promise.all([
       this.analyzeBusiness(),
       this.forecastRevenue(),
+      this.fetchSalesRules(),
+      this.fetchDiscountOptions(),
     ]);
 
     const learning = getLearningEngine(this.tenantId);
@@ -390,14 +395,34 @@ export class CommercialDirectorEngine {
       approach = "conservative";
     }
 
-    // Discount guidance from learned patterns
-    const sweetSpot = patterns.discountSpot;
-    const discountGuidance = sweetSpot
-      ? { min: sweetSpot.min_effective, max: sweetSpot.max_effective, sweet_spot: sweetSpot.optimal }
-      : { min: 3, max: 12, sweet_spot: 8 };
-
+    // Discount guidance from sales_rules (programmed) — NEVER use arbitrary values
+    let discountGuidance: StrategyDefinition["discount_guidance"];
     const focusAreas: string[] = [];
     const priorityActions: string[] = [];
+
+    if (salesRules && salesRules.max_discount < 100) {
+      // Use programmed rules
+      const sweetSpot = patterns.discountSpot;
+      const optimalFromLearning = sweetSpot ? sweetSpot.optimal : Math.round(salesRules.max_discount * 0.6);
+      discountGuidance = {
+        min: 0,
+        max: salesRules.max_discount,
+        sweet_spot: Math.min(optimalFromLearning, salesRules.max_discount),
+      };
+    } else if (discountOpts.length > 0) {
+      // Derive from discount_options
+      const values = discountOpts.map((d: any) => Number(d.valor) || 0).filter(v => v > 0);
+      const maxDisc = values.length > 0 ? Math.max(...values) : 10;
+      discountGuidance = { min: 0, max: maxDisc, sweet_spot: Math.round(maxDisc * 0.6) };
+    } else {
+      // NO discount policy configured — warn
+      discountGuidance = { min: 0, max: 0, sweet_spot: 0 };
+      priorityActions.push("⚠️ ATENÇÃO: Nenhuma política de desconto cadastrada. Configure em Configurações > Regras Comerciais antes de negociar vendas.");
+    }
+
+    if (salesRules && salesRules.min_margin > 0) {
+      priorityActions.push(`Margem mínima configurada: ${salesRules.min_margin}%. Não aprovar negociações abaixo desse limite.`);
+    }
 
     if (analysis.pipeline.stalled_leads > 3) {
       focusAreas.push("Reativação de leads parados");
@@ -511,7 +536,7 @@ export class CommercialDirectorEngine {
   private async fetchContracts() {
     const { data } = await supabase
       .from("client_contracts" as any)
-      .select("id, client_id, simulation_id, created_at, valor_contrato")
+      .select("id, client_id, simulation_id, created_at, valor_contrato, valor_com_desconto, vendedor_id")
       .eq("tenant_id", this.tenantId);
     return (data || []) as any[];
   }
@@ -527,40 +552,46 @@ export class CommercialDirectorEngine {
   private async fetchUsuarios() {
     const { data } = await supabase
       .from("usuarios" as any)
-      .select("id, nome_completo")
+      .select("id, nome_completo, cargo_id, cargos(nome)")
       .eq("tenant_id", this.tenantId)
       .eq("ativo", true);
-    return (data || []) as any[];
+    // Filter only vendedor projetista
+    const all = (data || []) as any[];
+    return all.filter((u: any) => {
+      const cargoNome = (u.cargos?.nome || "").toLowerCase();
+      return cargoNome.includes("vendedor") || cargoNome.includes("projetista");
+    });
   }
 
   private async calculateRevenue(contracts: any[]): Promise<number> {
     if (contracts.length === 0) return 0;
-
-    const simIds = contracts.map((c: any) => c.simulation_id).filter(Boolean);
-    let sims: any[] = [];
-    if (simIds.length > 0) {
-      const { data } = await supabase
-        .from("simulations" as any)
-        .select("id, valor_tela, desconto1, desconto2, desconto3")
-        .in("id", simIds);
-      sims = data || [];
-    }
-    const simMap = new Map(sims.map((s: any) => [s.id, s]));
-
     let total = 0;
     for (const contract of contracts) {
-      const sim = contract.simulation_id ? simMap.get(contract.simulation_id) : null;
-      if (sim) {
-        let valor = sim.valor_tela || 0;
-        if (sim.desconto1) valor *= (1 - sim.desconto1 / 100);
-        if (sim.desconto2) valor *= (1 - sim.desconto2 / 100);
-        if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
-        total += valor;
+      // Prefer valor_com_desconto (valor à vista) as the standard metric
+      if (contract.valor_com_desconto && Number(contract.valor_com_desconto) > 0) {
+        total += Number(contract.valor_com_desconto);
       } else if (contract.valor_contrato) {
         total += Number(contract.valor_contrato) || 0;
       }
     }
     return total;
+  }
+
+  private async fetchSalesRules(): Promise<{ min_margin: number; max_discount: number } | null> {
+    const { data } = await supabase
+      .from("sales_rules" as any)
+      .select("min_margin, max_discount")
+      .eq("tenant_id", this.tenantId)
+      .maybeSingle();
+    return data ? { min_margin: Number((data as any).min_margin) || 0, max_discount: Number((data as any).max_discount) || 100 } : null;
+  }
+
+  private async fetchDiscountOptions(): Promise<any[]> {
+    const { data } = await supabase
+      .from("discount_options" as any)
+      .select("*")
+      .eq("tenant_id", this.tenantId);
+    return (data || []) as any[];
   }
 
   private async persistForecast(forecast: RevenueForecast): Promise<void> {

@@ -163,25 +163,37 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
 
     const userMap = new Map(effectiveUsers.map(u => [u.id, u.nome_completo]));
 
-    const { data: clients } = await supabase
+    // Use client_contracts with valor_com_desconto (valor à vista) as source of truth
+    const { data: contractsData } = await supabase
+      .from("client_contracts" as any)
+      .select("client_id, vendedor_id, valor_com_desconto, valor_contrato, created_at")
+      .eq("tenant_id", tenantId);
+
+    // Also fetch clients for leads count
+    const { data: clientsData } = await supabase
       .from("clients" as any)
-      .select("responsavel_id, status, valor_fechamento, created_at")
+      .select("id, responsavel_id, created_at")
       .eq("tenant_id", tenantId);
 
     const enriched = Array.from(mergedByKey.values()).map((g: any) => {
       let currentValue = 0;
-      const monthClients = (clients || []).filter((c: any) => {
-        return (c.created_at || "").substring(0, 7) === selectedMonth && c.responsavel_id === g.user_id;
+      const monthContracts = (contractsData || []).filter((c: any) => {
+        const matchesMonth = (c.created_at || "").substring(0, 7) === selectedMonth;
+        const matchesUser = c.vendedor_id === g.user_id;
+        return matchesMonth && matchesUser;
       });
 
       if (g.goal_type === "revenue") {
-        currentValue = monthClients
-          .filter((c: any) => c.status === "fechado")
-          .reduce((sum: number, c: any) => sum + (Number(c.valor_fechamento) || 0), 0);
+        currentValue = monthContracts.reduce((sum: number, c: any) => {
+          const val = Number(c.valor_com_desconto) || Number(c.valor_contrato) || 0;
+          return sum + val;
+        }, 0);
       } else if (g.goal_type === "deals") {
-        currentValue = monthClients.filter((c: any) => c.status === "fechado").length;
+        currentValue = monthContracts.length;
       } else if (g.goal_type === "leads") {
-        currentValue = monthClients.length;
+        currentValue = (clientsData || []).filter((c: any) =>
+          c.responsavel_id === g.user_id && (c.created_at || "").substring(0, 7) === selectedMonth
+        ).length;
       }
 
       return {
