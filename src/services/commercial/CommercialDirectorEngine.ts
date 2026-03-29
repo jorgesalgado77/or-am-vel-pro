@@ -419,7 +419,7 @@ export class CommercialDirectorEngine {
     // Best strategy from learning
     const bestStrategy = patterns.strategies?.[0];
     if (bestStrategy) {
-      priorityActions.push(`Priorizar estratégia "${bestStrategy.strategy}" (${(bestStrategy.rate * 100).toFixed(0)}% conversão histórica)`);
+      priorityActions.push(`Priorizar estratégia "${bestStrategy.strategy}" (${(bestStrategy.conversion_rate * 100).toFixed(0)}% conversão histórica)`);
     }
 
     const reasoning = approach === "aggressive"
