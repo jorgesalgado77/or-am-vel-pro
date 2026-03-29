@@ -666,10 +666,16 @@ export function KanbanClientDialog({
           {/* Measurement Request button for closed contracts */}
           {hasContract && (
             <Button
-              className="gap-2 flex-1 bg-success hover:bg-success/90 text-success-foreground"
+              className={cn(
+                "gap-2 flex-1",
+                measurementInfo.exists
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  : "bg-success hover:bg-success/90 text-success-foreground"
+              )}
               onClick={() => setShowMeasurementRequest(true)}
             >
-              <Ruler className="h-4 w-4" />Enviar Solicitação de Medida
+              <Ruler className="h-4 w-4" />
+              {measurementInfo.exists ? "Solicitação de Medida Enviada" : "Enviar Solicitação de Medida"}
             </Button>
           )}
 
