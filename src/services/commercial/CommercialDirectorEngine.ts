@@ -237,7 +237,7 @@ export class CommercialDirectorEngine {
 
     // Base forecast from pipeline * conversion rate
     const baseConversion = conversion.rate / 100;
-    const adjustedConversion = patterns.discountSweetSpot
+    const adjustedConversion = patterns.discountSpot
       ? Math.min(baseConversion * 1.1, 0.5) // slight boost if sweet spot is known
       : baseConversion;
 
@@ -253,7 +253,7 @@ export class CommercialDirectorEngine {
     else if (pctExpected < 90) risco = "medio";
 
     // Confidence based on data volume
-    const dataPoints = pipeline.total_leads + (patterns.strategyConversions?.length || 0) * 5;
+    const dataPoints = pipeline.total_leads + (patterns.strategies?.length || 0) * 5;
     const confianca = Math.min(95, Math.max(20, 30 + dataPoints * 2));
 
     const insights: string[] = [];
@@ -264,8 +264,8 @@ export class CommercialDirectorEngine {
     if (pipeline.stalled_leads > pipeline.hot_leads) {
       insights.push(`${pipeline.stalled_leads} leads parados vs ${pipeline.hot_leads} quentes — pipeline congestionado`);
     }
-    if (patterns.discountSweetSpot) {
-      insights.push(`Sweet-spot de desconto: ${patterns.discountSweetSpot.optimal}% (máx efetivo: ${patterns.discountSweetSpot.max_effective}%)`);
+    if (patterns.discountSpot) {
+      insights.push(`Sweet-spot de desconto: ${patterns.discountSpot.optimal}% (máx efetivo: ${patterns.discountSpot.max_effective}%)`);
     }
     if (goals.days_remaining <= 7 && goals.pct_atingido < 80) {
       insights.push(`Apenas ${goals.days_remaining} dias restantes com ${goals.pct_atingido}% da meta. Modo urgência!`);
@@ -391,7 +391,7 @@ export class CommercialDirectorEngine {
     }
 
     // Discount guidance from learned patterns
-    const sweetSpot = patterns.discountSweetSpot;
+    const sweetSpot = patterns.discountSpot;
     const discountGuidance = sweetSpot
       ? { min: sweetSpot.min_effective, max: sweetSpot.max_effective, sweet_spot: sweetSpot.optimal }
       : { min: 3, max: 12, sweet_spot: 8 };
@@ -417,7 +417,7 @@ export class CommercialDirectorEngine {
     }
 
     // Best strategy from learning
-    const bestStrategy = patterns.strategyConversions?.[0];
+    const bestStrategy = patterns.strategies?.[0];
     if (bestStrategy) {
       priorityActions.push(`Priorizar estratégia "${bestStrategy.strategy}" (${(bestStrategy.rate * 100).toFixed(0)}% conversão histórica)`);
     }
