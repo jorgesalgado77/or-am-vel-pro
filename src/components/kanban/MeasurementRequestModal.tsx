@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2, Loader2, Download } from "lucide-react";
+import { Upload, FileText, Image, AlertTriangle, CheckCircle2, Ruler, X, Eye, Pencil, Search, Building2, Loader2, Download, Clock } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
@@ -85,12 +85,14 @@ export function MeasurementRequestModal({
   const [envAttachments, setEnvAttachments] = useState<Record<string, EnvironmentAttachment[]>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
+  const [hydrating, setHydrating] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   const [observacoes, setObservacoes] = useState("");
   const [existingRequestId, setExistingRequestId] = useState<string | null>(null);
   const [lastEditInfo, setLastEditInfo] = useState<{ by: string; cargo: string; at: string } | null>(null);
+  const [editHistory, setEditHistory] = useState<Array<{ by: string; cargo: string; at: string; action: string }>>([]);
   const { settings } = useCompanySettings();
   const localPreviewUrlsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef(false);
@@ -765,6 +767,7 @@ export function MeasurementRequestModal({
     if (!client?.id || !open) return;
     if (initialLoadDoneRef.current) return;
     let active = true;
+    setHydrating(true);
 
     const loadData = async () => {
       const [{ data: sims }, latestRequest] = await Promise.all([
@@ -899,6 +902,17 @@ export function MeasurementRequestModal({
         });
       }
       initialLoadDoneRef.current = true;
+
+      // Build edit history from the request
+      const history: Array<{ by: string; cargo: string; at: string; action: string }> = [];
+      if (latestRequest?.created_by && latestRequest?.created_at) {
+        history.push({ by: latestRequest.created_by, cargo: "", at: latestRequest.created_at, action: "Criou a solicitação" });
+      }
+      if (latestRequest?.last_edited_by && latestRequest?.last_edited_at && latestRequest.last_edited_at !== latestRequest.created_at) {
+        history.push({ by: latestRequest.last_edited_by, cargo: latestRequest.last_edited_by_cargo || "", at: latestRequest.last_edited_at, action: "Editou a solicitação" });
+      }
+      setEditHistory(history);
+      setHydrating(false);
 
       if (latestRequest) {
         hydrateClientState({ ...(client as any), ...(latestRequest as Record<string, any>) });
@@ -1650,7 +1664,7 @@ export function MeasurementRequestModal({
           const { data: userRow } = await (supabase as any)
             .from("usuarios")
             .select("nome_completo, cargo_id")
-            .eq("user_id", uid)
+            .eq("auth_user_id", uid)
             .eq("tenant_id", tenantId)
             .maybeSingle();
           userNomeCompleto = userRow?.nome_completo || "";
@@ -1764,7 +1778,6 @@ export function MeasurementRequestModal({
         payload.last_edited_at = new Date().toISOString();
         const res = await supabase.from("measurement_requests" as any).insert(payload);
         error = res.error;
-        error = res.error;
       }
 
       // Send push notifications to gerentes/técnicos
@@ -1868,7 +1881,15 @@ export function MeasurementRequestModal({
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-2" style={{ maxHeight: "calc(90vh - 140px)" }}>
+        <div className="flex-1 overflow-y-auto px-6 pb-2 relative" style={{ maxHeight: "calc(90vh - 140px)" }}>
+          {hydrating && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                Carregando dados da solicitação...
+              </div>
+            </div>
+          )}
           <div className="space-y-4 py-4">
             {/* Store Info */}
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
@@ -2222,6 +2243,30 @@ export function MeasurementRequestModal({
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Edit History */}
+            {editHistory.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" /> Histórico de Alterações
+                </h4>
+                <div className="space-y-1.5">
+                  {editHistory.map((entry, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs bg-muted/30 rounded-md px-3 py-2 border">
+                      <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">
+                        <span className="font-semibold text-foreground">{entry.by}</span>
+                        {entry.cargo && <span className="text-primary"> ({entry.cargo})</span>}
+                        {" — "}{entry.action}
+                        {entry.at && (
+                          <span> em {new Date(entry.at).toLocaleDateString("pt-BR")} às {new Date(entry.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
