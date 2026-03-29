@@ -108,11 +108,11 @@ export function useVendaZapTriggers(tenantId: string | null) {
     const clientIds = [...new Set(triggerRows.map((t: Record<string, unknown>) => t.client_id as string))];
     const { data: clients } = await supabase
       .from("clients")
-      .select("id, nome, status, valor_orcamento, updated_at")
-      .in("id", clientIds);
+      .select("id, nome, status, updated_at");
 
+    const matchedClients = (clients || []).filter((c: Record<string, unknown>) => clientIds.includes(c.id as string));
     const clientMap = new Map<string, ClientRow>();
-    (clients || []).forEach((c) => clientMap.set(c.id, c as ClientRow));
+    matchedClients.forEach((c: Record<string, unknown>) => clientMap.set(c.id as string, c as unknown as ClientRow));
 
     // Analyze pending triggers via CDE
     const engine = getCommercialEngine();
