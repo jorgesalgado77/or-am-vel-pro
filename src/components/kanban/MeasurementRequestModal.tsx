@@ -1639,6 +1639,29 @@ export function MeasurementRequestModal({
       const tenantId = await getResolvedTenantId();
       const userInfo = getAuditUserInfo();
 
+      // Fetch current user's cargo name for edit tracking
+      let userCargoNome = "";
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData?.session?.user?.id;
+        if (uid && tenantId) {
+          const { data: userRow } = await (supabase as any)
+            .from("usuarios")
+            .select("nome_completo, cargo_id")
+            .eq("user_id", uid)
+            .eq("tenant_id", tenantId)
+            .maybeSingle();
+          if (userRow?.cargo_id) {
+            const { data: cargoRow } = await (supabase as any)
+              .from("cargos")
+              .select("nome")
+              .eq("id", userRow.cargo_id)
+              .maybeSingle();
+            userCargoNome = cargoRow?.nome || "";
+          }
+        }
+      } catch { /* silent */ }
+
       await persistClientSnapshot();
 
       // Upload images to storage
