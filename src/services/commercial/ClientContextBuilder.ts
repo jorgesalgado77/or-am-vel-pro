@@ -164,10 +164,10 @@ export class ClientContextBuilder {
   private async fetchClient(clientId: string): Promise<ClientRow | null> {
     const { data } = await supabase
       .from("clients")
-      .select("id, nome, status, updated_at, created_at, telefone1, email, vendedor, lead_temperature")
+      .select("id, nome, status, updated_at, created_at, telefone1, email, vendedor")
       .eq("id", clientId)
       .maybeSingle();
-    return data as ClientRow | null;
+    return data as unknown as ClientRow | null;
   }
 
   private async fetchLatestSimulation(clientId: string): Promise<SimulationRow | null> {
