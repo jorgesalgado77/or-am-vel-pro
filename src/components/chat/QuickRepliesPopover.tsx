@@ -11,6 +11,17 @@ import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import type { QuickReply } from "@/hooks/useQuickReplies";
 
+const READY_COPIES = [
+  { label: "Reativação Firme", tipo: "reativacao", mensagem: "[NOME], seu projeto ficou incrível e as condições especiais que preparei ainda estão válidas — mas por pouco tempo. Seria uma pena perder essa oportunidade! Posso te enviar a proposta atualizada agora? ⏰🔥" },
+  { label: "Objeção de Preço", tipo: "objecao", mensagem: "[NOME], entendo a preocupação com o valor. Mas veja: nossos móveis duram mais de 15 anos — isso dá menos de R$ 3 por dia de uso! Além disso, temos condições de pagamento que facilitam muito. Posso montar uma simulação personalizada pra você agora? 💡" },
+  { label: "Cliente Indeciso", tipo: "objecao", mensagem: "[NOME], a indecisão é o maior inimigo de um bom negócio. 95% dos nossos clientes dizem que se arrependem de não ter fechado antes! Vamos resolver suas dúvidas agora? Tenho 15 minutos disponíveis pra te mostrar exatamente por que vale a pena. 📞" },
+  { label: "Contra Concorrência", tipo: "objecao", mensagem: "[NOME], preço baixo sem qualidade sai caro! Nossos clientes já testaram outras marcas e voltaram. Temos garantia estendida e montagem inclusa. Que tal eu te mostrar um comparativo real? 🏆" },
+  { label: "Urgência Máxima", tipo: "urgencia", mensagem: "[NOME], preciso ser direto: essas condições especiais vencem em 48h e os preços dos fornecedores já subiram. Se fecharmos agora, garanto o valor atual + um bônus exclusivo. Posso preparar o contrato? ⚡" },
+  { label: "Fechamento Direto", tipo: "fechamento", mensagem: "[NOME], está tudo pronto! Projeto aprovado, condições especiais garantidas e prazo de entrega ideal. Só falta sua confirmação para começarmos. Envio o contrato agora? ✅📋" },
+  { label: "Reversão de Desistência", tipo: "reversao", mensagem: "[NOME], antes de desistir, me dá 2 minutos? Tenho uma condição ESPECIAL que ainda não te apresentei. Posso te mostrar? 😉🔑" },
+  { label: "Pós-Silêncio", tipo: "reativacao", mensagem: "[NOME], percebi que ficamos sem conversar. Reservei seu projeto com condições diferenciadas, mas preciso de uma posição. Me dá um retorno? 🎯" },
+];
+
 interface VendaZapCopy {
   id: string;
   tipo_copy: string;
@@ -18,6 +29,28 @@ interface VendaZapCopy {
   mensagem_gerada: string;
   created_at: string;
 }
+
+interface SavedCopy {
+  id: string;
+  tipo: string;
+  label: string;
+  mensagem: string;
+  is_ai: boolean;
+}
+
+const TIPO_LABELS: Record<string, string> = {
+  reativacao: "Reativação",
+  objecao: "Objeção",
+  urgencia: "Urgência",
+  fechamento: "Fechamento",
+  reversao: "Reversão",
+  primeiro_contato: "1º Contato",
+  follow_up: "Follow-up",
+  apresentacao: "Apresentação",
+  pos_venda: "Pós-venda",
+  reengajamento: "Reengajamento",
+  ia_gerada: "IA Gerada",
+};
 
 interface Props {
   replies: QuickReply[];
@@ -36,6 +69,8 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
   const [tab, setTab] = useState("rapidas");
   const [vendaZapCopies, setVendaZapCopies] = useState<VendaZapCopy[]>([]);
   const [loadingCopies, setLoadingCopies] = useState(false);
+  const [savedCopies, setSavedCopies] = useState<SavedCopy[]>([]);
+  const [copyTypeFilter, setCopyTypeFilter] = useState<string>("all");
 
   // Fetch VendaZap AI copies when tab switches or popover opens
   useEffect(() => {
@@ -43,16 +78,23 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
     const tenantId = getTenantId();
     if (!tenantId) return;
     setLoadingCopies(true);
-    (supabase as any)
-      .from("vendazap_messages")
-      .select("id, tipo_copy, tom, mensagem_gerada, created_at")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-      .limit(30)
-      .then(({ data }: any) => {
-        setVendaZapCopies(data || []);
-        setLoadingCopies(false);
-      });
+    Promise.all([
+      (supabase as any)
+        .from("vendazap_messages")
+        .select("id, tipo_copy, tom, mensagem_gerada, created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(30),
+      (supabase as any)
+        .from("vendazap_copys")
+        .select("id, tipo, label, mensagem, is_ai")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false }),
+    ]).then(([msgRes, copyRes]: any[]) => {
+      setVendaZapCopies(msgRes.data || []);
+      setSavedCopies(copyRes.data || []);
+      setLoadingCopies(false);
+    });
   }, [open, tab]);
 
   const filtered = replies.filter(
@@ -61,12 +103,23 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
       r.mensagem.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredCopies = vendaZapCopies.filter(
-    (c) =>
-      c.mensagem_gerada.toLowerCase().includes(search.toLowerCase()) ||
-      c.tipo_copy.toLowerCase().includes(search.toLowerCase()) ||
-      c.tom.toLowerCase().includes(search.toLowerCase())
-  );
+  // Merge all copy sources: ready + saved + vendazap_messages
+  const allVendaZapItems = [
+    ...READY_COPIES.map((c, i) => ({ id: `ready-${i}`, tipo: c.tipo, label: c.label, mensagem: c.mensagem })),
+    ...savedCopies.map((c) => ({ id: c.id, tipo: c.tipo, label: c.label, mensagem: c.mensagem })),
+    ...vendaZapCopies.map((c) => ({ id: c.id, tipo: c.tipo_copy, label: tipoLabels[c.tipo_copy] || c.tipo_copy, mensagem: c.mensagem_gerada })),
+  ];
+
+  const copyTypes = Array.from(new Set(allVendaZapItems.map((c) => c.tipo)));
+
+  const filteredCopies = allVendaZapItems.filter((c) => {
+    const matchSearch = !search ||
+      c.mensagem.toLowerCase().includes(search.toLowerCase()) ||
+      c.label.toLowerCase().includes(search.toLowerCase()) ||
+      c.tipo.toLowerCase().includes(search.toLowerCase());
+    const matchType = copyTypeFilter === "all" || c.tipo === copyTypeFilter;
+    return matchSearch && matchType;
+  });
 
   const handleAdd = () => {
     if (!newTitulo.trim() || !newMensagem.trim()) return;
@@ -198,12 +251,32 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
           )}
 
           {tab === "vendazap" && (
-            <>
+            <div className="flex flex-col">
+              {/* Type filter chips */}
+              <div className="flex gap-1 px-2 py-1.5 flex-wrap border-b border-border">
+                <Badge
+                  variant={copyTypeFilter === "all" ? "default" : "outline"}
+                  className="cursor-pointer text-[8px] h-5 px-1.5"
+                  onClick={() => setCopyTypeFilter("all")}
+                >
+                  Todas
+                </Badge>
+                {copyTypes.map((tipo) => (
+                  <Badge
+                    key={tipo}
+                    variant={copyTypeFilter === tipo ? "default" : "outline"}
+                    className="cursor-pointer text-[8px] h-5 px-1.5"
+                    onClick={() => setCopyTypeFilter(tipo)}
+                  >
+                    {TIPO_LABELS[tipo] || tipo}
+                  </Badge>
+                ))}
+              </div>
               {loadingCopies ? (
                 <p className="p-3 text-xs text-muted-foreground text-center">Carregando copys...</p>
               ) : filteredCopies.length === 0 ? (
                 <p className="p-3 text-xs text-muted-foreground text-center">
-                  Nenhuma copy gerada no VendaZap AI ainda.
+                  Nenhuma copy encontrada.
                 </p>
               ) : (
                 <div className="p-1">
@@ -211,24 +284,21 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
                     <div
                       key={c.id}
                       className="flex items-start gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer group transition-colors"
-                      onClick={() => handleSelect(c.mensagem_gerada)}
+                      onClick={() => handleSelect(c.mensagem.replace(/\[NOME\]/g, ""))}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 mb-0.5">
                           <Badge variant="outline" className="text-[8px] h-3.5 px-1 border-primary/30 text-primary">
-                            {tipoLabels[c.tipo_copy] || c.tipo_copy}
-                          </Badge>
-                          <Badge variant="outline" className="text-[8px] h-3.5 px-1">
-                            {c.tom}
+                            {c.label}
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-muted-foreground line-clamp-3">{c.mensagem_gerada}</p>
+                        <p className="text-[11px] text-muted-foreground line-clamp-3">{c.mensagem}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-            </>
+            </div>
           )}
         </ScrollArea>
       </PopoverContent>
