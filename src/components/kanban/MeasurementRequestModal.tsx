@@ -568,6 +568,8 @@ export function MeasurementRequestModal({
       setEnvAttachments({});
       setUploadProgress({});
       setObservacoes("");
+      setExistingRequestId(null);
+      setLastEditInfo(null);
       setPdfPreviewImages([]);
       setPdfPreviewOpen(false);
       hydrateClientState(client as any);
