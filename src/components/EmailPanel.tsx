@@ -24,6 +24,88 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 const PAGE_SIZE = 20;
 const CONTACTS_KEY = "email-saved-contacts";
 
+const EMAIL_TEMPLATES = [
+  {
+    name: "Proposta Comercial",
+    icon: "💼",
+    subject: "Proposta Comercial - [Nome do Projeto]",
+    body: `<p>Prezado(a) <strong>[Nome do Cliente]</strong>,</p>
+<p>Conforme nosso contato, segue abaixo a proposta comercial para o projeto <strong>[Nome do Projeto]</strong>.</p>
+<p><strong>Detalhes da proposta:</strong></p>
+<ul>
+<li>Ambientes: [Listar ambientes]</li>
+<li>Valor total: R$ [Valor]</li>
+<li>Prazo de entrega: [Prazo]</li>
+<li>Condições de pagamento: [Condições]</li>
+</ul>
+<p>Estou à disposição para esclarecer qualquer dúvida.</p>
+<p>Atenciosamente,<br/>[Seu Nome]</p>`,
+  },
+  {
+    name: "Follow-up",
+    icon: "🔄",
+    subject: "Follow-up - Proposta [Nome do Projeto]",
+    body: `<p>Olá <strong>[Nome do Cliente]</strong>,</p>
+<p>Tudo bem? Gostaria de retomar nosso contato referente à proposta enviada para o projeto <strong>[Nome do Projeto]</strong>.</p>
+<p>Gostaria de saber se teve a oportunidade de analisar os detalhes e se posso ajudar com alguma dúvida.</p>
+<p>Lembro que as condições especiais que oferecemos continuam válidas por tempo limitado.</p>
+<p>Fico no aguardo do seu retorno!</p>
+<p>Abraços,<br/>[Seu Nome]</p>`,
+  },
+  {
+    name: "Agradecimento",
+    icon: "🙏",
+    subject: "Agradecemos a preferência!",
+    body: `<p>Prezado(a) <strong>[Nome do Cliente]</strong>,</p>
+<p>Gostaríamos de agradecer pela confiança em nosso trabalho!</p>
+<p>Seu projeto está sendo tratado com todo cuidado e dedicação. Em breve entraremos em contato com atualizações sobre o andamento.</p>
+<p>Caso precise de algo, não hesite em nos contatar.</p>
+<p>Muito obrigado(a)!</p>
+<p>Atenciosamente,<br/>[Seu Nome]</p>`,
+  },
+  {
+    name: "Confirmação de Medição",
+    icon: "📐",
+    subject: "Confirmação de Agendamento - Medição",
+    body: `<p>Olá <strong>[Nome do Cliente]</strong>,</p>
+<p>Confirmamos o agendamento da medição para:</p>
+<ul>
+<li><strong>Data:</strong> [Data]</li>
+<li><strong>Horário:</strong> [Horário]</li>
+<li><strong>Endereço:</strong> [Endereço completo]</li>
+</ul>
+<p>Nosso técnico estará no local no horário combinado. Por favor, garanta que os ambientes estejam acessíveis.</p>
+<p>Qualquer necessidade de reagendamento, entre em contato com antecedência.</p>
+<p>Atenciosamente,<br/>[Seu Nome]</p>`,
+  },
+  {
+    name: "Entrega Agendada",
+    icon: "🚚",
+    subject: "Agendamento de Entrega - [Nome do Projeto]",
+    body: `<p>Prezado(a) <strong>[Nome do Cliente]</strong>,</p>
+<p>Temos o prazer de informar que sua entrega foi agendada!</p>
+<ul>
+<li><strong>Data prevista:</strong> [Data]</li>
+<li><strong>Período:</strong> [Manhã/Tarde]</li>
+<li><strong>Endereço:</strong> [Endereço]</li>
+</ul>
+<p>Nossa equipe entrará em contato no dia para confirmar o horário exato.</p>
+<p>Agradecemos a preferência!</p>
+<p>Atenciosamente,<br/>[Seu Nome]</p>`,
+  },
+  {
+    name: "Pós-venda",
+    icon: "⭐",
+    subject: "Como foi sua experiência?",
+    body: `<p>Olá <strong>[Nome do Cliente]</strong>,</p>
+<p>Esperamos que esteja satisfeito(a) com seu projeto!</p>
+<p>Gostaríamos de saber como foi sua experiência conosco. Sua opinião é muito importante para continuarmos melhorando nossos serviços.</p>
+<p>Caso tenha alguma observação ou precise de suporte, estamos à disposição.</p>
+<p>Obrigado(a) por escolher nossos serviços!</p>
+<p>Abraços,<br/>[Seu Nome]</p>`,
+  },
+];
+
 interface EmailRecord {
   id: string;
   to_email: string;
@@ -567,6 +649,31 @@ export function EmailPanel() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Email Templates - show on step "to" */}
+              {step === "to" && !to && !subject && !bodyHtml && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">📋 Templates Prontos</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {EMAIL_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.name}
+                        type="button"
+                        className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-colors text-left group"
+                        onClick={() => {
+                          setSubject(tpl.subject);
+                          setBodyHtml(tpl.body);
+                          if (editorRef.current) editorRef.current.innerHTML = tpl.body;
+                          toast.success(`Template "${tpl.name}" carregado!`);
+                        }}
+                      >
+                        <span className="text-lg">{tpl.icon}</span>
+                        <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">{tpl.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <Separator />
+                </div>
+              )}
               {step === "to" && (
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">📧 Para quem deseja enviar?</Label>

@@ -48,6 +48,12 @@ interface MeasurementRequest {
   last_edited_at: string | null;
   created_at: string;
   updated_at: string;
+  seller_name?: string;
+  technician_name?: string;
+  store_code?: string;
+  contract_number?: string;
+  contract_url?: string;
+  briefing_url?: string;
 }
 
 const COLUMNS = [
@@ -323,7 +329,27 @@ export function MeasurementKanban() {
                               variant="outline"
                               size="sm"
                               className="w-full h-7 text-[11px] gap-1.5"
-                              onClick={() => setDetailRequest(req)}
+                              onClick={() => {
+                                // Enrich with resolved names from usuarios
+                                const enriched = { ...req };
+                                if (req.created_by) {
+                                  const seller = usuarios.find((u: any) => u.id === req.created_by || u.auth_user_id === req.created_by);
+                                  if (seller) enriched.seller_name = seller.nome_completo;
+                                }
+                                if (req.assigned_to) {
+                                  const tech = usuarios.find((u: any) => u.id === req.assigned_to || u.auth_user_id === req.assigned_to);
+                                  if (tech) enriched.technician_name = tech.nome_completo;
+                                }
+                                // Try to get store_code and contract info from client_snapshot
+                                const snap = req.client_snapshot || {};
+                                if (snap.store_code) enriched.store_code = snap.store_code;
+                                if (snap.codigo_loja) enriched.store_code = snap.codigo_loja;
+                                if (snap.contract_number) enriched.contract_number = snap.contract_number;
+                                if (snap.numero_contrato) enriched.contract_number = snap.numero_contrato;
+                                if (snap.contract_url) enriched.contract_url = snap.contract_url;
+                                if (snap.briefing_url) enriched.briefing_url = snap.briefing_url;
+                                setDetailRequest(enriched);
+                              }}
                             >
                               <Eye className="h-3 w-3" /> Ver Detalhes
                             </Button>

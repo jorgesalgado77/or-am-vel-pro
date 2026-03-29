@@ -8,11 +8,15 @@ const REMINDER_MINUTES_KEY = "task_reminder_minutes_before";
 const SNOOZE_MINUTES_KEY = "task_snooze_minutes";
 const DEFAULT_REMINDER_MINUTES = 15;
 const DEFAULT_SNOOZE_MINUTES = 5;
+const OVERDUE_CHECK_INTERVAL = 30 * 60_000; // 30 minutes
+const LOGIN_ALERT_KEY = "task_overdue_login_shown";
 
 export interface TaskReminder {
   task: Task;
   triggeredAt: number;
   snoozedUntil?: number;
+  isOverdue?: boolean;
+  daysOverdue?: number;
 }
 
 export function getReminderMinutes(): number {
@@ -36,31 +40,44 @@ export function setSnoozeMinutes(minutes: number) {
 export function useTaskReminders(tenantId: string | null, userId: string | undefined) {
   const [activeReminders, setActiveReminders] = useState<TaskReminder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
+  const [showOverdueAlert, setShowOverdueAlert] = useState(false);
   const dismissedRef = useRef(new Set<string>());
   const snoozedRef = useRef(new Map<string, number>());
+  const overdueAlertDismissedRef = useRef(false);
+  const lastOverdueCheckRef = useRef(0);
 
-  // Fetch tasks with time today that are nova/pendente
+  // Fetch ALL incomplete tasks (not just today's with time)
   useEffect(() => {
     if (!tenantId) return;
 
-    const fetchTasks = async () => {
-      const today = new Date().toISOString().slice(0, 10);
+    const fetchAllTasks = async () => {
       const { data } = await supabase
         .from("tasks" as any)
         .select("*")
         .eq("tenant_id", tenantId)
-        .eq("data_tarefa", today)
         .in("status", ["nova", "pendente"])
-        .not("horario", "is", null);
-      if (data) setTasks(data as unknown as Task[]);
+        .order("data_tarefa", { ascending: true });
+      
+      if (data) {
+        const allTasks = data as unknown as Task[];
+        const today = new Date().toISOString().slice(0, 10);
+        
+        // Tasks with time today -> for time-based reminders
+        const todayWithTime = allTasks.filter(t => t.data_tarefa === today && t.horario);
+        setTasks(todayWithTime);
+        
+        // All incomplete tasks -> for overdue alert
+        setOverdueTasks(allTasks);
+      }
     };
 
-    fetchTasks();
-    const interval = setInterval(fetchTasks, 60_000); // refresh every minute
+    fetchAllTasks();
+    const interval = setInterval(fetchAllTasks, 60_000);
     return () => clearInterval(interval);
   }, [tenantId]);
 
-  // Realtime: listen for task changes
+  // Realtime
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
@@ -74,30 +91,71 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         if (payload.eventType === "DELETE") {
           const id = (payload.old as any).id;
           setTasks(prev => prev.filter(t => t.id !== id));
+          setOverdueTasks(prev => prev.filter(t => t.id !== id));
           setActiveReminders(prev => prev.filter(r => r.task.id !== id));
           return;
         }
         const updated = payload.new as unknown as Task;
         const today = new Date().toISOString().slice(0, 10);
-        // Only track today's tasks with time, nova/pendente
-        if (updated.data_tarefa === today && updated.horario && ["nova", "pendente"].includes(updated.status)) {
-          setTasks(prev => {
+        
+        if (["nova", "pendente"].includes(updated.status)) {
+          setOverdueTasks(prev => {
             const exists = prev.find(t => t.id === updated.id);
             if (exists) return prev.map(t => t.id === updated.id ? updated : t);
             return [...prev, updated];
           });
+          if (updated.data_tarefa === today && updated.horario) {
+            setTasks(prev => {
+              const exists = prev.find(t => t.id === updated.id);
+              if (exists) return prev.map(t => t.id === updated.id ? updated : t);
+              return [...prev, updated];
+            });
+          }
         } else {
-          // Remove if status changed to em_execucao/concluida
           setTasks(prev => prev.filter(t => t.id !== updated.id));
+          setOverdueTasks(prev => prev.filter(t => t.id !== updated.id));
           setActiveReminders(prev => prev.filter(r => r.task.id !== updated.id));
         }
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [tenantId]);
 
-  // Check every 15 seconds if any task should trigger a reminder
+  // Show overdue alert on login and every 30 minutes
+  useEffect(() => {
+    if (overdueTasks.length === 0) {
+      setShowOverdueAlert(false);
+      return;
+    }
+
+    const now = Date.now();
+    const loginKey = `${LOGIN_ALERT_KEY}_${userId || "anon"}`;
+    const lastLoginShown = localStorage.getItem(loginKey);
+    const sessionStart = !lastLoginShown || (now - Number(lastLoginShown)) > 3600_000; // Reset after 1h gap
+
+    // Show on login
+    if (sessionStart && !overdueAlertDismissedRef.current) {
+      localStorage.setItem(loginKey, String(now));
+      setShowOverdueAlert(true);
+      playNotificationSound();
+      lastOverdueCheckRef.current = now;
+    }
+
+    // Periodic check every 30 minutes
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - lastOverdueCheckRef.current;
+      if (elapsed >= OVERDUE_CHECK_INTERVAL && overdueTasks.length > 0) {
+        overdueAlertDismissedRef.current = false;
+        setShowOverdueAlert(true);
+        playNotificationSound();
+        lastOverdueCheckRef.current = Date.now();
+      }
+    }, 60_000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [overdueTasks.length, userId]);
+
+  // Time-based reminders (existing logic)
   useEffect(() => {
     const check = () => {
       const now = Date.now();
@@ -106,8 +164,6 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
 
       tasks.forEach(task => {
         if (!task.horario || dismissedRef.current.has(task.id)) return;
-
-        // Check snooze
         const snoozedUntil = snoozedRef.current.get(task.id);
         if (snoozedUntil && now < snoozedUntil) return;
 
@@ -115,20 +171,12 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         const taskTime = new Date(`${today}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`);
         const triggerTime = taskTime.getTime() - reminderMinutes * 60_000;
 
-        // Trigger if we're past the reminder time but task hasn't happened yet (or up to 30min after)
         if (now >= triggerTime && now <= taskTime.getTime() + 30 * 60_000) {
           setActiveReminders(prev => {
             if (prev.some(r => r.task.id === task.id)) return prev;
-            // Sound + push
             playNotificationSound();
             if (userId) {
-              sendPushIfEnabled(
-                "tarefas",
-                userId,
-                `⏰ Tarefa em ${reminderMinutes}min`,
-                task.titulo,
-                `reminder-${task.id}`,
-              );
+              sendPushIfEnabled("tarefas", userId, `⏰ Tarefa em ${reminderMinutes}min`, task.titulo, `reminder-${task.id}`);
             }
             return [...prev, { task, triggeredAt: now }];
           });
@@ -152,5 +200,18 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
     setActiveReminders(prev => prev.filter(r => r.task.id !== taskId));
   }, []);
 
-  return { activeReminders, dismissReminder, snoozeReminder };
+  const dismissOverdueAlert = useCallback(() => {
+    overdueAlertDismissedRef.current = true;
+    setShowOverdueAlert(false);
+    lastOverdueCheckRef.current = Date.now();
+  }, []);
+
+  return {
+    activeReminders,
+    dismissReminder,
+    snoozeReminder,
+    overdueTasks,
+    showOverdueAlert,
+    dismissOverdueAlert,
+  };
 }
