@@ -216,11 +216,12 @@ export class NegotiationControlEngine {
       : undefined;
 
     // 7. Approval requirement — use sales_rules max_discount
-    const salesRulesMaxDiscount = dealCtx.rules?.max_discount ?? 100;
+    const salesRules = await this._fetchSalesRules(ctx.tenant_id);
+    const salesRulesMaxDiscount = salesRules?.max_discount ?? 100;
     const discountLimitForApproval = salesRulesMaxDiscount < 100 ? salesRulesMaxDiscount : 15;
     const requiresApproval = ctx.modo === "assistido" ||
       (pricing.desconto_recomendado > discountLimitForApproval) ||
-      (pricing.margem_estimada < (dealCtx.rules?.min_margin ?? 10));
+      (pricing.margem_estimada < (salesRules?.min_margin ?? 10));
 
     // 8. Warning if no discount policy configured
     const warnings: string[] = [];
