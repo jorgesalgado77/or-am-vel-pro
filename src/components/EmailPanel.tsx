@@ -1,11 +1,10 @@
 /**
- * Email Panel — Compose emails with attachments, contact memorization, drag & drop, resend/forward.
+ * Email Panel — Rich text compose with attachments, contact memorization, drag & drop, resend/forward.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,11 +13,13 @@ import { Separator } from "@/components/ui/separator";
 import {
   Mail, Send, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
   Plus, Loader2, Inbox, Paperclip, X, FileText, Image, Upload, Users,
-  RefreshCw, Forward,
+  RefreshCw, Forward, Bold, Italic, Underline, AlignLeft, AlignCenter,
+  AlignRight, Type, Palette, Highlighter,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const PAGE_SIZE = 20;
 const CONTACTS_KEY = "email-saved-contacts";
@@ -64,6 +65,172 @@ function getFileKind(file: File): "image" | "pdf" | "other" {
   return "other";
 }
 
+const FONT_SIZES = ["10px", "12px", "14px", "16px", "18px", "20px", "24px", "28px", "32px"];
+const FONT_FAMILIES = ["Arial", "Verdana", "Georgia", "Times New Roman", "Courier New", "Trebuchet MS"];
+const TEXT_COLORS = [
+  "#000000", "#333333", "#555555", "#1a73e8", "#d93025", "#188038",
+  "#e37400", "#9334e6", "#c2185b", "#ffffff",
+];
+const HIGHLIGHT_COLORS = [
+  "transparent", "#ffff00", "#00ff00", "#00ffff", "#ff69b4", "#ffa500",
+  "#add8e6", "#dda0dd", "#90ee90", "#ffd700",
+];
+
+function RichTextToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement> }) {
+  const exec = (cmd: string, value?: string) => {
+    document.execCommand(cmd, false, value);
+    editorRef.current?.focus();
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 rounded-t-lg">
+      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => exec("bold")} title="Negrito">
+        <Bold className="h-3.5 w-3.5" />
+      </Button>
+      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => exec("italic")} title="Itálico">
+        <Italic className="h-3.5 w-3.5" />
+      </Button>
+      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => exec("underline")} title="Sublinhado">
+        <Underline className="h-3.5 w-3.5" />
+      </Button>
+      <Separator orientation="vertical" className="h-5 mx-0.5" />
+      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => exec("justifyLeft")} title="Alinhar à esquerda">
+        <AlignLeft className="h-3.5 w-3.5" />
+      </Button>
+      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => exec("justifyCenter")} title="Centralizar">
+        <AlignCenter className="h-3.5 w-3.5" />
+      </Button>
+      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => exec("justifyRight")} title="Alinhar à direita">
+        <AlignRight className="h-3.5 w-3.5" />
+      </Button>
+      <Separator orientation="vertical" className="h-5 mx-0.5" />
+
+      {/* Font size */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Tamanho da fonte">
+            <Type className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-1" align="start">
+          <div className="flex flex-col gap-0.5">
+            {FONT_SIZES.map(s => (
+              <Button key={s} variant="ghost" size="sm" className="h-6 text-xs justify-start" onClick={() => exec("fontSize", "7") || (() => {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                  const range = sel.getRangeAt(0);
+                  const span = document.createElement("span");
+                  span.style.fontSize = s;
+                  try { range.surroundContents(span); } catch {}
+                }
+              })()}>
+                {s}
+              </Button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Font family */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" size="sm" className="h-7 text-[10px] px-1.5" title="Fonte">
+            Fonte
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-1" align="start">
+          <div className="flex flex-col gap-0.5">
+            {FONT_FAMILIES.map(f => (
+              <Button key={f} variant="ghost" size="sm" className="h-6 text-xs justify-start" style={{ fontFamily: f }} onClick={() => exec("fontName", f)}>
+                {f}
+              </Button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <Separator orientation="vertical" className="h-5 mx-0.5" />
+
+      {/* Text color */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Cor do texto">
+            <Palette className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-2" align="start">
+          <p className="text-[10px] text-muted-foreground mb-1">Cor do texto</p>
+          <div className="grid grid-cols-5 gap-1">
+            {TEXT_COLORS.map(c => (
+              <button key={c} type="button" className="h-6 w-6 rounded border border-border hover:scale-110 transition-transform" style={{ backgroundColor: c }} onClick={() => exec("foreColor", c)} />
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Highlight */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Destaque">
+            <Highlighter className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-2" align="start">
+          <p className="text-[10px] text-muted-foreground mb-1">Cor de destaque</p>
+          <div className="grid grid-cols-5 gap-1">
+            {HIGHLIGHT_COLORS.map(c => (
+              <button key={c} type="button" className={`h-6 w-6 rounded border border-border hover:scale-110 transition-transform ${c === "transparent" ? "bg-background" : ""}`} style={c !== "transparent" ? { backgroundColor: c } : {}} onClick={() => exec("hiliteColor", c)} title={c === "transparent" ? "Sem destaque" : c} />
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function AttachmentThumbnail({ att, onRemove, size = "md" }: { att: AttachmentFile; onRemove?: () => void; size?: "sm" | "md" }) {
+  const dim = size === "sm" ? "h-16 w-16" : "h-20 w-20";
+  const textSize = size === "sm" ? "text-[7px]" : "text-[9px]";
+  const nameWidth = size === "sm" ? "w-16" : "w-20";
+
+  return (
+    <div className="relative group flex flex-col items-center">
+      <div className={`${dim} rounded-lg border-2 border-border bg-muted flex items-center justify-center overflow-hidden shadow-sm`}>
+        {att.kind === "image" ? (
+          <img src={att.previewUrl} alt={att.file.name} className="h-full w-full object-cover" />
+        ) : att.kind === "pdf" ? (
+          <div className="flex flex-col items-center gap-0.5 p-1">
+            <FileText className="h-5 w-5 text-destructive" />
+            <span className="text-[7px] font-bold text-muted-foreground uppercase">PDF</span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-0.5 p-1">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+            <span className="text-[7px] font-medium text-muted-foreground uppercase truncate max-w-[50px]">
+              {att.file.name.split('.').pop()}
+            </span>
+          </div>
+        )}
+      </div>
+      <p className={`${textSize} text-muted-foreground truncate ${nameWidth} mt-0.5 text-center`}>
+        {att.file.name}
+      </p>
+      <p className={`${textSize} text-muted-foreground/70`}>
+        {(att.file.size / 1024).toFixed(0)} KB
+      </p>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function EmailPanel() {
   const [tab, setTab] = useState("compose");
 
@@ -72,14 +239,16 @@ export function EmailPanel() {
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
   const [sending, setSending] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [savedContacts, setSavedContacts] = useState<string[]>(getSavedContacts);
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
   const [showCcContactSuggestions, setShowCcContactSuggestions] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [contactsTab, setContactsTab] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   // History state
   const [emails, setEmails] = useState<EmailRecord[]>([]);
@@ -111,14 +280,42 @@ export function EmailPanel() {
     setLoadingHistory(false);
   }, []);
 
-  // Auto-refresh history when switching to tab or after send
+  // Load history on tab switch + realtime subscription
   useEffect(() => {
     if (tab === "history") loadHistory(page);
   }, [tab, page, loadHistory]);
 
+  // Realtime subscription for email history
+  useEffect(() => {
+    let channel: any = null;
+    const setup = async () => {
+      try {
+        const tenantId = await getResolvedTenantId();
+        channel = supabase
+          .channel("email-history-realtime")
+          .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "mia_email_history",
+            filter: `tenant_id=eq.${tenantId}`,
+          }, () => {
+            loadHistory(page);
+          })
+          .subscribe();
+      } catch {}
+    };
+    setup();
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [page, loadHistory]);
+
   const handleSend = async () => {
-    if (!to || !subject || !body) {
-      toast.error("Preencha todos os campos obrigatórios");
+    if (!to || !subject) {
+      toast.error("Preencha destinatário e assunto");
+      return;
+    }
+    const htmlContent = editorRef.current?.innerHTML || bodyHtml || "";
+    if (!htmlContent.replace(/<[^>]*>/g, "").trim()) {
+      toast.error("Escreva o corpo do email");
       return;
     }
     setSending(true);
@@ -126,13 +323,13 @@ export function EmailPanel() {
       const tenantId = await getResolvedTenantId();
       const currentUserId = localStorage.getItem("current_user_id");
 
-      let htmlBody = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">`;
-      htmlBody += `<div style="white-space:pre-wrap;line-height:1.6;">${body.replace(/\n/g, "<br>")}</div>`;
+      let finalHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">`;
+      finalHtml += `<div style="line-height:1.6;">${htmlContent}</div>`;
 
       if (attachments.length > 0) {
-        htmlBody += `<hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0;">`;
-        htmlBody += `<p style="font-size:12px;color:#64748b;">📎 ${attachments.length} anexo(s) incluído(s)</p>`;
-        htmlBody += `<div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+        finalHtml += `<hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0;">`;
+        finalHtml += `<p style="font-size:12px;color:#64748b;">📎 ${attachments.length} anexo(s) incluído(s)</p>`;
+        finalHtml += `<div style="display:flex;flex-wrap:wrap;gap:8px;">`;
         for (const att of attachments) {
           if (att.kind === "image") {
             const path = `email-attachments/${tenantId}/${Date.now()}-${att.file.name}`;
@@ -141,18 +338,22 @@ export function EmailPanel() {
               .upload(path, att.file, { upsert: true });
             if (uploadData) {
               const { data: urlData } = supabase.storage.from("attachments").getPublicUrl(path);
-              htmlBody += `<a href="${urlData.publicUrl}" target="_blank" style="display:inline-block;margin:4px;">`;
-              htmlBody += `<img src="${urlData.publicUrl}" alt="${att.file.name}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e2e8f0;">`;
-              htmlBody += `</a>`;
+              finalHtml += `<a href="${urlData.publicUrl}" target="_blank" style="display:inline-block;margin:4px;">`;
+              finalHtml += `<img src="${urlData.publicUrl}" alt="${att.file.name}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e2e8f0;">`;
+              finalHtml += `</a>`;
             }
           } else {
-            htmlBody += `<p style="font-size:12px;">📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)</p>`;
+            finalHtml += `<p style="font-size:12px;">📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)</p>`;
           }
         }
-        htmlBody += `</div>`;
+        finalHtml += `</div>`;
       }
+      finalHtml += `</div>`;
 
-      htmlBody += `</div>`;
+      // Save contacts
+      saveContact(to);
+      if (cc) saveContact(cc);
+      setSavedContacts(getSavedContacts());
 
       const { data, error } = await supabase.functions.invoke("resend-email", {
         body: {
@@ -161,7 +362,7 @@ export function EmailPanel() {
           to,
           cc: cc || undefined,
           subject,
-          html: htmlBody,
+          html: finalHtml,
           sent_by: currentUserId,
         },
       });
@@ -169,16 +370,12 @@ export function EmailPanel() {
       if (error || !data?.success) {
         toast.error("Erro ao enviar: " + (data?.error || error?.message || "Erro desconhecido"));
       } else {
-        saveContact(to);
-        if (cc) saveContact(cc);
-        setSavedContacts(getSavedContacts());
-
         toast.success("✅ Email enviado com sucesso!");
         resetCompose();
-        // Immediately refresh history
         setTab("history");
         setPage(1);
-        await loadHistory(1);
+        // Realtime will catch the new record, but also force load
+        setTimeout(() => loadHistory(1), 500);
       }
     } catch (err: any) {
       toast.error("Falha ao enviar: " + (err.message || "Erro desconhecido"));
@@ -191,7 +388,8 @@ export function EmailPanel() {
     setTo("");
     setCc("");
     setSubject("");
-    setBody("");
+    setBodyHtml("");
+    if (editorRef.current) editorRef.current.innerHTML = "";
     attachments.forEach(a => URL.revokeObjectURL(a.previewUrl));
     setAttachments([]);
   };
@@ -200,13 +398,19 @@ export function EmailPanel() {
     if (step === "to") return /\S+@\S+\.\S+/.test(to);
     if (step === "cc") return true;
     if (step === "subject") return subject.trim().length > 0;
-    if (step === "body") return body.trim().length > 0;
+    if (step === "body") {
+      const html = editorRef.current?.innerHTML || bodyHtml || "";
+      return html.replace(/<[^>]*>/g, "").trim().length > 0;
+    }
     return true;
   };
 
   const nextStep = () => {
     const steps: ComposeStep[] = ["to", "cc", "subject", "body", "review"];
     const idx = steps.indexOf(step);
+    if (step === "body" && editorRef.current) {
+      setBodyHtml(editorRef.current.innerHTML);
+    }
     if (idx < steps.length - 1) setStep(steps[idx + 1]);
   };
 
@@ -215,6 +419,13 @@ export function EmailPanel() {
     const idx = steps.indexOf(step);
     if (idx > 0) setStep(steps[idx - 1]);
   };
+
+  // Restore editor content when going back to body step
+  useEffect(() => {
+    if (step === "body" && editorRef.current && bodyHtml) {
+      editorRef.current.innerHTML = bodyHtml;
+    }
+  }, [step]);
 
   const handleFileAdd = (files: FileList | null) => {
     if (!files) return;
@@ -259,41 +470,20 @@ export function EmailPanel() {
   );
 
   // Drag & drop handlers
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingOver(true);
-  };
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingOver(false);
-  };
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingOver(false);
-    handleFileAdd(e.dataTransfer.files);
-  };
+  const handleDragEnter = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false); };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false); handleFileAdd(e.dataTransfer.files); };
 
-  // Resend an email
   const handleResend = (email: EmailRecord) => {
     setTo(email.to_email);
     setCc(email.cc_email || "");
     setSubject(email.subject);
-    // Strip HTML for body
-    const tmp = document.createElement("div");
-    tmp.innerHTML = email.body_html || "";
-    setBody(tmp.textContent || tmp.innerText || "");
+    setBodyHtml(email.body_html || "");
     setStep("review");
     setTab("compose");
   };
 
-  // Forward an email
   const handleForward = (email: EmailRecord) => {
     setTo("");
     setCc("");
@@ -301,7 +491,7 @@ export function EmailPanel() {
     const tmp = document.createElement("div");
     tmp.innerHTML = email.body_html || "";
     const originalBody = tmp.textContent || tmp.innerText || "";
-    setBody(`\n\n---------- Email Encaminhado ----------\nDe: ${email.to_email}\nAssunto: ${email.subject}\n\n${originalBody}`);
+    setBodyHtml(`<br><br>---------- Email Encaminhado ----------<br>De: ${email.to_email}<br>Assunto: ${email.subject}<br><br>${originalBody}`);
     setStep("to");
     setTab("compose");
   };
@@ -356,6 +546,9 @@ export function EmailPanel() {
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <Inbox className="h-4 w-4" /> Histórico
+          </TabsTrigger>
+          <TabsTrigger value="contacts" className="gap-2">
+            <Users className="h-4 w-4" /> Contatos ({savedContacts.length})
           </TabsTrigger>
         </TabsList>
 
@@ -412,7 +605,6 @@ export function EmailPanel() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Opcional — deixe em branco para pular.
-                    {savedContacts.length > 0 && ` • ${savedContacts.length} contato(s) disponíveis`}
                   </p>
                 </div>
               )}
@@ -433,18 +625,24 @@ export function EmailPanel() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold">✏️ Escreva o corpo do email</Label>
-                    <Textarea
-                      placeholder="Escreva aqui o conteúdo do email..."
-                      value={body}
-                      onChange={e => setBody(e.target.value)}
-                      rows={8}
-                      className="resize-y"
-                      autoFocus
-                    />
-                    <p className="text-xs text-muted-foreground">Dica: Quebre linhas para melhor formatação.</p>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <RichTextToolbar editorRef={editorRef as React.RefObject<HTMLDivElement>} />
+                      <div
+                        ref={editorRef}
+                        contentEditable
+                        className="min-h-[200px] max-h-[400px] overflow-y-auto p-3 text-sm text-foreground bg-background focus:outline-none"
+                        style={{ lineHeight: 1.6 }}
+                        onInput={() => {
+                          if (editorRef.current) setBodyHtml(editorRef.current.innerHTML);
+                        }}
+                        data-placeholder="Escreva aqui o conteúdo do email..."
+                        suppressContentEditableWarning
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Use a barra de ferramentas para formatar o texto.</p>
                   </div>
 
-                  {/* Attachments Section with Drag & Drop */}
+                  {/* Attachments Section */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold flex items-center gap-2">
                       <Paperclip className="h-4 w-4" />
@@ -452,41 +650,13 @@ export function EmailPanel() {
                     </Label>
 
                     {attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-3">
                         {attachments.map((att, idx) => (
-                          <div key={`${att.file.name}-${idx}`} className="relative group">
-                            <div className="h-20 w-20 rounded-lg border-2 border-border bg-muted flex items-center justify-center overflow-hidden shadow-sm">
-                              {att.kind === "image" ? (
-                                <img
-                                  src={att.previewUrl}
-                                  alt={att.file.name}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : att.kind === "pdf" ? (
-                                <div className="flex flex-col items-center gap-1">
-                                  <FileText className="h-6 w-6 text-destructive" />
-                                  <span className="text-[8px] font-bold text-muted-foreground">PDF</span>
-                                </div>
-                              ) : (
-                                <FileText className="h-6 w-6 text-muted-foreground" />
-                              )}
-                            </div>
-                            <p className="text-[9px] text-muted-foreground truncate w-20 mt-0.5 text-center">
-                              {att.file.name}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => removeAttachment(idx)}
-                              className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
+                          <AttachmentThumbnail key={`${att.file.name}-${idx}`} att={att} onRemove={() => removeAttachment(idx)} />
                         ))}
                       </div>
                     )}
 
-                    {/* Drag & Drop zone */}
                     <div
                       onDragEnter={handleDragEnter}
                       onDragLeave={handleDragLeave}
@@ -515,9 +685,6 @@ export function EmailPanel() {
                         }}
                       />
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Imagens, PDFs e documentos. As imagens aparecerão no corpo do email.
-                    </p>
                   </div>
                 </div>
               )}
@@ -529,21 +696,18 @@ export function EmailPanel() {
                     <div><span className="text-muted-foreground">Para:</span> <span className="font-medium">{to}</span></div>
                     {cc && <div><span className="text-muted-foreground">CC:</span> <span className="font-medium">{cc}</span></div>}
                     <div><span className="text-muted-foreground">Assunto:</span> <span className="font-medium">{subject}</span></div>
-                    {attachments.length > 0 && (
-                      <div><span className="text-muted-foreground">Anexos:</span> <span className="font-medium">{attachments.length} arquivo(s)</span></div>
-                    )}
                     <Separator />
-                    <div className="whitespace-pre-wrap text-foreground">{body}</div>
+                    <div
+                      className="text-foreground prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                    />
                     {attachments.length > 0 && (
                       <>
                         <Separator />
-                        <div className="flex flex-wrap gap-2">
+                        <p className="text-xs text-muted-foreground font-semibold">📎 Anexos ({attachments.length})</p>
+                        <div className="flex flex-wrap gap-3">
                           {attachments.map((att, idx) => (
-                            <div key={idx} className="flex items-center gap-1.5 bg-background rounded-md px-2 py-1 border text-xs">
-                              {att.kind === "image" ? <Image className="h-3 w-3 text-primary" /> : <FileText className="h-3 w-3 text-muted-foreground" />}
-                              <span className="truncate max-w-[120px]">{att.file.name}</span>
-                              <span className="text-muted-foreground">({(att.file.size / 1024).toFixed(0)} KB)</span>
-                            </div>
+                            <AttachmentThumbnail key={idx} att={att} size="sm" />
                           ))}
                         </div>
                       </>
@@ -579,9 +743,14 @@ export function EmailPanel() {
                   <Inbox className="h-5 w-5 text-primary" />
                   Emails Enviados
                 </span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  {totalCount} email(s) • Página {page}/{totalPages}
-                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => loadHistory(page)} className="h-7 gap-1 text-xs">
+                    <RefreshCw className="h-3 w-3" /> Atualizar
+                  </Button>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    {totalCount} email(s) • Pág {page}/{totalPages}
+                  </span>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -605,11 +774,11 @@ export function EmailPanel() {
                       const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
                       const timeStr = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
                       const statusIcon = email.status === "sent" ? (
-                        <CheckCircle2 className="h-4 w-4 text-success" />
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                       ) : email.status === "failed" ? (
                         <XCircle className="h-4 w-4 text-destructive" />
                       ) : (
-                        <Clock className="h-4 w-4 text-warning" />
+                        <Clock className="h-4 w-4 text-yellow-500" />
                       );
                       return (
                         <div key={email.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
@@ -630,22 +799,10 @@ export function EmailPanel() {
                             </p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleResend(email)}
-                              title="Reenviar email"
-                            >
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleResend(email)} title="Reenviar">
                               <RefreshCw className="h-3.5 w-3.5" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleForward(email)}
-                              title="Encaminhar email"
-                            >
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleForward(email)} title="Encaminhar">
                               <Forward className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -658,26 +815,55 @@ export function EmailPanel() {
 
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage(p => p - 1)}
-                  >
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <span className="text-sm text-muted-foreground">
-                    {page} / {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage(p => p + 1)}
-                  >
+                  <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="contacts" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-5 w-5 text-primary" />
+                Contatos Salvos ({savedContacts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {savedContacts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Nenhum contato salvo.</p>
+                  <p className="text-xs mt-1">Contatos são salvos automaticamente ao enviar emails.</p>
+                </div>
+              ) : (
+                <ScrollArea className="max-h-[50vh]">
+                  <div className="space-y-1">
+                    {savedContacts.map(contact => (
+                      <div key={contact} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 group">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{contact}</span>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setTo(contact); setTab("compose"); setStep("to"); }}>
+                            Usar
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeContact(contact)}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               )}
             </CardContent>
           </Card>
