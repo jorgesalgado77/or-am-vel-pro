@@ -341,6 +341,11 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
                           <Badge variant="outline" className="text-[8px] h-3.5 px-1 border-primary/30 text-primary">
                             {c.label}
                           </Badge>
+                          {c.disc_profile && DISC_META[c.disc_profile] && (
+                            <Badge variant="secondary" className="text-[7px] h-3.5 px-1 gap-0.5">
+                              {DISC_META[c.disc_profile].emoji} {DISC_META[c.disc_profile].label}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-[11px] text-muted-foreground line-clamp-3">{c.mensagem}</p>
                       </div>
