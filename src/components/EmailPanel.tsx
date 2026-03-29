@@ -347,6 +347,17 @@ export function EmailPanel() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+
+  // Custom template state
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>(() => {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_TEMPLATES_KEY) || "[]"); } catch { return []; }
+  });
+  const [newTplName, setNewTplName] = useState("");
+  const [newTplIcon, setNewTplIcon] = useState("📄");
+  const [newTplSubject, setNewTplSubject] = useState("");
+  const [newTplBody, setNewTplBody] = useState("");
+  const [showNewTplForm, setShowNewTplForm] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
