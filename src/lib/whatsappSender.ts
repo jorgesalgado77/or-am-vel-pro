@@ -13,6 +13,9 @@ interface WhatsAppSettings {
   evolution_api_url?: string;
   evolution_api_key?: string;
   evolution_instance_name?: string;
+  twilio_account_sid?: string;
+  twilio_auth_token?: string;
+  twilio_phone_number?: string;
 }
 
 let cachedSettings: WhatsAppSettings | null = null;
@@ -97,6 +100,37 @@ export async function sendWhatsAppText(phone: string, text: string): Promise<boo
       }
       return false;
     }
+
+    if (s.provider === "twilio" && s.twilio_account_sid && s.twilio_auth_token && s.twilio_phone_number) {
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${s.twilio_account_sid}/Messages.json`;
+      const auth = btoa(`${s.twilio_account_sid}:${s.twilio_auth_token}`);
+      const twilioPhone = formattedPhone.startsWith("+") ? formattedPhone : `+${formattedPhone}`;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const params = new URLSearchParams({
+            To: `whatsapp:${twilioPhone}`,
+            From: `whatsapp:${s.twilio_phone_number}`,
+            Body: text,
+          });
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Authorization": `Basic ${auth}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: params.toString(),
+          });
+          if (res.ok) return true;
+          const data = await res.json().catch(() => ({}));
+          console.error(`[WA Send] Twilio error (attempt ${attempt + 1}):`, data);
+          if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        } catch (fetchErr) {
+          console.error(`[WA Send] Twilio fetch error (attempt ${attempt + 1}):`, fetchErr);
+          if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
+      }
+      return false;
+    }
   } catch (err) {
     console.error("[WA Send] Error:", err);
   }
@@ -168,6 +202,27 @@ export async function sendWhatsAppMedia(
         method: "POST",
         headers: { apikey: s.evolution_api_key, "Content-Type": "application/json" },
         body: JSON.stringify(body),
+      });
+      return res.ok;
+    }
+
+    if (s.provider === "twilio" && s.twilio_account_sid && s.twilio_auth_token && s.twilio_phone_number) {
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${s.twilio_account_sid}/Messages.json`;
+      const auth = btoa(`${s.twilio_account_sid}:${s.twilio_auth_token}`);
+      const twilioPhone = formattedPhone.startsWith("+") ? formattedPhone : `+${formattedPhone}`;
+      const params = new URLSearchParams({
+        To: `whatsapp:${twilioPhone}`,
+        From: `whatsapp:${s.twilio_phone_number}`,
+        Body: caption || "",
+        MediaUrl: mediaUrl,
+      });
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${auth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
       });
       return res.ok;
     }

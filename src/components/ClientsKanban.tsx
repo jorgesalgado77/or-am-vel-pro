@@ -580,7 +580,6 @@ export function ClientsKanban({
     const { draggableId, destination, source } = result;
     if (!destination) return;
     const newStatus = destination.droppableId;
-    // If dropped in same column, no-op
     if (source.droppableId === newStatus) return;
     
     const client = localClients.find(c => c.id === draggableId);
@@ -596,8 +595,18 @@ export function ClientsKanban({
     } else {
       const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
       toast.success(`${client.nome} movido para "${colLabel}"`);
+
+      // Log movement history
+      const userName = currentUser?.nome_completo || "Sistema";
+      supabase.from("client_movements" as any).insert({
+        tenant_id: tenantId,
+        client_id: draggableId,
+        from_column: source.droppableId,
+        to_column: newStatus,
+        moved_by: userName,
+      }).then(() => {});
     }
-  }, [localClients]);
+  }, [localClients, currentUser, tenantId]);
 
   const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 

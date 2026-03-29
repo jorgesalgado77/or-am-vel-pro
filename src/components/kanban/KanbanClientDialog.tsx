@@ -2,6 +2,7 @@
  * Expanded client detail dialog for the Kanban board.
  */
 import { useState, useEffect } from "react";
+
 import { differenceInDays } from "date-fns";
 import { format, addDays, isPast, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,6 +17,7 @@ import {
   Send, ClipboardList, Calculator, CheckCircle2, Ruler, Award,
 } from "lucide-react";
 import { BriefingModal } from "@/components/BriefingModal";
+import { MovementHistory } from "./MovementHistory";
 import { MeasurementRequestModal } from "./MeasurementRequestModal";
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
@@ -656,6 +658,9 @@ export function KanbanClientDialog({
                 </div>
               </>
             )}
+
+            {/* Movement History */}
+            <MovementHistory clientId={client.id} />
           </div>
         </div>
 

@@ -502,39 +502,88 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    const isEvolution = Boolean(body?.event && (body?.data || body?.instance));
+    const contentType = req.headers.get("content-type") || "";
+    const isTwilio = contentType.includes("application/x-www-form-urlencoded") || 
+                     req.headers.get("x-twilio-signature") !== null;
+
+    let body: any;
+    if (isTwilio) {
+      const formData = await req.text();
+      const params = new URLSearchParams(formData);
+      body = Object.fromEntries(params.entries());
+      body.__twilio = true;
+    } else {
+      body = await req.json();
+    }
+
+    const isEvolution = !body.__twilio && Boolean(body?.event && (body?.data || body?.instance));
+    const isTwilioMsg = body.__twilio === true;
+
+    // ── Twilio delivery status callback ──
+    if (isTwilioMsg && body.MessageStatus && !body.Body) {
+      const twilioSid = body.MessageSid || body.SmsSid || null;
+      if (twilioSid) {
+        const statusMap: Record<string, string> = { sent: "sent", delivered: "delivered", read: "read", failed: "sent", undelivered: "sent" };
+        const mappedStatus = statusMap[body.MessageStatus] || null;
+        if (mappedStatus) {
+          const updated = await updateMessageStatus({ status: mappedStatus, messageId: twilioSid });
+          return respond({ status: updated ? "twilio_status_updated" : "twilio_status_no_match" });
+        }
+      }
+      return respond({ status: "ignored_twilio_status" });
+    }
 
     // ── Filter out non-message events (status updates, delivery receipts) ──
-    const eventType = isStatusOrDeliveryEvent(body, isEvolution);
-    if (eventType === "delivery_receipt") {
-      const deliveryInfo = pickDeliveryStatus(body, isEvolution);
-      if (deliveryInfo) {
-        const updated = await updateMessageStatus(deliveryInfo);
-        return respond({ status: updated ? "status_updated" : "status_no_match", delivery: deliveryInfo });
+    if (!isTwilioMsg) {
+      const eventType = isStatusOrDeliveryEvent(body, isEvolution);
+      if (eventType === "delivery_receipt") {
+        const deliveryInfo = pickDeliveryStatus(body, isEvolution);
+        if (deliveryInfo) {
+          const updated = await updateMessageStatus(deliveryInfo);
+          return respond({ status: updated ? "status_updated" : "status_no_match", delivery: deliveryInfo });
+        }
+        return respond({ status: "ignored_receipt_no_id" });
       }
-      return respond({ status: "ignored_receipt_no_id" });
-    }
-    if (eventType === true) {
-      return respond({ status: "ignored_non_message_event" });
+      if (eventType === true) {
+        return respond({ status: "ignored_non_message_event" });
+      }
     }
 
-    const isFromMe = isEvolution
-      ? Boolean(body?.data?.key?.fromMe)
-      : body?.isFromMe === true || body?.fromMe === true;
+    // ── Twilio message handling ──
+    let isFromMe: boolean;
+    let rawContactPhone: string;
+    let rawText: string;
+    let media: { url: string; type: string; name: string } | null = null;
 
-    const rawContactPhone = pickContactPhone(body, isEvolution);
+    if (isTwilioMsg) {
+      // Twilio: From = sender, To = receiver. If From contains our number, it's from us
+      const from = (body.From || "").replace("whatsapp:", "");
+      const to = (body.To || "").replace("whatsapp:", "");
+      // Inbound messages: From is the client, To is our Twilio number
+      isFromMe = false; // Twilio webhook for inbound only fires for received messages
+      rawContactPhone = from;
+      rawText = body.Body || "";
+      if (body.MediaUrl0) {
+        media = { url: body.MediaUrl0, type: body.MediaContentType0 || "application/octet-stream", name: "Mídia" };
+      }
+    } else {
+      isFromMe = isEvolution
+        ? Boolean(body?.data?.key?.fromMe)
+        : body?.isFromMe === true || body?.fromMe === true;
+      rawContactPhone = pickContactPhone(body, isEvolution);
+      rawText = pickTextMessage(body, isEvolution).trim();
+      media = pickMedia(body, isEvolution);
+    }
+
     const cleanPhone = normalizePhone(rawContactPhone);
-    const media = pickMedia(body, isEvolution);
-    const rawText = pickTextMessage(body, isEvolution).trim();
     const sanitizedText = isPlaceholderText(rawText) ? "" : rawText;
-    const now = pickEventTimestamp(body, isEvolution);
+    const now = isTwilioMsg ? new Date().toISOString() : pickEventTimestamp(body, isEvolution);
 
     if (!cleanPhone || body?.isGroup === true || String(rawContactPhone).includes("@g.us") || body?.isNewsletter === true) {
       return respond({ status: "ignored_missing_phone_or_group" });
     }
 
-    if (!hasProcessableContent(body, isEvolution)) {
+    if (!isTwilioMsg && !hasProcessableContent(body, isEvolution)) {
       return respond({ status: "ignored_no_message_payload", phone: cleanPhone, from_me: isFromMe });
     }
 
@@ -577,7 +626,7 @@ serve(async (req) => {
     }
 
     // ── Dedup by provider message ID ──
-    const providerMsgId = pickMessageId(body, isEvolution);
+    const providerMsgId = isTwilioMsg ? (body.MessageSid || body.SmsSid || null) : pickMessageId(body, isEvolution);
     if (providerMsgId) {
       // Try column-based dedup first (provider_message_id column may not exist yet — fallback gracefully)
       const isDup = await isDuplicateByContent(trackingId, messageText, isFromMe ? "loja" : "cliente", 5000);
