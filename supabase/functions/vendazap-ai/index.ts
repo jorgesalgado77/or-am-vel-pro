@@ -548,6 +548,95 @@ serve(async (req) => {
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return respond({ error: "Body inválido" }, 400); }
 
+    // ── Generate Copys action ──
+    if (body.action === "generate_copys") {
+      const tId = typeof body.tenant_id === "string" ? body.tenant_id : null;
+      const count = typeof body.count === "number" ? Math.min(body.count, 8) : 4;
+
+      const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
+      const OPENAI_KEY = await resolveApiKey(tId, "openai");
+      const aiKey = LOVABLE_KEY || OPENAI_KEY;
+      if (!aiKey) return respond({ error: "Nenhuma API de IA configurada" }, 500);
+
+      const isLovable = Boolean(LOVABLE_KEY);
+      const aiUrl = isLovable
+        ? "https://ai.gateway.lovable.dev/v1/chat/completions"
+        : "https://api.openai.com/v1/chat/completions";
+
+      const tipos = ["reativacao", "objecao", "urgencia", "fechamento", "reversao", "primeiro_contato", "follow_up", "pos_venda"];
+      const labels: Record<string, string> = {
+        reativacao: "Reativação",
+        objecao: "Quebra de Objeção",
+        urgencia: "Urgência",
+        fechamento: "Fechamento",
+        reversao: "Reversão",
+        primeiro_contato: "1º Contato",
+        follow_up: "Follow-up",
+        pos_venda: "Pós-venda",
+      };
+
+      const prompt = `Você é um copywriter especialista em vendas de móveis planejados.
+Gere exatamente ${count} mensagens de vendas para WhatsApp, cada uma de um tipo diferente.
+Use [NOME] como placeholder para o nome do cliente.
+Cada mensagem deve ter no máximo 300 caracteres, ser persuasiva e incluir emoji.
+
+Retorne APENAS um JSON array com objetos { "tipo", "label", "mensagem" }.
+Tipos disponíveis: ${tipos.join(", ")}
+
+Exemplo:
+[{"tipo":"reativacao","label":"Reativação Suave","mensagem":"[NOME], ainda pensando no projeto? ..."}]`;
+
+      try {
+        const aiRes = await fetch(aiUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${aiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: isLovable ? "google/gemini-3-flash-preview" : "gpt-4o-mini",
+            messages: [
+              { role: "system", content: "Retorne apenas JSON válido, sem markdown." },
+              { role: "user", content: prompt },
+            ],
+            max_tokens: 2000,
+            temperature: 0.9,
+          }),
+        });
+
+        if (!aiRes.ok) {
+          const errText = await aiRes.text();
+          console.error("AI copy gen error:", aiRes.status, errText);
+          return respond({ error: "Erro na API de IA", copys: [] }, 502);
+        }
+
+        const aiData = await aiRes.json();
+        const raw = aiData.choices?.[0]?.message?.content || "[]";
+        const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
+
+        let copys: Array<{ tipo: string; label: string; mensagem: string }> = [];
+        try {
+          copys = JSON.parse(cleaned);
+          if (!Array.isArray(copys)) copys = [];
+        } catch {
+          console.error("Failed to parse AI copys:", cleaned);
+          copys = [];
+        }
+
+        // Ensure correct labels
+        copys = copys.map((c) => ({
+          tipo: tipos.includes(c.tipo) ? c.tipo : "ia_gerada",
+          label: c.label || labels[c.tipo] || "Copy IA",
+          mensagem: (c.mensagem || "").slice(0, 500),
+        })).filter((c) => c.mensagem.length > 10);
+
+        return respond({ copys, tokens: aiData.usage?.total_tokens || 0 });
+      } catch (err: any) {
+        console.error("generate_copys error:", err);
+        return respond({ error: err.message || "Erro interno", copys: [] }, 500);
+      }
+    }
+
     const nome_cliente = typeof body.nome_cliente === "string" ? body.nome_cliente.slice(0, 200) : "";
     const valor_orcamento = typeof body.valor_orcamento === "number" ? body.valor_orcamento : null;
     const status_negociacao = typeof body.status_negociacao === "string" ? body.status_negociacao.slice(0, 100) : "";
