@@ -72,6 +72,15 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
   const [loadingCopies, setLoadingCopies] = useState(false);
   const [savedCopies, setSavedCopies] = useState<SavedCopy[]>([]);
   const [copyTypeFilter, setCopyTypeFilter] = useState<string>("all");
+  const [discFilter, setDiscFilter] = useState<string>("all");
+
+  // Auto-switch to VendaZap tab and pre-select DISC filter when profile is detected
+  useEffect(() => {
+    if (detectedDiscProfile && open) {
+      setDiscFilter(detectedDiscProfile);
+      setTab("vendazap");
+    }
+  }, [detectedDiscProfile, open]);
 
   // Fetch VendaZap AI copies when tab switches or popover opens
   useEffect(() => {
@@ -88,7 +97,7 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
         .limit(30),
       (supabase as any)
         .from("vendazap_copys")
-        .select("id, tipo, label, mensagem, is_ai")
+        .select("id, tipo, label, mensagem, is_ai, disc_profile")
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false }),
     ]).then(([msgRes, copyRes]: any[]) => {
