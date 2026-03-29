@@ -1,4 +1,4 @@
-// WhatsApp Webhook — receives inbound messages from Z-API/Evolution and stores in tracking_messages
+// WhatsApp Webhook — receives inbound/outbound messages from Z-API/Evolution and stores in tracking_messages
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -20,37 +20,65 @@ const supabaseAdmin = createClient(
 );
 
 function normalizePhone(raw = "") {
-  return String(raw).replace(/@.*/, "").replace(/\D/g, "").replace(/^55(\d{10,11})$/, "$1");
+  const digits = String(raw)
+    .replace(/^WA-/i, "")
+    .replace(/@.*/, "")
+    .replace(/\D/g, "")
+    .replace(/^0+/, "");
+
+  return /^55\d{10,11}$/.test(digits) ? digits.slice(2) : digits;
+}
+
+function phonesMatch(first = "", second = "") {
+  const left = normalizePhone(first);
+  const right = normalizePhone(second);
+
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.endsWith(right) || right.endsWith(left)) return true;
+
+  const leftLast8 = left.slice(-8);
+  const rightLast8 = right.slice(-8);
+  return Boolean(leftLast8 && rightLast8 && leftLast8 === rightLast8);
+}
+
+function pickDefined<T>(...values: T[]): T | undefined {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
 }
 
 function pickContactPhone(body: any, isEvolution: boolean) {
   if (isEvolution) {
-    return (
-      body?.data?.key?.remoteJid
-      || body?.data?.participant
-      || body?.data?.participantPn
-      || body?.data?.cleanedParticipantPn
-      || ""
-    );
+    return pickDefined(
+      body?.data?.key?.remoteJid,
+      body?.data?.key?.participant,
+      body?.data?.participant,
+      body?.data?.participantPn,
+      body?.data?.cleanedParticipantPn,
+      body?.sender,
+      body?.from,
+      body?.chatId,
+      body?.remoteJid,
+      "",
+    ) || "";
   }
 
-  return (
-    body?.phone
-    || body?.sender
-    || body?.from
-    || body?.chatId
-    || body?.remoteJid
-    || body?.key?.remoteJid
-    || body?.participantPhone
-    || body?.participant
-    || ""
-  );
+  return pickDefined(
+    body?.phone,
+    body?.sender,
+    body?.from,
+    body?.chatId,
+    body?.remoteJid,
+    body?.key?.remoteJid,
+    body?.participantPhone,
+    body?.participant,
+    "",
+  ) || "";
 }
 
 function pickEventTimestamp(body: any, isEvolution: boolean) {
   const raw = isEvolution
-    ? body?.data?.messageTimestamp || body?.messageTimestamp || body?.timestamp
-    : body?.momment || body?.moment || body?.messageTimestamp || body?.timestamp;
+    ? pickDefined(body?.data?.messageTimestamp, body?.messageTimestamp, body?.timestamp)
+    : pickDefined(body?.momment, body?.moment, body?.messageTimestamp, body?.timestamp);
 
   if (!raw) return new Date().toISOString();
 
@@ -67,35 +95,86 @@ function pickEventTimestamp(body: any, isEvolution: boolean) {
 function pickTextMessage(body: any, isEvolution: boolean) {
   if (isEvolution) {
     const data = body?.data || {};
+    const message = data?.message || {};
+
     return (
-      data.message?.conversation
-      || data.message?.extendedTextMessage?.text
-      || data.message?.imageMessage?.caption
-      || data.message?.videoMessage?.caption
-      || data.message?.documentMessage?.caption
-      || ""
+      pickDefined(
+        message?.conversation,
+        message?.extendedTextMessage?.text,
+        message?.imageMessage?.caption,
+        message?.videoMessage?.caption,
+        message?.documentMessage?.caption,
+        message?.documentMessage?.fileName,
+        data?.body,
+        body?.body,
+        "",
+      ) || ""
     );
   }
 
-  if (typeof body?.text === "string") return body.text;
-  if (typeof body?.text?.message === "string") return body.text.message;
-  if (typeof body?.text?.text === "string") return body.text.text;
-  if (typeof body?.message === "string") return body.message;
-  if (typeof body?.body === "string") return body.body;
-  if (typeof body?.image?.caption === "string") return body.image.caption;
-  if (typeof body?.video?.caption === "string") return body.video.caption;
-  if (typeof body?.document?.caption === "string") return body.document.caption;
-  if (typeof body?.document?.fileName === "string") return body.document.fileName;
-  return "";
+  return (
+    pickDefined(
+      typeof body?.text === "string" ? body.text : undefined,
+      typeof body?.text?.message === "string" ? body.text.message : undefined,
+      typeof body?.text?.text === "string" ? body.text.text : undefined,
+      typeof body?.message === "string" ? body.message : undefined,
+      typeof body?.body === "string" ? body.body : undefined,
+      typeof body?.image?.caption === "string" ? body.image.caption : undefined,
+      typeof body?.video?.caption === "string" ? body.video.caption : undefined,
+      typeof body?.document?.caption === "string" ? body.document.caption : undefined,
+      typeof body?.document?.fileName === "string" ? body.document.fileName : undefined,
+      "",
+    ) || ""
+  );
 }
 
 function pickMedia(body: any, isEvolution: boolean): { url: string; type: string; name: string } | null {
-  if (isEvolution) return null;
+  if (isEvolution) {
+    const message = body?.data?.message || {};
+
+    if (message?.imageMessage) {
+      const image = message.imageMessage;
+      return {
+        url: pickDefined(image?.url, image?.mediaUrl, body?.data?.mediaUrl, body?.data?.url, "") || "",
+        type: image?.mimetype || "image/jpeg",
+        name: image?.caption || "Imagem",
+      };
+    }
+
+    if (message?.videoMessage) {
+      const video = message.videoMessage;
+      return {
+        url: pickDefined(video?.url, video?.mediaUrl, body?.data?.mediaUrl, body?.data?.url, "") || "",
+        type: video?.mimetype || "video/mp4",
+        name: video?.caption || "Vídeo",
+      };
+    }
+
+    if (message?.audioMessage) {
+      const audio = message.audioMessage;
+      return {
+        url: pickDefined(audio?.url, audio?.mediaUrl, body?.data?.mediaUrl, body?.data?.url, "") || "",
+        type: audio?.mimetype || "audio/ogg",
+        name: "Áudio",
+      };
+    }
+
+    if (message?.documentMessage) {
+      const document = message.documentMessage;
+      return {
+        url: pickDefined(document?.url, document?.mediaUrl, body?.data?.mediaUrl, body?.data?.url, "") || "",
+        type: document?.mimetype || "application/octet-stream",
+        name: document?.fileName || document?.caption || "Documento",
+      };
+    }
+
+    return null;
+  }
 
   if (body?.image) {
     return {
       url: body.image.imageUrl || body.image.url || body.image.link || "",
-      type: body.image.mimetype || body.image.mimeType || "image",
+      type: body.image.mimetype || body.image.mimeType || "image/jpeg",
       name: body.image.caption || "Imagem",
     };
   }
@@ -103,7 +182,7 @@ function pickMedia(body: any, isEvolution: boolean): { url: string; type: string
   if (body?.audio) {
     return {
       url: body.audio.audioUrl || body.audio.url || body.audio.link || "",
-      type: body.audio.mimetype || body.audio.mimeType || "audio",
+      type: body.audio.mimetype || body.audio.mimeType || "audio/ogg",
       name: "Áudio",
     };
   }
@@ -111,7 +190,7 @@ function pickMedia(body: any, isEvolution: boolean): { url: string; type: string
   if (body?.video) {
     return {
       url: body.video.videoUrl || body.video.url || body.video.link || "",
-      type: body.video.mimetype || body.video.mimeType || "video",
+      type: body.video.mimetype || body.video.mimeType || "video/mp4",
       name: body.video.caption || "Vídeo",
     };
   }
@@ -119,7 +198,7 @@ function pickMedia(body: any, isEvolution: boolean): { url: string; type: string
   if (body?.document) {
     return {
       url: body.document.documentUrl || body.document.url || body.document.link || "",
-      type: body.document.mimetype || body.document.mimeType || "document",
+      type: body.document.mimetype || body.document.mimeType || "application/octet-stream",
       name: body.document.fileName || body.document.caption || "Documento",
     };
   }
@@ -127,8 +206,32 @@ function pickMedia(body: any, isEvolution: boolean): { url: string; type: string
   return null;
 }
 
+function hasProcessableContent(body: any, isEvolution: boolean) {
+  return Boolean(pickTextMessage(body, isEvolution).trim() || pickMedia(body, isEvolution)?.url || pickMedia(body, isEvolution)?.name);
+}
+
+async function findTrackingByPhone(cleanPhone: string) {
+  const last4 = cleanPhone.slice(-4);
+
+  const { data: candidates } = await supabaseAdmin
+    .from("client_tracking")
+    .select("id, client_id, tenant_id, nome_cliente, numero_contrato")
+    .ilike("numero_contrato", `%${last4}%`)
+    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (!candidates?.length) return null;
+
+  for (const tracking of candidates) {
+    const trackingPhone = normalizePhone(tracking.numero_contrato || "");
+    if (phonesMatch(trackingPhone, cleanPhone)) return tracking;
+  }
+
+  return null;
+}
+
 async function findClientByPhone(cleanPhone: string) {
-  // Use last 4 digits for broad LIKE match, then filter in code by stripped digits
   const last4 = cleanPhone.slice(-4);
   const last8 = cleanPhone.slice(-8);
 
@@ -140,17 +243,15 @@ async function findClientByPhone(cleanPhone: string) {
 
   if (!candidates || candidates.length === 0) return null;
 
-  // Strip formatting and compare digit suffixes
   for (const c of candidates) {
-    const t1 = (c.telefone1 || "").replace(/\D/g, "");
-    const t2 = (c.telefone2 || "").replace(/\D/g, "");
-    if (t1.endsWith(last8) || t2.endsWith(last8)) return c;
+    const t1 = normalizePhone(c.telefone1 || "");
+    const t2 = normalizePhone(c.telefone2 || "");
+    if (t1.endsWith(last8) || t2.endsWith(last8) || phonesMatch(t1, cleanPhone) || phonesMatch(t2, cleanPhone)) return c;
   }
 
-  // Fallback: try last 4 digits match
   for (const c of candidates) {
-    const t1 = (c.telefone1 || "").replace(/\D/g, "");
-    const t2 = (c.telefone2 || "").replace(/\D/g, "");
+    const t1 = normalizePhone(c.telefone1 || "");
+    const t2 = normalizePhone(c.telefone2 || "");
     if (t1.endsWith(last4) || t2.endsWith(last4)) return c;
   }
 
@@ -208,21 +309,37 @@ serve(async (req) => {
       return respond({ status: "ignored_missing_phone_or_group" });
     }
 
-    const client = await findClientByPhone(cleanPhone);
-    if (!client) {
-      return respond({ status: "no_client_match", phone: cleanPhone, from_me: isFromMe });
+    if (!hasProcessableContent(body, isEvolution)) {
+      return respond({ status: "ignored_no_message_payload", phone: cleanPhone, from_me: isFromMe });
     }
 
-    const trackingId = await getTrackingId(client, cleanPhone);
+    const existingTracking = await findTrackingByPhone(cleanPhone);
+
+    let trackingId: string | null = existingTracking?.id || null;
+    let tenantId: string | null = existingTracking?.tenant_id || null;
+    let clientId: string | null = existingTracking?.client_id || null;
+    let clientName = existingTracking?.nome_cliente || "Cliente";
+
+    if (!trackingId) {
+      const client = await findClientByPhone(cleanPhone);
+      if (!client) {
+        return respond({ status: "no_client_match", phone: cleanPhone, from_me: isFromMe });
+      }
+
+      trackingId = await getTrackingId(client, cleanPhone);
+      tenantId = client.tenant_id;
+      clientId = client.id;
+      clientName = client.nome || "Cliente";
+    }
 
     const { error: insertError } = await supabaseAdmin
       .from("tracking_messages")
       .insert({
         tracking_id: trackingId,
-        tenant_id: client.tenant_id,
+        tenant_id: tenantId,
         mensagem: messageText,
         remetente_tipo: isFromMe ? "loja" : "cliente",
-        remetente_nome: isFromMe ? "Você" : (client.nome || "Cliente"),
+        remetente_nome: isFromMe ? "Você" : clientName,
         lida: isFromMe ? true : false,
         created_at: now,
         ...(media?.url
@@ -240,10 +357,14 @@ serve(async (req) => {
 
     await supabaseAdmin
       .from("client_tracking")
-      .update({ updated_at: now } as any)
+      .update({
+        updated_at: now,
+        ...(clientId ? { client_id: clientId } : {}),
+        ...(existingTracking?.numero_contrato ? {} : { numero_contrato: `WA-${cleanPhone}` }),
+      } as any)
       .eq("id", trackingId);
 
-    return respond({ status: "ok", tracking_id: trackingId, client_id: client.id });
+    return respond({ status: "ok", tracking_id: trackingId, client_id: clientId, phone: cleanPhone });
   } catch (error: any) {
     console.error("whatsapp-webhook error:", error);
     return respond({ error: error?.message || "Erro interno" }, 500);
