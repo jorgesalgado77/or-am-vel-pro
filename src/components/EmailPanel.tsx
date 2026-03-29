@@ -924,16 +924,23 @@ export function EmailPanel() {
                       );
                       const isExpanded = expandedEmailId === email.id;
 
-                      // Extract inline images from body_html for thumbnails
+                      // Extract inline images and file attachments from body_html
                       const inlineImages: string[] = [];
+                      const fileAttachments: { name: string; url: string }[] = [];
                       if (email.body_html) {
+                        // Extract all img src urls
                         const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
                         let match;
                         while ((match = imgRegex.exec(email.body_html)) !== null) {
                           inlineImages.push(match[1]);
                         }
+                        // Extract file attachment links (non-image)
+                        const fileRegex = /<a[^>]+href="([^"]+)"[^>]*data-attachment="true"[^>]*data-filename="([^"]*)"[^>]*>[^<]*📄[^<]*<\/a>/gi;
+                        while ((match = fileRegex.exec(email.body_html)) !== null) {
+                          fileAttachments.push({ url: match[1], name: match[2] });
+                        }
                       }
-                      const hasAttachments = inlineImages.length > 0 || (email.body_html?.includes("📎") ?? false);
+                      const hasAttachments = inlineImages.length > 0 || fileAttachments.length > 0 || (email.body_html?.includes("📎") ?? false);
 
                       return (
                         <div key={email.id} className="rounded-lg border bg-card hover:bg-muted/30 transition-colors">
