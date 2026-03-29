@@ -294,11 +294,10 @@ export function useVendaZap(tenantId: string | null) {
             .maybeSingle();
 
           if (existingUsage) {
-            const existing = existingUsage as Record<string, unknown>;
             return supabase.from("vendazap_usage").update({
-              mensagens_geradas: (Number(existing.mensagens_geradas) || 0) + 1,
-              tokens_consumidos: (Number(existing.tokens_consumidos) || 0) + (data.tokens_usados || 0),
-            } as Record<string, unknown>).eq("id", existing.id as string);
+              mensagens_geradas: (existingUsage.mensagens_geradas || 0) + 1,
+              tokens_consumidos: (existingUsage.tokens_consumidos || 0) + (data.tokens_usados || 0),
+            }).eq("id", existingUsage.id);
           }
 
           return supabase.from("vendazap_usage").insert([{
