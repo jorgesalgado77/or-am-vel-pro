@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
+import type { DealContext, MessageContext } from "@/services/commercial/types";
+import { calcLeadTemperature } from "@/lib/leadTemperature";
 
 export interface VendaZapAddon {
   id: string;
@@ -28,20 +31,40 @@ export interface VendaZapMessage {
   created_at: string;
 }
 
+interface QualityMeta {
+  passed: boolean;
+  reason: string;
+  attempts: number;
+  decisionMaker: string | null;
+  discProfile: string | null;
+  intent: string | null;
+}
+
+/** Parameters accepted by generateMessage */
+export interface GenerateMessageParams {
+  nome_cliente?: string;
+  valor_orcamento?: number;
+  status_negociacao?: string;
+  dias_sem_resposta?: number;
+  mensagem_cliente?: string;
+  tipo_copy?: string;
+  tom?: string;
+  deal_room_link?: string;
+  client_id?: string;
+  usuario_id?: string;
+  disc_profile?: string;
+  historico?: Array<{ remetente_tipo: string; mensagem: string }>;
+  learning_context?: string;
+  custom_arguments?: string;
+}
+
 export function useVendaZap(tenantId: string | null) {
   const [addon, setAddon] = useState<VendaZapAddon | null>(null);
   const [messages, setMessages] = useState<VendaZapMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [dailyUsage, setDailyUsage] = useState(0);
-  const [lastQuality, setLastQuality] = useState<{
-    passed: boolean;
-    reason: string;
-    attempts: number;
-    decisionMaker: string | null;
-    discProfile: string | null;
-    intent: string | null;
-  } | null>(null);
+  const [lastQuality, setLastQuality] = useState<QualityMeta | null>(null);
 
   const createVipAddon = (tid: string): VendaZapAddon => ({
     id: `vip-${tid}`,
@@ -61,7 +84,6 @@ export function useVendaZap(tenantId: string | null) {
       return;
     }
 
-    // Try reading vendazap_addon table
     const { data, error } = await supabase
       .from("vendazap_addon")
       .select("*")
@@ -80,9 +102,8 @@ export function useVendaZap(tenantId: string | null) {
       .select("recursos_vip")
       .eq("id", tenantId)
       .single();
-    const vip = (tenant as any)?.recursos_vip;
+    const vip = (tenant as unknown as { recursos_vip?: { vendazap?: boolean } })?.recursos_vip;
     if (vip?.vendazap) {
-      // Try to auto-create addon record
       const { data: created, error: upsertErr } = await supabase
         .from("vendazap_addon")
         .upsert({
@@ -92,13 +113,12 @@ export function useVendaZap(tenantId: string | null) {
           tom_padrao: "consultivo",
           max_mensagens_dia: 0,
           max_tokens_mensagem: 2000,
-        } as any, { onConflict: "tenant_id" })
+        } as Record<string, unknown>, { onConflict: "tenant_id" })
         .select()
         .single();
       if (created && !upsertErr) {
         setAddon(created as unknown as VendaZapAddon);
       } else {
-        // RLS may block upsert — use local addon object so the UI still works
         setAddon(createVipAddon(tenantId));
       }
     }
@@ -131,11 +151,10 @@ export function useVendaZap(tenantId: string | null) {
       .eq("usage_date", today);
 
     if (error) {
-      // RLS may block — default to 0
       setDailyUsage(0);
       return;
     }
-    const total = (data || []).reduce((sum, row: any) => sum + (row.mensagens_geradas || 0), 0);
+    const total = (data || []).reduce((sum, row) => sum + (Number((row as Record<string, unknown>).mensagens_geradas) || 0), 0);
     setDailyUsage(total);
   };
 
@@ -144,19 +163,47 @@ export function useVendaZap(tenantId: string | null) {
     fetchDailyUsage();
   }, [tenantId]);
 
-  const generateMessage = async (params: {
-    nome_cliente?: string;
-    valor_orcamento?: number;
-    status_negociacao?: string;
-    dias_sem_resposta?: number;
-    mensagem_cliente?: string;
-    tipo_copy?: string;
-    tom?: string;
-    deal_room_link?: string;
-    client_id?: string;
-    usuario_id?: string;
-    disc_profile?: string;
-  }) => {
+  /**
+   * Build CDE MessageContext to enrich the AI call with commercial strategy.
+   * Falls back gracefully if data is incomplete.
+   */
+  const buildCDEContext = (params: GenerateMessageParams): Partial<MessageContext> => {
+    try {
+      const engine = getCommercialEngine();
+      const daysInactive = params.dias_sem_resposta || 0;
+      const temperature = calcLeadTemperature({
+        status: params.status_negociacao || "novo",
+        diasSemResposta: daysInactive,
+        temSimulacao: (params.valor_orcamento || 0) > 0,
+      });
+
+      const ctx: DealContext = {
+        tenant_id: tenantId || "",
+        customer: {
+          id: params.client_id || "",
+          name: params.nome_cliente || "Cliente",
+          status: params.status_negociacao || "novo",
+          temperature,
+          disc_profile: params.disc_profile as DealContext["customer"]["disc_profile"],
+          days_inactive: daysInactive,
+          has_simulation: (params.valor_orcamento || 0) > 0,
+        },
+        pricing: { total_price: params.valor_orcamento || 0 },
+        payment: { forma_pagamento: "Boleto", parcelas: 1, valor_entrada: 0, plus_percentual: 0 },
+        discounts: { desconto1: 0, desconto2: 0, desconto3: 0 },
+        negotiation_history: params.historico?.map(h => ({
+          mensagem: h.mensagem,
+          remetente_tipo: h.remetente_tipo,
+        })),
+      };
+
+      return engine.generateMessageContext(ctx);
+    } catch {
+      return {};
+    }
+  };
+
+  const generateMessage = async (params: GenerateMessageParams) => {
     if (!tenantId || !addon?.ativo) {
       toast.error("VendaZap AI não está ativo para esta loja");
       return null;
@@ -170,6 +217,9 @@ export function useVendaZap(tenantId: string | null) {
     setGenerating(true);
 
     try {
+      // Build CDE context for strategy-driven AI generation
+      const cdeContext = buildCDEContext(params);
+
       const { data, error } = await supabase.functions.invoke("vendazap-ai", {
         body: {
           ...params,
@@ -178,6 +228,11 @@ export function useVendaZap(tenantId: string | null) {
           api_provider: addon.api_provider,
           openai_model: addon.openai_model,
           max_tokens: addon.max_tokens_mensagem,
+          // CDE enrichment — AI uses these for strategic messaging
+          cde_tipo_copy: cdeContext.tipo_copy,
+          cde_tom: cdeContext.tom,
+          cde_disc_profile: cdeContext.disc_profile,
+          cde_valor_orcamento: cdeContext.valor_orcamento,
         },
       });
 
@@ -223,11 +278,12 @@ export function useVendaZap(tenantId: string | null) {
             dias_sem_resposta: params.dias_sem_resposta,
             provider: addon.api_provider,
             model: addon.openai_model,
+            cde_context: cdeContext,
           },
           mensagem_cliente: params.mensagem_cliente || null,
           mensagem_gerada: generatedMessage,
           tokens_usados: data.tokens_usados || 0,
-        } as any),
+        } as Record<string, unknown>),
         (async () => {
           const { data: existingUsage } = await supabase
             .from("vendazap_usage")
@@ -238,10 +294,11 @@ export function useVendaZap(tenantId: string | null) {
             .maybeSingle();
 
           if (existingUsage) {
+            const existing = existingUsage as Record<string, unknown>;
             return supabase.from("vendazap_usage").update({
-              mensagens_geradas: (existingUsage as any).mensagens_geradas + 1,
-              tokens_consumidos: (existingUsage as any).tokens_consumidos + (data.tokens_usados || 0),
-            } as any).eq("id", (existingUsage as any).id);
+              mensagens_geradas: (Number(existing.mensagens_geradas) || 0) + 1,
+              tokens_consumidos: (Number(existing.tokens_consumidos) || 0) + (data.tokens_usados || 0),
+            } as Record<string, unknown>).eq("id", existing.id as string);
           }
 
           return supabase.from("vendazap_usage").insert({
@@ -250,7 +307,7 @@ export function useVendaZap(tenantId: string | null) {
             usage_date: today,
             mensagens_geradas: 1,
             tokens_consumidos: data.tokens_usados || 0,
-          } as any);
+          } as Record<string, unknown>);
         })(),
       ]);
 
@@ -266,9 +323,10 @@ export function useVendaZap(tenantId: string | null) {
       void fetchMessages(params.client_id);
       setGenerating(false);
       return generatedMessage;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("VendaZap error:", err);
-      toast.error(err?.message || "Erro ao gerar mensagem. Tente novamente.");
+      const message = err instanceof Error ? err.message : "Erro ao gerar mensagem. Tente novamente.";
+      toast.error(message);
       setGenerating(false);
       return null;
     }
