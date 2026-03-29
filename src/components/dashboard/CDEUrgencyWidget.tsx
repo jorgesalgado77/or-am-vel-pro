@@ -103,7 +103,7 @@ export function CDEUrgencyWidget() {
             generated_message: t.generated_message,
           };
 
-          const action = await engine.decideTriggerAction(triggerCtx);
+          const action = await engine.handleTrigger(triggerCtx);
           results.get(action.urgency)?.push({
             clientName: t.client_nome,
             action: ACTION_LABELS[action.action] || action.action,

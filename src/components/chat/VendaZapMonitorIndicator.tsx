@@ -46,12 +46,13 @@ export function VendaZapMonitorIndicator({ trackingId, tenantId, enabled, onMemo
     const clientMsgs = messages.filter((m) => m.remetente_tipo === "cliente");
     const storeMsgs = messages.filter((m) => m.remetente_tipo !== "cliente");
 
-    const disc = detectDiscFromMessages(
+    const discResult = detectDiscFromMessages(
       messages.map((m) => ({
         mensagem: m.mensagem,
         remetente_tipo: m.remetente_tipo,
       }))
     );
+    const disc = discResult.profile || null;
 
     // Simple sentiment from last client message
     const lastClient = clientMsgs[clientMsgs.length - 1]?.mensagem || null;
