@@ -8,10 +8,8 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
-import { getCommercialEngine, formatCurrency } from "./CommercialDecisionEngine";
-import { getLearningEngine } from "@/services/ai/LearningEngine";
-import type { DealContext, SalesRules } from "./types";
-import type { LearningEvent } from "@/services/ai/types";
+import { formatCurrency } from "./CommercialDecisionEngine";
+import type { SalesRules } from "./types";
 
 // ==================== TYPES ====================
 

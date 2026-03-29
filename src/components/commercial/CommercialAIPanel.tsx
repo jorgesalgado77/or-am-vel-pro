@@ -293,7 +293,7 @@ export function CommercialAIPanel() {
       </div>
 
       <Tabs defaultValue="director" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="director" className="gap-1 text-xs">
             <Brain className="h-3.5 w-3.5" /> Diretora
           </TabsTrigger>
@@ -303,6 +303,7 @@ export function CommercialAIPanel() {
               <Badge variant="destructive" className="ml-1 h-5 text-[10px]">{insights.filter(i => !i.is_read).length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="arbitrage" className="gap-1 text-xs"><Shield className="h-3.5 w-3.5" /> Arbitragem</TabsTrigger>
           <TabsTrigger value="goals" className="gap-1 text-xs"><Target className="h-3.5 w-3.5" /> Metas</TabsTrigger>
           <TabsTrigger value="ranking" className="gap-1 text-xs"><Trophy className="h-3.5 w-3.5" /> Ranking</TabsTrigger>
           <TabsTrigger value="chat" className="gap-1 text-xs"><Bot className="h-3.5 w-3.5" /> IA</TabsTrigger>
