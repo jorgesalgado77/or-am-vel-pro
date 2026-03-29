@@ -34,9 +34,10 @@ export function useLearningEvents({ tenantId, userId }: UseLearningEventsParams)
         if (pendingRef.current) return; // debounce rapid fires
         pendingRef.current = true;
         try {
-          await supabase
-            .from("ai_learning_events" as unknown as "clients")
-            .insert([row as unknown as Record<string, unknown>]);
+          const table = supabase.from("ai_learning_events" as unknown as "clients");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
+            .insert([row]);
         } catch (err) {
           console.error("[LearningEvents] record error:", err);
         } finally {
