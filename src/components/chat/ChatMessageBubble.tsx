@@ -1,6 +1,6 @@
 import {memo, useMemo} from "react";
 import {format} from "date-fns";
-import {FileIcon} from "lucide-react";
+import {FileIcon, Smartphone, Monitor} from "lucide-react";
 import {cn} from "@/lib/utils";
 import type {ChatMessage} from "./types";
 import {ClosingThermometer, analyzeClientMessage} from "@/components/vendazap/ClosingThermometer";
