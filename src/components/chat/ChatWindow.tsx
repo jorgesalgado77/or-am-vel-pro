@@ -270,6 +270,21 @@ export function ChatWindow({
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "tracking_messages" },
+        (payload) => {
+          const updated = payload.new as any;
+          if (!updated?.id) return;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === updated.id
+                ? { ...m, ...(updated.status ? { status: updated.status } : {}), lida: updated.lida ?? m.lida }
+                : m
+            )
+          );
+        }
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

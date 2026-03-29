@@ -117,16 +117,27 @@ function ReadReceipt({ message }: { message: ChatMessage }) {
   // Only show for loja messages
   if (message.remetente_tipo !== "loja") return null;
 
-  // lida = true means the message was read by the client (for loja-sent messages, we consider it delivered+read by the system)
-  // For a real WhatsApp-like experience: sent = gray single check, delivered = gray double check, read = blue double check
-  // We use `lida` as our "read" indicator
-  if (message.lida) {
+  // Use status field if available (from delivery receipts), otherwise fall back to lida
+  const status = message.status || (message.lida ? "delivered" : "sent");
+
+  if (status === "read") {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
           <CheckCheck className="h-3 w-3 text-blue-400 shrink-0" />
         </TooltipTrigger>
-        <TooltipContent side="top"><p className="text-[10px]">Lida</p></TooltipContent>
+        <TooltipContent side="top"><p className="text-[10px]">Lida ✓✓</p></TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  if (status === "delivered") {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <CheckCheck className="h-3 w-3 opacity-50 shrink-0" />
+        </TooltipTrigger>
+        <TooltipContent side="top"><p className="text-[10px]">Entregue ✓✓</p></TooltipContent>
       </Tooltip>
     );
   }
@@ -134,9 +145,9 @@ function ReadReceipt({ message }: { message: ChatMessage }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <CheckCheck className="h-3 w-3 opacity-50 shrink-0" />
+        <Check className="h-3 w-3 opacity-50 shrink-0" />
       </TooltipTrigger>
-      <TooltipContent side="top"><p className="text-[10px]">Entregue</p></TooltipContent>
+      <TooltipContent side="top"><p className="text-[10px]">Enviado ✓</p></TooltipContent>
     </Tooltip>
   );
 }

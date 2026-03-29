@@ -270,29 +270,74 @@ function pickMessageId(body: any, isEvolution: boolean): string | null {
 }
 
 /** Detect non-message events (status updates, delivery receipts, etc.) that should be ignored */
-function isStatusOrDeliveryEvent(body: any, isEvolution: boolean): boolean {
+function isStatusOrDeliveryEvent(body: any, isEvolution: boolean): boolean | "delivery_receipt" {
   if (isEvolution) {
     const event = body?.event || "";
-    // Only process actual message events
     const messageEvents = [
       "messages.upsert",
       "send.message",
       "message",
       "messages.set",
     ];
+    const statusEvents = ["messages.update", "message.update", "message.ack"];
+    if (event && statusEvents.some((e) => event.toLowerCase().includes(e.toLowerCase()))) {
+      return "delivery_receipt";
+    }
     if (event && !messageEvents.some((e) => event.toLowerCase().includes(e.toLowerCase()))) {
       return true;
     }
-    // If status field indicates a status update, ignore
-    if (body?.data?.status && !body?.data?.message) return true;
+    if (body?.data?.status && !body?.data?.message) return "delivery_receipt";
   } else {
-    // Z-API: detect status events
     if (body?.status && !body?.text && !body?.image && !body?.audio && !body?.video && !body?.document) {
-      return true;
+      return "delivery_receipt";
     }
-    // Z-API delivery/read receipts
-    if (body?.type === "ReceivedCallback" && body?.status) return true;
-    if (body?.ack !== undefined && !body?.text && !body?.image && !body?.audio && !body?.video && !body?.document) return true;
+    if (body?.type === "ReceivedCallback" && body?.status) return "delivery_receipt";
+    if (body?.ack !== undefined && !body?.text && !body?.image && !body?.audio && !body?.video && !body?.document) return "delivery_receipt";
+  }
+  return false;
+}
+
+/** Extract delivery status from receipt events */
+function pickDeliveryStatus(body: any, isEvolution: boolean): { status: string; messageId: string } | null {
+  if (isEvolution) {
+    const data = body?.data || {};
+    const st = String(data?.status || "").toLowerCase();
+    const messageId = data?.key?.id || data?.id || null;
+    if (!messageId) return null;
+    if (st === "read" || st === "played") return { status: "read", messageId };
+    if (["delivery_ack", "delivered", "server_ack"].includes(st)) return { status: "delivered", messageId };
+    if (st === "sent" || st === "pending") return { status: "sent", messageId };
+    return null;
+  }
+  const ack = body?.ack;
+  const msgId = body?.id?.id || body?.messageId || body?.ids?.[0] || null;
+  if (!msgId) return null;
+  if (ack === 3 || body?.status === "READ") return { status: "read", messageId: msgId };
+  if (ack === 2 || body?.status === "RECEIVED" || body?.status === "DELIVERED") return { status: "delivered", messageId: msgId };
+  if (ack === 1 || body?.status === "SENT" || body?.status === "SERVER_ACK") return { status: "sent", messageId: msgId };
+  return null;
+}
+
+/** Update message status by provider message ID */
+async function updateMessageStatus(info: { status: string; messageId: string }): Promise<boolean> {
+  const statusOrder: Record<string, number> = { sent: 0, delivered: 1, read: 2 };
+
+  for (const col of ["provider_message_id", "external_id"] as const) {
+    const { data } = await supabaseAdmin
+      .from("tracking_messages")
+      .select("id, status")
+      .eq(col, info.messageId)
+      .limit(1);
+
+    const row = (data as any[])?.[0];
+    if (!row) continue;
+
+    const currentLevel = statusOrder[row.status] ?? -1;
+    const newLevel = statusOrder[info.status] ?? -1;
+    if (newLevel <= currentLevel) return false;
+
+    await supabaseAdmin.from("tracking_messages").update({ status: info.status } as any).eq("id", row.id);
+    return true;
   }
   return false;
 }
@@ -461,8 +506,17 @@ serve(async (req) => {
     const isEvolution = Boolean(body?.event && (body?.data || body?.instance));
 
     // ── Filter out non-message events (status updates, delivery receipts) ──
-    if (isStatusOrDeliveryEvent(body, isEvolution)) {
-      return respond({ status: "ignored_status_event" });
+    const eventType = isStatusOrDeliveryEvent(body, isEvolution);
+    if (eventType === "delivery_receipt") {
+      const deliveryInfo = pickDeliveryStatus(body, isEvolution);
+      if (deliveryInfo) {
+        const updated = await updateMessageStatus(deliveryInfo);
+        return respond({ status: updated ? "status_updated" : "status_no_match", delivery: deliveryInfo });
+      }
+      return respond({ status: "ignored_receipt_no_id" });
+    }
+    if (eventType === true) {
+      return respond({ status: "ignored_non_message_event" });
     }
 
     const isFromMe = isEvolution
@@ -566,6 +620,9 @@ serve(async (req) => {
         remetente_nome: isFromMe ? "Loja" : clientName,
         lida: isFromMe ? true : false,
         created_at: now,
+        status: "sent",
+        external_id: providerMsgId || null,
+        provider_message_id: providerMsgId || null,
         ...(media?.url
           ? {
               anexo_url: media.url,
