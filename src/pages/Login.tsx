@@ -282,67 +282,70 @@ export default function Login() {
 
     (async () => {
       try {
-        // Strategy 1: RPC resolve_tenant_info_by_code
-        const { data: rpcInfo, error: rpcInfoErr } = await (supabase as any).rpc("resolve_tenant_info_by_code", { p_code: formattedCode });
-        console.log("[Login] RPC resolve_tenant_info_by_code:", { formattedCode, rpcInfo, rpcInfoErr });
-        
+        // Strategy 1: RPC resolve_tenant_info_by_code (returns {nome, subtitulo})
+        const { data: rpcInfo } = await (supabase as unknown as { rpc: (fn: string, params: Record<string, string>) => Promise<{ data: unknown }> })
+          .rpc("resolve_tenant_info_by_code", { p_code: formattedCode });
+
         const row = Array.isArray(rpcInfo) ? rpcInfo[0] : rpcInfo;
-        if (!cancelled && row && (row.company_name || row.nome || row.nome_empresa || row.nome_loja)) {
-          setTenantInfo({
-            nome: row.company_name || row.nome_empresa || row.nome || row.nome_loja,
-            subtitulo: row.company_subtitle || row.subtitulo || "",
-          });
-          return;
+        if (!cancelled && row && typeof row === "object") {
+          const r = row as Record<string, string>;
+          if (r.nome || r.company_name || r.nome_empresa || r.nome_loja) {
+            setTenantInfo({
+              nome: r.nome || r.company_name || r.nome_empresa || r.nome_loja,
+              subtitulo: r.subtitulo || r.company_subtitle || "",
+            });
+            return;
+          }
         }
 
-        // Strategy 2: Direct query tenants + company_settings
-        const { data: tenantData } = await (supabase as any)
+        // Strategy 2: Direct query tenants → company_settings
+        const { data: tenantData } = await supabase
           .from("tenants")
-          .select("id, nome_loja, codigo_loja")
+          .select("id, nome_loja")
           .or(`codigo_loja.eq.${formattedCode},codigo_loja.eq.${digits}`)
           .limit(1)
           .maybeSingle();
-        
-        console.log("[Login] Direct tenants query:", { tenantData });
 
         if (!cancelled && tenantData?.id) {
-          const { data: csData } = await (supabase as any)
-            .from("company_settings")
-            .select("company_name, nome_empresa, company_subtitle, subtitulo")
+          const { data: csData } = await supabase
+            .from("company_settings" as unknown as "clients")
+            .select("company_name, nome_empresa, company_subtitle")
             .eq("tenant_id", tenantData.id)
             .maybeSingle();
-          
-          console.log("[Login] company_settings:", { csData });
+
+          const cs = csData as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string } | null;
 
           if (!cancelled) {
-            const nome = csData?.company_name || csData?.nome_empresa || tenantData.nome_loja;
+            const nome = cs?.company_name || cs?.nome_empresa || (tenantData as unknown as { nome_loja: string }).nome_loja;
             if (nome) {
               setTenantInfo({
                 nome,
-                subtitulo: csData?.company_subtitle || csData?.subtitulo || "",
+                subtitulo: cs?.company_subtitle || "",
               });
               return;
             }
           }
         }
 
-        // Strategy 3: RPC resolve_tenant_by_code
-        const { data: rpcData } = await (supabase as any).rpc("resolve_tenant_by_code", { p_code: formattedCode });
+        // Strategy 3: RPC resolve_tenant_by_code → fetch name
+        const { data: rpcData } = await (supabase as unknown as { rpc: (fn: string, params: Record<string, string>) => Promise<{ data: unknown }> })
+          .rpc("resolve_tenant_by_code", { p_code: formattedCode });
         const resolved = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-        const tid = typeof resolved === "string" ? resolved : resolved?.tenant_id || resolved?.id;
-        
-        console.log("[Login] RPC resolve_tenant_by_code:", { rpcData, tid });
+        const tid = typeof resolved === "string" ? resolved : (resolved as Record<string, string>)?.tenant_id || (resolved as Record<string, string>)?.id;
 
         if (!cancelled && tid) {
-          const { data: tData } = await (supabase as any)
-            .from("tenants").select("nome_loja").eq("id", tid).maybeSingle();
-          const { data: csData2 } = await (supabase as any)
-            .from("company_settings").select("company_name, nome_empresa, company_subtitle, subtitulo").eq("tenant_id", tid).maybeSingle();
-          
+          const { data: csData3 } = await supabase
+            .from("company_settings" as unknown as "clients")
+            .select("company_name, nome_empresa, company_subtitle")
+            .eq("tenant_id", tid)
+            .maybeSingle();
+
+          const cs3 = csData3 as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string } | null;
+
           if (!cancelled) {
             setTenantInfo({
-              nome: csData2?.company_name || csData2?.nome_empresa || tData?.nome_loja || "Loja",
-              subtitulo: csData2?.company_subtitle || csData2?.subtitulo || "",
+              nome: cs3?.company_name || cs3?.nome_empresa || "Loja",
+              subtitulo: cs3?.company_subtitle || "",
             });
           }
         } else if (!cancelled) {
