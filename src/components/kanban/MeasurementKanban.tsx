@@ -122,7 +122,7 @@ export function MeasurementKanban() {
     }
 
     const clientsById = new Map((clientsRes.data || []).map((client: any) => [client.id, client]));
-    const tenantStoreCode = settingsRes.data?.codigo_loja || tenantRes.data?.codigo_loja || "";
+    const tenantStoreCode = (settingsRes.data as any)?.codigo_loja || (tenantRes.data as any)?.codigo_loja || "";
 
     const enrichedRequests = ((requestsRes.data as any[]) || []).map((request) => {
       const client = clientsById.get(request.client_id);
