@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   TrendingUp, AlertTriangle, Zap, Target, Brain,
   ChevronDown, ChevronUp, Lightbulb, Clock, Flame,
@@ -34,6 +34,65 @@ const URGENCY_CONFIG = {
   low: { label: "Sem Pressa", emoji: "🕐", color: "bg-muted text-muted-foreground border-border" },
 };
 
+// ==================== SPARKLINE ====================
+
+const PROB_HISTORY_KEY = "deal-prob-history";
+const MAX_HISTORY = 20;
+
+interface ProbPoint { ts: number; prob: number }
+
+function loadProbHistory(conversationId: string): ProbPoint[] {
+  try {
+    const all = JSON.parse(localStorage.getItem(PROB_HISTORY_KEY) || "{}");
+    return (all[conversationId] || []) as ProbPoint[];
+  } catch { return []; }
+}
+
+function saveProbHistory(conversationId: string, points: ProbPoint[]) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PROB_HISTORY_KEY) || "{}");
+    all[conversationId] = points.slice(-MAX_HISTORY);
+    localStorage.setItem(PROB_HISTORY_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+function ProbabilitySparkline({ points }: { points: ProbPoint[] }) {
+  if (points.length < 2) return null;
+
+  const w = 80, h = 20, pad = 1;
+  const values = points.map(p => p.prob);
+  const min = Math.max(0, Math.min(...values) - 5);
+  const max = Math.min(100, Math.max(...values) + 5);
+  const range = max - min || 1;
+
+  const coords = values.map((v, i) => ({
+    x: pad + (i / (values.length - 1)) * (w - pad * 2),
+    y: pad + (1 - (v - min) / range) * (h - pad * 2),
+  }));
+
+  const pathD = coords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(" ");
+  const last = values[values.length - 1];
+  const prev = values[values.length - 2];
+  const trend = last >= prev ? "hsl(var(--chart-2))" : "hsl(var(--destructive))";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="cursor-help shrink-0">
+          <path d={pathD} fill="none" stroke={trend} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="2" fill={trend} />
+        </svg>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-[10px]">
+        <p>Evolução: {values[0]}% → {last}%</p>
+        <p className="text-muted-foreground">{points.length} análises registradas</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// ==================== TYPES ====================
+
 interface FullDecision {
   analysis: DealAnalysis;
   scenarios: DealScenario[];
@@ -46,6 +105,8 @@ interface FullDecision {
 export function ChatDealInsights({ conversation, tenantId, messageCount }: Props) {
   const [decision, setDecision] = useState<FullDecision | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [probHistory, setProbHistory] = useState<ProbPoint[]>([]);
+  const convId = (conversation as unknown as Record<string, unknown>).id as string || "";
 
   const ctx = useMemo((): DealContext | null => {
     if (!tenantId) return null;
@@ -83,6 +144,11 @@ export function ChatDealInsights({ conversation, tenantId, messageCount }: Props
     };
   }, [conversation, tenantId]);
 
+  // Load probability history on conversation change
+  useEffect(() => {
+    if (convId) setProbHistory(loadProbHistory(convId));
+  }, [convId]);
+
   useEffect(() => {
     if (!ctx || ctx.pricing.total_price === 0) { setDecision(null); return; }
 
@@ -90,13 +156,26 @@ export function ChatDealInsights({ conversation, tenantId, messageCount }: Props
     const engine = getCommercialEngine();
 
     engine.decideClientAction(ctx).then((result) => {
-      if (!cancelled) setDecision(result);
+      if (!cancelled) {
+        setDecision(result);
+        // Record probability point
+        if (convId) {
+          const history = loadProbHistory(convId);
+          const lastProb = history[history.length - 1]?.prob;
+          // Only add if probability changed or no history yet
+          if (lastProb !== result.analysis.closing_probability || history.length === 0) {
+            history.push({ ts: Date.now(), prob: result.analysis.closing_probability });
+            saveProbHistory(convId, history);
+            setProbHistory([...history].slice(-MAX_HISTORY));
+          }
+        }
+      }
     }).catch(() => {
       if (!cancelled) setDecision(null);
     });
 
     return () => { cancelled = true; };
-  }, [ctx, messageCount]);
+  }, [ctx, messageCount, convId]);
 
   if (!decision) return null;
 
@@ -119,6 +198,7 @@ export function ChatDealInsights({ conversation, tenantId, messageCount }: Props
           <span className="text-xs font-semibold text-foreground">
             {analysis.closing_probability}%
           </span>
+          <ProbabilitySparkline points={probHistory} />
 
           <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${risk.color}`}>
             Risco {risk.label}
