@@ -7,9 +7,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone } from "lucide-react";
+import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone, Trash2, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
+import { isNotificationSoundEnabled, setNotificationSoundEnabled } from "@/lib/notificationSound";
 import { format } from "date-fns";
 import type { ChatConversation } from "./types";
 
