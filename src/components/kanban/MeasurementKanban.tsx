@@ -287,6 +287,7 @@ export function MeasurementKanban() {
       <TabsList>
         <TabsTrigger value="kanban" className="gap-1.5"><Ruler className="h-3.5 w-3.5" />Kanban</TabsTrigger>
         <TabsTrigger value="report" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" />Relatório</TabsTrigger>
+        <TabsTrigger value="fila" className="gap-1.5"><Users className="h-3.5 w-3.5" />Fila Liberação</TabsTrigger>
       </TabsList>
 
       <TabsContent value="kanban" className="space-y-4">
@@ -498,6 +499,20 @@ export function MeasurementKanban() {
 
       <TabsContent value="report">
         <MeasurementReport />
+      </TabsContent>
+
+      <TabsContent value="fila" className="space-y-4">
+        <FilaLiberacaoTab
+          requests={requests}
+          liberadores={tecnicosEProjetistas}
+          metas={metas}
+          tetoOverrides={tetoOverrides}
+          setTetoOverrides={setTetoOverrides}
+          editingTeto={editingTeto}
+          setEditingTeto={setEditingTeto}
+          tetoEditValue={tetoEditValue}
+          setTetoEditValue={setTetoEditValue}
+        />
       </TabsContent>
 
       <MeasurementDetailModal
