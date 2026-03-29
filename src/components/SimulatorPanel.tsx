@@ -784,6 +784,27 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
         ...userInfo,
       });
 
+      // Record proposal_sent learning event (fire-and-forget)
+      if (resolvedTenantId) {
+        const totalDiscount = 100 - (100 * (1 - desconto1/100) * (1 - desconto2/100) * (1 - desconto3/100));
+        const learnTable = supabase.from("ai_learning_events" as unknown as "clients");
+        void (learnTable as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
+          .insert([{
+            tenant_id: resolvedTenantId,
+            user_id: currentUser?.id || null,
+            client_id: clientId,
+            event_type: "proposal_sent",
+            price_offered: result.valorFinal,
+            discount_percentage: Math.round(totalDiscount * 100) / 100,
+            strategy_used: "consultiva",
+            metadata: {
+              valor_tela: valorTela,
+              forma_pagamento: formaPagamento,
+              parcelas,
+            },
+          }]).catch((err: unknown) => console.warn("[Simulator] learning event error:", err));
+      }
+
       if (!client) {
         setShowClientForm(false);
         setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "" });
