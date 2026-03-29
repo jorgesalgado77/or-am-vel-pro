@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion, Lightbulb, Clock, Factory, KeyRound, BellRing, CalendarSync, ShieldCheck, Database } from "lucide-react";
+import { Building2, CreditCard, FileText, Users, Shield, FileSignature, MessageSquare, ClipboardList, ScrollText, Mail, Palette, TrendingUp, UserCheck, FileQuestion, Lightbulb, Clock, Factory, KeyRound, BellRing, CalendarSync, ShieldCheck, Database, Target } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 // Lazy load each tab to reduce initial chunk from 1.5MB
@@ -26,6 +26,7 @@ const ApiKeysTab = lazy(() => import("@/components/settings/ApiKeysTab").then(m 
 const PushNotificationsTab = lazy(() => import("@/components/settings/PushNotificationsTab").then(m => ({ default: m.PushNotificationsTab })));
 const GoogleCalendarTab = lazy(() => import("@/components/settings/GoogleCalendarTab").then(m => ({ default: m.GoogleCalendarTab })));
 const SalesRulesTab = lazy(() => import("@/components/settings/SalesRulesTab").then(m => ({ default: m.SalesRulesTab })));
+const MetasTetosTab = lazy(() => import("@/components/settings/MetasTetosTab").then(m => ({ default: m.MetasTetosTab })));
 const BackupTab = lazy(() => import("@/components/settings/BackupTab").then(m => ({ default: m.BackupTab })));
 
 const TabLoader = () => (
@@ -57,6 +58,7 @@ export function SettingsPanel() {
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" />Empresa</TabsTrigger>
           <TabsTrigger value="cargos" className="gap-2"><Shield className="h-4 w-4" />Cargos</TabsTrigger>
           <TabsTrigger value="usuarios" className="gap-2"><Users className="h-4 w-4" />Usuários</TabsTrigger>
+          <TabsTrigger value="metas_tetos" className="gap-2"><Target className="h-4 w-4" />Metas e Tetos</TabsTrigger>
           <TabsTrigger value="descontos" className="gap-2"><FileText className="h-4 w-4" />Descontos</TabsTrigger>
           <TabsTrigger value="comissoes" className="gap-2"><TrendingUp className="h-4 w-4" />Comissões</TabsTrigger>
           <TabsTrigger value="indicadores" className="gap-2"><UserCheck className="h-4 w-4" />Indicadores</TabsTrigger>
@@ -83,6 +85,7 @@ export function SettingsPanel() {
           {activeTab === "company" && <TabsContent value="company" forceMount><CompanySettingsTab /></TabsContent>}
           {activeTab === "cargos" && <TabsContent value="cargos" forceMount><CargosTab /></TabsContent>}
           {activeTab === "usuarios" && <TabsContent value="usuarios" forceMount><UsuariosTab /></TabsContent>}
+          {activeTab === "metas_tetos" && <TabsContent value="metas_tetos" forceMount><MetasTetosTab /></TabsContent>}
           {activeTab === "descontos" && <TabsContent value="descontos" forceMount><DescontosTab /></TabsContent>}
           {activeTab === "comissoes" && <TabsContent value="comissoes" forceMount><ComissaoPolicyTab /></TabsContent>}
           {activeTab === "indicadores" && <TabsContent value="indicadores" forceMount><IndicadoresTab /></TabsContent>}
