@@ -296,6 +296,62 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
       });
     }
 
+    // Goal-based insights — fetch metas from sales_goals
+    try {
+      const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+      const { data: goalData } = await supabase
+        .from("sales_goals" as any)
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("month", currentMonth)
+        .in("goal_type", ["meta_loja", "meta_vendedor", "teto_liberacao"]);
+
+      if (goalData) {
+        const metaLoja = (goalData as any[]).find((g: any) => g.goal_type === "meta_loja");
+        if (metaLoja && metrics.revenue > 0) {
+          const pct = (metrics.revenue / metaLoja.target_value) * 100;
+          const faltante = Math.max(0, metaLoja.target_value - metrics.revenue);
+          if (pct < 50) {
+            newInsights.push({
+              type: "alert",
+              message: `⚠️ Meta da loja atingiu apenas ${pct.toFixed(1)}%. Faltam R$ ${faltante.toLocaleString("pt-BR")} para bater a meta. Intensifique o ritmo de vendas!`,
+              priority: "high",
+              is_read: false,
+              action_type: "boost_sales",
+            });
+          } else if (pct < 80) {
+            newInsights.push({
+              type: "warning",
+              message: `Meta da loja em ${pct.toFixed(1)}%. Faltam R$ ${faltante.toLocaleString("pt-BR")}. Mantenha o foco nos leads quentes!`,
+              priority: "medium",
+              is_read: false,
+            });
+          } else if (pct >= 100) {
+            newInsights.push({
+              type: "praise",
+              message: `🎯 Meta da loja atingida! ${pct.toFixed(1)}% — R$ ${metrics.revenue.toLocaleString("pt-BR")}. Excelente trabalho da equipe! 🏆`,
+              priority: "low",
+              is_read: false,
+            });
+          }
+        }
+      }
+    } catch { /* silent */ }
+
+    // Stalled simulations insight
+    const stalledSimCount = stalledLeads.filter((l: any) =>
+      l.status === "proposta_enviada" || l.status === "em_negociacao"
+    ).length;
+    if (stalledSimCount > 0) {
+      newInsights.push({
+        type: "alert",
+        message: `📊 ${stalledSimCount} simulação(ões) parada(s) sem retorno do cliente. Cobre acompanhamento imediatamente!`,
+        priority: "high",
+        is_read: false,
+        action_type: "follow_up_simulation",
+      });
+    }
+
     setInsights(newInsights.map((ins, i) => ({
       ...ins,
       id: `generated-${i}`,
