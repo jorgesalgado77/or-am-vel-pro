@@ -28,6 +28,7 @@ interface Props {
   onRemoveQuickReply?: (id: string) => void;
   tenantId?: string | null;
   onSendProductText?: (text: string, imageUrl?: string) => void;
+  detectedDiscProfile?: string;
 }
 
 function buildFileName(file: File) {
@@ -36,7 +37,7 @@ function buildFileName(file: File) {
   return `arquivo_${Date.now()}.${extension}`;
 }
 
-export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke, quickReplies, quickRepliesLoading, onAddQuickReply, onRemoveQuickReply, tenantId, onSendProductText }: Props) {
+export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke, quickReplies, quickRepliesLoading, onAddQuickReply, onRemoveQuickReply, tenantId, onSendProductText, detectedDiscProfile }: Props) {
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -243,6 +244,7 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
             onAdd={onAddQuickReply}
             onRemove={onRemoveQuickReply}
             loading={quickRepliesLoading}
+            detectedDiscProfile={detectedDiscProfile}
           />
         )}
 

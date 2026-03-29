@@ -58,9 +58,10 @@ interface Props {
   onAdd: (titulo: string, mensagem: string) => void;
   onRemove: (id: string) => void;
   loading?: boolean;
+  detectedDiscProfile?: string;
 }
 
-export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loading }: Props) {
+export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loading, detectedDiscProfile }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -71,6 +72,15 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
   const [loadingCopies, setLoadingCopies] = useState(false);
   const [savedCopies, setSavedCopies] = useState<SavedCopy[]>([]);
   const [copyTypeFilter, setCopyTypeFilter] = useState<string>("all");
+  const [discFilter, setDiscFilter] = useState<string>("all");
+
+  // Auto-switch to VendaZap tab and pre-select DISC filter when profile is detected
+  useEffect(() => {
+    if (detectedDiscProfile && open) {
+      setDiscFilter(detectedDiscProfile);
+      setTab("vendazap");
+    }
+  }, [detectedDiscProfile, open]);
 
   // Fetch VendaZap AI copies when tab switches or popover opens
   useEffect(() => {
@@ -87,7 +97,7 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
         .limit(30),
       (supabase as any)
         .from("vendazap_copys")
-        .select("id, tipo, label, mensagem, is_ai")
+        .select("id, tipo, label, mensagem, is_ai, disc_profile")
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false }),
     ]).then(([msgRes, copyRes]: any[]) => {
@@ -105,9 +115,9 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
 
   // Merge all copy sources: ready + saved + vendazap_messages
   const allVendaZapItems = [
-    ...READY_COPIES.map((c, i) => ({ id: `ready-${i}`, tipo: c.tipo, label: c.label, mensagem: c.mensagem })),
-    ...savedCopies.map((c) => ({ id: c.id, tipo: c.tipo, label: c.label, mensagem: c.mensagem })),
-    ...vendaZapCopies.map((c) => ({ id: c.id, tipo: c.tipo_copy, label: tipoLabels[c.tipo_copy] || c.tipo_copy, mensagem: c.mensagem_gerada })),
+    ...READY_COPIES.map((c, i) => ({ id: `ready-${i}`, tipo: c.tipo, label: c.label, mensagem: c.mensagem, disc_profile: null as string | null })),
+    ...savedCopies.map((c) => ({ id: c.id, tipo: c.tipo, label: c.label, mensagem: c.mensagem, disc_profile: (c as any).disc_profile || null })),
+    ...vendaZapCopies.map((c) => ({ id: c.id, tipo: c.tipo_copy, label: tipoLabels[c.tipo_copy] || c.tipo_copy, mensagem: c.mensagem_gerada, disc_profile: null as string | null })),
   ];
 
   const copyTypes = Array.from(new Set(allVendaZapItems.map((c) => c.tipo)));
@@ -118,7 +128,8 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
       c.label.toLowerCase().includes(search.toLowerCase()) ||
       c.tipo.toLowerCase().includes(search.toLowerCase());
     const matchType = copyTypeFilter === "all" || c.tipo === copyTypeFilter;
-    return matchSearch && matchType;
+    const matchDisc = discFilter === "all" || c.disc_profile === discFilter || (!c.disc_profile && discFilter === "all");
+    return matchSearch && matchType && matchDisc;
   });
 
   const handleAdd = () => {
@@ -144,22 +155,41 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
     objecao: "Objeção",
   };
 
+  const DISC_META: Record<string, { emoji: string; label: string }> = {
+    D: { emoji: "🔴", label: "Dominante" },
+    I: { emoji: "🟡", label: "Influente" },
+    S: { emoji: "🟢", label: "Estável" },
+    C: { emoji: "🔵", label: "Conforme" },
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
-          title="Respostas rápidas"
+          className={`h-9 w-9 shrink-0 relative ${detectedDiscProfile ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          title={detectedDiscProfile ? `Respostas rápidas — DISC: ${DISC_META[detectedDiscProfile]?.label || detectedDiscProfile}` : "Respostas rápidas"}
         >
           <Zap className="h-4 w-4" />
+          {detectedDiscProfile && DISC_META[detectedDiscProfile] && (
+            <span className="absolute -top-0.5 -right-0.5 text-[9px] leading-none">
+              {DISC_META[detectedDiscProfile].emoji}
+            </span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="start" side="top">
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold text-foreground">Respostas Rápidas</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-foreground">Respostas Rápidas</h4>
+              {detectedDiscProfile && DISC_META[detectedDiscProfile] && (
+                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 gap-0.5">
+                  {DISC_META[detectedDiscProfile].emoji} {DISC_META[detectedDiscProfile].label}
+                </Badge>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -252,8 +282,28 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
 
           {tab === "vendazap" && (
             <div className="flex flex-col">
+              {/* DISC filter chips */}
+              <div className="flex gap-1 px-2 py-1 flex-wrap border-b border-border">
+                <Badge
+                  variant={discFilter === "all" ? "default" : "outline"}
+                  className="cursor-pointer text-[8px] h-5 px-1.5"
+                  onClick={() => setDiscFilter("all")}
+                >
+                  Todos DISC
+                </Badge>
+                {(["D", "I", "S", "C"] as const).map((d) => (
+                  <Badge
+                    key={d}
+                    variant={discFilter === d ? "default" : "outline"}
+                    className={`cursor-pointer text-[8px] h-5 px-1.5 gap-0.5 ${discFilter === d && detectedDiscProfile === d ? "ring-1 ring-primary" : ""}`}
+                    onClick={() => setDiscFilter(discFilter === d ? "all" : d)}
+                  >
+                    {DISC_META[d].emoji} {DISC_META[d].label}
+                  </Badge>
+                ))}
+              </div>
               {/* Type filter chips */}
-              <div className="flex gap-1 px-2 py-1.5 flex-wrap border-b border-border">
+              <div className="flex gap-1 px-2 py-1 flex-wrap border-b border-border">
                 <Badge
                   variant={copyTypeFilter === "all" ? "default" : "outline"}
                   className="cursor-pointer text-[8px] h-5 px-1.5"
@@ -291,6 +341,11 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
                           <Badge variant="outline" className="text-[8px] h-3.5 px-1 border-primary/30 text-primary">
                             {c.label}
                           </Badge>
+                          {c.disc_profile && DISC_META[c.disc_profile] && (
+                            <Badge variant="secondary" className="text-[7px] h-3.5 px-1 gap-0.5">
+                              {DISC_META[c.disc_profile].emoji} {DISC_META[c.disc_profile].label}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-[11px] text-muted-foreground line-clamp-3">{c.mensagem}</p>
                       </div>

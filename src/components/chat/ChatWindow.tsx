@@ -25,6 +25,7 @@ interface Props {
   onMessageSent?: (message: string) => void;
   messageCount?: number;
   onMessagesLoaded?: (count: number) => void;
+  detectedDiscProfile?: string;
 }
 
 const PAGE_SIZE = 40;
@@ -61,7 +62,7 @@ function getConversationPhone(conversation: ChatConversation | null | undefined)
 
 export function ChatWindow({
   conversation, onBack, onStartDealRoom, onCreateLead,
-  inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded,
+  inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded, detectedDiscProfile,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [trackingIds, setTrackingIds] = useState<string[]>([conversation.id]);
@@ -457,6 +458,7 @@ export function ChatWindow({
           onAddQuickReply={addQR}
           onRemoveQuickReply={removeQR}
           tenantId={tenantId}
+          detectedDiscProfile={detectedDiscProfile}
           onSendProductText={async (text) => {
             const { error } = await supabase.from("tracking_messages").insert({
               tracking_id: conversation.id,

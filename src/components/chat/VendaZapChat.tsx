@@ -979,6 +979,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 userId={userId}
                 tenantId={tenantId}
                 onMessageSent={handleMessageSent}
+                detectedDiscProfile={discProfile}
               />
             </div>
             <ChatRightPanel
