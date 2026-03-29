@@ -1,7 +1,13 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Send, Paperclip, Mic, Square, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Camera, Send, Paperclip, Mic, Square, Loader2, Video, X, SwitchCamera } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { QuickRepliesPopover } from "./QuickRepliesPopover";
@@ -33,10 +39,16 @@ function buildFileName(file: File) {
 export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke, quickReplies, quickRepliesLoading, onAddQuickReply, onRemoveQuickReply, tenantId, onSendProductText }: Props) {
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraRecording, setCameraRecording] = useState(false);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const cameraRecorderRef = useRef<MediaRecorder | null>(null);
+  const cameraChunksRef = useRef<Blob[]>([]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -88,6 +100,7 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
     e.target.value = "";
   };
 
+  // Audio recording
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -119,20 +132,105 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
     setRecording(false);
   };
 
+  // Camera functions
+  const openCamera = async () => {
+    setCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+        audio: true,
+      });
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch {
+      toast.error("Não foi possível acessar a câmera do dispositivo");
+      setCameraOpen(false);
+    }
+  };
+
+  const closeCamera = () => {
+    cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+    cameraStreamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraOpen(false);
+    setCameraRecording(false);
+  };
+
+  const switchCamera = async () => {
+    const newMode = facingMode === "user" ? "environment" : "user";
+    setFacingMode(newMode);
+    cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newMode },
+        audio: true,
+      });
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch {
+      toast.error("Não foi possível alternar a câmera");
+    }
+  };
+
+  const takePhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(videoRef.current, 0, 0);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], `foto_${Date.now()}.jpg`, { type: "image/jpeg" });
+      closeCamera();
+      await uploadFile(file);
+    }, "image/jpeg", 0.9);
+  };
+
+  const startVideoRecording = () => {
+    if (!cameraStreamRef.current) return;
+    try {
+      const recorder = new MediaRecorder(cameraStreamRef.current, { mimeType: "video/webm" });
+      cameraChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) cameraChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        const blob = new Blob(cameraChunksRef.current, { type: "video/webm" });
+        const file = new File([blob], `video_${Date.now()}.webm`, { type: "video/webm" });
+        closeCamera();
+        await uploadFile(file);
+      };
+
+      recorder.start();
+      cameraRecorderRef.current = recorder;
+      setCameraRecording(true);
+    } catch {
+      toast.error("Não foi possível gravar vídeo");
+    }
+  };
+
+  const stopVideoRecording = () => {
+    cameraRecorderRef.current?.stop();
+    cameraRecorderRef.current = null;
+    setCameraRecording(false);
+  };
+
   return (
     <div className="p-2 border-t border-border bg-card">
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*,video/*"
-        capture="environment"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -152,7 +250,7 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
           variant="ghost"
           size="icon"
           className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={() => cameraInputRef.current?.click()}
+          onClick={openCamera}
           disabled={uploading || sending}
           aria-label="Abrir câmera"
           title="Abrir câmera para foto ou vídeo"
@@ -221,6 +319,64 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
           <span className="text-xs text-destructive font-medium">Gravando áudio...</span>
         </div>
       )}
+
+      {/* Camera Dialog */}
+      <Dialog open={cameraOpen} onOpenChange={(open) => { if (!open) closeCamera(); }}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <Camera className="h-4 w-4" />
+              Câmera
+            </DialogTitle>
+          </DialogHeader>
+          <div className="relative bg-black aspect-video">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+            {cameraRecording && (
+              <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 text-white px-2 py-1 rounded-full text-xs">
+                <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                Gravando...
+              </div>
+            )}
+          </div>
+          <div className="flex items-center justify-center gap-4 px-4 py-3 bg-card">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 rounded-full"
+              onClick={switchCamera}
+              title="Alternar câmera"
+            >
+              <SwitchCamera className="h-4 w-4" />
+            </Button>
+
+            <Button
+              size="icon"
+              className="h-14 w-14 rounded-full bg-primary hover:bg-primary/90 shadow-lg"
+              onClick={takePhoto}
+              disabled={cameraRecording}
+              title="Tirar foto"
+            >
+              <Camera className="h-6 w-6" />
+            </Button>
+
+            <Button
+              variant={cameraRecording ? "destructive" : "outline"}
+              size="icon"
+              className="h-10 w-10 rounded-full"
+              onClick={cameraRecording ? stopVideoRecording : startVideoRecording}
+              title={cameraRecording ? "Parar gravação" : "Gravar vídeo"}
+            >
+              {cameraRecording ? <Square className="h-4 w-4 fill-current" /> : <Video className="h-4 w-4" />}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

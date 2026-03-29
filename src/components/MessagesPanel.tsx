@@ -4,17 +4,40 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/c
 import {Button} from "@/components/ui/button";
 import {Textarea} from "@/components/ui/textarea";
 import {Badge} from "@/components/ui/badge";
-import {ArrowLeft, Send, RefreshCw, MessageCircle} from "lucide-react";
+import {ArrowLeft, Send, RefreshCw, MessageCircle, Phone} from "lucide-react";
 import {supabase} from "@/lib/supabaseClient";
 import {getTenantId} from "@/lib/tenantState";
 import {toast} from "sonner";
 import {format} from "date-fns";
+
+function formatPhoneMask(phone: string | null | undefined): string {
+  if (!phone) return "—";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length >= 12 && digits.startsWith("55")) {
+    const local = digits.slice(2);
+    if (local.length === 11) {
+      return `+55 (${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+    }
+    if (local.length === 10) {
+      return `+55 (${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+    }
+  }
+  return phone;
+}
 
 interface TrackingWithMessages {
   id: string;
   numero_contrato: string;
   nome_cliente: string;
   unread_count: number;
+  phone?: string | null;
+  last_message_at?: string | null;
 }
 
 interface Message {
@@ -44,7 +67,6 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
 
     const tenantId = getTenantId();
 
-    // Get all trackings for this tenant
     let trackQuery = supabase
       .from("client_tracking")
       .select("id, numero_contrato, nome_cliente, client_id")
@@ -56,7 +78,20 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
 
     const trackingIdList = (allTrackings as any[]).map((t) => t.id);
 
-    // Get unread counts scoped to this tenant's trackings
+    // Get client phone numbers
+    const clientIds = Array.from(new Set((allTrackings as any[]).map((t) => t.client_id).filter(Boolean)));
+    let clientPhoneMap: Record<string, string> = {};
+    if (clientIds.length > 0) {
+      const { data: clientsData } = await supabase
+        .from("clients")
+        .select("id, telefone1, telefone2")
+        .in("id", clientIds);
+      (clientsData || []).forEach((c: any) => {
+        clientPhoneMap[c.id] = c.telefone1 || c.telefone2 || "";
+      });
+    }
+
+    // Get unread counts
     const { data: unreadData } = await supabase
       .from("tracking_messages")
       .select("tracking_id")
@@ -69,6 +104,21 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
       unreadMap[m.tracking_id] = (unreadMap[m.tracking_id] || 0) + 1;
     });
 
+    // Get last message dates (from client)
+    const { data: lastMsgsData } = await supabase
+      .from("tracking_messages")
+      .select("tracking_id, created_at")
+      .eq("remetente_tipo", "cliente")
+      .in("tracking_id", trackingIdList)
+      .order("created_at", { ascending: false });
+
+    const lastMsgMap: Record<string, string> = {};
+    (lastMsgsData || []).forEach((m: any) => {
+      if (!lastMsgMap[m.tracking_id]) {
+        lastMsgMap[m.tracking_id] = m.created_at;
+      }
+    });
+
     // Get trackings that have any messages
     const { data: msgTrackings } = await supabase
       .from("tracking_messages")
@@ -77,21 +127,26 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
 
     const hasMessages = new Set((msgTrackings || []).map((m: any) => m.tracking_id));
 
-    // Group by client_id to merge duplicate trackings for the same client
-    const clientGroups = new Map<string, { tracking: any; unread: number; hasMsg: boolean }>();
+    // Group by client_id
+    const clientGroups = new Map<string, { tracking: any; unread: number; hasMsg: boolean; phone: string | null; lastMsgAt: string | null }>();
 
     (allTrackings as any[]).forEach((t) => {
       const groupKey = t.client_id || t.id;
       const unread = unreadMap[t.id] || 0;
       const hasMsg = hasMessages.has(t.id);
+      const phone = clientPhoneMap[t.client_id] || (t.numero_contrato?.startsWith("WA-") ? t.numero_contrato.replace("WA-", "") : null);
+      const lastMsgAt = lastMsgMap[t.id] || null;
       const existing = clientGroups.get(groupKey);
 
       if (!existing) {
-        clientGroups.set(groupKey, { tracking: t, unread, hasMsg });
+        clientGroups.set(groupKey, { tracking: t, unread, hasMsg, phone, lastMsgAt });
       } else {
         existing.unread += unread;
         existing.hasMsg = existing.hasMsg || hasMsg;
-        // Prefer the tracking with the most recent activity
+        if (!existing.phone && phone) existing.phone = phone;
+        if (lastMsgAt && (!existing.lastMsgAt || lastMsgAt > existing.lastMsgAt)) {
+          existing.lastMsgAt = lastMsgAt;
+        }
         if (unread > 0 && (unreadMap[existing.tracking.id] || 0) === 0) {
           existing.tracking = t;
         }
@@ -105,6 +160,8 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
         numero_contrato: g.tracking.numero_contrato,
         nome_cliente: g.tracking.nome_cliente,
         unread_count: g.unread,
+        phone: g.phone,
+        last_message_at: g.lastMsgAt,
       }))
       .sort((a, b) => b.unread_count - a.unread_count);
 
@@ -118,7 +175,6 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
 
   useEffect(() => { fetchTrackingsWithMessages(); }, []);
 
-  // Realtime: auto-refresh when new messages arrive
   useEffect(() => {
     const channel = supabase
       .channel("messages-panel-realtime")
@@ -128,12 +184,9 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
         (payload) => {
           const msg = payload.new as any;
           if (msg.remetente_tipo === "cliente") {
-            // Refresh list
             fetchTrackingsWithMessages();
-            // If conversation is open for this tracking, auto-load new message
             if (selectedTracking && msg.tracking_id === selectedTracking.id) {
               setMessages((prev) => [...prev, msg]);
-              // Mark as read immediately
               supabase.from("tracking_messages").update({ lida: true } as any).eq("id", msg.id);
             }
           }
@@ -150,7 +203,6 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
   const openConversation = async (tracking: TrackingWithMessages) => {
     setSelectedTracking(tracking);
 
-    // Find all tracking IDs for the same client (to show unified history)
     const { data: relatedTrackings } = await supabase
       .from("client_tracking")
       .select("id, client_id")
@@ -175,7 +227,7 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
       .order("created_at", { ascending: true });
     if (data) setMessages(data as any);
 
-    // Mark client messages as read across all related trackings
+    // Mark client messages as read
     await supabase
       .from("tracking_messages")
       .update({ lida: true } as any)
@@ -183,6 +235,7 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
       .eq("remetente_tipo", "cliente")
       .eq("lida", false);
 
+    // Update local state and refresh sidebar count
     setTrackings((prev) => prev.map((t) => t.id === tracking.id ? { ...t, unread_count: 0 } : t));
     const newTotal = trackings.reduce((sum, t) => sum + (t.id === tracking.id ? 0 : t.unread_count), 0);
     onUnreadChange?.(newTotal);
@@ -264,7 +317,7 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -284,19 +337,34 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
                 <TableRow>
                   <TableHead>Nº Contrato</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      WhatsApp
+                    </div>
+                  </TableHead>
+                  <TableHead>Última Msg Recebida</TableHead>
                   <TableHead className="text-center">Novas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
                 ) : trackings.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Nenhuma mensagem recebida</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma mensagem recebida</TableCell></TableRow>
                 ) : (
                   trackings.map((t) => (
                     <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openConversation(t)}>
                       <TableCell className="font-mono text-sm">{t.numero_contrato}</TableCell>
                       <TableCell>{t.nome_cliente}</TableCell>
+                      <TableCell className="text-sm text-emerald-600 font-mono">
+                        {formatPhoneMask(t.phone)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {t.last_message_at
+                          ? format(new Date(t.last_message_at), "dd/MM/yyyy HH:mm")
+                          : "—"}
+                      </TableCell>
                       <TableCell className="text-center">
                         {t.unread_count > 0 ? (
                           <Badge variant="destructive" className="text-xs">{t.unread_count}</Badge>
