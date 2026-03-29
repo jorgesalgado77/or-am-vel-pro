@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Brain, TrendingUp, Shield, Navigation } from "lucide-react";
 import { getBehaviorEngine } from "@/services/commercial/ClientBehaviorEngine";
@@ -91,11 +91,12 @@ export function SimulatorBehaviorMetrics({ persona, conversationHistory, clientN
               </TooltipContent>
             </Tooltip>
           </div>
-          <Progress
-            value={metrics.engagement.score}
-            className="h-1.5"
-            indicatorClassName={ENGAGEMENT_COLORS[metrics.engagement.level]}
-          />
+          <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${ENGAGEMENT_COLORS[metrics.engagement.level]}`}
+              style={{ width: `${metrics.engagement.score}%` }}
+            />
+          </div>
         </div>
 
         {/* Resistance Level */}
@@ -117,11 +118,12 @@ export function SimulatorBehaviorMetrics({ persona, conversationHistory, clientN
               </TooltipContent>
             </Tooltip>
           </div>
-          <Progress
-            value={metrics.resistance.level}
-            className="h-1.5"
-            indicatorClassName={RESISTANCE_COLOR(metrics.resistance.level)}
-          />
+          <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${RESISTANCE_COLOR(metrics.resistance.level)}`}
+              style={{ width: `${metrics.resistance.level}%` }}
+            />
+          </div>
         </div>
 
         {/* Predicted Next Move */}
