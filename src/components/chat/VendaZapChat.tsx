@@ -929,6 +929,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
             selectedId={selected?.id || null}
             onSelect={handleSelectConversation}
             onDelete={isAdminOrManager ? handleDeleteConversation : undefined}
+            onMergeDuplicate={isAdminOrManager ? handleMergeDuplicate : undefined}
             loading={loading}
             onStartConversation={() => setShowStartModal(true)}
             currentUserName={currentUser?.nome_completo || null}
