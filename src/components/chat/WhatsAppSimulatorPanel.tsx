@@ -173,6 +173,16 @@ export function WhatsAppSimulatorPanel({ config, onUpdateConfig, onSendManual, h
                 />
               </div>
 
+              {/* Behavior Metrics — Real-time */}
+              {conversationHistory.length > 0 && (
+                <SimulatorBehaviorMetrics
+                  persona={config.persona}
+                  conversationHistory={conversationHistory}
+                  clientName={clientName}
+                  lastStoreMessage={lastStoreMessage}
+                />
+              )}
+
               {/* Manual send */}
               {hasSelectedConversation && (
                 <div className="space-y-1.5">
