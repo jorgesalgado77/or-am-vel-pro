@@ -168,9 +168,30 @@ export function ChatWindow({
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "tracking_messages" },
-        (payload) => {
+        async (payload) => {
           const msg = payload.new as any;
-          if (trackingIds.includes(msg.tracking_id)) {
+
+          let isRelated = trackingIds.includes(msg.tracking_id);
+
+          // If not directly in our tracking list, check if it belongs to the same client
+          if (!isRelated && conversation.client_id) {
+            const { data: trackingRow } = await supabase
+              .from("client_tracking")
+              .select("client_id")
+              .eq("id", msg.tracking_id)
+              .maybeSingle();
+
+            if (trackingRow?.client_id === conversation.client_id) {
+              isRelated = true;
+              // Add this new tracking_id to our list for future messages
+              setTrackingIds((prev) => {
+                if (prev.includes(msg.tracking_id)) return prev;
+                return [...prev, msg.tracking_id];
+              });
+            }
+          }
+
+          if (isRelated) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === msg.id)) return prev;
               return [...prev, msg as ChatMessage].sort(
@@ -191,7 +212,7 @@ export function ChatWindow({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [conversation.id, trackingIds]);
+  }, [conversation.id, conversation.client_id, trackingIds]);
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;

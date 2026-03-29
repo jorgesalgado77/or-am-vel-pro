@@ -454,10 +454,25 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         async (payload) => {
           const msg = payload.new as any;
           if (msg.remetente_tipo === "cliente") {
-            const conv = conversationsRef.current.find((c) => c.id === msg.tracking_id);
+            // Find conversation by tracking_id OR by matching client_id across grouped entries
+            let conv = conversationsRef.current.find((c) => c.id === msg.tracking_id);
+
+            // If not found by direct tracking_id, search by client_id linkage
+            if (!conv && msg.tracking_id) {
+              const { data: trackingRow } = await supabase
+                .from("client_tracking")
+                .select("client_id")
+                .eq("id", msg.tracking_id)
+                .maybeSingle();
+
+              if (trackingRow?.client_id) {
+                conv = conversationsRef.current.find((c) => c.client_id === trackingRow.client_id);
+              }
+            }
+
             playLeadNotificationSound(conv?.lead_temperature);
 
-            if (!selected || selected.id !== msg.tracking_id) {
+            if (!selected || (selected.id !== msg.tracking_id && (!conv || selected.id !== conv.id))) {
               const tempEmoji = conv?.lead_temperature === "quente" ? "🔥" : conv?.lead_temperature === "morno" ? "🟡" : "❄️";
               toast.info(`${tempEmoji} Nova mensagem de cliente!`, {
                 description: msg.mensagem?.substring(0, 50),
@@ -465,7 +480,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               });
             }
 
-            if (selected && selected.id === msg.tracking_id) {
+            if (selected && (selected.id === msg.tracking_id || (conv && selected.id === conv.id))) {
               triggerAI(selected, true);
             }
 
