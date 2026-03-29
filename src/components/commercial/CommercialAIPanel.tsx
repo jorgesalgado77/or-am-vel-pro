@@ -314,6 +314,11 @@ export function CommercialAIPanel() {
           <DirectorDashboard tenantId={tenantId} />
         </TabsContent>
 
+        {/* Arbitrage Tab */}
+        <TabsContent value="arbitrage">
+          <ArbitragePanel />
+        </TabsContent>
+
         {/* Insights Tab */}
         <TabsContent value="insights" className="space-y-3">
           {insights.length === 0 ? (
