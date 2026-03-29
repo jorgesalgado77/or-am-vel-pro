@@ -1,6 +1,6 @@
 import {memo, useMemo} from "react";
 import {format} from "date-fns";
-import {FileIcon} from "lucide-react";
+import {FileIcon, Smartphone, Monitor} from "lucide-react";
 import {cn} from "@/lib/utils";
 import type {ChatMessage} from "./types";
 import {ClosingThermometer, analyzeClientMessage} from "@/components/vendazap/ClosingThermometer";
@@ -90,7 +90,12 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({ message, show
           >
             <AttachmentPreview msg={message} />
             {message.mensagem && <p className="whitespace-pre-wrap break-words">{message.mensagem}</p>}
-            <p className={cn("text-[10px] text-right mt-0.5", isLoja ? "opacity-70" : "text-muted-foreground")}>
+            <p className={cn("text-[10px] text-right mt-0.5 flex items-center justify-end gap-1", isLoja ? "opacity-70" : "text-muted-foreground")}>
+              {isLoja && (
+                message.remetente_nome === "Você"
+                  ? <span title="Enviado pelo celular"><Smartphone className="h-2.5 w-2.5 inline-block" /></span>
+                  : <span title="Enviado pelo sistema"><Monitor className="h-2.5 w-2.5 inline-block" /></span>
+              )}
               {time}
             </p>
           </div>
