@@ -90,7 +90,12 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({ message, show
           >
             <AttachmentPreview msg={message} />
             {message.mensagem && <p className="whitespace-pre-wrap break-words">{message.mensagem}</p>}
-            <p className={cn("text-[10px] text-right mt-0.5", isLoja ? "opacity-70" : "text-muted-foreground")}>
+            <p className={cn("text-[10px] text-right mt-0.5 flex items-center justify-end gap-1", isLoja ? "opacity-70" : "text-muted-foreground")}>
+              {isLoja && (
+                message.remetente_nome === "Você"
+                  ? <Smartphone className="h-2.5 w-2.5 inline-block" title="Enviado pelo celular" />
+                  : <Monitor className="h-2.5 w-2.5 inline-block" title="Enviado pelo sistema" />
+              )}
               {time}
             </p>
           </div>
