@@ -640,6 +640,8 @@ export function CommercialAIPanel() {
               "Analise meus gargalos",
               "Qual o status da meta da loja?",
               "Quais leads estão parados e precisam de ação?",
+              "Me indique vídeos de treinamento de vendas para melhorar meu desempenho",
+              "Quais estratégias posso usar para aumentar meu ticket médio?",
             ].map(q => (
               <Button
                 key={q}
