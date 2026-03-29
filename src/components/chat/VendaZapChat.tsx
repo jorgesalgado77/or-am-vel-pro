@@ -762,23 +762,75 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     handleSelectConversation(newConv);
   }, [conversations, currentUser, fetchConversations, tenantId, normalizePhone]);
 
-  // Delete conversation (admin only)
+  // Delete conversation (admin only) — removes ALL related tracking records and messages
   const handleDeleteConversation = useCallback(async (conv: ChatConversation) => {
     if (!isAdminOrManager) return;
     if (!confirm(`Tem certeza que deseja excluir a conversa com "${conv.nome_cliente}"?\n\nTodas as mensagens serão removidas permanentemente.`)) return;
 
     try {
-      // Delete messages first, then tracking
-      await supabase.from("tracking_messages").delete().eq("tracking_id", conv.id);
-      await supabase.from("client_tracking").delete().eq("id", conv.id);
+      // Collect all tracking IDs related to this conversation
+      const allTrackingIds = Array.from(new Set([
+        conv.id,
+        ...(conv.relatedTrackingIds || []),
+      ]));
+
+      // Delete messages for ALL related tracking IDs
+      for (const trackId of allTrackingIds) {
+        await supabase.from("tracking_messages").delete().eq("tracking_id", trackId);
+      }
+
+      // Delete ALL related tracking records
+      for (const trackId of allTrackingIds) {
+        await supabase.from("client_tracking").delete().eq("id", trackId);
+      }
 
       setConversations((prev) => prev.filter((c) => c.id !== conv.id));
       if (selected?.id === conv.id) setSelected(null);
-      toast.success(`Conversa com "${conv.nome_cliente}" excluída`);
+      toast.success(`Conversa com "${conv.nome_cliente}" excluída completamente`);
       fetchConversations();
     } catch (err) {
       console.error("Delete conversation error:", err);
       toast.error("Erro ao excluir conversa");
+    }
+  }, [isAdminOrManager, selected, fetchConversations]);
+
+  // Merge duplicate: keep chosen conversation, delete the other
+  const handleMergeDuplicate = useCallback(async (keep: ChatConversation, remove: ChatConversation) => {
+    if (!isAdminOrManager) return;
+
+    try {
+      const removeTrackingIds = Array.from(new Set([
+        remove.id,
+        ...(remove.relatedTrackingIds || []),
+      ]));
+      const keepTrackingIds = Array.from(new Set([
+        keep.id,
+        ...(keep.relatedTrackingIds || []),
+      ]));
+
+      // Move messages from removed tracking to the kept one (reassign tracking_id)
+      for (const trackId of removeTrackingIds) {
+        if (!keepTrackingIds.includes(trackId)) {
+          await supabase
+            .from("tracking_messages")
+            .update({ tracking_id: keep.id } as any)
+            .eq("tracking_id", trackId);
+        }
+      }
+
+      // Delete the removed tracking records
+      for (const trackId of removeTrackingIds) {
+        if (!keepTrackingIds.includes(trackId)) {
+          await supabase.from("client_tracking").delete().eq("id", trackId);
+        }
+      }
+
+      if (selected?.id === remove.id) setSelected(keep);
+      toast.success(`Conversas mescladas. "${keep.nome_cliente}" mantida.`);
+      fetchConversations();
+    } catch (err) {
+      console.error("Merge duplicate error:", err);
+      toast.error("Erro ao mesclar conversas");
     }
   }, [isAdminOrManager, selected, fetchConversations]);
 
