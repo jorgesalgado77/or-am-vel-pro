@@ -282,8 +282,28 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
 
           {tab === "vendazap" && (
             <div className="flex flex-col">
+              {/* DISC filter chips */}
+              <div className="flex gap-1 px-2 py-1 flex-wrap border-b border-border">
+                <Badge
+                  variant={discFilter === "all" ? "default" : "outline"}
+                  className="cursor-pointer text-[8px] h-5 px-1.5"
+                  onClick={() => setDiscFilter("all")}
+                >
+                  Todos DISC
+                </Badge>
+                {(["D", "I", "S", "C"] as const).map((d) => (
+                  <Badge
+                    key={d}
+                    variant={discFilter === d ? "default" : "outline"}
+                    className={`cursor-pointer text-[8px] h-5 px-1.5 gap-0.5 ${discFilter === d && detectedDiscProfile === d ? "ring-1 ring-primary" : ""}`}
+                    onClick={() => setDiscFilter(discFilter === d ? "all" : d)}
+                  >
+                    {DISC_META[d].emoji} {DISC_META[d].label}
+                  </Badge>
+                ))}
+              </div>
               {/* Type filter chips */}
-              <div className="flex gap-1 px-2 py-1.5 flex-wrap border-b border-border">
+              <div className="flex gap-1 px-2 py-1 flex-wrap border-b border-border">
                 <Badge
                   variant={copyTypeFilter === "all" ? "default" : "outline"}
                   className="cursor-pointer text-[8px] h-5 px-1.5"
