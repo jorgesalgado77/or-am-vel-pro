@@ -157,10 +157,6 @@ serve(async (req) => {
       ? Boolean(body?.data?.key?.fromMe)
       : body?.isFromMe === true || body?.fromMe === true;
 
-    if (isFromMe) {
-      return respond({ status: "skipped_from_me" });
-    }
-
     const senderPhone = isEvolution
       ? body?.data?.key?.remoteJid?.replace(/@.*/, "") || ""
       : body?.phone || body?.sender || body?.from || "";
@@ -187,9 +183,9 @@ serve(async (req) => {
         tracking_id: trackingId,
         tenant_id: client.tenant_id,
         mensagem: messageText,
-        remetente_tipo: "cliente",
-        remetente_nome: client.nome || "Cliente",
-        lida: false,
+        remetente_tipo: isFromMe ? "loja" : "cliente",
+        remetente_nome: isFromMe ? "Você" : (client.nome || "Cliente"),
+        lida: isFromMe ? true : false,
         created_at: now,
         ...(media?.url
           ? {
