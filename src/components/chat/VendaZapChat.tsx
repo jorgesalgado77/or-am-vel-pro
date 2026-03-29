@@ -931,28 +931,21 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         ...(deleteTarget.relatedTrackingIds || []),
       ]));
 
+      // Delete messages first (FK dependency)
       for (const trackId of allTrackingIds) {
-        await supabase.from("tracking_messages").delete().eq("tracking_id", trackId);
+        const { error: msgErr } = await supabase.from("tracking_messages").delete().eq("tracking_id", trackId);
+        if (msgErr) console.warn("[Delete] msg error for", trackId, msgErr);
       }
 
+      // Then delete the tracking records
       for (const trackId of allTrackingIds) {
-        await supabase.from("client_tracking").delete().eq("id", trackId);
+        const { error: trackErr } = await supabase.from("client_tracking").delete().eq("id", trackId);
+        if (trackErr) console.warn("[Delete] tracking error for", trackId, trackErr);
       }
 
-      // Add to deletedIds for exit animation
-      setDeletedIds((prev) => new Set([...prev, deleteTarget.id]));
-
-      // Wait for animation, then remove from state
-      setTimeout(() => {
-        setConversations((prev) => prev.filter((c) => c.id !== deleteTarget.id));
-        setDeletedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(deleteTarget.id);
-          return next;
-        });
-        if (selected?.id === deleteTarget.id) setSelected(null);
-        fetchConversations();
-      }, 400);
+      // Immediately remove from local state — do NOT refetch
+      if (selected?.id === deleteTarget.id) setSelected(null);
+      setConversations((prev) => prev.filter((c) => c.id !== deleteTarget.id));
 
       toast.success(`Conversa com "${deleteTarget.nome_cliente}" excluída completamente`);
     } catch (err) {
@@ -962,7 +955,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
       setDeleting(false);
       setDeleteTarget(null);
     }
-  }, [deleteTarget, selected, fetchConversations]);
+  }, [deleteTarget, selected]);
 
   // Merge duplicate: keep chosen conversation, delete the other
   const handleMergeDuplicate = useCallback(async (keep: ChatConversation, remove: ChatConversation) => {
