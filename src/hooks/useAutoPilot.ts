@@ -182,11 +182,14 @@ export function useAutoPilot({ tenantId, userId, addon }: UseAutoPilotParams) {
       await new Promise((r) => setTimeout(r, delay));
 
       // Call AI with context
+      // Predict next move for AI context enrichment
+      const prediction = behaviorEngine.predictNextMove(behaviorCtx);
+
       const { data, error } = await supabase.functions.invoke("vendazap-ai", {
         body: {
           nome_cliente: clientName,
           mensagem_cliente: clientMessage,
-          status_negociacao: "em_negociacao",
+          status_negociacao: clientStatus || "em_negociacao",
           tipo_copy: "resposta_automatica",
           tom: settings?.tom_padrao || "amigavel",
           prompt_sistema: addon.prompt_sistema,
@@ -195,6 +198,13 @@ export function useAutoPilot({ tenantId, userId, addon }: UseAutoPilotParams) {
           max_tokens: Math.min(addon.max_tokens_mensagem, 300),
           modo: "autopilot",
           historico: recentMessages?.slice(-5) || [],
+          // Behavior Engine context
+          engagement_score: engagement.score,
+          engagement_level: engagement.level,
+          resistance_level: resistance.level,
+          resistance_category: resistance.category,
+          predicted_move: prediction.nextMove,
+          prediction_confidence: prediction.confidence,
         },
       });
 
