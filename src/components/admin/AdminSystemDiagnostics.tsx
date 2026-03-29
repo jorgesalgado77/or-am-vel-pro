@@ -67,7 +67,7 @@ export function AdminSystemDiagnostics() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const analysis = useMemo(
-    () => analyzeDiagnosticPatterns(loginLogs as Record<string, unknown>[]),
+    () => analyzeDiagnosticPatterns(loginLogs as unknown as Record<string, unknown>[]),
     [loginLogs],
   );
 
