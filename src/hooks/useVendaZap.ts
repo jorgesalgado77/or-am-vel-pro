@@ -257,6 +257,36 @@ export function useVendaZap(tenantId: string | null) {
       // Build CDE context for strategy-driven AI generation
       const cdeContext = buildCDEContext(params);
 
+      // Build learning context from OptimizationEngine (fire-and-forget if fails)
+      let learningCtx = params.learning_context || "";
+      if (!learningCtx && tenantId) {
+        try {
+          const { getOptimizationEngine } = await import("@/services/ai/OptimizationEngine");
+          const optimizer = getOptimizationEngine(tenantId);
+          const ctx: DealContext = {
+            tenant_id: tenantId,
+            customer: {
+              id: params.client_id || "",
+              name: params.nome_cliente || "Cliente",
+              status: params.status_negociacao || "novo",
+              temperature: calcLeadTemperature({
+                status: params.status_negociacao || "novo",
+                diasSemResposta: params.dias_sem_resposta || 0,
+                temSimulacao: (params.valor_orcamento || 0) > 0,
+              }),
+              disc_profile: params.disc_profile as DealContext["customer"]["disc_profile"],
+              days_inactive: params.dias_sem_resposta || 0,
+              has_simulation: (params.valor_orcamento || 0) > 0,
+            },
+            pricing: { total_price: params.valor_orcamento || 0 },
+            payment: { forma_pagamento: "Boleto", parcelas: 1, valor_entrada: 0, plus_percentual: 0 },
+            discounts: { desconto1: 0, desconto2: 0, desconto3: 0 },
+          };
+          const opt = await optimizer.optimizeDecision(ctx);
+          learningCtx = `\n=== OTIMIZAÇÃO IA (dados reais) ===\n🎯 Estratégia: "${opt.recommended_strategy}" (${opt.strategy_confidence}% confiança)\n💰 Desconto ideal: ${opt.recommended_discount_range.optimal}%\n⏰ ${opt.recommended_timing}\n📝 ${opt.reasoning}`;
+        } catch { /* silent — learning context is optional */ }
+      }
+
       const { data, error } = await supabase.functions.invoke("vendazap-ai", {
         body: {
           ...params,
@@ -265,6 +295,7 @@ export function useVendaZap(tenantId: string | null) {
           api_provider: addon.api_provider,
           openai_model: addon.openai_model,
           max_tokens: addon.max_tokens_mensagem,
+          learning_context: learningCtx,
           // CDE enrichment — AI uses these for strategic messaging
           cde_tipo_copy: cdeContext.tipo_copy,
           cde_tom: cdeContext.tom,
