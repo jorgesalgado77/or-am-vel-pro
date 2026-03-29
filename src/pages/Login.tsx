@@ -271,64 +271,82 @@ export default function Login() {
   // Fetch tenant info when store code is complete (uses RPC to bypass RLS)
   useEffect(() => {
     const digits = unmask(codigoLoja);
-    const maskedCode = maskCodigoLoja(codigoLoja);
 
     if (digits.length < 6) {
       setTenantInfo(null);
       return;
     }
+
     let cancelled = false;
+    const formattedCode = digits.replace(/(\d{3})(\d{3})/, "$1.$2");
+
     (async () => {
       try {
-        const { data, error } = await (supabase as any).rpc("resolve_tenant_info_by_code", { p_code: maskedCode });
-        const row = Array.isArray(data) ? data[0] : data;
+        // Strategy 1: RPC resolve_tenant_info_by_code
+        const { data: rpcInfo, error: rpcInfoErr } = await (supabase as any).rpc("resolve_tenant_info_by_code", { p_code: formattedCode });
+        console.log("[Login] RPC resolve_tenant_info_by_code:", { formattedCode, rpcInfo, rpcInfoErr });
+        
+        const row = Array.isArray(rpcInfo) ? rpcInfo[0] : rpcInfo;
         if (!cancelled && row && (row.company_name || row.nome || row.nome_empresa || row.nome_loja)) {
           setTenantInfo({
             nome: row.company_name || row.nome_empresa || row.nome || row.nome_loja,
             subtitulo: row.company_subtitle || row.subtitulo || "",
           });
-        } else if (!cancelled) {
-          // Fallback: try direct query
-          const cleanCode = maskedCode.replace(/\D/g, "");
-          const formattedCode = cleanCode.replace(/(\d{3})(\d{3})/, "$1.$2");
-          const { data: tenantData } = await (supabase as any)
-            .from("tenants")
-            .select("id, nome_loja, codigo_loja")
-            .or(`codigo_loja.eq.${formattedCode},codigo_loja.eq.${cleanCode}`)
-            .limit(1)
+          return;
+        }
+
+        // Strategy 2: Direct query tenants + company_settings
+        const { data: tenantData } = await (supabase as any)
+          .from("tenants")
+          .select("id, nome_loja, codigo_loja")
+          .or(`codigo_loja.eq.${formattedCode},codigo_loja.eq.${digits}`)
+          .limit(1)
+          .maybeSingle();
+        
+        console.log("[Login] Direct tenants query:", { tenantData });
+
+        if (!cancelled && tenantData?.id) {
+          const { data: csData } = await (supabase as any)
+            .from("company_settings")
+            .select("company_name, nome_empresa, company_subtitle, subtitulo")
+            .eq("tenant_id", tenantData.id)
             .maybeSingle();
-          if (!cancelled && tenantData?.nome_loja) {
-            const { data: csData } = await (supabase as any)
-              .from("company_settings")
-              .select("company_name, nome_empresa, company_subtitle, subtitulo")
-              .eq("tenant_id", tenantData.id)
-              .maybeSingle();
-            setTenantInfo({
-              nome: csData?.company_name || csData?.nome_empresa || tenantData.nome_loja,
-              subtitulo: csData?.company_subtitle || csData?.subtitulo || "",
-            });
-          } else if (!cancelled) {
-            // Try resolve_tenant_by_code as last resort
-            const { data: rpcData } = await (supabase as any).rpc("resolve_tenant_by_code", { p_code: formattedCode });
-            const tenantId = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-            if (!cancelled && tenantId) {
-              const tid = typeof tenantId === "string" ? tenantId : tenantId?.tenant_id || tenantId?.id;
-              if (tid) {
-                const { data: tData } = await (supabase as any)
-                  .from("tenants").select("nome_loja").eq("id", tid).maybeSingle();
-                const { data: csData2 } = await (supabase as any)
-                  .from("company_settings").select("company_name, nome_empresa, company_subtitle, subtitulo").eq("tenant_id", tid).maybeSingle();
-                setTenantInfo({
-                  nome: csData2?.company_name || csData2?.nome_empresa || tData?.nome_loja || "Loja",
-                  subtitulo: csData2?.company_subtitle || csData2?.subtitulo || "",
-                });
-              } else {
-                setTenantInfo(null);
-              }
-            } else if (!cancelled) {
-              setTenantInfo(null);
+          
+          console.log("[Login] company_settings:", { csData });
+
+          if (!cancelled) {
+            const nome = csData?.company_name || csData?.nome_empresa || tenantData.nome_loja;
+            if (nome) {
+              setTenantInfo({
+                nome,
+                subtitulo: csData?.company_subtitle || csData?.subtitulo || "",
+              });
+              return;
             }
           }
+        }
+
+        // Strategy 3: RPC resolve_tenant_by_code
+        const { data: rpcData } = await (supabase as any).rpc("resolve_tenant_by_code", { p_code: formattedCode });
+        const resolved = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        const tid = typeof resolved === "string" ? resolved : resolved?.tenant_id || resolved?.id;
+        
+        console.log("[Login] RPC resolve_tenant_by_code:", { rpcData, tid });
+
+        if (!cancelled && tid) {
+          const { data: tData } = await (supabase as any)
+            .from("tenants").select("nome_loja").eq("id", tid).maybeSingle();
+          const { data: csData2 } = await (supabase as any)
+            .from("company_settings").select("company_name, nome_empresa, company_subtitle, subtitulo").eq("tenant_id", tid).maybeSingle();
+          
+          if (!cancelled) {
+            setTenantInfo({
+              nome: csData2?.company_name || csData2?.nome_empresa || tData?.nome_loja || "Loja",
+              subtitulo: csData2?.company_subtitle || csData2?.subtitulo || "",
+            });
+          }
+        } else if (!cancelled) {
+          setTenantInfo(null);
         }
       } catch (err) {
         console.warn("[Login] Branding fetch failed:", err);
