@@ -33,6 +33,7 @@ interface SalesGoal {
   current_value: number;
   month: string;
   created_at: string;
+  is_virtual?: boolean;
 }
 
 interface UserOption {
@@ -123,18 +124,41 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     setLoading(true);
 
     const effectiveUsers = userList || users;
+    const storageKey = `sales_goals_${tenantId}_${selectedMonth}`;
+    const storedGoals = JSON.parse(localStorage.getItem(storageKey) || "[]") as any[];
 
     const { data: goalsData, error } = await supabase
       .from("sales_goals" as any)
       .select("*")
       .eq("tenant_id", tenantId)
-      .eq("month", selectedMonth);
+      .eq("month", selectedMonth)
+      .in("goal_type", ["revenue", "deals", "leads"]);
 
-    if (error) {
-      const stored = localStorage.getItem(`sales_goals_${tenantId}_${selectedMonth}`);
-      setRawGoals(stored ? JSON.parse(stored) : []);
-      setLoading(false);
-      return;
+    const mergedByKey = new Map<string, any>();
+    for (const goal of [...((goalsData as any[]) || []), ...storedGoals]) {
+      if (!["revenue", "deals", "leads"].includes(goal.goal_type)) continue;
+      const key = `${goal.user_id}-${goal.goal_type}-${goal.month}`;
+      if (!mergedByKey.has(key)) {
+        mergedByKey.set(key, goal);
+      }
+    }
+
+    if (metaVendedor?.valor && effectiveUsers.length > 0) {
+      for (const user of effectiveUsers) {
+        const revenueKey = `${user.id}-revenue-${selectedMonth}`;
+        if (!mergedByKey.has(revenueKey)) {
+          mergedByKey.set(revenueKey, {
+            id: `default-${selectedMonth}-${user.id}`,
+            tenant_id: tenantId,
+            user_id: user.id,
+            goal_type: "revenue",
+            target_value: metaVendedor.valor,
+            month: selectedMonth,
+            created_at: new Date().toISOString(),
+            is_virtual: true,
+          });
+        }
+      }
     }
 
     const userMap = new Map(effectiveUsers.map(u => [u.id, u.nome_completo]));
@@ -144,7 +168,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       .select("responsavel_id, status, valor_fechamento, created_at")
       .eq("tenant_id", tenantId);
 
-    const enriched = (goalsData as any[] || []).map((g: any) => {
+    const enriched = Array.from(mergedByKey.values()).map((g: any) => {
       let currentValue = 0;
       const monthClients = (clients || []).filter((c: any) => {
         return (c.created_at || "").substring(0, 7) === selectedMonth && c.responsavel_id === g.user_id;
@@ -165,16 +189,20 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
         user_name: userMap.get(g.user_id) || "Desconhecido",
         current_value: currentValue,
       };
-    });
+    }).sort((a, b) => a.user_name.localeCompare(b.user_name, "pt-BR"));
 
-    // Replace state entirely to avoid duplicates
+    if (error && enriched.length === 0) {
+      setRawGoals([]);
+      setLoading(false);
+      return;
+    }
+
     setRawGoals(enriched);
     setLoading(false);
-  }, [tenantId, selectedMonth, users]);
+  }, [tenantId, selectedMonth, users, metaVendedor]);
 
-  // Load users first, then goals
   useEffect(() => { loadUsers(); }, [loadUsers]);
-  
+
   useEffect(() => {
     if (usersLoaded) loadGoals();
   }, [usersLoaded, loadGoals]);
@@ -221,8 +249,9 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       month: selectedMonth,
     };
 
+    const isPersistedGoal = !!form.id && !form.id.startsWith("default-");
     let error;
-    if (form.id) {
+    if (isPersistedGoal) {
       ({ error } = await supabase.from("sales_goals" as any).update(payload as any).eq("id", form.id));
     } else {
       ({ error } = await supabase.from("sales_goals" as any).insert(payload as any));
@@ -233,19 +262,19 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       const stored = JSON.parse(localStorage.getItem(key) || "[]");
       const newGoal = {
         ...payload,
-        id: form.id || crypto.randomUUID(),
+        id: isPersistedGoal ? form.id : `local-${crypto.randomUUID()}`,
         user_name: users.find(u => u.id === form.user_id)?.nome_completo || "",
         current_value: 0,
         created_at: new Date().toISOString(),
       };
-      if (form.id) {
-        const idx = stored.findIndex((g: any) => g.id === form.id);
-        if (idx >= 0) stored[idx] = newGoal;
-      } else {
-        stored.push(newGoal);
-      }
+      const existingIndex = stored.findIndex((g: any) =>
+        (isPersistedGoal && g.id === form.id) ||
+        (g.user_id === payload.user_id && g.goal_type === payload.goal_type && g.month === payload.month)
+      );
+      if (existingIndex >= 0) stored[existingIndex] = newGoal;
+      else stored.push(newGoal);
       localStorage.setItem(key, JSON.stringify(stored));
-      toast.success("Meta salva (local)!");
+      toast.success("Meta salva!");
       setRawGoals(stored);
     } else {
       toast.success("Meta salva!");
@@ -257,6 +286,10 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   };
 
   const handleDelete = async (id: string) => {
+    if (id.startsWith("default-")) {
+      toast.info("Essa meta padrão vem de Metas e Tetos. Edite em vez de remover.");
+      return;
+    }
     setRawGoals(prev => prev.filter(g => g.id !== id));
     const { error } = await supabase.from("sales_goals" as any).delete().eq("id", id);
     if (error) {
@@ -285,7 +318,8 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       .from("sales_goals" as any)
       .select("*")
       .eq("tenant_id", tenantId)
-      .eq("month", prevMonth);
+      .eq("month", prevMonth)
+      .in("goal_type", ["revenue", "deals", "leads"]);
 
     if (!prevGoals || prevGoals.length === 0) {
       toast.error("Nenhuma meta encontrada no mês anterior");
@@ -296,7 +330,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     let count = 0;
     for (const g of prevGoals as any[]) {
       const existing = goals.find(eg => eg.user_id === g.user_id && eg.goal_type === g.goal_type);
-      if (!existing) {
+      if (!existing || existing.is_virtual) {
         await supabase.from("sales_goals" as any).insert({
           tenant_id: tenantId,
           user_id: g.user_id,
@@ -314,7 +348,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   };
 
   const openEdit = (g: SalesGoal) => {
-    setForm({ id: g.id, user_id: g.user_id, goal_type: g.goal_type, target_value: g.target_value });
+    setForm({ id: g.is_virtual ? "" : g.id, user_id: g.user_id, goal_type: g.goal_type, target_value: g.target_value });
     setDialogOpen(true);
   };
 
@@ -501,7 +535,8 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      {isAchieved && <Badge className="bg-emerald-500 text-white text-[10px]">✓ Atingida</Badge>}
+                      {isAchieved && <Badge variant="secondary" className="text-[10px]">✓ Atingida</Badge>}
+                      {g.is_virtual && <Badge variant="outline" className="text-[10px]">Padrão</Badge>}
                       {isNearDeadline && !isAchieved && (
                         <Badge variant="destructive" className="text-[10px] gap-0.5">
                           <AlertTriangle className="h-3 w-3" /> Prazo
@@ -510,9 +545,11 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(g)}>
                         <Pencil className="h-3 w-3" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(g.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {!g.is_virtual && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(g.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
 
