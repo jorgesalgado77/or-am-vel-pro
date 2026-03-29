@@ -1010,7 +1010,14 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
               <CardTitle className="text-sm flex items-center gap-2"><Send className="h-4 w-4 text-green-600" />Mensagem Gerada</CardTitle>
               <div className="flex items-center gap-2">
                 {closingScore !== null && <ClosingThermometer score={closingScore} compact />}
-                {mensagemGerada && <Button variant="outline" size="sm" onClick={() => handleCopy(mensagemGerada)} className="gap-1 h-7"><Copy className="h-3 w-3" />Copiar</Button>}
+                {mensagemGerada && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => updateForm({ mensagemGerada: "" })} className="gap-1 h-7 text-xs text-destructive" title="Limpar mensagem gerada">
+                      <X className="h-3 w-3" />Limpar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleCopy(mensagemGerada)} className="gap-1 h-7"><Copy className="h-3 w-3" />Copiar</Button>
+                  </>
+                )}
               </div>
             </div>
           </CardHeader>
