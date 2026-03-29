@@ -85,12 +85,14 @@ export function MeasurementRequestModal({
   const [envAttachments, setEnvAttachments] = useState<Record<string, EnvironmentAttachment[]>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
+  const [hydrating, setHydrating] = useState(false);
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   const [observacoes, setObservacoes] = useState("");
   const [existingRequestId, setExistingRequestId] = useState<string | null>(null);
   const [lastEditInfo, setLastEditInfo] = useState<{ by: string; cargo: string; at: string } | null>(null);
+  const [editHistory, setEditHistory] = useState<Array<{ by: string; cargo: string; at: string; action: string }>>([]);
   const { settings } = useCompanySettings();
   const localPreviewUrlsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef(false);
@@ -765,6 +767,7 @@ export function MeasurementRequestModal({
     if (!client?.id || !open) return;
     if (initialLoadDoneRef.current) return;
     let active = true;
+    setHydrating(true);
 
     const loadData = async () => {
       const [{ data: sims }, latestRequest] = await Promise.all([
@@ -899,6 +902,17 @@ export function MeasurementRequestModal({
         });
       }
       initialLoadDoneRef.current = true;
+
+      // Build edit history from the request
+      const history: Array<{ by: string; cargo: string; at: string; action: string }> = [];
+      if (latestRequest?.created_by && latestRequest?.created_at) {
+        history.push({ by: latestRequest.created_by, cargo: "", at: latestRequest.created_at, action: "Criou a solicitação" });
+      }
+      if (latestRequest?.last_edited_by && latestRequest?.last_edited_at && latestRequest.last_edited_at !== latestRequest.created_at) {
+        history.push({ by: latestRequest.last_edited_by, cargo: latestRequest.last_edited_by_cargo || "", at: latestRequest.last_edited_at, action: "Editou a solicitação" });
+      }
+      setEditHistory(history);
+      setHydrating(false);
 
       if (latestRequest) {
         hydrateClientState({ ...(client as any), ...(latestRequest as Record<string, any>) });
@@ -1650,7 +1664,7 @@ export function MeasurementRequestModal({
           const { data: userRow } = await (supabase as any)
             .from("usuarios")
             .select("nome_completo, cargo_id")
-            .eq("user_id", uid)
+            .eq("auth_user_id", uid)
             .eq("tenant_id", tenantId)
             .maybeSingle();
           userNomeCompleto = userRow?.nome_completo || "";
