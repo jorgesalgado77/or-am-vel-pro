@@ -29,6 +29,36 @@ interface Props {
 
 const PAGE_SIZE = 40;
 
+function normalizePhone(value?: string | null) {
+  const digits = String(value || "")
+    .replace(/^WA-/i, "")
+    .replace(/@.*/, "")
+    .replace(/\D/g, "")
+    .replace(/^0+/, "");
+
+  return /^55\d{10,11}$/.test(digits) ? digits.slice(2) : digits;
+}
+
+function phonesMatch(first?: string | null, second?: string | null) {
+  const left = normalizePhone(first);
+  const right = normalizePhone(second);
+
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (left.endsWith(right) || right.endsWith(left)) return true;
+
+  const leftLast8 = left.slice(-8);
+  const rightLast8 = right.slice(-8);
+  return Boolean(leftLast8 && rightLast8 && leftLast8 === rightLast8);
+}
+
+function getConversationPhone(conversation: ChatConversation | null | undefined) {
+  if (!conversation) return "";
+  return normalizePhone(
+    conversation.phone || (conversation.numero_contrato?.startsWith("WA-") ? conversation.numero_contrato.replace("WA-", "") : "")
+  );
+}
+
 export function ChatWindow({
   conversation, onBack, onStartDealRoom, onCreateLead,
   inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded,
@@ -53,7 +83,7 @@ export function ChatWindow({
     let active = true;
 
     void (async () => {
-      const normalizedConversationPhone = (conversation.phone || "").replace(/\D/g, "");
+      const normalizedConversationPhone = getConversationPhone(conversation);
       const trackingIdSet = new Set<string>([conversation.id]);
 
       if (conversation.client_id) {
@@ -67,17 +97,38 @@ export function ChatWindow({
       }
 
       if (normalizedConversationPhone) {
-        const { data: phoneClients } = await supabase
+        let trackingQuery = supabase
+          .from("client_tracking")
+          .select("id, numero_contrato")
+          .order("updated_at", { ascending: false })
+          .limit(100);
+
+        if (tenantId) {
+          trackingQuery = trackingQuery.eq("tenant_id", tenantId);
+        }
+
+        const { data: phoneTrackings } = await trackingQuery.or(`numero_contrato.ilike.%${normalizedConversationPhone.slice(-8)}%`);
+
+        ((phoneTrackings as Array<{ id: string; numero_contrato?: string | null }> | null) || [])
+          .filter((row) => phonesMatch(row.numero_contrato, normalizedConversationPhone))
+          .forEach((row) => trackingIdSet.add(row.id));
+
+        let clientQuery = supabase
           .from("clients")
           .select("id, telefone1, telefone2")
-          .or(`telefone1.ilike.%${normalizedConversationPhone.slice(-8)}%,telefone2.ilike.%${normalizedConversationPhone.slice(-8)}%`)
-          .eq("tenant_id", tenantId || undefined);
+          .or(`telefone1.ilike.%${normalizedConversationPhone.slice(-8)}%,telefone2.ilike.%${normalizedConversationPhone.slice(-8)}%`);
+
+        if (tenantId) {
+          clientQuery = clientQuery.eq("tenant_id", tenantId);
+        }
+
+        const { data: phoneClients } = await clientQuery;
 
         const relatedClientIds = ((phoneClients as any[]) || [])
           .filter((client) => {
             const phones = [client.telefone1, client.telefone2]
-              .map((phone) => String(phone || "").replace(/\D/g, ""));
-            return phones.some((phone) => phone && (phone.endsWith(normalizedConversationPhone) || normalizedConversationPhone.endsWith(phone)));
+              .map((phone) => normalizePhone(phone));
+            return phones.some((phone) => phonesMatch(phone, normalizedConversationPhone));
           })
           .map((client) => client.id);
 
@@ -99,7 +150,7 @@ export function ChatWindow({
     return () => {
       active = false;
     };
-  }, [conversation.id, conversation.client_id, conversation.phone, tenantId]);
+  }, [conversation, tenantId]);
 
   const fetchMessages = useCallback(async (before?: string) => {
     if (trackingIds.length === 0) {
@@ -138,7 +189,6 @@ export function ChatWindow({
     setLoading(false);
   }, [trackingIds, onMessagesLoaded]);
 
-  // Initial load + mark as read
   useEffect(() => {
     isInitialLoad.current = true;
     setLoading(true);
@@ -173,17 +223,24 @@ export function ChatWindow({
 
           let isRelated = trackingIds.includes(msg.tracking_id);
 
-          // If not directly in our tracking list, check if it belongs to the same client
-          if (!isRelated && conversation.client_id) {
+          if (!isRelated) {
             const { data: trackingRow } = await supabase
               .from("client_tracking")
-              .select("client_id")
+              .select("client_id, numero_contrato")
               .eq("id", msg.tracking_id)
               .maybeSingle();
 
-            if (trackingRow?.client_id === conversation.client_id) {
+            const trackingPhone = normalizePhone(trackingRow?.numero_contrato);
+
+            if (trackingRow?.client_id && trackingRow.client_id === conversation.client_id) {
               isRelated = true;
-              // Add this new tracking_id to our list for future messages
+            }
+
+            if (!isRelated && phonesMatch(trackingPhone, getConversationPhone(conversation))) {
+              isRelated = true;
+            }
+
+            if (isRelated) {
               setTrackingIds((prev) => {
                 if (prev.includes(msg.tracking_id)) return prev;
                 return [...prev, msg.tracking_id];
@@ -212,7 +269,7 @@ export function ChatWindow({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [conversation.id, conversation.client_id, trackingIds]);
+  }, [conversation, trackingIds]);
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
@@ -221,7 +278,6 @@ export function ChatWindow({
 
     const text = inputValue.trim();
 
-    // Save to DB
     const { error } = await supabase.from("tracking_messages").insert({
       tracking_id: conversation.id,
       mensagem: text,
@@ -238,7 +294,6 @@ export function ChatWindow({
       return;
     }
 
-    // Send via WhatsApp if phone is available
     if (conversation.phone) {
       const sent = await sendWhatsAppText(conversation.phone, text);
       if (!sent) {
@@ -272,7 +327,6 @@ export function ChatWindow({
       return;
     }
 
-    // Send media via WhatsApp
     if (conversation.phone) {
       await sendWhatsAppMedia(conversation.phone, url, name, tipo);
     }
@@ -284,7 +338,6 @@ export function ChatWindow({
     }
   };
 
-  // Date separator logic
   const shouldShowDate = (msg: ChatMessage, idx: number) => {
     if (idx === 0) return true;
     const prev = messages[idx - 1];
@@ -297,7 +350,6 @@ export function ChatWindow({
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-background">
-      {/* Header — fixed */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-card shrink-0">
         <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
@@ -330,7 +382,6 @@ export function ChatWindow({
           userId={userId}
         />
 
-        {/* Criar Lead button — show when conversation has no linked client */}
         {onCreateLead && !conversation.client_id && (
           <Button
             variant="outline"
@@ -356,7 +407,6 @@ export function ChatWindow({
         )}
       </div>
 
-      {/* Messages area — scrollable, takes remaining space */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto min-h-0 px-3 py-2"
@@ -391,12 +441,9 @@ export function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
-      {/* Bottom pinned area — never scrolls away */}
       <div className="shrink-0 border-t border-border bg-card">
-        {/* Typing indicator */}
         <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
 
-        {/* Input */}
         <ChatInput
           value={inputValue}
           onChange={onInputChange}

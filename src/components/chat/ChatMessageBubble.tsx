@@ -1,9 +1,10 @@
-import {memo, useMemo} from "react";
-import {format} from "date-fns";
-import {FileIcon, Smartphone, Monitor} from "lucide-react";
-import {cn} from "@/lib/utils";
-import type {ChatMessage} from "./types";
-import {ClosingThermometer, analyzeClientMessage} from "@/components/vendazap/ClosingThermometer";
+import { memo, useMemo } from "react";
+import { format } from "date-fns";
+import { FileIcon, Monitor, Smartphone } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import type { ChatMessage } from "./types";
+import { ClosingThermometer, analyzeClientMessage } from "@/components/vendazap/ClosingThermometer";
 
 interface Props {
   message: ChatMessage;
@@ -69,6 +70,12 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({ message, show
     return null;
   }, [isCliente, message.mensagem]);
 
+  const isMobileSent = isLoja && message.remetente_nome === "Você";
+  const originTitle = isMobileSent ? "Enviado pelo celular" : "Enviado pelo sistema";
+  const originDescription = isMobileSent
+    ? "Detectado como mensagem enviada direto no WhatsApp do aparelho conectado, fora do Chat de Vendas."
+    : "Mensagem enviada a partir do Chat de Vendas dentro do sistema.";
+
   return (
     <>
       {showDate && (
@@ -92,9 +99,23 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({ message, show
             {message.mensagem && <p className="whitespace-pre-wrap break-words">{message.mensagem}</p>}
             <p className={cn("text-[10px] text-right mt-0.5 flex items-center justify-end gap-1", isLoja ? "opacity-70" : "text-muted-foreground")}>
               {isLoja && (
-                message.remetente_nome === "Você"
-                  ? <span title="Enviado pelo celular"><Smartphone className="h-2.5 w-2.5 inline-block" /></span>
-                  : <span title="Enviado pelo sistema"><Monitor className="h-2.5 w-2.5 inline-block" /></span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex cursor-help" aria-label={originTitle}>
+                      {isMobileSent ? (
+                        <Smartphone className="h-2.5 w-2.5 inline-block" />
+                      ) : (
+                        <Monitor className="h-2.5 w-2.5 inline-block" />
+                      )}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px]">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold">{originTitle}</p>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">{originDescription}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
               )}
               {time}
             </p>
