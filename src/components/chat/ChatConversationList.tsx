@@ -404,8 +404,8 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                   {search || hasActiveFilter ? "Nenhum resultado" : "Nenhuma conversa"}
                 </div>
               ) : (
-                systemClients.map((conv) => (
-                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsListOpen(false); }} />
+                 systemClients.map((conv) => (
+                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsListOpen(false); }} onDelete={onDelete} isAdmin={isAdminOrManager} />
                 ))
               )}
             </div>
@@ -430,7 +430,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
             <CollapsibleContent>
               <div className="max-h-[35vh] overflow-y-auto">
                 {waContacts.map((conv) => (
-                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsWaListOpen(false); }} />
+                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsWaListOpen(false); }} onDelete={onDelete} isAdmin={isAdminOrManager} />
                 ))}
               </div>
             </CollapsibleContent>
