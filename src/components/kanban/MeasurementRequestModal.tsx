@@ -1795,8 +1795,8 @@ export function MeasurementRequestModal({
         ...userInfo,
       });
 
-      toast.success("✅ Solicitação de medida enviada com sucesso!", {
-        description: "O gerente técnico receberá a solicitação no Kanban.",
+      toast.success(existingRequestId ? "✅ Solicitação atualizada com sucesso!" : "✅ Solicitação de medida enviada com sucesso!", {
+        description: existingRequestId ? "Os dados foram salvos e atualizados." : "O gerente técnico receberá a solicitação no Kanban.",
         duration: 6000,
       });
 
