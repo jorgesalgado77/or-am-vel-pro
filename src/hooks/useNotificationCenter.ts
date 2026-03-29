@@ -31,26 +31,26 @@ export function useNotificationCenter(userId: string | undefined, userName: stri
 
     const results: AppNotification[] = [];
 
-    // 1. Lead notifications (tracking_messages)
+    // 1. Notificações de sistema (leads + medições atribuídas)
     const { data: leads } = await supabase
       .from("tracking_messages" as any)
       .select("id, conteudo, created_at")
       .eq("destinatario", userName)
       .eq("tipo", "sistema")
-      .ilike("conteudo", "%enviado para seu atendimento%")
       .order("created_at", { ascending: false })
       .limit(15);
 
     if (leads) {
       for (const l of leads as any[]) {
+        const isMeasurementAssignment = (l.conteudo || "").includes("Solicitação de medida") && (l.conteudo || "").includes("foi atribuída a você");
         results.push({
-          id: `lead-${l.id}`,
-          type: "lead",
-          titulo: "Novo Lead",
-          descricao: l.conteudo?.replace(/[🚀✅⚠️]/g, "").trim() || "",
+          id: `${isMeasurementAssignment ? "measurement" : "lead"}-${l.id}`,
+          type: isMeasurementAssignment ? "sistema" : "lead",
+          titulo: isMeasurementAssignment ? "Solicitação atribuída" : "Novo Lead",
+          descricao: l.conteudo?.replace(/[🚀✅⚠️📐]/g, "").trim() || "",
           created_at: l.created_at,
-          lido: readIds.has(`lead-${l.id}`),
-          link_view: "clients",
+          lido: readIds.has(`${isMeasurementAssignment ? "measurement" : "lead"}-${l.id}`),
+          link_view: isMeasurementAssignment ? "measurements" : "clients",
         });
       }
     }
@@ -178,21 +178,21 @@ export function useNotificationCenter(userId: string | undefined, userName: stri
             );
           }
         }
-        // Lead assignment
-        if (m?.tipo === "sistema" && m?.destinatario === userName && m?.conteudo?.includes("enviado para seu atendimento")) {
+        // Notificações de sistema
+        if (m?.tipo === "sistema" && m?.destinatario === userName) {
           playNotificationSound();
+          const isMeasurementAssignment = (m.conteudo || "").includes("Solicitação de medida") && (m.conteudo || "").includes("foi atribuída a você");
           const notif: AppNotification = {
-            id: `lead-${m.id}`,
-            type: "lead",
-            titulo: "Novo Lead",
-            descricao: m.conteudo?.replace(/[🚀✅⚠️]/g, "").trim() || "",
+            id: `${isMeasurementAssignment ? "measurement" : "lead"}-${m.id}`,
+            type: isMeasurementAssignment ? "sistema" : "lead",
+            titulo: isMeasurementAssignment ? "Solicitação atribuída" : "Novo Lead",
+            descricao: m.conteudo?.replace(/[🚀✅⚠️📐]/g, "").trim() || "",
             created_at: m.created_at,
             lido: false,
-            link_view: "clients",
+            link_view: isMeasurementAssignment ? "measurements" : "clients",
           };
           setNotifications(prev => [notif, ...prev].slice(0, 30));
-          // Push notification for new leads
-          if (userId) {
+          if (userId && !isMeasurementAssignment) {
             sendPushIfEnabled(
               "leads",
               userId,

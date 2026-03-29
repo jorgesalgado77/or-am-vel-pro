@@ -24,6 +24,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
+import { sendWhatsAppText } from "@/lib/whatsappSender";
 
 interface MeasurementRequest {
   id: string;
@@ -233,11 +234,17 @@ export function MeasurementKanban() {
 
   const handleAssign = async (id: string, assignedTo: string) => {
     const value = assignedTo === "__none__" ? null : assignedTo;
+    const assignedUser = value
+      ? tecnicosEProjetistas.find((user) => user.nome_completo === value || user.id === value)
+      : null;
+    const assignedName = assignedUser?.nome_completo || value;
+    const requestTarget = requests.find((request) => request.id === id);
+
     const { error } = await supabase
       .from("measurement_requests" as any)
       .update({
-        assigned_to: value,
-        status: value ? "em_andamento" : "novo",
+        assigned_to: assignedName,
+        status: assignedName ? "em_andamento" : "novo",
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", id);
@@ -247,24 +254,30 @@ export function MeasurementKanban() {
       return;
     }
 
-    toast.success(value ? `Atribuído a ${value}!` : "Desvinculado");
+    toast.success(assignedName ? `Atribuído a ${assignedName}!` : "Desvinculado");
     setRequests((prev) => prev.map((request) => request.id === id ? {
       ...request,
-      assigned_to: value,
-      technician_name: value || "",
-      status: value ? "em_andamento" : "novo",
+      assigned_to: assignedName,
+      technician_name: assignedName || "",
+      status: assignedName ? "em_andamento" : "novo",
     } : request));
 
-    if (value) {
+    if (assignedName) {
       const tenantId = getTenantId();
+      const content = `📐 Solicitação de medida do cliente "${requestTarget?.nome_cliente || "Cliente"}" foi atribuída a você.`;
       supabase.from("tracking_messages").insert({
         tenant_id: tenantId,
         tipo: "sistema",
         canal: "interno",
         remetente: "Sistema",
-        conteudo: `📐 Solicitação de medida do cliente "${requests.find((request) => request.id === id)?.nome_cliente}" foi atribuída a você.`,
-        destinatario: value,
+        conteudo: content,
+        destinatario: assignedName,
       } as any).then(() => {});
+
+      if (assignedUser?.telefone) {
+        const whatsappMessage = `📐 *Nova Solicitação de Medida*\n\n👤 Cliente: ${requestTarget?.nome_cliente || "Cliente"}\n💰 Valor à vista: ${formatCurrency(Number(requestTarget?.valor_venda_avista) || 0)}\n🏠 Ambientes: ${requestTarget?.ambientes?.length || 0}\n\nVocê foi colocado(a) na fila de atendimento desta solicitação.`;
+        sendWhatsAppText(assignedUser.telefone, whatsappMessage).catch(() => {});
+      }
     }
   };
 
@@ -281,6 +294,41 @@ export function MeasurementKanban() {
       user.cargo_nome.toLowerCase().includes("medidor")
     )),
   [usuarios]);
+
+  const defaultTetoLiberacao = useMemo(() => {
+    const tetoMeta = metas.find(m => m.tipo === "teto_liberacao");
+    return tetoMeta?.valor || 0;
+  }, [metas]);
+
+  const queueOrder = useMemo(() => {
+    return tecnicosEProjetistas.map((user) => {
+      const teto = tetoOverrides[user.id] ?? defaultTetoLiberacao;
+      const assigned = requests.filter((request) =>
+        (request.assigned_to === user.nome_completo || request.assigned_to === user.id) && request.status !== "concluido"
+      );
+      const totalValor = assigned.reduce((sum, request) => sum + (Number(request.valor_venda_avista) || 0), 0);
+      const remaining = Math.max(0, teto - totalValor);
+      const lastAssignment = assigned.length > 0
+        ? assigned.reduce((latest, request) => Math.max(latest, new Date(request.updated_at || request.created_at).getTime()), 0)
+        : 0;
+
+      return {
+        id: user.id,
+        nome: user.nome_completo,
+        telefone: user.telefone,
+        email: user.email,
+        cargo: user.cargo_nome,
+        remaining,
+        teto,
+        lastAssignment,
+      };
+    }).sort((a, b) => {
+      if (a.lastAssignment !== b.lastAssignment) return a.lastAssignment - b.lastAssignment;
+      return b.remaining - a.remaining;
+    });
+  }, [tecnicosEProjetistas, requests, tetoOverrides, defaultTetoLiberacao]);
+
+  const nextQueueAssignee = queueOrder.find((item) => item.remaining > 0)?.nome || queueOrder[0]?.nome || null;
 
   return (
     <Tabs defaultValue="kanban" className="space-y-4">
@@ -436,13 +484,21 @@ export function MeasurementKanban() {
                                     <Select
                                       value={request.assigned_to || "__none__"}
                                       onValueChange={(value) => handleAssign(request.id, value)}
+                                      onOpenChange={(open) => {
+                                        if (open && !request.assigned_to && nextQueueAssignee) {
+                                          handleAssign(request.id, nextQueueAssignee);
+                                        }
+                                      }}
                                     >
                                       <SelectTrigger className="h-7 text-[11px] flex-1">
-                                        <SelectValue>{request.technician_name || request.assigned_to || "Atribuir técnico"}</SelectValue>
+                                        <SelectValue>{request.technician_name || request.assigned_to || (nextQueueAssignee ? `Atribuir técnico · ${nextQueueAssignee}` : "Atribuir técnico")}</SelectValue>
                                       </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="__none__">Sem responsável</SelectItem>
-                                        {tecnicosEProjetistas.map((user) => (
+                                        {nextQueueAssignee && (
+                                          <SelectItem value={nextQueueAssignee}>1º da fila · {nextQueueAssignee}</SelectItem>
+                                        )}
+                                        {tecnicosEProjetistas.filter((user) => user.nome_completo !== nextQueueAssignee).map((user) => (
                                           <SelectItem key={user.id} value={user.nome_completo}>
                                             {user.nome_completo} ({user.cargo_nome})
                                           </SelectItem>
