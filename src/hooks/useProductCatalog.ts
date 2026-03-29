@@ -39,6 +39,10 @@ export interface Product {
   cost_price: number;
   markup_percentage: number;
   sale_price: number;
+  min_sale_price: number;
+  manufacturer_code: string;
+  environment: string;
+  environment_custom: string;
   supplier_id: string | null;
   stock_quantity: number;
   stock_status: "em_estoque" | "sob_encomenda" | "indisponivel";
