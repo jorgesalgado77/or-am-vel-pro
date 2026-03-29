@@ -176,12 +176,22 @@ export function MeasurementKanban() {
 
   const tecnicosEProjetistas = useMemo(() =>
     usuarios.filter(u => u.ativo && u.cargo_nome && (
-      u.cargo_nome.toLowerCase().includes("projetista") ||
+      u.cargo_nome.toLowerCase().includes("liberador") ||
       u.cargo_nome.toLowerCase().includes("tecnico") ||
       u.cargo_nome.toLowerCase().includes("técnico") ||
+      u.cargo_nome.toLowerCase().includes("conferente") ||
       u.cargo_nome.toLowerCase().includes("medidor")
     )), [usuarios]
   );
+
+  // Resolve display names for created_by and last_edited_by
+  const resolveUserName = useCallback((idOrName: string | null) => {
+    if (!idOrName) return null;
+    const user = usuarios.find((u: any) =>
+      u.id === idOrName || u.auth_user_id === idOrName
+    );
+    return user?.nome_completo || idOrName;
+  }, [usuarios]);
 
   return (
     <Tabs defaultValue="kanban" className="space-y-4">
@@ -292,7 +302,7 @@ export function MeasurementKanban() {
                               {req.created_by && (
                                 <>
                                   <span className="text-muted-foreground text-[10px]">•</span>
-                                  <span className="text-[10px] text-muted-foreground">por {req.created_by}</span>
+                                  <span className="text-[10px] text-muted-foreground">por {resolveUserName(req.created_by)}</span>
                                 </>
                               )}
                             </div>
@@ -302,7 +312,7 @@ export function MeasurementKanban() {
                               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-0.5">
                                 <Pencil className="h-2.5 w-2.5" />
                                 <span>
-                                  Editado por <span className="font-semibold text-foreground">{req.last_edited_by}</span>
+                                  Editado por <span className="font-semibold text-foreground">{resolveUserName(req.last_edited_by)}</span>
                                   {req.last_edited_by_cargo && <span className="text-primary"> ({req.last_edited_by_cargo})</span>}
                                   {req.last_edited_at && (
                                     <span> • {format(new Date(req.last_edited_at), "dd/MM HH:mm", { locale: ptBR })}</span>
