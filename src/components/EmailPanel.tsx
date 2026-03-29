@@ -14,7 +14,7 @@ import {
   Mail, Send, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
   Plus, Loader2, Inbox, Paperclip, X, FileText, Image, Upload, Users,
   RefreshCw, Forward, Bold, Italic, Underline, AlignLeft, AlignCenter,
-  AlignRight, Type, Palette, Highlighter,
+  AlignRight, Type, Palette, Highlighter, ChevronDown, ChevronUp, Save, Trash2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
