@@ -269,10 +269,48 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   };
 
   const openNew = () => {
-    // Pre-fill with admin-configured default meta vendedor value
     const defaultValue = (metaVendedor?.valor && form.goal_type === "revenue") ? metaVendedor.valor : 0;
     setForm({ id: "", user_id: "", goal_type: "revenue", target_value: defaultValue });
     setDialogOpen(true);
+  };
+
+  const handleDuplicatePreviousMonth = async () => {
+    if (!tenantId) return;
+    setSaving(true);
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const prevDate = new Date(y, m - 2, 15);
+    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+
+    const { data: prevGoals } = await supabase
+      .from("sales_goals" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("month", prevMonth);
+
+    if (!prevGoals || prevGoals.length === 0) {
+      toast.error("Nenhuma meta encontrada no mês anterior");
+      setSaving(false);
+      return;
+    }
+
+    let count = 0;
+    for (const g of prevGoals as any[]) {
+      const existing = goals.find(eg => eg.user_id === g.user_id && eg.goal_type === g.goal_type);
+      if (!existing) {
+        await supabase.from("sales_goals" as any).insert({
+          tenant_id: tenantId,
+          user_id: g.user_id,
+          goal_type: g.goal_type,
+          target_value: g.target_value,
+          month: selectedMonth,
+        } as any);
+        count++;
+      }
+    }
+
+    toast.success(`${count} meta(s) duplicada(s) do mês anterior!`);
+    await loadGoals();
+    setSaving(false);
   };
 
   const openEdit = (g: SalesGoal) => {

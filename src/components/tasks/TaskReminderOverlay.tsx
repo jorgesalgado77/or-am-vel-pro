@@ -152,7 +152,7 @@ function OverdueTasksAlert({ tasks, onDismiss }: { tasks: Task[]; onDismiss: () 
                         variant="outline"
                         className={cn("text-[9px] h-4 px-1.5", colors.border, colors.text)}
                       >
-                        {task.status === "nova" ? "Nova" : "Pendente"}
+                        {task.status === "nova" ? "Nova" : task.status === "em_execucao" ? "Em Execução" : "Pendente"}
                       </Badge>
                       {isOverdue && (
                         <span className={cn("text-[9px] font-bold", colors.text)}>
