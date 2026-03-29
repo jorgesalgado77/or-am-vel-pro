@@ -645,10 +645,13 @@ export function EmailPanel() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="compose" className="gap-2">
-            <Plus className="h-4 w-4" /> Compor Email
+            <Plus className="h-4 w-4" /> Compor
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <Inbox className="h-4 w-4" /> Histórico
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <FileText className="h-4 w-4" /> Templates
           </TabsTrigger>
           <TabsTrigger value="contacts" className="gap-2">
             <Users className="h-4 w-4" /> Contatos ({savedContacts.length})
