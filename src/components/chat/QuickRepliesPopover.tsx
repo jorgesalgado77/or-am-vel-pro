@@ -115,9 +115,9 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
 
   // Merge all copy sources: ready + saved + vendazap_messages
   const allVendaZapItems = [
-    ...READY_COPIES.map((c, i) => ({ id: `ready-${i}`, tipo: c.tipo, label: c.label, mensagem: c.mensagem })),
-    ...savedCopies.map((c) => ({ id: c.id, tipo: c.tipo, label: c.label, mensagem: c.mensagem })),
-    ...vendaZapCopies.map((c) => ({ id: c.id, tipo: c.tipo_copy, label: tipoLabels[c.tipo_copy] || c.tipo_copy, mensagem: c.mensagem_gerada })),
+    ...READY_COPIES.map((c, i) => ({ id: `ready-${i}`, tipo: c.tipo, label: c.label, mensagem: c.mensagem, disc_profile: null as string | null })),
+    ...savedCopies.map((c) => ({ id: c.id, tipo: c.tipo, label: c.label, mensagem: c.mensagem, disc_profile: (c as any).disc_profile || null })),
+    ...vendaZapCopies.map((c) => ({ id: c.id, tipo: c.tipo_copy, label: tipoLabels[c.tipo_copy] || c.tipo_copy, mensagem: c.mensagem_gerada, disc_profile: null as string | null })),
   ];
 
   const copyTypes = Array.from(new Set(allVendaZapItems.map((c) => c.tipo)));
@@ -128,6 +128,7 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
       c.label.toLowerCase().includes(search.toLowerCase()) ||
       c.tipo.toLowerCase().includes(search.toLowerCase());
     const matchType = copyTypeFilter === "all" || c.tipo === copyTypeFilter;
+    const matchDisc = discFilter === "all" || c.disc_profile === discFilter || (!c.disc_profile && discFilter === "all");
     return matchSearch && matchType;
   });
 
