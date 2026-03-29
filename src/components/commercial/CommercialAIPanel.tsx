@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCommercialAI, type AIInsight } from "@/hooks/useCommercialAI";
 import { SalesGoalsPanel } from "@/components/commercial/SalesGoalsPanel";
+import { DirectorDashboard } from "@/components/commercial/DirectorDashboard";
 import { useMetasTetos } from "@/hooks/useMetasTetos";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -291,8 +292,11 @@ export function CommercialAIPanel() {
         </Card>
       </div>
 
-      <Tabs defaultValue="insights" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="director" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="director" className="gap-1 text-xs">
+            <Brain className="h-3.5 w-3.5" /> Diretora
+          </TabsTrigger>
           <TabsTrigger value="insights" className="gap-1 text-xs">
             <Lightbulb className="h-3.5 w-3.5" /> Insights
             {insights.filter(i => !i.is_read).length > 0 && (
