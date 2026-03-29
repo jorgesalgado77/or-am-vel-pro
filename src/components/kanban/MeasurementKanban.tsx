@@ -36,9 +36,15 @@ interface MeasurementRequest {
   valor_venda_avista: number;
   ambientes: any[];
   imported_files: any[];
+  observacoes: string;
+  client_snapshot: any;
+  delivery_address: any;
   status: string;
   created_by: string | null;
   assigned_to: string | null;
+  last_edited_by: string | null;
+  last_edited_by_cargo: string | null;
+  last_edited_at: string | null;
   created_at: string;
   updated_at: string;
 }
