@@ -423,6 +423,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         isClientDirect: entry.isClientDirect || false,
         client_id: entry.client_id,
         phone: entry.phone || clientDataMap[entry.client_id]?.telefone || undefined,
+        relatedTrackingIds: entry.relatedTrackingIds,
       }))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
