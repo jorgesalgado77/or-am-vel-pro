@@ -502,8 +502,21 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    const isEvolution = Boolean(body?.event && (body?.data || body?.instance));
+    const contentType = req.headers.get("content-type") || "";
+    const isTwilio = contentType.includes("application/x-www-form-urlencoded") || 
+                     req.headers.get("x-twilio-signature") !== null;
+
+    let body: any;
+    if (isTwilio) {
+      const formData = await req.text();
+      const params = new URLSearchParams(formData);
+      body = Object.fromEntries(params.entries());
+      body.__twilio = true;
+    } else {
+      body = await req.json();
+    }
+
+    const isEvolution = !body.__twilio && Boolean(body?.event && (body?.data || body?.instance));
 
     // ── Filter out non-message events (status updates, delivery receipts) ──
     const eventType = isStatusOrDeliveryEvent(body, isEvolution);
