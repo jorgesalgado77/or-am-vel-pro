@@ -341,13 +341,26 @@ export function MeasurementKanban() {
                               className="w-full h-7 text-[11px] gap-1.5"
                               onClick={() => {
                                 // Enrich with resolved names from usuarios
-                                const enriched = { ...req };
+                                const enriched = { ...req } as any;
+                                // Resolve created_by to seller name
                                 if (req.created_by) {
                                   const seller = usuarios.find((u: any) => u.id === req.created_by || u.auth_user_id === req.created_by);
-                                  if (seller) enriched.seller_name = seller.nome_completo;
+                                  if (seller) {
+                                    enriched.seller_name = seller.nome_completo;
+                                    enriched.created_by_resolved = seller.nome_completo;
+                                    enriched.created_by_cargo = seller.cargo_nome || "";
+                                  }
+                                }
+                                // Resolve last_edited_by
+                                if (req.last_edited_by) {
+                                  const editor = usuarios.find((u: any) => u.id === req.last_edited_by || u.auth_user_id === req.last_edited_by || u.nome_completo === req.last_edited_by);
+                                  if (editor) {
+                                    enriched.last_edited_by_resolved = editor.nome_completo;
+                                    enriched.last_edited_by_cargo = editor.cargo_nome || req.last_edited_by_cargo || "";
+                                  }
                                 }
                                 if (req.assigned_to) {
-                                  const tech = usuarios.find((u: any) => u.id === req.assigned_to || u.auth_user_id === req.assigned_to);
+                                  const tech = usuarios.find((u: any) => u.id === req.assigned_to || u.auth_user_id === req.assigned_to || u.nome_completo === req.assigned_to);
                                   if (tech) enriched.technician_name = tech.nome_completo;
                                 }
                                 // Try to get store_code and contract info from client_snapshot

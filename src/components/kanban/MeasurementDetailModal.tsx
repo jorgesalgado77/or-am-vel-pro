@@ -1,6 +1,7 @@
 /**
  * Modal to view full measurement request details including all data and attachments.
  * Shows seller, technician, store, contract and briefing info with proper scroll.
+ * Attachment previews resolve Supabase storage paths to public URLs.
  */
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,8 @@ import {
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 interface MeasurementRequest {
   id: string;
@@ -35,13 +37,16 @@ interface MeasurementRequest {
   last_edited_at: string | null;
   created_at: string;
   updated_at: string;
-  // Extended fields
+  // Extended enriched fields
   seller_name?: string;
   technician_name?: string;
   store_code?: string;
   contract_number?: string;
   contract_url?: string;
   briefing_url?: string;
+  created_by_resolved?: string;
+  created_by_cargo?: string;
+  last_edited_by_resolved?: string;
 }
 
 interface Props {
@@ -56,13 +61,54 @@ const STATUS_MAP: Record<string, { label: string; icon: string; className: strin
   concluido: { label: "Concluído", icon: "✅", className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" },
 };
 
-function AttachmentPreview({ att, onClick }: { att: any; onClick: () => void }) {
-  const url = att.url || att.file_url || att.preview_url || "";
-  const name = att.name || att.file_name || "arquivo";
-  const isImage = att.kind === "image" || att.mime_type?.startsWith("image/") ||
-    /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(url) || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(name);
-  const isPdf = att.kind === "pdf" || att.mime_type === "application/pdf" ||
+/**
+ * Resolves the actual URL for an attachment.
+ * Handles: direct url, file_url, preview_url, and Supabase storage path.
+ */
+function resolveAttachmentUrl(att: any): string {
+  if (att.url) return att.url;
+  if (att.file_url) return att.file_url;
+  if (att.preview_url) return att.preview_url;
+  if (att.thumbnail_url) return att.thumbnail_url;
+  // Resolve Supabase storage path
+  if (att.path) {
+    const bucket = att.bucket || "chat-attachments";
+    const { data } = supabase.storage.from(bucket).getPublicUrl(att.path);
+    return data?.publicUrl || "";
+  }
+  if (att.storage_path) {
+    const bucket = att.bucket || "chat-attachments";
+    const { data } = supabase.storage.from(bucket).getPublicUrl(att.storage_path);
+    return data?.publicUrl || "";
+  }
+  return "";
+}
+
+function isImageFile(url: string, name: string, att: any): boolean {
+  return att.kind === "image" || att.mime_type?.startsWith("image/") ||
+    /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(url) ||
+    /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(name);
+}
+
+function isPdfFile(url: string, name: string, att: any): boolean {
+  return att.kind === "pdf" || att.mime_type === "application/pdf" ||
     /\.pdf$/i.test(url) || /\.pdf$/i.test(name);
+}
+
+function AttachmentPreview({ att, onClick }: { att: any; onClick: () => void }) {
+  const url = useMemo(() => resolveAttachmentUrl(att), [att]);
+  const name = att.name || att.file_name || att.fileName || "arquivo";
+  const isImage = isImageFile(url, name, att);
+  const isPdf = isPdfFile(url, name, att);
+
+  if (!url) {
+    return (
+      <div className="rounded-lg border bg-muted/30 aspect-square flex flex-col items-center justify-center p-2">
+        <FileText className="h-6 w-6 text-muted-foreground" />
+        <span className="text-[8px] text-muted-foreground truncate w-full text-center mt-1">{name}</span>
+      </div>
+    );
+  }
 
   return (
     <button
@@ -72,9 +118,9 @@ function AttachmentPreview({ att, onClick }: { att: any; onClick: () => void }) 
       {isImage ? (
         <img src={url} alt={name} className="w-full h-full object-cover" loading="lazy" />
       ) : isPdf ? (
-        <div className="flex flex-col items-center justify-center h-full gap-1 p-2 bg-red-50 dark:bg-red-950/20">
-          <FileText className="h-8 w-8 text-red-500" />
-          <span className="text-[8px] font-bold text-red-500 uppercase">PDF</span>
+        <div className="flex flex-col items-center justify-center h-full gap-1 p-2 bg-destructive/5">
+          <FileText className="h-8 w-8 text-destructive" />
+          <span className="text-[8px] font-bold text-destructive uppercase">PDF</span>
           <span className="text-[7px] text-muted-foreground truncate w-full text-center">{name}</span>
         </div>
       ) : (
@@ -100,6 +146,12 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const addr = request.delivery_address || {};
   const hasAddress = addr.cep || addr.street;
 
+  // Resolved names
+  const creatorName = request.created_by_resolved || request.seller_name || request.created_by || "—";
+  const creatorCargo = request.created_by_cargo || "";
+  const editorName = request.last_edited_by_resolved || request.last_edited_by || null;
+  const editorCargo = request.last_edited_by_cargo || "";
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -116,6 +168,47 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
 
           <div className="flex-1 overflow-y-auto px-6 pb-6">
             <div className="space-y-5 py-4">
+
+              {/* Criado por + Editado por — ABOVE all content */}
+              <div className="space-y-2">
+                <div className="bg-muted/30 rounded-lg p-3 border space-y-2">
+                  <div className="flex items-center gap-2">
+                    <User className="h-3.5 w-3.5 text-primary" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Criado por</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {creatorName}
+                        {creatorCargo && <span className="text-xs text-muted-foreground ml-1">({creatorCargo})</span>}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {editorName && (
+                    <>
+                      <Separator />
+                      <div className="flex items-center gap-2">
+                        <Pencil className="h-3.5 w-3.5 text-primary" />
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Editado por</p>
+                          <p className="text-sm font-medium text-foreground">
+                            {editorName}
+                            {editorCargo && <span className="text-xs text-muted-foreground ml-1">({editorCargo})</span>}
+                          </p>
+                          {(request.last_edited_at || request.updated_at) && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {format(new Date(request.last_edited_at || request.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
               {/* Client info */}
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -161,12 +254,6 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                     <div>
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Vendedor / Projetista</p>
                       <p className="text-sm font-medium text-foreground">{request.seller_name}</p>
-                    </div>
-                  )}
-                  {request.created_by && !request.seller_name && (
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Criado por</p>
-                      <p className="text-sm font-medium text-foreground">{request.created_by}</p>
                     </div>
                   )}
                   {request.technician_name && (
@@ -268,7 +355,7 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                               <AttachmentPreview
                                 key={j}
                                 att={att}
-                                onClick={() => setPreviewUrl(att.url || att.file_url || att.preview_url)}
+                                onClick={() => setPreviewUrl(resolveAttachmentUrl(att))}
                               />
                             ))}
                           </div>
@@ -308,29 +395,6 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                   </p>
                 </div>
               )}
-
-              <Separator />
-
-              {/* Metadata */}
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-3 w-3" />
-                  <span>Criado em {format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
-                  {request.created_by && <span>• por {request.created_by}</span>}
-                </div>
-                {request.last_edited_by && (
-                  <div className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1 border">
-                    <Pencil className="h-3 w-3" />
-                    <span>
-                      Editado por <span className="font-semibold text-foreground">{request.last_edited_by}</span>
-                      {request.last_edited_by_cargo && <span className="text-primary"> ({request.last_edited_by_cargo})</span>}
-                      {request.last_edited_at && (
-                        <span> • {format(new Date(request.last_edited_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
-                      )}
-                    </span>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </DialogContent>
