@@ -43,6 +43,7 @@ export function ClientsKanban({
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
+  const [measurementStatus, setMeasurementStatus] = useState<Record<string, { status: string; assigned_to: string | null }>>({});
   const [comercialExpanded, setComercialExpanded] = useState(true);
   const [operacionalExpanded, setOperacionalExpanded] = useState(true);
 
@@ -186,6 +187,73 @@ export function ClientsKanban({
     fetchContractClients();
   }, [localClients.length]);
 
+  // Fetch measurement_requests to auto-move Fechado → Em Medição, Em Medição → Em Liberação
+  useEffect(() => {
+    const tenantId = getTenantId();
+    if (!tenantId || localClients.length === 0) return;
+
+    const fetchMeasurements = async () => {
+      const { data } = await supabase
+        .from("measurement_requests" as any)
+        .select("client_id, status, assigned_to")
+        .eq("tenant_id", tenantId);
+
+      if (!data) return;
+
+      const statusMap: Record<string, { status: string; assigned_to: string | null }> = {};
+      (data as any[]).forEach((r: any) => {
+        statusMap[r.client_id] = { status: r.status || "pending", assigned_to: r.assigned_to || null };
+      });
+      setMeasurementStatus(statusMap);
+
+      // Auto-move clients with measurement requests
+      const needsMedicao = localClients.filter(c => {
+        const st = (c as any).status;
+        return st === "fechado" && statusMap[c.id];
+      });
+
+      const needsLiberacao = localClients.filter(c => {
+        const st = (c as any).status;
+        const mr = statusMap[c.id];
+        return st === "em_medicao" && mr?.assigned_to;
+      });
+
+      const updates: Array<{ id: string; status: string }> = [];
+      needsMedicao.forEach(c => updates.push({ id: c.id, status: "em_medicao" }));
+      needsLiberacao.forEach(c => updates.push({ id: c.id, status: "em_liberado" }));
+
+      if (updates.length > 0) {
+        await Promise.all(
+          updates.map(u =>
+            supabase.from("clients").update({ status: u.status } as any).eq("id", u.id)
+          )
+        );
+        setLocalClients(prev =>
+          prev.map(c => {
+            const u = updates.find(x => x.id === c.id);
+            return u ? { ...c, status: u.status } as any : c;
+          })
+        );
+      }
+    };
+
+    fetchMeasurements();
+
+    // Realtime: listen for measurement_requests changes
+    const channel = supabase
+      .channel("kanban-measurement-sync")
+      .on("postgres_changes" as any, {
+        event: "*",
+        schema: "public",
+        table: "measurement_requests",
+        filter: `tenant_id=eq.${tenantId}`,
+      }, () => {
+        fetchMeasurements();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [localClients.length]);
   // One-time fix: reassign ALL orçamento numbers sequentially by creation order
   const fixedRef = React.useRef(false);
   useEffect(() => {
@@ -419,6 +487,16 @@ export function ClientsKanban({
           status = "fechado";
         }
       }
+
+      // Auto-move: Fechado with measurement → Em Medição; Em Medição with assigned → Em Liberação
+      const mr = measurementStatus[client.id];
+      if (mr) {
+        if (status === "fechado") {
+          status = "em_medicao";
+        } else if (status === "em_medicao" && mr.assigned_to) {
+          status = "em_liberado";
+        }
+      }
       
       // Auto-expire: if client has a simulation and it's past validity, move to expirado
       const sim = lastSims[client.id];
@@ -435,7 +513,7 @@ export function ClientsKanban({
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, activeColumns]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns]);
 
   // Drag and drop handler
   const handleDragEnd = useCallback(async (result: DropResult) => {

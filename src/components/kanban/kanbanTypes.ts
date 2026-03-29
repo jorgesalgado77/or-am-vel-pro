@@ -33,7 +33,7 @@ export const KANBAN_COLUMNS_COMERCIAL = [
 
 export const KANBAN_COLUMNS_OPERACIONAL = [
   { id: "em_medicao", label: "Em Medição", color: "hsl(200 70% 50%)", icon: "📐" },
-  { id: "em_liberado", label: "Liberado", color: "hsl(180 60% 45%)", icon: "✔️" },
+  { id: "em_liberado", label: "Em Liberação", color: "hsl(180 60% 45%)", icon: "✔️" },
   { id: "em_compras", label: "Em Compras", color: "hsl(45 90% 50%)", icon: "🛒" },
   { id: "para_entrega", label: "Para Entrega", color: "hsl(220 70% 55%)", icon: "🚚" },
   { id: "para_montagem", label: "Para Montagem", color: "hsl(280 60% 55%)", icon: "🔧" },
