@@ -180,11 +180,11 @@ export function useVendaZapTriggers(tenantId: string | null) {
           // Fetch client data
           const { data: client } = await supabase
             .from("clients")
-            .select("id, nome, status, valor_orcamento, updated_at")
+            .select("id, nome, status, updated_at")
             .eq("id", newTrigger.client_id as string)
             .maybeSingle();
 
-          const clientData: ClientRow = client as ClientRow || {
+          const clientData: ClientRow = (client as unknown as ClientRow) || {
             id: newTrigger.client_id as string,
             nome: "Cliente",
             status: "novo",
@@ -309,14 +309,14 @@ export function useVendaZapTriggers(tenantId: string | null) {
       }
 
       // send_message, send_with_discount, suggest_dealroom → insert tracking_messages
-      const { error } = await supabase.from("tracking_messages").insert({
+      const { error } = await supabase.from("tracking_messages").insert([{
         tracking_id: trigger.client_id,
         mensagem: message,
         remetente_tipo: "loja",
         remetente_nome: "🤖 IA Comercial",
         lida: false,
         tenant_id: tenantId,
-      } as Record<string, unknown>);
+      }]);
 
       if (error) {
         toast.error("Erro ao enviar mensagem automática");
