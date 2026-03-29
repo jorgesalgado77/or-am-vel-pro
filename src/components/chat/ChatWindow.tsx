@@ -471,6 +471,30 @@ export function ChatWindow({
       </div>
 
       <div className="shrink-0 border-t border-border bg-card">
+        <AICloserBanner
+          conversation={conversation}
+          tenantId={tenantId ?? null}
+          lastClientMessage={
+            messages
+              .filter((m) => m.remetente_tipo === "cliente")
+              .slice(-1)[0]?.mensagem
+          }
+          onSendProposal={async (text) => {
+            const { error } = await supabase.from("tracking_messages").insert({
+              tracking_id: conversation.id,
+              mensagem: text,
+              remetente_tipo: "loja",
+              remetente_nome: "🎯 IA Fechadora",
+              lida: false,
+              tenant_id: tenantId || undefined,
+            } as any);
+            if (!error && conversation.phone) {
+              await sendWhatsAppText(conversation.phone, text);
+            }
+          }}
+          onCloseSale={onCloseSale}
+        />
+
         <TypingIndicator names={typingUsers.map((u) => u.user_name)} />
 
         <ChatInput
