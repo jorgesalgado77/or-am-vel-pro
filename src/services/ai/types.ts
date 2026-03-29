@@ -13,7 +13,8 @@ export type LearningEventType =
   | "trigger_fired"
   | "dealroom_opened"
   | "followup_sent"
-  | "reactivation_sent";
+  | "reactivation_sent"
+  | "arbitrage_scenario";
 
 export type StrategyType =
   | "urgencia"
@@ -28,7 +29,8 @@ export type StrategyType =
   | "dealroom"
   | "reativacao"
   | "consultiva"
-  | "outro";
+  | "outro"
+  | "brinde";
 
 export type ClientResponse = "positivo" | "negativo" | "neutro" | "sem_resposta";
 export type DealResult = "ganho" | "perdido" | "abandonado";

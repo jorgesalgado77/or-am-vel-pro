@@ -9,9 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TrendingUp, TrendingDown, Users, Target, DollarSign, Clock,
   AlertTriangle, Lightbulb, Trophy, MessageCircle, Send, Bot,
-  Flame, Snowflake, Star, ArrowUp, ArrowDown, Loader2, Bell, Brain,
+  Flame, Snowflake, Star, ArrowUp, ArrowDown, Loader2, Bell, Brain, Shield,
 } from "lucide-react";
 import { useCommercialAI, type AIInsight } from "@/hooks/useCommercialAI";
+import { ArbitragePanel } from "@/components/commercial/ArbitragePanel";
 import { SalesGoalsPanel } from "@/components/commercial/SalesGoalsPanel";
 import { DirectorDashboard } from "@/components/commercial/DirectorDashboard";
 import { useMetasTetos } from "@/hooks/useMetasTetos";
@@ -293,7 +294,7 @@ export function CommercialAIPanel() {
       </div>
 
       <Tabs defaultValue="director" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="director" className="gap-1 text-xs">
             <Brain className="h-3.5 w-3.5" /> Diretora
           </TabsTrigger>
@@ -303,6 +304,7 @@ export function CommercialAIPanel() {
               <Badge variant="destructive" className="ml-1 h-5 text-[10px]">{insights.filter(i => !i.is_read).length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="arbitrage" className="gap-1 text-xs"><Shield className="h-3.5 w-3.5" /> Arbitragem</TabsTrigger>
           <TabsTrigger value="goals" className="gap-1 text-xs"><Target className="h-3.5 w-3.5" /> Metas</TabsTrigger>
           <TabsTrigger value="ranking" className="gap-1 text-xs"><Trophy className="h-3.5 w-3.5" /> Ranking</TabsTrigger>
           <TabsTrigger value="chat" className="gap-1 text-xs"><Bot className="h-3.5 w-3.5" /> IA</TabsTrigger>
@@ -311,6 +313,11 @@ export function CommercialAIPanel() {
         {/* Director Tab */}
         <TabsContent value="director">
           <DirectorDashboard tenantId={tenantId} />
+        </TabsContent>
+
+        {/* Arbitrage Tab */}
+        <TabsContent value="arbitrage">
+          <ArbitragePanel />
         </TabsContent>
 
         {/* Insights Tab */}
