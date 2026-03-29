@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
 
 export interface SalesMetrics {
   leads_count: number;
@@ -162,6 +163,42 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     );
     setStalledLeads(stalled);
 
+    // Stalled simulations (clients with simulations but no contract and no recent update)
+    const stalledSimClients = clients.filter((c: any) => {
+      if (contractClientIds.has(c.id) || c.status === "perdido") return false;
+      const lastUpdate = new Date(c.updated_at || c.created_at);
+      return lastUpdate < threeDaysAgo && (c.status === "proposta_enviada" || c.status === "em_negociacao");
+    });
+
+    // Send push notifications for stalled leads/simulations (once per session per user)
+    if (userId && (stalled.length > 0 || stalledSimClients.length > 0)) {
+      const stalledBySeller: Record<string, string[]> = {};
+      stalled.forEach((l: any) => {
+        const seller = l.vendedor || "Sem vendedor";
+        if (!stalledBySeller[seller]) stalledBySeller[seller] = [];
+        stalledBySeller[seller].push(l.nome || "Cliente");
+      });
+
+      // Push notification for each seller's stalled leads (admin/manager gets all)
+      if (isAdminOrManager) {
+        Object.entries(stalledBySeller).forEach(([seller, names]) => {
+          sendPushIfEnabled("leads", userId,
+            `⚠️ ${names.length} lead(s) parado(s) — ${seller}`,
+            `${names.slice(0, 3).join(", ")}${names.length > 3 ? ` +${names.length - 3}` : ""}. Cobrar retorno!`,
+            `stalled-leads-${seller}-${new Date().toISOString().substring(0, 10)}`
+          );
+        });
+      }
+
+      if (stalledSimClients.length > 0 && isAdminOrManager) {
+        sendPushIfEnabled("leads", userId,
+          `📊 ${stalledSimClients.length} simulação(ões) parada(s)`,
+          "Clientes com proposta sem retorno. Verifique e cobre acompanhamento.",
+          `stalled-sims-${new Date().toISOString().substring(0, 10)}`
+        );
+      }
+    }
+
     // Hot leads — in negotiation with recent activity, no contract
     const hot = clients.filter((c: any) =>
       !contractClientIds.has(c.id) &&
@@ -256,6 +293,62 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
         priority: "medium",
         is_read: false,
         action_type: "offer_discount",
+      });
+    }
+
+    // Goal-based insights — fetch metas from sales_goals
+    try {
+      const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+      const { data: goalData } = await supabase
+        .from("sales_goals" as any)
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("month", currentMonth)
+        .in("goal_type", ["meta_loja", "meta_vendedor", "teto_liberacao"]);
+
+      if (goalData) {
+        const metaLoja = (goalData as any[]).find((g: any) => g.goal_type === "meta_loja");
+        if (metaLoja && metrics.revenue > 0) {
+          const pct = (metrics.revenue / metaLoja.target_value) * 100;
+          const faltante = Math.max(0, metaLoja.target_value - metrics.revenue);
+          if (pct < 50) {
+            newInsights.push({
+              type: "alert",
+              message: `⚠️ Meta da loja atingiu apenas ${pct.toFixed(1)}%. Faltam R$ ${faltante.toLocaleString("pt-BR")} para bater a meta. Intensifique o ritmo de vendas!`,
+              priority: "high",
+              is_read: false,
+              action_type: "boost_sales",
+            });
+          } else if (pct < 80) {
+            newInsights.push({
+              type: "warning",
+              message: `Meta da loja em ${pct.toFixed(1)}%. Faltam R$ ${faltante.toLocaleString("pt-BR")}. Mantenha o foco nos leads quentes!`,
+              priority: "medium",
+              is_read: false,
+            });
+          } else if (pct >= 100) {
+            newInsights.push({
+              type: "praise",
+              message: `🎯 Meta da loja atingida! ${pct.toFixed(1)}% — R$ ${metrics.revenue.toLocaleString("pt-BR")}. Excelente trabalho da equipe! 🏆`,
+              priority: "low",
+              is_read: false,
+            });
+          }
+        }
+      }
+    } catch { /* silent */ }
+
+    // Stalled simulations insight
+    const stalledSimCount = stalledLeads.filter((l: any) =>
+      l.status === "proposta_enviada" || l.status === "em_negociacao"
+    ).length;
+    if (stalledSimCount > 0) {
+      newInsights.push({
+        type: "alert",
+        message: `📊 ${stalledSimCount} simulação(ões) parada(s) sem retorno do cliente. Cobre acompanhamento imediatamente!`,
+        priority: "high",
+        is_read: false,
+        action_type: "follow_up_simulation",
       });
     }
 

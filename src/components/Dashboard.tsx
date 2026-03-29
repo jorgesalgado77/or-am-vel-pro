@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays, Megaphone, Share2, UserPlus } from "lucide-react";
+import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays, Megaphone, Share2, UserPlus, Target, Store } from "lucide-react";
 import { TopSellingProductsChart } from "@/components/dashboard/TopSellingProductsChart";
 import { DealInsightsWidget } from "@/components/dashboard/DealInsightsWidget";
 import { LowStockAlerts } from "@/components/dashboard/LowStockAlerts";
@@ -30,6 +30,9 @@ import {
 } from "recharts";
 import type { Database } from "@/integrations/supabase/types";
 import { type DateFilterPreset, DATE_FILTER_OPTIONS, getDateRange, isInRange } from "@/lib/dateFilterUtils";
+import { useMetasTetos } from "@/hooks/useMetasTetos";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { Progress } from "@/components/ui/progress";
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 interface LastSimInfo {
@@ -69,6 +72,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const { indicadores } = useIndicadores();
   const { cargos } = useCargos();
   const { policy: comissaoPolicyDash } = useComissaoPolicy();
+  const { metaLoja } = useMetasTetos();
+  const { currentUser } = useCurrentUser();
+  const isAdminOrGerente = ["administrador", "gerente"].includes(currentUser?.cargo_nome?.toLowerCase() || "");
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
     evolucao: false,
     projetista: false,
@@ -494,6 +500,50 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <KpiCard icon={AlertTriangle} label="Orç. Expirados" value={String(stats.expired)} destructive={stats.expired > 0} />
         <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
       </div>
+
+      {/* Meta Loja Card — visible to admin/gerente */}
+      {isAdminOrGerente && metaLoja && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Store className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">Meta Loja — Mês Atual</h3>
+                  <Badge variant={stats.faturamentoContratos >= metaLoja.valor ? "default" : "secondary"} className="text-xs">
+                    {stats.faturamentoContratos >= metaLoja.valor ? "✓ Atingida" : "Em andamento"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">Meta: {formatCurrency(metaLoja.valor)}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-3">
+              <div className="text-center">
+                <p className="text-lg font-bold text-primary">{formatCurrency(stats.faturamentoContratos)}</p>
+                <p className="text-[10px] text-muted-foreground">Faturado</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-foreground">
+                  {metaLoja.valor > 0 ? ((stats.faturamentoContratos / metaLoja.valor) * 100).toFixed(1) : "0"}%
+                </p>
+                <p className="text-[10px] text-muted-foreground">Atingido</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-destructive">
+                  {metaLoja.valor > 0 ? Math.max(0, 100 - (stats.faturamentoContratos / metaLoja.valor) * 100).toFixed(1) : "100"}%
+                </p>
+                <p className="text-[10px] text-muted-foreground">Faltante</p>
+              </div>
+            </div>
+            <Progress
+              value={metaLoja.valor > 0 ? Math.min(100, (stats.faturamentoContratos / metaLoja.valor) * 100) : 0}
+              className="h-3"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Lead Source Cards with Projetista filter */}
       <Card>
