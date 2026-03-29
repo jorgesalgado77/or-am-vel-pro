@@ -46,6 +46,7 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import { useApiKeyHealthCheck } from "@/hooks/useApiKeyHealthCheck";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAIConversionAlerts } from "@/hooks/useAIConversionAlerts";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -95,6 +96,7 @@ export default function Index() {
   const canAccessSettings = Boolean(authUser) && (isAdmin || hasPermission("configuracoes"));
   const { onlineUsers } = useOnlinePresence(authUser?.id ?? null, presenceInfo);
   useApiKeyHealthCheck(authUser?.tenant_id ?? null, authUser?.id);
+  useAIConversionAlerts(authUser?.id ?? null);
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
