@@ -52,7 +52,7 @@ function timeAgo(dateStr?: string) {
 }
 
 const ConversationItem = memo(function ConversationItem({
-  conv, isSelected, onSelect, onDelete, isAdmin,
+  conv, isSelected, onSelect, onDelete, isAdmin, isDuplicate, onShowDuplicates,
 }: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void; onDelete?: (c: ChatConversation) => void; isAdmin?: boolean; isDuplicate?: boolean; onShowDuplicates?: () => void }) {
   const tempConfig = conv.lead_temperature ? TEMPERATURE_CONFIG[conv.lead_temperature] : null;
   const displayPhone = conv.phone || (conv.numero_contrato?.startsWith("WA-") ? conv.numero_contrato.replace("WA-", "") : null);
