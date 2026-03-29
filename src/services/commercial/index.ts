@@ -40,6 +40,19 @@ export type {
   GapAnalysis,
 } from "./NegotiationArbitrageEngine";
 
+// Negotiation Control Engine
+export { NegotiationControlEngine, getControlEngine } from "./NegotiationControlEngine";
+export type {
+  NegotiationContext,
+  NegotiationDecision,
+  NegotiationMode,
+  NegotiationStrategy,
+  NegotiationFeedback,
+  TimingDecision,
+  ClosingSignal,
+  PricingDecision,
+} from "./NegotiationControlEngine";
+
 // Director Engine
 export { CommercialDirectorEngine, getDirectorEngine } from "./CommercialDirectorEngine";
 export type { BusinessAnalysis, RevenueForecast, VendorAnalysis, DirectorAlert, StrategyDefinition } from "./CommercialDirectorEngine";
