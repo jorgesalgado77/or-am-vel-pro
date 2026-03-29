@@ -259,6 +259,100 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
     }
   }, []);
 
+  // Function to refresh conversation with latest 30 messages and auto-analyze
+  const refreshConversation = useCallback(async (clientToRefresh?: Client | null) => {
+    const target = clientToRefresh || selectedClient;
+    if (!target) return;
+
+    const { data: trackings } = await supabase
+      .from("client_tracking")
+      .select("id")
+      .eq("client_id", target.id)
+      .limit(1);
+
+    const trackingId = (trackings as any[])?.[0]?.id;
+    if (!trackingId) return;
+
+    // Fetch latest 30 messages
+    const { data: chatMsgs } = await supabase
+      .from("tracking_messages")
+      .select("mensagem, remetente_tipo, created_at")
+      .eq("tracking_id", trackingId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (!chatMsgs || chatMsgs.length === 0) return;
+
+    const ordered = [...(chatMsgs as any[])].reverse();
+    const entries: HistoricoEntry[] = ordered
+      .filter((m) => m.mensagem?.trim())
+      .map((m) => {
+        const isClient = m.remetente_tipo !== "loja";
+        const entry: HistoricoEntry = {
+          remetente_tipo: isClient ? "cliente" as const : "ia" as const,
+          mensagem: m.mensagem,
+          timestamp: m.created_at,
+        };
+        if (isClient) {
+          const analysis = analyzeClientMessage(m.mensagem);
+          entry.intent = analysis.intent;
+          entry.score = analysis.score;
+        }
+        return entry;
+      });
+
+    if (entries.length === 0) return;
+
+    setHistorico({ entries, clientId: target.id });
+
+    // Auto-detect DISC from chat messages and adjust settings
+    const discResult = detectDiscFromMessages(
+      entries.map(e => ({
+        remetente_tipo: e.remetente_tipo === "ia" ? "loja" : e.remetente_tipo,
+        mensagem: e.mensagem,
+      }))
+    );
+
+    if (discResult.profile && discResult.confidence > 40) {
+      const discToTone: Record<string, string> = { D: "direto", I: "persuasivo", S: "consultivo", C: "consultivo" };
+      const discToCopy: Record<string, string> = { D: "fechamento", I: "reuniao", S: "reuniao", C: "objecao" };
+      const newTone = discToTone[discResult.profile];
+      const newCopy = discToCopy[discResult.profile];
+      if (newTone) setTom(newTone);
+      if (newCopy) setTipoCopy(newCopy);
+
+      const meta = DISC_PROFILE_META[discResult.profile];
+      toast.info(
+        `📊 Perfil DISC detectado: ${meta?.label} ${meta?.emoji} (${discResult.confidence}% confiança). Tom e estratégia ajustados.`,
+        { duration: 4000 }
+      );
+    }
+
+    // Analyze last client message for closing score
+    const lastClientMsg = entries.filter(e => e.remetente_tipo === "cliente").pop();
+    if (lastClientMsg) {
+      const analysis = analyzeClientMessage(lastClientMsg.mensagem);
+      if (analysis) {
+        setClosingScore(analysis.score);
+        // Auto-set the client message field with the last client message for auto-generation
+        setMensagemCliente(lastClientMsg.mensagem);
+      }
+    }
+
+    return entries;
+  }, [selectedClient, setHistorico, setTom, setTipoCopy, setMensagemCliente]);
+
+  // Auto-generate response after conversation refresh
+  const handleRefreshAndGenerate = useCallback(async () => {
+    toast.info("🔄 Atualizando conversa...");
+    const entries = await refreshConversation();
+    if (entries && entries.length > 0) {
+      toast.success(`✅ ${entries.length} mensagens carregadas. Análises atualizadas.`);
+    } else {
+      toast.info("Nenhuma mensagem nova encontrada.");
+    }
+  }, [refreshConversation]);
+
   useEffect(() => {
     if (selectedClient) {
       supabase.from("simulations").select("*").eq("client_id", selectedClient.id)
@@ -268,71 +362,8 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
           if (addon?.ativo) autoSugg.generate(selectedClient, data);
         });
 
-      // Load Chat de Vendas conversations for this client to auto-populate context
-      (async () => {
-        // Find client_tracking for this client
-        const { data: trackings } = await supabase
-          .from("client_tracking")
-          .select("id")
-          .eq("client_id", selectedClient.id)
-          .limit(1);
-
-        const trackingId = (trackings as any[])?.[0]?.id;
-        if (!trackingId) return;
-
-        // Fetch all messages from Chat de Vendas
-        const { data: chatMsgs } = await supabase
-          .from("tracking_messages")
-          .select("mensagem, remetente_tipo, created_at")
-          .eq("tracking_id", trackingId)
-          .order("created_at", { ascending: true })
-          .limit(50);
-
-        if (chatMsgs && chatMsgs.length > 0) {
-          // Convert to historico entries and pre-populate
-          const entries: HistoricoEntry[] = (chatMsgs as any[])
-            .filter((m) => m.mensagem?.trim())
-            .map((m) => ({
-              remetente_tipo: m.remetente_tipo === "loja" ? "ia" as const : "cliente" as const,
-              mensagem: m.mensagem,
-              timestamp: m.created_at,
-            }));
-
-          if (entries.length > 0 && historico.clientId !== selectedClient.id) {
-            setHistorico({ entries: entries.slice(-20), clientId: selectedClient.id });
-
-            // Auto-detect DISC from chat messages and adjust settings
-            const discResult = detectDiscFromMessages(
-              entries.map(e => ({
-                remetente_tipo: e.remetente_tipo === "ia" ? "loja" : e.remetente_tipo,
-                mensagem: e.mensagem,
-              }))
-            );
-
-            if (discResult.profile && discResult.confidence > 40) {
-              const discToTone: Record<string, string> = { D: "direto", I: "persuasivo", S: "consultivo", C: "consultivo" };
-              const discToCopy: Record<string, string> = { D: "fechamento", I: "reuniao", S: "reuniao", C: "objecao" };
-              const newTone = discToTone[discResult.profile];
-              const newCopy = discToCopy[discResult.profile];
-              if (newTone) setTom(newTone);
-              if (newCopy) setTipoCopy(newCopy);
-
-              const meta = DISC_PROFILE_META[discResult.profile];
-              toast.info(
-                `📊 Perfil DISC detectado: ${meta?.label} ${meta?.emoji} (${discResult.confidence}% confiança). Tom e estratégia ajustados automaticamente a partir das conversas do Chat de Vendas.`,
-                { duration: 5000 }
-              );
-            }
-
-            // Analyze last client message for closing score
-            const lastClientMsg = entries.filter(e => e.remetente_tipo === "cliente").pop();
-            if (lastClientMsg) {
-              const analysis = analyzeClientMessage(lastClientMsg.mensagem);
-              if (analysis) setClosingScore(analysis.score);
-            }
-          }
-        }
-      })();
+      // Load Chat de Vendas conversations for this client - latest 30 messages
+      refreshConversation(selectedClient);
     } else {
       autoSugg.clear();
     }
