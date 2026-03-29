@@ -203,6 +203,25 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
             Conversas
           </h3>
           <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    const next = !soundEnabled;
+                    setSoundEnabled(next);
+                    setNotificationSoundEnabled(next);
+                  }}
+                >
+                  {soundEnabled ? <Volume2 className="h-3.5 w-3.5 text-primary" /> : <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">{soundEnabled ? "Som ativado" : "Som desativado"}</p>
+              </TooltipContent>
+            </Tooltip>
             {onStartConversation && (
               <Tooltip>
                 <TooltipTrigger asChild>
