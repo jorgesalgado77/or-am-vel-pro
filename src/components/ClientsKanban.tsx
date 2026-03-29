@@ -487,6 +487,16 @@ export function ClientsKanban({
           status = "fechado";
         }
       }
+
+      // Auto-move: Fechado with measurement → Em Medição; Em Medição with assigned → Em Liberação
+      const mr = measurementStatus[client.id];
+      if (mr) {
+        if (status === "fechado") {
+          status = "em_medicao";
+        } else if (status === "em_medicao" && mr.assigned_to) {
+          status = "em_liberado";
+        }
+      }
       
       // Auto-expire: if client has a simulation and it's past validity, move to expirado
       const sim = lastSims[client.id];
