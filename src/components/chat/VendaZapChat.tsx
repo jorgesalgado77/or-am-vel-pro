@@ -36,6 +36,7 @@ type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configu
 function useWhatsAppConnectionStatus(tenantId: string | null) {
   const [status, setStatus] = useState<WhatsAppConnectionStatus>("checking");
   const [provider, setProvider] = useState<string | null>(null);
+  const syncedWebhookRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!tenantId) { setStatus("not_configured"); return; }
@@ -43,14 +44,12 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
     const checkConnection = async () => {
       setStatus("checking");
 
-      // Read whatsapp_settings
       let response = await supabase
         .from("whatsapp_settings")
         .select("*")
         .limit(1)
         .maybeSingle();
 
-      // If tenant_id filter fails, retry without it
       if (response.error?.code === "42703" || response.error?.code === "PGRST204") {
         response = await supabase
           .from("whatsapp_settings")
@@ -70,6 +69,28 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
 
       if (settings.provider === "zapi" && settings.zapi_instance_id && settings.zapi_token && settings.zapi_client_token) {
         try {
+          if (settings.zapi_webhook_url) {
+            const syncKey = `${settings.zapi_instance_id}:${settings.zapi_webhook_url}`;
+            if (syncedWebhookRef.current !== syncKey) {
+              const syncRes = await fetch(
+                `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/update-webhook-received-delivery`,
+                {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Client-Token": settings.zapi_client_token,
+                    ...(settings.zapi_security_token ? { "Security-Token": settings.zapi_security_token } : {}),
+                  },
+                  body: JSON.stringify({ value: settings.zapi_webhook_url }),
+                }
+              );
+
+              if (syncRes.ok) {
+                syncedWebhookRef.current = syncKey;
+              }
+            }
+          }
+
           const res = await fetch(
             `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/status`,
             {
@@ -107,7 +128,6 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
     };
 
     checkConnection();
-    // Re-check every 60 seconds
     const interval = setInterval(checkConnection, 60000);
     return () => clearInterval(interval);
   }, [tenantId]);
@@ -444,7 +464,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     }, forceRefresh ? 300 : 800);
   }, [addon, generate]);
 
-  // Realtime: new client messages → notify + auto-pilot
+  // Realtime: espelhar mensagens recebidas e enviadas
   useEffect(() => {
     const channel = supabase
       .channel("vendazap-chat-list")
@@ -453,26 +473,29 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         { event: "INSERT", schema: "public", table: "tracking_messages" },
         async (payload) => {
           const msg = payload.new as any;
-          if (msg.remetente_tipo === "cliente") {
-            // Find conversation by tracking_id OR by matching client_id across grouped entries
-            let conv = conversationsRef.current.find((c) => c.id === msg.tracking_id);
 
-            // If not found by direct tracking_id, search by client_id linkage
-            if (!conv && msg.tracking_id) {
-              const { data: trackingRow } = await supabase
-                .from("client_tracking")
-                .select("client_id")
-                .eq("id", msg.tracking_id)
-                .maybeSingle();
+          let conv = conversationsRef.current.find((c) => c.id === msg.tracking_id);
 
-              if (trackingRow?.client_id) {
-                conv = conversationsRef.current.find((c) => c.client_id === trackingRow.client_id);
-              }
+          if (!conv && msg.tracking_id) {
+            const { data: trackingRow } = await supabase
+              .from("client_tracking")
+              .select("client_id")
+              .eq("id", msg.tracking_id)
+              .maybeSingle();
+
+            if (trackingRow?.client_id) {
+              conv = conversationsRef.current.find((c) => c.client_id === trackingRow.client_id);
             }
+          }
 
+          const isSelectedConversation = Boolean(
+            selected && (selected.id === msg.tracking_id || (conv && selected.id === conv.id))
+          );
+
+          if (msg.remetente_tipo === "cliente") {
             playLeadNotificationSound(conv?.lead_temperature);
 
-            if (!selected || (selected.id !== msg.tracking_id && (!conv || selected.id !== conv.id))) {
+            if (!isSelectedConversation) {
               const tempEmoji = conv?.lead_temperature === "quente" ? "🔥" : conv?.lead_temperature === "morno" ? "🟡" : "❄️";
               toast.info(`${tempEmoji} Nova mensagem de cliente!`, {
                 description: msg.mensagem?.substring(0, 50),
@@ -480,7 +503,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
               });
             }
 
-            if (selected && (selected.id === msg.tracking_id || (conv && selected.id === conv.id))) {
+            if (selected && isSelectedConversation) {
               triggerAI(selected, true);
             }
 
@@ -507,9 +530,9 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
                 });
               }
             }
-
-            fetchConversations();
           }
+
+          fetchConversations();
         }
       )
       .subscribe();
