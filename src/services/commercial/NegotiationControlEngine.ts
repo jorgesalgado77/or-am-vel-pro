@@ -338,8 +338,8 @@ export class NegotiationControlEngine {
 
     return {
       prediction: engine.predictNextMove(behaviorCtx),
-      engagement: engine.calculateEngagement(behaviorCtx),
-      resistance: engine.analyzeResistance(behaviorCtx),
+      engagement: engine.calculateEngagementScore(behaviorCtx),
+      resistance: engine.detectResistanceLevel(behaviorCtx),
     };
   }
 
