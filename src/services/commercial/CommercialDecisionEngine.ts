@@ -9,6 +9,7 @@
  */
 
 import { calculateSimulation, formatCurrency, type SimulationInput } from "@/lib/financing";
+import { getOptimizationEngine } from "@/services/ai/OptimizationEngine";
 import { calcLeadTemperature, type LeadTemperature } from "@/lib/leadTemperature";
 import { analyzeVendaZapMessage, detectDiscFromMessages, type DiscProfile, type VendaZapMessageLike } from "@/lib/vendazapAnalysis";
 import { supabase } from "@/lib/supabaseClient";
