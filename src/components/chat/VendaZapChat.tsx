@@ -58,6 +58,7 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
       let response = await supabase
         .from("whatsapp_settings")
         .select("*")
+        .eq("tenant_id", tenantId)
         .limit(1)
         .maybeSingle();
 
@@ -76,9 +77,9 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
         return;
       }
 
-      // Auto-fix webhook URL if it points to whatsapp-bot
-      if (settings.zapi_webhook_url && settings.zapi_webhook_url.includes("whatsapp-bot")) {
-        const correctedUrl = settings.zapi_webhook_url.replace("whatsapp-bot", "whatsapp-webhook");
+      const defaultWebhookUrl = "https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook";
+      if (!settings.zapi_webhook_url || settings.zapi_webhook_url.includes("whatsapp-bot")) {
+        const correctedUrl = (settings.zapi_webhook_url || defaultWebhookUrl).replace("whatsapp-bot", "whatsapp-webhook");
         settings.zapi_webhook_url = correctedUrl;
         await supabase
           .from("whatsapp_settings")

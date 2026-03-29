@@ -85,78 +85,81 @@ export function ChatWindow({
   const bottomRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
 
-  useEffect(() => {
+  const discoverTrackingIds = useCallback(async () => {
     let active = true;
+    const normalizedConversationPhone = getConversationPhone(conversation);
+    const trackingIdSet = new Set<string>([conversation.id]);
 
-    void (async () => {
-      const normalizedConversationPhone = getConversationPhone(conversation);
-      const trackingIdSet = new Set<string>([conversation.id]);
+    if (conversation.client_id) {
+      const { data } = await supabase
+        .from("client_tracking")
+        .select("id")
+        .eq("client_id", conversation.client_id)
+        .order("updated_at", { ascending: false });
 
-      if (conversation.client_id) {
-        const { data } = await supabase
+      ((data as Array<{ id: string }> | null) || []).forEach((row) => trackingIdSet.add(row.id));
+    }
+
+    if (normalizedConversationPhone) {
+      let trackingQuery = supabase
+        .from("client_tracking")
+        .select("id, numero_contrato")
+        .order("updated_at", { ascending: false })
+        .limit(100);
+
+      if (tenantId) {
+        trackingQuery = trackingQuery.eq("tenant_id", tenantId);
+      }
+
+      const { data: phoneTrackings } = await trackingQuery.or(`numero_contrato.ilike.%${normalizedConversationPhone.slice(-8)}%`);
+
+      ((phoneTrackings as Array<{ id: string; numero_contrato?: string | null }> | null) || [])
+        .filter((row) => phonesMatch(row.numero_contrato, normalizedConversationPhone))
+        .forEach((row) => trackingIdSet.add(row.id));
+
+      let clientQuery = supabase
+        .from("clients")
+        .select("id, telefone1, telefone2")
+        .or(`telefone1.ilike.%${normalizedConversationPhone.slice(-8)}%,telefone2.ilike.%${normalizedConversationPhone.slice(-8)}%`);
+
+      if (tenantId) {
+        clientQuery = clientQuery.eq("tenant_id", tenantId);
+      }
+
+      const { data: phoneClients } = await clientQuery;
+
+      const relatedClientIds = ((phoneClients as Array<{ id: string; telefone1?: string | null; telefone2?: string | null }> | null) || [])
+        .filter((client) => {
+          const phones = [client.telefone1, client.telefone2].map((phone) => normalizePhone(phone));
+          return phones.some((phone) => phonesMatch(phone, normalizedConversationPhone));
+        })
+        .map((client) => client.id);
+
+      if (relatedClientIds.length > 0) {
+        const { data: relatedTrackings } = await supabase
           .from("client_tracking")
           .select("id")
-          .eq("client_id", conversation.client_id)
+          .in("client_id", relatedClientIds)
           .order("updated_at", { ascending: false });
 
-        ((data as Array<{ id: string }> | null) || []).forEach((row) => trackingIdSet.add(row.id));
+        ((relatedTrackings as Array<{ id: string }> | null) || []).forEach((row) => trackingIdSet.add(row.id));
       }
+    }
 
-      if (normalizedConversationPhone) {
-        let trackingQuery = supabase
-          .from("client_tracking")
-          .select("id, numero_contrato")
-          .order("updated_at", { ascending: false })
-          .limit(100);
-
-        if (tenantId) {
-          trackingQuery = trackingQuery.eq("tenant_id", tenantId);
-        }
-
-        const { data: phoneTrackings } = await trackingQuery.or(`numero_contrato.ilike.%${normalizedConversationPhone.slice(-8)}%`);
-
-        ((phoneTrackings as Array<{ id: string; numero_contrato?: string | null }> | null) || [])
-          .filter((row) => phonesMatch(row.numero_contrato, normalizedConversationPhone))
-          .forEach((row) => trackingIdSet.add(row.id));
-
-        let clientQuery = supabase
-          .from("clients")
-          .select("id, telefone1, telefone2")
-          .or(`telefone1.ilike.%${normalizedConversationPhone.slice(-8)}%,telefone2.ilike.%${normalizedConversationPhone.slice(-8)}%`);
-
-        if (tenantId) {
-          clientQuery = clientQuery.eq("tenant_id", tenantId);
-        }
-
-        const { data: phoneClients } = await clientQuery;
-
-        const relatedClientIds = ((phoneClients as any[]) || [])
-          .filter((client) => {
-            const phones = [client.telefone1, client.telefone2]
-              .map((phone) => normalizePhone(phone));
-            return phones.some((phone) => phonesMatch(phone, normalizedConversationPhone));
-          })
-          .map((client) => client.id);
-
-        if (relatedClientIds.length > 0) {
-          const { data: relatedTrackings } = await supabase
-            .from("client_tracking")
-            .select("id")
-            .in("client_id", relatedClientIds)
-            .order("updated_at", { ascending: false });
-
-          ((relatedTrackings as Array<{ id: string }> | null) || []).forEach((row) => trackingIdSet.add(row.id));
-        }
-      }
-
-      if (!active) return;
-      setTrackingIds(Array.from(trackingIdSet));
-    })();
+    if (!active) return;
+    setTrackingIds((prev) => {
+      const next = Array.from(trackingIdSet);
+      return prev.length === next.length && prev.every((id) => trackingIdSet.has(id)) ? prev : next;
+    });
 
     return () => {
       active = false;
     };
   }, [conversation, tenantId]);
+
+  useEffect(() => {
+    void discoverTrackingIds();
+  }, [discoverTrackingIds]);
 
   const fetchMessages = useCallback(async (before?: string) => {
     if (trackingIds.length === 0) {
@@ -219,13 +222,13 @@ export function ChatWindow({
       .eq("lida", false)
       .then();
 
-    // Polling fallback — refetch every 8s in case realtime misses events
     const pollInterval = setInterval(() => {
+      void discoverTrackingIds();
       void fetchMessages();
     }, 8000);
 
     return () => clearInterval(pollInterval);
-  }, [fetchMessages, trackingIds]);
+  }, [discoverTrackingIds, fetchMessages, trackingIds]);
 
   useEffect(() => {
     if (isInitialLoad.current && messages.length > 0) {
