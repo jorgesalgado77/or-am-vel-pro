@@ -22,6 +22,7 @@ import { maskCep, maskCodigoLoja, maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
+import { sendWhatsAppText } from "@/lib/whatsappSender";
 import type { Client, LastSimInfo } from "./kanbanTypes";
 import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
 
@@ -1782,6 +1783,27 @@ export function MeasurementRequestModal({
           }
         }
       } catch { /* silent */ }
+
+      // Send WhatsApp notification to gerentes técnicos
+      if (!existingRequestId) {
+        try {
+          const [{ data: waUsuarios }, { data: waCargos }] = await Promise.all([
+            supabase.from("usuarios" as any).select("id, nome_completo, telefone, cargo_id").eq("tenant_id", tenantId).eq("ativo", true),
+            supabase.from("cargos" as any).select("id, nome").eq("tenant_id", tenantId),
+          ]);
+          const waCargoMap = new Map((waCargos as any[] || []).map((c: any) => [c.id, (c.nome || "").toLowerCase()]));
+          if (waUsuarios) {
+            for (const u of waUsuarios as any[]) {
+              const cargoName = waCargoMap.get(u.cargo_id) || "";
+              const isGerente = cargoName.includes("gerente") && (cargoName.includes("tecnico") || cargoName.includes("técnico"));
+              if (isGerente && u.telefone) {
+                const msg = `📐 *Nova Solicitação de Medida*\n\n👤 Cliente: ${client.nome}\n🏠 ${environments.length} ambiente(s)\n💰 Valor: ${formatCurrency(totalValorAvista)}\n📍 ${normalizedAddress.city ? normalizedAddress.city + " - " + normalizedAddress.state : "Sem endereço"}\n\n📋 Acesse o Kanban de Medidas para mais detalhes.`;
+                sendWhatsAppText(u.telefone, msg).catch(() => {});
+              }
+            }
+          }
+        } catch { /* silent */ }
+      }
 
       logAudit({
         acao: "solicitacao_medida_criada",

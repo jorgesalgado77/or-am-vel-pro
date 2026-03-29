@@ -10,12 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MeasurementReport } from "./MeasurementReport";
+import { MeasurementDetailModal } from "./MeasurementDetailModal";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Ruler, AlertTriangle, CheckCircle2, Clock, RefreshCw, Search,
-  User, FileText, ChevronRight, Loader2, BarChart3, Pencil,
+  User, FileText, ChevronRight, Loader2, BarChart3, Pencil, Eye,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -59,6 +60,7 @@ export function MeasurementKanban() {
   const [requests, setRequests] = useState<MeasurementRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [detailRequest, setDetailRequest] = useState<MeasurementRequest | null>(null);
   const { usuarios } = useUsuarios();
 
   const fetchRequests = useCallback(async () => {
@@ -316,6 +318,16 @@ export function MeasurementKanban() {
                               </div>
                             )}
 
+                            {/* View details button */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full h-7 text-[11px] gap-1.5"
+                              onClick={() => setDetailRequest(req)}
+                            >
+                              <Eye className="h-3 w-3" /> Ver Detalhes
+                            </Button>
+
                             <Separator />
 
                             {/* Assign + status controls */}
@@ -390,6 +402,12 @@ export function MeasurementKanban() {
       <TabsContent value="report">
         <MeasurementReport />
       </TabsContent>
+
+      <MeasurementDetailModal
+        open={!!detailRequest}
+        onOpenChange={(o) => !o && setDetailRequest(null)}
+        request={detailRequest}
+      />
     </Tabs>
   );
 }
