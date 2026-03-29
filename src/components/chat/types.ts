@@ -7,6 +7,7 @@ export interface ChatConversation {
   last_message_at?: string;
   lead_temperature?: "quente" | "morno" | "frio";
   vendedor_nome?: string | null;
+  projetista_nome?: string | null;
   isClientDirect?: boolean;
   isTemporary?: boolean;
   client_id?: string;
