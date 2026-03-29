@@ -28,6 +28,18 @@ export { LearningEngine, getLearningEngine } from "@/services/ai/LearningEngine"
 export { OptimizationEngine, getOptimizationEngine } from "@/services/ai/OptimizationEngine";
 export type { LearningEvent, StrategyType, OptimizationResult } from "@/services/ai/types";
 
+// Negotiation Arbitrage Engine
+export { NegotiationArbitrageEngine, getArbitrageEngine } from "./NegotiationArbitrageEngine";
+export type {
+  ArbitrageContext,
+  ArbitrageScenario,
+  ArbitrageScenarioType,
+  ArbitrageResult,
+  GiftSuggestion,
+  ArbitrageOutcome,
+  GapAnalysis,
+} from "./NegotiationArbitrageEngine";
+
 // Director Engine
 export { CommercialDirectorEngine, getDirectorEngine } from "./CommercialDirectorEngine";
 export type { BusinessAnalysis, RevenueForecast, VendorAnalysis, DirectorAlert, StrategyDefinition } from "./CommercialDirectorEngine";
