@@ -42,23 +42,27 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
   const fetchTrackingsWithMessages = async () => {
     setLoading(true);
 
-    // Get all trackings that have messages
     const tenantId = getTenantId();
+
+    // Get all trackings for this tenant
     let trackQuery = supabase
       .from("client_tracking")
-      .select("id, numero_contrato, nome_cliente")
+      .select("id, numero_contrato, nome_cliente, client_id")
       .order("updated_at", { ascending: false });
     if (tenantId) trackQuery = trackQuery.eq("tenant_id", tenantId);
     const { data: allTrackings } = await trackQuery;
 
-    if (!allTrackings) { setLoading(false); return; }
+    if (!allTrackings || allTrackings.length === 0) { setTrackings([]); setLoading(false); return; }
 
-    // Get unread counts (messages from clients not read by loja)
+    const trackingIdList = (allTrackings as any[]).map((t) => t.id);
+
+    // Get unread counts scoped to this tenant's trackings
     const { data: unreadData } = await supabase
       .from("tracking_messages")
       .select("tracking_id")
       .eq("remetente_tipo", "cliente")
-      .eq("lida", false);
+      .eq("lida", false)
+      .in("tracking_id", trackingIdList);
 
     const unreadMap: Record<string, number> = {};
     (unreadData || []).forEach((m: any) => {
@@ -68,15 +72,39 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
     // Get trackings that have any messages
     const { data: msgTrackings } = await supabase
       .from("tracking_messages")
-      .select("tracking_id");
+      .select("tracking_id")
+      .in("tracking_id", trackingIdList);
 
     const hasMessages = new Set((msgTrackings || []).map((m: any) => m.tracking_id));
 
-    const result = (allTrackings as any[])
-      .filter((t) => hasMessages.has(t.id) || (unreadMap[t.id] || 0) > 0)
-      .map((t) => ({
-        ...t,
-        unread_count: unreadMap[t.id] || 0,
+    // Group by client_id to merge duplicate trackings for the same client
+    const clientGroups = new Map<string, { tracking: any; unread: number; hasMsg: boolean }>();
+
+    (allTrackings as any[]).forEach((t) => {
+      const groupKey = t.client_id || t.id;
+      const unread = unreadMap[t.id] || 0;
+      const hasMsg = hasMessages.has(t.id);
+      const existing = clientGroups.get(groupKey);
+
+      if (!existing) {
+        clientGroups.set(groupKey, { tracking: t, unread, hasMsg });
+      } else {
+        existing.unread += unread;
+        existing.hasMsg = existing.hasMsg || hasMsg;
+        // Prefer the tracking with the most recent activity
+        if (unread > 0 && (unreadMap[existing.tracking.id] || 0) === 0) {
+          existing.tracking = t;
+        }
+      }
+    });
+
+    const result: TrackingWithMessages[] = Array.from(clientGroups.values())
+      .filter((g) => g.hasMsg || g.unread > 0)
+      .map((g) => ({
+        id: g.tracking.id,
+        numero_contrato: g.tracking.numero_contrato,
+        nome_cliente: g.tracking.nome_cliente,
+        unread_count: g.unread,
       }))
       .sort((a, b) => b.unread_count - a.unread_count);
 
@@ -121,24 +149,41 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
 
   const openConversation = async (tracking: TrackingWithMessages) => {
     setSelectedTracking(tracking);
+
+    // Find all tracking IDs for the same client (to show unified history)
+    const { data: relatedTrackings } = await supabase
+      .from("client_tracking")
+      .select("id, client_id")
+      .eq("id", tracking.id)
+      .single();
+
+    let allTrackingIds = [tracking.id];
+    if (relatedTrackings?.client_id) {
+      const { data: siblings } = await supabase
+        .from("client_tracking")
+        .select("id")
+        .eq("client_id", relatedTrackings.client_id);
+      if (siblings) {
+        allTrackingIds = Array.from(new Set([tracking.id, ...siblings.map((s: any) => s.id)]));
+      }
+    }
+
     const { data } = await supabase
       .from("tracking_messages")
       .select("*")
-      .eq("tracking_id", tracking.id)
+      .in("tracking_id", allTrackingIds)
       .order("created_at", { ascending: true });
     if (data) setMessages(data as any);
 
-    // Mark client messages as read
+    // Mark client messages as read across all related trackings
     await supabase
       .from("tracking_messages")
       .update({ lida: true } as any)
-      .eq("tracking_id", tracking.id)
+      .in("tracking_id", allTrackingIds)
       .eq("remetente_tipo", "cliente")
       .eq("lida", false);
 
-    // Update local count
     setTrackings((prev) => prev.map((t) => t.id === tracking.id ? { ...t, unread_count: 0 } : t));
-
     const newTotal = trackings.reduce((sum, t) => sum + (t.id === tracking.id ? 0 : t.unread_count), 0);
     onUnreadChange?.(newTotal);
   };
