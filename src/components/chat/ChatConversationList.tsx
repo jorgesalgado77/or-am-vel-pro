@@ -170,6 +170,31 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
     return result;
   }, [conversations, search, tempFilter, vendedorFilter, unreadOnly, dateFilter]);
 
+  // Detect duplicates by phone number
+  const duplicatePhoneMap = useMemo(() => {
+    const phoneGroups = new Map<string, ChatConversation[]>();
+    filtered.forEach((c) => {
+      const phone = (c.phone || "").replace(/\D/g, "").slice(-8);
+      if (phone.length >= 8) {
+        const existing = phoneGroups.get(phone) || [];
+        existing.push(c);
+        phoneGroups.set(phone, existing);
+      }
+    });
+    // Only keep groups with 2+ conversations
+    const dups = new Map<string, ChatConversation[]>();
+    phoneGroups.forEach((convs, phone) => {
+      if (convs.length > 1) dups.set(phone, convs);
+    });
+    return dups;
+  }, [filtered]);
+
+  const duplicateConvIds = useMemo(() => {
+    const ids = new Set<string>();
+    duplicatePhoneMap.forEach((convs) => convs.forEach((c) => ids.add(c.id)));
+    return ids;
+  }, [duplicatePhoneMap]);
+
   // Split into system clients vs WhatsApp imported contacts
   const systemClients = useMemo(() => filtered.filter(c => !c.numero_contrato?.startsWith("WA-")), [filtered]);
   const waContacts = useMemo(() => filtered.filter(c => c.numero_contrato?.startsWith("WA-")), [filtered]);
