@@ -12,7 +12,7 @@ import { CloseSaleModal } from "@/components/CloseSaleModal";
 import type { CloseSaleData } from "./AICloserBanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wifi, WifiOff, Loader2, Brain, Phone, Trash2 } from "lucide-react";
+import { Wifi, WifiOff, Loader2, Brain, Phone, Trash2, Merge } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
