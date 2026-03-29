@@ -379,6 +379,12 @@ export function ChatWindow({
           </p>
         </div>
 
+        <VendaZapMonitorIndicator
+          trackingId={conversation.id}
+          tenantId={tenantId}
+          enabled={vendazapActive}
+        />
+
         <CloseDealButton
           trackingId={conversation.id}
           clientName={conversation.nome_cliente}
