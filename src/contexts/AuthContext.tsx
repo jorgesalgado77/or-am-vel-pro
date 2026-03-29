@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { CargoPermissoes } from "@/hooks/useCargos";
-import { logLoginDiagnostic } from "@/services/loginDiagnosticService";
+import { logLoginDiagnostic } from "@/services/system/SystemDiagnosticsService";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 
