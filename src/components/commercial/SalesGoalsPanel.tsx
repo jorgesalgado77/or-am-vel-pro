@@ -169,11 +169,16 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       .select("client_id, vendedor_id, valor_com_desconto, valor_contrato, created_at")
       .eq("tenant_id", tenantId);
 
+    // Also fetch clients for leads count
+    const { data: clientsData } = await supabase
+      .from("clients" as any)
+      .select("id, responsavel_id, created_at")
+      .eq("tenant_id", tenantId);
+
     const enriched = Array.from(mergedByKey.values()).map((g: any) => {
       let currentValue = 0;
       const monthContracts = (contractsData || []).filter((c: any) => {
         const matchesMonth = (c.created_at || "").substring(0, 7) === selectedMonth;
-        // Match by vendedor_id or responsavel_id on client
         const matchesUser = c.vendedor_id === g.user_id;
         return matchesMonth && matchesUser;
       });
@@ -186,13 +191,9 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       } else if (g.goal_type === "deals") {
         currentValue = monthContracts.length;
       } else if (g.goal_type === "leads") {
-        // Leads count from clients table
-        const { data: leadClients } = await supabase
-          .from("clients" as any)
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .eq("responsavel_id", g.user_id);
-        currentValue = (leadClients || []).filter((c: any) => (c.created_at || "").substring(0, 7) === selectedMonth).length;
+        currentValue = (clientsData || []).filter((c: any) =>
+          c.responsavel_id === g.user_id && (c.created_at || "").substring(0, 7) === selectedMonth
+        ).length;
       }
 
       return {
