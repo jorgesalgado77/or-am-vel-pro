@@ -126,7 +126,7 @@ const ConversationItem = memo(function ConversationItem({
   );
 });
 
-export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, onDelete, onMergeDuplicate, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
+export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, onDelete, onMergeDuplicate, loading, onStartConversation, currentUserName, isAdminOrManager, deletedIds }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [vendedorFilter, setVendedorFilter] = useState<VendedorFilter>("all");
