@@ -692,13 +692,13 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     setCloseSaleSaving(true);
     try {
       // Build contract HTML using template if available
-      const { data: templateData } = await supabase
-        .from("company_settings")
-        .select("contract_template")
+      const { data: templateRow } = await supabase
+        .from("contract_templates")
+        .select("conteudo_html")
         .limit(1)
         .maybeSingle();
 
-      const template = (templateData as Record<string, unknown> | null)?.contract_template as string || "<p>Contrato gerado automaticamente</p>";
+      const template = (templateRow as unknown as Record<string, string> | null)?.conteudo_html || "<p>Contrato gerado automaticamente</p>";
 
       const { buildContractHtml } = await import("@/services/contractService");
       const { data: settingsData } = await supabase
@@ -733,11 +733,12 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         itemDetails: itemDetails as Array<{ item_num: number; titulos: string; corpo: string; porta: string; puxador: string; complemento: string; modelo: string }>,
       });
 
-      const { error } = await supabase.from("client_contracts").insert({
-        tenant_id: tenantId,
-        client_id: selected.client_id || null,
+      const insertPayload = {
+        client_id: selected.client_id!,
         conteudo_html: contractHtml,
-      } as Record<string, unknown>);
+        tenant_id: tenantId,
+      };
+      const { error } = await supabase.from("client_contracts").insert(insertPayload);
 
       if (error) throw error;
 
