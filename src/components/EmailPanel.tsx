@@ -437,16 +437,27 @@ export function EmailPanel() {
           if (att.kind === "image") {
             const path = `email-attachments/${tenantId}/${Date.now()}-${att.file.name}`;
             const { data: uploadData } = await supabase.storage
-              .from("attachments")
+              .from("chat-attachments")
               .upload(path, att.file, { upsert: true });
             if (uploadData) {
-              const { data: urlData } = supabase.storage.from("attachments").getPublicUrl(path);
+              const { data: urlData } = supabase.storage.from("chat-attachments").getPublicUrl(path);
               finalHtml += `<a href="${urlData.publicUrl}" target="_blank" style="display:inline-block;margin:4px;">`;
-              finalHtml += `<img src="${urlData.publicUrl}" alt="${att.file.name}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e2e8f0;">`;
+              finalHtml += `<img src="${urlData.publicUrl}" alt="${att.file.name}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e2e8f0;" data-attachment="true" data-filename="${att.file.name}">`;
               finalHtml += `</a>`;
             }
           } else {
-            finalHtml += `<p style="font-size:12px;">📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)</p>`;
+            const path = `email-attachments/${tenantId}/${Date.now()}-${att.file.name}`;
+            const { data: uploadData } = await supabase.storage
+              .from("chat-attachments")
+              .upload(path, att.file, { upsert: true });
+            if (uploadData) {
+              const { data: urlData } = supabase.storage.from("chat-attachments").getPublicUrl(path);
+              finalHtml += `<a href="${urlData.publicUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f1f5f9;border-radius:8px;border:1px solid #e2e8f0;margin:4px;text-decoration:none;color:#334155;font-size:12px;" data-attachment="true" data-filename="${att.file.name}">`;
+              finalHtml += `📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)`;
+              finalHtml += `</a>`;
+            } else {
+              finalHtml += `<p style="font-size:12px;">📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)</p>`;
+            }
           }
         }
         finalHtml += `</div>`;
@@ -913,16 +924,23 @@ export function EmailPanel() {
                       );
                       const isExpanded = expandedEmailId === email.id;
 
-                      // Extract inline images from body_html for thumbnails
+                      // Extract inline images and file attachments from body_html
                       const inlineImages: string[] = [];
+                      const fileAttachments: { name: string; url: string }[] = [];
                       if (email.body_html) {
+                        // Extract all img src urls
                         const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
                         let match;
                         while ((match = imgRegex.exec(email.body_html)) !== null) {
                           inlineImages.push(match[1]);
                         }
+                        // Extract file attachment links (non-image)
+                        const fileRegex = /<a[^>]+href="([^"]+)"[^>]*data-attachment="true"[^>]*data-filename="([^"]*)"[^>]*>[^<]*📄[^<]*<\/a>/gi;
+                        while ((match = fileRegex.exec(email.body_html)) !== null) {
+                          fileAttachments.push({ url: match[1], name: match[2] });
+                        }
                       }
-                      const hasAttachments = inlineImages.length > 0 || (email.body_html?.includes("📎") ?? false);
+                      const hasAttachments = inlineImages.length > 0 || fileAttachments.length > 0 || (email.body_html?.includes("📎") ?? false);
 
                       return (
                         <div key={email.id} className="rounded-lg border bg-card hover:bg-muted/30 transition-colors">
@@ -949,19 +967,26 @@ export function EmailPanel() {
                                 {dateStr} às {timeStr}
                               </p>
                               {/* Attachment thumbnails preview */}
-                              {!isExpanded && inlineImages.length > 0 && (
+                              {!isExpanded && (inlineImages.length > 0 || fileAttachments.length > 0) && (
                                 <div className="flex gap-1.5 mt-1.5">
                                   {inlineImages.slice(0, 3).map((src, idx) => (
                                     <img
-                                      key={idx}
+                                      key={`img-${idx}`}
                                       src={src}
                                       alt={`Anexo ${idx + 1}`}
                                       className="h-10 w-10 rounded border border-border object-cover"
+                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                     />
                                   ))}
-                                  {inlineImages.length > 3 && (
+                                  {fileAttachments.slice(0, 2).map((fa, idx) => (
+                                    <div key={`file-${idx}`} className="h-10 px-2 rounded border border-border bg-muted flex items-center gap-1 text-[9px] text-muted-foreground">
+                                      <FileText className="h-3 w-3 shrink-0" />
+                                      <span className="truncate max-w-[60px]">{fa.name}</span>
+                                    </div>
+                                  ))}
+                                  {(inlineImages.length + fileAttachments.length) > 3 && (
                                     <div className="h-10 w-10 rounded border border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
-                                      +{inlineImages.length - 3}
+                                      +{(inlineImages.length + fileAttachments.length) - 3}
                                     </div>
                                   )}
                                 </div>
@@ -983,17 +1008,24 @@ export function EmailPanel() {
                                 className="mt-2 text-sm text-foreground prose prose-sm max-w-none bg-muted/30 rounded-lg p-3 max-h-[300px] overflow-y-auto"
                                 dangerouslySetInnerHTML={{ __html: email.body_html }}
                               />
-                              {inlineImages.length > 0 && (
+                              {(inlineImages.length > 0 || fileAttachments.length > 0) && (
                                 <div className="mt-2">
-                                  <p className="text-[10px] text-muted-foreground font-semibold mb-1">📎 Anexos ({inlineImages.length})</p>
+                                  <p className="text-[10px] text-muted-foreground font-semibold mb-1">📎 Anexos ({inlineImages.length + fileAttachments.length})</p>
                                   <div className="flex flex-wrap gap-2">
                                     {inlineImages.map((src, idx) => (
-                                      <a key={idx} href={src} target="_blank" rel="noopener noreferrer">
+                                      <a key={`img-${idx}`} href={src} target="_blank" rel="noopener noreferrer">
                                         <img
                                           src={src}
                                           alt={`Anexo ${idx + 1}`}
                                           className="h-16 w-16 rounded-lg border border-border object-cover hover:ring-2 hover:ring-primary/50 transition-all"
+                                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                         />
+                                      </a>
+                                    ))}
+                                    {fileAttachments.map((fa, idx) => (
+                                      <a key={`file-${idx}`} href={fa.url} target="_blank" rel="noopener noreferrer" className="h-16 px-3 rounded-lg border border-border bg-muted flex items-center gap-2 hover:ring-2 hover:ring-primary/50 transition-all">
+                                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                                        <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">{fa.name}</span>
                                       </a>
                                     ))}
                                   </div>
