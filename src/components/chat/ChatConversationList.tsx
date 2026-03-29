@@ -455,6 +455,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                     onDelete={onDelete}
                     isAdmin={isAdminOrManager}
                     isDuplicate={duplicateConvIds.has(conv.id)}
+                    isDeleting={deletedIds?.has(conv.id)}
                     onShowDuplicates={() => {
                       const phone = (conv.phone || "").replace(/\D/g, "").slice(-8);
                       const dups = duplicatePhoneMap.get(phone);
@@ -493,6 +494,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                     onDelete={onDelete}
                     isAdmin={isAdminOrManager}
                     isDuplicate={duplicateConvIds.has(conv.id)}
+                    isDeleting={deletedIds?.has(conv.id)}
                     onShowDuplicates={() => {
                       const phone = (conv.phone || "").replace(/\D/g, "").slice(-8);
                       const dups = duplicatePhoneMap.get(phone);
