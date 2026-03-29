@@ -51,33 +51,55 @@ export function ChatWindow({
 
   useEffect(() => {
     let active = true;
-    setTrackingIds([conversation.id]);
-
-    if (!conversation.client_id) return () => {
-      active = false;
-    };
 
     void (async () => {
-      const { data } = await supabase
-        .from("client_tracking")
-        .select("id")
-        .eq("client_id", conversation.client_id)
-        .order("updated_at", { ascending: false });
+      const normalizedConversationPhone = (conversation.phone || "").replace(/\D/g, "");
+      const trackingIdSet = new Set<string>([conversation.id]);
+
+      if (conversation.client_id) {
+        const { data } = await supabase
+          .from("client_tracking")
+          .select("id")
+          .eq("client_id", conversation.client_id)
+          .order("updated_at", { ascending: false });
+
+        ((data as Array<{ id: string }> | null) || []).forEach((row) => trackingIdSet.add(row.id));
+      }
+
+      if (normalizedConversationPhone) {
+        const { data: phoneClients } = await supabase
+          .from("clients")
+          .select("id, telefone1, telefone2")
+          .or(`telefone1.ilike.%${normalizedConversationPhone.slice(-8)}%,telefone2.ilike.%${normalizedConversationPhone.slice(-8)}%`)
+          .eq("tenant_id", tenantId || undefined);
+
+        const relatedClientIds = ((phoneClients as any[]) || [])
+          .filter((client) => {
+            const phones = [client.telefone1, client.telefone2]
+              .map((phone) => String(phone || "").replace(/\D/g, ""));
+            return phones.some((phone) => phone && (phone.endsWith(normalizedConversationPhone) || normalizedConversationPhone.endsWith(phone)));
+          })
+          .map((client) => client.id);
+
+        if (relatedClientIds.length > 0) {
+          const { data: relatedTrackings } = await supabase
+            .from("client_tracking")
+            .select("id")
+            .in("client_id", relatedClientIds)
+            .order("updated_at", { ascending: false });
+
+          ((relatedTrackings as Array<{ id: string }> | null) || []).forEach((row) => trackingIdSet.add(row.id));
+        }
+      }
 
       if (!active) return;
-
-      const ids = Array.from(new Set([
-        conversation.id,
-        ...((data as Array<{ id: string }> | null)?.map((row) => row.id) || []),
-      ]));
-
-      setTrackingIds(ids);
+      setTrackingIds(Array.from(trackingIdSet));
     })();
 
     return () => {
       active = false;
     };
-  }, [conversation.id, conversation.client_id]);
+  }, [conversation.id, conversation.client_id, conversation.phone, tenantId]);
 
   const fetchMessages = useCallback(async (before?: string) => {
     if (trackingIds.length === 0) {
@@ -99,17 +121,22 @@ export function ChatWindow({
     }
 
     const { data } = await query;
-    const msgs = ((data as any[]) || []).reverse() as ChatMessage[];
+    const msgs = ((data as any[]) || [])
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) as ChatMessage[];
 
     if (before) {
-      setMessages((prev) => [...msgs, ...prev]);
+      setMessages((prev) => {
+        const merged = [...msgs, ...prev];
+        return merged.filter((msg, index, arr) => arr.findIndex((item) => item.id === msg.id) === index);
+      });
     } else {
       setMessages(msgs);
     }
 
+    onMessagesLoaded?.(msgs.length);
     setHasMore((data?.length || 0) === PAGE_SIZE);
     setLoading(false);
-  }, [trackingIds]);
+  }, [trackingIds, onMessagesLoaded]);
 
   // Initial load + mark as read
   useEffect(() => {
@@ -119,7 +146,6 @@ export function ChatWindow({
 
     if (trackingIds.length === 0) return;
 
-    // Mark client messages as read
     supabase
       .from("tracking_messages")
       .update({ lida: true } as any)
@@ -129,7 +155,6 @@ export function ChatWindow({
       .then();
   }, [fetchMessages, trackingIds]);
 
-  // Scroll to bottom on initial load and new messages
   useEffect(() => {
     if (isInitialLoad.current && messages.length > 0) {
       bottomRef.current?.scrollIntoView();
@@ -137,7 +162,6 @@ export function ChatWindow({
     }
   }, [messages]);
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel(`chat-${conversation.id}`)
@@ -149,15 +173,15 @@ export function ChatWindow({
           if (trackingIds.includes(msg.tracking_id)) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === msg.id)) return prev;
-              return [...prev, msg as ChatMessage];
+              return [...prev, msg as ChatMessage].sort(
+                (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              );
             });
 
-            // Mark as read if from client
             if (msg.remetente_tipo === "cliente") {
               supabase.from("tracking_messages").update({ lida: true } as any).eq("id", msg.id).then();
             }
 
-            // Scroll to bottom
             requestAnimationFrame(() => {
               bottomRef.current?.scrollIntoView({ behavior: "smooth" });
             });
@@ -167,7 +191,7 @@ export function ChatWindow({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [trackingIds]);
+  }, [conversation.id, trackingIds]);
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;

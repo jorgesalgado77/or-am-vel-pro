@@ -218,6 +218,8 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
 
+    const normalizePhoneValue = (value?: string | null) => (value || "").replace(/\D/g, "");
+
     // Fetch client_tracking with client_id
     const { data: trackings } = await supabase
       .from("client_tracking")
@@ -228,48 +230,88 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     // Also fetch clients directly to ensure we have all available clients
     const { data: allClients } = await supabase
       .from("clients")
-      .select("id, nome, numero_orcamento, vendedor, status, telefone1")
+      .select("id, nome, numero_orcamento, vendedor, status, telefone1, telefone2")
       .eq("tenant_id", tenantId)
       .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"]);
 
-    // Build vendedor/phone map from clients
-    let clientDataMap: Record<string, { vendedor: string | null; telefone: string | null }> = {};
+    const clientDataMap: Record<string, { vendedor: string | null; telefone: string | null; telefones: string[] }> = {};
+    const phoneToClientIds = new Map<string, string[]>();
+
     (allClients || []).forEach((c: any) => {
-      clientDataMap[c.id] = { vendedor: c.vendedor, telefone: c.telefone1 || null };
+      const phones = [c.telefone1, c.telefone2]
+        .map((phone: string | null | undefined) => normalizePhoneValue(phone))
+        .filter(Boolean);
+
+      clientDataMap[c.id] = {
+        vendedor: c.vendedor || null,
+        telefone: c.telefone1 || c.telefone2 || null,
+        telefones: phones,
+      };
+
+      phones.forEach((phone) => {
+        const existing = phoneToClientIds.get(phone) || [];
+        if (!existing.includes(c.id)) {
+          phoneToClientIds.set(phone, [...existing, c.id]);
+        }
+      });
     });
 
-    // Build tracking entries — merge client_tracking with clients fallback
-    let allEntries: Array<{ id: string; nome_cliente: string; numero_contrato: string; client_id: string; projetista?: string; isClientDirect?: boolean }> = [];
+    type Entry = {
+      id: string;
+      nome_cliente: string;
+      numero_contrato: string;
+      client_id: string;
+      projetista?: string;
+      isClientDirect?: boolean;
+      groupKey: string;
+      relatedTrackingIds: string[];
+      phone?: string;
+    };
+
+    let allEntries: Entry[] = [];
 
     if (trackings && trackings.length > 0) {
-      allEntries = (trackings as any[]).map(t => ({
-        id: t.id,
-        nome_cliente: t.nome_cliente,
-        numero_contrato: t.numero_contrato,
-        client_id: t.client_id,
-        projetista: t.projetista,
-      }));
+      allEntries = (trackings as any[]).map((t) => {
+        const clientPhones = clientDataMap[t.client_id]?.telefones || [];
+        const contractPhone = t.numero_contrato?.startsWith("WA-")
+          ? normalizePhoneValue(t.numero_contrato.replace("WA-", ""))
+          : "";
+        const canonicalPhone = clientPhones[0] || contractPhone;
+
+        return {
+          id: t.id,
+          nome_cliente: t.nome_cliente,
+          numero_contrato: t.numero_contrato,
+          client_id: t.client_id,
+          projetista: t.projetista,
+          groupKey: canonicalPhone || `client:${t.client_id || t.id}`,
+          relatedTrackingIds: [t.id],
+          phone: canonicalPhone || clientDataMap[t.client_id]?.telefone || undefined,
+        };
+      });
     }
 
-    // Add clients that don't have a tracking record
-    const trackedClientIds = new Set(allEntries.map(t => t.client_id));
+    const trackedClientIds = new Set(allEntries.map((t) => t.client_id).filter(Boolean));
     (allClients || []).forEach((c: any) => {
       if (!trackedClientIds.has(c.id)) {
+        const canonicalPhone = normalizePhoneValue(c.telefone1 || c.telefone2 || "");
         allEntries.push({
-          id: c.id, // Will use client ID — handleStartConversation creates tracking
+          id: c.id,
           nome_cliente: c.nome,
           numero_contrato: c.numero_orcamento || "",
           client_id: c.id,
           isClientDirect: true,
+          groupKey: canonicalPhone || `client:${c.id}`,
+          relatedTrackingIds: [],
+          phone: canonicalPhone || undefined,
         });
       }
     });
 
-    // Role-based filtering
     let filteredEntries = allEntries;
     if (!isAdminOrManager && currentUser?.nome_completo) {
       const nameLower = currentUser.nome_completo.toLowerCase();
-      filteredEntries = allEntries.filter(t =>
+      filteredEntries = allEntries.filter((t) =>
         clientDataMap[t.client_id]?.vendedor?.toLowerCase() === nameLower ||
         (t.projetista && t.projetista.toLowerCase() === nameLower)
       );
@@ -277,8 +319,41 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
 
     if (filteredEntries.length === 0) { setConversations([]); setLoading(false); return; }
 
-    // Only query messages for entries that have tracking records (not direct client IDs)
-    const trackingOnlyIds = filteredEntries.filter(t => !t.isClientDirect).map(t => t.id);
+    const groupedEntries = new Map<string, Entry>();
+    filteredEntries.forEach((entry) => {
+      const existing = groupedEntries.get(entry.groupKey);
+      if (!existing) {
+        groupedEntries.set(entry.groupKey, { ...entry });
+        return;
+      }
+
+      const mergedTrackingIds = Array.from(new Set([
+        ...existing.relatedTrackingIds,
+        ...entry.relatedTrackingIds,
+      ]));
+
+      const existingHasMessages = existing.relatedTrackingIds.length > 0;
+      const entryHasMessages = entry.relatedTrackingIds.length > 0;
+      const preferred = !existingHasMessages && entryHasMessages ? entry : existing;
+
+      groupedEntries.set(entry.groupKey, {
+        ...preferred,
+        client_id: preferred.client_id || existing.client_id || entry.client_id,
+        isClientDirect: existing.isClientDirect && entry.isClientDirect,
+        relatedTrackingIds: mergedTrackingIds,
+        phone: preferred.phone || existing.phone || entry.phone,
+      });
+    });
+
+    const mergedEntries = Array.from(groupedEntries.values());
+    const trackingOnlyIds = Array.from(new Set(mergedEntries.flatMap((entry) => entry.relatedTrackingIds)));
+
+    const trackingToGroupKey = new Map<string, string>();
+    mergedEntries.forEach((entry) => {
+      entry.relatedTrackingIds.forEach((trackingId) => {
+        trackingToGroupKey.set(trackingId, entry.groupKey);
+      });
+    });
 
     let unreadMap: Record<string, number> = {};
     let lastMsgMap: Record<string, { msg: string; at: string }> = {};
@@ -292,38 +367,42 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         .in("tracking_id", trackingOnlyIds);
 
       (unreadData || []).forEach((m: any) => {
-        unreadMap[m.tracking_id] = (unreadMap[m.tracking_id] || 0) + 1;
+        const groupKey = trackingToGroupKey.get(m.tracking_id);
+        if (!groupKey) return;
+        unreadMap[groupKey] = (unreadMap[groupKey] || 0) + 1;
       });
 
       const { data: lastMsgs } = await supabase
         .from("tracking_messages")
-        .select("tracking_id, mensagem, created_at")
+        .select("tracking_id, mensagem, created_at, anexo_nome")
         .in("tracking_id", trackingOnlyIds)
         .order("created_at", { ascending: false });
 
       (lastMsgs || []).forEach((m: any) => {
-        if (!lastMsgMap[m.tracking_id]) {
-          lastMsgMap[m.tracking_id] = { msg: m.mensagem?.substring(0, 60) || "", at: m.created_at };
-        }
+        const groupKey = trackingToGroupKey.get(m.tracking_id);
+        if (!groupKey || lastMsgMap[groupKey]) return;
+        lastMsgMap[groupKey] = {
+          msg: (m.mensagem || m.anexo_nome || "[Mídia]").substring(0, 60),
+          at: m.created_at,
+        };
       });
     }
 
     const hasMessages = new Set(Object.keys(lastMsgMap));
 
-    // Show: entries with messages, entries with unread, AND all direct client entries (so they appear in the list)
-    const result: ChatConversation[] = filteredEntries
-      .filter((t) => hasMessages.has(t.id) || (unreadMap[t.id] || 0) > 0 || t.isClientDirect)
-      .map((t) => ({
-        id: t.id,
-        numero_contrato: t.numero_contrato,
-        nome_cliente: t.nome_cliente,
-        unread_count: unreadMap[t.id] || 0,
-        last_message: lastMsgMap[t.id]?.msg || (t.isClientDirect ? "Clique para iniciar conversa" : undefined),
-        last_message_at: lastMsgMap[t.id]?.at,
-        vendedor_nome: clientDataMap[t.client_id]?.vendedor || null,
-        isClientDirect: t.isClientDirect || false,
-        client_id: t.client_id,
-        phone: clientDataMap[t.client_id]?.telefone || (t.numero_contrato?.startsWith("WA-") ? t.numero_contrato.replace("WA-", "") : undefined),
+    const result: ChatConversation[] = mergedEntries
+      .filter((entry) => hasMessages.has(entry.groupKey) || (unreadMap[entry.groupKey] || 0) > 0 || entry.isClientDirect)
+      .map((entry) => ({
+        id: entry.id,
+        numero_contrato: entry.numero_contrato,
+        nome_cliente: entry.nome_cliente,
+        unread_count: unreadMap[entry.groupKey] || 0,
+        last_message: lastMsgMap[entry.groupKey]?.msg || (entry.isClientDirect ? "Clique para iniciar conversa" : undefined),
+        last_message_at: lastMsgMap[entry.groupKey]?.at,
+        vendedor_nome: clientDataMap[entry.client_id]?.vendedor || null,
+        isClientDirect: entry.isClientDirect || false,
+        client_id: entry.client_id,
+        phone: entry.phone || clientDataMap[entry.client_id]?.telefone || undefined,
       }))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
