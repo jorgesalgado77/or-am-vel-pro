@@ -9,6 +9,7 @@
  */
 
 import { calculateSimulation, formatCurrency, type SimulationInput } from "@/lib/financing";
+import { getOptimizationEngine } from "@/services/ai/OptimizationEngine";
 import { calcLeadTemperature, type LeadTemperature } from "@/lib/leadTemperature";
 import { analyzeVendaZapMessage, detectDiscFromMessages, type DiscProfile, type VendaZapMessageLike } from "@/lib/vendazapAnalysis";
 import { supabase } from "@/lib/supabaseClient";
@@ -432,8 +433,11 @@ export class CommercialDecisionEngine {
 
   // ─── suggestStrategy ──────────────────────────────────────
   async suggestStrategy(ctx: DealContext): Promise<StrategyRecommendation> {
-    const analysis = await this.analyzeDeal(ctx);
-    const discount = await this.decideDiscount(ctx);
+    const [analysis, discount, optimization] = await Promise.all([
+      this.analyzeDeal(ctx),
+      this.decideDiscount(ctx),
+      this.getOptimization(ctx),
+    ]);
 
     let action = "";
     let priority: "low" | "medium" | "high" = "medium";
@@ -455,13 +459,33 @@ export class CommercialDecisionEngine {
       action = `Reavalie a abordagem com ${ctx.customer.name}. Conversão de ${analysis.closing_probability}% está baixa.`;
     }
 
+    // Enrich with AI learning insights
+    let reasoning = discount.reasoning;
+    if (optimization) {
+      reasoning += ` 🧠 IA sugere "${optimization.recommended_strategy}" (confiança: ${optimization.strategy_confidence}%, +${optimization.closing_probability_boost}% chance). ${optimization.recommended_timing}`;
+      if (optimization.based_on_samples > 0) {
+        reasoning += ` Baseado em ${optimization.based_on_samples} interações.`;
+      }
+    }
+
     return {
       action,
       priority,
-      reasoning: discount.reasoning,
+      reasoning,
       suggested_discount: discount,
       suggested_scenario: analysis.recommended_aggressiveness,
     };
+  }
+
+  // ─── getOptimization (AI Learning Integration) ────────────
+  private async getOptimization(ctx: DealContext) {
+    try {
+      const optimizer = getOptimizationEngine(ctx.tenant_id);
+      return await optimizer.optimizeDecision(ctx);
+    } catch (err) {
+      console.warn("[CDE] Optimization fallback — no learning data:", err);
+      return null;
+    }
   }
 
   // ─── decideNextAction / decideClientAction (ORCHESTRATION) ──

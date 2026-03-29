@@ -22,3 +22,8 @@ export type {
   TriggerActionType,
   TriggerType,
 } from "./types";
+
+// AI Learning & Optimization
+export { LearningEngine, getLearningEngine } from "@/services/ai/LearningEngine";
+export { OptimizationEngine, getOptimizationEngine } from "@/services/ai/OptimizationEngine";
+export type { LearningEvent, StrategyType, OptimizationResult } from "@/services/ai/types";

@@ -4,6 +4,43 @@ import { toast } from "sonner";
 import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
 import type { DealContext, MessageContext } from "@/services/commercial/types";
 import { calcLeadTemperature } from "@/lib/leadTemperature";
+import type { StrategyType } from "@/services/ai/types";
+
+/** Fire-and-forget learning event registration */
+function recordLearningEvent(
+  tenantId: string,
+  params: GenerateMessageParams,
+  cdeContext: Partial<MessageContext>,
+) {
+  const strategyMap: Record<string, StrategyType> = {
+    urgencia: "urgencia",
+    fechamento: "valor",
+    reativacao: "reativacao",
+    objecao: "empatia",
+    reuniao: "consultiva",
+    geral: "outro",
+  };
+
+  const row = {
+    tenant_id: tenantId,
+    user_id: params.usuario_id || null,
+    client_id: params.client_id || null,
+    event_type: "message_sent",
+    strategy_used: strategyMap[cdeContext.tipo_copy || "geral"] || "outro",
+    discount_percentage: 0,
+    disc_profile: cdeContext.disc_profile || params.disc_profile || null,
+    lead_temperature: params.status_negociacao || null,
+    price_offered: params.valor_orcamento || null,
+  };
+
+  const table = supabase.from("ai_learning_events" as unknown as "clients");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  void (table as unknown as { insert: (rows: unknown[]) => { then: (cb: (r: { error: { message: string } | null }) => void) => void } })
+    .insert([row])
+    .then(({ error }) => {
+      if (error) console.warn("[VendaZap] learning event error:", error.message);
+    });
+}
 
 export interface VendaZapAddon {
   id: string;
@@ -317,6 +354,9 @@ export function useVendaZap(tenantId: string | null) {
       if (persistError) {
         console.error("VendaZap persistence error:", persistError);
       }
+
+      // Register learning event (fire-and-forget)
+      void recordLearningEvent(tenantId, params, cdeContext);
 
       setDailyUsage((prev) => prev + 1);
       void fetchMessages(params.client_id);

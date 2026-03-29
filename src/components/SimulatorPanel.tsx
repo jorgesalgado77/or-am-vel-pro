@@ -970,6 +970,27 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       ...userInfo,
     });
 
+    // Register AI learning event for deal closure
+    try {
+      const totalDiscPct = 100 - (result.valorFinal / (valorTela || 1)) * 100;
+      const learningRow = {
+        tenant_id: resolvedTenantId,
+        user_id: currentUser?.id || null,
+        client_id: client.id,
+        event_type: "deal_closed",
+        strategy_used: "outro",
+        price_offered: result.valorFinal,
+        discount_percentage: Math.max(0, totalDiscPct),
+        deal_result: "ganho",
+        lead_temperature: client.status || "novo",
+      };
+      const table = supabase.from("ai_learning_events" as unknown as "clients");
+      void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
+        .insert([learningRow]);
+    } catch (learnErr) {
+      console.warn("[Simulator] learning event error:", learnErr);
+    }
+
     toast.success("Venda fechada! Contrato gerado, comissões criadas e salvo.");
     setContractEditorOpen(false);
     setPendingSimId(null);
