@@ -12,7 +12,7 @@ import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { useQuickReplies } from "@/hooks/useQuickReplies";
 import { sendWhatsAppText, sendWhatsAppMedia } from "@/lib/whatsappSender";
 import { VendaZapMonitorIndicator } from "./VendaZapMonitorIndicator";
-import { AICloserBanner } from "./AICloserBanner";
+import { AICloserBanner, type CloseSaleData } from "./AICloserBanner";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
@@ -29,7 +29,7 @@ interface Props {
   onMessagesLoaded?: (count: number) => void;
   detectedDiscProfile?: string;
   vendazapActive?: boolean;
-  onCloseSale?: () => void;
+  onCloseSale?: (data: CloseSaleData) => void;
 }
 
 const PAGE_SIZE = 40;
