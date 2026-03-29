@@ -10,7 +10,7 @@ import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wifi, WifiOff, Loader2, Brain, Phone } from "lucide-react";
+import { Wifi, WifiOff, Loader2, Brain, Phone, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
