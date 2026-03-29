@@ -148,11 +148,11 @@ function OverdueTasksAlert({ tasks, onDismiss }: { tasks: Task[]; onDismiss: () 
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Badge
+                       <Badge
                         variant="outline"
                         className={cn("text-[9px] h-4 px-1.5", colors.border, colors.text)}
                       >
-                        {task.status === "nova" ? "Nova" : task.status === "em_execucao" ? "Em Execução" : "Pendente"}
+                        {task.status === "nova" ? "Nova" : task.status === "em_execucao" ? "Em Execução" : task.status === "pendente" ? "Pendente" : task.status}
                       </Badge>
                       {isOverdue && (
                         <span className={cn("text-[9px] font-bold", colors.text)}>
@@ -233,10 +233,12 @@ function ReminderCard({
           variant="outline"
           className={cn(
             "text-[9px] h-4 px-1.5",
-            task.status === "nova" ? "border-blue-400/50 text-blue-400" : "border-red-400/50 text-red-400"
+            task.status === "nova" ? "border-blue-400/50 text-blue-400" :
+            task.status === "em_execucao" ? "border-amber-400/50 text-amber-400" :
+            "border-red-400/50 text-red-400"
           )}
         >
-          {task.status === "nova" ? "Nova" : "Pendente"}
+          {task.status === "nova" ? "Nova" : task.status === "em_execucao" ? "Em Execução" : "Pendente"}
         </Badge>
       </div>
 

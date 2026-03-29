@@ -484,11 +484,7 @@ export function MeasurementKanban() {
                                     <Select
                                       value={request.assigned_to || "__none__"}
                                       onValueChange={(value) => handleAssign(request.id, value)}
-                                      onOpenChange={(open) => {
-                                        if (open && !request.assigned_to && nextQueueAssignee) {
-                                          handleAssign(request.id, nextQueueAssignee);
-                                        }
-                                      }}
+                                      onOpenChange={() => {}}
                                     >
                                       <SelectTrigger className="h-7 text-[11px] flex-1">
                                         <SelectValue>{request.technician_name || request.assigned_to || (nextQueueAssignee ? `Atribuir técnico · ${nextQueueAssignee}` : "Atribuir técnico")}</SelectValue>
@@ -598,11 +594,13 @@ function FilaLiberacaoTab({
   requests, liberadores, metas, tetoOverrides,
   setTetoOverrides, editingTeto, setEditingTeto, tetoEditValue, setTetoEditValue,
 }: FilaLiberacaoProps) {
-  // Check if current user is admin
+  // Check if current user is admin - uses useCurrentUser from auth context
   const isAdmin = useMemo(() => {
     try {
-      const user = JSON.parse(localStorage.getItem("usuario_atual") || "{}");
-      return (user.cargo_nome || "").toLowerCase().includes("administrador");
+      // Check from Supabase session metadata first, fallback to localStorage for display name
+      const sessionUser = JSON.parse(localStorage.getItem("usuario_atual") || "{}");
+      const cargoNome = (sessionUser.cargo_nome || "").toLowerCase();
+      return cargoNome.includes("administrador") || cargoNome.includes("gerente");
     } catch { return false; }
   }, []);
 
