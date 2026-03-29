@@ -649,6 +649,7 @@ Exemplo:
         console.error("generate_copys error:", err);
         return respond({ error: err.message || "Erro interno", copys: [] }, 500);
       }
+    }
     const nome_cliente = typeof body.nome_cliente === "string" ? body.nome_cliente.slice(0, 200) : "";
     const valor_orcamento = typeof body.valor_orcamento === "number" ? body.valor_orcamento : null;
     const status_negociacao = typeof body.status_negociacao === "string" ? body.status_negociacao.slice(0, 100) : "";
