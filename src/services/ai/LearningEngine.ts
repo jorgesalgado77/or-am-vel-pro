@@ -10,13 +10,11 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import type {
-  LearningEvent,
   StrategyConversion,
   VendorPerformance,
   DiscountSweetSpot,
   StrategyType,
   PatternType,
-  LearnedPattern,
 } from "./types";
 
 // ==================== CACHE ====================
@@ -81,13 +79,29 @@ export class LearningEngine {
     await Promise.allSettled([
       ...strategies.map((s) =>
         this.upsertPattern("strategy_conversion", s.strategy, {
-          ...s,
+          total_events: s.total_events,
+          positive_responses: s.positive_responses,
+          deals_won: s.deals_won,
+          conversion_rate: s.conversion_rate,
+          avg_discount: s.avg_discount,
+          avg_response_time: s.avg_response_time,
         }, s.total_events, s.conversion_rate * 100)
       ),
-      this.upsertPattern("discount_sweet_spot", "global", discountSpot, discountSpot.sample_size, discountSpot.sample_size >= 10 ? 70 : 30),
+      this.upsertPattern("discount_sweet_spot", "global", {
+        min_effective: discountSpot.min_effective,
+        max_effective: discountSpot.max_effective,
+        optimal: discountSpot.optimal,
+        sample_size: discountSpot.sample_size,
+      }, discountSpot.sample_size, discountSpot.sample_size >= 10 ? 70 : 30),
       ...vendorPerformances.map((v) =>
         this.upsertPattern("vendor_performance", v.user_id, {
-          ...v,
+          total_deals: v.total_deals,
+          won_deals: v.won_deals,
+          conversion_rate: v.conversion_rate,
+          avg_ticket: v.avg_ticket,
+          avg_discount: v.avg_discount,
+          best_strategy: v.best_strategy,
+          top_disc_profile: v.top_disc_profile,
         }, v.total_deals, v.total_deals >= 5 ? 80 : 40)
       ),
     ]);
@@ -246,7 +260,7 @@ export class LearningEngine {
 
   private computeDiscountSweetSpot(events: RawLearningEvent[]): DiscountSweetSpot {
     const wonDeals = events.filter(
-      (e) => e.deal_result === "ganho" && e.discount_percentage !== null && e.discount_percentage > 0
+      (e) => e.deal_result === "ganho" && e.discount_percentage !== null && (e.discount_percentage as number) > 0
     );
 
     if (wonDeals.length === 0) {
@@ -316,7 +330,7 @@ export class LearningEngine {
         conversion_rate: dealEvents.length > 0 ? wonDeals.length / dealEvents.length : 0,
         avg_ticket: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0,
         avg_discount: discounts.length > 0 ? discounts.reduce((a, b) => a + b, 0) / discounts.length : 0,
-        avg_close_time_days: 0, // would require created_at analysis per client
+        avg_close_time_days: 0,
         best_strategy: bestStrategy,
         top_disc_profile: topDisc,
       });
@@ -340,7 +354,7 @@ export class LearningEngine {
       .limit(1000);
 
     if (strategy) {
-      query = query.eq("strategy_used", strategy);
+      query = query.eq("strategy_used" as unknown as "status", strategy);
     }
 
     const { data } = await query;
@@ -355,19 +369,20 @@ export class LearningEngine {
     confidence: number,
   ): Promise<void> {
     try {
+      const row = {
+        tenant_id: this.tenantId,
+        pattern_type: patternType,
+        pattern_key: patternKey,
+        pattern_data: patternData,
+        sample_size: sampleSize,
+        confidence: Math.min(100, Math.max(0, confidence)),
+        updated_at: new Date().toISOString(),
+      };
       await supabase
         .from("ai_learned_patterns" as unknown as "clients")
         .upsert(
-          [{
-            tenant_id: this.tenantId,
-            pattern_type: patternType,
-            pattern_key: patternKey,
-            pattern_data: patternData,
-            sample_size: sampleSize,
-            confidence: Math.min(100, Math.max(0, confidence)),
-            updated_at: new Date().toISOString(),
-          }],
-          { onConflict: "tenant_id,user_id,pattern_type,pattern_key" }
+          [row as unknown as Record<string, unknown>],
+          { onConflict: "tenant_id,user_id,pattern_type,pattern_key" as unknown as "id" }
         );
     } catch (err) {
       console.error("[LearningEngine] upsert pattern error:", err);
@@ -376,8 +391,8 @@ export class LearningEngine {
 
   // ==================== UTILS ====================
 
-  private groupBy<T extends Record<string, unknown>>(arr: T[], key: string): Record<string, T[]> {
-    const result: Record<string, T[]> = {};
+  private groupBy(arr: RawLearningEvent[], key: keyof RawLearningEvent): Record<string, RawLearningEvent[]> {
+    const result: Record<string, RawLearningEvent[]> = {};
     for (const item of arr) {
       const k = String(item[key] ?? "null");
       if (!result[k]) result[k] = [];
