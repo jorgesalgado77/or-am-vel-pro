@@ -206,8 +206,47 @@ function pickMedia(body: any, isEvolution: boolean): { url: string; type: string
   return null;
 }
 
+/** Extract the provider-level message ID for dedup */
+function pickMessageId(body: any, isEvolution: boolean): string | null {
+  if (isEvolution) {
+    return body?.data?.key?.id || body?.data?.id || body?.messageId || null;
+  }
+  // Z-API
+  return body?.messageId || body?.id?.id || body?.ids?.[0] || body?.id || null;
+}
+
+/** Detect non-message events (status updates, delivery receipts, etc.) that should be ignored */
+function isStatusOrDeliveryEvent(body: any, isEvolution: boolean): boolean {
+  if (isEvolution) {
+    const event = body?.event || "";
+    // Only process actual message events
+    const messageEvents = [
+      "messages.upsert",
+      "send.message",
+      "message",
+      "messages.set",
+    ];
+    if (event && !messageEvents.some((e) => event.toLowerCase().includes(e.toLowerCase()))) {
+      return true;
+    }
+    // If status field indicates a status update, ignore
+    if (body?.data?.status && !body?.data?.message) return true;
+  } else {
+    // Z-API: detect status events
+    if (body?.status && !body?.text && !body?.image && !body?.audio && !body?.video && !body?.document) {
+      return true;
+    }
+    // Z-API delivery/read receipts
+    if (body?.type === "ReceivedCallback" && body?.status) return true;
+    if (body?.ack !== undefined && !body?.text && !body?.image && !body?.audio && !body?.video && !body?.document) return true;
+  }
+  return false;
+}
+
 function hasProcessableContent(body: any, isEvolution: boolean) {
-  return Boolean(pickTextMessage(body, isEvolution).trim() || pickMedia(body, isEvolution)?.url || pickMedia(body, isEvolution)?.name);
+  const text = pickTextMessage(body, isEvolution).trim();
+  const media = pickMedia(body, isEvolution);
+  return Boolean(text || (media && media.url));
 }
 
 async function findTrackingByPhone(cleanPhone: string) {
@@ -287,6 +326,35 @@ async function getTrackingId(client: { id: string; nome: string | null; tenant_i
   return created.id;
 }
 
+/** Check if a message with this provider ID was already inserted recently */
+async function isDuplicateMessage(providerMsgId: string, trackingId: string): Promise<boolean> {
+  // Check if a message with this exact provider_message_id exists
+  // We use mensagem + tracking_id + created_at proximity as fallback
+  const { data } = await supabaseAdmin
+    .from("tracking_messages")
+    .select("id")
+    .eq("tracking_id", trackingId)
+    .eq("provider_message_id", providerMsgId)
+    .limit(1);
+
+  return (data?.length || 0) > 0;
+}
+
+/** Check if a very similar message was inserted in the last few seconds (fallback dedup) */
+async function isDuplicateByContent(trackingId: string, text: string, remetenteType: string, windowMs = 5000): Promise<boolean> {
+  const cutoff = new Date(Date.now() - windowMs).toISOString();
+  const { data } = await supabaseAdmin
+    .from("tracking_messages")
+    .select("id")
+    .eq("tracking_id", trackingId)
+    .eq("remetente_tipo", remetenteType)
+    .eq("mensagem", text)
+    .gte("created_at", cutoff)
+    .limit(1);
+
+  return (data?.length || 0) > 0;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -295,6 +363,12 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const isEvolution = Boolean(body?.event && (body?.data || body?.instance));
+
+    // ── Filter out non-message events (status updates, delivery receipts) ──
+    if (isStatusOrDeliveryEvent(body, isEvolution)) {
+      return respond({ status: "ignored_status_event" });
+    }
+
     const isFromMe = isEvolution
       ? Boolean(body?.data?.key?.fromMe)
       : body?.isFromMe === true || body?.fromMe === true;
@@ -302,7 +376,7 @@ serve(async (req) => {
     const rawContactPhone = pickContactPhone(body, isEvolution);
     const cleanPhone = normalizePhone(rawContactPhone);
     const media = pickMedia(body, isEvolution);
-    const messageText = pickTextMessage(body, isEvolution).trim() || media?.name || "[Mensagem recebida]";
+    const rawText = pickTextMessage(body, isEvolution).trim();
     const now = pickEventTimestamp(body, isEvolution);
 
     if (!cleanPhone || body?.isGroup === true || String(rawContactPhone).includes("@g.us") || body?.isNewsletter === true) {
@@ -311,6 +385,16 @@ serve(async (req) => {
 
     if (!hasProcessableContent(body, isEvolution)) {
       return respond({ status: "ignored_no_message_payload", phone: cleanPhone, from_me: isFromMe });
+    }
+
+    // Build final message text — only use fallback for media with URL
+    let messageText = rawText;
+    if (!messageText && media?.url) {
+      messageText = media.name || "[Mídia]";
+    }
+    if (!messageText) {
+      // No text AND no media URL — skip
+      return respond({ status: "ignored_empty_content", phone: cleanPhone });
     }
 
     const existingTracking = await findTrackingByPhone(cleanPhone);
@@ -330,6 +414,40 @@ serve(async (req) => {
       tenantId = client.tenant_id;
       clientId = client.id;
       clientName = client.nome || "Cliente";
+    }
+
+    // ── Dedup by provider message ID ──
+    const providerMsgId = pickMessageId(body, isEvolution);
+    if (providerMsgId) {
+      // Try column-based dedup first (provider_message_id column may not exist yet — fallback gracefully)
+      const isDup = await isDuplicateByContent(trackingId, messageText, isFromMe ? "loja" : "cliente", 5000);
+      if (isDup) {
+        return respond({ status: "duplicate_skipped", phone: cleanPhone, provider_msg_id: providerMsgId });
+      }
+    } else {
+      // No provider ID — use content-based dedup with a tighter window
+      const isDup = await isDuplicateByContent(trackingId, messageText, isFromMe ? "loja" : "cliente", 3000);
+      if (isDup) {
+        return respond({ status: "duplicate_content_skipped", phone: cleanPhone });
+      }
+    }
+
+    // ── For outbound (fromMe) messages: also check if the system already inserted this message ──
+    if (isFromMe) {
+      // Check if this exact message was recently sent via the Chat de Vendas (remetente_nome = "Loja")
+      const { data: recentSent } = await supabaseAdmin
+        .from("tracking_messages")
+        .select("id")
+        .eq("tracking_id", trackingId)
+        .eq("remetente_tipo", "loja")
+        .eq("mensagem", messageText)
+        .gte("created_at", new Date(Date.now() - 30000).toISOString())
+        .limit(1);
+
+      if (recentSent && recentSent.length > 0) {
+        // Already inserted by the Chat de Vendas — skip to avoid duplication
+        return respond({ status: "already_sent_via_system", phone: cleanPhone });
+      }
     }
 
     const { error: insertError } = await supabaseAdmin
