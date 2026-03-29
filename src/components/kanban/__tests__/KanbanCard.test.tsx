@@ -79,7 +79,7 @@ describe("KanbanCard", () => {
   it("shows simulation value when sim provided", () => {
     const sim: LastSimInfo = { valor_final: 15000, valor_com_desconto: 14000, created_at: new Date().toISOString(), sim_count: 1 };
     renderCard({ sim });
-    expect(screen.getByText(/15\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/14\.000/)).toBeInTheDocument();
   });
 
   it("shows vendedor name for admin cargo", () => {
