@@ -72,6 +72,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const { indicadores } = useIndicadores();
   const { cargos } = useCargos();
   const { policy: comissaoPolicyDash } = useComissaoPolicy();
+  const { metaLoja } = useMetasTetos();
+  const { currentUser } = useCurrentUser();
+  const isAdminOrGerente = ["administrador", "gerente"].includes(currentUser?.cargo_nome?.toLowerCase() || "");
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
     evolucao: false,
     projetista: false,
