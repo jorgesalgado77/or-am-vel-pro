@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.consolidate-trackings]
 verify_jwt = false
+
+[functions.director-weekly-report]
+verify_jwt = false

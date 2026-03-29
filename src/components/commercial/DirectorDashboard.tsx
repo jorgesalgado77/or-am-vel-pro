@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { useCommercialDirector } from "@/hooks/useCommercialDirector";
+import { AIEvolutionPanel } from "@/components/dashboard/AIEvolutionPanel";
 import { cn } from "@/lib/utils";
 
 function fmt(val: number) {
@@ -224,6 +225,9 @@ export function DirectorDashboard({ tenantId }: DirectorDashboardProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* AI Evolution */}
+      <AIEvolutionPanel />
 
       {/* Team Performance */}
       {team.length > 0 && (
