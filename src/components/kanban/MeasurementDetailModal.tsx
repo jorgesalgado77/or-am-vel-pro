@@ -1,0 +1,253 @@
+/**
+ * Modal to view full measurement request details including all data and attachments.
+ */
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Ruler, MapPin, User, Clock, FileText, Image, Pencil, Phone, Mail, CreditCard, Eye,
+} from "lucide-react";
+import { formatCurrency } from "@/lib/financing";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useState } from "react";
+
+interface MeasurementRequest {
+  id: string;
+  client_id: string;
+  tracking_id: string;
+  tenant_id: string;
+  nome_cliente: string;
+  valor_venda_avista: number;
+  ambientes: any[];
+  imported_files: any[];
+  observacoes: string;
+  client_snapshot: any;
+  delivery_address: any;
+  status: string;
+  created_by: string | null;
+  assigned_to: string | null;
+  last_edited_by: string | null;
+  last_edited_by_cargo: string | null;
+  last_edited_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  request: MeasurementRequest | null;
+}
+
+const STATUS_MAP: Record<string, { label: string; icon: string; className: string }> = {
+  novo: { label: "Novo", icon: "🆕", className: "bg-primary/10 text-primary border-primary/30" },
+  em_andamento: { label: "Em Andamento", icon: "🔧", className: "bg-violet-500/10 text-violet-700 border-violet-500/30" },
+  concluido: { label: "Concluído", icon: "✅", className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" },
+};
+
+export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  if (!request) return null;
+
+  const statusInfo = STATUS_MAP[request.status] || STATUS_MAP.novo;
+  const snap = request.client_snapshot || {};
+  const addr = request.delivery_address || {};
+  const hasAddress = addr.cep || addr.street;
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Ruler className="h-5 w-5 text-primary" />
+              Detalhes da Solicitação
+              <Badge variant="outline" className={statusInfo.className + " ml-auto text-xs"}>
+                {statusInfo.icon} {statusInfo.label}
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 px-6 pb-6" style={{ maxHeight: "calc(90vh - 80px)" }}>
+            <div className="space-y-5 py-4">
+              {/* Client info */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" /> Cliente
+                </h3>
+                <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3 border">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Nome</p>
+                    <p className="text-sm font-medium text-foreground">{request.nome_cliente}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor à Vista</p>
+                    <p className="text-sm font-bold text-emerald-600">{formatCurrency(Number(request.valor_venda_avista) || 0)}</p>
+                  </div>
+                  {snap.telefone1 && (
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm text-foreground">{snap.telefone1}</span>
+                    </div>
+                  )}
+                  {snap.email && (
+                    <div className="flex items-center gap-1.5">
+                      <Mail className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm text-foreground">{snap.email}</span>
+                    </div>
+                  )}
+                  {snap.cpf && (
+                    <div className="flex items-center gap-1.5">
+                      <CreditCard className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm text-foreground">{snap.cpf}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Delivery address */}
+              {hasAddress && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" /> Endereço de Entrega
+                  </h3>
+                  <div className="bg-muted/30 rounded-lg p-3 border text-sm text-foreground">
+                    <p>{addr.street}{addr.number ? `, ${addr.number}` : ""}{addr.complement ? ` - ${addr.complement}` : ""}</p>
+                    <p className="text-muted-foreground">{addr.district}{addr.city ? ` • ${addr.city}` : ""}{addr.state ? ` - ${addr.state}` : ""}</p>
+                    {addr.cep && <p className="text-muted-foreground text-xs mt-1">CEP: {addr.cep}</p>}
+                  </div>
+                </div>
+              )}
+
+              {/* Environments + attachments */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" /> Ambientes ({request.ambientes?.length || 0})
+                </h3>
+                <div className="space-y-3">
+                  {(request.ambientes || []).map((amb: any, i: number) => (
+                    <div key={amb.id || i} className="bg-muted/30 rounded-lg p-3 border space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground">{amb.name || `Ambiente ${i + 1}`}</span>
+                        <span className="text-sm font-bold text-emerald-600">{formatCurrency(amb.value || 0)}</span>
+                      </div>
+
+                      {/* Attached files */}
+                      {amb.attachments && amb.attachments.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Anexos</p>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            {amb.attachments.map((att: any, j: number) => (
+                              <button
+                                key={j}
+                                onClick={() => setPreviewUrl(att.url)}
+                                className="group relative rounded-lg overflow-hidden border bg-background hover:ring-2 hover:ring-primary/50 transition-all aspect-square"
+                              >
+                                {att.kind === "image" ? (
+                                  <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center h-full gap-1 p-2">
+                                    <FileText className="h-6 w-6 text-muted-foreground" />
+                                    <span className="text-[9px] text-muted-foreground truncate w-full text-center">{att.name}</span>
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                  <Eye className="h-5 w-5 text-white" />
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Legacy images field */}
+                      {!amb.attachments?.length && amb.images && amb.images.length > 0 && (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          {amb.images.map((url: string, j: number) => (
+                            <button
+                              key={j}
+                              onClick={() => setPreviewUrl(url)}
+                              className="group relative rounded-lg overflow-hidden border bg-background hover:ring-2 hover:ring-primary/50 transition-all aspect-square"
+                            >
+                              <img src={url} alt={`Imagem ${j + 1}`} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <Eye className="h-5 w-5 text-white" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Imported file info */}
+                      {amb.fileName && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <FileText className="h-3 w-3" />
+                          <span>{amb.fileName}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Observações */}
+              {request.observacoes && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-foreground">📝 Observações</h3>
+                  <p className="text-sm text-foreground bg-muted/30 rounded-lg p-3 border whitespace-pre-wrap">
+                    {request.observacoes}
+                  </p>
+                </div>
+              )}
+
+              <Separator />
+
+              {/* Metadata */}
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3" />
+                  <span>Criado em {format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                  {request.created_by && <span>• por {request.created_by}</span>}
+                </div>
+                {request.assigned_to && (
+                  <div className="flex items-center gap-2">
+                    <User className="h-3 w-3" />
+                    <span>Atribuído a: <span className="font-medium text-foreground">{request.assigned_to}</span></span>
+                  </div>
+                )}
+                {request.last_edited_by && (
+                  <div className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1 border">
+                    <Pencil className="h-3 w-3" />
+                    <span>
+                      Editado por <span className="font-semibold text-foreground">{request.last_edited_by}</span>
+                      {request.last_edited_by_cargo && <span className="text-primary"> ({request.last_edited_by_cargo})</span>}
+                      {request.last_edited_at && (
+                        <span> • {format(new Date(request.last_edited_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fullscreen preview */}
+      {previewUrl && (
+        <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
+          <DialogContent className="max-w-4xl w-[95vw] max-h-[95vh] p-2">
+            {previewUrl.toLowerCase().endsWith(".pdf") ? (
+              <iframe src={previewUrl} className="w-full h-[80vh] rounded" />
+            ) : (
+              <img src={previewUrl} alt="Preview" className="w-full h-auto max-h-[85vh] object-contain rounded" />
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
