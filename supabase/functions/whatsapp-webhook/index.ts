@@ -534,29 +534,50 @@ serve(async (req) => {
     }
 
     // ── Filter out non-message events (status updates, delivery receipts) ──
-    const eventType = isStatusOrDeliveryEvent(body, isEvolution);
-    if (eventType === "delivery_receipt") {
-      const deliveryInfo = pickDeliveryStatus(body, isEvolution);
-      if (deliveryInfo) {
-        const updated = await updateMessageStatus(deliveryInfo);
-        return respond({ status: updated ? "status_updated" : "status_no_match", delivery: deliveryInfo });
+    if (!isTwilioMsg) {
+      const eventType = isStatusOrDeliveryEvent(body, isEvolution);
+      if (eventType === "delivery_receipt") {
+        const deliveryInfo = pickDeliveryStatus(body, isEvolution);
+        if (deliveryInfo) {
+          const updated = await updateMessageStatus(deliveryInfo);
+          return respond({ status: updated ? "status_updated" : "status_no_match", delivery: deliveryInfo });
+        }
+        return respond({ status: "ignored_receipt_no_id" });
       }
-      return respond({ status: "ignored_receipt_no_id" });
-    }
-    if (eventType === true) {
-      return respond({ status: "ignored_non_message_event" });
+      if (eventType === true) {
+        return respond({ status: "ignored_non_message_event" });
+      }
     }
 
-    const isFromMe = isEvolution
-      ? Boolean(body?.data?.key?.fromMe)
-      : body?.isFromMe === true || body?.fromMe === true;
+    // ── Twilio message handling ──
+    let isFromMe: boolean;
+    let rawContactPhone: string;
+    let rawText: string;
+    let media: { url: string; type: string; name: string } | null = null;
 
-    const rawContactPhone = pickContactPhone(body, isEvolution);
+    if (isTwilioMsg) {
+      // Twilio: From = sender, To = receiver. If From contains our number, it's from us
+      const from = (body.From || "").replace("whatsapp:", "");
+      const to = (body.To || "").replace("whatsapp:", "");
+      // Inbound messages: From is the client, To is our Twilio number
+      isFromMe = false; // Twilio webhook for inbound only fires for received messages
+      rawContactPhone = from;
+      rawText = body.Body || "";
+      if (body.MediaUrl0) {
+        media = { url: body.MediaUrl0, type: body.MediaContentType0 || "application/octet-stream", name: "Mídia" };
+      }
+    } else {
+      isFromMe = isEvolution
+        ? Boolean(body?.data?.key?.fromMe)
+        : body?.isFromMe === true || body?.fromMe === true;
+      rawContactPhone = pickContactPhone(body, isEvolution);
+      rawText = pickTextMessage(body, isEvolution).trim();
+      media = pickMedia(body, isEvolution);
+    }
+
     const cleanPhone = normalizePhone(rawContactPhone);
-    const media = pickMedia(body, isEvolution);
-    const rawText = pickTextMessage(body, isEvolution).trim();
     const sanitizedText = isPlaceholderText(rawText) ? "" : rawText;
-    const now = pickEventTimestamp(body, isEvolution);
+    const now = isTwilioMsg ? new Date().toISOString() : pickEventTimestamp(body, isEvolution);
 
     if (!cleanPhone || body?.isGroup === true || String(rawContactPhone).includes("@g.us") || body?.isNewsletter === true) {
       return respond({ status: "ignored_missing_phone_or_group" });
