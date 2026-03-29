@@ -25,6 +25,7 @@ interface Props {
   onMessageSent?: (message: string) => void;
   messageCount?: number;
   onMessagesLoaded?: (count: number) => void;
+  detectedDiscProfile?: string;
 }
 
 const PAGE_SIZE = 40;

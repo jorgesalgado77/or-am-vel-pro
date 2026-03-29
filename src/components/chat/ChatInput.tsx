@@ -28,6 +28,7 @@ interface Props {
   onRemoveQuickReply?: (id: string) => void;
   tenantId?: string | null;
   onSendProductText?: (text: string, imageUrl?: string) => void;
+  detectedDiscProfile?: string;
 }
 
 function buildFileName(file: File) {

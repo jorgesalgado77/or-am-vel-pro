@@ -58,6 +58,7 @@ interface Props {
   onAdd: (titulo: string, mensagem: string) => void;
   onRemove: (id: string) => void;
   loading?: boolean;
+  detectedDiscProfile?: string;
 }
 
 export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loading }: Props) {
