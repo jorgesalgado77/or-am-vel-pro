@@ -131,7 +131,7 @@ export function useWhatsAppSimulator(tenantId?: string | null) {
           remetente_nome: clientName,
           lida: false,
           tenant_id: tenantIdRef.current,
-        } as Record<string, unknown>);
+        } as any);
 
         if (error) {
           console.error("Simulation insert error:", error);
@@ -162,7 +162,7 @@ export function useWhatsAppSimulator(tenantId?: string | null) {
         remetente_nome: clientName,
         lida: false,
         tenant_id: tenantIdRef.current,
-      } as Record<string, unknown>);
+      } as any);
 
       if (error) {
         toast.error("Erro ao simular mensagem");
