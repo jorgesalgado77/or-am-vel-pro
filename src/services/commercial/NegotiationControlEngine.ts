@@ -215,10 +215,18 @@ export class NegotiationControlEngine {
       ? this._buildClosingAction(closingSignals, ctx, pricing)
       : undefined;
 
-    // 7. Approval requirement
+    // 7. Approval requirement — use sales_rules max_discount
+    const salesRulesMaxDiscount = dealCtx.rules?.max_discount ?? 100;
+    const discountLimitForApproval = salesRulesMaxDiscount < 100 ? salesRulesMaxDiscount : 15;
     const requiresApproval = ctx.modo === "assistido" ||
-      (pricing.desconto_recomendado > 15) ||
-      (pricing.margem_estimada < 10);
+      (pricing.desconto_recomendado > discountLimitForApproval) ||
+      (pricing.margem_estimada < (dealCtx.rules?.min_margin ?? 10));
+
+    // 8. Warning if no discount policy configured
+    const warnings: string[] = [];
+    if (salesRulesMaxDiscount >= 100 && (!dealCtx.discounts.available_options)) {
+      warnings.push("⚠️ Nenhuma política de desconto cadastrada. Configure em Configurações > Regras Comerciais.");
+    }
 
     return {
       strategy: finalStrategy,
