@@ -396,8 +396,9 @@ export class NegotiationArbitrageEngine {
       },
     };
 
-    await supabase
-      .from("ai_learning_events" as unknown as "clients")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from("ai_learning_events")
       .insert(payload);
   }
 
