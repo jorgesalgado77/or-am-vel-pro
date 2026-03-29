@@ -762,37 +762,58 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     handleSelectConversation(newConv);
   }, [conversations, currentUser, fetchConversations, tenantId, normalizePhone]);
 
-  // Delete conversation (admin only) — removes ALL related tracking records and messages
-  const handleDeleteConversation = useCallback(async (conv: ChatConversation) => {
+  // Delete conversation state — rich confirmation dialog
+  const [deleteTarget, setDeleteTarget] = useState<ChatConversation | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+
+  const handleDeleteConversation = useCallback((conv: ChatConversation) => {
     if (!isAdminOrManager) return;
-    if (!confirm(`Tem certeza que deseja excluir a conversa com "${conv.nome_cliente}"?\n\nTodas as mensagens serão removidas permanentemente.`)) return;
+    setDeleteTarget(conv);
+  }, [isAdminOrManager]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
 
     try {
-      // Collect all tracking IDs related to this conversation
       const allTrackingIds = Array.from(new Set([
-        conv.id,
-        ...(conv.relatedTrackingIds || []),
+        deleteTarget.id,
+        ...(deleteTarget.relatedTrackingIds || []),
       ]));
 
-      // Delete messages for ALL related tracking IDs
       for (const trackId of allTrackingIds) {
         await supabase.from("tracking_messages").delete().eq("tracking_id", trackId);
       }
 
-      // Delete ALL related tracking records
       for (const trackId of allTrackingIds) {
         await supabase.from("client_tracking").delete().eq("id", trackId);
       }
 
-      setConversations((prev) => prev.filter((c) => c.id !== conv.id));
-      if (selected?.id === conv.id) setSelected(null);
-      toast.success(`Conversa com "${conv.nome_cliente}" excluída completamente`);
-      fetchConversations();
+      // Add to deletedIds for exit animation
+      setDeletedIds((prev) => new Set([...prev, deleteTarget.id]));
+
+      // Wait for animation, then remove from state
+      setTimeout(() => {
+        setConversations((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+        setDeletedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(deleteTarget.id);
+          return next;
+        });
+        if (selected?.id === deleteTarget.id) setSelected(null);
+        fetchConversations();
+      }, 400);
+
+      toast.success(`Conversa com "${deleteTarget.nome_cliente}" excluída completamente`);
     } catch (err) {
       console.error("Delete conversation error:", err);
       toast.error("Erro ao excluir conversa");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
-  }, [isAdminOrManager, selected, fetchConversations]);
+  }, [deleteTarget, selected, fetchConversations]);
 
   // Merge duplicate: keep chosen conversation, delete the other
   const handleMergeDuplicate = useCallback(async (keep: ChatConversation, remove: ChatConversation) => {
