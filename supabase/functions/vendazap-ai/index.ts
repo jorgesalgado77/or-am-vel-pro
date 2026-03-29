@@ -552,6 +552,7 @@ serve(async (req) => {
     if (body.action === "generate_copys") {
       const tId = typeof body.tenant_id === "string" ? body.tenant_id : null;
       const count = typeof body.count === "number" ? Math.min(body.count, 8) : 4;
+      const discProfile = typeof body.disc_profile === "string" ? body.disc_profile : null;
 
       const OPENAI_KEY = await resolveApiKey(tId, "openai");
       if (!OPENAI_KEY) return respond({ error: "Chave OpenAI não configurada" }, 500);
@@ -570,13 +571,30 @@ serve(async (req) => {
         pos_venda: "Pós-venda",
       };
 
+      const discInstructions: Record<string, string> = {
+        D: `PERFIL DISC: DOMINANTE (D). O cliente é direto, decisivo e impaciente.
+Todas as mensagens devem ser ULTRA-OBJETIVAS, sem enrolação, focadas em resultado, exclusividade e urgência. Use tom imperativo e conduza a ação.`,
+        I: `PERFIL DISC: INFLUENTE (I). O cliente é entusiasmado e sociável.
+Todas as mensagens devem ser CALOROSAS, empolgantes, com energia positiva. Fale em experiência, design, sonho, use emojis e crie FOMO social.`,
+        S: `PERFIL DISC: ESTÁVEL (S). O cliente é cauteloso e busca segurança.
+Todas as mensagens devem ser ACOLHEDORAS, transmitir garantia, durabilidade e segurança. Mostre depoimentos, reduza percepção de risco, guie gentilmente.`,
+        C: `PERFIL DISC: CONFORME (C). O cliente é analítico e detalhista.
+Todas as mensagens devem conter DADOS, especificações técnicas, comparativos. Use lógica e fatos, nomes de materiais e certificações.`,
+      };
+
+      const discDirective = discProfile && discInstructions[discProfile]
+        ? `\n\nIMPORTANTE — ADAPTE TODAS AS MENSAGENS PARA ESTE PERFIL:\n${discInstructions[discProfile]}`
+        : "";
+
+      const discTag = discProfile ? ` Inclua "disc_profile": "${discProfile}" em cada objeto.` : "";
+
       const prompt = `Você é um copywriter especialista em vendas de móveis planejados.
 Gere exatamente ${count} mensagens de vendas para WhatsApp, cada uma de um tipo diferente.
 Use [NOME] como placeholder para o nome do cliente.
-Cada mensagem deve ter no máximo 300 caracteres, ser persuasiva e incluir emoji.
+Cada mensagem deve ter no máximo 300 caracteres, ser persuasiva e incluir emoji.${discDirective}
 
-Retorne APENAS um JSON array com objetos { "tipo", "label", "mensagem" }.
-Tipos disponíveis: ${tipos.join(", ")}
+Retorne APENAS um JSON array com objetos { "tipo", "label", "mensagem"${discProfile ? ', "disc_profile"' : ''} }.
+Tipos disponíveis: ${tipos.join(", ")}${discTag}
 
 Exemplo:
 [{"tipo":"reativacao","label":"Reativação Suave","mensagem":"[NOME], ainda pensando no projeto? ..."}]`;
@@ -609,7 +627,7 @@ Exemplo:
         const raw = aiData.choices?.[0]?.message?.content || "[]";
         const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
 
-        let copys: Array<{ tipo: string; label: string; mensagem: string }> = [];
+        let copys: Array<{ tipo: string; label: string; mensagem: string; disc_profile?: string }> = [];
         try {
           copys = JSON.parse(cleaned);
           if (!Array.isArray(copys)) copys = [];
@@ -623,6 +641,7 @@ Exemplo:
           tipo: tipos.includes(c.tipo) ? c.tipo : "ia_gerada",
           label: c.label || labels[c.tipo] || "Copy IA",
           mensagem: (c.mensagem || "").slice(0, 500),
+          disc_profile: discProfile || c.disc_profile || null,
         })).filter((c) => c.mensagem.length > 10);
 
         return respond({ copys, tokens: aiData.usage?.total_tokens || 0 });
@@ -630,8 +649,6 @@ Exemplo:
         console.error("generate_copys error:", err);
         return respond({ error: err.message || "Erro interno", copys: [] }, 500);
       }
-    }
-
     const nome_cliente = typeof body.nome_cliente === "string" ? body.nome_cliente.slice(0, 200) : "";
     const valor_orcamento = typeof body.valor_orcamento === "number" ? body.valor_orcamento : null;
     const status_negociacao = typeof body.status_negociacao === "string" ? body.status_negociacao.slice(0, 100) : "";
