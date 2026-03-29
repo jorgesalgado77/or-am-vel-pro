@@ -55,71 +55,80 @@ export function StartConversationModal({
     setLoading(true);
 
     (async () => {
-      // Fetch client_tracking records
-      const { data: trackings } = await supabase
-        .from("client_tracking")
-        .select("id, nome_cliente, numero_contrato, status, projetista, client_id")
-        .eq("tenant_id", tenantId)
-        .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"])
-        .order("updated_at", { ascending: false });
-
-      if (!trackings || trackings.length === 0) {
-        const { data: directClients } = await supabase
-          .from("clients")
-          .select("id, nome, numero_orcamento, status, vendedor, telefone")
+      // Also fetch usuarios to resolve responsavel_id → name
+      const [trackingsRes, directClientsRes, usuariosRes] = await Promise.all([
+        supabase
+          .from("client_tracking")
+          .select("id, nome_cliente, numero_contrato, status, projetista, client_id")
           .eq("tenant_id", tenantId)
           .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"])
-          .order("updated_at", { ascending: false });
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("clients")
+          .select("id, nome, numero_orcamento, status, vendedor, telefone, responsavel_id")
+          .eq("tenant_id", tenantId)
+          .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"])
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("usuarios")
+          .select("id, auth_user_id, nome_completo")
+          .eq("tenant_id", tenantId)
+          .eq("ativo", true),
+      ]);
 
-        if (directClients && directClients.length > 0) {
-          let options: ClientOption[] = (directClients as any[]).map((c) => ({
+      const trackings = trackingsRes.data as any[] || [];
+      const directClients = directClientsRes.data as any[] || [];
+      const usuarios = usuariosRes.data as any[] || [];
+
+      // Build user lookup for responsavel_id
+      const userMap = new Map<string, string>();
+      for (const u of usuarios) {
+        if (u.id) userMap.set(u.id, u.nome_completo);
+        if (u.auth_user_id) userMap.set(u.auth_user_id, u.nome_completo);
+      }
+
+      const clientsById = new Map(directClients.map((c: any) => [c.id, c]));
+
+      if (trackings.length === 0 && directClients.length > 0) {
+        let options: ClientOption[] = directClients.map((c: any) => {
+          const sellerName = c.vendedor || (c.responsavel_id ? userMap.get(c.responsavel_id) : null) || null;
+          return {
             trackingId: c.id,
             clientName: c.nome,
             contractNumber: c.numero_orcamento || "",
             status: c.status,
-            vendedor: c.vendedor || null,
+            vendedor: sellerName,
             projetista: null,
             phone: c.telefone || null,
-          }));
+          };
+        });
 
-          if (!isAdminOrManager && currentUserName) {
-            const nameLower = currentUserName.toLowerCase();
-            options = options.filter(c => c.vendedor?.toLowerCase() === nameLower);
-          }
-
-          setClients(options);
-        } else {
-          setClients([]);
+        if (!isAdminOrManager && currentUserName) {
+          const nameLower = currentUserName.toLowerCase();
+          options = options.filter(c =>
+            c.vendedor?.toLowerCase() === nameLower ||
+            c.projetista?.toLowerCase() === nameLower
+          );
         }
+
+        setClients(options);
         setLoading(false);
         return;
       }
 
-      const clientIds = [...new Set((trackings as any[]).map((t) => t.client_id).filter(Boolean))];
-      let clientDataMap: Record<string, { vendedor: string | null; telefone: string | null }> = {};
-
-      if (clientIds.length > 0) {
-        const { data: clientsData } = await supabase
-          .from("clients")
-          .select("id, vendedor, telefone")
-          .in("id", clientIds);
-
-        if (clientsData) {
-          (clientsData as any[]).forEach((c) => {
-            clientDataMap[c.id] = { vendedor: c.vendedor, telefone: c.telefone || null };
-          });
-        }
-      }
-
-      const options: ClientOption[] = (trackings as any[]).map((t) => ({
-        trackingId: t.id,
-        clientName: t.nome_cliente,
-        contractNumber: t.numero_contrato,
-        status: t.status,
-        vendedor: clientDataMap[t.client_id]?.vendedor || null,
-        projetista: t.projetista || null,
-        phone: clientDataMap[t.client_id]?.telefone || (t.numero_contrato?.startsWith("WA-") ? t.numero_contrato.replace("WA-", "") : null),
-      }));
+      const options: ClientOption[] = trackings.map((t: any) => {
+        const client = clientsById.get(t.client_id);
+        const sellerName = client?.vendedor || (client?.responsavel_id ? userMap.get(client.responsavel_id) : null) || null;
+        return {
+          trackingId: t.id,
+          clientName: t.nome_cliente,
+          contractNumber: t.numero_contrato,
+          status: t.status,
+          vendedor: sellerName,
+          projetista: t.projetista || null,
+          phone: client?.telefone || (t.numero_contrato?.startsWith("WA-") ? t.numero_contrato.replace("WA-", "") : null),
+        };
+      });
 
       let filtered = options;
       if (!isAdminOrManager && currentUserName) {
@@ -221,11 +230,18 @@ export function StartConversationModal({
                             <Phone className="h-2.5 w-2.5" /> {c.phone}
                           </p>
                         )}
-                        {(c.vendedor || c.projetista) && isAdminOrManager && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {c.vendedor && `Vendedor: ${c.vendedor}`}
-                            {c.vendedor && c.projetista && " • "}
-                            {c.projetista && `Projetista: ${c.projetista}`}
+                        {(c.vendedor || c.projetista) && (
+                          <p className="text-[10px] mt-0.5">
+                            {c.vendedor && (
+                              <Badge variant="secondary" className="text-[8px] h-3.5 px-1 mr-1">
+                                👤 {c.vendedor}
+                              </Badge>
+                            )}
+                            {c.projetista && c.projetista !== c.vendedor && (
+                              <Badge variant="outline" className="text-[8px] h-3.5 px-1">
+                                📐 {c.projetista}
+                              </Badge>
+                            )}
                           </p>
                         )}
                       </div>
