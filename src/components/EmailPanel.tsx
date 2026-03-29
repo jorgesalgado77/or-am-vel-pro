@@ -677,7 +677,7 @@ export function EmailPanel() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">📋 Templates Prontos</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {EMAIL_TEMPLATES.map((tpl) => (
+                    {[...EMAIL_TEMPLATES, ...customTemplates].map((tpl) => (
                       <button
                         key={tpl.name}
                         type="button"
