@@ -639,6 +639,20 @@ export class NegotiationControlEngine {
   private _formatCurrency(val: number): string {
     return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
+
+  private async _fetchSalesRules(tenantId: string): Promise<{ min_margin: number; max_discount: number } | null> {
+    try {
+      const { data } = await supabase
+        .from("sales_rules" as any)
+        .select("min_margin, max_discount")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!data) return null;
+      return { min_margin: Number((data as any).min_margin) || 0, max_discount: Number((data as any).max_discount) || 100 };
+    } catch {
+      return null;
+    }
+  }
 }
 
 // ==================== SINGLETON ====================
