@@ -1352,6 +1352,16 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Close Sale Modal — triggered by AI Closer Banner */}
+      <CloseSaleModal
+        open={closeSaleOpen}
+        onClose={() => setCloseSaleOpen(false)}
+        onConfirm={handleCloseSaleConfirm as any}
+        client={closeSaleClient}
+        simulationData={closeSaleSimData}
+        saving={closeSaleSaving}
+      />
       </div>
     </div>
   );
