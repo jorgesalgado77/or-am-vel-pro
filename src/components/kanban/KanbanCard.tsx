@@ -8,7 +8,7 @@ import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone } from "lucide-react";
+import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
@@ -24,6 +24,7 @@ interface KanbanCardProps {
   cargoNome: string;
   tenantId: string;
   followUpStatus?: "active" | "paused" | "completed";
+  assignedTechnician?: string | null;
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
 }
@@ -65,7 +66,7 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
   }
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, onClick, onQuickDelete }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, onClick, onQuickDelete }: KanbanCardProps) {
   const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
 
@@ -223,10 +224,26 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 </div>
               </div>
             )}
-            {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && client.vendedor && (
+            {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && (client.vendedor || assignedTechnician) && (
+              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                {client.vendedor && (
+                  <>
+                    <User className="h-3 w-3 text-primary/60 shrink-0" />
+                    <span className="text-[10px] text-primary/80 font-medium truncate">{client.vendedor}</span>
+                  </>
+                )}
+                {assignedTechnician && (
+                  <>
+                    <UserCheck className="h-3 w-3 text-emerald-500/70 shrink-0 ml-1" />
+                    <span className="text-[10px] text-emerald-600 font-medium truncate">{assignedTechnician}</span>
+                  </>
+                )}
+              </div>
+            )}
+            {!(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && assignedTechnician && (
               <div className="flex items-center gap-1 mt-1.5">
-                <User className="h-3 w-3 text-primary/60" />
-                <span className="text-[10px] text-primary/80 font-medium truncate">{client.vendedor}</span>
+                <UserCheck className="h-3 w-3 text-emerald-500/70 shrink-0" />
+                <span className="text-[10px] text-emerald-600 font-medium truncate">{assignedTechnician}</span>
               </div>
             )}
             {expired && (

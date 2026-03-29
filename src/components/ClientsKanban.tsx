@@ -606,6 +606,7 @@ export function ClientsKanban({
                   cargoNome={cargoNome}
                   tenantId={getTenantId() || ""}
                   followUpStatus={followUpStatus[client.id]}
+                  assignedTechnician={measurementStatus[client.id]?.assigned_to || null}
                   onClick={setExpandedClient}
                   onQuickDelete={canDelete ? (c) => {
                     if (window.confirm(`Excluir o lead "${c.nome}"? Esta ação não pode ser desfeita.`)) {
