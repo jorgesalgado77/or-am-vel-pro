@@ -59,9 +59,17 @@ export { getClientScore };
 
 interface VendaZapGenerateTabProps {
   generating: boolean;
-  generateMessage: (params: any) => Promise<string | null>;
-  addon: any;
-  autoSugg: any;
+  generateMessage: (params: Record<string, unknown>) => Promise<string | null>;
+  addon: {
+    ativo: boolean;
+    prompt_sistema: string;
+    api_provider: string;
+    openai_model: string;
+    max_tokens_mensagem: number;
+    tom_padrao: string;
+    max_mensagens_dia: number;
+  } | null;
+  autoSugg: { generate: (client: Client, sim: unknown) => void; clear: () => void; suggestion: string | null; loading: boolean };
   currentUserId?: string;
   lastQuality?: QualityValidationResult | null;
   resumeSession?: ConversationSession | null;
@@ -398,7 +406,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
         .select("id")
         .eq("client_id", selectedClient.id)
         .limit(1);
-      trackingId = (data as any[])?.[0]?.id || null;
+      trackingId = (data as Array<{ id: string }>)?.[0]?.id || null;
     };
     findTracking();
 
@@ -408,7 +416,7 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "tracking_messages" },
         (payload) => {
-          const msg = payload.new as any;
+          const msg = payload.new as Record<string, string>;
           if (!trackingId || msg.tracking_id !== trackingId) return;
           if (!msg.mensagem?.trim()) return;
 
