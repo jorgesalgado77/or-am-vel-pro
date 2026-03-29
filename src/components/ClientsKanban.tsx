@@ -513,7 +513,7 @@ export function ClientsKanban({
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, activeColumns]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns]);
 
   // Drag and drop handler
   const handleDragEnd = useCallback(async (result: DropResult) => {
