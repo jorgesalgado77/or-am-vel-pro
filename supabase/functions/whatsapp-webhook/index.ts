@@ -517,6 +517,21 @@ serve(async (req) => {
     }
 
     const isEvolution = !body.__twilio && Boolean(body?.event && (body?.data || body?.instance));
+    const isTwilioMsg = body.__twilio === true;
+
+    // ── Twilio delivery status callback ──
+    if (isTwilioMsg && body.MessageStatus && !body.Body) {
+      const twilioSid = body.MessageSid || body.SmsSid || null;
+      if (twilioSid) {
+        const statusMap: Record<string, string> = { sent: "sent", delivered: "delivered", read: "read", failed: "sent", undelivered: "sent" };
+        const mappedStatus = statusMap[body.MessageStatus] || null;
+        if (mappedStatus) {
+          const updated = await updateMessageStatus({ status: mappedStatus, messageId: twilioSid });
+          return respond({ status: updated ? "twilio_status_updated" : "twilio_status_no_match" });
+        }
+      }
+      return respond({ status: "ignored_twilio_status" });
+    }
 
     // ── Filter out non-message events (status updates, delivery receipts) ──
     const eventType = isStatusOrDeliveryEvent(body, isEvolution);
