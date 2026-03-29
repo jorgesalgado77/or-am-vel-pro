@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import { KANBAN_ALL_COLUMNS } from "./kanbanTypes";
+import { KanbanDealBadge } from "./KanbanDealBadge";
 import type { Client, LastSimInfo } from "./kanbanTypes";
 
 interface KanbanCardProps {
@@ -21,6 +22,7 @@ interface KanbanCardProps {
   sim: LastSimInfo | undefined;
   budgetValidityDays: number;
   cargoNome: string;
+  tenantId: string;
   followUpStatus?: "active" | "paused" | "completed";
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
@@ -63,7 +65,7 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
   }
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick, onQuickDelete }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, onClick, onQuickDelete }: KanbanCardProps) {
   const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
 
@@ -204,9 +206,21 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                   <FileText className="h-3 w-3 text-muted-foreground" />
                   <span className="text-[10px] text-muted-foreground">{sim.sim_count} {sim.sim_count === 1 ? "simulação" : "simulações"}</span>
                 </div>
-                <span className="text-[10px] text-muted-foreground">
-                  Última: {format(new Date(sim.created_at), "dd/MM/yy")}
-                </span>
+                <div className="flex items-center gap-1">
+                  <KanbanDealBadge
+                    clientId={client.id}
+                    clientName={client.nome}
+                    clientStatus={clientStatus}
+                    tenantId={tenantId}
+                    daysInactive={daysInColumn}
+                    hasSimulation
+                    valorOrcamento={sim.valor_com_desconto}
+                    temperature={(client as any).lead_temperature}
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    Última: {format(new Date(sim.created_at), "dd/MM/yy")}
+                  </span>
+                </div>
               </div>
             )}
             {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && client.vendedor && (
