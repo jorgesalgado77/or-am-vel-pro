@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Ruler, AlertTriangle, CheckCircle2, Clock, RefreshCw, Search,
-  User, FileText, ChevronRight, Loader2, BarChart3,
+  User, FileText, ChevronRight, Loader2, BarChart3, Pencil,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -36,9 +36,15 @@ interface MeasurementRequest {
   valor_venda_avista: number;
   ambientes: any[];
   imported_files: any[];
+  observacoes: string;
+  client_snapshot: any;
+  delivery_address: any;
   status: string;
   created_by: string | null;
   assigned_to: string | null;
+  last_edited_by: string | null;
+  last_edited_by_cargo: string | null;
+  last_edited_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -273,7 +279,7 @@ export function MeasurementKanban() {
                                 daysOld <= 3 ? "text-amber-600" :
                                 "text-destructive"
                               )}>
-                                {daysOld === 0 ? "Hoje" : `${daysOld} dia(s)`}
+                              {daysOld === 0 ? "Hoje" : `${daysOld} dia(s)`}
                               </span>
                               {req.created_by && (
                                 <>
@@ -283,7 +289,19 @@ export function MeasurementKanban() {
                               )}
                             </div>
 
-                            {/* Environments preview */}
+                            {/* Last edited info */}
+                            {req.last_edited_by && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-0.5">
+                                <Pencil className="h-2.5 w-2.5" />
+                                <span>
+                                  Editado por <span className="font-semibold text-foreground">{req.last_edited_by}</span>
+                                  {req.last_edited_by_cargo && <span className="text-primary"> ({req.last_edited_by_cargo})</span>}
+                                  {req.last_edited_at && (
+                                    <span> • {format(new Date(req.last_edited_at), "dd/MM HH:mm", { locale: ptBR })}</span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
                             {req.ambientes && req.ambientes.length > 0 && (
                               <div className="space-y-1">
                                 {req.ambientes.slice(0, 3).map((amb: any, i: number) => (

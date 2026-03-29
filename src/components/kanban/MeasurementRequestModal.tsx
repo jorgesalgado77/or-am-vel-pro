@@ -88,6 +88,8 @@ export function MeasurementRequestModal({
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   const [observacoes, setObservacoes] = useState("");
+  const [existingRequestId, setExistingRequestId] = useState<string | null>(null);
+  const [lastEditInfo, setLastEditInfo] = useState<{ by: string; cargo: string; at: string } | null>(null);
   const { settings } = useCompanySettings();
   const localPreviewUrlsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef(false);
@@ -566,6 +568,8 @@ export function MeasurementRequestModal({
       setEnvAttachments({});
       setUploadProgress({});
       setObservacoes("");
+      setExistingRequestId(null);
+      setLastEditInfo(null);
       setPdfPreviewImages([]);
       setPdfPreviewOpen(false);
       hydrateClientState(client as any);
@@ -879,6 +883,20 @@ export function MeasurementRequestModal({
       );
       setEnvAttachments(Object.fromEntries(attachmentEntries.filter(([, attachments]) => attachments.length > 0)));
       setObservacoes(latestRequest?.observacoes || "");
+      setExistingRequestId(latestRequest?.id || null);
+      if (latestRequest?.last_edited_by) {
+        setLastEditInfo({
+          by: latestRequest.last_edited_by,
+          cargo: latestRequest.last_edited_by_cargo || "",
+          at: latestRequest.last_edited_at || latestRequest.updated_at || "",
+        });
+      } else if (latestRequest?.id) {
+        setLastEditInfo({
+          by: latestRequest.created_by || "Sistema",
+          cargo: "",
+          at: latestRequest.created_at || "",
+        });
+      }
       initialLoadDoneRef.current = true;
 
       if (latestRequest) {
@@ -1621,6 +1639,29 @@ export function MeasurementRequestModal({
       const tenantId = await getResolvedTenantId();
       const userInfo = getAuditUserInfo();
 
+      // Fetch current user's cargo name for edit tracking
+      let userCargoNome = "";
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData?.session?.user?.id;
+        if (uid && tenantId) {
+          const { data: userRow } = await (supabase as any)
+            .from("usuarios")
+            .select("nome_completo, cargo_id")
+            .eq("user_id", uid)
+            .eq("tenant_id", tenantId)
+            .maybeSingle();
+          if (userRow?.cargo_id) {
+            const { data: cargoRow } = await (supabase as any)
+              .from("cargos")
+              .select("nome")
+              .eq("id", userRow.cargo_id)
+              .maybeSingle();
+            userCargoNome = cargoRow?.nome || "";
+          }
+        }
+      } catch { /* silent */ }
+
       await persistClientSnapshot();
 
       // Upload images to storage
@@ -1665,8 +1706,8 @@ export function MeasurementRequestModal({
         uploadedAttachments[env.id] = attachmentUrls;
       }
 
-      // Insert measurement request
-      const { error } = await supabase.from("measurement_requests" as any).insert({
+      // Build the payload
+      const payload = {
         client_id: client.id,
         tracking_id: tracking.id,
         tenant_id: tenantId,
@@ -1683,8 +1724,6 @@ export function MeasurementRequestModal({
         })),
         imported_files: importedFiles,
         observacoes,
-        status: "novo",
-        created_by: userInfo.usuario_nome || "Sistema",
         client_snapshot: {
           telefone1: editableFields.telefone,
           email: editableFields.email,
@@ -1699,9 +1738,27 @@ export function MeasurementRequestModal({
           city: normalizedAddress.city,
           state: normalizedAddress.state,
         },
-      } as any);
+        updated_at: new Date().toISOString(),
+      } as any;
 
-      if (error) throw error;
+      let error: any = null;
+
+      if (existingRequestId) {
+        // UPDATE existing request
+        payload.last_edited_by = userInfo.usuario_nome || "Sistema";
+        payload.last_edited_by_cargo = userCargoNome;
+        payload.last_edited_at = new Date().toISOString();
+        const res = await supabase.from("measurement_requests" as any)
+          .update(payload)
+          .eq("id", existingRequestId);
+        error = res.error;
+      } else {
+        // INSERT new request
+        payload.status = "novo";
+        payload.created_by = userInfo.usuario_nome || "Sistema";
+        const res = await supabase.from("measurement_requests" as any).insert(payload);
+        error = res.error;
+      }
 
       // Send push notifications to gerentes/técnicos
       try {
@@ -1738,8 +1795,8 @@ export function MeasurementRequestModal({
         ...userInfo,
       });
 
-      toast.success("✅ Solicitação de medida enviada com sucesso!", {
-        description: "O gerente técnico receberá a solicitação no Kanban.",
+      toast.success(existingRequestId ? "✅ Solicitação atualizada com sucesso!" : "✅ Solicitação de medida enviada com sucesso!", {
+        description: existingRequestId ? "Os dados foram salvos e atualizados." : "O gerente técnico receberá a solicitação no Kanban.",
         duration: 6000,
       });
 
@@ -1767,6 +1824,18 @@ export function MeasurementRequestModal({
             <p className="text-xs text-muted-foreground font-mono mt-1">
               Nº Contrato: <span className="font-semibold text-foreground">{tracking.numero_contrato}</span>
             </p>
+          )}
+          {lastEditInfo && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-1.5 mt-2 flex items-center gap-2 text-xs">
+              <Pencil className="h-3 w-3 text-amber-600 shrink-0" />
+              <span className="text-muted-foreground">
+                Última alteração por <span className="font-semibold text-foreground">{lastEditInfo.by}</span>
+                {lastEditInfo.cargo && <span className="text-amber-600"> ({lastEditInfo.cargo})</span>}
+                {lastEditInfo.at && (
+                  <span> em {new Date(lastEditInfo.at).toLocaleDateString("pt-BR")} às {new Date(lastEditInfo.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                )}
+              </span>
+            </div>
           )}
         </DialogHeader>
 
@@ -2156,7 +2225,7 @@ export function MeasurementRequestModal({
                 className="gap-2 bg-success hover:bg-success/90 text-success-foreground shadow-md"
               >
                 <Ruler className="h-4 w-4" />
-                {saving ? "Enviando..." : "💾 Salvar e Enviar Solicitação"}
+                {saving ? "Salvando..." : existingRequestId ? "💾 Salvar Alterações" : "💾 Salvar e Enviar Solicitação"}
               </Button>
             </div>
           </div>
