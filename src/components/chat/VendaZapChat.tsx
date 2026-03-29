@@ -915,6 +915,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const [deleteTarget, setDeleteTarget] = useState<ChatConversation | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const deletedIdsRef = useRef<Set<string>>(new Set());
 
   const handleDeleteConversation = useCallback((conv: ChatConversation) => {
     if (!isAdminOrManager) return;
