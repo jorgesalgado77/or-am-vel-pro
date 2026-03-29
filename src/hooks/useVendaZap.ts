@@ -33,9 +33,10 @@ function recordLearningEvent(
     price_offered: params.valor_orcamento || null,
   };
 
-  supabase
-    .from("ai_learning_events" as unknown as "clients")
-    .insert([row as unknown as Record<string, unknown>])
+  const table = supabase.from("ai_learning_events" as unknown as "clients");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  void (table as unknown as { insert: (rows: unknown[]) => { then: (cb: (r: { error: { message: string } | null }) => void) => void } })
+    .insert([row])
     .then(({ error }) => {
       if (error) console.warn("[VendaZap] learning event error:", error.message);
     });
