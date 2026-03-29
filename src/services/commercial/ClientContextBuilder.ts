@@ -162,7 +162,7 @@ export class ClientContextBuilder {
   // ─── Private fetchers ─────────────────────────────────────
 
   private async fetchClient(clientId: string): Promise<ClientRow | null> {
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from("clients")
       .select("id, nome, status, updated_at, created_at, telefone1, email, vendedor, lead_temperature")
       .eq("id", clientId)
@@ -171,14 +171,14 @@ export class ClientContextBuilder {
   }
 
   private async fetchLatestSimulation(clientId: string): Promise<SimulationRow | null> {
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from("simulations")
       .select("id, valor_tela, desconto1, desconto2, desconto3, plus_percentual, forma_pagamento, parcelas, valor_entrada, indicador_percentual, carencia_dias")
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    return data as SimulationRow | null;
+    return data as unknown as SimulationRow | null;
   }
 
   private async fetchMessages(
@@ -243,25 +243,25 @@ export class ClientContextBuilder {
   }> {
     const [creditRes, boletoRes] = await Promise.all([
       supabase
-        .from("credit_rates" as any)
+        .from("credit_rates" as unknown as "clients")
         .select("*")
         .eq("tenant_id", this.tenantId),
       supabase
-        .from("boleto_rates" as any)
+        .from("boleto_rates" as unknown as "clients")
         .select("*")
         .eq("tenant_id", this.tenantId),
     ]);
 
     const creditRates: Record<number, number> = {};
     const creditRatesFull: Record<number, CreditRateData> = {};
-    for (const r of (creditRes.data || []) as any[]) {
+    for (const r of (creditRes.data || []) as unknown as Array<CreditRateData & { parcelas: number; coeficiente: number }>) {
       creditRates[r.parcelas] = r.coeficiente;
       creditRatesFull[r.parcelas] = r;
     }
 
     const boletoRates: Record<number, number> = {};
     const boletoRatesFull: Record<number, BoletoRateData> = {};
-    for (const r of (boletoRes.data || []) as any[]) {
+    for (const r of (boletoRes.data || []) as unknown as Array<BoletoRateData & { parcelas: number; coeficiente: number }>) {
       boletoRates[r.parcelas] = r.coeficiente;
       boletoRatesFull[r.parcelas] = r;
     }
