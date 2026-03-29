@@ -49,7 +49,6 @@ interface ClientRow {
   id: string;
   nome: string;
   status: string;
-  valor_orcamento: number | null;
   updated_at: string | null;
 }
 
