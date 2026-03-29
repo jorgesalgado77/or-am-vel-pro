@@ -209,6 +209,13 @@ export function ChatWindow({
       .eq("remetente_tipo", "cliente")
       .eq("lida", false)
       .then();
+
+    // Polling fallback — refetch every 8s in case realtime misses events
+    const pollInterval = setInterval(() => {
+      void fetchMessages();
+    }, 8000);
+
+    return () => clearInterval(pollInterval);
   }, [fetchMessages, trackingIds]);
 
   useEffect(() => {
