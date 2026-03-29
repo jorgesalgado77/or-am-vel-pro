@@ -8,6 +8,8 @@ import { useWhatsAppSimulator } from "@/hooks/useWhatsAppSimulator";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
+import { CloseSaleModal } from "@/components/CloseSaleModal";
+import type { CloseSaleData } from "./AICloserBanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Wifi, WifiOff, Loader2, Brain, Phone, Trash2 } from "lucide-react";
@@ -209,6 +211,10 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
   const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
   const [interventionMode, setInterventionMode] = useState<"automatico" | "assistido" | "manual">("assistido");
+  const [closeSaleOpen, setCloseSaleOpen] = useState(false);
+  const [closeSaleClient, setCloseSaleClient] = useState<any>(null);
+  const [closeSaleSimData, setCloseSaleSimData] = useState<CloseSaleData | undefined>(undefined);
+  const [closeSaleSaving, setCloseSaleSaving] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
