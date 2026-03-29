@@ -381,6 +381,8 @@ export function ChatWindow({
 
         <VendaZapMonitorIndicator
           trackingId={conversation.id}
+          clientId={conversation.client_id}
+          clientName={conversation.nome_cliente}
           tenantId={tenantId}
           enabled={vendazapActive}
         />
