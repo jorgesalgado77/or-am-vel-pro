@@ -967,19 +967,26 @@ export function EmailPanel() {
                                 {dateStr} às {timeStr}
                               </p>
                               {/* Attachment thumbnails preview */}
-                              {!isExpanded && inlineImages.length > 0 && (
+                              {!isExpanded && (inlineImages.length > 0 || fileAttachments.length > 0) && (
                                 <div className="flex gap-1.5 mt-1.5">
                                   {inlineImages.slice(0, 3).map((src, idx) => (
                                     <img
-                                      key={idx}
+                                      key={`img-${idx}`}
                                       src={src}
                                       alt={`Anexo ${idx + 1}`}
                                       className="h-10 w-10 rounded border border-border object-cover"
+                                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                     />
                                   ))}
-                                  {inlineImages.length > 3 && (
+                                  {fileAttachments.slice(0, 2).map((fa, idx) => (
+                                    <div key={`file-${idx}`} className="h-10 px-2 rounded border border-border bg-muted flex items-center gap-1 text-[9px] text-muted-foreground">
+                                      <FileText className="h-3 w-3 shrink-0" />
+                                      <span className="truncate max-w-[60px]">{fa.name}</span>
+                                    </div>
+                                  ))}
+                                  {(inlineImages.length + fileAttachments.length) > 3 && (
                                     <div className="h-10 w-10 rounded border border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
-                                      +{inlineImages.length - 3}
+                                      +{(inlineImages.length + fileAttachments.length) - 3}
                                     </div>
                                   )}
                                 </div>
