@@ -14,7 +14,8 @@ export type LearningEventType =
   | "dealroom_opened"
   | "followup_sent"
   | "reactivation_sent"
-  | "arbitrage_scenario";
+  | "arbitrage_scenario"
+  | "negotiation_control";
 
 export type StrategyType =
   | "urgencia"
