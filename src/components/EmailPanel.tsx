@@ -14,7 +14,7 @@ import {
   Mail, Send, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
   Plus, Loader2, Inbox, Paperclip, X, FileText, Image, Upload, Users,
   RefreshCw, Forward, Bold, Italic, Underline, AlignLeft, AlignCenter,
-  AlignRight, Type, Palette, Highlighter,
+  AlignRight, Type, Palette, Highlighter, ChevronDown, ChevronUp, Save, Trash2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
@@ -116,6 +116,15 @@ interface EmailRecord {
   created_at: string;
   sent_by?: string;
 }
+
+interface CustomTemplate {
+  name: string;
+  icon: string;
+  subject: string;
+  body: string;
+}
+
+const CUSTOM_TEMPLATES_KEY = "email-custom-templates";
 
 interface AttachmentFile {
   file: File;
@@ -338,6 +347,17 @@ export function EmailPanel() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
+
+  // Custom template state
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>(() => {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_TEMPLATES_KEY) || "[]"); } catch { return []; }
+  });
+  const [newTplName, setNewTplName] = useState("");
+  const [newTplIcon, setNewTplIcon] = useState("📄");
+  const [newTplSubject, setNewTplSubject] = useState("");
+  const [newTplBody, setNewTplBody] = useState("");
+  const [showNewTplForm, setShowNewTplForm] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -625,10 +645,13 @@ export function EmailPanel() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="compose" className="gap-2">
-            <Plus className="h-4 w-4" /> Compor Email
+            <Plus className="h-4 w-4" /> Compor
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-2">
             <Inbox className="h-4 w-4" /> Histórico
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <FileText className="h-4 w-4" /> Templates
           </TabsTrigger>
           <TabsTrigger value="contacts" className="gap-2">
             <Users className="h-4 w-4" /> Contatos ({savedContacts.length})
@@ -654,7 +677,7 @@ export function EmailPanel() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">📋 Templates Prontos</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {EMAIL_TEMPLATES.map((tpl) => (
+                    {[...EMAIL_TEMPLATES, ...customTemplates].map((tpl) => (
                       <button
                         key={tpl.name}
                         type="button"
@@ -886,34 +909,98 @@ export function EmailPanel() {
                       ) : email.status === "failed" ? (
                         <XCircle className="h-4 w-4 text-destructive" />
                       ) : (
-                        <Clock className="h-4 w-4 text-yellow-500" />
+                        <Clock className="h-4 w-4 text-amber-500" />
                       );
+                      const isExpanded = expandedEmailId === email.id;
+
+                      // Extract inline images from body_html for thumbnails
+                      const inlineImages: string[] = [];
+                      if (email.body_html) {
+                        const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+                        let match;
+                        while ((match = imgRegex.exec(email.body_html)) !== null) {
+                          inlineImages.push(match[1]);
+                        }
+                      }
+                      const hasAttachments = inlineImages.length > 0 || (email.body_html?.includes("📎") ?? false);
+
                       return (
-                        <div key={email.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
-                          <div className="mt-1">{statusIcon}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium truncate">{email.subject || "(sem assunto)"}</span>
-                              <Badge variant="outline" className="text-[9px] shrink-0">
-                                {email.status === "sent" ? "Enviado" : email.status === "failed" ? "Falhou" : "Pendente"}
-                              </Badge>
+                        <div key={email.id} className="rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+                          <div
+                            className="flex items-start gap-3 p-3 cursor-pointer"
+                            onClick={() => setExpandedEmailId(isExpanded ? null : email.id)}
+                          >
+                            <div className="mt-1">{statusIcon}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium truncate">{email.subject || "(sem assunto)"}</span>
+                                <Badge variant="outline" className="text-[9px] shrink-0">
+                                  {email.status === "sent" ? "Enviado" : email.status === "failed" ? "Falhou" : "Pendente"}
+                                </Badge>
+                                {hasAttachments && (
+                                  <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                Para: {email.to_email}
+                                {email.cc_email ? ` • CC: ${email.cc_email}` : ""}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {dateStr} às {timeStr}
+                              </p>
+                              {/* Attachment thumbnails preview */}
+                              {!isExpanded && inlineImages.length > 0 && (
+                                <div className="flex gap-1.5 mt-1.5">
+                                  {inlineImages.slice(0, 3).map((src, idx) => (
+                                    <img
+                                      key={idx}
+                                      src={src}
+                                      alt={`Anexo ${idx + 1}`}
+                                      className="h-10 w-10 rounded border border-border object-cover"
+                                    />
+                                  ))}
+                                  {inlineImages.length > 3 && (
+                                    <div className="h-10 w-10 rounded border border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
+                                      +{inlineImages.length - 3}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                              Para: {email.to_email}
-                              {email.cc_email ? ` • CC: ${email.cc_email}` : ""}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {dateStr} às {timeStr}
-                            </p>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleResend(email); }} title="Reenviar">
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleForward(email); }} title="Encaminhar">
+                                <Forward className="h-3.5 w-3.5" />
+                              </Button>
+                              {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleResend(email)} title="Reenviar">
-                              <RefreshCw className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleForward(email)} title="Encaminhar">
-                              <Forward className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          {isExpanded && email.body_html && (
+                            <div className="px-3 pb-3 border-t border-border">
+                              <div
+                                className="mt-2 text-sm text-foreground prose prose-sm max-w-none bg-muted/30 rounded-lg p-3 max-h-[300px] overflow-y-auto"
+                                dangerouslySetInnerHTML={{ __html: email.body_html }}
+                              />
+                              {inlineImages.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-[10px] text-muted-foreground font-semibold mb-1">📎 Anexos ({inlineImages.length})</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {inlineImages.map((src, idx) => (
+                                      <a key={idx} href={src} target="_blank" rel="noopener noreferrer">
+                                        <img
+                                          src={src}
+                                          alt={`Anexo ${idx + 1}`}
+                                          className="h-16 w-16 rounded-lg border border-border object-cover hover:ring-2 hover:ring-primary/50 transition-all"
+                                        />
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -930,6 +1017,145 @@ export function EmailPanel() {
                   <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="templates" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-base">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Templates de Email
+                </span>
+                <Button
+                  variant={showNewTplForm ? "secondary" : "default"}
+                  size="sm"
+                  className="gap-1 text-xs"
+                  onClick={() => setShowNewTplForm(!showNewTplForm)}
+                >
+                  {showNewTplForm ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                  {showNewTplForm ? "Cancelar" : "Novo Template"}
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {showNewTplForm && (
+                <div className="space-y-3 p-4 rounded-lg border border-primary/30 bg-primary/5">
+                  <Label className="text-sm font-semibold">Criar Novo Template</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Emoji ícone"
+                      value={newTplIcon}
+                      onChange={e => setNewTplIcon(e.target.value)}
+                      className="w-16 text-center"
+                      maxLength={2}
+                    />
+                    <Input
+                      placeholder="Nome do template"
+                      value={newTplName}
+                      onChange={e => setNewTplName(e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+                  <Input
+                    placeholder="Assunto do email"
+                    value={newTplSubject}
+                    onChange={e => setNewTplSubject(e.target.value)}
+                  />
+                  <textarea
+                    placeholder="Corpo do email (suporta HTML)..."
+                    value={newTplBody}
+                    onChange={e => setNewTplBody(e.target.value)}
+                    className="w-full min-h-[120px] rounded-lg border border-border bg-background p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    disabled={!newTplName.trim() || !newTplSubject.trim() || !newTplBody.trim()}
+                    onClick={() => {
+                      const tpl: CustomTemplate = {
+                        name: newTplName.trim(),
+                        icon: newTplIcon || "📄",
+                        subject: newTplSubject.trim(),
+                        body: newTplBody.trim(),
+                      };
+                      const updated = [...customTemplates, tpl];
+                      setCustomTemplates(updated);
+                      localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(updated));
+                      setNewTplName(""); setNewTplIcon("📄"); setNewTplSubject(""); setNewTplBody("");
+                      setShowNewTplForm(false);
+                      toast.success(`Template "${tpl.name}" criado!`);
+                    }}
+                  >
+                    <Save className="h-3.5 w-3.5" /> Salvar Template
+                  </Button>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Templates Padrão</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {EMAIL_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.name}
+                      type="button"
+                      className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-colors text-left group"
+                      onClick={() => {
+                        setSubject(tpl.subject);
+                        setBodyHtml(tpl.body);
+                        if (editorRef.current) editorRef.current.innerHTML = tpl.body;
+                        setTab("compose");
+                        setStep("to");
+                        toast.success(`Template "${tpl.name}" carregado!`);
+                      }}
+                    >
+                      <span className="text-lg">{tpl.icon}</span>
+                      <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">{tpl.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {customTemplates.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Meus Templates</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {customTemplates.map((tpl, idx) => (
+                      <div key={`${tpl.name}-${idx}`} className="relative group">
+                        <button
+                          type="button"
+                          className="w-full flex items-center gap-2 p-2.5 rounded-lg border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-colors text-left"
+                          onClick={() => {
+                            setSubject(tpl.subject);
+                            setBodyHtml(tpl.body);
+                            if (editorRef.current) editorRef.current.innerHTML = tpl.body;
+                            setTab("compose");
+                            setStep("to");
+                            toast.success(`Template "${tpl.name}" carregado!`);
+                          }}
+                        >
+                          <span className="text-lg">{tpl.icon}</span>
+                          <span className="text-xs font-medium text-foreground">{tpl.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                          onClick={() => {
+                            const updated = customTemplates.filter((_, i) => i !== idx);
+                            setCustomTemplates(updated);
+                            localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(updated));
+                            toast.success("Template removido");
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>

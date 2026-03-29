@@ -1,16 +1,21 @@
 /**
  * VendaZapMonitorIndicator — Shows that VendaZap AI is actively monitoring
- * the current conversation in real-time. Displays a pulsing indicator badge.
+ * the current conversation in real-time. Displays a pulsing indicator badge
+ * with CDE action suggestion in tooltip.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Bot, BrainCircuit } from "lucide-react";
+import { Bot, BrainCircuit, Target } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/lib/supabaseClient";
-import { analyzeVendaZapMessage, detectDiscFromMessages } from "@/lib/vendazapAnalysis";
+import { detectDiscFromMessages } from "@/lib/vendazapAnalysis";
+import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
+import type { TriggerContext } from "@/services/commercial/types";
 
 interface Props {
   trackingId: string;
+  clientId?: string | null;
+  clientName?: string;
   tenantId?: string | null;
   enabled: boolean;
   onMemoryUpdate?: (memory: ConversationMemory) => void;
@@ -25,8 +30,31 @@ export interface ConversationMemory {
   updatedAt: string;
 }
 
-export function VendaZapMonitorIndicator({ trackingId, tenantId, enabled, onMemoryUpdate }: Props) {
+interface CDESuggestion {
+  action: string;
+  urgency: string;
+  probability: number;
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  send_message: "Enviar mensagem",
+  send_with_discount: "Enviar c/ desconto",
+  suggest_dealroom: "Sugerir Deal Room",
+  schedule_followup: "Agendar follow-up",
+  wait: "Aguardar",
+  escalate: "Escalar p/ gerente",
+};
+
+const URGENCY_LABELS: Record<string, string> = {
+  immediate: "🔴 Imediato",
+  today: "🟡 Hoje",
+  this_week: "🔵 Esta semana",
+  low: "⚪ Baixa",
+};
+
+export function VendaZapMonitorIndicator({ trackingId, clientId, clientName, tenantId, enabled, onMemoryUpdate }: Props) {
   const [memory, setMemory] = useState<ConversationMemory | null>(null);
+  const [cdeSuggestion, setCdeSuggestion] = useState<CDESuggestion | null>(null);
   const [pulse, setPulse] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -54,7 +82,6 @@ export function VendaZapMonitorIndicator({ trackingId, tenantId, enabled, onMemo
     );
     const disc = discResult.profile || null;
 
-    // Simple sentiment from last client message
     const lastClient = clientMsgs[clientMsgs.length - 1]?.mensagem || null;
     let sentiment: ConversationMemory["sentiment"] = "neutral";
     if (lastClient) {
@@ -77,18 +104,48 @@ export function VendaZapMonitorIndicator({ trackingId, tenantId, enabled, onMemo
     setMemory(newMemory);
     onMemoryUpdate?.(newMemory);
 
-    // Visual pulse
+    // CDE suggestion
+    if (tenantId && clientId) {
+      try {
+        const engine = getCommercialEngine();
+        const firstMsg = messages[0]?.created_at;
+        const daysInactive = firstMsg
+          ? Math.max(0, Math.floor((Date.now() - new Date(messages[messages.length - 1]?.created_at || firstMsg).getTime()) / 86400000))
+          : 0;
+
+        const triggerCtx: TriggerContext = {
+          trigger_id: trackingId,
+          trigger_type: "no_response",
+          tenant_id: tenantId,
+          client_id: clientId,
+          client_name: clientName || "Cliente",
+          client_status: "Em Negociação",
+          days_inactive: daysInactive,
+          has_simulation: true,
+          valor_orcamento: 0,
+          generated_message: lastClient || "",
+        };
+
+        const action = await engine.handleTrigger(triggerCtx);
+        setCdeSuggestion({
+          action: ACTION_LABELS[action.action] || action.action,
+          urgency: URGENCY_LABELS[action.urgency] || action.urgency,
+          probability: action.closing_probability,
+        });
+      } catch {
+        // CDE analysis optional
+      }
+    }
+
     setPulse(true);
     setTimeout(() => setPulse(false), 2000);
-  }, [trackingId, onMemoryUpdate]);
+  }, [trackingId, clientId, clientName, tenantId, onMemoryUpdate]);
 
-  // Initial load
   useEffect(() => {
     if (!enabled) return;
     refreshMemory();
   }, [enabled, refreshMemory]);
 
-  // Realtime subscription for new messages
   useEffect(() => {
     if (!enabled || !trackingId) return;
 
@@ -139,8 +196,8 @@ export function VendaZapMonitorIndicator({ trackingId, tenantId, enabled, onMemo
           </Badge>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-[240px]">
-        <div className="space-y-1 text-xs">
+      <TooltipContent side="bottom" className="max-w-[280px]">
+        <div className="space-y-1.5 text-xs">
           <div className="flex items-center gap-1.5 font-semibold">
             <BrainCircuit className="h-3.5 w-3.5 text-emerald-500" />
             Monitoramento Ativo
@@ -151,6 +208,20 @@ export function VendaZapMonitorIndicator({ trackingId, tenantId, enabled, onMemo
             <span className="text-muted-foreground">•</span>
             <span>{discLabel}</span>
           </div>
+          {cdeSuggestion && (
+            <div className="border-t border-border pt-1.5 mt-1.5">
+              <div className="flex items-center gap-1 font-semibold text-primary">
+                <Target className="h-3 w-3" />
+                Sugestão CDE
+              </div>
+              <p className="text-muted-foreground">
+                {cdeSuggestion.action} • {cdeSuggestion.urgency}
+              </p>
+              <p className="text-muted-foreground">
+                Prob. fechamento: <span className={cdeSuggestion.probability > 60 ? "text-emerald-500 font-medium" : cdeSuggestion.probability > 30 ? "text-amber-500 font-medium" : "text-red-500 font-medium"}>{cdeSuggestion.probability}%</span>
+              </p>
+            </div>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>
