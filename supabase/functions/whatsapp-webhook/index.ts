@@ -626,7 +626,7 @@ serve(async (req) => {
     }
 
     // ── Dedup by provider message ID ──
-    const providerMsgId = pickMessageId(body, isEvolution);
+    const providerMsgId = isTwilioMsg ? (body.MessageSid || body.SmsSid || null) : pickMessageId(body, isEvolution);
     if (providerMsgId) {
       // Try column-based dedup first (provider_message_id column may not exist yet — fallback gracefully)
       const isDup = await isDuplicateByContent(trackingId, messageText, isFromMe ? "loja" : "cliente", 5000);
