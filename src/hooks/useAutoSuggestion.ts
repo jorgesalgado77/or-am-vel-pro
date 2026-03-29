@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { logAudit } from "@/services/auditService";
 import { calcLeadTemperature } from "@/lib/leadTemperature";
 import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
-import { detectDiscFromMessages, type VendaZapMessageLike } from "@/lib/vendazapAnalysis";
+import { getControlEngine, type NegotiationStrategy } from "@/services/commercial/NegotiationControlEngine";
 import type { DealContext, FormaPagamento } from "@/services/commercial/types";
 
 interface SuggestionCache {
@@ -31,6 +31,23 @@ interface UseAutoSuggestionParams {
   userId?: string;
 }
 
+function mapStrategyToCopyType(strategy: NegotiationStrategy): string {
+  switch (strategy) {
+    case "fechamento":
+      return "fechamento";
+    case "negociacao":
+      return "objecao";
+    case "prova_social":
+    case "consultiva":
+      return "reuniao";
+    case "urgencia":
+    case "escassez":
+      return "urgencia";
+    default:
+      return "geral";
+  }
+}
+
 export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestionParams) {
   const [suggestion, setSuggestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,19 +65,11 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
   ) => {
     if (!tenantId || !addon?.ativo) return;
 
-    const lastClientMsg = recentMessages
-      ?.filter(m => m.remetente_tipo === "cliente")
-      ?.slice(-1)[0]?.mensagem || "";
+    const lastClientMsg = recentMessages?.filter((m) => m.remetente_tipo === "cliente").slice(-1)[0]?.mensagem || "";
     const messageHash = `${client.id}-${lastClientMsg.slice(0, 50)}`;
-
     const cached = cacheRef.current;
-    if (
-      !options?.forceRefresh &&
-      cached &&
-      cached.clientId === client.id &&
-      cached.messageHash === messageHash &&
-      Date.now() - cached.timestamp < CACHE_TTL_MS
-    ) {
+
+    if (!options?.forceRefresh && cached && cached.clientId === client.id && cached.messageHash === messageHash && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       setSuggestion(cached.suggestion);
       setTipoCopy(cached.tipoCopy);
       setDiscProfile(cached.discProfile);
@@ -75,12 +84,8 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
     setSuggestion("");
     setSuggestionId(null);
 
-    const days = Math.floor((Date.now() - new Date(client.updated_at).getTime()) / (1000 * 60 * 60 * 24));
-
-    // ─── Use CDE for intent/tone/DISC detection ───────────────
+    const days = Math.floor((Date.now() - new Date(client.updated_at).getTime()) / 86400000);
     const engine = getCommercialEngine();
-
-    // Build a lightweight DealContext for message context generation
     const ctx: DealContext = {
       tenant_id: tenantId,
       customer: {
@@ -91,52 +96,56 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         has_simulation: !!lastSim,
         phone: client.telefone1 || null,
       },
-      pricing: {
-        total_price: lastSim?.valor_final || lastSim?.valor_tela || 0,
-      },
-      payment: {
-        forma_pagamento: "A vista" as FormaPagamento,
-        parcelas: 1,
-        valor_entrada: 0,
-        plus_percentual: 0,
-      },
+      pricing: { total_price: lastSim?.valor_final || lastSim?.valor_tela || 0 },
+      payment: { forma_pagamento: "A vista" as FormaPagamento, parcelas: 1, valor_entrada: 0, plus_percentual: 0 },
       discounts: { desconto1: 0, desconto2: 0, desconto3: 0 },
-      negotiation_history: recentMessages?.map(m => ({
-        mensagem: m.mensagem,
-        remetente_tipo: m.remetente_tipo,
-      })),
+      negotiation_history: recentMessages?.map((m) => ({ mensagem: m.mensagem, remetente_tipo: m.remetente_tipo })),
     };
 
     const messageContext = engine.generateMessageContext(ctx);
+    const dealRoomLink = options?.dealRoomLink || `${window.location.origin}/app`;
     let autoCopyType = messageContext.tipo_copy;
     let tom = messageContext.tom;
     const detectedDisc = messageContext.disc_profile || "";
-
     setDiscProfile(detectedDisc);
 
-    // Recalibration logic for DISC at every 10 client messages
-    const clientMsgCount = recentMessages?.filter(m => m.remetente_tipo === "cliente").length || 0;
-    const isRecalibrationPoint = clientMsgCount > 0 && clientMsgCount % 10 === 0;
+    let controlFallbackMessage = "";
+    let learningContextStr = "";
 
-    if (isRecalibrationPoint && detectedDisc) {
-      // Force stronger DISC tone at recalibration points
-      const discToneMap: Record<string, string> = { D: "direto", I: "entusiasmado", S: "acolhedor", C: "tecnico" };
-      tom = discToneMap[detectedDisc] || tom;
+    try {
+      const controlDecision = await getControlEngine().controlNegotiation({
+        tenant_id: tenantId,
+        user_id: userId,
+        client_id: client.id,
+        client_name: client.nome,
+        client_status: client.status || "em_negociacao",
+        days_inactive: days,
+        has_simulation: !!lastSim,
+        valor_orcamento: lastSim?.valor_final || lastSim?.valor_tela || 0,
+        temperatura: calcLeadTemperature({ status: client.status || "novo", diasSemResposta: days, temSimulacao: !!lastSim }),
+        perfil_disc: detectedDisc || undefined,
+        modo: "assistido",
+        mensagens: (recentMessages || []).slice(-20),
+        estagio_venda: client.status || "em_negociacao",
+        phone: client.telefone1 || undefined,
+      });
 
-      const discCopyMap: Record<string, string> = { D: "fechamento", I: "reuniao", S: "reuniao", C: "objecao" };
-      if (autoCopyType === "geral") autoCopyType = discCopyMap[detectedDisc] || autoCopyType;
+      autoCopyType = mapStrategyToCopyType(controlDecision.strategy);
+      tom = controlDecision.message_tone || tom;
+      controlFallbackMessage = controlDecision.suggested_message;
+      learningContextStr += `\n=== CONTROLE DE NEGOCIAÇÃO ===\nEstratégia: ${controlDecision.strategy}\nTiming: ${controlDecision.timing}\nPreço final: ${controlDecision.pricing.valor_final}\nFechamento: ${controlDecision.is_closing_opportunity ? "sim" : "não"}`;
+    } catch {
+      controlFallbackMessage = "";
     }
 
-    const dealRoomLink = options?.dealRoomLink || `${window.location.origin}/app`;
-
-    // Build learning context from OptimizationEngine
-    let learningContextStr = "";
     try {
       const { getOptimizationEngine } = await import("@/services/ai/OptimizationEngine");
       const optimizer = getOptimizationEngine(tenantId);
       const opt = await optimizer.optimizeDecision(ctx);
-      learningContextStr = `\n=== OTIMIZAÇÃO IA ===\n🎯 "${opt.recommended_strategy}" (${opt.strategy_confidence}% confiança)\n💰 Desconto ideal: ${opt.recommended_discount_range.optimal}%\n📝 ${opt.reasoning}`;
-    } catch { /* silent */ }
+      learningContextStr += `\n=== OTIMIZAÇÃO IA ===\n🎯 "${opt.recommended_strategy}" (${opt.strategy_confidence}% confiança)\n💰 Desconto ideal: ${opt.recommended_discount_range.optimal}%\n📝 ${opt.reasoning}`;
+    } catch {
+      // noop
+    }
 
     try {
       const result = await Promise.race([
@@ -159,77 +168,65 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
             learning_context: learningContextStr,
           },
         }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("timeout")), TIMEOUT_MS)
-        ),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), TIMEOUT_MS)),
       ]);
 
       if (controller.signal.aborted) return;
 
       const { data, error } = result as { data: Record<string, unknown> | null; error: Error | null };
-      if (error || data?.error) { setLoading(false); return; }
+      const rawMessage = (data?.mensagem as string) || controlFallbackMessage;
+      if (error || data?.error || !rawMessage) {
+        setLoading(false);
+        if (controlFallbackMessage) {
+          setSuggestion(controlFallbackMessage);
+          setTipoCopy(autoCopyType);
+        }
+        return;
+      }
 
-      const msg = (data?.mensagem as string) || "";
       const tokens = (data?.tokens_usados as number) || 0;
       const detectedType = (data?.intencao as string) || autoCopyType;
       const serverDisc = (data?.disc_profile as string) || detectedDisc;
-
-      let displayType = autoCopyType;
-      if (detectedType === "fechamento") displayType = "fechamento";
-      else if (detectedType === "enviar_preco") displayType = "reuniao";
-      else if (detectedType === "objecao") displayType = "objecao";
+      const displayType = detectedType === "enviar_preco" ? "reuniao" : detectedType === "objecao" ? "objecao" : detectedType === "fechamento" ? "fechamento" : autoCopyType;
 
       setDiscProfile(serverDisc);
-      setSuggestion(msg);
+      setSuggestion(rawMessage);
       setTipoCopy(displayType);
 
       cacheRef.current = {
         clientId: client.id,
-        suggestion: msg,
+        suggestion: rawMessage,
         tipoCopy: displayType,
         discProfile: serverDisc,
         timestamp: Date.now(),
         messageHash,
       };
 
-      const temperature = calcLeadTemperature({
-        status: client.status,
-        diasSemResposta: days,
-        temSimulacao: !!lastSim,
-      });
-
-      // Resolve real client_id: client.id might be a tracking_id
+      const temperature = calcLeadTemperature({ status: client.status, diasSemResposta: days, temSimulacao: !!lastSim });
       let realClientId = client.id;
-      const { data: trackingRow } = await supabase
-        .from("client_tracking")
-        .select("client_id")
-        .eq("id", client.id)
-        .maybeSingle();
+      const { data: trackingRow } = await supabase.from("client_tracking").select("client_id").eq("id", client.id).maybeSingle();
       if (trackingRow?.client_id) realClientId = trackingRow.client_id;
 
-      await (supabase as any)
+      await (supabase as unknown as { from: (table: string) => { update: (payload: Record<string, unknown>) => { eq: (column: string, value: string) => Promise<unknown> } } })
         .from("clients")
-        .update({
-          lead_temperature: temperature,
-          last_ai_analysis: new Date().toISOString(),
-        })
+        .update({ lead_temperature: temperature, last_ai_analysis: new Date().toISOString() })
         .eq("id", realClientId);
 
       const { data: inserted } = await supabase
-        .from("vendazap_suggestions" as any)
+        .from("vendazap_suggestions" as unknown as "clients")
         .insert({
           tenant_id: tenantId,
           client_id: realClientId,
           usuario_id: userId || null,
           original_message: lastClientMsg || `${client.nome} - ${client.status} - ${days}d`,
-          suggested_reply: msg,
+          suggested_reply: rawMessage,
           tokens_usados: tokens,
           used: false,
-        } as any)
+        } as never)
         .select("id")
         .single();
 
-      if (inserted) setSuggestionId((inserted as any).id);
+      if (inserted) setSuggestionId((inserted as { id?: string }).id || null);
 
       logAudit({
         acao: "vendazap_auto_suggestion",
@@ -243,6 +240,10 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
     } catch (err: unknown) {
       if (err instanceof Error && err.message !== "timeout" && !controller.signal.aborted) {
         console.error("Auto-suggestion error:", err);
+      }
+      if (!controller.signal.aborted && controlFallbackMessage) {
+        setSuggestion(controlFallbackMessage);
+        setTipoCopy(autoCopyType);
       }
     } finally {
       if (!controller.signal.aborted) setLoading(false);
@@ -260,9 +261,9 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
 
   const markUsed = useCallback(async (clientId: string) => {
     if (suggestionId) {
-      await supabase
-        .from("vendazap_suggestions" as any)
-        .update({ used: true } as any)
+      await (supabase as unknown as { from: (table: string) => { update: (payload: Record<string, unknown>) => { eq: (column: string, value: string) => Promise<unknown> } } })
+        .from("vendazap_suggestions")
+        .update({ used: true })
         .eq("id", suggestionId);
     }
     logAudit({
