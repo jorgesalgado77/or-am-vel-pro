@@ -1,6 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { FileIcon, Monitor, Smartphone } from "lucide-react";
+import { FileIcon, Monitor, Smartphone, Check, CheckCheck, FileText, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "./types";
@@ -11,20 +11,53 @@ interface Props {
   showDate?: boolean;
 }
 
+function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out"
+      onClick={onClose}
+    >
+      <button
+        className="absolute top-4 right-4 text-white/80 hover:text-white z-50 bg-black/40 rounded-full p-1"
+        onClick={onClose}
+      >
+        <X className="h-6 w-6" />
+      </button>
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
 function AttachmentPreview({ msg }: { msg: ChatMessage }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
   if (!msg.anexo_url) return null;
 
   const tipo = msg.tipo_anexo || "";
 
   if (tipo.startsWith("image")) {
     return (
-      <img
-        src={msg.anexo_url}
-        alt={msg.anexo_nome || "imagem"}
-        className="max-w-[240px] rounded-md mt-1 cursor-pointer"
-        loading="lazy"
-        onClick={() => window.open(msg.anexo_url!, "_blank")}
-      />
+      <>
+        <img
+          src={msg.anexo_url}
+          alt={msg.anexo_nome || "imagem"}
+          className="max-w-[240px] rounded-md mt-1 cursor-zoom-in hover:opacity-90 transition-opacity"
+          loading="lazy"
+          onClick={() => setLightboxOpen(true)}
+        />
+        {lightboxOpen && (
+          <ImageLightbox
+            src={msg.anexo_url}
+            alt={msg.anexo_nome || "imagem"}
+            onClose={() => setLightboxOpen(false)}
+          />
+        )}
+      </>
     );
   }
 
@@ -45,6 +78,28 @@ function AttachmentPreview({ msg }: { msg: ChatMessage }) {
     );
   }
 
+  // PDF preview
+  if (tipo === "application/pdf" || msg.anexo_nome?.toLowerCase().endsWith(".pdf")) {
+    return (
+      <div className="mt-1 space-y-1">
+        <a
+          href={msg.anexo_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 px-2 py-1.5 rounded bg-black/5 hover:bg-black/10 transition-colors text-xs"
+        >
+          <FileText className="h-4 w-4 shrink-0 text-red-500" />
+          <span className="truncate">{msg.anexo_nome || "documento.pdf"}</span>
+        </a>
+        <iframe
+          src={`${msg.anexo_url}#toolbar=0&navpanes=0`}
+          className="w-full h-48 rounded border border-border/50"
+          title={msg.anexo_nome || "PDF"}
+        />
+      </div>
+    );
+  }
+
   return (
     <a
       href={msg.anexo_url}
@@ -55,6 +110,34 @@ function AttachmentPreview({ msg }: { msg: ChatMessage }) {
       <FileIcon className="h-4 w-4 shrink-0" />
       <span className="truncate">{msg.anexo_nome || "arquivo"}</span>
     </a>
+  );
+}
+
+function ReadReceipt({ message }: { message: ChatMessage }) {
+  // Only show for loja messages
+  if (message.remetente_tipo !== "loja") return null;
+
+  // lida = true means the message was read by the client (for loja-sent messages, we consider it delivered+read by the system)
+  // For a real WhatsApp-like experience: sent = gray single check, delivered = gray double check, read = blue double check
+  // We use `lida` as our "read" indicator
+  if (message.lida) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <CheckCheck className="h-3 w-3 text-blue-400 shrink-0" />
+        </TooltipTrigger>
+        <TooltipContent side="top"><p className="text-[10px]">Lida</p></TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <CheckCheck className="h-3 w-3 opacity-50 shrink-0" />
+      </TooltipTrigger>
+      <TooltipContent side="top"><p className="text-[10px]">Entregue</p></TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -118,6 +201,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({ message, show
                 </Tooltip>
               )}
               {time}
+              <ReadReceipt message={message} />
             </p>
           </div>
           {clientAnalysis && (
