@@ -117,6 +117,15 @@ interface EmailRecord {
   sent_by?: string;
 }
 
+interface CustomTemplate {
+  name: string;
+  icon: string;
+  subject: string;
+  body: string;
+}
+
+const CUSTOM_TEMPLATES_KEY = "email-custom-templates";
+
 interface AttachmentFile {
   file: File;
   previewUrl: string;
