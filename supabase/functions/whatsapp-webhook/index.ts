@@ -128,6 +128,39 @@ function pickTextMessage(body: any, isEvolution: boolean) {
   );
 }
 
+function isPlaceholderText(value = "") {
+  const normalized = value.trim().toLowerCase();
+  return [
+    "[mensagem recebida]",
+    "mensagem recebida",
+    "[message received]",
+    "message received",
+  ].includes(normalized);
+}
+
+function pickContactName(body: any, isEvolution: boolean) {
+  if (isEvolution) {
+    return pickDefined(
+      body?.data?.pushName,
+      body?.data?.pushname,
+      body?.data?.notifyName,
+      body?.data?.senderName,
+      body?.pushName,
+      body?.senderName,
+      body?.chatName,
+      "Cliente",
+    ) || "Cliente";
+  }
+
+  return pickDefined(
+    body?.senderName,
+    body?.chatName,
+    body?.contact?.name,
+    body?.contact?.pushName,
+    "Cliente",
+  ) || "Cliente";
+}
+
 function pickMedia(body: any, isEvolution: boolean): { url: string; type: string; name: string } | null {
   if (isEvolution) {
     const message = body?.data?.message || {};
@@ -246,7 +279,49 @@ function isStatusOrDeliveryEvent(body: any, isEvolution: boolean): boolean {
 function hasProcessableContent(body: any, isEvolution: boolean) {
   const text = pickTextMessage(body, isEvolution).trim();
   const media = pickMedia(body, isEvolution);
-  return Boolean(text || (media && media.url));
+  return Boolean((text && !isPlaceholderText(text)) || (media && media.url));
+}
+
+async function getActiveTenantId() {
+  const response = await supabaseAdmin
+    .from("whatsapp_settings")
+    .select("tenant_id")
+    .eq("ativo", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (response.error?.code === "42703" || response.error?.code === "PGRST204" || response.error?.message?.includes("tenant_id")) {
+    const fallback = await supabaseAdmin
+      .from("whatsapp_settings")
+      .select("*")
+      .eq("ativo", true)
+      .limit(1)
+      .maybeSingle();
+
+    return (fallback.data as any)?.tenant_id || null;
+  }
+
+  return (response.data as any)?.tenant_id || null;
+}
+
+async function createManualTracking(cleanPhone: string, contactName: string) {
+  const tenantId = await getActiveTenantId();
+  if (!tenantId) return null;
+
+  const { data: created, error } = await supabaseAdmin
+    .from("client_tracking")
+    .insert({
+      tenant_id: tenantId,
+      nome_cliente: contactName || `WhatsApp ${cleanPhone.slice(-4)}`,
+      numero_contrato: `WA-${cleanPhone}`,
+      status: "em_negociacao",
+      updated_at: new Date().toISOString(),
+    } as any)
+    .select("id, client_id, tenant_id, nome_cliente, numero_contrato")
+    .single();
+
+  if (error) throw error;
+  return created;
 }
 
 async function findTrackingByPhone(cleanPhone: string) {
@@ -377,6 +452,7 @@ serve(async (req) => {
     const cleanPhone = normalizePhone(rawContactPhone);
     const media = pickMedia(body, isEvolution);
     const rawText = pickTextMessage(body, isEvolution).trim();
+    const sanitizedText = isPlaceholderText(rawText) ? "" : rawText;
     const now = pickEventTimestamp(body, isEvolution);
 
     if (!cleanPhone || body?.isGroup === true || String(rawContactPhone).includes("@g.us") || body?.isNewsletter === true) {
@@ -388,7 +464,7 @@ serve(async (req) => {
     }
 
     // Build final message text — only use fallback for media with URL
-    let messageText = rawText;
+    let messageText = sanitizedText;
     if (!messageText && media?.url) {
       messageText = media.name || "[Mídia]";
     }
@@ -407,13 +483,22 @@ serve(async (req) => {
     if (!trackingId) {
       const client = await findClientByPhone(cleanPhone);
       if (!client) {
-        return respond({ status: "no_client_match", phone: cleanPhone, from_me: isFromMe });
-      }
+        const manualTracking = await createManualTracking(cleanPhone, pickContactName(body, isEvolution));
 
-      trackingId = await getTrackingId(client, cleanPhone);
-      tenantId = client.tenant_id;
-      clientId = client.id;
-      clientName = client.nome || "Cliente";
+        if (!manualTracking) {
+          return respond({ status: "no_client_match", phone: cleanPhone, from_me: isFromMe });
+        }
+
+        trackingId = manualTracking.id;
+        tenantId = manualTracking.tenant_id || null;
+        clientId = manualTracking.client_id || null;
+        clientName = manualTracking.nome_cliente || "Cliente";
+      } else {
+        trackingId = await getTrackingId(client, cleanPhone);
+        tenantId = client.tenant_id;
+        clientId = client.id;
+        clientName = client.nome || "Cliente";
+      }
     }
 
     // ── Dedup by provider message ID ──
@@ -457,7 +542,7 @@ serve(async (req) => {
         tenant_id: tenantId,
         mensagem: messageText,
         remetente_tipo: isFromMe ? "loja" : "cliente",
-        remetente_nome: isFromMe ? "Você" : clientName,
+        remetente_nome: isFromMe ? "Loja" : clientName,
         lida: isFromMe ? true : false,
         created_at: now,
         ...(media?.url
