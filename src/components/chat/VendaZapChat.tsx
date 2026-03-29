@@ -208,6 +208,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
   const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
   const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
+  const [interventionMode, setInterventionMode] = useState<"automatico" | "assistido" | "manual">("assistido");
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
@@ -989,6 +990,8 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 isActive={autoPilotActive}
                 onToggle={toggleAutoPilot}
                 onUpdateSettings={updateAutoPilotSettings}
+                interventionMode={interventionMode}
+                onModeChange={setInterventionMode}
               />
               {isMobile && (
                 <Button
