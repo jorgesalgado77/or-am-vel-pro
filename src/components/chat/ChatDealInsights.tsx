@@ -34,6 +34,65 @@ const URGENCY_CONFIG = {
   low: { label: "Sem Pressa", emoji: "🕐", color: "bg-muted text-muted-foreground border-border" },
 };
 
+// ==================== SPARKLINE ====================
+
+const PROB_HISTORY_KEY = "deal-prob-history";
+const MAX_HISTORY = 20;
+
+interface ProbPoint { ts: number; prob: number }
+
+function loadProbHistory(conversationId: string): ProbPoint[] {
+  try {
+    const all = JSON.parse(localStorage.getItem(PROB_HISTORY_KEY) || "{}");
+    return (all[conversationId] || []) as ProbPoint[];
+  } catch { return []; }
+}
+
+function saveProbHistory(conversationId: string, points: ProbPoint[]) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PROB_HISTORY_KEY) || "{}");
+    all[conversationId] = points.slice(-MAX_HISTORY);
+    localStorage.setItem(PROB_HISTORY_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+function ProbabilitySparkline({ points }: { points: ProbPoint[] }) {
+  if (points.length < 2) return null;
+
+  const w = 80, h = 20, pad = 1;
+  const values = points.map(p => p.prob);
+  const min = Math.max(0, Math.min(...values) - 5);
+  const max = Math.min(100, Math.max(...values) + 5);
+  const range = max - min || 1;
+
+  const coords = values.map((v, i) => ({
+    x: pad + (i / (values.length - 1)) * (w - pad * 2),
+    y: pad + (1 - (v - min) / range) * (h - pad * 2),
+  }));
+
+  const pathD = coords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(" ");
+  const last = values[values.length - 1];
+  const prev = values[values.length - 2];
+  const trend = last >= prev ? "hsl(var(--chart-2))" : "hsl(var(--destructive))";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="cursor-help shrink-0">
+          <path d={pathD} fill="none" stroke={trend} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="2" fill={trend} />
+        </svg>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-[10px]">
+        <p>Evolução: {values[0]}% → {last}%</p>
+        <p className="text-muted-foreground">{points.length} análises registradas</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// ==================== TYPES ====================
+
 interface FullDecision {
   analysis: DealAnalysis;
   scenarios: DealScenario[];
