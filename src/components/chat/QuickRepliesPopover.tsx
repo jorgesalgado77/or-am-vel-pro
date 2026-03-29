@@ -4,7 +4,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Zap, Plus, Trash2, Search, X, Sparkles } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabaseClient";
@@ -180,7 +179,7 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start" side="top">
+      <PopoverContent className="w-80 overflow-hidden p-0" align="start" side="top">
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -245,7 +244,7 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
           )}
         </div>
 
-        <ScrollArea className="max-h-[360px]">
+        <div className="max-h-[360px] overflow-y-auto overscroll-contain">
           {tab === "rapidas" && (
             <>
               {loading ? (
@@ -356,7 +355,7 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
               )}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

@@ -33,6 +33,15 @@ import type { ChatConversation } from "./types";
 
 type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
 
+function isConversationAssignedToUser(conversation: ChatConversation | null | undefined, userName: string) {
+  if (!conversation || !userName) return false;
+
+  const normalizedUserName = userName.trim().toLowerCase();
+  return [conversation.vendedor_nome, conversation.projetista_nome]
+    .filter(Boolean)
+    .some((name) => String(name).trim().toLowerCase() === normalizedUserName);
+}
+
 function useWhatsAppConnectionStatus(tenantId: string | null) {
   const [status, setStatus] = useState<WhatsAppConnectionStatus>("checking");
   const [provider, setProvider] = useState<string | null>(null);
@@ -246,6 +255,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const isAdminOrManager = currentUser?.cargo_nome
     ? ["administrador", "gerente", "admin"].includes(currentUser.cargo_nome.toLowerCase())
     : false;
+  const currentUserName = currentUser?.nome_completo?.trim().toLowerCase() || "";
 
   const normalizePhone = useCallback((value?: string | null) => (value || "").replace(/\D/g, ""), []);
 
@@ -374,6 +384,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         ...preferred,
         client_id: preferred.client_id || existing.client_id || entry.client_id,
         isClientDirect: existing.isClientDirect && entry.isClientDirect,
+        projetista: preferred.projetista || existing.projetista || entry.projetista,
         relatedTrackingIds: mergedTrackingIds,
         phone: preferred.phone || existing.phone || entry.phone,
       });
@@ -434,6 +445,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         last_message: lastMsgMap[entry.groupKey]?.msg || (entry.isClientDirect ? "Clique para iniciar conversa" : undefined),
         last_message_at: lastMsgMap[entry.groupKey]?.at,
         vendedor_nome: clientDataMap[entry.client_id]?.vendedor || null,
+        projetista_nome: entry.projetista || null,
         isClientDirect: entry.isClientDirect || false,
         client_id: entry.client_id,
         phone: entry.phone || clientDataMap[entry.client_id]?.telefone || undefined,
@@ -516,15 +528,23 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
           const isSelectedConversation = Boolean(
             selected && (selected.id === msg.tracking_id || (conv && selected.id === conv.id))
           );
+          const resolvedConversation = conv || (
+            selected && (selected.id === msg.tracking_id || selected.relatedTrackingIds?.includes(msg.tracking_id))
+              ? selected
+              : null
+          );
+          const shouldNotifyCurrentUser = isConversationAssignedToUser(resolvedConversation, currentUserName);
 
           if (msg.remetente_tipo === "cliente") {
-            playLeadNotificationSound(conv?.lead_temperature);
+            if (shouldNotifyCurrentUser) {
+              playLeadNotificationSound(resolvedConversation?.lead_temperature);
+            }
 
-            if (!isSelectedConversation) {
-              const tempEmoji = conv?.lead_temperature === "quente" ? "🔥" : conv?.lead_temperature === "morno" ? "🟡" : "❄️";
+            if (shouldNotifyCurrentUser && !isSelectedConversation) {
+              const tempEmoji = resolvedConversation?.lead_temperature === "quente" ? "🔥" : resolvedConversation?.lead_temperature === "morno" ? "🟡" : "❄️";
               toast.info(`${tempEmoji} Nova mensagem de cliente!`, {
                 description: msg.mensagem?.substring(0, 50),
-                duration: conv?.lead_temperature === "quente" ? 8000 : 4000,
+                duration: resolvedConversation?.lead_temperature === "quente" ? 8000 : 4000,
               });
             }
 
@@ -563,7 +583,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess, triggerAI]);
+  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess, triggerAI, currentUserName]);
 
   const handleSelectConversation = useCallback(async (conv: ChatConversation) => {
     // If this is a direct client without a tracking record, create one first

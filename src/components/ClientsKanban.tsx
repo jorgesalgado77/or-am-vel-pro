@@ -28,6 +28,8 @@ export function ClientsKanban({
 }: ClientsKanbanProps) {
   const [localClients, setLocalClients] = useState<Client[]>(externalClients);
   useEffect(() => { setLocalClients(externalClients); }, [externalClients]);
+  const localClientsRef = React.useRef<Client[]>(externalClients);
+  useEffect(() => { localClientsRef.current = localClients; }, [localClients]);
 
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("");
@@ -51,10 +53,52 @@ export function ClientsKanban({
   const { projetistas, usuarios } = useUsuarios();
   const { indicadores } = useIndicadores();
   const { currentUser } = useCurrentUser();
+  const tenantId = getTenantId();
 
   const cargoNome = currentUser?.cargo_nome?.toLowerCase() || "";
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
+
+  const upsertLocalClient = useCallback((nextClient: Client) => {
+    setLocalClients(prev => {
+      const existingIndex = prev.findIndex(client => client.id === nextClient.id);
+      if (existingIndex === -1) return [nextClient, ...prev];
+
+      const next = [...prev];
+      next[existingIndex] = { ...next[existingIndex], ...nextClient } as Client;
+      return next;
+    });
+
+    setExpandedClient(prev => prev?.id === nextClient.id ? ({ ...prev, ...nextClient } as Client) : prev);
+  }, []);
+
+  useEffect(() => {
+    if (!tenantId) return;
+
+    const channel = supabase
+      .channel(`kanban-clients-sync-${tenantId}`)
+      .on("postgres_changes" as any, {
+        event: "*",
+        schema: "public",
+        table: "clients",
+        filter: `tenant_id=eq.${tenantId}`,
+      }, (payload: any) => {
+        if (payload.eventType === "DELETE") {
+          const deletedId = payload.old?.id;
+          if (!deletedId) return;
+          setLocalClients(prev => prev.filter(client => client.id !== deletedId));
+          setExpandedClient(prev => prev?.id === deletedId ? null : prev);
+          return;
+        }
+
+        if (payload.new) {
+          upsertLocalClient(payload.new as Client);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, upsertLocalClient]);
 
   const indicadorMap = useMemo(() => {
     const map: Record<string, { nome: string; comissao: number }> = {};
@@ -156,9 +200,9 @@ export function ClientsKanban({
   // Fetch client_contracts to detect clients with actual issued contracts
   // and auto-sync their status to "fechado" in the database
   useEffect(() => {
-    const tenantId = getTenantId();
     if (!tenantId || localClients.length === 0) return;
     const fetchContractClients = async () => {
+      const currentClients = localClientsRef.current;
       const { data } = await supabase
         .from("client_contracts")
         .select("client_id")
@@ -168,7 +212,7 @@ export function ClientsKanban({
         setContractClientIds(ids);
 
         // Auto-sync: update status to "fechado" for clients with contracts that aren't already
-        const needsUpdate = localClients.filter(
+        const needsUpdate = currentClients.filter(
           c => ids.has(c.id) && (c as any).status !== "fechado"
         );
         if (needsUpdate.length > 0) {
@@ -185,14 +229,28 @@ export function ClientsKanban({
       }
     };
     fetchContractClients();
-  }, [localClients.length]);
+
+    const channel = supabase
+      .channel(`kanban-contract-sync-${tenantId}`)
+      .on("postgres_changes" as any, {
+        event: "*",
+        schema: "public",
+        table: "client_contracts",
+        filter: `tenant_id=eq.${tenantId}`,
+      }, () => {
+        fetchContractClients();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, localClients.length]);
 
   // Fetch measurement_requests to auto-move Fechado → Em Medição, Em Medição → Em Liberação
   useEffect(() => {
-    const tenantId = getTenantId();
     if (!tenantId || localClients.length === 0) return;
 
     const fetchMeasurements = async () => {
+      const currentClients = localClientsRef.current;
       const { data } = await supabase
         .from("measurement_requests" as any)
         .select("client_id, status, assigned_to")
@@ -207,12 +265,12 @@ export function ClientsKanban({
       setMeasurementStatus(statusMap);
 
       // Auto-move clients with measurement requests
-      const needsMedicao = localClients.filter(c => {
+      const needsMedicao = currentClients.filter(c => {
         const st = (c as any).status;
         return st === "fechado" && statusMap[c.id];
       });
 
-      const needsLiberacao = localClients.filter(c => {
+      const needsLiberacao = currentClients.filter(c => {
         const st = (c as any).status;
         const mr = statusMap[c.id];
         return st === "em_medicao" && mr?.assigned_to;
@@ -253,7 +311,7 @@ export function ClientsKanban({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [localClients.length]);
+  }, [tenantId, localClients.length]);
   // One-time fix: reassign ALL orçamento numbers sequentially by creation order
   const fixedRef = React.useRef(false);
   useEffect(() => {
@@ -504,9 +562,11 @@ export function ClientsKanban({
         const isExpired = isPast(addDays(new Date(sim.created_at), settings.budget_validity_days));
         if (isExpired) status = "expirado";
       }
-      
-      if (map[status]) map[status].push(client);
-      else map["novo"].push(client);
+
+      const clientWithResolvedStatus = ((client as any).status === status ? client : { ...client, status }) as Client;
+
+      if (map[status]) map[status].push(clientWithResolvedStatus);
+      else map["novo"].push({ ...clientWithResolvedStatus, status: "novo" } as Client);
     });
     // Sort each column: most recent first
     Object.keys(map).forEach(key => {
@@ -604,7 +664,7 @@ export function ClientsKanban({
                   sim={lastSims[client.id]}
                   budgetValidityDays={settings.budget_validity_days}
                   cargoNome={cargoNome}
-                  tenantId={getTenantId() || ""}
+                  tenantId={tenantId || ""}
                   followUpStatus={followUpStatus[client.id]}
                   assignedTechnician={measurementStatus[client.id]?.assigned_to || null}
                   onClick={setExpandedClient}
