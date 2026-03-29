@@ -148,4 +148,38 @@ export interface StrategyRecommendation {
   suggested_scenario?: "conservadora" | "comercial" | "agressiva";
 }
 
+// ==================== TRIGGER TYPES ====================
+
+export type TriggerType = "no_response" | "expiring_budget" | "viewed_no_reply";
+
+export interface TriggerContext {
+  trigger_id: string;
+  trigger_type: TriggerType;
+  tenant_id: string;
+  client_id: string;
+  client_name: string;
+  client_status: string;
+  days_inactive: number;
+  has_simulation: boolean;
+  valor_orcamento: number;
+  generated_message: string;
+}
+
+export type TriggerActionType =
+  | "send_message"
+  | "send_with_discount"
+  | "suggest_dealroom"
+  | "schedule_followup"
+  | "wait"
+  | "escalate";
+
+export interface TriggerAction {
+  action: TriggerActionType;
+  message: string;
+  urgency: "immediate" | "today" | "this_week" | "low";
+  reasoning: string;
+  discount?: DiscountDecision;
+  closing_probability: number;
+}
+
 export type { FormaPagamento, SimulationInput, SimulationResult, LeadTemperature, DiscProfile };
