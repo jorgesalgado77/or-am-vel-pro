@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot, Copy, Sparkles, MessageSquare, Clock, Target,
-  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame, Download, Video,
+  RefreshCw, Zap, Send, Handshake, Lightbulb, ExternalLink, ShieldAlert, Flame, Download, Video, X,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { DealRoomInviteTemplate } from "@/components/dealroom/DealRoomInviteTemplate";
