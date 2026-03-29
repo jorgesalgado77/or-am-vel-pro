@@ -1,29 +1,33 @@
 /**
  * CDEUrgencyWidget — Shows CDE decision summary by urgency level.
  * Counts leads in each urgency bucket (immediate, today, this_week, low) with suggested actions.
+ * Clicking a lead opens the chat with that client.
  */
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Zap, Clock, CalendarDays, TrendingDown, Target, RefreshCw } from "lucide-react";
+import { Zap, Clock, CalendarDays, TrendingDown, Target, RefreshCw, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
 import type { TriggerAction, TriggerContext } from "@/services/commercial/types";
 
+interface LeadEntry {
+  clientId: string;
+  clientName: string;
+  action: string;
+  probability: number;
+  reasoning: string;
+}
+
 interface UrgencyBucket {
   urgency: TriggerAction["urgency"];
   label: string;
   icon: React.ReactNode;
   color: string;
-  leads: Array<{
-    clientName: string;
-    action: string;
-    probability: number;
-    reasoning: string;
-  }>;
+  leads: LeadEntry[];
 }
 
 const URGENCY_CONFIG: Record<TriggerAction["urgency"], { label: string; icon: React.ReactNode; color: string }> = {
@@ -41,6 +45,12 @@ const ACTION_LABELS: Record<string, string> = {
   wait: "Aguardar",
   escalate: "Escalar p/ gerente",
 };
+
+function openClientChat(clientId: string) {
+  window.dispatchEvent(
+    new CustomEvent("open-vendazap-chat-client", { detail: { clientId } })
+  );
+}
 
 export function CDEUrgencyWidget() {
   const [buckets, setBuckets] = useState<UrgencyBucket[]>([]);
@@ -68,7 +78,7 @@ export function CDEUrgencyWidget() {
     }
 
     const engine = getCommercialEngine();
-    const results = new Map<TriggerAction["urgency"], UrgencyBucket["leads"]>();
+    const results = new Map<TriggerAction["urgency"], LeadEntry[]>();
     for (const u of ["immediate", "today", "this_week", "low"] as const) {
       results.set(u, []);
     }
@@ -105,6 +115,7 @@ export function CDEUrgencyWidget() {
 
           const action = await engine.handleTrigger(triggerCtx);
           results.get(action.urgency)?.push({
+            clientId: t.client_id,
             clientName: t.client_nome,
             action: ACTION_LABELS[action.action] || action.action,
             probability: action.closing_probability,
@@ -178,10 +189,14 @@ export function CDEUrgencyWidget() {
                   b.leads.map((lead, i) => (
                     <div
                       key={`${b.urgency}-${i}`}
-                      className="flex items-center justify-between gap-2 text-xs border rounded-md px-3 py-2"
+                      className="flex items-center justify-between gap-2 text-xs border rounded-md px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors group"
+                      onClick={() => openClientChat(lead.clientId)}
+                      title={`Abrir chat com ${lead.clientName}`}
                     >
                       <div className="min-w-0 flex-1">
-                        <span className="font-medium text-foreground truncate block">{lead.clientName}</span>
+                        <span className="font-medium text-foreground truncate block group-hover:text-primary transition-colors">
+                          {lead.clientName}
+                        </span>
                         <span className="text-muted-foreground">{lead.reasoning}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -189,6 +204,7 @@ export function CDEUrgencyWidget() {
                         <span className={`text-[10px] font-mono ${lead.probability > 60 ? "text-emerald-500" : lead.probability > 30 ? "text-amber-500" : "text-red-500"}`}>
                           {lead.probability}%
                         </span>
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
                   ))
