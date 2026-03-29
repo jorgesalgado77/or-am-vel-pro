@@ -863,6 +863,9 @@ export function VendaZapGenerateTab({ generating, generateMessage, addon, autoSu
                   Memória da Conversa ({historico.entries.length} msgs)
                 </CardTitle>
                 <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-primary" onClick={handleRefreshAndGenerate} title="Atualizar com as últimas mensagens">
+                    <RefreshCw className="h-3 w-3" />Atualizar
+                  </Button>
                   <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-primary" onClick={handleExportPDF}>
                     <Download className="h-3 w-3" />PDF
                   </Button>
