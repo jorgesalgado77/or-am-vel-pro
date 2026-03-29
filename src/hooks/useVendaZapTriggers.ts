@@ -214,7 +214,6 @@ export function useVendaZapTriggers(tenantId: string | null) {
           } catch {
             // fallback
           }
-          }
 
           setTriggers((prev) => [enriched, ...prev]);
 
