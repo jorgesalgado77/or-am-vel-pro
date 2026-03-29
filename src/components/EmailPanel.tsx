@@ -437,16 +437,27 @@ export function EmailPanel() {
           if (att.kind === "image") {
             const path = `email-attachments/${tenantId}/${Date.now()}-${att.file.name}`;
             const { data: uploadData } = await supabase.storage
-              .from("attachments")
+              .from("chat-attachments")
               .upload(path, att.file, { upsert: true });
             if (uploadData) {
-              const { data: urlData } = supabase.storage.from("attachments").getPublicUrl(path);
+              const { data: urlData } = supabase.storage.from("chat-attachments").getPublicUrl(path);
               finalHtml += `<a href="${urlData.publicUrl}" target="_blank" style="display:inline-block;margin:4px;">`;
-              finalHtml += `<img src="${urlData.publicUrl}" alt="${att.file.name}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e2e8f0;">`;
+              finalHtml += `<img src="${urlData.publicUrl}" alt="${att.file.name}" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e2e8f0;" data-attachment="true" data-filename="${att.file.name}">`;
               finalHtml += `</a>`;
             }
           } else {
-            finalHtml += `<p style="font-size:12px;">📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)</p>`;
+            const path = `email-attachments/${tenantId}/${Date.now()}-${att.file.name}`;
+            const { data: uploadData } = await supabase.storage
+              .from("chat-attachments")
+              .upload(path, att.file, { upsert: true });
+            if (uploadData) {
+              const { data: urlData } = supabase.storage.from("chat-attachments").getPublicUrl(path);
+              finalHtml += `<a href="${urlData.publicUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f1f5f9;border-radius:8px;border:1px solid #e2e8f0;margin:4px;text-decoration:none;color:#334155;font-size:12px;" data-attachment="true" data-filename="${att.file.name}">`;
+              finalHtml += `📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)`;
+              finalHtml += `</a>`;
+            } else {
+              finalHtml += `<p style="font-size:12px;">📄 ${att.file.name} (${(att.file.size / 1024).toFixed(1)} KB)</p>`;
+            }
           }
         }
         finalHtml += `</div>`;
