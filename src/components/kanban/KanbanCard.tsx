@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import { KANBAN_ALL_COLUMNS } from "./kanbanTypes";
+import { KanbanDealBadge } from "./KanbanDealBadge";
 import type { Client, LastSimInfo } from "./kanbanTypes";
 
 interface KanbanCardProps {
@@ -21,6 +22,7 @@ interface KanbanCardProps {
   sim: LastSimInfo | undefined;
   budgetValidityDays: number;
   cargoNome: string;
+  tenantId: string;
   followUpStatus?: "active" | "paused" | "completed";
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
@@ -63,7 +65,7 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
   }
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, followUpStatus, onClick, onQuickDelete }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, onClick, onQuickDelete }: KanbanCardProps) {
   const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
 
