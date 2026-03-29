@@ -30,6 +30,7 @@ import {AdminPlans} from "@/components/admin/AdminPlans";
 import {AdminWhatsAppConfig} from "@/components/admin/AdminWhatsAppConfig";
 import {AdminResendConfig} from "@/components/admin/AdminResendConfig";
 import {AdminLoginDiagnostics} from "@/components/admin/AdminLoginDiagnostics";
+import {AdminSystemDiagnostics} from "@/components/admin/AdminSystemDiagnostics";
 import {AdminCanvaConfig} from "@/components/admin/AdminCanvaConfig";
 import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
 import {AdminTutorials} from "@/components/admin/AdminTutorials";
@@ -1008,6 +1009,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           {/* TAB: Login Diagnostics */}
           <TabsContent value="diagnostics">
             <AdminLoginDiagnostics />
+          </TabsContent>
+
+          {/* TAB: System Diagnostics */}
+          <TabsContent value="sysdiag">
+            <AdminSystemDiagnostics />
           </TabsContent>
 
           {/* TAB: API Keys */}
