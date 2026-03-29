@@ -1,7 +1,17 @@
+/**
+ * useAutoSuggestion — Auto-generates AI reply suggestions for the chat.
+ *
+ * Delegates intent/tone/DISC detection to the CommercialDecisionEngine
+ * via generateMessageContext, eliminating duplicated pattern matching.
+ */
+
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { logAudit } from "@/services/auditService";
 import { calcLeadTemperature } from "@/lib/leadTemperature";
+import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
+import { detectDiscFromMessages, type VendaZapMessageLike } from "@/lib/vendazapAnalysis";
+import type { DealContext, FormaPagamento } from "@/services/commercial/types";
 
 interface SuggestionCache {
   clientId: string;
@@ -14,15 +24,6 @@ interface SuggestionCache {
 
 const CACHE_TTL_MS = 2 * 60 * 1000;
 const TIMEOUT_MS = 15_000;
-
-// DISC detection delegated to centralized vendazapAnalysis.ts via CommercialDecisionEngine
-import { detectDiscFromMessages, type VendaZapMessageLike } from "@/lib/vendazapAnalysis";
-
-function detectDISCFromMessages(messages: Array<{ mensagem: string; remetente_tipo: string }>): string {
-  // Delegate to central implementation (no more duplicated patterns)
-  const result = detectDiscFromMessages(messages as VendaZapMessageLike[]);
-  return result.profile || "";
-}
 
 interface UseAutoSuggestionParams {
   tenantId: string | null;
@@ -76,61 +77,54 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
 
     const days = Math.floor((Date.now() - new Date(client.updated_at).getTime()) / (1000 * 60 * 60 * 24));
 
-    // Detect intent
-    let autoCopyType = "geral";
-    if (lastClientMsg) {
-      const lower = lastClientMsg.toLowerCase();
-      if (/fechar|quero comprar|vou levar|aceito|fechado|manda o contrato/i.test(lower)) {
-        autoCopyType = "fechamento";
-      } else if (/manda.*pre[çc]o|envia.*pre[çc]o|envia.*valor|manda.*valor|passa.*pre[çc]o|passa.*valor|por whats|pelo whats|por e-?mail|manda.*por aqui|envia.*por aqui|pode mandar|pode enviar|me envia/i.test(lower)) {
-        autoCopyType = "reuniao";
-      } else if (/or[çc]amento|quanto custa|valor|pre[çc]o|proposta|me passa/i.test(lower)) {
-        autoCopyType = "reuniao";
-      } else if (/desconto|condi[çc][ãa]o|parcel|pagamento|negocia|mais barato/i.test(lower)) {
-        autoCopyType = "reuniao";
-      } else if (/caro|vou pensar|depois|outro lugar|concorr|n[ãa]o sei/i.test(lower)) {
-        autoCopyType = "objecao";
-      } else if (/como funciona|d[úu]vida|explica|garantia|prazo|entrega/i.test(lower)) {
-        autoCopyType = "geral";
-      } else if (/bom dia|boa tarde|boa noite|oi|ol[áa]|tudo bem/i.test(lower)) {
-        autoCopyType = "geral";
-      }
-    } else {
-      if (days > 7) autoCopyType = "reativacao";
-      else if (client.status === "proposta_enviada") autoCopyType = "fechamento";
-      else if (client.status === "em_negociacao") autoCopyType = "reuniao";
-      else if (days > 3) autoCopyType = "urgencia";
-    }
+    // ─── Use CDE for intent/tone/DISC detection ───────────────
+    const engine = getCommercialEngine();
 
-    // Detect tone
-    let tom = "amigavel";
-    if (lastClientMsg) {
-      const lower = lastClientMsg.toLowerCase();
-      if (/urgente|rápido|preciso|logo|já|agora/i.test(lower)) tom = "urgente";
-      else if (/obrigad|por favor|gentileza|gostaria/i.test(lower)) tom = "formal";
-      else if (/kkk|haha|rsrs|😂|😄|💪|👍/i.test(lower)) tom = "descontraido";
-      else if (/caro|absurdo|reclamar|insatisf/i.test(lower)) tom = "empatico";
-    }
+    // Build a lightweight DealContext for message context generation
+    const ctx: DealContext = {
+      tenant_id: tenantId,
+      customer: {
+        id: client.id,
+        name: client.nome,
+        status: client.status || "novo",
+        days_inactive: days,
+        has_simulation: !!lastSim,
+        phone: client.telefone1 || null,
+      },
+      pricing: {
+        total_price: lastSim?.valor_final || lastSim?.valor_tela || 0,
+      },
+      payment: {
+        forma_pagamento: "A vista" as FormaPagamento,
+        parcelas: 1,
+        valor_entrada: 0,
+        plus_percentual: 0,
+      },
+      discounts: { desconto1: 0, desconto2: 0, desconto3: 0 },
+      negotiation_history: recentMessages?.map(m => ({
+        mensagem: m.mensagem,
+        remetente_tipo: m.remetente_tipo,
+      })),
+    };
 
-    // DISC detection — deeper analysis using full conversation
-    const detectedDisc = recentMessages ? detectDISCFromMessages(recentMessages) : "";
+    const messageContext = engine.generateMessageContext(ctx);
+    let autoCopyType = messageContext.tipo_copy;
+    let tom = messageContext.tom;
+    const detectedDisc = messageContext.disc_profile || "";
+
     setDiscProfile(detectedDisc);
 
-    // Count client messages for recalibration awareness
+    // Recalibration logic for DISC at every 10 client messages
     const clientMsgCount = recentMessages?.filter(m => m.remetente_tipo === "cliente").length || 0;
     const isRecalibrationPoint = clientMsgCount > 0 && clientMsgCount % 10 === 0;
 
-    // Adapt tone based on DISC — stronger adaptation at recalibration points
-    if (detectedDisc === "D") tom = isRecalibrationPoint ? "direto" : (tom === "amigavel" ? "direto" : tom);
-    else if (detectedDisc === "I") tom = isRecalibrationPoint ? "entusiasmado" : (tom === "amigavel" ? "entusiasmado" : tom);
-    else if (detectedDisc === "S") tom = isRecalibrationPoint ? "acolhedor" : (tom === "amigavel" ? "acolhedor" : tom);
-    else if (detectedDisc === "C") tom = isRecalibrationPoint ? "tecnico" : (tom === "amigavel" ? "tecnico" : tom);
-
-    // At recalibration points, also adjust copy type based on DISC
     if (isRecalibrationPoint && detectedDisc) {
+      // Force stronger DISC tone at recalibration points
+      const discToneMap: Record<string, string> = { D: "direto", I: "entusiasmado", S: "acolhedor", C: "tecnico" };
+      tom = discToneMap[detectedDisc] || tom;
+
       const discCopyMap: Record<string, string> = { D: "fechamento", I: "reuniao", S: "reuniao", C: "objecao" };
-      const discCopy = discCopyMap[detectedDisc];
-      if (discCopy && autoCopyType === "geral") autoCopyType = discCopy;
+      if (autoCopyType === "geral") autoCopyType = discCopyMap[detectedDisc] || autoCopyType;
     }
 
     const dealRoomLink = options?.dealRoomLink || `${window.location.origin}/app`;
@@ -162,13 +156,13 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
 
       if (controller.signal.aborted) return;
 
-      const { data, error } = result as any;
+      const { data, error } = result as { data: Record<string, unknown> | null; error: Error | null };
       if (error || data?.error) { setLoading(false); return; }
 
-      const msg = data?.mensagem || "";
-      const tokens = data?.tokens_usados || 0;
-      const detectedType = data?.intencao || autoCopyType;
-      const serverDisc = data?.disc_profile || detectedDisc;
+      const msg = (data?.mensagem as string) || "";
+      const tokens = (data?.tokens_usados as number) || 0;
+      const detectedType = (data?.intencao as string) || autoCopyType;
+      const serverDisc = (data?.disc_profile as string) || detectedDisc;
 
       let displayType = autoCopyType;
       if (detectedType === "fechamento") displayType = "fechamento";
@@ -203,12 +197,12 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         .maybeSingle();
       if (trackingRow?.client_id) realClientId = trackingRow.client_id;
 
-      await supabase
+      await (supabase as any)
         .from("clients")
         .update({
           lead_temperature: temperature,
           last_ai_analysis: new Date().toISOString(),
-        } as any)
+        })
         .eq("id", realClientId);
 
       const { data: inserted } = await supabase
@@ -236,8 +230,8 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
         tenant_id: tenantId,
         detalhes: { tipo_copy: displayType, client_nome: client.nome, intencao: detectedType, tom, disc: serverDisc },
       });
-    } catch (err: any) {
-      if (err?.message !== "timeout" && !controller.signal.aborted) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message !== "timeout" && !controller.signal.aborted) {
         console.error("Auto-suggestion error:", err);
       }
     } finally {
