@@ -121,7 +121,7 @@ const ConversationItem = memo(function ConversationItem({
   );
 });
 
-export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, onDelete, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
+export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, onDelete, onMergeDuplicate, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [vendedorFilter, setVendedorFilter] = useState<VendedorFilter>("all");
@@ -131,6 +131,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [isListOpen, setIsListOpen] = useState(!selectedId);
   const [isWaListOpen, setIsWaListOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(isNotificationSoundEnabled());
+  const [duplicateDialog, setDuplicateDialog] = useState<{ duplicates: ChatConversation[] } | null>(null);
 
   const vendedorCounts = useMemo(() => {
     const map = new Map<string, number>();
