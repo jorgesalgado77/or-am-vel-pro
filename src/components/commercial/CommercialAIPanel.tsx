@@ -12,6 +12,7 @@ import {
   Flame, Snowflake, Star, ArrowUp, ArrowDown, Loader2, Bell, Brain, Shield,
 } from "lucide-react";
 import { useCommercialAI, type AIInsight } from "@/hooks/useCommercialAI";
+import { ArbitragePanel } from "@/components/commercial/ArbitragePanel";
 import { SalesGoalsPanel } from "@/components/commercial/SalesGoalsPanel";
 import { DirectorDashboard } from "@/components/commercial/DirectorDashboard";
 import { useMetasTetos } from "@/hooks/useMetasTetos";
