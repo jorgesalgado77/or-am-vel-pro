@@ -10,6 +10,7 @@ import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, C
 import { TopSellingProductsChart } from "@/components/dashboard/TopSellingProductsChart";
 import { DealInsightsWidget } from "@/components/dashboard/DealInsightsWidget";
 import { LowStockAlerts } from "@/components/dashboard/LowStockAlerts";
+import { HighResistanceAlerts } from "@/components/dashboard/HighResistanceAlerts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/financing";
@@ -442,6 +443,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     <div className="space-y-6">
       <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
       <DealInsightsWidget />
+      <HighResistanceAlerts />
       {/* Date Filter Bar */}
       <Card>
         <CardContent className="p-4">
