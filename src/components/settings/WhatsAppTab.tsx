@@ -524,11 +524,11 @@ export function WhatsAppTab() {
             <div className="flex gap-2 mt-1">
               <Input
                 readOnly
-                value={`${window.location.origin.replace('localhost:8080', 'bdhfzjuwtkiexyeusnqq.supabase.co')}/functions/v1/whatsapp-bot`}
+                value={`https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`}
                 className="font-mono text-xs bg-muted"
               />
               <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin.replace('localhost:8080', 'bdhfzjuwtkiexyeusnqq.supabase.co')}/functions/v1/whatsapp-bot`);
+                navigator.clipboard.writeText(`https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`);
                 toast.success("URL copiada!");
               }}>
                 <Copy className="h-3.5 w-3.5" /> Copiar
