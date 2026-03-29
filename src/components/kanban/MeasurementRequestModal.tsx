@@ -1640,8 +1640,9 @@ export function MeasurementRequestModal({
       const tenantId = await getResolvedTenantId();
       const userInfo = getAuditUserInfo();
 
-      // Fetch current user's cargo name for edit tracking
+      // Fetch current user's name and cargo for edit tracking
       let userCargoNome = "";
+      let userNomeCompleto = "";
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData?.session?.user?.id;
@@ -1652,6 +1653,7 @@ export function MeasurementRequestModal({
             .eq("user_id", uid)
             .eq("tenant_id", tenantId)
             .maybeSingle();
+          userNomeCompleto = userRow?.nome_completo || "";
           if (userRow?.cargo_id) {
             const { data: cargoRow } = await (supabase as any)
               .from("cargos")
@@ -1746,7 +1748,7 @@ export function MeasurementRequestModal({
 
       if (existingRequestId) {
         // UPDATE existing request
-        payload.last_edited_by = userInfo.usuario_nome || "Sistema";
+        payload.last_edited_by = userNomeCompleto || "Sistema";
         payload.last_edited_by_cargo = userCargoNome;
         payload.last_edited_at = new Date().toISOString();
         const res = await supabase.from("measurement_requests" as any)
@@ -1756,8 +1758,12 @@ export function MeasurementRequestModal({
       } else {
         // INSERT new request
         payload.status = "novo";
-        payload.created_by = userInfo.usuario_nome || "Sistema";
+        payload.created_by = userNomeCompleto || "Sistema";
+        payload.last_edited_by = userNomeCompleto || "Sistema";
+        payload.last_edited_by_cargo = userCargoNome;
+        payload.last_edited_at = new Date().toISOString();
         const res = await supabase.from("measurement_requests" as any).insert(payload);
+        error = res.error;
         error = res.error;
       }
 
@@ -1825,6 +1831,7 @@ export function MeasurementRequestModal({
       clearAddressDraft();
       addressFormRef.current = EMPTY_ADDRESS_FORM;
       addressHydrationLockedRef.current = false;
+      initialLoadDoneRef.current = false;
       onOpenChange(false);
     } catch (err: any) {
       toast.error("Erro ao enviar solicitação: " + (err.message || "erro desconhecido"));
