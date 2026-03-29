@@ -157,10 +157,6 @@ serve(async (req) => {
       ? Boolean(body?.data?.key?.fromMe)
       : body?.isFromMe === true || body?.fromMe === true;
 
-    if (isFromMe) {
-      return respond({ status: "skipped_from_me" });
-    }
-
     const senderPhone = isEvolution
       ? body?.data?.key?.remoteJid?.replace(/@.*/, "") || ""
       : body?.phone || body?.sender || body?.from || "";
