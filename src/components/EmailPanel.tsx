@@ -649,6 +649,31 @@ export function EmailPanel() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Email Templates - show on step "to" */}
+              {step === "to" && !to && !subject && !bodyHtml && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">📋 Templates Prontos</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {EMAIL_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.name}
+                        type="button"
+                        className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-card hover:bg-primary/5 hover:border-primary/40 transition-colors text-left group"
+                        onClick={() => {
+                          setSubject(tpl.subject);
+                          setBodyHtml(tpl.body);
+                          if (editorRef.current) editorRef.current.innerHTML = tpl.body;
+                          toast.success(`Template "${tpl.name}" carregado!`);
+                        }}
+                      >
+                        <span className="text-lg">{tpl.icon}</span>
+                        <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">{tpl.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <Separator />
+                </div>
+              )}
               {step === "to" && (
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">📧 Para quem deseja enviar?</Label>
