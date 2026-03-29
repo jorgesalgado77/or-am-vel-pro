@@ -1181,6 +1181,47 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Conversation Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Excluir conversa permanentemente?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Tem certeza que deseja excluir a conversa com <strong className="text-foreground">{deleteTarget?.nome_cliente}</strong>?
+                </p>
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 space-y-1.5">
+                  <p className="text-xs font-medium text-destructive">⚠️ Esta ação é irreversível:</p>
+                  <ul className="text-xs text-muted-foreground space-y-0.5 list-disc pl-4">
+                    <li>Todas as mensagens serão apagadas</li>
+                    <li>O registro de acompanhamento será removido</li>
+                    <li>Não será possível recuperar o histórico</li>
+                  </ul>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Excluindo...</>
+              ) : (
+                "Excluir permanentemente"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );
