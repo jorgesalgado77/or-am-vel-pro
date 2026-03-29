@@ -20,6 +20,7 @@ import {
   Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart,
 } from "lucide-react";
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
+import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
 import { toast } from "sonner";
 
 const STOCK_STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -31,6 +32,18 @@ const STOCK_STATUS_LABELS: Record<string, { label: string; color: string }> = {
 const CATEGORY_OPTIONS = [
   "geral", "decoração", "iluminação", "eletrodoméstico", "móvel pronto",
   "acessório", "ferragem", "complemento", "tapete", "cortina",
+];
+
+const ENVIRONMENT_OPTIONS = [
+  "cozinha", "lavanderia", "sala", "hall", "area gourmet",
+  "banheiro social", "lavabo", "banheiro suite",
+  "dormitorio solteiro", "dormitorio infantil", "dormitorio hospede", "dormitorio casal",
+  "outros",
+];
+
+const UF_OPTIONS = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
+  "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ];
 
 function formatBRL(v: number) {
@@ -48,6 +61,10 @@ interface ProductFormData {
   depth: number;
   cost_price: number;
   markup_percentage: number;
+  min_sale_price: number;
+  manufacturer_code: string;
+  environment: string;
+  environment_custom: string;
   supplier_id: string;
   stock_quantity: number;
   stock_status: string;
@@ -56,7 +73,30 @@ interface ProductFormData {
 const emptyForm: ProductFormData = {
   name: "", internal_code: "", description: "", category: "geral",
   width: 0, height: 0, depth: 0, cost_price: 0, markup_percentage: 50,
+  min_sale_price: 0, manufacturer_code: "", environment: "", environment_custom: "",
   supplier_id: "", stock_quantity: 0, stock_status: "em_estoque",
+};
+
+interface SupplierFormData {
+  id: string;
+  name: string;
+  razao_social: string;
+  cnpj: string;
+  contact_name: string;
+  contact_phone: string;
+  contact_email: string;
+  whatsapp: string;
+  endereco: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+  cep: string;
+  observacoes: string;
+}
+
+const emptySupplierForm: SupplierFormData = {
+  id: "", name: "", razao_social: "", cnpj: "", contact_name: "", contact_phone: "",
+  contact_email: "", whatsapp: "", endereco: "", bairro: "", cidade: "", uf: "", cep: "", observacoes: "",
 };
 
 export function ProductCatalog() {
@@ -67,7 +107,7 @@ export function ProductCatalog() {
     saveProduct, deleteProduct,
     saveSupplier, deleteSupplier,
     uploadProductImage, loadProductImages, deleteProductImage,
-    importProducts,
+    importProducts, loadSuppliers,
   } = useProductCatalog();
 
   const [activeTab, setActiveTab] = useState("products");
@@ -80,7 +120,8 @@ export function ProductCatalog() {
 
   // Supplier dialog
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
-  const [supplierForm, setSupplierForm] = useState({ id: "", name: "", contact_name: "", contact_phone: "", contact_email: "", whatsapp: "" });
+  const [supplierForm, setSupplierForm] = useState<SupplierFormData>(emptySupplierForm);
+  const [cepLoading, setCepLoading] = useState(false);
 
   // Sale registration
   const [saleDialogOpen, setSaleDialogOpen] = useState(false);
@@ -135,6 +176,10 @@ export function ProductCatalog() {
       depth: p.depth,
       cost_price: p.cost_price,
       markup_percentage: p.markup_percentage,
+      min_sale_price: p.min_sale_price || 0,
+      manufacturer_code: p.manufacturer_code || "",
+      environment: p.environment || "",
+      environment_custom: p.environment_custom || "",
       supplier_id: p.supplier_id || "",
       stock_quantity: p.stock_quantity,
       stock_status: p.stock_status,
@@ -184,7 +229,6 @@ export function ProductCatalog() {
       if (file.name.endsWith(".json")) {
         items = JSON.parse(text);
       } else {
-        // CSV parse
         const lines = text.split("\n").filter(l => l.trim());
         if (lines.length < 2) { toast.error("Arquivo CSV vazio"); return; }
         const headers = lines[0].split(";").map(h => h.trim().toLowerCase());
@@ -223,12 +267,83 @@ export function ProductCatalog() {
     if (importInputRef.current) importInputRef.current.value = "";
   };
 
+  // CEP lookup for supplier form
+  const fetchCep = async (cep: string) => {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) { toast.error("CEP não encontrado"); return; }
+      setSupplierForm(prev => ({
+        ...prev,
+        endereco: data.logradouro || prev.endereco,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.localidade || prev.cidade,
+        uf: data.uf || prev.uf,
+      }));
+      toast.success("Endereço preenchido pelo CEP!");
+    } catch { toast.error("Erro ao buscar CEP"); }
+    finally { setCepLoading(false); }
+  };
+
   // Supplier save
   const handleSaveSupplier = async () => {
     if (!supplierForm.name.trim()) { toast.error("Informe o nome"); return; }
-    await saveSupplier(supplierForm.id ? supplierForm as any : { name: supplierForm.name, contact_name: supplierForm.contact_name, contact_phone: supplierForm.contact_phone, contact_email: supplierForm.contact_email, whatsapp: supplierForm.whatsapp, ativo: true } as any);
-    setSupplierDialogOpen(false);
-    setSupplierForm({ id: "", name: "", contact_name: "", contact_phone: "", contact_email: "", whatsapp: "" });
+    const result = await saveSupplier(
+      supplierForm.id
+        ? supplierForm as any
+        : {
+            name: supplierForm.name,
+            razao_social: supplierForm.razao_social,
+            cnpj: supplierForm.cnpj,
+            contact_name: supplierForm.contact_name,
+            contact_phone: supplierForm.contact_phone,
+            contact_email: supplierForm.contact_email,
+            whatsapp: supplierForm.whatsapp,
+            endereco: supplierForm.endereco,
+            bairro: supplierForm.bairro,
+            cidade: supplierForm.cidade,
+            uf: supplierForm.uf,
+            cep: supplierForm.cep,
+            observacoes: supplierForm.observacoes,
+            ativo: true,
+          } as any
+    );
+    if (result) {
+      setSupplierDialogOpen(false);
+      setSupplierForm(emptySupplierForm);
+      // Auto-select the new supplier in the product form
+      if (!supplierForm.id && result.id) {
+        setForm(f => ({ ...f, supplier_id: (result as any).id }));
+      }
+    }
+  };
+
+  const openNewSupplier = () => {
+    setSupplierForm(emptySupplierForm);
+    setSupplierDialogOpen(true);
+  };
+
+  const openEditSupplier = (s: Supplier) => {
+    setSupplierForm({
+      id: s.id,
+      name: s.name,
+      razao_social: s.razao_social || "",
+      cnpj: s.cnpj || "",
+      contact_name: s.contact_name || "",
+      contact_phone: s.contact_phone || "",
+      contact_email: s.contact_email || "",
+      whatsapp: s.whatsapp || "",
+      endereco: s.endereco || "",
+      bairro: s.bairro || "",
+      cidade: s.cidade || "",
+      uf: s.uf || "",
+      cep: s.cep || "",
+      observacoes: s.observacoes || "",
+    });
+    setSupplierDialogOpen(true);
   };
 
   return (
@@ -365,7 +480,7 @@ export function ProductCatalog() {
                   <Factory className="h-4 w-4 text-primary" />
                   Fornecedor Decorados ({suppliers.length})
                 </CardTitle>
-                <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={() => { setSupplierForm({ id: "", name: "", contact_name: "", contact_phone: "", contact_email: "", whatsapp: "" }); setSupplierDialogOpen(true); }}>
+                <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNewSupplier}>
                   <Plus className="h-3.5 w-3.5" /> Novo Fornecedor
                 </Button>
               </div>
@@ -378,9 +493,10 @@ export function ProductCatalog() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs">Nome</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">CNPJ</TableHead>
                       <TableHead className="text-xs">Contato</TableHead>
                       <TableHead className="text-xs hidden sm:table-cell">Telefone</TableHead>
-                      <TableHead className="text-xs hidden md:table-cell">Email</TableHead>
+                      <TableHead className="text-xs hidden md:table-cell">Cidade/UF</TableHead>
                       <TableHead className="w-16"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -388,12 +504,13 @@ export function ProductCatalog() {
                     {suppliers.map(s => (
                       <TableRow key={s.id}>
                         <TableCell className="text-xs font-medium">{s.name}</TableCell>
+                        <TableCell className="text-xs hidden sm:table-cell">{s.cnpj || "—"}</TableCell>
                         <TableCell className="text-xs">{s.contact_name || "—"}</TableCell>
                         <TableCell className="text-xs hidden sm:table-cell">{s.contact_phone || "—"}</TableCell>
-                        <TableCell className="text-xs hidden md:table-cell">{s.contact_email || "—"}</TableCell>
+                        <TableCell className="text-xs hidden md:table-cell">{s.cidade ? `${s.cidade}/${s.uf}` : "—"}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSupplierForm({ id: s.id, name: s.name, contact_name: s.contact_name, contact_phone: s.contact_phone, contact_email: s.contact_email, whatsapp: s.whatsapp }); setSupplierDialogOpen(true); }}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSupplier(s)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteSupplier(s.id)}>
@@ -428,9 +545,13 @@ export function ProductCatalog() {
                   <Label className="text-xs">Código Interno *</Label>
                   <Input value={form.internal_code} onChange={e => setForm(f => ({ ...f, internal_code: e.target.value }))} className="mt-1 h-9 text-sm font-mono" placeholder="EX-001" />
                 </div>
-                <div className="sm:col-span-2">
+                <div>
                   <Label className="text-xs">Nome *</Label>
                   <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1 h-9 text-sm" placeholder="Nome do produto" />
+                </div>
+                <div>
+                  <Label className="text-xs">Cód. Fabricante</Label>
+                  <Input value={form.manufacturer_code} onChange={e => setForm(f => ({ ...f, manufacturer_code: e.target.value }))} className="mt-1 h-9 text-sm font-mono" placeholder="Código do fabricante" />
                 </div>
               </div>
 
@@ -463,11 +584,30 @@ export function ProductCatalog() {
                 </div>
               </div>
 
+              {/* Ambiente */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Ambiente</Label>
+                  <Select value={form.environment} onValueChange={v => setForm(f => ({ ...f, environment: v, environment_custom: v === "outros" ? f.environment_custom : "" }))}>
+                    <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Selecione o ambiente" /></SelectTrigger>
+                    <SelectContent>
+                      {ENVIRONMENT_OPTIONS.map(e => <SelectItem key={e} value={e} className="text-xs capitalize">{e}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.environment === "outros" && (
+                  <div>
+                    <Label className="text-xs">Ambiente Personalizado</Label>
+                    <Input value={form.environment_custom} onChange={e => setForm(f => ({ ...f, environment_custom: e.target.value }))} className="mt-1 h-9 text-sm" placeholder="Informe o ambiente" />
+                  </div>
+                )}
+              </div>
+
               {/* Pricing */}
               <Card className="bg-muted/30">
                 <CardContent className="p-3">
                   <p className="text-xs font-semibold mb-2">Precificação</p>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
                       <Label className="text-xs">Custo (R$) *</Label>
                       <Input
@@ -493,6 +633,17 @@ export function ProductCatalog() {
                         {formatBRL(computedPrice)}
                       </div>
                     </div>
+                    <div>
+                      <Label className="text-xs">Preço Mín. Venda</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.min_sale_price || ""}
+                        onChange={e => setForm(f => ({ ...f, min_sale_price: Number(e.target.value) }))}
+                        className="mt-1 h-9 text-sm"
+                        placeholder="R$ 0,00"
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -501,13 +652,18 @@ export function ProductCatalog() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Fornecedor *</Label>
-                  <Select value={form.supplier_id} onValueChange={v => setForm(f => ({ ...f, supplier_id: v }))}>
-                    <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      {suppliers.length === 0 && <SelectItem value="none" disabled className="text-xs">Cadastre um fornecedor primeiro</SelectItem>}
-                      {suppliers.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-1 mt-1">
+                    <Select value={form.supplier_id} onValueChange={v => setForm(f => ({ ...f, supplier_id: v }))}>
+                      <SelectTrigger className="h-9 text-xs flex-1"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {suppliers.length === 0 && <SelectItem value="none" disabled className="text-xs">Cadastre um fornecedor primeiro</SelectItem>}
+                        {suppliers.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={openNewSupplier} title="Cadastrar novo fornecedor">
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs">Qtd. Estoque</Label>
@@ -574,46 +730,103 @@ export function ProductCatalog() {
         </DialogContent>
       </Dialog>
 
-      {/* === SUPPLIER DIALOG === */}
+      {/* === SUPPLIER DIALOG (COMPLETO) === */}
       <Dialog open={supplierDialogOpen} onOpenChange={setSupplierDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2 shrink-0">
             <DialogTitle className="text-base flex items-center gap-2">
               <Factory className="h-4 w-4 text-primary" />
-              {supplierForm.id ? "Editar Fornecedor" : "Novo Fornecedor"}
+              {supplierForm.id ? "Editar Fornecedor Decorados" : "Novo Fornecedor Decorados"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">Nome *</Label>
-              <Input value={supplierForm.name} onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))} className="mt-1 h-9 text-sm" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Pessoa de Contato</Label>
-                <Input value={supplierForm.contact_name} onChange={e => setSupplierForm(f => ({ ...f, contact_name: e.target.value }))} className="mt-1 h-9 text-sm" />
+
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6" style={{ maxHeight: "calc(90dvh - 130px)" }}>
+            <div className="space-y-3 pb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Nome Fantasia *</Label>
+                  <Input value={supplierForm.name} onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))} className="mt-1 h-9 text-sm" placeholder="Nome fantasia" />
+                </div>
+                <div>
+                  <Label className="text-xs">Razão Social</Label>
+                  <Input value={supplierForm.razao_social} onChange={e => setSupplierForm(f => ({ ...f, razao_social: e.target.value }))} className="mt-1 h-9 text-sm" />
+                </div>
               </div>
-              <div>
-                <Label className="text-xs">Telefone</Label>
-                <Input value={supplierForm.contact_phone} onChange={e => setSupplierForm(f => ({ ...f, contact_phone: e.target.value }))} className="mt-1 h-9 text-sm" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">CNPJ</Label>
+                  <Input value={supplierForm.cnpj} onChange={e => setSupplierForm(f => ({ ...f, cnpj: maskCpfCnpj(e.target.value) }))} className="mt-1 h-9 text-sm" placeholder="00.000.000/0000-00" />
+                </div>
+                <div>
+                  <Label className="text-xs">Pessoa de Contato</Label>
+                  <Input value={supplierForm.contact_name} onChange={e => setSupplierForm(f => ({ ...f, contact_name: e.target.value }))} className="mt-1 h-9 text-sm" />
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Telefone</Label>
+                  <Input value={supplierForm.contact_phone} onChange={e => setSupplierForm(f => ({ ...f, contact_phone: maskPhone(e.target.value) }))} className="mt-1 h-9 text-sm" placeholder="(00) 00000-0000" />
+                </div>
+                <div>
+                  <Label className="text-xs">WhatsApp</Label>
+                  <Input value={supplierForm.whatsapp} onChange={e => setSupplierForm(f => ({ ...f, whatsapp: maskPhone(e.target.value) }))} className="mt-1 h-9 text-sm" placeholder="(00) 00000-0000" />
+                </div>
+              </div>
               <div>
                 <Label className="text-xs">Email</Label>
-                <Input value={supplierForm.contact_email} onChange={e => setSupplierForm(f => ({ ...f, contact_email: e.target.value }))} className="mt-1 h-9 text-sm" />
+                <Input type="email" value={supplierForm.contact_email} onChange={e => setSupplierForm(f => ({ ...f, contact_email: e.target.value }))} className="mt-1 h-9 text-sm" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">CEP</Label>
+                  <div className="relative">
+                    <Input
+                      value={supplierForm.cep}
+                      onChange={e => {
+                        const masked = maskCep(e.target.value);
+                        setSupplierForm(f => ({ ...f, cep: masked }));
+                        if (masked.replace(/\D/g, "").length === 8) fetchCep(masked);
+                      }}
+                      className="mt-1 h-9 text-sm pr-8"
+                      placeholder="00000-000"
+                    />
+                    {cepLoading && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Endereço</Label>
+                  <Input value={supplierForm.endereco} onChange={e => setSupplierForm(f => ({ ...f, endereco: e.target.value }))} className="mt-1 h-9 text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">Bairro</Label>
+                  <Input value={supplierForm.bairro} onChange={e => setSupplierForm(f => ({ ...f, bairro: e.target.value }))} className="mt-1 h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">Cidade</Label>
+                  <Input value={supplierForm.cidade} onChange={e => setSupplierForm(f => ({ ...f, cidade: e.target.value }))} className="mt-1 h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">UF</Label>
+                  <Select value={supplierForm.uf} onValueChange={v => setSupplierForm(f => ({ ...f, uf: v }))}>
+                    <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="UF" /></SelectTrigger>
+                    <SelectContent>{UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
-                <Label className="text-xs">WhatsApp</Label>
-                <Input value={supplierForm.whatsapp} onChange={e => setSupplierForm(f => ({ ...f, whatsapp: e.target.value }))} className="mt-1 h-9 text-sm" />
+                <Label className="text-xs">Observações</Label>
+                <Textarea value={supplierForm.observacoes} onChange={e => setSupplierForm(f => ({ ...f, observacoes: e.target.value }))} className="mt-1 text-sm min-h-[60px]" />
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSupplierDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveSupplier} disabled={saving}>
-              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
-              Salvar
+
+          <DialogFooter className="px-4 sm:px-6 py-3 border-t shrink-0">
+            <Button variant="outline" onClick={() => setSupplierDialogOpen(false)} className="w-full sm:w-auto">Cancelar</Button>
+            <Button onClick={handleSaveSupplier} disabled={saving} className="w-full sm:w-auto gap-1.5">
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {supplierForm.id ? "Salvar" : "Cadastrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
