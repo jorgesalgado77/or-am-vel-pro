@@ -23,7 +23,8 @@ export { useCargos } from "@/hooks/useCargos";
 
 // Services
 export { logAudit, getAuditUserInfo } from "@/services/auditService";
-export { logLoginDiagnostic } from "@/services/loginDiagnosticService";
+export { logLoginDiagnostic, logLogin, logError, logEvent, logAIInteraction } from "@/services/system/SystemDiagnosticsService";
+export type { DiagnosticResult, SystemEventType, LoginDiagnosticInput } from "@/services/system/SystemDiagnosticsService";
 
 // Utils
 export { setTenantState, getTenantId, getUserId } from "@/lib/tenantState";
