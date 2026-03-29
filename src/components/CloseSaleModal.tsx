@@ -326,6 +326,29 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       toast.error(cpfErr || `Preencha: ${missing.join(", ")}`);
       return;
     }
+    // Record deal_closed learning event (fire-and-forget)
+    const localTenantId = getTenantId();
+    if (localTenantId && client) {
+      const totalValue = simulationData?.valorFinal || totalAmbientes;
+      const discountPct = (simulationData as any)?.desconto1 || 0;
+      const table = supabase.from("ai_learning_events" as unknown as "clients");
+      void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
+        .insert([{
+          tenant_id: localTenantId,
+          client_id: client.id,
+          event_type: "deal_closed",
+          deal_result: "ganho",
+          price_offered: totalValue,
+          discount_percentage: discountPct,
+          strategy_used: "consultiva",
+          metadata: {
+            forma_pagamento: simulationData?.formaPagamento,
+            parcelas: form.qtd_parcelas,
+            vendedor: form.responsavel_venda,
+          },
+        }]).catch((err: unknown) => console.warn("[CloseSale] learning event error:", err));
+    }
+
     onConfirm(form, items, itemDetails);
     clearForm();
   };

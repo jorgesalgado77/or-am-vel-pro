@@ -2,13 +2,14 @@
  * useCommercialDecision — Orchestration hook.
  *
  * Ties together: CDE (analysis, scenarios, discounts, message context),
- * ClientContextBuilder, and exposes a single `decideClientAction` call
- * that unifies all commercial intelligence for a given client.
+ * ClientContextBuilder, OptimizationEngine, and exposes a single
+ * `decideClientAction` call that unifies all commercial intelligence.
  */
 
 import { useState, useCallback } from "react";
 import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
 import { getContextBuilder, type BuildContextOptions } from "@/services/commercial/ClientContextBuilder";
+import { getOptimizationEngine } from "@/services/ai/OptimizationEngine";
 import type {
   DealContext,
   DealAnalysis,
@@ -17,6 +18,7 @@ import type {
   MessageContext,
   StrategyRecommendation,
 } from "@/services/commercial/types";
+import type { OptimizationResult } from "@/services/ai/types";
 
 // ==================== TYPES ====================
 
@@ -27,6 +29,7 @@ export interface ClientActionDecision {
   discount: DiscountDecision;
   messageContext: MessageContext;
   strategy: StrategyRecommendation;
+  optimization: OptimizationResult | null;
 }
 
 interface UseCommercialDecisionParams {
@@ -41,7 +44,7 @@ export function useCommercialDecision({ tenantId }: UseCommercialDecisionParams)
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Central decision method — builds context and runs full CDE analysis.
+   * Central decision method — builds context, runs CDE analysis + OptimizationEngine.
    */
   const decideClientAction = useCallback(async (
     clientId: string,
@@ -55,20 +58,28 @@ export function useCommercialDecision({ tenantId }: UseCommercialDecisionParams)
     try {
       const builder = getContextBuilder(tenantId);
       const engine = getCommercialEngine();
+      const optimizer = getOptimizationEngine(tenantId);
 
       // Build unified context from all data sources
       const context = await builder.build(clientId, opts);
 
-      // Run all CDE analyses in parallel
-      const [analysis, scenarios, discount] = await Promise.all([
+      // Run all CDE analyses + optimization in parallel
+      const [analysis, scenarios, discount, optimization] = await Promise.all([
         engine.analyzeDeal(context),
         engine.generateScenarios(context, opts?.availableParcelas || [1, 6, 12, 18, 24]),
         engine.decideDiscount(context),
+        optimizer.optimizeDecision(context).catch(() => null),
       ]);
 
       // These are sync/fast — no need for Promise.all
       const messageContext = engine.generateMessageContext(context);
       const strategy = await engine.suggestStrategy(context);
+
+      // Enrich strategy with optimization insights if confidence is high
+      if (optimization && optimization.strategy_confidence >= 60) {
+        strategy.action = `Usar estratégia "${optimization.recommended_strategy}": ${optimization.reasoning}`;
+        strategy.reasoning = optimization.reasoning;
+      }
 
       const result: ClientActionDecision = {
         context,
@@ -77,6 +88,7 @@ export function useCommercialDecision({ tenantId }: UseCommercialDecisionParams)
         discount,
         messageContext,
         strategy,
+        optimization,
       };
 
       setDecision(result);

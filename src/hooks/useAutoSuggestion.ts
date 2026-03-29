@@ -129,6 +129,15 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
 
     const dealRoomLink = options?.dealRoomLink || `${window.location.origin}/app`;
 
+    // Build learning context from OptimizationEngine
+    let learningContextStr = "";
+    try {
+      const { getOptimizationEngine } = await import("@/services/ai/OptimizationEngine");
+      const optimizer = getOptimizationEngine(tenantId);
+      const opt = await optimizer.optimizeDecision(ctx);
+      learningContextStr = `\n=== OTIMIZAÇÃO IA ===\n🎯 "${opt.recommended_strategy}" (${opt.strategy_confidence}% confiança)\n💰 Desconto ideal: ${opt.recommended_discount_range.optimal}%\n📝 ${opt.reasoning}`;
+    } catch { /* silent */ }
+
     try {
       const result = await Promise.race([
         supabase.functions.invoke("vendazap-ai", {
@@ -147,6 +156,7 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
             openai_model: addon.openai_model,
             max_tokens: Math.min(addon.max_tokens_mensagem, 400),
             disc_profile: detectedDisc,
+            learning_context: learningContextStr,
           },
         }),
         new Promise<never>((_, reject) =>

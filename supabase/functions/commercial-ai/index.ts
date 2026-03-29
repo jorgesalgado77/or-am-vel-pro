@@ -40,6 +40,81 @@ async function getAvailableProviders(adminClient: ReturnType<typeof createClient
   };
 }
 
+/**
+ * Fetch AI-learned patterns for a tenant and build a context string.
+ */
+async function fetchLearningContext(adminClient: ReturnType<typeof createClient>, tenantId: string): Promise<string> {
+  try {
+    const { data: patterns } = await adminClient
+      .from("ai_learned_patterns")
+      .select("pattern_type, pattern_key, pattern_data, sample_size, confidence")
+      .eq("tenant_id", tenantId)
+      .gte("confidence", 30)
+      .order("confidence", { ascending: false })
+      .limit(20);
+
+    if (!patterns || patterns.length === 0) return "";
+
+    const parts: string[] = ["\n\n=== INSIGHTS DO SISTEMA DE APRENDIZADO (dados reais da loja) ==="];
+
+    // Strategy conversions
+    const strategyPatterns = patterns.filter((p: any) => p.pattern_type === "strategy_conversion");
+    if (strategyPatterns.length > 0) {
+      parts.push("\n📊 Conversão por estratégia:");
+      for (const sp of strategyPatterns.slice(0, 5)) {
+        const d = sp.pattern_data as any;
+        const rate = ((d.conversion_rate || 0) * 100).toFixed(1);
+        parts.push(`  • ${sp.pattern_key}: ${rate}% conversão (${d.total_events || 0} eventos, desc médio ${(d.avg_discount || 0).toFixed(1)}%)`);
+      }
+    }
+
+    // Discount sweet spot
+    const discountPattern = patterns.find((p: any) => p.pattern_type === "discount_sweet_spot");
+    if (discountPattern) {
+      const d = discountPattern.pattern_data as any;
+      parts.push(`\n💰 Sweet-spot de desconto: ${d.min_effective || 0}%-${d.max_effective || 15}% (ótimo: ${d.optimal || 8}%, ${d.sample_size || 0} vendas analisadas)`);
+      parts.push(`  ⚠️ Descontos acima de ${d.max_effective || 15}% NÃO aumentam conversão nesta loja.`);
+    }
+
+    // Vendor performance
+    const vendorPatterns = patterns.filter((p: any) => p.pattern_type === "vendor_performance");
+    if (vendorPatterns.length > 0) {
+      parts.push("\n👤 Performance dos vendedores:");
+      for (const vp of vendorPatterns.slice(0, 5)) {
+        const d = vp.pattern_data as any;
+        const rate = ((d.conversion_rate || 0) * 100).toFixed(0);
+        parts.push(`  • ${rate}% conversão, ${d.won_deals || 0} vendas, melhor estratégia: ${d.best_strategy || "—"}`);
+      }
+    }
+
+    // Temperature conversion
+    const tempPatterns = patterns.filter((p: any) => p.pattern_type === "temperature_conversion");
+    if (tempPatterns.length > 0) {
+      parts.push("\n🌡️ Melhor estratégia por temperatura:");
+      for (const tp of tempPatterns) {
+        const d = tp.pattern_data as any;
+        parts.push(`  • Lead ${tp.pattern_key}: melhor estratégia = "${d.best_strategy || "—"}" (${((d.rate || 0) * 100).toFixed(0)}% conversão)`);
+      }
+    }
+
+    // DISC strategies
+    const discPatterns = patterns.filter((p: any) => p.pattern_type === "disc_strategy");
+    if (discPatterns.length > 0) {
+      parts.push("\n🧠 Melhor estratégia por perfil DISC:");
+      for (const dp of discPatterns) {
+        const d = dp.pattern_data as any;
+        parts.push(`  • Perfil ${dp.pattern_key}: "${d.best_strategy || "—"}" (${((d.rate || 0) * 100).toFixed(0)}% conversão)`);
+      }
+    }
+
+    parts.push("\n\nUse estes dados para fundamentar suas recomendações com números reais da loja, não suposições.");
+    return parts.join("\n");
+  } catch (e) {
+    console.error("fetchLearningContext error:", e);
+    return "";
+  }
+}
+
 async function fetchPreviousMonthsData(adminClient: ReturnType<typeof createClient>, tenantId: string) {
   const now = new Date();
   const months: string[] = [];
@@ -149,8 +224,11 @@ serve(async (req) => {
 
     const apiKey = selectedProvider === "openai" ? openaiKey : perplexityKey;
 
-    // Fetch historical data for AI memory
-    const historyContext = await fetchPreviousMonthsData(adminClient, tenant_id);
+    // Fetch historical data and learning insights in parallel
+    const [historyContext, learningContext] = await Promise.all([
+      fetchPreviousMonthsData(adminClient, tenant_id),
+      fetchLearningContext(adminClient, tenant_id),
+    ]);
 
     const systemPrompt = `Você é a IA Gerente Comercial do OrçaMóvel PRO.
 
@@ -158,27 +236,33 @@ Seu papel é:
 - Analisar dados de vendas e orientar vendedores
 - Identificar gargalos e oportunidades
 - Cobrar resultados de forma assertiva, mas motivacional
-- Sugerir ações práticas baseadas nos dados
+- Sugerir ações ESPECÍFICAS baseadas em DADOS REAIS da loja (não genéricas)
+- Usar insights do sistema de aprendizado para fundamentar estratégias
 - Aprender com os resultados dos meses anteriores para melhorar estratégias
 - SEMPRE focar em bater a meta da loja
 - Monitorar cada vendedor projetista individualmente
+- Recomendar a melhor estratégia de vendas com base no histórico real de conversão
+- Alertar quando uma estratégia está com baixa conversão e sugerir alternativa
 - Sugerir links de treinamento e vídeos relevantes do YouTube quando apropriado
 
 Dados atuais do CRM:
 ${metrics_summary || "Dados não disponíveis no momento."}
 ${historyContext}
+${learningContext}
 
 Regras:
 - Responda em português brasileiro
 - Seja direto e prático
 - Use Markdown com formatação rica
-- Baseie-se sempre nos dados fornecidos
+- Baseie-se sempre nos dados fornecidos E nos insights de aprendizado
 - Sugira ações específicas e mensuráveis
+- Quando tiver dados de conversão por estratégia, CITE-OS nas recomendações
+- Quando o sweet-spot de desconto estiver disponível, USE-O para orientar negociações
 - Quando relevante, inclua links para artigos ou vídeos de treinamento de vendas no YouTube
 - Formate links como: [Título do vídeo/artigo](URL)
-- Para vídeos do YouTube, inclua o link completo: https://www.youtube.com/watch?v=ID
 - Compare com meses anteriores para identificar tendências
-- Elabore estratégias concretas para atingir a meta da loja`;
+- Elabore estratégias concretas para atingir a meta da loja
+- Priorize decisões baseadas em dados reais da loja, não em suposições`;
 
     const aiUrl = selectedProvider === "openai"
       ? "https://api.openai.com/v1/chat/completions"
