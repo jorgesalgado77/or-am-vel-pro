@@ -6,7 +6,9 @@ import { PanelRightClose, PanelRightOpen, Bot, Brain, BarChart3, X, Sparkles } f
 import { AutoPilotHistory } from "./AutoPilotHistory";
 import { ChatAISuggestion } from "./ChatAISuggestion";
 import { ChatDealInsights } from "./ChatDealInsights";
+import { NegotiationControlPanel } from "./NegotiationControlPanel";
 import type { ChatConversation } from "./types";
+import type { NegotiationMode } from "@/services/commercial/NegotiationControlEngine";
 
 const DISC_PROFILES: Record<string, { label: string; emoji: string; tips: string }> = {
   D: { label: "Dominante", emoji: "🔴", tips: "Seja objetivo, mostre ROI e resultados rápidos" },
@@ -24,6 +26,7 @@ interface Props {
   aiTipoCopy: string;
   aiDiscProfile?: string;
   onUseSuggestion: () => void;
+  interventionMode: NegotiationMode;
   isMobile?: boolean;
   mobileOpen?: boolean;
   onMobileOpenChange?: (open: boolean) => void;
@@ -38,6 +41,7 @@ export function ChatRightPanel({
   aiTipoCopy,
   aiDiscProfile,
   onUseSuggestion,
+  interventionMode,
   isMobile = false,
   mobileOpen = false,
   onMobileOpenChange,
@@ -56,6 +60,13 @@ export function ChatRightPanel({
           </div>
         </div>
       )}
+
+      <NegotiationControlPanel
+        conversation={conversation}
+        tenantId={tenantId}
+        messageCount={messageCount}
+        mode={interventionMode}
+      />
 
       <ChatAISuggestion
         suggestion={aiSuggestion}
@@ -100,7 +111,7 @@ export function ChatRightPanel({
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">Assistente IA</p>
-                <p className="text-[11px] text-muted-foreground">Sugestões e histórico</p>
+                <p className="text-[11px] text-muted-foreground">Sugestões e controle</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onMobileOpenChange?.(false)}>
@@ -117,13 +128,7 @@ export function ChatRightPanel({
   if (!expanded) {
     return (
       <div className="hidden md:flex shrink-0 flex-col items-center py-2 px-1 border-l border-border bg-card gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => setExpanded(true)}
-          title="Expandir painel IA"
-        >
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpanded(true)} title="Expandir painel IA">
           <PanelRightOpen className="h-4 w-4" />
         </Button>
         <div className="flex flex-col gap-2 items-center mt-2">
@@ -136,19 +141,13 @@ export function ChatRightPanel({
   }
 
   return (
-    <div className="hidden md:flex shrink-0 w-[320px] border-l border-border bg-card flex-col min-h-0">
+    <div className="hidden md:flex shrink-0 w-[340px] border-l border-border bg-card flex-col min-h-0">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
           <Brain className="h-3.5 w-3.5 text-primary" />
           Assistente IA
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => setExpanded(false)}
-          title="Recolher painel"
-        >
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpanded(false)} title="Recolher painel">
           <PanelRightClose className="h-4 w-4" />
         </Button>
       </div>

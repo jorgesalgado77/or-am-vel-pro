@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type ComponentProps } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
@@ -239,9 +239,10 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
   const [interventionMode, setInterventionMode] = useState<"automatico" | "assistido" | "manual">("assistido");
   const [closeSaleOpen, setCloseSaleOpen] = useState(false);
-  const [closeSaleClient, setCloseSaleClient] = useState<any>(null);
+  const [closeSaleClient, setCloseSaleClient] = useState<ComponentProps<typeof CloseSaleModal>["client"] | null>(null);
   const [closeSaleSimData, setCloseSaleSimData] = useState<CloseSaleData | undefined>(undefined);
   const [closeSaleSaving, setCloseSaleSaving] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
@@ -257,148 +258,161 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     max_tokens_mensagem: addon.max_tokens_mensagem,
   } : null;
 
-  const { suggestion, loading: aiLoading, tipoCopy, discProfile, generate, clear, markUsed } = useAutoSuggestion({
-    tenantId,
-    addon: addonConfig,
-    userId,
-  });
+  const { suggestion, loading: aiLoading, tipoCopy, discProfile, generate, clear, markUsed } = useAutoSuggestion({ tenantId, addon: addonConfig, userId });
+  const { settings: autoPilotSettings, isActive: autoPilotActive, toggle: toggleAutoPilot, updateSettings: updateAutoPilotSettings, processMessage: autoPilotProcess } = useAutoPilot({ tenantId, userId, addon: addonConfig });
+  const { config: simConfig, updateConfig: updateSimConfig, scheduleSimulatedReply, sendSimulatedMessage, isSimulating, cleanup: cleanupSim } = useWhatsAppSimulator(tenantId);
 
-  const {
-    settings: autoPilotSettings,
-    isActive: autoPilotActive,
-    toggle: toggleAutoPilot,
-    updateSettings: updateAutoPilotSettings,
-    processMessage: autoPilotProcess,
-  } = useAutoPilot({ tenantId, userId, addon: addonConfig });
-
-  const {
-    config: simConfig,
-    updateConfig: updateSimConfig,
-    scheduleSimulatedReply,
-    sendSimulatedMessage,
-    isSimulating,
-    cleanup: cleanupSim,
-  } = useWhatsAppSimulator(tenantId);
-
-  // Keep ref updated for use in realtime callback
   useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
-
-  // Cleanup simulator on unmount
   useEffect(() => () => cleanupSim(), [cleanupSim]);
 
-  const isAdminOrManager = currentUser?.cargo_nome
-    ? ["administrador", "gerente", "admin"].includes(currentUser.cargo_nome.toLowerCase())
-    : false;
+  const isAdminOrManager = currentUser?.cargo_nome ? ["administrador", "gerente", "admin"].includes(currentUser.cargo_nome.toLowerCase()) : false;
   const currentUserName = currentUser?.nome_completo?.trim().toLowerCase() || "";
+  const normalizePhone = useCallback((value?: string | null) => String(value || "").replace(/^WA-/i, "").replace(/@.*/, "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, ""), []);
 
-  const normalizePhone = useCallback((value?: string | null) => (value || "").replace(/\D/g, ""), []);
+  const hiddenStorageKey = tenantId ? `vendazap-hidden:${tenantId}` : null;
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const deletedIdsRef = useRef<Set<string>>(new Set());
+  const [hiddenConversationKeys, setHiddenConversationKeys] = useState<Set<string>>(new Set());
+  const hiddenConversationKeysRef = useRef<Set<string>>(new Set());
+
+  const persistHiddenKeys = useCallback((next: Set<string>) => {
+    hiddenConversationKeysRef.current = next;
+    setHiddenConversationKeys(new Set(next));
+    if (hiddenStorageKey) localStorage.setItem(hiddenStorageKey, JSON.stringify(Array.from(next)));
+  }, [hiddenStorageKey]);
+
+  useEffect(() => {
+    if (!hiddenStorageKey) return;
+    try {
+      const raw = localStorage.getItem(hiddenStorageKey);
+      const parsed = raw ? (JSON.parse(raw) as string[]) : [];
+      const next = new Set(parsed);
+      hiddenConversationKeysRef.current = next;
+      setHiddenConversationKeys(next);
+    } catch {
+      hiddenConversationKeysRef.current = new Set();
+      setHiddenConversationKeys(new Set());
+    }
+  }, [hiddenStorageKey]);
+
+  const buildConversationMarkers = useCallback((conv: Partial<ChatConversation>) => {
+    const markers = new Set<string>();
+    if (conv.id) markers.add(`tracking:${conv.id}`);
+    (conv.relatedTrackingIds || []).forEach((id) => markers.add(`tracking:${id}`));
+    if (conv.client_id) markers.add(`client:${conv.client_id}`);
+    const normalizedPhone = normalizePhone(conv.phone || (conv.numero_contrato?.startsWith("WA-") ? conv.numero_contrato.replace("WA-", "") : ""));
+    if (normalizedPhone) markers.add(`phone:${normalizedPhone}`);
+    if (conv.groupKey) markers.add(`group:${conv.groupKey}`);
+    return markers;
+  }, [normalizePhone]);
+
+  const hideConversation = useCallback((conv: ChatConversation) => {
+    const next = new Set(hiddenConversationKeysRef.current);
+    buildConversationMarkers(conv).forEach((marker) => next.add(marker));
+    persistHiddenKeys(next);
+  }, [buildConversationMarkers, persistHiddenKeys]);
+
+  const unhideConversation = useCallback((conv: Partial<ChatConversation>) => {
+    const next = new Set(hiddenConversationKeysRef.current);
+    buildConversationMarkers(conv).forEach((marker) => next.delete(marker));
+    persistHiddenKeys(next);
+  }, [buildConversationMarkers, persistHiddenKeys]);
+
+  const isConversationHidden = useCallback((conv: Partial<ChatConversation>) => {
+    const markers = buildConversationMarkers(conv);
+    for (const marker of markers) {
+      if (hiddenConversationKeysRef.current.has(marker)) return true;
+    }
+    return false;
+  }, [buildConversationMarkers]);
 
   const fetchConversations = useCallback(async () => {
     if (!tenantId) return;
+    const normalizePhoneValue = (value?: string | null) => normalizePhone(value);
 
-    const normalizePhoneValue = (value?: string | null) => (value || "").replace(/\D/g, "");
+    const [{ data: trackings }, { data: allClients }] = await Promise.all([
+      supabase.from("client_tracking").select("id, numero_contrato, nome_cliente, client_id, projetista, updated_at, status, valor_contrato").eq("tenant_id", tenantId).order("updated_at", { ascending: false }),
+      supabase.from("clients").select("id, nome, numero_orcamento, vendedor, status, telefone1, telefone2, updated_at").eq("tenant_id", tenantId).in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"]),
+    ]);
 
-    // Fetch client_tracking with client_id
-    const { data: trackings } = await supabase
-      .from("client_tracking")
-      .select("id, numero_contrato, nome_cliente, client_id, projetista, updated_at")
-      .eq("tenant_id", tenantId)
-      .order("updated_at", { ascending: false });
-
-    // Also fetch clients directly to ensure we have all available clients
-    const { data: allClients } = await supabase
-      .from("clients")
-      .select("id, nome, numero_orcamento, vendedor, status, telefone1, telefone2")
-      .eq("tenant_id", tenantId)
-      .in("status", ["novo", "em_negociacao", "proposta_enviada", "expirado", "fechado"]);
-
-    const clientDataMap: Record<string, { vendedor: string | null; telefone: string | null; telefones: string[] }> = {};
-    const phoneToClientIds = new Map<string, string[]>();
-
-    (allClients || []).forEach((c: any) => {
-      const phones = [c.telefone1, c.telefone2]
-        .map((phone: string | null | undefined) => normalizePhoneValue(phone))
-        .filter(Boolean);
-
-      clientDataMap[c.id] = {
-        vendedor: c.vendedor || null,
-        telefone: c.telefone1 || c.telefone2 || null,
+    const clientDataMap: Record<string, { vendedor: string | null; telefone: string | null; telefones: string[]; status?: string | null; updated_at?: string | null }> = {};
+    ((allClients as Array<Record<string, unknown>> | null) || []).forEach((client) => {
+      const phones = [client.telefone1, client.telefone2].map((phone) => normalizePhoneValue(String(phone || ""))).filter(Boolean);
+      clientDataMap[String(client.id)] = {
+        vendedor: typeof client.vendedor === "string" ? client.vendedor : null,
+        telefone: (typeof client.telefone1 === "string" && client.telefone1) || (typeof client.telefone2 === "string" && client.telefone2) || null,
         telefones: phones,
+        status: typeof client.status === "string" ? client.status : null,
+        updated_at: typeof client.updated_at === "string" ? client.updated_at : null,
       };
-
-      phones.forEach((phone) => {
-        const existing = phoneToClientIds.get(phone) || [];
-        if (!existing.includes(c.id)) {
-          phoneToClientIds.set(phone, [...existing, c.id]);
-        }
-      });
     });
 
     type Entry = {
       id: string;
       nome_cliente: string;
       numero_contrato: string;
-      client_id: string;
+      client_id?: string;
       projetista?: string;
       isClientDirect?: boolean;
       groupKey: string;
       relatedTrackingIds: string[];
       phone?: string;
       updated_at?: string;
+      status?: string;
+      valor_orcamento?: number;
     };
 
-    let allEntries: Entry[] = [];
-
-    if (trackings && trackings.length > 0) {
-      allEntries = (trackings as any[]).map((t) => {
-        const clientPhones = clientDataMap[t.client_id]?.telefones || [];
-        const contractPhone = t.numero_contrato?.startsWith("WA-")
-          ? normalizePhoneValue(t.numero_contrato.replace("WA-", ""))
-          : "";
-        const canonicalPhone = clientPhones[0] || contractPhone;
-
-        return {
-          id: t.id,
-          nome_cliente: t.nome_cliente,
-          numero_contrato: t.numero_contrato,
-          client_id: t.client_id,
-          projetista: t.projetista,
-          groupKey: canonicalPhone || `client:${t.client_id || t.id}`,
-          relatedTrackingIds: [t.id],
-          phone: canonicalPhone || clientDataMap[t.client_id]?.telefone || undefined,
-          updated_at: t.updated_at,
-        };
-      });
-    }
-
-    const trackedClientIds = new Set(allEntries.map((t) => t.client_id).filter(Boolean));
-    (allClients || []).forEach((c: any) => {
-      if (!trackedClientIds.has(c.id)) {
-        const canonicalPhone = normalizePhoneValue(c.telefone1 || c.telefone2 || "");
-        allEntries.push({
-          id: c.id,
-          nome_cliente: c.nome,
-          numero_contrato: c.numero_orcamento || "",
-          client_id: c.id,
-          isClientDirect: true,
-          groupKey: canonicalPhone || `client:${c.id}`,
-          relatedTrackingIds: [],
-          phone: canonicalPhone || undefined,
-          updated_at: c.updated_at,
-        });
-      }
+    const trackingEntries: Entry[] = ((trackings as Array<Record<string, unknown>> | null) || []).map((tracking) => {
+      const clientId = typeof tracking.client_id === "string" ? tracking.client_id : undefined;
+      const clientPhones = clientId ? clientDataMap[clientId]?.telefones || [] : [];
+      const contractPhone = typeof tracking.numero_contrato === "string" && tracking.numero_contrato.startsWith("WA-")
+        ? normalizePhoneValue(tracking.numero_contrato.replace("WA-", ""))
+        : "";
+      const canonicalPhone = clientPhones[0] || contractPhone;
+      return {
+        id: String(tracking.id),
+        nome_cliente: String(tracking.nome_cliente || ""),
+        numero_contrato: String(tracking.numero_contrato || ""),
+        client_id: clientId,
+        projetista: typeof tracking.projetista === "string" ? tracking.projetista : undefined,
+        groupKey: canonicalPhone || `client:${clientId || tracking.id}`,
+        relatedTrackingIds: [String(tracking.id)],
+        phone: canonicalPhone || (clientId ? clientDataMap[clientId]?.telefone || undefined : undefined),
+        updated_at: typeof tracking.updated_at === "string" ? tracking.updated_at : undefined,
+        status: typeof tracking.status === "string" ? tracking.status : undefined,
+        valor_orcamento: typeof tracking.valor_contrato === "number" ? tracking.valor_contrato : undefined,
+      };
     });
 
-    let filteredEntries = allEntries;
-    if (!isAdminOrManager && currentUser?.nome_completo) {
-      const nameLower = currentUser.nome_completo.toLowerCase();
-      filteredEntries = allEntries.filter((t) =>
-        clientDataMap[t.client_id]?.vendedor?.toLowerCase() === nameLower ||
-        (t.projetista && t.projetista.toLowerCase() === nameLower)
-      );
-    }
+    const trackedClientIds = new Set(trackingEntries.map((entry) => entry.client_id).filter(Boolean));
+    const directEntries: Entry[] = ((allClients as Array<Record<string, unknown>> | null) || [])
+      .filter((client) => !trackedClientIds.has(String(client.id)))
+      .map((client) => {
+        const canonicalPhone = normalizePhoneValue(String(client.telefone1 || client.telefone2 || ""));
+        return {
+          id: String(client.id),
+          nome_cliente: String(client.nome || ""),
+          numero_contrato: String(client.numero_orcamento || ""),
+          client_id: String(client.id),
+          isClientDirect: true,
+          groupKey: canonicalPhone || `client:${client.id}`,
+          relatedTrackingIds: [],
+          phone: canonicalPhone || undefined,
+          updated_at: typeof client.updated_at === "string" ? client.updated_at : undefined,
+          status: typeof client.status === "string" ? client.status : undefined,
+        };
+      });
 
-    if (filteredEntries.length === 0) { setConversations([]); setLoading(false); return; }
+    const allEntries = [...trackingEntries, ...directEntries];
+    const filteredEntries = !isAdminOrManager && currentUser?.nome_completo
+      ? allEntries.filter((entry) => clientDataMap[entry.client_id || ""]?.vendedor?.toLowerCase() === currentUser.nome_completo.toLowerCase() || entry.projetista?.toLowerCase() === currentUser.nome_completo.toLowerCase())
+      : allEntries;
+
+    if (filteredEntries.length === 0) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
 
     const groupedEntries = new Map<string, Entry>();
     filteredEntries.forEach((entry) => {
@@ -407,72 +421,51 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         groupedEntries.set(entry.groupKey, { ...entry });
         return;
       }
-
-      const mergedTrackingIds = Array.from(new Set([
-        ...existing.relatedTrackingIds,
-        ...entry.relatedTrackingIds,
-      ]));
-
+      const mergedTrackingIds = Array.from(new Set([...existing.relatedTrackingIds, ...entry.relatedTrackingIds]));
       const existingHasMessages = existing.relatedTrackingIds.length > 0;
       const entryHasMessages = entry.relatedTrackingIds.length > 0;
       const preferred = !existingHasMessages && entryHasMessages ? entry : existing;
-
       groupedEntries.set(entry.groupKey, {
         ...preferred,
         client_id: preferred.client_id || existing.client_id || entry.client_id,
-        isClientDirect: existing.isClientDirect && entry.isClientDirect,
+        isClientDirect: Boolean(existing.isClientDirect && entry.isClientDirect),
         projetista: preferred.projetista || existing.projetista || entry.projetista,
         relatedTrackingIds: mergedTrackingIds,
         phone: preferred.phone || existing.phone || entry.phone,
+        status: preferred.status || existing.status || entry.status,
+        updated_at: preferred.updated_at || existing.updated_at || entry.updated_at,
+        valor_orcamento: preferred.valor_orcamento || existing.valor_orcamento || entry.valor_orcamento,
       });
     });
 
     const mergedEntries = Array.from(groupedEntries.values());
     const trackingOnlyIds = Array.from(new Set(mergedEntries.flatMap((entry) => entry.relatedTrackingIds)));
-
     const trackingToGroupKey = new Map<string, string>();
-    mergedEntries.forEach((entry) => {
-      entry.relatedTrackingIds.forEach((trackingId) => {
-        trackingToGroupKey.set(trackingId, entry.groupKey);
-      });
-    });
+    mergedEntries.forEach((entry) => entry.relatedTrackingIds.forEach((trackingId) => trackingToGroupKey.set(trackingId, entry.groupKey)));
 
-    let unreadMap: Record<string, number> = {};
-    let lastMsgMap: Record<string, { msg: string; at: string }> = {};
+    const unreadMap: Record<string, number> = {};
+    const lastMsgMap: Record<string, { msg: string; at: string }> = {};
 
     if (trackingOnlyIds.length > 0) {
-      const { data: unreadData } = await supabase
-        .from("tracking_messages")
-        .select("tracking_id")
-        .eq("remetente_tipo", "cliente")
-        .eq("lida", false)
-        .in("tracking_id", trackingOnlyIds);
+      const [{ data: unreadData }, { data: lastMsgs }] = await Promise.all([
+        supabase.from("tracking_messages").select("tracking_id").eq("remetente_tipo", "cliente").eq("lida", false).in("tracking_id", trackingOnlyIds),
+        supabase.from("tracking_messages").select("tracking_id, mensagem, created_at").in("tracking_id", trackingOnlyIds).order("created_at", { ascending: false }),
+      ]);
 
-      (unreadData || []).forEach((m: any) => {
-        const groupKey = trackingToGroupKey.get(m.tracking_id);
-        if (!groupKey) return;
-        unreadMap[groupKey] = (unreadMap[groupKey] || 0) + 1;
+      ((unreadData as Array<{ tracking_id: string }> | null) || []).forEach((message) => {
+        const groupKey = trackingToGroupKey.get(message.tracking_id);
+        if (groupKey) unreadMap[groupKey] = (unreadMap[groupKey] || 0) + 1;
       });
 
-      const { data: lastMsgs } = await supabase
-        .from("tracking_messages")
-        .select("tracking_id, mensagem, created_at, anexo_nome")
-        .in("tracking_id", trackingOnlyIds)
-        .order("created_at", { ascending: false });
-
-      (lastMsgs || []).forEach((m: any) => {
-        const groupKey = trackingToGroupKey.get(m.tracking_id);
+      ((lastMsgs as Array<{ tracking_id: string; mensagem: string; created_at: string }> | null) || []).forEach((message) => {
+        const groupKey = trackingToGroupKey.get(message.tracking_id);
         if (!groupKey || lastMsgMap[groupKey]) return;
-        lastMsgMap[groupKey] = {
-          msg: (m.mensagem || m.anexo_nome || "[Mídia]").substring(0, 60),
-          at: m.created_at,
-        };
+        lastMsgMap[groupKey] = { msg: (message.mensagem || "[Mídia]").substring(0, 60), at: message.created_at };
       });
     }
 
     const hasMessages = new Set(Object.keys(lastMsgMap));
-
-    const result: ChatConversation[] = mergedEntries
+    const nextConversations = mergedEntries
       .filter((entry) => hasMessages.has(entry.groupKey) || (unreadMap[entry.groupKey] || 0) > 0 || entry.isClientDirect)
       .map((entry) => ({
         id: entry.id,
@@ -481,218 +474,120 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         unread_count: unreadMap[entry.groupKey] || 0,
         last_message: lastMsgMap[entry.groupKey]?.msg || (entry.isClientDirect ? "Clique para iniciar conversa" : undefined),
         last_message_at: lastMsgMap[entry.groupKey]?.at,
-        vendedor_nome: clientDataMap[entry.client_id]?.vendedor || null,
+        vendedor_nome: entry.client_id ? clientDataMap[entry.client_id]?.vendedor || null : null,
         projetista_nome: entry.projetista || null,
         isClientDirect: entry.isClientDirect || false,
         client_id: entry.client_id,
-        phone: entry.phone || clientDataMap[entry.client_id]?.telefone || undefined,
+        phone: entry.phone || (entry.client_id ? clientDataMap[entry.client_id]?.telefone || undefined : undefined),
         relatedTrackingIds: entry.relatedTrackingIds,
+        groupKey: entry.groupKey,
+        status: entry.status,
+        updated_at: entry.updated_at,
+        valor_orcamento: entry.valor_orcamento,
       }))
+      .filter((conversation) => !isConversationHidden(conversation) && !deletedIdsRef.current.has(conversation.id))
       .sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
         if (b.unread_count > 0 && a.unread_count === 0) return 1;
-        return (b.last_message_at || "").localeCompare(a.last_message_at || "");
+        return (b.last_message_at || b.updated_at || "").localeCompare(a.last_message_at || a.updated_at || "");
       });
 
-    // Filter out any conversations that were deleted in this session
-    const filtered = deletedIdsRef.current.size > 0
-      ? result.filter((c) => !deletedIdsRef.current.has(c.id))
-      : result;
-    setConversations(filtered);
+    setConversations(nextConversations);
     setLoading(false);
-  }, [tenantId, isAdminOrManager, currentUser?.nome_completo]);
+  }, [tenantId, normalizePhone, isAdminOrManager, currentUser?.nome_completo, isConversationHidden]);
 
-  useEffect(() => { fetchConversations(); }, [fetchConversations]);
+  useEffect(() => { void fetchConversations(); }, [fetchConversations]);
 
-  // Handle initialClientId from dashboard alerts
   useEffect(() => {
     if (!initialClientId || conversations.length === 0) return;
-    const match = conversations.find(c => c.client_id === initialClientId);
+    const match = conversations.find((conversation) => conversation.client_id === initialClientId);
     if (match) {
       setSelected(match);
       onInitialClientHandled?.();
     }
   }, [initialClientId, conversations, onInitialClientHandled]);
 
-  // AI auto-suggestion with debounce
   const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
     if (!addon?.ativo) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      const { data: recentMsgs } = await supabase
-        .from("tracking_messages")
-        .select("mensagem, remetente_tipo")
-        .eq("tracking_id", conv.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      const messages = ((recentMsgs as any[]) || []).reverse();
-
-      generate(
-        {
-          id: conv.id,
-          nome: conv.nome_cliente,
-          status: "em_negociacao",
-          updated_at: conv.last_message_at || new Date().toISOString(),
-        },
-        null,
-        messages,
-        { forceRefresh },
-      );
+      const trackingIds = Array.from(new Set([conv.id, ...(conv.relatedTrackingIds || [])]));
+      const { data: recentMsgs } = await supabase.from("tracking_messages").select("mensagem, remetente_tipo").in("tracking_id", trackingIds).order("created_at", { ascending: false }).limit(20);
+      generate({ id: conv.client_id || conv.id, nome: conv.nome_cliente, status: conv.status || "em_negociacao", updated_at: conv.last_message_at || conv.updated_at || new Date().toISOString(), telefone1: conv.phone || null }, null, (((recentMsgs as Array<{ mensagem: string; remetente_tipo: string }> | null) || []).reverse()), { forceRefresh });
     }, forceRefresh ? 300 : 800);
   }, [addon, generate]);
 
-  // Realtime: espelhar mensagens recebidas e enviadas
   useEffect(() => {
     const channel = supabase
       .channel("vendazap-chat-list")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "tracking_messages" },
-        async (payload) => {
-          const msg = payload.new as any;
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tracking_messages" }, async (payload) => {
+        const msg = payload.new as { tracking_id?: string; remetente_tipo?: string; mensagem?: string };
+        if (!msg.tracking_id || hiddenConversationKeysRef.current.has(`tracking:${msg.tracking_id}`)) return;
 
-          let conv = conversationsRef.current.find((c) => c.id === msg.tracking_id);
-
-          if (!conv && msg.tracking_id) {
-            const { data: trackingRow } = await supabase
-              .from("client_tracking")
-              .select("client_id")
-              .eq("id", msg.tracking_id)
-              .maybeSingle();
-
-            if (trackingRow?.client_id) {
-              conv = conversationsRef.current.find((c) => c.client_id === trackingRow.client_id);
-            }
-          }
-
-          const isSelectedConversation = Boolean(
-            selected && (selected.id === msg.tracking_id || (conv && selected.id === conv.id))
-          );
-          const resolvedConversation = conv || (
-            selected && (selected.id === msg.tracking_id || selected.relatedTrackingIds?.includes(msg.tracking_id))
-              ? selected
-              : null
-          );
-          const shouldNotifyCurrentUser = isConversationAssignedToUser(resolvedConversation, currentUserName);
-
-          if (msg.remetente_tipo === "cliente") {
-            if (shouldNotifyCurrentUser) {
-              playLeadNotificationSound(resolvedConversation?.lead_temperature);
-            }
-
-            if (shouldNotifyCurrentUser && !isSelectedConversation) {
-              const tempEmoji = resolvedConversation?.lead_temperature === "quente" ? "🔥" : resolvedConversation?.lead_temperature === "morno" ? "🟡" : "❄️";
-              toast.info(`${tempEmoji} Nova mensagem de cliente!`, {
-                description: msg.mensagem?.substring(0, 50),
-                duration: resolvedConversation?.lead_temperature === "quente" ? 8000 : 4000,
-              });
-            }
-
-            if (selected && isSelectedConversation) {
-              triggerAI(selected, true);
-            }
-
-            // Auto-pilot: only auto-send in "automatico" mode
-            if (autoPilotActive && conv && interventionMode === "automatico") {
-              const { data: recentMsgs } = await supabase
-                .from("tracking_messages")
-                .select("mensagem, remetente_tipo")
-                .eq("tracking_id", msg.tracking_id)
-                .order("created_at", { ascending: false })
-                .limit(5);
-
-              const result = await autoPilotProcess(
-                msg.tracking_id,
-                msg.mensagem || "",
-                conv.nome_cliente,
-                conv.lead_temperature,
-                ((recentMsgs as any[]) || []).reverse()
-              );
-
-              if (result) {
-                toast.success(`🤖 Auto-Pilot respondeu ${conv.nome_cliente}`, {
-                  description: `Intenção: ${result.intencao} | ${result.tokensUsed} tokens`,
-                  duration: 5000,
-                });
-              }
-            } else if (autoPilotActive && conv && interventionMode === "assistido") {
-              // In assisted mode, just trigger AI suggestion (already done above via triggerAI)
-              if (!isSelectedConversation) {
-                toast.info(`💡 Nova mensagem de ${conv.nome_cliente} — IA preparou sugestão`, {
-                  duration: 4000,
-                });
-              }
-            }
-          }
-
-          fetchConversations();
+        let conv = conversationsRef.current.find((conversation) => conversation.id === msg.tracking_id || conversation.relatedTrackingIds?.includes(msg.tracking_id || ""));
+        if (!conv) {
+          const { data: trackingRow } = await supabase.from("client_tracking").select("client_id, numero_contrato").eq("id", msg.tracking_id).maybeSingle();
+          const trackingPhone = normalizePhone(trackingRow?.numero_contrato);
+          if (trackingRow?.client_id && hiddenConversationKeysRef.current.has(`client:${trackingRow.client_id}`)) return;
+          if (trackingPhone && hiddenConversationKeysRef.current.has(`phone:${trackingPhone}`)) return;
+          if (trackingRow?.client_id) conv = conversationsRef.current.find((conversation) => conversation.client_id === trackingRow.client_id);
         }
-      )
+
+        const isSelectedConversation = Boolean(selected && (selected.id === msg.tracking_id || selected.relatedTrackingIds?.includes(msg.tracking_id)));
+        const resolvedConversation = conv || (selected && (selected.id === msg.tracking_id || selected.relatedTrackingIds?.includes(msg.tracking_id)) ? selected : null);
+        const shouldNotifyCurrentUser = isConversationAssignedToUser(resolvedConversation, currentUserName);
+
+        if (msg.remetente_tipo === "cliente") {
+          if (shouldNotifyCurrentUser) playLeadNotificationSound(resolvedConversation?.lead_temperature);
+          if (shouldNotifyCurrentUser && !isSelectedConversation) {
+            const tempEmoji = resolvedConversation?.lead_temperature === "quente" ? "🔥" : resolvedConversation?.lead_temperature === "morno" ? "🟡" : "❄️";
+            toast.info(`${tempEmoji} Nova mensagem de cliente!`, { description: msg.mensagem?.substring(0, 50), duration: resolvedConversation?.lead_temperature === "quente" ? 8000 : 4000 });
+          }
+          if (selected && isSelectedConversation) triggerAI(selected, true);
+          if (autoPilotActive && conv && interventionMode === "automatico") {
+            const { data: recentMsgs } = await supabase.from("tracking_messages").select("mensagem, remetente_tipo").eq("tracking_id", msg.tracking_id).order("created_at", { ascending: false }).limit(5);
+            const result = await autoPilotProcess(msg.tracking_id, msg.mensagem || "", conv.nome_cliente, conv.lead_temperature, (((recentMsgs as Array<{ mensagem: string; remetente_tipo: string }> | null) || []).reverse()));
+            if (result) toast.success(`🤖 Auto-Pilot respondeu ${conv.nome_cliente}`, { description: `Intenção: ${result.intencao} | ${result.tokensUsed} tokens`, duration: 5000 });
+          } else if (autoPilotActive && conv && interventionMode === "assistido" && !isSelectedConversation) {
+            toast.info(`💡 Nova mensagem de ${conv.nome_cliente} — IA preparou sugestão`, { duration: 4000 });
+          }
+        }
+
+        void fetchConversations();
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess, triggerAI, currentUserName]);
+  }, [selected, fetchConversations, autoPilotActive, autoPilotProcess, triggerAI, currentUserName, normalizePhone, interventionMode]);
 
   const handleSelectConversation = useCallback(async (conv: ChatConversation) => {
-    // If this is a direct client without a tracking record, create one first
+    unhideConversation(conv);
     if (conv.isClientDirect) {
       const clientId = conv.client_id || conv.id;
-      
-      // Check if a client_tracking record already exists for this client
-      const { data: existingTracking } = await supabase
-        .from("client_tracking")
-        .select("id")
-        .eq("client_id", clientId)
-        .maybeSingle();
-
+      const { data: existingTracking } = await supabase.from("client_tracking").select("id").eq("client_id", clientId).maybeSingle();
       let trackingId = existingTracking?.id;
-
       if (!trackingId) {
-        const { data: newTracking, error: trackError } = await supabase
-          .from("client_tracking")
-          .insert({
-            client_id: clientId,
-            nome_cliente: conv.nome_cliente,
-            numero_contrato: conv.numero_contrato || `CHAT-${Date.now()}`,
-            tenant_id: tenantId,
-            status: "em_negociacao",
-          })
-          .select("id")
-          .single();
-
+        const { data: newTracking, error: trackError } = await supabase.from("client_tracking").insert({ client_id: clientId, nome_cliente: conv.nome_cliente, numero_contrato: conv.numero_contrato || `CHAT-${Date.now()}`, tenant_id: tenantId, status: "em_negociacao" }).select("id").single();
         if (trackError || !newTracking) {
           toast.error("Erro ao criar registro de conversa");
-          console.error("client_tracking insert error:", trackError);
           return;
         }
         trackingId = newTracking.id;
       }
-
-      // Update conv with the real tracking ID
-      const updatedConv: ChatConversation = {
-        ...conv,
-        id: trackingId,
-        isClientDirect: false,
-      };
-
+      const updatedConv: ChatConversation = { ...conv, id: trackingId, isClientDirect: false };
       setSelected(updatedConv);
       setInputValue("");
       clear();
       triggerAI(updatedConv);
-      // Refresh conversations to get the updated list
-      fetchConversations();
+      void fetchConversations();
       return;
     }
-
     setSelected(conv);
     setInputValue("");
     clear();
     triggerAI(conv);
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conv.id ? { ...c, unread_count: 0 } : c))
-    );
-  }, [tenantId, clear, triggerAI, fetchConversations]);
+    setConversations((prev) => prev.map((conversation) => (conversation.id === conv.id ? { ...conversation, unread_count: 0 } : conversation)));
+  }, [tenantId, clear, triggerAI, fetchConversations, unhideConversation]);
 
   const handleUseSuggestion = () => {
     setInputValue(suggestion);
@@ -700,19 +595,13 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   };
 
   const handleDealRoom = () => {
-    if (selected && onDealRoom) {
-      onDealRoom(selected.nome_cliente, selected.numero_contrato);
-    }
+    if (selected && onDealRoom) onDealRoom(selected.nome_cliente, selected.numero_contrato);
   };
 
   const handleCloseSaleFromAI = useCallback(async (data: CloseSaleData) => {
     if (!selected) return;
     if (selected.client_id) {
-      const { data: clientData } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", selected.client_id)
-        .maybeSingle();
+      const { data: clientData } = await supabase.from("clients").select("*").eq("id", selected.client_id).maybeSingle();
       setCloseSaleClient(clientData || null);
     } else {
       setCloseSaleClient(null);
@@ -725,38 +614,15 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     if (!tenantId || !selected) return;
     setCloseSaleSaving(true);
     try {
-      // Build contract HTML using template if available
-      const { data: templateRow } = await supabase
-        .from("contract_templates")
-        .select("conteudo_html")
-        .limit(1)
-        .maybeSingle();
-
-      const template = (templateRow as unknown as Record<string, string> | null)?.conteudo_html || "<p>Contrato gerado automaticamente</p>";
-
+      const { data: templateRow } = await supabase.from("contract_templates").select("conteudo_html").limit(1).maybeSingle();
+      const template = (templateRow as Record<string, string> | null)?.conteudo_html || "<p>Contrato gerado automaticamente</p>";
       const { buildContractHtml } = await import("@/services/contractService");
-      const { data: settingsData } = await supabase
-        .from("company_settings")
-        .select("*")
-        .limit(1)
-        .maybeSingle();
-
+      const { data: settingsData } = await supabase.from("company_settings").select("*").limit(1).maybeSingle();
       const contractHtml = buildContractHtml(template, {
         formData,
-        client: {
-          nome: selected.nome_cliente,
-          cpf: null,
-          telefone1: selected.phone || null,
-          email: null,
-          numero_orcamento: selected.numero_contrato || null,
-          vendedor: selected.vendedor_nome || null,
-        },
+        client: { nome: selected.nome_cliente, cpf: null, telefone1: selected.phone || null, email: null, numero_orcamento: selected.numero_contrato || null, vendedor: selected.vendedor_nome || null },
         valorTela: closeSaleSimData?.valorFinal || 0,
-        result: {
-          valorFinal: closeSaleSimData?.valorFinal || 0,
-          valorParcela: closeSaleSimData?.valorParcela || 0,
-          valorComDesconto: closeSaleSimData?.valorFinal || 0,
-        },
+        result: { valorFinal: closeSaleSimData?.valorFinal || 0, valorParcela: closeSaleSimData?.valorParcela || 0, valorComDesconto: closeSaleSimData?.valorFinal || 0 },
         formaPagamento: closeSaleSimData?.formaPagamento || "",
         parcelas: closeSaleSimData?.parcelas || 1,
         valorEntrada: closeSaleSimData?.valorEntrada || 0,
@@ -766,23 +632,9 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         items: items as Array<{ quantidade: number; descricao_ambiente: string; fornecedor: string; prazo: string; valor_ambiente: number }>,
         itemDetails: itemDetails as Array<{ item_num: number; titulos: string; corpo: string; porta: string; puxador: string; complemento: string; modelo: string }>,
       });
-
-      const insertPayload = {
-        client_id: selected.client_id!,
-        conteudo_html: contractHtml,
-        tenant_id: tenantId,
-      };
-      const { error } = await supabase.from("client_contracts").insert(insertPayload);
-
+      const { error } = await supabase.from("client_contracts").insert({ client_id: selected.client_id!, conteudo_html: contractHtml, tenant_id: tenantId });
       if (error) throw error;
-
-      if (selected.client_id) {
-        await supabase
-          .from("clients")
-          .update({ etapa_funil: "contrato" } as Record<string, unknown>)
-          .eq("id", selected.client_id);
-      }
-
+      if (selected.client_id) await supabase.from("clients").update({ etapa_funil: "contrato" } as Record<string, unknown>).eq("id", selected.client_id);
       toast.success("🎉 Contrato gerado com sucesso!");
       setCloseSaleOpen(false);
     } catch (err) {
@@ -795,73 +647,35 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
 
   const handleStartConversation = useCallback(async (trackingId: string, clientName: string, contractNumber: string) => {
     setShowStartModal(false);
-
-    // Manual phone number flow (from "Novo Número" tab)
     const isManualWA = trackingId.startsWith("WA-");
 
     if (isManualWA) {
       const normalizedPhone = trackingId.replace("WA-", "").replace(/\D/g, "");
-      // Check if conversation already exists for this phone
-      const existingConv = conversations.find((c) => {
-        const cPhone = normalizePhone(c.phone || (c.numero_contrato?.startsWith("WA-") ? c.numero_contrato.replace("WA-", "") : ""));
-        return cPhone === normalizedPhone;
-      });
+      const existingConv = conversations.find((conversation) => normalizePhone(conversation.phone || (conversation.numero_contrato?.startsWith("WA-") ? conversation.numero_contrato.replace("WA-", "") : "")) === normalizedPhone);
       if (existingConv) {
+        unhideConversation(existingConv);
         handleSelectConversation(existingConv);
         toast.info(`Conversa com ${clientName} já existe`);
         return;
       }
 
       try {
-        // Check if client already exists — do NOT auto-create a lead
-        let clientId: string | null = null;
-        const { data: existing } = await supabase
-          .from("clients")
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .eq("numero_orcamento", contractNumber)
-          .limit(1);
-        clientId = ((existing as any[]) || [])[0]?.id || null;
-
-        // Create tracking
-        const { data: tracking, error: trackErr } = await supabase
-          .from("client_tracking")
-          .insert({
-            tenant_id: tenantId,
-            client_id: clientId,
-            nome_cliente: clientName,
-            numero_contrato: contractNumber,
-            status: "em_negociacao",
-          } as any)
-          .select("id")
-          .maybeSingle();
-
+        const { data: existingClientRows } = await supabase.from("clients").select("id").eq("tenant_id", tenantId).eq("numero_orcamento", contractNumber).limit(1);
+        const clientId = ((existingClientRows as Array<{ id: string }> | null) || [])[0]?.id || null;
+        const { data: tracking, error: trackErr } = await supabase.from("client_tracking").insert({ tenant_id: tenantId, client_id: clientId, nome_cliente: clientName, numero_contrato: contractNumber, status: "em_negociacao" }).select("id").maybeSingle();
         let trackId = tracking?.id;
         if (trackErr || !trackId) {
-          const { data: existT } = await supabase
-            .from("client_tracking")
-            .select("id")
-            .eq("tenant_id", tenantId)
-            .eq("numero_contrato", contractNumber)
-            .limit(1);
-          trackId = ((existT as any[]) || [])[0]?.id;
+          const { data: existingTrackingRows } = await supabase.from("client_tracking").select("id").eq("tenant_id", tenantId).eq("numero_contrato", contractNumber).limit(1);
+          trackId = ((existingTrackingRows as Array<{ id: string }> | null) || [])[0]?.id;
         }
-
         if (!trackId) {
           toast.error("Erro ao criar conversa");
           return;
         }
-
+        const newConv: ChatConversation = { id: trackId, numero_contrato: contractNumber, nome_cliente: clientName, unread_count: 0, phone: normalizedPhone, client_id: clientId || undefined, groupKey: normalizedPhone };
+        unhideConversation(newConv);
         toast.success(`Conversa com ${clientName} iniciada!`);
         await fetchConversations();
-
-        const newConv: ChatConversation = {
-          id: trackId,
-          numero_contrato: contractNumber,
-          nome_cliente: clientName,
-          unread_count: 0,
-          phone: normalizedPhone,
-        };
         handleSelectConversation(newConv);
       } catch (err) {
         console.error("[Manual WA] error:", err);
@@ -870,59 +684,33 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
       return;
     }
 
-    // Standard client flow
-    const existing = conversations.find((c) => c.id === trackingId);
+    const existing = conversations.find((conversation) => conversation.id === trackingId);
     if (existing) {
+      unhideConversation(existing);
       handleSelectConversation(existing);
       return;
     }
 
     let actualTrackingId = trackingId;
-
-    const { data: existingTracking } = await supabase
-      .from("client_tracking")
-      .select("id")
-      .eq("id", trackingId)
-      .maybeSingle();
-
+    const { data: existingTracking } = await supabase.from("client_tracking").select("id").eq("id", trackingId).maybeSingle();
     if (!existingTracking) {
-      const { data: newTracking, error: trackError } = await supabase
-        .from("client_tracking")
-        .insert({
-          client_id: trackingId,
-          nome_cliente: clientName,
-          numero_contrato: contractNumber || `CHAT-${Date.now()}`,
-          tenant_id: tenantId,
-          status: "em_negociacao",
-        })
-        .select("id")
-        .single();
-
+      const { data: newTracking, error: trackError } = await supabase.from("client_tracking").insert({ client_id: trackingId, nome_cliente: clientName, numero_contrato: contractNumber || `CHAT-${Date.now()}`, tenant_id: tenantId, status: "em_negociacao" }).select("id").single();
       if (trackError || !newTracking) {
         toast.error("Erro ao criar registro de conversa");
-        console.error("client_tracking insert error:", trackError);
         return;
       }
       actualTrackingId = newTracking.id;
     }
 
+    const newConv: ChatConversation = { id: actualTrackingId, numero_contrato: contractNumber, nome_cliente: clientName, unread_count: 0, client_id: trackingId };
+    unhideConversation(newConv);
     toast.success(`Conversa com ${clientName} iniciada!`);
     await fetchConversations();
-
-    const newConv: ChatConversation = {
-      id: actualTrackingId,
-      numero_contrato: contractNumber,
-      nome_cliente: clientName,
-      unread_count: 0,
-    };
     handleSelectConversation(newConv);
-  }, [conversations, currentUser, fetchConversations, tenantId, normalizePhone]);
+  }, [conversations, fetchConversations, tenantId, normalizePhone, handleSelectConversation, unhideConversation]);
 
-  // Delete conversation state — rich confirmation dialog
   const [deleteTarget, setDeleteTarget] = useState<ChatConversation | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-  const deletedIdsRef = useRef<Set<string>>(new Set());
 
   const handleDeleteConversation = useCallback((conv: ChatConversation) => {
     if (!isAdminOrManager) return;
@@ -932,34 +720,22 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-
     try {
-      const allTrackingIds = Array.from(new Set([
-        deleteTarget.id,
-        ...(deleteTarget.relatedTrackingIds || []),
-      ]));
-
-      // Delete messages first (FK dependency)
+      const allTrackingIds = Array.from(new Set([deleteTarget.id, ...(deleteTarget.relatedTrackingIds || [])]));
       for (const trackId of allTrackingIds) {
         const { error: msgErr } = await supabase.from("tracking_messages").delete().eq("tracking_id", trackId);
         if (msgErr) console.warn("[Delete] msg error for", trackId, msgErr);
       }
-
-      // Then delete the tracking records
       for (const trackId of allTrackingIds) {
         const { error: trackErr } = await supabase.from("client_tracking").delete().eq("id", trackId);
         if (trackErr) console.warn("[Delete] tracking error for", trackId, trackErr);
+        deletedIdsRef.current.add(trackId);
       }
-
-      // Track deleted IDs persistently so realtime refetch won't re-add them
-      const allIds = [deleteTarget.id, ...(deleteTarget.relatedTrackingIds || [])];
-      allIds.forEach((id) => deletedIdsRef.current.add(id));
-
-      // Immediately remove from local state — do NOT refetch
+      hideConversation(deleteTarget);
+      setDeletedIds(new Set(deletedIdsRef.current));
       if (selected?.id === deleteTarget.id) setSelected(null);
-      setConversations((prev) => prev.filter((c) => !deletedIdsRef.current.has(c.id)));
-
-      toast.success(`Conversa com "${deleteTarget.nome_cliente}" excluída completamente`);
+      setConversations((prev) => prev.filter((conversation) => !isConversationHidden(conversation) && !deletedIdsRef.current.has(conversation.id)));
+      toast.success(`Conversa com "${deleteTarget.nome_cliente}" excluída e mantida oculta`);
     } catch (err) {
       console.error("Delete conversation error:", err);
       toast.error("Erro ao excluir conversa");
@@ -967,77 +743,106 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
       setDeleting(false);
       setDeleteTarget(null);
     }
-  }, [deleteTarget, selected]);
+  }, [deleteTarget, selected, hideConversation, isConversationHidden]);
 
-  // Merge duplicate: keep chosen conversation, delete the other
   const handleMergeDuplicate = useCallback(async (keep: ChatConversation, remove: ChatConversation) => {
     if (!isAdminOrManager) return;
-
     try {
-      const removeTrackingIds = Array.from(new Set([
-        remove.id,
-        ...(remove.relatedTrackingIds || []),
-      ]));
-      const keepTrackingIds = Array.from(new Set([
-        keep.id,
-        ...(keep.relatedTrackingIds || []),
-      ]));
-
-      // Move messages from removed tracking to the kept one (reassign tracking_id)
+      const removeTrackingIds = Array.from(new Set([remove.id, ...(remove.relatedTrackingIds || [])]));
+      const keepTrackingIds = Array.from(new Set([keep.id, ...(keep.relatedTrackingIds || [])]));
       for (const trackId of removeTrackingIds) {
         if (!keepTrackingIds.includes(trackId)) {
-          await supabase
-            .from("tracking_messages")
-            .update({ tracking_id: keep.id } as any)
-            .eq("tracking_id", trackId);
+          await supabase.from("tracking_messages").update({ tracking_id: keep.id }).eq("tracking_id", trackId);
         }
       }
-
-      // Delete the removed tracking records
       for (const trackId of removeTrackingIds) {
         if (!keepTrackingIds.includes(trackId)) {
           await supabase.from("client_tracking").delete().eq("id", trackId);
+          deletedIdsRef.current.add(trackId);
         }
       }
-
+      hideConversation(remove);
+      setDeletedIds(new Set(deletedIdsRef.current));
       if (selected?.id === remove.id) setSelected(keep);
       toast.success(`Conversas mescladas. "${keep.nome_cliente}" mantida.`);
-      fetchConversations();
+      await fetchConversations();
     } catch (err) {
       console.error("Merge duplicate error:", err);
       toast.error("Erro ao mesclar conversas");
     }
-  }, [isAdminOrManager, selected, fetchConversations]);
+  }, [isAdminOrManager, selected, fetchConversations, hideConversation]);
 
-  // Auto-consolidate duplicate trackings by phone
   const [consolidating, setConsolidating] = useState(false);
   const handleConsolidateTrackings = useCallback(async (dryRun = false) => {
     if (!tenantId || !isAdminOrManager) return;
     setConsolidating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("consolidate-trackings", {
-        body: { tenant_id: tenantId, dry_run: dryRun },
+      const [{ data: trackings }, { data: clients }] = await Promise.all([
+        supabase.from("client_tracking").select("id, tenant_id, client_id, nome_cliente, numero_contrato, status, updated_at, created_at").eq("tenant_id", tenantId),
+        supabase.from("clients").select("id, telefone1, telefone2").eq("tenant_id", tenantId),
+      ]);
+
+      const clientPhoneMap = new Map<string, string>();
+      ((clients as Array<{ id: string; telefone1?: string | null; telefone2?: string | null }> | null) || []).forEach((client) => {
+        const canonical = normalizePhone(client.telefone1 || client.telefone2 || "");
+        if (canonical) clientPhoneMap.set(client.id, canonical);
       });
-      if (error) throw error;
-      if (data?.consolidated === 0) {
+
+      const grouped = new Map<string, Array<{ id: string; client_id?: string | null; nome_cliente?: string | null; updated_at?: string | null; created_at?: string | null }>>();
+      ((trackings as Array<{ id: string; client_id?: string | null; nome_cliente?: string | null; numero_contrato?: string | null; updated_at?: string | null; created_at?: string | null }> | null) || []).forEach((tracking) => {
+        const byClient = tracking.client_id ? clientPhoneMap.get(tracking.client_id) : "";
+        const byContract = normalizePhone(tracking.numero_contrato || "");
+        const phone = byClient || byContract;
+        if (!phone) return;
+        const existing = grouped.get(phone) || [];
+        grouped.set(phone, [...existing, tracking]);
+      });
+
+      const duplicateGroups = Array.from(grouped.entries()).filter(([, items]) => items.length > 1);
+      if (duplicateGroups.length === 0) {
         toast.info("Nenhuma duplicata encontrada. Tudo limpo! ✅");
-      } else if (dryRun) {
-        const groups = data.groups || [];
-        const names = groups.map((g: any) => `${g.primary_name} (${g.removed_names.join(", ")})`).join("; ");
-        toast.info(`${data.consolidated} grupo(s) duplicado(s) encontrado(s): ${names}. Clique novamente para consolidar.`, { duration: 8000 });
-      } else {
-        toast.success(`✅ ${data.consolidated} grupo(s) consolidado(s). ${data.total_removed} registro(s) removido(s), ${data.total_messages_moved} mensagem(ns) realocada(s).`, { duration: 8000 });
-        fetchConversations();
+        return;
       }
+
+      const preview = duplicateGroups.map(([phone, items]) => {
+        const sorted = [...items].sort((a, b) => {
+          if (a.client_id && !b.client_id) return -1;
+          if (!a.client_id && b.client_id) return 1;
+          return new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime();
+        });
+        return { phone, keep: sorted[0], remove: sorted.slice(1) };
+      });
+
+      if (dryRun) {
+        toast.info(`${preview.length} grupo(s) duplicado(s) encontrados. Clique novamente para consolidar.`, { duration: 7000 });
+        return;
+      }
+
+      let totalRemoved = 0;
+      let totalMessagesMoved = 0;
+      for (const group of preview) {
+        for (const remove of group.remove) {
+          const { count } = await supabase.from("tracking_messages").select("id", { count: "exact", head: true }).eq("tracking_id", remove.id);
+          await supabase.from("tracking_messages").update({ tracking_id: group.keep.id }).eq("tracking_id", remove.id);
+          await supabase.from("client_tracking").delete().eq("id", remove.id);
+          deletedIdsRef.current.add(remove.id);
+          totalRemoved += 1;
+          totalMessagesMoved += count || 0;
+        }
+      }
+
+      setDeletedIds(new Set(deletedIdsRef.current));
+      await fetchConversations();
+      toast.success(`✅ ${preview.length} grupo(s) consolidado(s). ${totalRemoved} registro(s) removido(s), ${totalMessagesMoved} mensagem(ns) realocada(s).`, { duration: 8000 });
     } catch (err) {
       console.error("Consolidation error:", err);
-      toast.error("Erro ao consolidar trackings");
+      toast.error("Erro ao consolidar conversas duplicadas");
     } finally {
       setConsolidating(false);
     }
-  }, [tenantId, isAdminOrManager, fetchConversations]);
+  }, [tenantId, isAdminOrManager, normalizePhone, fetchConversations]);
 
-  const existingConvIds = useMemo(() => new Set(conversations.map((c) => c.id)), [conversations]);
+  const existingConvIds = useMemo(() => new Set(conversations.map((conversation) => conversation.id)), [conversations]);
 
   // Handle store message sent — trigger simulator reply
   const handleMessageSent = useCallback((message: string) => {
@@ -1193,19 +998,20 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 onCloseSale={handleCloseSaleFromAI}
               />
             </div>
-            <ChatRightPanel
-              conversation={selected}
-              tenantId={tenantId}
-              messageCount={0}
-              aiSuggestion={suggestion}
-              aiLoading={aiLoading}
-              aiTipoCopy={tipoCopy}
-              aiDiscProfile={discProfile}
-              onUseSuggestion={handleUseSuggestion}
-              isMobile={isMobile}
-              mobileOpen={mobileAiOpen}
-              onMobileOpenChange={setMobileAiOpen}
-            />
+              <ChatRightPanel
+                conversation={selected}
+                tenantId={tenantId}
+                messageCount={messageCount}
+                aiSuggestion={suggestion}
+                aiLoading={aiLoading}
+                aiTipoCopy={tipoCopy}
+                aiDiscProfile={discProfile}
+                onUseSuggestion={handleUseSuggestion}
+                interventionMode={interventionMode}
+                isMobile={isMobile}
+                mobileOpen={mobileAiOpen}
+                onMobileOpenChange={setMobileAiOpen}
+              />
           </>
         ) : (
           <div className="text-center p-8 text-muted-foreground">

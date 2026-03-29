@@ -11,8 +11,12 @@ export interface ChatConversation {
   isClientDirect?: boolean;
   isTemporary?: boolean;
   client_id?: string;
-  phone?: string; // WhatsApp phone number for direct sending
-  relatedTrackingIds?: string[]; // All grouped tracking IDs for this conversation
+  phone?: string;
+  relatedTrackingIds?: string[];
+  groupKey?: string;
+  status?: string;
+  updated_at?: string;
+  valor_orcamento?: number;
 }
 
 export interface ChatMessage {
