@@ -187,7 +187,16 @@ export function ChatWindow({
         return merged.filter((msg, index, arr) => arr.findIndex((item) => item.id === msg.id) === index);
       });
     } else {
-      setMessages(msgs);
+      // Merge instead of replace to avoid flicker on polling
+      setMessages((prev) => {
+        if (prev.length === 0) return msgs;
+        const idSet = new Set(prev.map(m => m.id));
+        const newMsgs = msgs.filter(m => !idSet.has(m.id));
+        if (newMsgs.length === 0 && msgs.length === prev.length) return prev;
+        // Full merge: use latest data but preserve order
+        const merged = [...msgs];
+        return merged;
+      });
     }
 
     onMessagesLoaded?.(msgs.length);
