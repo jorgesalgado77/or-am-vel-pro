@@ -40,6 +40,36 @@ async function getAvailableProviders(adminClient: ReturnType<typeof createClient
   };
 }
 
+async function fetchPreviousMonthsData(adminClient: ReturnType<typeof createClient>, tenantId: string) {
+  const now = new Date();
+  const months: string[] = [];
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const { data: prevGoals } = await adminClient
+    .from("sales_goals")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .in("month", months);
+
+  const { data: prevContracts } = await adminClient
+    .from("client_contracts")
+    .select("id, created_at, client_id")
+    .eq("tenant_id", tenantId);
+
+  const summary: string[] = [];
+  for (const month of months) {
+    const goals = (prevGoals || []).filter((g: any) => g.month === month);
+    const contracts = (prevContracts || []).filter((c: any) => (c.created_at || "").substring(0, 7) === month);
+    if (goals.length > 0 || contracts.length > 0) {
+      summary.push(`Mês ${month}: ${contracts.length} vendas fechadas, ${goals.length} metas definidas`);
+    }
+  }
+  return summary.length > 0 ? `\n\nHistórico meses anteriores:\n${summary.join("\n")}` : "";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -119,6 +149,9 @@ serve(async (req) => {
 
     const apiKey = selectedProvider === "openai" ? openaiKey : perplexityKey;
 
+    // Fetch historical data for AI memory
+    const historyContext = await fetchPreviousMonthsData(adminClient, tenant_id);
+
     const systemPrompt = `Você é a IA Gerente Comercial do OrçaMóvel PRO.
 
 Seu papel é:
@@ -126,16 +159,26 @@ Seu papel é:
 - Identificar gargalos e oportunidades
 - Cobrar resultados de forma assertiva, mas motivacional
 - Sugerir ações práticas baseadas nos dados
+- Aprender com os resultados dos meses anteriores para melhorar estratégias
+- SEMPRE focar em bater a meta da loja
+- Monitorar cada vendedor projetista individualmente
+- Sugerir links de treinamento e vídeos relevantes do YouTube quando apropriado
 
 Dados atuais do CRM:
 ${metrics_summary || "Dados não disponíveis no momento."}
+${historyContext}
 
 Regras:
 - Responda em português brasileiro
 - Seja direto e prático
-- Use Markdown
+- Use Markdown com formatação rica
 - Baseie-se sempre nos dados fornecidos
-- Sugira ações específicas e mensuráveis`;
+- Sugira ações específicas e mensuráveis
+- Quando relevante, inclua links para artigos ou vídeos de treinamento de vendas no YouTube
+- Formate links como: [Título do vídeo/artigo](URL)
+- Para vídeos do YouTube, inclua o link completo: https://www.youtube.com/watch?v=ID
+- Compare com meses anteriores para identificar tendências
+- Elabore estratégias concretas para atingir a meta da loja`;
 
     const aiUrl = selectedProvider === "openai"
       ? "https://api.openai.com/v1/chat/completions"

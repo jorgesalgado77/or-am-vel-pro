@@ -16,6 +16,7 @@ import {
   TrendingUp, Award, CalendarDays, ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { useMetasTetos } from "@/hooks/useMetasTetos";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, getDaysInMonth } from "date-fns";
@@ -29,7 +30,7 @@ interface SalesGoal {
   goal_type: "revenue" | "deals" | "leads";
   target_value: number;
   current_value: number;
-  month: string; // YYYY-MM
+  month: string;
   created_at: string;
 }
 
@@ -73,6 +74,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   const [rawGoals, setRawGoals] = useState<SalesGoal[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usersLoaded, setUsersLoaded] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
@@ -82,6 +84,9 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     goal_type: "revenue" as "revenue" | "deals" | "leads",
     target_value: 0,
   });
+
+  // Get admin-configured default meta for vendedor
+  const { metaVendedor } = useMetasTetos(selectedMonth);
 
   // Deduplicate goals by id
   const goals = useMemo(() => {
@@ -109,11 +114,14 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       });
       setUsers(filtered.map((u: any) => ({ id: u.id, nome_completo: u.nome_completo })));
     }
+    setUsersLoaded(true);
   }, [tenantId]);
 
-  const loadGoals = useCallback(async () => {
+  const loadGoals = useCallback(async (userList?: UserOption[]) => {
     if (!tenantId) return;
     setLoading(true);
+
+    const effectiveUsers = userList || users;
 
     const { data: goalsData, error } = await supabase
       .from("sales_goals" as any)
@@ -123,23 +131,19 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
 
     if (error) {
       const stored = localStorage.getItem(`sales_goals_${tenantId}_${selectedMonth}`);
-      if (stored) {
-        setRawGoals(JSON.parse(stored));
-      } else {
-        setRawGoals([]);
-      }
+      setRawGoals(stored ? JSON.parse(stored) : []);
       setLoading(false);
       return;
     }
 
-    const userMap = new Map(users.map(u => [u.id, u.nome_completo]));
+    const userMap = new Map(effectiveUsers.map(u => [u.id, u.nome_completo]));
 
     const { data: clients } = await supabase
       .from("clients" as any)
       .select("responsavel_id, status, valor_fechamento, created_at")
       .eq("tenant_id", tenantId);
 
-    const enriched = (goalsData as any[]).map((g: any) => {
+    const enriched = (goalsData as any[] || []).map((g: any) => {
       let currentValue = 0;
       const monthClients = (clients || []).filter((c: any) => {
         return (c.created_at || "").substring(0, 7) === selectedMonth && c.responsavel_id === g.user_id;
@@ -162,14 +166,19 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       };
     });
 
+    // Replace state entirely to avoid duplicates
     setRawGoals(enriched);
     setLoading(false);
   }, [tenantId, selectedMonth, users]);
 
+  // Load users first, then goals
   useEffect(() => { loadUsers(); }, [loadUsers]);
-  useEffect(() => { if (users.length > 0) loadGoals(); }, [loadGoals, users]);
+  
+  useEffect(() => {
+    if (usersLoaded) loadGoals();
+  }, [usersLoaded, loadGoals]);
 
-  // Realtime subscription for sales_goals changes
+  // Realtime subscription
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
@@ -183,23 +192,17 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
           filter: `tenant_id=eq.${tenantId}`,
         },
         (payload: any) => {
-          const eventType = payload.eventType;
-          if (eventType === "DELETE") {
+          if (payload.eventType === "DELETE") {
             const oldId = payload.old?.id;
-            if (oldId) {
-              setRawGoals(prev => prev.filter(g => g.id !== oldId));
-            }
+            if (oldId) setRawGoals(prev => prev.filter(g => g.id !== oldId));
           } else {
-            // INSERT or UPDATE — reload to get enriched data
             loadGoals();
           }
         },
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [tenantId, loadGoals]);
 
   const handleSave = async () => {
@@ -245,7 +248,6 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
       setRawGoals(stored);
     } else {
       toast.success("Meta salva!");
-      // Realtime will trigger reload, but also reload now for immediate feedback
       await loadGoals();
     }
 
@@ -254,9 +256,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   };
 
   const handleDelete = async (id: string) => {
-    // Optimistic removal
     setRawGoals(prev => prev.filter(g => g.id !== id));
-
     const { error } = await supabase.from("sales_goals" as any).delete().eq("id", id);
     if (error) {
       const key = `sales_goals_${tenantId}_${selectedMonth}`;
@@ -268,7 +268,9 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   };
 
   const openNew = () => {
-    setForm({ id: "", user_id: "", goal_type: "revenue", target_value: 0 });
+    // Pre-fill with admin-configured default meta vendedor value
+    const defaultValue = (metaVendedor?.valor && form.goal_type === "revenue") ? metaVendedor.valor : 0;
+    setForm({ id: "", user_id: "", goal_type: "revenue", target_value: defaultValue });
     setDialogOpen(true);
   };
 
@@ -277,10 +279,20 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     setDialogOpen(true);
   };
 
-  // Deadline calculations — correct for the target month
+  // When goal_type changes in dialog to revenue, pre-fill default if empty
+  const handleGoalTypeChange = (v: string) => {
+    const newType = v as "revenue" | "deals" | "leads";
+    setForm(f => ({
+      ...f,
+      goal_type: newType,
+      target_value: (newType === "revenue" && f.target_value === 0 && metaVendedor?.valor)
+        ? metaVendedor.valor
+        : f.target_value,
+    }));
+  };
+
   const { daysRemaining, isPast: isPastMonth, isSameMonth: isCurrentMonth, totalDays } = getMonthInfo(selectedMonth);
 
-  // Month options
   const monthOptions = [];
   for (let i = -2; i <= 2; i++) {
     const d = new Date();
@@ -324,7 +336,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
         </Button>
       </div>
 
-      {/* Automatic alerts: goals below 50% with < 7 days remaining */}
+      {/* Automatic alerts */}
       {isCurrentMonth && daysRemaining <= 7 && !loading && (() => {
         const atRisk = goals.filter(g => {
           const pct = g.target_value > 0 ? (g.current_value / g.target_value) * 100 : 0;
@@ -365,6 +377,11 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
             <Target className="h-10 w-10 mx-auto mb-2 opacity-30" />
             <p>Nenhuma meta definida para este mês</p>
             <p className="text-xs">Crie metas para acompanhar o desempenho da equipe</p>
+            {metaVendedor && (
+              <p className="text-xs text-primary mt-1">
+                Meta padrão do administrador: {formatCurrency(metaVendedor.valor)} por vendedor
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -448,8 +465,6 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
           })}
         </div>
       )}
-
-      {/* Create/Edit Dialog */}
 
       {/* Manager summary cards */}
       {!loading && goals.length > 0 && (
@@ -545,7 +560,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
             </div>
             <div>
               <Label className="text-xs">Tipo de Meta</Label>
-              <Select value={form.goal_type} onValueChange={v => setForm(f => ({ ...f, goal_type: v as any }))}>
+              <Select value={form.goal_type} onValueChange={handleGoalTypeChange}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
@@ -560,6 +575,11 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
               <Label className="text-xs">
                 Valor da Meta {form.goal_type === "revenue" ? "(R$)" : "(quantidade)"}
               </Label>
+              {metaVendedor && form.goal_type === "revenue" && !form.id && (
+                <p className="text-[10px] text-primary mb-1">
+                  Padrão definido pelo administrador: {formatCurrency(metaVendedor.valor)}
+                </p>
+              )}
               {form.goal_type === "revenue" ? (
                 <Input
                   value={form.target_value > 0 ? form.target_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : ""}
