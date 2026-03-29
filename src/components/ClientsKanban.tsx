@@ -526,6 +526,7 @@ export function ClientsKanban({
                   sim={lastSims[client.id]}
                   budgetValidityDays={settings.budget_validity_days}
                   cargoNome={cargoNome}
+                  tenantId={getTenantId() || ""}
                   followUpStatus={followUpStatus[client.id]}
                   onClick={setExpandedClient}
                   onQuickDelete={canDelete ? (c) => {

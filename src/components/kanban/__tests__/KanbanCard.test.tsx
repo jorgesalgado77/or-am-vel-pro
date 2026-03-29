@@ -31,6 +31,7 @@ function renderCard(props: Partial<React.ComponentProps<typeof KanbanCard>> = {}
     sim: undefined,
     budgetValidityDays: 30,
     cargoNome: "administrador",
+    tenantId: "t1",
     onClick: vi.fn(),
   };
   return render(
