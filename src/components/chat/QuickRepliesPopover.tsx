@@ -129,7 +129,7 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
       c.tipo.toLowerCase().includes(search.toLowerCase());
     const matchType = copyTypeFilter === "all" || c.tipo === copyTypeFilter;
     const matchDisc = discFilter === "all" || c.disc_profile === discFilter || (!c.disc_profile && discFilter === "all");
-    return matchSearch && matchType;
+    return matchSearch && matchType && matchDisc;
   });
 
   const handleAdd = () => {
