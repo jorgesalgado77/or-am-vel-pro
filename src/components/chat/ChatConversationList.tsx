@@ -7,7 +7,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone, Trash2, Volume2, VolumeX } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone, Trash2, Volume2, VolumeX, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled } from "@/lib/notificationSound";
@@ -19,6 +29,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (conv: ChatConversation) => void;
   onDelete?: (conv: ChatConversation) => void;
+  onMergeDuplicate?: (keep: ChatConversation, remove: ChatConversation) => void;
   loading: boolean;
   onStartConversation?: () => void;
   currentUserName?: string | null;
@@ -41,8 +52,8 @@ function timeAgo(dateStr?: string) {
 }
 
 const ConversationItem = memo(function ConversationItem({
-  conv, isSelected, onSelect, onDelete, isAdmin,
-}: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void; onDelete?: (c: ChatConversation) => void; isAdmin?: boolean }) {
+  conv, isSelected, onSelect, onDelete, isAdmin, isDuplicate, onShowDuplicates,
+}: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void; onDelete?: (c: ChatConversation) => void; isAdmin?: boolean; isDuplicate?: boolean; onShowDuplicates?: () => void }) {
   const tempConfig = conv.lead_temperature ? TEMPERATURE_CONFIG[conv.lead_temperature] : null;
   const displayPhone = conv.phone || (conv.numero_contrato?.startsWith("WA-") ? conv.numero_contrato.replace("WA-", "") : null);
   return (
@@ -84,9 +95,13 @@ const ConversationItem = memo(function ConversationItem({
               {!displayPhone && conv.numero_contrato && !conv.numero_contrato.startsWith("WA-") && (
                 <span className="text-[10px] text-muted-foreground">📋 {conv.numero_contrato}</span>
               )}
-              {conv.vendedor_nome && (
-                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">
-                  👤 {conv.vendedor_nome}
+              {isDuplicate && isAdmin && onShowDuplicates && (
+                <Badge
+                  variant="outline"
+                  className="text-[9px] h-4 px-1.5 font-normal border-amber-500/50 text-amber-600 cursor-pointer hover:bg-amber-500/10"
+                  onClick={(e) => { e.stopPropagation(); onShowDuplicates(); }}
+                >
+                  <Copy className="h-2.5 w-2.5 mr-0.5" /> Duplicada
                 </Badge>
               )}
             </div>
@@ -110,7 +125,7 @@ const ConversationItem = memo(function ConversationItem({
   );
 });
 
-export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, onDelete, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
+export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, onDelete, onMergeDuplicate, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [vendedorFilter, setVendedorFilter] = useState<VendedorFilter>("all");
@@ -120,6 +135,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [isListOpen, setIsListOpen] = useState(!selectedId);
   const [isWaListOpen, setIsWaListOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(isNotificationSoundEnabled());
+  const [duplicateDialog, setDuplicateDialog] = useState<{ duplicates: ChatConversation[] } | null>(null);
 
   const vendedorCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -157,6 +173,31 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
     }
     return result;
   }, [conversations, search, tempFilter, vendedorFilter, unreadOnly, dateFilter]);
+
+  // Detect duplicates by phone number
+  const duplicatePhoneMap = useMemo(() => {
+    const phoneGroups = new Map<string, ChatConversation[]>();
+    filtered.forEach((c) => {
+      const phone = (c.phone || "").replace(/\D/g, "").slice(-8);
+      if (phone.length >= 8) {
+        const existing = phoneGroups.get(phone) || [];
+        existing.push(c);
+        phoneGroups.set(phone, existing);
+      }
+    });
+    // Only keep groups with 2+ conversations
+    const dups = new Map<string, ChatConversation[]>();
+    phoneGroups.forEach((convs, phone) => {
+      if (convs.length > 1) dups.set(phone, convs);
+    });
+    return dups;
+  }, [filtered]);
+
+  const duplicateConvIds = useMemo(() => {
+    const ids = new Set<string>();
+    duplicatePhoneMap.forEach((convs) => convs.forEach((c) => ids.add(c.id)));
+    return ids;
+  }, [duplicatePhoneMap]);
 
   // Split into system clients vs WhatsApp imported contacts
   const systemClients = useMemo(() => filtered.filter(c => !c.numero_contrato?.startsWith("WA-")), [filtered]);
@@ -405,7 +446,20 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                 </div>
               ) : (
                  systemClients.map((conv) => (
-                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsListOpen(false); }} onDelete={onDelete} isAdmin={isAdminOrManager} />
+                  <ConversationItem
+                    key={conv.id}
+                    conv={conv}
+                    isSelected={selectedId === conv.id}
+                    onSelect={(c) => { onSelect(c); setIsListOpen(false); }}
+                    onDelete={onDelete}
+                    isAdmin={isAdminOrManager}
+                    isDuplicate={duplicateConvIds.has(conv.id)}
+                    onShowDuplicates={() => {
+                      const phone = (conv.phone || "").replace(/\D/g, "").slice(-8);
+                      const dups = duplicatePhoneMap.get(phone);
+                      if (dups && dups.length > 1) setDuplicateDialog({ duplicates: dups });
+                    }}
+                  />
                 ))
               )}
             </div>
@@ -430,13 +484,78 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
             <CollapsibleContent>
               <div className="max-h-[35vh] overflow-y-auto">
                 {waContacts.map((conv) => (
-                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsWaListOpen(false); }} onDelete={onDelete} isAdmin={isAdminOrManager} />
+                  <ConversationItem
+                    key={conv.id}
+                    conv={conv}
+                    isSelected={selectedId === conv.id}
+                    onSelect={(c) => { onSelect(c); setIsWaListOpen(false); }}
+                    onDelete={onDelete}
+                    isAdmin={isAdminOrManager}
+                    isDuplicate={duplicateConvIds.has(conv.id)}
+                    onShowDuplicates={() => {
+                      const phone = (conv.phone || "").replace(/\D/g, "").slice(-8);
+                      const dups = duplicatePhoneMap.get(phone);
+                      if (dups && dups.length > 1) setDuplicateDialog({ duplicates: dups });
+                    }}
+                  />
                 ))}
               </div>
             </CollapsibleContent>
           </Collapsible>
         )}
       </div>
+
+      {/* Duplicate Resolution Dialog */}
+      <AlertDialog open={!!duplicateDialog} onOpenChange={(open) => !open && setDuplicateDialog(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Copy className="h-4 w-4 text-amber-500" />
+              Conversas duplicadas encontradas
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Estas conversas possuem o mesmo número de telefone. Escolha qual manter — as mensagens da outra serão mescladas e a duplicata removida.</p>
+                <div className="space-y-2">
+                  {duplicateDialog?.duplicates.map((conv) => (
+                    <button
+                      key={conv.id}
+                      onClick={() => {
+                        if (!onMergeDuplicate || !duplicateDialog) return;
+                        const others = duplicateDialog.duplicates.filter((c) => c.id !== conv.id);
+                        others.forEach((other) => onMergeDuplicate(conv, other));
+                        setDuplicateDialog(null);
+                      }}
+                      className="w-full text-left p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{conv.nome_cliente}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono">{conv.numero_contrato}</p>
+                        </div>
+                        <div className="text-right">
+                          {conv.last_message_at && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Última msg: {format(new Date(conv.last_message_at), "dd/MM HH:mm")}
+                            </p>
+                          )}
+                          {conv.vendedor_nome && (
+                            <p className="text-[10px] text-muted-foreground">👤 {conv.vendedor_nome}</p>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-primary mt-1 font-medium">Clique para manter esta ✓</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 });
