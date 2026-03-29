@@ -7,7 +7,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone, Trash2, Volume2, VolumeX } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone, Trash2, Volume2, VolumeX, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
 import { isNotificationSoundEnabled, setNotificationSoundEnabled } from "@/lib/notificationSound";
@@ -19,6 +29,7 @@ interface Props {
   selectedId: string | null;
   onSelect: (conv: ChatConversation) => void;
   onDelete?: (conv: ChatConversation) => void;
+  onMergeDuplicate?: (keep: ChatConversation, remove: ChatConversation) => void;
   loading: boolean;
   onStartConversation?: () => void;
   currentUserName?: string | null;
