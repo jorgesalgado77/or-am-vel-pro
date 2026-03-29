@@ -691,31 +691,63 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     if (!tenantId || !selected) return;
     setCloseSaleSaving(true);
     try {
-      const { error } = await supabase.from("contracts").insert({
+      // Build contract HTML using template if available
+      const { data: templateData } = await supabase
+        .from("company_settings")
+        .select("contract_template")
+        .limit(1)
+        .maybeSingle();
+
+      const template = (templateData as Record<string, unknown> | null)?.contract_template as string || "<p>Contrato gerado automaticamente</p>";
+
+      const { buildContractHtml } = await import("@/services/contractService");
+      const { data: settingsData } = await supabase
+        .from("company_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      const contractHtml = buildContractHtml(template, {
+        formData,
+        client: {
+          nome: selected.nome_cliente,
+          cpf: null,
+          telefone1: selected.phone || null,
+          email: null,
+          numero_orcamento: selected.numero_contrato || null,
+          vendedor: selected.vendedor_nome || null,
+        },
+        valorTela: closeSaleSimData?.valorFinal || 0,
+        result: {
+          valorFinal: closeSaleSimData?.valorFinal || 0,
+          valorParcela: closeSaleSimData?.valorParcela || 0,
+          valorComDesconto: closeSaleSimData?.valorFinal || 0,
+        },
+        formaPagamento: closeSaleSimData?.formaPagamento || "",
+        parcelas: closeSaleSimData?.parcelas || 1,
+        valorEntrada: closeSaleSimData?.valorEntrada || 0,
+        settings: settingsData || {},
+        selectedIndicador: null,
+        comissaoPercentual: 0,
+        items: items as Array<{ quantidade: number; descricao_ambiente: string; fornecedor: string; prazo: string; valor_ambiente: number }>,
+        itemDetails: itemDetails as Array<{ item_num: number; titulos: string; corpo: string; porta: string; puxador: string; complemento: string; modelo: string }>,
+      });
+
+      const { error } = await supabase.from("client_contracts").insert({
         tenant_id: tenantId,
         client_id: selected.client_id || null,
-        tracking_id: selected.id,
-        numero_contrato: (formData as { numero_contrato?: string }).numero_contrato || selected.numero_contrato,
-        nome_cliente: (formData as { nome_completo?: string }).nome_completo || selected.nome_cliente,
-        status: "ativo",
-        valor_final: closeSaleSimData?.valorFinal || 0,
-        forma_pagamento: closeSaleSimData?.formaPagamento || "",
-        parcelas: closeSaleSimData?.parcelas || 1,
-        valor_entrada: closeSaleSimData?.valorEntrada || 0,
-        data_fechamento: (formData as { data_fechamento?: string }).data_fechamento || new Date().toISOString().slice(0, 10),
-        vendedor: (formData as { responsavel_venda?: string }).responsavel_venda || selected.vendedor_nome || "",
-        observacoes: (formData as { observacoes?: string }).observacoes || "",
-        items: JSON.stringify(items),
-        item_details: JSON.stringify(itemDetails),
-        form_data: JSON.stringify(formData),
+        conteudo_html: contractHtml,
       } as Record<string, unknown>);
+
       if (error) throw error;
+
       if (selected.client_id) {
         await supabase
           .from("clients")
           .update({ etapa_funil: "contrato" } as Record<string, unknown>)
           .eq("id", selected.client_id);
       }
+
       toast.success("🎉 Contrato gerado com sucesso!");
       setCloseSaleOpen(false);
     } catch (err) {
