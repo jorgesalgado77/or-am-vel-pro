@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
 
 export interface SalesMetrics {
   leads_count: number;
@@ -161,6 +162,42 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
       new Date(c.updated_at || c.created_at) < threeDaysAgo
     );
     setStalledLeads(stalled);
+
+    // Stalled simulations (clients with simulations but no contract and no recent update)
+    const stalledSimClients = clients.filter((c: any) => {
+      if (contractClientIds.has(c.id) || c.status === "perdido") return false;
+      const lastUpdate = new Date(c.updated_at || c.created_at);
+      return lastUpdate < threeDaysAgo && (c.status === "proposta_enviada" || c.status === "em_negociacao");
+    });
+
+    // Send push notifications for stalled leads/simulations (once per session per user)
+    if (userId && (stalled.length > 0 || stalledSimClients.length > 0)) {
+      const stalledBySeller: Record<string, string[]> = {};
+      stalled.forEach((l: any) => {
+        const seller = l.vendedor || "Sem vendedor";
+        if (!stalledBySeller[seller]) stalledBySeller[seller] = [];
+        stalledBySeller[seller].push(l.nome || "Cliente");
+      });
+
+      // Push notification for each seller's stalled leads (admin/manager gets all)
+      if (isAdminOrManager) {
+        Object.entries(stalledBySeller).forEach(([seller, names]) => {
+          sendPushIfEnabled("leads", userId,
+            `⚠️ ${names.length} lead(s) parado(s) — ${seller}`,
+            `${names.slice(0, 3).join(", ")}${names.length > 3 ? ` +${names.length - 3}` : ""}. Cobrar retorno!`,
+            `stalled-leads-${seller}-${new Date().toISOString().substring(0, 10)}`
+          );
+        });
+      }
+
+      if (stalledSimClients.length > 0 && isAdminOrManager) {
+        sendPushIfEnabled("leads", userId,
+          `📊 ${stalledSimClients.length} simulação(ões) parada(s)`,
+          "Clientes com proposta sem retorno. Verifique e cobre acompanhamento.",
+          `stalled-sims-${new Date().toISOString().substring(0, 10)}`
+        );
+      }
+    }
 
     // Hot leads — in negotiation with recent activity, no contract
     const hot = clients.filter((c: any) =>
