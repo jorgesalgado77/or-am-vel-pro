@@ -49,7 +49,7 @@ export function ChatDealInsights({ conversation, tenantId, messageCount }: Props
 
   const ctx = useMemo((): DealContext | null => {
     if (!tenantId) return null;
-    const conv = conversation as Record<string, unknown>;
+    const conv = conversation as unknown as Record<string, unknown>;
 
     const updatedAt = conv.updated_at as string | undefined;
     const daysInactive = updatedAt
