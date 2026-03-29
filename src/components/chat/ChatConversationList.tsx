@@ -7,9 +7,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone } from "lucide-react";
+import { Search, MessageCircle, Filter, CalendarDays, X, MessageSquarePlus, ChevronDown, ChevronRight, Users, Phone, Trash2, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
+import { isNotificationSoundEnabled, setNotificationSoundEnabled } from "@/lib/notificationSound";
 import { format } from "date-fns";
 import type { ChatConversation } from "./types";
 
@@ -17,6 +18,7 @@ interface Props {
   conversations: ChatConversation[];
   selectedId: string | null;
   onSelect: (conv: ChatConversation) => void;
+  onDelete?: (conv: ChatConversation) => void;
   loading: boolean;
   onStartConversation?: () => void;
   currentUserName?: string | null;
@@ -39,61 +41,76 @@ function timeAgo(dateStr?: string) {
 }
 
 const ConversationItem = memo(function ConversationItem({
-  conv, isSelected, onSelect,
-}: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void }) {
+  conv, isSelected, onSelect, onDelete, isAdmin,
+}: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void; onDelete?: (c: ChatConversation) => void; isAdmin?: boolean }) {
   const tempConfig = conv.lead_temperature ? TEMPERATURE_CONFIG[conv.lead_temperature] : null;
   const displayPhone = conv.phone || (conv.numero_contrato?.startsWith("WA-") ? conv.numero_contrato.replace("WA-", "") : null);
   return (
-    <button
-      onClick={() => onSelect(conv)}
-      className={cn(
-        "w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors duration-100",
-        isSelected ? "bg-primary/8" : "hover:bg-muted/50 active:scale-[0.99]"
-      )}
-    >
-      <div className="flex items-start gap-2">
-        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold text-primary">
-          {conv.nome_cliente.charAt(0).toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-sm font-medium text-foreground truncate">{conv.nome_cliente}</span>
-            <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(conv.last_message_at)}</span>
+    <div className="relative group">
+      <button
+        onClick={() => onSelect(conv)}
+        className={cn(
+          "w-full text-left px-3 py-2.5 border-b border-border/50 transition-colors duration-100",
+          isSelected ? "bg-primary/8" : "hover:bg-muted/50 active:scale-[0.99]"
+        )}
+      >
+        <div className="flex items-start gap-2">
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold text-primary">
+            {conv.nome_cliente.charAt(0).toUpperCase()}
           </div>
-          <div className="flex items-center justify-between gap-1 mt-0.5">
-            <p className="text-xs text-muted-foreground truncate flex-1">{conv.last_message || conv.numero_contrato}</p>
-            <div className="flex items-center gap-1 shrink-0">
-              {tempConfig && <span className="text-[10px]" title={tempConfig.label}>{tempConfig.emoji}</span>}
-              {conv.unread_count > 0 && (
-                <Badge variant="destructive" className="text-[9px] h-4 min-w-[16px] px-1 flex items-center justify-center">
-                  {conv.unread_count}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-sm font-medium text-foreground truncate">{conv.nome_cliente}</span>
+              <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(conv.last_message_at)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-1 mt-0.5">
+              <p className="text-xs text-muted-foreground truncate flex-1">{conv.last_message || conv.numero_contrato}</p>
+              <div className="flex items-center gap-1 shrink-0">
+                {tempConfig && <span className="text-[10px]" title={tempConfig.label}>{tempConfig.emoji}</span>}
+                {conv.unread_count > 0 && (
+                  <Badge variant="destructive" className="text-[9px] h-4 min-w-[16px] px-1 flex items-center justify-center">
+                    {conv.unread_count}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {displayPhone && (
+                <span className="text-[10px] text-emerald-600 flex items-center gap-0.5">
+                  <Phone className="h-2.5 w-2.5" />
+                  {displayPhone}
+                </span>
+              )}
+              {!displayPhone && conv.numero_contrato && !conv.numero_contrato.startsWith("WA-") && (
+                <span className="text-[10px] text-muted-foreground">📋 {conv.numero_contrato}</span>
+              )}
+              {conv.vendedor_nome && (
+                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">
+                  👤 {conv.vendedor_nome}
                 </Badge>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            {displayPhone && (
-              <span className="text-[10px] text-emerald-600 flex items-center gap-0.5">
-                <Phone className="h-2.5 w-2.5" />
-                {displayPhone}
-              </span>
-            )}
-            {!displayPhone && conv.numero_contrato && !conv.numero_contrato.startsWith("WA-") && (
-              <span className="text-[10px] text-muted-foreground">📋 {conv.numero_contrato}</span>
-            )}
-            {conv.vendedor_nome && (
-              <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-normal">
-                👤 {conv.vendedor_nome}
-              </Badge>
-            )}
-          </div>
         </div>
-      </div>
-    </button>
+      </button>
+      {isAdmin && onDelete && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(conv); }}
+              className="absolute right-2 top-2 h-6 w-6 rounded-md bg-destructive/10 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left"><p className="text-xs">Excluir conversa</p></TooltipContent>
+        </Tooltip>
+      )}
+    </div>
   );
 });
 
-export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
+export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, onDelete, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [vendedorFilter, setVendedorFilter] = useState<VendedorFilter>("all");
@@ -102,6 +119,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [showFilters, setShowFilters] = useState(false);
   const [isListOpen, setIsListOpen] = useState(!selectedId);
   const [isWaListOpen, setIsWaListOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(isNotificationSoundEnabled());
 
   const vendedorCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -185,6 +203,25 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
             Conversas
           </h3>
           <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    const next = !soundEnabled;
+                    setSoundEnabled(next);
+                    setNotificationSoundEnabled(next);
+                  }}
+                >
+                  {soundEnabled ? <Volume2 className="h-3.5 w-3.5 text-primary" /> : <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">{soundEnabled ? "Som ativado" : "Som desativado"}</p>
+              </TooltipContent>
+            </Tooltip>
             {onStartConversation && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -367,8 +404,8 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
                   {search || hasActiveFilter ? "Nenhum resultado" : "Nenhuma conversa"}
                 </div>
               ) : (
-                systemClients.map((conv) => (
-                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsListOpen(false); }} />
+                 systemClients.map((conv) => (
+                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsListOpen(false); }} onDelete={onDelete} isAdmin={isAdminOrManager} />
                 ))
               )}
             </div>
@@ -393,7 +430,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
             <CollapsibleContent>
               <div className="max-h-[35vh] overflow-y-auto">
                 {waContacts.map((conv) => (
-                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsWaListOpen(false); }} />
+                  <ConversationItem key={conv.id} conv={conv} isSelected={selectedId === conv.id} onSelect={(c) => { onSelect(c); setIsWaListOpen(false); }} onDelete={onDelete} isAdmin={isAdminOrManager} />
                 ))}
               </div>
             </CollapsibleContent>

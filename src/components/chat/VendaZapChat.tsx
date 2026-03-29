@@ -761,6 +761,26 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
     handleSelectConversation(newConv);
   }, [conversations, currentUser, fetchConversations, tenantId, normalizePhone]);
 
+  // Delete conversation (admin only)
+  const handleDeleteConversation = useCallback(async (conv: ChatConversation) => {
+    if (!isAdminOrManager) return;
+    if (!confirm(`Tem certeza que deseja excluir a conversa com "${conv.nome_cliente}"?\n\nTodas as mensagens serão removidas permanentemente.`)) return;
+
+    try {
+      // Delete messages first, then tracking
+      await supabase.from("tracking_messages").delete().eq("tracking_id", conv.id);
+      await supabase.from("client_tracking").delete().eq("id", conv.id);
+
+      setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+      if (selected?.id === conv.id) setSelected(null);
+      toast.success(`Conversa com "${conv.nome_cliente}" excluída`);
+      fetchConversations();
+    } catch (err) {
+      console.error("Delete conversation error:", err);
+      toast.error("Erro ao excluir conversa");
+    }
+  }, [isAdminOrManager, selected, fetchConversations]);
+
   const existingConvIds = useMemo(() => new Set(conversations.map((c) => c.id)), [conversations]);
 
   // Handle store message sent — trigger simulator reply
@@ -855,6 +875,7 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
             conversations={conversations}
             selectedId={selected?.id || null}
             onSelect={handleSelectConversation}
+            onDelete={isAdminOrManager ? handleDeleteConversation : undefined}
             loading={loading}
             onStartConversation={() => setShowStartModal(true)}
             currentUserName={currentUser?.nome_completo || null}
