@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCommercialAI, type AIInsight } from "@/hooks/useCommercialAI";
 import { SalesGoalsPanel } from "@/components/commercial/SalesGoalsPanel";
+import { useMetasTetos } from "@/hooks/useMetasTetos";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -122,6 +123,7 @@ export function CommercialAIPanel() {
   const { user } = useAuth();
   const userRole = user?.cargo_nome || "";
   const { metrics, insights, rankings, stalledLeads, hotLeads, loading, markInsightRead, clientsBySeller, isAdminOrManager } = useCommercialAI(tenantId, user?.id, userRole);
+  const { metaLoja, metaVendedor, tetoLiberacao } = useMetasTetos();
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([
     { role: "assistant", content: "Olá! Sou sua **IA Gerente Comercial** 🤖. Posso analisar suas vendas, identificar oportunidades e sugerir ações com base nos seus dados reais. Pergunte-me algo!" },
   ]);
