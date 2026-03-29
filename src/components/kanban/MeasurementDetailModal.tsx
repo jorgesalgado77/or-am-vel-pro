@@ -1,12 +1,14 @@
 /**
  * Modal to view full measurement request details including all data and attachments.
+ * Shows seller, technician, store, contract and briefing info with proper scroll.
  */
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Ruler, MapPin, User, Clock, FileText, Image, Pencil, Phone, Mail, CreditCard, Eye,
+  Ruler, MapPin, User, Clock, FileText, Pencil, Phone, Mail, CreditCard, Eye,
+  Store, ClipboardList, UserCheck, ExternalLink,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
@@ -33,6 +35,13 @@ interface MeasurementRequest {
   last_edited_at: string | null;
   created_at: string;
   updated_at: string;
+  // Extended fields
+  seller_name?: string;
+  technician_name?: string;
+  store_code?: string;
+  contract_number?: string;
+  contract_url?: string;
+  briefing_url?: string;
 }
 
 interface Props {
@@ -47,6 +56,40 @@ const STATUS_MAP: Record<string, { label: string; icon: string; className: strin
   concluido: { label: "Concluído", icon: "✅", className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" },
 };
 
+function AttachmentPreview({ att, onClick }: { att: any; onClick: () => void }) {
+  const url = att.url || att.file_url || att.preview_url || "";
+  const name = att.name || att.file_name || "arquivo";
+  const isImage = att.kind === "image" || att.mime_type?.startsWith("image/") ||
+    /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(url) || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(name);
+  const isPdf = att.kind === "pdf" || att.mime_type === "application/pdf" ||
+    /\.pdf$/i.test(url) || /\.pdf$/i.test(name);
+
+  return (
+    <button
+      onClick={onClick}
+      className="group relative rounded-lg overflow-hidden border bg-background hover:ring-2 hover:ring-primary/50 transition-all aspect-square"
+    >
+      {isImage ? (
+        <img src={url} alt={name} className="w-full h-full object-cover" loading="lazy" />
+      ) : isPdf ? (
+        <div className="flex flex-col items-center justify-center h-full gap-1 p-2 bg-red-50 dark:bg-red-950/20">
+          <FileText className="h-8 w-8 text-red-500" />
+          <span className="text-[8px] font-bold text-red-500 uppercase">PDF</span>
+          <span className="text-[7px] text-muted-foreground truncate w-full text-center">{name}</span>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full gap-1 p-2">
+          <FileText className="h-6 w-6 text-muted-foreground" />
+          <span className="text-[8px] text-muted-foreground truncate w-full text-center">{name}</span>
+        </div>
+      )}
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+        <Eye className="h-5 w-5 text-white" />
+      </div>
+    </button>
+  );
+}
+
 export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -60,8 +103,8 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6 pb-0">
+        <DialogContent className="max-w-3xl w-[95vw] p-0 flex flex-col" style={{ maxHeight: "90vh" }}>
+          <DialogHeader className="px-6 pt-6 pb-0 shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base">
               <Ruler className="h-5 w-5 text-primary" />
               Detalhes da Solicitação
@@ -71,7 +114,7 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
             </DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 px-6 pb-6" style={{ maxHeight: "calc(90vh - 80px)" }}>
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
             <div className="space-y-5 py-4">
               {/* Client info */}
               <div className="space-y-2">
@@ -108,6 +151,87 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                 </div>
               </div>
 
+              {/* Seller / Technician / Store / Contract */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4 text-primary" /> Informações da Solicitação
+                </h3>
+                <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3 border">
+                  {request.seller_name && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Vendedor / Projetista</p>
+                      <p className="text-sm font-medium text-foreground">{request.seller_name}</p>
+                    </div>
+                  )}
+                  {request.created_by && !request.seller_name && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Criado por</p>
+                      <p className="text-sm font-medium text-foreground">{request.created_by}</p>
+                    </div>
+                  )}
+                  {request.technician_name && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Técnico / Conferente</p>
+                      <div className="flex items-center gap-1.5">
+                        <UserCheck className="h-3.5 w-3.5 text-primary" />
+                        <p className="text-sm font-medium text-foreground">{request.technician_name}</p>
+                      </div>
+                    </div>
+                  )}
+                  {request.assigned_to && !request.technician_name && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Atribuído a</p>
+                      <p className="text-sm font-medium text-foreground">{request.assigned_to}</p>
+                    </div>
+                  )}
+                  {request.store_code && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Código da Loja</p>
+                      <div className="flex items-center gap-1.5">
+                        <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                        <p className="text-sm font-medium text-foreground">{request.store_code}</p>
+                      </div>
+                    </div>
+                  )}
+                  {request.contract_number && (
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Nº Contrato</p>
+                      <p className="text-sm font-medium text-foreground">{request.contract_number}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Contract + Briefing links */}
+                {(request.contract_url || request.briefing_url) && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {request.contract_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => window.open(request.contract_url!, "_blank")}
+                      >
+                        <FileText className="h-3.5 w-3.5 text-primary" />
+                        Ver Contrato
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {request.briefing_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => window.open(request.briefing_url!, "_blank")}
+                      >
+                        <ClipboardList className="h-3.5 w-3.5 text-primary" />
+                        Ver Briefing
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Delivery address */}
               {hasAddress && (
                 <div className="space-y-2">
@@ -141,23 +265,11 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Anexos</p>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                             {amb.attachments.map((att: any, j: number) => (
-                              <button
+                              <AttachmentPreview
                                 key={j}
-                                onClick={() => setPreviewUrl(att.url)}
-                                className="group relative rounded-lg overflow-hidden border bg-background hover:ring-2 hover:ring-primary/50 transition-all aspect-square"
-                              >
-                                {att.kind === "image" ? (
-                                  <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="flex flex-col items-center justify-center h-full gap-1 p-2">
-                                    <FileText className="h-6 w-6 text-muted-foreground" />
-                                    <span className="text-[9px] text-muted-foreground truncate w-full text-center">{att.name}</span>
-                                  </div>
-                                )}
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                  <Eye className="h-5 w-5 text-white" />
-                                </div>
-                              </button>
+                                att={att}
+                                onClick={() => setPreviewUrl(att.url || att.file_url || att.preview_url)}
+                              />
                             ))}
                           </div>
                         </div>
@@ -167,21 +279,15 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                       {!amb.attachments?.length && amb.images && amb.images.length > 0 && (
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                           {amb.images.map((url: string, j: number) => (
-                            <button
+                            <AttachmentPreview
                               key={j}
+                              att={{ url, kind: "image", name: `Imagem ${j + 1}` }}
                               onClick={() => setPreviewUrl(url)}
-                              className="group relative rounded-lg overflow-hidden border bg-background hover:ring-2 hover:ring-primary/50 transition-all aspect-square"
-                            >
-                              <img src={url} alt={`Imagem ${j + 1}`} className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <Eye className="h-5 w-5 text-white" />
-                              </div>
-                            </button>
+                            />
                           ))}
                         </div>
                       )}
 
-                      {/* Imported file info */}
                       {amb.fileName && (
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                           <FileText className="h-3 w-3" />
@@ -212,12 +318,6 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                   <span>Criado em {format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
                   {request.created_by && <span>• por {request.created_by}</span>}
                 </div>
-                {request.assigned_to && (
-                  <div className="flex items-center gap-2">
-                    <User className="h-3 w-3" />
-                    <span>Atribuído a: <span className="font-medium text-foreground">{request.assigned_to}</span></span>
-                  </div>
-                )}
                 {request.last_edited_by && (
                   <div className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1 border">
                     <Pencil className="h-3 w-3" />
@@ -232,7 +332,7 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                 )}
               </div>
             </div>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
