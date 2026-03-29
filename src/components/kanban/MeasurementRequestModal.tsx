@@ -1825,6 +1825,18 @@ export function MeasurementRequestModal({
               Nº Contrato: <span className="font-semibold text-foreground">{tracking.numero_contrato}</span>
             </p>
           )}
+          {lastEditInfo && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-md px-3 py-1.5 mt-2 flex items-center gap-2 text-xs">
+              <Pencil className="h-3 w-3 text-amber-600 shrink-0" />
+              <span className="text-muted-foreground">
+                Última alteração por <span className="font-semibold text-foreground">{lastEditInfo.by}</span>
+                {lastEditInfo.cargo && <span className="text-amber-600"> ({lastEditInfo.cargo})</span>}
+                {lastEditInfo.at && (
+                  <span> em {new Date(lastEditInfo.at).toLocaleDateString("pt-BR")} às {new Date(lastEditInfo.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                )}
+              </span>
+            </div>
+          )}
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 pb-2" style={{ maxHeight: "calc(90vh - 140px)" }}>
