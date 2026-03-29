@@ -671,6 +671,61 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     }
   };
 
+  const handleCloseSaleFromAI = useCallback(async (data: CloseSaleData) => {
+    if (!selected) return;
+    if (selected.client_id) {
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", selected.client_id)
+        .maybeSingle();
+      setCloseSaleClient(clientData || null);
+    } else {
+      setCloseSaleClient(null);
+    }
+    setCloseSaleSimData(data);
+    setCloseSaleOpen(true);
+  }, [selected]);
+
+  const handleCloseSaleConfirm = useCallback(async (formData: Record<string, unknown>, items: unknown[], itemDetails: unknown[]) => {
+    if (!tenantId || !selected) return;
+    setCloseSaleSaving(true);
+    try {
+      const { error } = await supabase.from("contracts").insert({
+        tenant_id: tenantId,
+        client_id: selected.client_id || null,
+        tracking_id: selected.id,
+        numero_contrato: (formData as { numero_contrato?: string }).numero_contrato || selected.numero_contrato,
+        nome_cliente: (formData as { nome_completo?: string }).nome_completo || selected.nome_cliente,
+        status: "ativo",
+        valor_final: closeSaleSimData?.valorFinal || 0,
+        forma_pagamento: closeSaleSimData?.formaPagamento || "",
+        parcelas: closeSaleSimData?.parcelas || 1,
+        valor_entrada: closeSaleSimData?.valorEntrada || 0,
+        data_fechamento: (formData as { data_fechamento?: string }).data_fechamento || new Date().toISOString().slice(0, 10),
+        vendedor: (formData as { responsavel_venda?: string }).responsavel_venda || selected.vendedor_nome || "",
+        observacoes: (formData as { observacoes?: string }).observacoes || "",
+        items: JSON.stringify(items),
+        item_details: JSON.stringify(itemDetails),
+        form_data: JSON.stringify(formData),
+      } as Record<string, unknown>);
+      if (error) throw error;
+      if (selected.client_id) {
+        await supabase
+          .from("clients")
+          .update({ etapa_funil: "contrato" } as Record<string, unknown>)
+          .eq("id", selected.client_id);
+      }
+      toast.success("🎉 Contrato gerado com sucesso!");
+      setCloseSaleOpen(false);
+    } catch (err) {
+      console.error("[CloseSale] Error:", err);
+      toast.error("Erro ao gerar contrato");
+    } finally {
+      setCloseSaleSaving(false);
+    }
+  }, [tenantId, selected, closeSaleSimData]);
+
   const handleStartConversation = useCallback(async (trackingId: string, clientName: string, contractNumber: string) => {
     setShowStartModal(false);
 
