@@ -245,7 +245,7 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
           )}
         </div>
 
-        <ScrollArea className="max-h-[240px]">
+        <ScrollArea className="max-h-[360px]">
           {tab === "rapidas" && (
             <>
               {loading ? (
