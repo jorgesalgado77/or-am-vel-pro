@@ -553,7 +553,8 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
               triggerAI(selected, true);
             }
 
-            if (autoPilotActive && conv) {
+            // Auto-pilot: only auto-send in "automatico" mode
+            if (autoPilotActive && conv && interventionMode === "automatico") {
               const { data: recentMsgs } = await supabase
                 .from("tracking_messages")
                 .select("mensagem, remetente_tipo")
@@ -573,6 +574,13 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 toast.success(`🤖 Auto-Pilot respondeu ${conv.nome_cliente}`, {
                   description: `Intenção: ${result.intencao} | ${result.tokensUsed} tokens`,
                   duration: 5000,
+                });
+              }
+            } else if (autoPilotActive && conv && interventionMode === "assistido") {
+              // In assisted mode, just trigger AI suggestion (already done above via triggerAI)
+              if (!isSelectedConversation) {
+                toast.info(`💡 Nova mensagem de ${conv.nome_cliente} — IA preparou sugestão`, {
+                  duration: 4000,
                 });
               }
             }
