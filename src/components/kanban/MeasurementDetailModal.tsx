@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Ruler, MapPin, User, FileText, Pencil, Phone, Mail, CreditCard, Eye,
-  Store, ClipboardList, UserCheck, ExternalLink,
+  Store, ClipboardList, UserCheck, ExternalLink, Printer, Maximize2, Image as ImageIcon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 interface MeasurementRequest {
@@ -75,89 +75,72 @@ const STATUS_MAP: Record<string, { label: string; icon: string; className: strin
   concluido: { label: "Concluído", icon: "✅", className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" },
 };
 
-function parseMaybeJson(value: any) {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim();
-  if (!trimmed) return value;
-
-  const looksLikeJson = (
-    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
-    (trimmed.startsWith("[") && trimmed.endsWith("]"))
-  );
-
-  if (!looksLikeJson) return value;
-
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return value;
-  }
-}
-
-function getAttachmentSource(rawAttachment: any): any {
-  const parsed = parseMaybeJson(rawAttachment);
-  if (Array.isArray(parsed)) return parsed[0] || null;
-  if (!parsed) return null;
-  if (typeof parsed === "object") return parsed.asset || parsed.file || parsed.attachment || parsed;
-  return parsed;
-}
-
-function normalizeStorageUrl(bucket: string, rawPath: string) {
-  const normalizedPath = String(rawPath)
-    .replace(/^\/+/, "")
-    .replace(/^storage\/v1\/object\/public\//, "")
-    .replace(new RegExp(`^${bucket}/`), "");
-
-  if (!normalizedPath) return "";
-  const { data } = supabase.storage.from(bucket).getPublicUrl(normalizedPath);
-  return data?.publicUrl || "";
-}
-
 function resolveAttachmentUrl(rawAttachment: any): string {
-  const source = getAttachmentSource(rawAttachment);
-  if (!source) return "";
+  if (!rawAttachment) return "";
 
-  if (typeof source === "string") {
-    if (/^(https?:|blob:|data:)/i.test(source)) return source;
-
-    const cleaned = source.replace(/^\/+/, "").replace(/^storage\/v1\/object\/public\//, "");
+  // Handle strings directly
+  if (typeof rawAttachment === "string") {
+    if (/^(https?:|blob:|data:)/i.test(rawAttachment)) return rawAttachment;
+    // Treat as storage path
+    const cleaned = rawAttachment.replace(/^\/+/, "").replace(/^storage\/v1\/object\/public\//, "");
     const parts = cleaned.split("/");
     const bucket = parts.length > 1 ? parts[0] : "company-assets";
     const path = parts.length > 1 ? parts.slice(1).join("/") : cleaned;
-    return normalizeStorageUrl(bucket, path);
+    if (!path) return "";
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data?.publicUrl || "";
   }
 
-  const directUrl = source.url
-    || source.publicUrl
-    || source.previewUrl
-    || source.preview_url
-    || source.thumbnailUrl
-    || source.thumbnail_url
-    || source.sourceUrl
-    || source.source_url
-    || source.file_url
-    || source.fileUrl
-    || source.signedUrl
-    || source.signed_url
-    || "";
-
-  if (typeof directUrl === "string" && /^(https?:|blob:|data:)/i.test(directUrl)) {
-    return directUrl;
+  // Handle arrays - take first element
+  if (Array.isArray(rawAttachment)) {
+    return rawAttachment.length > 0 ? resolveAttachmentUrl(rawAttachment[0]) : "";
   }
 
-  const bucket = source.bucket || source.bucket_name || source.storageBucket || "company-assets";
-  const rawPath = source.path
-    || source.storagePath
-    || source.storage_path
-    || source.filePath
-    || source.file_path
-    || source.fullPath
-    || source.full_path
-    || directUrl
-    || "";
+  // Handle JSON strings
+  if (typeof rawAttachment === "object") {
+    // Try direct URL fields first
+    const directUrl = rawAttachment.url
+      || rawAttachment.publicUrl
+      || rawAttachment.sourceUrl
+      || rawAttachment.source_url
+      || rawAttachment.previewUrl
+      || rawAttachment.preview_url
+      || rawAttachment.signedUrl
+      || rawAttachment.signed_url
+      || rawAttachment.file_url
+      || rawAttachment.fileUrl
+      || rawAttachment.thumbnailUrl
+      || rawAttachment.thumbnail_url
+      || "";
 
-  if (!rawPath) return "";
-  return normalizeStorageUrl(bucket, rawPath);
+    if (typeof directUrl === "string" && /^(https?:|blob:|data:)/i.test(directUrl)) {
+      return directUrl;
+    }
+
+    // Try nested asset/file
+    const nested = rawAttachment.asset || rawAttachment.file || rawAttachment.attachment;
+    if (nested) return resolveAttachmentUrl(nested);
+
+    // Try storage path
+    const bucket = rawAttachment.bucket || rawAttachment.bucket_name || "company-assets";
+    const rawPath = rawAttachment.path
+      || rawAttachment.storagePath
+      || rawAttachment.storage_path
+      || rawAttachment.filePath
+      || rawAttachment.file_path
+      || rawAttachment.fullPath
+      || rawAttachment.full_path
+      || directUrl
+      || "";
+
+    if (!rawPath) return "";
+    const normalizedPath = String(rawPath).replace(/^\/+/, "").replace(new RegExp(`^${bucket}/`), "");
+    if (!normalizedPath) return "";
+    const { data } = supabase.storage.from(bucket).getPublicUrl(normalizedPath);
+    return data?.publicUrl || "";
+  }
+
+  return "";
 }
 
 function isImageFile(url: string, name: string, mimeType: string) {
@@ -169,14 +152,13 @@ function isPdfFile(url: string, name: string, mimeType: string) {
 }
 
 function normalizeAttachment(rawAttachment: any, index: number): NormalizedAttachment | null {
-  const source = getAttachmentSource(rawAttachment);
-  const url = resolveAttachmentUrl(source || rawAttachment);
-  const name = typeof source === "string"
-    ? `Anexo ${index + 1}`
-    : source?.name || source?.file_name || source?.fileName || `Anexo ${index + 1}`;
-  const mimeType = typeof source === "string"
-    ? ""
-    : source?.type || source?.mimeType || source?.mime_type || "";
+  if (!rawAttachment) return null;
+
+  const url = resolveAttachmentUrl(rawAttachment);
+  
+  const source = typeof rawAttachment === "object" && !Array.isArray(rawAttachment) ? rawAttachment : null;
+  const name = source?.name || source?.file_name || source?.fileName || `Anexo ${index + 1}`;
+  const mimeType = source?.type || source?.mimeType || source?.mime_type || source?.kind || "";
 
   const kind = isImageFile(url, name, mimeType)
     ? "image"
@@ -184,20 +166,23 @@ function normalizeAttachment(rawAttachment: any, index: number): NormalizedAttac
       ? "pdf"
       : "file";
 
+  // For images/pdfs, require a URL
   if (!url && kind !== "file") return null;
 
-  return {
-    url,
-    name,
-    kind,
-  };
+  return { url, name, kind };
 }
 
 function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAttachment; onClick: () => void }) {
-  if (!attachment.url || attachment.kind === "file") {
+  const [imgError, setImgError] = useState(false);
+
+  if (!attachment.url || attachment.kind === "file" || (attachment.kind === "image" && imgError)) {
     return (
       <div className="rounded-lg border bg-muted/30 aspect-square flex flex-col items-center justify-center p-2">
-        <FileText className="h-6 w-6 text-muted-foreground" />
+        {attachment.kind === "image" ? (
+          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+        ) : (
+          <FileText className="h-6 w-6 text-muted-foreground" />
+        )}
         <span className="text-[8px] text-muted-foreground truncate w-full text-center mt-1">{attachment.name}</span>
       </div>
     );
@@ -210,7 +195,13 @@ function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAtta
       type="button"
     >
       {attachment.kind === "image" ? (
-        <img src={attachment.url} alt={attachment.name} className="w-full h-full object-cover" loading="lazy" />
+        <img
+          src={attachment.url}
+          alt={attachment.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={() => setImgError(true)}
+        />
       ) : (
         <div className="flex flex-col items-center justify-center h-full gap-1 p-2 bg-destructive/5">
           <FileText className="h-8 w-8 text-destructive" />
@@ -227,6 +218,7 @@ function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAtta
 
 export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   if (!request) return null;
 
@@ -242,6 +234,55 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const sellerName = request.client_seller_name || request.seller_name || snapshot.vendedor || "—";
   const sellerCargo = request.client_seller_cargo || request.seller_cargo || "";
   const storeCode = request.store_code || snapshot.store_code || snapshot.codigo_loja || "—";
+  const contractNumber = request.contract_number || snapshot.contract_number || snapshot.numero_contrato || snapshot.numero_orcamento || "";
+
+  const handlePrint = () => {
+    const printContent = contentRef.current;
+    if (!printContent) return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html><head><title>Solicitação - ${request.nome_cliente}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; color: #1a1a1a; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .section { margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+        .section h3 { margin: 0 0 8px; font-size: 14px; color: #333; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .label { font-size: 10px; text-transform: uppercase; color: #888; }
+        .value { font-size: 13px; font-weight: 500; }
+        .env { padding: 8px; border: 1px solid #eee; border-radius: 6px; margin: 4px 0; display: flex; justify-content: space-between; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #f0f0f0; }
+        img { max-width: 120px; max-height: 120px; border-radius: 6px; object-fit: cover; margin: 4px; }
+        @media print { body { padding: 0; } }
+      </style></head><body>
+      <div class="header">
+        <div><h2 style="margin:0">📐 Solicitação de Medida</h2><p style="margin:4px 0;font-size:12px;color:#666">${request.nome_cliente}</p></div>
+        <div style="text-align:right"><span class="badge">${statusInfo.icon} ${statusInfo.label}</span>
+        ${contractNumber ? `<p style="font-size:11px;margin:4px 0">Nº ${contractNumber}</p>` : ""}</div>
+      </div>
+      <div class="section"><h3>👤 Criado por</h3><p class="value">${creatorName}${creatorCargo ? ` (${creatorCargo})` : ""}</p><p class="label">${format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p></div>
+      ${editorName ? `<div class="section"><h3>✏️ Editado por</h3><p class="value">${editorName}${editorCargo ? ` (${editorCargo})` : ""}</p></div>` : ""}
+      <div class="section"><h3>👤 Cliente</h3><div class="grid">
+        <div><p class="label">Nome</p><p class="value">${request.nome_cliente}</p></div>
+        <div><p class="label">Valor à Vista</p><p class="value" style="color:#16a34a">${formatCurrency(Number(request.valor_venda_avista) || 0)}</p></div>
+        <div><p class="label">Vendedor / Projetista</p><p class="value">${sellerName}${sellerCargo ? ` (${sellerCargo})` : ""}</p></div>
+        <div><p class="label">Código da Loja</p><p class="value">${storeCode}</p></div>
+      </div></div>
+      <div class="section"><h3>📋 Ambientes (${request.ambientes?.length || 0})</h3>
+        ${(request.ambientes || []).map((env: any, i: number) => `<div class="env"><span>${env.name || `Ambiente ${i + 1}`}</span><span style="color:#16a34a;font-weight:bold">${formatCurrency(env.value || 0)}</span></div>`).join("")}
+      </div>
+      ${request.observacoes ? `<div class="section"><h3>📝 Observações</h3><p style="font-size:13px;white-space:pre-wrap">${request.observacoes}</p></div>` : ""}
+      </body></html>
+    `);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 300);
+  };
+
+  const handleFullscreen = () => {
+    const el = contentRef.current?.closest("[role='dialog']");
+    if (el && el.requestFullscreen) el.requestFullscreen();
+  };
 
   return (
     <>
@@ -251,13 +292,26 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
             <DialogTitle className="flex items-center gap-2 text-base">
               <Ruler className="h-5 w-5 text-primary" />
               Detalhes da Solicitação
+              {contractNumber && (
+                <Badge variant="secondary" className="text-[10px] font-mono ml-1">
+                  Nº {contractNumber}
+                </Badge>
+              )}
               <Badge variant="outline" className={statusInfo.className + " ml-auto text-xs"}>
                 {statusInfo.icon} {statusInfo.label}
               </Badge>
             </DialogTitle>
+            <div className="flex items-center gap-2 mt-2">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={handleFullscreen}>
+                <Maximize2 className="h-3 w-3" /> Expandir
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={handlePrint}>
+                <Printer className="h-3 w-3" /> Imprimir
+              </Button>
+            </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div ref={contentRef} className="flex-1 overflow-y-auto px-6 pb-6">
             <div className="space-y-5 py-4">
               <div className="space-y-2">
                 <div className="bg-muted/30 rounded-lg p-3 border space-y-2">
@@ -360,10 +414,10 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                       </div>
                     </div>
                   )}
-                  {request.contract_number && (
+                  {contractNumber && (
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Nº Contrato</p>
-                      <p className="text-sm font-medium text-foreground">{request.contract_number}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Nº Contrato / Orçamento</p>
+                      <p className="text-sm font-medium text-foreground font-mono">{contractNumber}</p>
                     </div>
                   )}
                 </div>
@@ -419,12 +473,12 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                   {(request.ambientes || []).map((environment: any, index: number) => {
                     const attachmentEntries = (environment.attachments || [])
                       .map((attachment: any, attachmentIndex: number) => normalizeAttachment(attachment, attachmentIndex))
-                      .filter((attachment: NormalizedAttachment | null): attachment is NormalizedAttachment => Boolean(attachment));
+                      .filter((a: NormalizedAttachment | null): a is NormalizedAttachment => Boolean(a));
 
                     const legacyImageEntries = attachmentEntries.length === 0
                       ? (environment.images || [])
                           .map((image: any, imageIndex: number) => normalizeAttachment(image, imageIndex))
-                          .filter((attachment: NormalizedAttachment | null): attachment is NormalizedAttachment => Boolean(attachment))
+                          .filter((a: NormalizedAttachment | null): a is NormalizedAttachment => Boolean(a))
                       : [];
 
                     const previewEntries = attachmentEntries.length > 0 ? attachmentEntries : legacyImageEntries;
