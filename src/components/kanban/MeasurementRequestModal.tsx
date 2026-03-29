@@ -88,6 +88,8 @@ export function MeasurementRequestModal({
   const [pdfPreviewImages, setPdfPreviewImages] = useState<string[]>([]);
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   const [observacoes, setObservacoes] = useState("");
+  const [existingRequestId, setExistingRequestId] = useState<string | null>(null);
+  const [lastEditInfo, setLastEditInfo] = useState<{ by: string; cargo: string; at: string } | null>(null);
   const { settings } = useCompanySettings();
   const localPreviewUrlsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef(false);
