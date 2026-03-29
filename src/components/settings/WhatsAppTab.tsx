@@ -110,7 +110,9 @@ export function WhatsAppTab() {
     setZapiInstanceId(rawSettings.zapi_instance_id || "");
     setZapiToken(rawSettings.zapi_token || "");
     setZapiSecurityToken(rawSettings.zapi_security_token || "");
-    setZapiWebhookUrl(rawSettings.zapi_webhook_url || "");
+    // Auto-fix: replace whatsapp-bot with whatsapp-webhook in URL
+    const webhookUrl = (rawSettings.zapi_webhook_url || "").replace("whatsapp-bot", "whatsapp-webhook");
+    setZapiWebhookUrl(webhookUrl);
     setZapiClientToken(rawSettings.zapi_client_token || "");
     setAtivo(rawSettings.ativo);
     setEnviarContrato(rawSettings.enviar_contrato);
@@ -140,7 +142,19 @@ export function WhatsAppTab() {
     }
 
     if (response.data) {
-      applySettings(response.data as unknown as WhatsAppSettings);
+      const raw = response.data as unknown as WhatsAppSettings;
+      applySettings(raw);
+
+      // Auto-save if webhook URL was corrected
+      if (raw.zapi_webhook_url && raw.zapi_webhook_url.includes("whatsapp-bot")) {
+        const correctedUrl = raw.zapi_webhook_url.replace("whatsapp-bot", "whatsapp-webhook");
+        await supabase
+          .from("whatsapp_settings")
+          .update({ zapi_webhook_url: correctedUrl } as any)
+          .eq("tenant_id", tenantId);
+        console.log("[WhatsApp] Auto-corrected webhook URL:", correctedUrl);
+      }
+
       setLoading(false);
       return;
     }
