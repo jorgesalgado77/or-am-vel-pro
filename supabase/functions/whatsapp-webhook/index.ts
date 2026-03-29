@@ -583,7 +583,7 @@ serve(async (req) => {
       return respond({ status: "ignored_missing_phone_or_group" });
     }
 
-    if (!hasProcessableContent(body, isEvolution)) {
+    if (!isTwilioMsg && !hasProcessableContent(body, isEvolution)) {
       return respond({ status: "ignored_no_message_payload", phone: cleanPhone, from_me: isFromMe });
     }
 
