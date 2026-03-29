@@ -181,6 +181,10 @@ export function WhatsAppTab() {
 
   const handleSave = async () => {
     setSaving(true);
+    const defaultWebhookUrl = `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`;
+    const normalizedWebhookUrl = (zapiWebhookUrl.trim() || defaultWebhookUrl)
+      .replace("whatsapp-bot", "whatsapp-webhook");
+
     const payload = {
       provider,
       evolution_api_url: evolutionUrl.trim() || null,
@@ -192,7 +196,7 @@ export function WhatsAppTab() {
       zapi_instance_id: zapiInstanceId.trim() || null,
       zapi_token: zapiToken.trim() || null,
       zapi_security_token: zapiSecurityToken.trim() || null,
-      zapi_webhook_url: zapiWebhookUrl.trim() || null,
+      zapi_webhook_url: provider === "zapi" ? normalizedWebhookUrl : (zapiWebhookUrl.trim() || null),
       zapi_client_token: zapiClientToken.trim() || null,
       ativo,
       enviar_contrato: enviarContrato,
@@ -538,11 +542,11 @@ export function WhatsAppTab() {
             <div className="flex gap-2 mt-1">
               <Input
                 readOnly
-                value={`https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`}
+                value={zapiWebhookUrl || `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`}
                 className="font-mono text-xs bg-muted"
               />
               <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => {
-                navigator.clipboard.writeText(`https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`);
+                navigator.clipboard.writeText(zapiWebhookUrl || `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`);
                 toast.success("URL copiada!");
               }}>
                 <Copy className="h-3.5 w-3.5" /> Copiar

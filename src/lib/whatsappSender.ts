@@ -3,6 +3,7 @@
  * Sends text/media through the connected WhatsApp instance.
  */
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 
 interface WhatsAppSettings {
   provider: string;
@@ -19,20 +20,29 @@ interface WhatsAppSettings {
 }
 
 let cachedSettings: WhatsAppSettings | null = null;
+let cachedTenantId: string | null = null;
 let cacheTimestamp = 0;
-const CACHE_TTL = 60_000; // 1 minute
+const CACHE_TTL = 60_000;
 
 async function getSettings(): Promise<WhatsAppSettings | null> {
-  if (cachedSettings && Date.now() - cacheTimestamp < CACHE_TTL) return cachedSettings;
+  const tenantId = getTenantId();
+  if (cachedSettings && cachedTenantId === tenantId && Date.now() - cacheTimestamp < CACHE_TTL) return cachedSettings;
 
-  const { data } = await supabase
-    .from("whatsapp_settings")
-    .select("*")
-    .limit(1)
-    .maybeSingle();
+  let query = supabase.from("whatsapp_settings").select("*").limit(1);
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
 
-  if (!data || !(data as any).ativo) return null;
-  cachedSettings = data as any;
+  let response = await query.maybeSingle();
+
+  if (response.error?.code === "42703" || response.error?.code === "PGRST204" || response.error?.message?.includes("tenant_id")) {
+    response = await supabase.from("whatsapp_settings").select("*").limit(1).maybeSingle();
+  }
+
+  const data = response.data as any;
+  if (!data || !data.ativo) return null;
+  cachedSettings = data as WhatsAppSettings;
+  cachedTenantId = tenantId;
   cacheTimestamp = Date.now();
   return cachedSettings;
 }
@@ -235,5 +245,6 @@ export async function sendWhatsAppMedia(
 
 export function clearSettingsCache() {
   cachedSettings = null;
+  cachedTenantId = null;
   cacheTimestamp = 0;
 }
