@@ -1008,17 +1008,24 @@ export function EmailPanel() {
                                 className="mt-2 text-sm text-foreground prose prose-sm max-w-none bg-muted/30 rounded-lg p-3 max-h-[300px] overflow-y-auto"
                                 dangerouslySetInnerHTML={{ __html: email.body_html }}
                               />
-                              {inlineImages.length > 0 && (
+                              {(inlineImages.length > 0 || fileAttachments.length > 0) && (
                                 <div className="mt-2">
-                                  <p className="text-[10px] text-muted-foreground font-semibold mb-1">📎 Anexos ({inlineImages.length})</p>
+                                  <p className="text-[10px] text-muted-foreground font-semibold mb-1">📎 Anexos ({inlineImages.length + fileAttachments.length})</p>
                                   <div className="flex flex-wrap gap-2">
                                     {inlineImages.map((src, idx) => (
-                                      <a key={idx} href={src} target="_blank" rel="noopener noreferrer">
+                                      <a key={`img-${idx}`} href={src} target="_blank" rel="noopener noreferrer">
                                         <img
                                           src={src}
                                           alt={`Anexo ${idx + 1}`}
                                           className="h-16 w-16 rounded-lg border border-border object-cover hover:ring-2 hover:ring-primary/50 transition-all"
+                                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                         />
+                                      </a>
+                                    ))}
+                                    {fileAttachments.map((fa, idx) => (
+                                      <a key={`file-${idx}`} href={fa.url} target="_blank" rel="noopener noreferrer" className="h-16 px-3 rounded-lg border border-border bg-muted flex items-center gap-2 hover:ring-2 hover:ring-primary/50 transition-all">
+                                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                                        <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">{fa.name}</span>
                                       </a>
                                     ))}
                                   </div>
