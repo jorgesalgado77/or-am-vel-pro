@@ -377,9 +377,11 @@ export class CommercialDirectorEngine {
    * Define strategy based on current data + learned patterns
    */
   async defineStrategy(): Promise<StrategyDefinition> {
-    const [analysis, forecast] = await Promise.all([
+    const [analysis, forecast, salesRules, discountOpts] = await Promise.all([
       this.analyzeBusiness(),
       this.forecastRevenue(),
+      this.fetchSalesRules(),
+      this.fetchDiscountOptions(),
     ]);
 
     const learning = getLearningEngine(this.tenantId);
@@ -393,14 +395,34 @@ export class CommercialDirectorEngine {
       approach = "conservative";
     }
 
-    // Discount guidance from learned patterns
-    const sweetSpot = patterns.discountSpot;
-    const discountGuidance = sweetSpot
-      ? { min: sweetSpot.min_effective, max: sweetSpot.max_effective, sweet_spot: sweetSpot.optimal }
-      : { min: 3, max: 12, sweet_spot: 8 };
-
+    // Discount guidance from sales_rules (programmed) — NEVER use arbitrary values
+    let discountGuidance: StrategyDefinition["discount_guidance"];
     const focusAreas: string[] = [];
     const priorityActions: string[] = [];
+
+    if (salesRules && salesRules.max_discount < 100) {
+      // Use programmed rules
+      const sweetSpot = patterns.discountSpot;
+      const optimalFromLearning = sweetSpot ? sweetSpot.optimal : Math.round(salesRules.max_discount * 0.6);
+      discountGuidance = {
+        min: 0,
+        max: salesRules.max_discount,
+        sweet_spot: Math.min(optimalFromLearning, salesRules.max_discount),
+      };
+    } else if (discountOpts.length > 0) {
+      // Derive from discount_options
+      const values = discountOpts.map((d: any) => Number(d.valor) || 0).filter(v => v > 0);
+      const maxDisc = values.length > 0 ? Math.max(...values) : 10;
+      discountGuidance = { min: 0, max: maxDisc, sweet_spot: Math.round(maxDisc * 0.6) };
+    } else {
+      // NO discount policy configured — warn
+      discountGuidance = { min: 0, max: 0, sweet_spot: 0 };
+      priorityActions.push("⚠️ ATENÇÃO: Nenhuma política de desconto cadastrada. Configure em Configurações > Regras Comerciais antes de negociar vendas.");
+    }
+
+    if (salesRules && salesRules.min_margin > 0) {
+      priorityActions.push(`Margem mínima configurada: ${salesRules.min_margin}%. Não aprovar negociações abaixo desse limite.`);
+    }
 
     if (analysis.pipeline.stalled_leads > 3) {
       focusAreas.push("Reativação de leads parados");
