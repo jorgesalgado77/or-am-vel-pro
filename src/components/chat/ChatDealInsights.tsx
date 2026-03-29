@@ -105,6 +105,8 @@ interface FullDecision {
 export function ChatDealInsights({ conversation, tenantId, messageCount }: Props) {
   const [decision, setDecision] = useState<FullDecision | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [probHistory, setProbHistory] = useState<ProbPoint[]>([]);
+  const convId = (conversation as unknown as Record<string, unknown>).id as string || "";
 
   const ctx = useMemo((): DealContext | null => {
     if (!tenantId) return null;
@@ -142,6 +144,11 @@ export function ChatDealInsights({ conversation, tenantId, messageCount }: Props
     };
   }, [conversation, tenantId]);
 
+  // Load probability history on conversation change
+  useEffect(() => {
+    if (convId) setProbHistory(loadProbHistory(convId));
+  }, [convId]);
+
   useEffect(() => {
     if (!ctx || ctx.pricing.total_price === 0) { setDecision(null); return; }
 
@@ -149,13 +156,26 @@ export function ChatDealInsights({ conversation, tenantId, messageCount }: Props
     const engine = getCommercialEngine();
 
     engine.decideClientAction(ctx).then((result) => {
-      if (!cancelled) setDecision(result);
+      if (!cancelled) {
+        setDecision(result);
+        // Record probability point
+        if (convId) {
+          const history = loadProbHistory(convId);
+          const lastProb = history[history.length - 1]?.prob;
+          // Only add if probability changed or no history yet
+          if (lastProb !== result.analysis.closing_probability || history.length === 0) {
+            history.push({ ts: Date.now(), prob: result.analysis.closing_probability });
+            saveProbHistory(convId, history);
+            setProbHistory([...history].slice(-MAX_HISTORY));
+          }
+        }
+      }
     }).catch(() => {
       if (!cancelled) setDecision(null);
     });
 
     return () => { cancelled = true; };
-  }, [ctx, messageCount]);
+  }, [ctx, messageCount, convId]);
 
   if (!decision) return null;
 
