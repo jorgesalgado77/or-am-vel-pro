@@ -2225,7 +2225,7 @@ export function MeasurementRequestModal({
                 className="gap-2 bg-success hover:bg-success/90 text-success-foreground shadow-md"
               >
                 <Ruler className="h-4 w-4" />
-                {saving ? "Enviando..." : "💾 Salvar e Enviar Solicitação"}
+                {saving ? "Salvando..." : existingRequestId ? "💾 Salvar Alterações" : "💾 Salvar e Enviar Solicitação"}
               </Button>
             </div>
           </div>
