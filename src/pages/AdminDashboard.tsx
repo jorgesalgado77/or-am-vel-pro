@@ -16,7 +16,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
-  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound,
+  Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminClientsModal} from "@/components/admin/AdminClientsModal";
@@ -30,6 +30,7 @@ import {AdminPlans} from "@/components/admin/AdminPlans";
 import {AdminWhatsAppConfig} from "@/components/admin/AdminWhatsAppConfig";
 import {AdminResendConfig} from "@/components/admin/AdminResendConfig";
 import {AdminLoginDiagnostics} from "@/components/admin/AdminLoginDiagnostics";
+import {AdminSystemDiagnostics} from "@/components/admin/AdminSystemDiagnostics";
 import {AdminCanvaConfig} from "@/components/admin/AdminCanvaConfig";
 import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
 import {AdminTutorials} from "@/components/admin/AdminTutorials";
@@ -743,6 +744,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
               <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
               <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
+              <TabsTrigger value="sysdiag" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Server className="h-4 w-4" />Saúde do Sistema</TabsTrigger>
               <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" />
@@ -1008,6 +1010,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           {/* TAB: Login Diagnostics */}
           <TabsContent value="diagnostics">
             <AdminLoginDiagnostics />
+          </TabsContent>
+
+          {/* TAB: System Diagnostics */}
+          <TabsContent value="sysdiag">
+            <AdminSystemDiagnostics />
           </TabsContent>
 
           {/* TAB: API Keys */}
