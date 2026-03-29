@@ -110,7 +110,7 @@ const ConversationItem = memo(function ConversationItem({
   );
 });
 
-export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
+export const ChatConversationList = memo(function ChatConversationList({ conversations, selectedId, onSelect, onDelete, loading, onStartConversation, currentUserName, isAdminOrManager }: Props) {
   const [search, setSearch] = useState("");
   const [tempFilter, setTempFilter] = useState<TempFilter>("all");
   const [vendedorFilter, setVendedorFilter] = useState<VendedorFilter>("all");
@@ -119,6 +119,7 @@ export const ChatConversationList = memo(function ChatConversationList({ convers
   const [showFilters, setShowFilters] = useState(false);
   const [isListOpen, setIsListOpen] = useState(!selectedId);
   const [isWaListOpen, setIsWaListOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(isNotificationSoundEnabled());
 
   const vendedorCounts = useMemo(() => {
     const map = new Map<string, number>();
