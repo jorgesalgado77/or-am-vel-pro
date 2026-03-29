@@ -458,6 +458,7 @@ export function ChatWindow({
           onAddQuickReply={addQR}
           onRemoveQuickReply={removeQR}
           tenantId={tenantId}
+          detectedDiscProfile={detectedDiscProfile}
           onSendProductText={async (text) => {
             const { error } = await supabase.from("tracking_messages").insert({
               tracking_id: conversation.id,
