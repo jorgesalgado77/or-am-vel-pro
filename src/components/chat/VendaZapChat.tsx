@@ -72,20 +72,32 @@ function useWhatsAppConnectionStatus(tenantId: string | null) {
           if (settings.zapi_webhook_url) {
             const syncKey = `${settings.zapi_instance_id}:${settings.zapi_webhook_url}`;
             if (syncedWebhookRef.current !== syncKey) {
-              const syncRes = await fetch(
-                `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/update-webhook-received-delivery`,
-                {
-                  method: "PUT",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Client-Token": settings.zapi_client_token,
-                    ...(settings.zapi_security_token ? { "Security-Token": settings.zapi_security_token } : {}),
-                  },
-                  body: JSON.stringify({ value: settings.zapi_webhook_url }),
-                }
-              );
+              const headers = {
+                "Content-Type": "application/json",
+                "Client-Token": settings.zapi_client_token,
+                ...(settings.zapi_security_token ? { "Security-Token": settings.zapi_security_token } : {}),
+              };
 
-              if (syncRes.ok) {
+              const [syncRes, notifyRes] = await Promise.all([
+                fetch(
+                  `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/update-webhook-received-delivery`,
+                  {
+                    method: "PUT",
+                    headers,
+                    body: JSON.stringify({ value: settings.zapi_webhook_url }),
+                  }
+                ),
+                fetch(
+                  `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/update-notify-sent-by-me`,
+                  {
+                    method: "PUT",
+                    headers,
+                    body: JSON.stringify({ notifySentByMe: true }),
+                  }
+                ),
+              ]);
+
+              if (syncRes.ok && notifyRes.ok) {
                 syncedWebhookRef.current = syncKey;
               }
             }
@@ -671,16 +683,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
           return;
         }
 
-        // Send initial message
-        await supabase.from("tracking_messages").insert({
-          tracking_id: trackId,
-          mensagem: `Conversa iniciada por ${currentUser?.nome_completo || "Usuário"}`,
-          remetente_tipo: "loja",
-          remetente_nome: currentUser?.nome_completo || "Loja",
-          lida: true,
-          tenant_id: tenantId,
-        });
-
         toast.success(`Conversa com ${clientName} iniciada!`);
         await fetchConversations();
 
@@ -733,21 +735,6 @@ export function VendaZapChat({ tenantId, userId, onDealRoom }: Props) {
         return;
       }
       actualTrackingId = newTracking.id;
-    }
-
-    const { error } = await supabase.from("tracking_messages").insert({
-      tracking_id: actualTrackingId,
-      mensagem: `Conversa iniciada por ${currentUser?.nome_completo || "Usuário"}`,
-      remetente_tipo: "loja",
-      remetente_nome: currentUser?.nome_completo || "Loja",
-      lida: true,
-      tenant_id: tenantId,
-    });
-
-    if (error) {
-      toast.error("Erro ao iniciar conversa");
-      console.error("tracking_messages insert error:", error);
-      return;
     }
 
     toast.success(`Conversa com ${clientName} iniciada!`);
