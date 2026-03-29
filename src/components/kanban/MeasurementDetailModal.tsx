@@ -1,14 +1,14 @@
 /**
  * Modal to view full measurement request details including all data and attachments.
  * Shows seller, technician, store, contract and briefing info with proper scroll.
- * Attachment previews resolve Supabase storage paths to public URLs.
+ * Attachment previews resolve Supabase storage paths to working public URLs.
  */
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
-  Ruler, MapPin, User, Clock, FileText, Pencil, Phone, Mail, CreditCard, Eye,
+  Ruler, MapPin, User, FileText, Pencil, Phone, Mail, CreditCard, Eye,
   Store, ClipboardList, UserCheck, ExternalLink,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
@@ -37,8 +37,10 @@ interface MeasurementRequest {
   last_edited_at: string | null;
   created_at: string;
   updated_at: string;
-  // Extended enriched fields
   seller_name?: string;
+  seller_cargo?: string;
+  client_seller_name?: string;
+  client_seller_cargo?: string;
   technician_name?: string;
   store_code?: string;
   contract_number?: string;
@@ -55,57 +57,148 @@ interface Props {
   request: MeasurementRequest | null;
 }
 
+interface PreviewItem {
+  url: string;
+  name: string;
+  kind: "image" | "pdf" | "file";
+}
+
+interface NormalizedAttachment {
+  url: string;
+  name: string;
+  kind: "image" | "pdf" | "file";
+}
+
 const STATUS_MAP: Record<string, { label: string; icon: string; className: string }> = {
   novo: { label: "Novo", icon: "🆕", className: "bg-primary/10 text-primary border-primary/30" },
   em_andamento: { label: "Em Andamento", icon: "🔧", className: "bg-violet-500/10 text-violet-700 border-violet-500/30" },
   concluido: { label: "Concluído", icon: "✅", className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" },
 };
 
-/**
- * Resolves the actual URL for an attachment.
- * Handles: direct url, file_url, preview_url, and Supabase storage path.
- */
-function resolveAttachmentUrl(att: any): string {
-  if (att.url) return att.url;
-  if (att.file_url) return att.file_url;
-  if (att.preview_url) return att.preview_url;
-  if (att.thumbnail_url) return att.thumbnail_url;
-  // Resolve Supabase storage path
-  if (att.path) {
-    const bucket = att.bucket || "chat-attachments";
-    const { data } = supabase.storage.from(bucket).getPublicUrl(att.path);
-    return data?.publicUrl || "";
+function parseMaybeJson(value: any) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+
+  const looksLikeJson = (
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
+  );
+
+  if (!looksLikeJson) return value;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
   }
-  if (att.storage_path) {
-    const bucket = att.bucket || "chat-attachments";
-    const { data } = supabase.storage.from(bucket).getPublicUrl(att.storage_path);
-    return data?.publicUrl || "";
+}
+
+function getAttachmentSource(rawAttachment: any): any {
+  const parsed = parseMaybeJson(rawAttachment);
+  if (Array.isArray(parsed)) return parsed[0] || null;
+  if (!parsed) return null;
+  if (typeof parsed === "object") return parsed.asset || parsed.file || parsed.attachment || parsed;
+  return parsed;
+}
+
+function normalizeStorageUrl(bucket: string, rawPath: string) {
+  const normalizedPath = String(rawPath)
+    .replace(/^\/+/, "")
+    .replace(/^storage\/v1\/object\/public\//, "")
+    .replace(new RegExp(`^${bucket}/`), "");
+
+  if (!normalizedPath) return "";
+  const { data } = supabase.storage.from(bucket).getPublicUrl(normalizedPath);
+  return data?.publicUrl || "";
+}
+
+function resolveAttachmentUrl(rawAttachment: any): string {
+  const source = getAttachmentSource(rawAttachment);
+  if (!source) return "";
+
+  if (typeof source === "string") {
+    if (/^(https?:|blob:|data:)/i.test(source)) return source;
+
+    const cleaned = source.replace(/^\/+/, "").replace(/^storage\/v1\/object\/public\//, "");
+    const parts = cleaned.split("/");
+    const bucket = parts.length > 1 ? parts[0] : "company-assets";
+    const path = parts.length > 1 ? parts.slice(1).join("/") : cleaned;
+    return normalizeStorageUrl(bucket, path);
   }
-  return "";
+
+  const directUrl = source.url
+    || source.publicUrl
+    || source.previewUrl
+    || source.preview_url
+    || source.thumbnailUrl
+    || source.thumbnail_url
+    || source.sourceUrl
+    || source.source_url
+    || source.file_url
+    || source.fileUrl
+    || source.signedUrl
+    || source.signed_url
+    || "";
+
+  if (typeof directUrl === "string" && /^(https?:|blob:|data:)/i.test(directUrl)) {
+    return directUrl;
+  }
+
+  const bucket = source.bucket || source.bucket_name || source.storageBucket || "company-assets";
+  const rawPath = source.path
+    || source.storagePath
+    || source.storage_path
+    || source.filePath
+    || source.file_path
+    || source.fullPath
+    || source.full_path
+    || directUrl
+    || "";
+
+  if (!rawPath) return "";
+  return normalizeStorageUrl(bucket, rawPath);
 }
 
-function isImageFile(url: string, name: string, att: any): boolean {
-  return att.kind === "image" || att.mime_type?.startsWith("image/") ||
-    /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(url) ||
-    /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(name);
+function isImageFile(url: string, name: string, mimeType: string) {
+  return mimeType.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i.test(url) || /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(name);
 }
 
-function isPdfFile(url: string, name: string, att: any): boolean {
-  return att.kind === "pdf" || att.mime_type === "application/pdf" ||
-    /\.pdf$/i.test(url) || /\.pdf$/i.test(name);
+function isPdfFile(url: string, name: string, mimeType: string) {
+  return mimeType === "application/pdf" || /\.pdf(\?.*)?$/i.test(url) || /\.pdf$/i.test(name);
 }
 
-function AttachmentPreview({ att, onClick }: { att: any; onClick: () => void }) {
-  const url = useMemo(() => resolveAttachmentUrl(att), [att]);
-  const name = att.name || att.file_name || att.fileName || "arquivo";
-  const isImage = isImageFile(url, name, att);
-  const isPdf = isPdfFile(url, name, att);
+function normalizeAttachment(rawAttachment: any, index: number): NormalizedAttachment | null {
+  const source = getAttachmentSource(rawAttachment);
+  const url = resolveAttachmentUrl(source || rawAttachment);
+  const name = typeof source === "string"
+    ? `Anexo ${index + 1}`
+    : source?.name || source?.file_name || source?.fileName || `Anexo ${index + 1}`;
+  const mimeType = typeof source === "string"
+    ? ""
+    : source?.type || source?.mimeType || source?.mime_type || "";
 
-  if (!url) {
+  const kind = isImageFile(url, name, mimeType)
+    ? "image"
+    : isPdfFile(url, name, mimeType)
+      ? "pdf"
+      : "file";
+
+  if (!url && kind !== "file") return null;
+
+  return {
+    url,
+    name,
+    kind,
+  };
+}
+
+function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAttachment; onClick: () => void }) {
+  if (!attachment.url || attachment.kind === "file") {
     return (
       <div className="rounded-lg border bg-muted/30 aspect-square flex flex-col items-center justify-center p-2">
         <FileText className="h-6 w-6 text-muted-foreground" />
-        <span className="text-[8px] text-muted-foreground truncate w-full text-center mt-1">{name}</span>
+        <span className="text-[8px] text-muted-foreground truncate w-full text-center mt-1">{attachment.name}</span>
       </div>
     );
   }
@@ -114,19 +207,15 @@ function AttachmentPreview({ att, onClick }: { att: any; onClick: () => void }) 
     <button
       onClick={onClick}
       className="group relative rounded-lg overflow-hidden border bg-background hover:ring-2 hover:ring-primary/50 transition-all aspect-square"
+      type="button"
     >
-      {isImage ? (
-        <img src={url} alt={name} className="w-full h-full object-cover" loading="lazy" />
-      ) : isPdf ? (
+      {attachment.kind === "image" ? (
+        <img src={attachment.url} alt={attachment.name} className="w-full h-full object-cover" loading="lazy" />
+      ) : (
         <div className="flex flex-col items-center justify-center h-full gap-1 p-2 bg-destructive/5">
           <FileText className="h-8 w-8 text-destructive" />
           <span className="text-[8px] font-bold text-destructive uppercase">PDF</span>
-          <span className="text-[7px] text-muted-foreground truncate w-full text-center">{name}</span>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-full gap-1 p-2">
-          <FileText className="h-6 w-6 text-muted-foreground" />
-          <span className="text-[8px] text-muted-foreground truncate w-full text-center">{name}</span>
+          <span className="text-[7px] text-muted-foreground truncate w-full text-center">{attachment.name}</span>
         </div>
       )}
       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -137,20 +226,22 @@ function AttachmentPreview({ att, onClick }: { att: any; onClick: () => void }) 
 }
 
 export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
 
   if (!request) return null;
 
   const statusInfo = STATUS_MAP[request.status] || STATUS_MAP.novo;
-  const snap = request.client_snapshot || {};
-  const addr = request.delivery_address || {};
-  const hasAddress = addr.cep || addr.street;
+  const snapshot = request.client_snapshot || {};
+  const address = request.delivery_address || {};
+  const hasAddress = address.cep || address.street;
 
-  // Resolved names
-  const creatorName = request.created_by_resolved || request.seller_name || request.created_by || "—";
-  const creatorCargo = request.created_by_cargo || "";
+  const creatorName = request.created_by_resolved || request.client_seller_name || request.seller_name || request.created_by || "—";
+  const creatorCargo = request.created_by_cargo || request.client_seller_cargo || request.seller_cargo || "";
   const editorName = request.last_edited_by_resolved || request.last_edited_by || null;
   const editorCargo = request.last_edited_by_cargo || "";
+  const sellerName = request.client_seller_name || request.seller_name || snapshot.vendedor || "—";
+  const sellerCargo = request.client_seller_cargo || request.seller_cargo || "";
+  const storeCode = request.store_code || snapshot.store_code || snapshot.codigo_loja || "—";
 
   return (
     <>
@@ -168,8 +259,6 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
 
           <div className="flex-1 overflow-y-auto px-6 pb-6">
             <div className="space-y-5 py-4">
-
-              {/* Criado por + Editado por — ABOVE all content */}
               <div className="space-y-2">
                 <div className="bg-muted/30 rounded-lg p-3 border space-y-2">
                   <div className="flex items-center gap-2">
@@ -209,12 +298,11 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                 </div>
               </div>
 
-              {/* Client info */}
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <User className="h-4 w-4 text-primary" /> Cliente
                 </h3>
-                <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3 border">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3 border">
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Nome</p>
                     <p className="text-sm font-medium text-foreground">{request.nome_cliente}</p>
@@ -223,60 +311,52 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Valor à Vista</p>
                     <p className="text-sm font-bold text-emerald-600">{formatCurrency(Number(request.valor_venda_avista) || 0)}</p>
                   </div>
-                  {snap.telefone1 && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Vendedor / Projetista</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {sellerName}
+                      {sellerCargo && <span className="text-xs text-muted-foreground ml-1">({sellerCargo})</span>}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Código da Loja</p>
+                    <div className="flex items-center gap-1.5">
+                      <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                      <p className="text-sm font-medium text-foreground">{storeCode}</p>
+                    </div>
+                  </div>
+                  {snapshot.telefone1 && (
                     <div className="flex items-center gap-1.5">
                       <Phone className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-sm text-foreground">{snap.telefone1}</span>
+                      <span className="text-sm text-foreground">{snapshot.telefone1}</span>
                     </div>
                   )}
-                  {snap.email && (
+                  {snapshot.email && (
                     <div className="flex items-center gap-1.5">
                       <Mail className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-sm text-foreground">{snap.email}</span>
+                      <span className="text-sm text-foreground">{snapshot.email}</span>
                     </div>
                   )}
-                  {snap.cpf && (
+                  {snapshot.cpf && (
                     <div className="flex items-center gap-1.5">
                       <CreditCard className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-sm text-foreground">{snap.cpf}</span>
+                      <span className="text-sm text-foreground">{snapshot.cpf}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Seller / Technician / Store / Contract */}
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <ClipboardList className="h-4 w-4 text-primary" /> Informações da Solicitação
                 </h3>
-                <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3 border">
-                  {request.seller_name && (
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Vendedor / Projetista</p>
-                      <p className="text-sm font-medium text-foreground">{request.seller_name}</p>
-                    </div>
-                  )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3 border">
                   {request.technician_name && (
                     <div>
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Técnico / Conferente</p>
                       <div className="flex items-center gap-1.5">
                         <UserCheck className="h-3.5 w-3.5 text-primary" />
                         <p className="text-sm font-medium text-foreground">{request.technician_name}</p>
-                      </div>
-                    </div>
-                  )}
-                  {request.assigned_to && !request.technician_name && (
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Atribuído a</p>
-                      <p className="text-sm font-medium text-foreground">{request.assigned_to}</p>
-                    </div>
-                  )}
-                  {request.store_code && (
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Código da Loja</p>
-                      <div className="flex items-center gap-1.5">
-                        <Store className="h-3.5 w-3.5 text-muted-foreground" />
-                        <p className="text-sm font-medium text-foreground">{request.store_code}</p>
                       </div>
                     </div>
                   )}
@@ -288,7 +368,6 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                   )}
                 </div>
 
-                {/* Contract + Briefing links */}
                 {(request.contract_url || request.briefing_url) && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {request.contract_url && (
@@ -319,74 +398,71 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                 )}
               </div>
 
-              {/* Delivery address */}
               {hasAddress && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-primary" /> Endereço de Entrega
                   </h3>
                   <div className="bg-muted/30 rounded-lg p-3 border text-sm text-foreground">
-                    <p>{addr.street}{addr.number ? `, ${addr.number}` : ""}{addr.complement ? ` - ${addr.complement}` : ""}</p>
-                    <p className="text-muted-foreground">{addr.district}{addr.city ? ` • ${addr.city}` : ""}{addr.state ? ` - ${addr.state}` : ""}</p>
-                    {addr.cep && <p className="text-muted-foreground text-xs mt-1">CEP: {addr.cep}</p>}
+                    <p>{address.street}{address.number ? `, ${address.number}` : ""}{address.complement ? ` - ${address.complement}` : ""}</p>
+                    <p className="text-muted-foreground">{address.district}{address.city ? ` • ${address.city}` : ""}{address.state ? ` - ${address.state}` : ""}</p>
+                    {address.cep && <p className="text-muted-foreground text-xs mt-1">CEP: {address.cep}</p>}
                   </div>
                 </div>
               )}
 
-              {/* Environments + attachments */}
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" /> Ambientes ({request.ambientes?.length || 0})
                 </h3>
                 <div className="space-y-3">
-                  {(request.ambientes || []).map((amb: any, i: number) => (
-                    <div key={amb.id || i} className="bg-muted/30 rounded-lg p-3 border space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground">{amb.name || `Ambiente ${i + 1}`}</span>
-                        <span className="text-sm font-bold text-emerald-600">{formatCurrency(amb.value || 0)}</span>
-                      </div>
+                  {(request.ambientes || []).map((environment: any, index: number) => {
+                    const attachmentEntries = (environment.attachments || [])
+                      .map((attachment: any, attachmentIndex: number) => normalizeAttachment(attachment, attachmentIndex))
+                      .filter((attachment: NormalizedAttachment | null): attachment is NormalizedAttachment => Boolean(attachment));
 
-                      {/* Attached files */}
-                      {amb.attachments && amb.attachments.length > 0 && (
-                        <div className="space-y-1">
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Anexos</p>
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {amb.attachments.map((att: any, j: number) => (
-                              <AttachmentPreview
-                                key={j}
-                                att={att}
-                                onClick={() => setPreviewUrl(resolveAttachmentUrl(att))}
-                              />
-                            ))}
+                    const legacyImageEntries = attachmentEntries.length === 0
+                      ? (environment.images || [])
+                          .map((image: any, imageIndex: number) => normalizeAttachment(image, imageIndex))
+                          .filter((attachment: NormalizedAttachment | null): attachment is NormalizedAttachment => Boolean(attachment))
+                      : [];
+
+                    const previewEntries = attachmentEntries.length > 0 ? attachmentEntries : legacyImageEntries;
+
+                    return (
+                      <div key={environment.id || index} className="bg-muted/30 rounded-lg p-3 border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">{environment.name || `Ambiente ${index + 1}`}</span>
+                          <span className="text-sm font-bold text-emerald-600">{formatCurrency(environment.value || 0)}</span>
+                        </div>
+
+                        {previewEntries.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Anexos</p>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                              {previewEntries.map((attachment, attachmentIndex) => (
+                                <AttachmentPreview
+                                  key={`${attachment.name}-${attachmentIndex}`}
+                                  attachment={attachment}
+                                  onClick={() => setPreviewItem({ url: attachment.url, name: attachment.name, kind: attachment.kind })}
+                                />
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Legacy images field */}
-                      {!amb.attachments?.length && amb.images && amb.images.length > 0 && (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                          {amb.images.map((url: string, j: number) => (
-                            <AttachmentPreview
-                              key={j}
-                              att={{ url, kind: "image", name: `Imagem ${j + 1}` }}
-                              onClick={() => setPreviewUrl(url)}
-                            />
-                          ))}
-                        </div>
-                      )}
-
-                      {amb.fileName && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <FileText className="h-3 w-3" />
-                          <span>{amb.fileName}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        {environment.fileName && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <FileText className="h-3 w-3" />
+                            <span>{environment.fileName}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Observações */}
               {request.observacoes && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground">📝 Observações</h3>
@@ -400,14 +476,13 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Fullscreen preview */}
-      {previewUrl && (
-        <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
+      {previewItem && (
+        <Dialog open={!!previewItem} onOpenChange={() => setPreviewItem(null)}>
           <DialogContent className="max-w-4xl w-[95vw] max-h-[95vh] p-2">
-            {previewUrl.toLowerCase().endsWith(".pdf") ? (
-              <iframe src={previewUrl} className="w-full h-[80vh] rounded" />
+            {previewItem.kind === "pdf" ? (
+              <iframe src={previewItem.url} className="w-full h-[80vh] rounded" title={previewItem.name} />
             ) : (
-              <img src={previewUrl} alt="Preview" className="w-full h-auto max-h-[85vh] object-contain rounded" />
+              <img src={previewItem.url} alt={previewItem.name} className="w-full h-auto max-h-[85vh] object-contain rounded" />
             )}
           </DialogContent>
         </Dialog>
