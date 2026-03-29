@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Paperclip, Mic, Square, Loader2 } from "lucide-react";
+import { Camera, Send, Paperclip, Mic, Square, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { QuickRepliesPopover } from "./QuickRepliesPopover";
@@ -24,12 +24,19 @@ interface Props {
   onSendProductText?: (text: string, imageUrl?: string) => void;
 }
 
+function buildFileName(file: File) {
+  if (file.name?.trim()) return file.name;
+  const extension = file.type?.split("/")[1]?.split(";")[0] || "bin";
+  return `arquivo_${Date.now()}.${extension}`;
+}
+
 export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, trackingId, onKeystroke, quickReplies, quickRepliesLoading, onAddQuickReply, onRemoveQuickReply, tenantId, onSendProductText }: Props) {
   const [uploading, setUploading] = useState(false);
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -38,7 +45,9 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
     }
   };
 
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFile = useCallback(async (originalFile: File) => {
+    const file = new File([originalFile], buildFileName(originalFile), { type: originalFile.type || "application/octet-stream" });
+
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() || "bin";
@@ -54,7 +63,7 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
         .from("chat-attachments")
         .getPublicUrl(path);
 
-      onAttachmentSent(urlData.publicUrl, file.name, file.type);
+      onAttachmentSent(urlData.publicUrl, file.name, file.type || "application/octet-stream");
     } catch (err) {
       console.error("Upload error:", err);
       toast.error("Erro ao enviar arquivo");
@@ -63,15 +72,19 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
     }
   }, [trackingId, onAttachmentSent]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 25 * 1024 * 1024) {
-        toast.error("Arquivo muito grande (máx 25MB)");
-        return;
-      }
-      uploadFile(file);
+  const handleSelectedFile = useCallback((file?: File | null) => {
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Arquivo muito grande (máx 25MB)");
+      return;
     }
+
+    uploadFile(file);
+  }, [uploadFile]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleSelectedFile(e.target.files?.[0]);
     e.target.value = "";
   };
 
@@ -115,9 +128,16 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
         className="hidden"
         onChange={handleFileChange}
       />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*,video/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
       <div className="flex items-end gap-1.5">
-        {/* Quick Replies */}
         {quickReplies && onAddQuickReply && onRemoveQuickReply && (
           <QuickRepliesPopover
             replies={quickReplies}
@@ -128,18 +148,30 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
           />
         )}
 
-        {/* Attach */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={uploading || sending}
+          aria-label="Abrir câmera"
+          title="Abrir câmera para foto ou vídeo"
+        >
+          <Camera className="h-4 w-4" />
+        </Button>
+
         <Button
           variant="ghost"
           size="icon"
           className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || sending}
+          aria-label="Anexar arquivo"
+          title="Anexar arquivo"
         >
-        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
         </Button>
 
-        {/* Product Picker */}
         {tenantId && onSendProductText && (
           <ChatProductPicker
             tenantId={tenantId}
@@ -152,18 +184,18 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
           />
         )}
 
-        {/* Audio */}
         <Button
           variant="ghost"
           size="icon"
           className={`h-9 w-9 shrink-0 ${recording ? "text-destructive" : "text-muted-foreground hover:text-foreground"}`}
           onClick={recording ? stopRecording : startRecording}
-          disabled={uploading}
+          disabled={uploading || sending}
+          aria-label={recording ? "Parar gravação" : "Gravar áudio"}
+          title={recording ? "Parar gravação" : "Gravar áudio"}
         >
           {recording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-4 w-4" />}
         </Button>
 
-        {/* Text input */}
         <Textarea
           value={value}
           onChange={(e) => { onChange(e.target.value); onKeystroke?.(); }}
@@ -173,12 +205,11 @@ export function ChatInput({ value, onChange, onSend, onAttachmentSent, sending, 
           rows={1}
         />
 
-        {/* Send */}
         <Button
           size="icon"
           className="h-9 w-9 shrink-0"
           onClick={onSend}
-          disabled={sending || (!value.trim() && !uploading)}
+          disabled={sending || uploading || (!value.trim() && !uploading)}
         >
           <Send className="h-4 w-4" />
         </Button>
