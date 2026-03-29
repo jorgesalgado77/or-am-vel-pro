@@ -42,6 +42,35 @@ function phonesMatch(first = "", second = "") {
   return Boolean(leftLast8 && rightLast8 && leftLast8 === rightLast8);
 }
 
+function normalizeComparableText(raw = "") {
+  return raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreNameMatch(left = "", right = "") {
+  const a = normalizeComparableText(left);
+  const b = normalizeComparableText(right);
+
+  if (!a || !b) return 0;
+  if (a === b) return 100;
+  if (a.includes(b) || b.includes(a)) return 60;
+
+  const aTokens = new Set(a.split(" ").filter(Boolean));
+  const bTokens = new Set(b.split(" ").filter(Boolean));
+  let common = 0;
+
+  aTokens.forEach((token) => {
+    if (bTokens.has(token)) common += 1;
+  });
+
+  return common * 20;
+}
+
 function pickDefined<T>(...values: T[]): T | undefined {
   return values.find((value) => value !== undefined && value !== null && value !== "");
 }
@@ -390,50 +419,65 @@ async function createManualTracking(cleanPhone: string, contactName: string) {
   return created;
 }
 
-async function findTrackingByPhone(cleanPhone: string) {
+async function findTrackingByPhone(cleanPhone: string, preferredClientId?: string | null, contactName?: string) {
   const last4 = cleanPhone.slice(-4);
 
   const { data: candidates } = await supabaseAdmin
     .from("client_tracking")
-    .select("id, client_id, tenant_id, nome_cliente, numero_contrato")
+    .select("id, client_id, tenant_id, nome_cliente, numero_contrato, updated_at, created_at")
     .ilike("numero_contrato", `%${last4}%`)
     .order("updated_at", { ascending: false })
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(100);
 
   if (!candidates?.length) return null;
 
-  for (const tracking of candidates) {
-    const trackingPhone = normalizePhone(tracking.numero_contrato || "");
-    if (phonesMatch(trackingPhone, cleanPhone)) return tracking;
-  }
+  const scored = candidates
+    .filter((tracking) => phonesMatch(tracking.numero_contrato || "", cleanPhone))
+    .map((tracking) => ({
+      tracking,
+      score:
+        (preferredClientId && tracking.client_id === preferredClientId ? 1000 : 0) +
+        scoreNameMatch(tracking.nome_cliente || "", contactName || ""),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.tracking.updated_at || b.tracking.created_at || 0).getTime() - new Date(a.tracking.updated_at || a.tracking.created_at || 0).getTime();
+    });
 
-  return null;
+  return scored[0]?.tracking || null;
 }
 
-async function findClientByPhone(cleanPhone: string) {
+async function findClientByPhone(cleanPhone: string, contactName?: string) {
   const last4 = cleanPhone.slice(-4);
   const last8 = cleanPhone.slice(-8);
 
   const { data: candidates } = await supabaseAdmin
     .from("clients")
-    .select("id, nome, tenant_id, numero_orcamento, telefone1, telefone2")
+    .select("id, nome, tenant_id, numero_orcamento, telefone1, telefone2, status, updated_at")
     .or(`telefone1.like.%${last4},telefone2.like.%${last4}`)
-    .limit(50);
+    .limit(100);
 
   if (!candidates || candidates.length === 0) return null;
 
-  for (const c of candidates) {
-    const t1 = normalizePhone(c.telefone1 || "");
-    const t2 = normalizePhone(c.telefone2 || "");
-    if (t1.endsWith(last8) || t2.endsWith(last8) || phonesMatch(t1, cleanPhone) || phonesMatch(t2, cleanPhone)) return c;
-  }
+  const scored = candidates
+    .filter((client) => {
+      const t1 = normalizePhone(client.telefone1 || "");
+      const t2 = normalizePhone(client.telefone2 || "");
+      return t1.endsWith(last8) || t2.endsWith(last8) || phonesMatch(t1, cleanPhone) || phonesMatch(t2, cleanPhone);
+    })
+    .map((client) => ({
+      client,
+      score:
+        scoreNameMatch(client.nome || "", contactName || "") +
+        ((client.status || "") !== "fechado" ? 20 : 0),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.client.updated_at || 0).getTime() - new Date(a.client.updated_at || 0).getTime();
+    });
 
-  for (const c of candidates) {
-    const t1 = normalizePhone(c.telefone1 || "");
-    const t2 = normalizePhone(c.telefone2 || "");
-    if (t1.endsWith(last4) || t2.endsWith(last4)) return c;
-  }
+  if (scored.length > 0) return scored[0].client;
 
   return null;
 }
@@ -597,32 +641,38 @@ serve(async (req) => {
       return respond({ status: "ignored_empty_content", phone: cleanPhone });
     }
 
-    const existingTracking = await findTrackingByPhone(cleanPhone);
+    const contactName = pickContactName(body, isEvolution);
+    const matchedClient = await findClientByPhone(cleanPhone, contactName);
+    const existingTracking = await findTrackingByPhone(cleanPhone, matchedClient?.id || null, contactName);
 
-    let trackingId: string | null = existingTracking?.id || null;
-    let tenantId: string | null = existingTracking?.tenant_id || null;
-    let clientId: string | null = existingTracking?.client_id || null;
-    let clientName = existingTracking?.nome_cliente || "Cliente";
+    let trackingId: string | null = null;
+    let tenantId: string | null = null;
+    let clientId: string | null = null;
+    let clientName = contactName || "Cliente";
 
-    if (!trackingId) {
-      const client = await findClientByPhone(cleanPhone);
-      if (!client) {
-        const manualTracking = await createManualTracking(cleanPhone, pickContactName(body, isEvolution));
+    if (matchedClient) {
+      trackingId = existingTracking?.client_id === matchedClient.id
+        ? existingTracking.id
+        : await getTrackingId(matchedClient, cleanPhone);
+      tenantId = matchedClient.tenant_id;
+      clientId = matchedClient.id;
+      clientName = matchedClient.nome || contactName || "Cliente";
+    } else if (existingTracking) {
+      trackingId = existingTracking.id;
+      tenantId = existingTracking.tenant_id || null;
+      clientId = existingTracking.client_id || null;
+      clientName = existingTracking.nome_cliente || contactName || "Cliente";
+    } else {
+      const manualTracking = await createManualTracking(cleanPhone, contactName);
 
-        if (!manualTracking) {
-          return respond({ status: "no_client_match", phone: cleanPhone, from_me: isFromMe });
-        }
-
-        trackingId = manualTracking.id;
-        tenantId = manualTracking.tenant_id || null;
-        clientId = manualTracking.client_id || null;
-        clientName = manualTracking.nome_cliente || "Cliente";
-      } else {
-        trackingId = await getTrackingId(client, cleanPhone);
-        tenantId = client.tenant_id;
-        clientId = client.id;
-        clientName = client.nome || "Cliente";
+      if (!manualTracking) {
+        return respond({ status: "no_client_match", phone: cleanPhone, from_me: isFromMe });
       }
+
+      trackingId = manualTracking.id;
+      tenantId = manualTracking.tenant_id || null;
+      clientId = manualTracking.client_id || null;
+      clientName = manualTracking.nome_cliente || contactName || "Cliente";
     }
 
     // ── Dedup by provider message ID ──

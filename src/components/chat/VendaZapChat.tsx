@@ -301,7 +301,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     // Fetch client_tracking with client_id
     const { data: trackings } = await supabase
       .from("client_tracking")
-      .select("id, numero_contrato, nome_cliente, client_id, projetista")
+      .select("id, numero_contrato, nome_cliente, client_id, projetista, updated_at")
       .eq("tenant_id", tenantId)
       .order("updated_at", { ascending: false });
 
@@ -344,6 +344,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
       groupKey: string;
       relatedTrackingIds: string[];
       phone?: string;
+      updated_at?: string;
     };
 
     let allEntries: Entry[] = [];
@@ -365,6 +366,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
           groupKey: canonicalPhone || `client:${t.client_id || t.id}`,
           relatedTrackingIds: [t.id],
           phone: canonicalPhone || clientDataMap[t.client_id]?.telefone || undefined,
+          updated_at: t.updated_at,
         };
       });
     }
@@ -382,6 +384,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
           groupKey: canonicalPhone || `client:${c.id}`,
           relatedTrackingIds: [],
           phone: canonicalPhone || undefined,
+          updated_at: c.updated_at,
         });
       }
     });
