@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TrendingUp, TrendingDown, Users, Target, DollarSign, Clock,
   AlertTriangle, Lightbulb, Trophy, MessageCircle, Send, Bot,
-  Flame, Snowflake, Star, ArrowUp, ArrowDown, Loader2, Bell, Brain,
+  Flame, Snowflake, Star, ArrowUp, ArrowDown, Loader2, Bell, Brain, Shield,
 } from "lucide-react";
 import { useCommercialAI, type AIInsight } from "@/hooks/useCommercialAI";
 import { SalesGoalsPanel } from "@/components/commercial/SalesGoalsPanel";
