@@ -491,7 +491,11 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         return (b.last_message_at || "").localeCompare(a.last_message_at || "");
       });
 
-    setConversations(result);
+    // Filter out any conversations that were deleted in this session
+    const filtered = deletedIdsRef.current.size > 0
+      ? result.filter((c) => !deletedIdsRef.current.has(c.id))
+      : result;
+    setConversations(filtered);
     setLoading(false);
   }, [tenantId, isAdminOrManager, currentUser?.nome_completo]);
 
@@ -944,9 +948,13 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         if (trackErr) console.warn("[Delete] tracking error for", trackId, trackErr);
       }
 
+      // Track deleted IDs persistently so realtime refetch won't re-add them
+      const allIds = [deleteTarget.id, ...(deleteTarget.relatedTrackingIds || [])];
+      allIds.forEach((id) => deletedIdsRef.current.add(id));
+
       // Immediately remove from local state — do NOT refetch
       if (selected?.id === deleteTarget.id) setSelected(null);
-      setConversations((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      setConversations((prev) => prev.filter((c) => !deletedIdsRef.current.has(c.id)));
 
       toast.success(`Conversa com "${deleteTarget.nome_cliente}" excluída completamente`);
     } catch (err) {
