@@ -162,7 +162,7 @@ export class ClientContextBuilder {
   // ─── Private fetchers ─────────────────────────────────────
 
   private async fetchClient(clientId: string): Promise<ClientRow | null> {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("clients")
       .select("id, nome, status, updated_at, created_at, telefone1, email, vendedor, lead_temperature")
       .eq("id", clientId)
@@ -171,7 +171,7 @@ export class ClientContextBuilder {
   }
 
   private async fetchLatestSimulation(clientId: string): Promise<SimulationRow | null> {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("simulations")
       .select("id, valor_tela, desconto1, desconto2, desconto3, plus_percentual, forma_pagamento, parcelas, valor_entrada, indicador_percentual, carencia_dias")
       .eq("client_id", clientId)
