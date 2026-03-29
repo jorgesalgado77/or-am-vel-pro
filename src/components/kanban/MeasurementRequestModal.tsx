@@ -883,6 +883,20 @@ export function MeasurementRequestModal({
       );
       setEnvAttachments(Object.fromEntries(attachmentEntries.filter(([, attachments]) => attachments.length > 0)));
       setObservacoes(latestRequest?.observacoes || "");
+      setExistingRequestId(latestRequest?.id || null);
+      if (latestRequest?.last_edited_by) {
+        setLastEditInfo({
+          by: latestRequest.last_edited_by,
+          cargo: latestRequest.last_edited_by_cargo || "",
+          at: latestRequest.last_edited_at || latestRequest.updated_at || "",
+        });
+      } else if (latestRequest?.id) {
+        setLastEditInfo({
+          by: latestRequest.created_by || "Sistema",
+          cargo: "",
+          at: latestRequest.created_at || "",
+        });
+      }
       initialLoadDoneRef.current = true;
 
       if (latestRequest) {
