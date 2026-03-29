@@ -9,13 +9,15 @@ import { MeasurementDetailModal } from "./MeasurementDetailModal";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import {
   Ruler, AlertTriangle, CheckCircle2, Clock, RefreshCw, Search,
-  User, ChevronRight, Loader2, BarChart3, Pencil, Eye,
+  User, ChevronRight, Loader2, BarChart3, Pencil, Eye, Users, Phone, Mail, Shield, Save,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { useUsuarios } from "@/hooks/useUsuarios";
+import { useMetasTetos } from "@/hooks/useMetasTetos";
 import { formatCurrency } from "@/lib/financing";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
