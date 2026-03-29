@@ -106,14 +106,14 @@ export function useVendaZap(tenantId: string | null) {
     if (vip?.vendazap) {
       const { data: created, error: upsertErr } = await supabase
         .from("vendazap_addon")
-        .upsert({
+        .upsert([{
           tenant_id: tenantId,
           ativo: true,
           prompt_sistema: "Você é um assistente de vendas especializado em móveis planejados.",
           tom_padrao: "consultivo",
           max_mensagens_dia: 0,
           max_tokens_mensagem: 2000,
-        } as Record<string, unknown>, { onConflict: "tenant_id" })
+        }], { onConflict: "tenant_id" })
         .select()
         .single();
       if (created && !upsertErr) {
@@ -265,7 +265,7 @@ export function useVendaZap(tenantId: string | null) {
       const today = new Date().toISOString().split("T")[0];
 
       const persistResults = await Promise.allSettled([
-        supabase.from("vendazap_messages").insert({
+        supabase.from("vendazap_messages").insert([{
           tenant_id: tenantId,
           usuario_id: params.usuario_id || null,
           client_id: params.client_id || null,
@@ -283,7 +283,7 @@ export function useVendaZap(tenantId: string | null) {
           mensagem_cliente: params.mensagem_cliente || null,
           mensagem_gerada: generatedMessage,
           tokens_usados: data.tokens_usados || 0,
-        } as Record<string, unknown>),
+        }]),
         (async () => {
           const { data: existingUsage } = await supabase
             .from("vendazap_usage")
@@ -301,13 +301,13 @@ export function useVendaZap(tenantId: string | null) {
             } as Record<string, unknown>).eq("id", existing.id as string);
           }
 
-          return supabase.from("vendazap_usage").insert({
+          return supabase.from("vendazap_usage").insert([{
             tenant_id: tenantId,
             usuario_id: params.usuario_id || null,
             usage_date: today,
             mensagens_geradas: 1,
             tokens_consumidos: data.tokens_usados || 0,
-          } as Record<string, unknown>);
+          }]);
         })(),
       ]);
 
