@@ -75,6 +75,10 @@ export function MeasurementKanban() {
   const [search, setSearch] = useState("");
   const [detailRequest, setDetailRequest] = useState<MeasurementRequest | null>(null);
   const { usuarios } = useUsuarios();
+  const { metas } = useMetasTetos();
+  const [tetoOverrides, setTetoOverrides] = useState<Record<string, number>>({});
+  const [editingTeto, setEditingTeto] = useState<string | null>(null);
+  const [tetoEditValue, setTetoEditValue] = useState("");
 
   const findUserByReference = useCallback((reference: string | null | undefined) => {
     if (!reference) return null;
