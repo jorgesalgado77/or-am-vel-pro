@@ -48,6 +48,12 @@ interface MeasurementRequest {
   last_edited_at: string | null;
   created_at: string;
   updated_at: string;
+  seller_name?: string;
+  technician_name?: string;
+  store_code?: string;
+  contract_number?: string;
+  contract_url?: string;
+  briefing_url?: string;
 }
 
 const COLUMNS = [
