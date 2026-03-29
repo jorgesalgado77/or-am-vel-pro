@@ -56,7 +56,7 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         .from("tasks" as any)
         .select("*")
         .eq("tenant_id", tenantId)
-        .in("status", ["nova", "pendente"])
+        .in("status", ["nova", "pendente", "em_execucao"])
         .order("data_tarefa", { ascending: true });
       
       if (data) {
@@ -98,7 +98,7 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         const updated = payload.new as unknown as Task;
         const today = new Date().toISOString().slice(0, 10);
         
-        if (["nova", "pendente"].includes(updated.status)) {
+        if (["nova", "pendente", "em_execucao"].includes(updated.status)) {
           setOverdueTasks(prev => {
             const exists = prev.find(t => t.id === updated.id);
             if (exists) return prev.map(t => t.id === updated.id ? updated : t);

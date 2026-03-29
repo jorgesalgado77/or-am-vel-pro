@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Target, Plus, Pencil, Trash2, Loader2, AlertTriangle, Clock,
-  TrendingUp, Award, CalendarDays, ShieldAlert,
+  TrendingUp, Award, CalendarDays, ShieldAlert, Copy,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { supabase } from "@/lib/supabaseClient";
 import { useMetasTetos } from "@/hooks/useMetasTetos";
 import { cn } from "@/lib/utils";
@@ -268,10 +269,48 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
   };
 
   const openNew = () => {
-    // Pre-fill with admin-configured default meta vendedor value
     const defaultValue = (metaVendedor?.valor && form.goal_type === "revenue") ? metaVendedor.valor : 0;
     setForm({ id: "", user_id: "", goal_type: "revenue", target_value: defaultValue });
     setDialogOpen(true);
+  };
+
+  const handleDuplicatePreviousMonth = async () => {
+    if (!tenantId) return;
+    setSaving(true);
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const prevDate = new Date(y, m - 2, 15);
+    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+
+    const { data: prevGoals } = await supabase
+      .from("sales_goals" as any)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("month", prevMonth);
+
+    if (!prevGoals || prevGoals.length === 0) {
+      toast.error("Nenhuma meta encontrada no mês anterior");
+      setSaving(false);
+      return;
+    }
+
+    let count = 0;
+    for (const g of prevGoals as any[]) {
+      const existing = goals.find(eg => eg.user_id === g.user_id && eg.goal_type === g.goal_type);
+      if (!existing) {
+        await supabase.from("sales_goals" as any).insert({
+          tenant_id: tenantId,
+          user_id: g.user_id,
+          goal_type: g.goal_type,
+          target_value: g.target_value,
+          month: selectedMonth,
+        } as any);
+        count++;
+      }
+    }
+
+    toast.success(`${count} meta(s) duplicada(s) do mês anterior!`);
+    await loadGoals();
+    setSaving(false);
   };
 
   const openEdit = (g: SalesGoal) => {
@@ -331,9 +370,14 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
                 : `${totalDays} dias no mês`}
           </Badge>
         </div>
-        <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNew}>
-          <Plus className="h-3.5 w-3.5" /> Nova Meta
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={handleDuplicatePreviousMonth} disabled={saving}>
+            <Copy className="h-3.5 w-3.5" /> Duplicar Mês Anterior
+          </Button>
+          <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNew}>
+            <Plus className="h-3.5 w-3.5" /> Nova Meta
+          </Button>
+        </div>
       </div>
 
       {/* Automatic alerts */}
@@ -365,6 +409,43 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
           </Alert>
         );
       })()}
+
+      {/* Bar Chart — Seller comparison */}
+      {!loading && goals.filter(g => g.goal_type === "revenue").length > 0 && (
+        <Card>
+          <CardContent className="pt-4">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Comparativo de Vendedores — Faturamento
+            </h4>
+            <ResponsiveContainer width="100%" height={Math.max(200, goals.filter(g => g.goal_type === "revenue").length * 60)}>
+              <BarChart
+                data={goals.filter(g => g.goal_type === "revenue").map(g => ({
+                  name: g.user_name.split(" ")[0],
+                  meta: g.target_value,
+                  atual: g.current_value,
+                  pct: g.target_value > 0 ? Math.round((g.current_value / g.target_value) * 100) : 0,
+                }))}
+                layout="vertical"
+                margin={{ left: 10, right: 30, top: 5, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                <XAxis type="number" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} fontSize={10} />
+                <YAxis type="category" dataKey="name" width={70} fontSize={11} />
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Legend fontSize={10} />
+                <Bar dataKey="meta" name="Meta" fill="hsl(var(--muted-foreground))" opacity={0.3} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="atual" name="Realizado" radius={[0, 4, 4, 0]}>
+                  {goals.filter(g => g.goal_type === "revenue").map((g, i) => {
+                    const pct = g.target_value > 0 ? (g.current_value / g.target_value) * 100 : 0;
+                    return <Cell key={i} fill={pct >= 100 ? "hsl(142 71% 45%)" : pct >= 60 ? "hsl(var(--primary))" : "hsl(var(--destructive))"} />;
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Goals List */}
       {loading ? (

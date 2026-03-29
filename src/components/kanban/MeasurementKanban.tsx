@@ -9,13 +9,15 @@ import { MeasurementDetailModal } from "./MeasurementDetailModal";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import {
   Ruler, AlertTriangle, CheckCircle2, Clock, RefreshCw, Search,
-  User, ChevronRight, Loader2, BarChart3, Pencil, Eye,
+  User, ChevronRight, Loader2, BarChart3, Pencil, Eye, Users, Phone, Mail, Shield, Save,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { useUsuarios } from "@/hooks/useUsuarios";
+import { useMetasTetos } from "@/hooks/useMetasTetos";
 import { formatCurrency } from "@/lib/financing";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -73,6 +75,10 @@ export function MeasurementKanban() {
   const [search, setSearch] = useState("");
   const [detailRequest, setDetailRequest] = useState<MeasurementRequest | null>(null);
   const { usuarios } = useUsuarios();
+  const { metas } = useMetasTetos();
+  const [tetoOverrides, setTetoOverrides] = useState<Record<string, number>>({});
+  const [editingTeto, setEditingTeto] = useState<string | null>(null);
+  const [tetoEditValue, setTetoEditValue] = useState("");
 
   const findUserByReference = useCallback((reference: string | null | undefined) => {
     if (!reference) return null;
@@ -281,6 +287,7 @@ export function MeasurementKanban() {
       <TabsList>
         <TabsTrigger value="kanban" className="gap-1.5"><Ruler className="h-3.5 w-3.5" />Kanban</TabsTrigger>
         <TabsTrigger value="report" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" />Relatório</TabsTrigger>
+        <TabsTrigger value="fila" className="gap-1.5"><Users className="h-3.5 w-3.5" />Fila Liberação</TabsTrigger>
       </TabsList>
 
       <TabsContent value="kanban" className="space-y-4">
@@ -494,11 +501,256 @@ export function MeasurementKanban() {
         <MeasurementReport />
       </TabsContent>
 
+      <TabsContent value="fila" className="space-y-4">
+        <FilaLiberacaoTab
+          requests={requests}
+          liberadores={tecnicosEProjetistas}
+          metas={metas}
+          tetoOverrides={tetoOverrides}
+          setTetoOverrides={setTetoOverrides}
+          editingTeto={editingTeto}
+          setEditingTeto={setEditingTeto}
+          tetoEditValue={tetoEditValue}
+          setTetoEditValue={setTetoEditValue}
+        />
+      </TabsContent>
+
       <MeasurementDetailModal
         open={!!detailRequest}
         onOpenChange={(open) => !open && setDetailRequest(null)}
         request={detailRequest}
       />
     </Tabs>
+  );
+}
+
+/* ───────────── Fila Liberação Tab ───────────── */
+
+interface FilaLiberacaoProps {
+  requests: MeasurementRequest[];
+  liberadores: any[];
+  metas: any[];
+  tetoOverrides: Record<string, number>;
+  setTetoOverrides: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  editingTeto: string | null;
+  setEditingTeto: (id: string | null) => void;
+  tetoEditValue: string;
+  setTetoEditValue: (v: string) => void;
+}
+
+function FilaLiberacaoTab({
+  requests, liberadores, metas, tetoOverrides,
+  setTetoOverrides, editingTeto, setEditingTeto, tetoEditValue, setTetoEditValue,
+}: FilaLiberacaoProps) {
+  // Check if current user is admin
+  const isAdmin = useMemo(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("usuario_atual") || "{}");
+      return (user.cargo_nome || "").toLowerCase().includes("administrador");
+    } catch { return false; }
+  }, []);
+
+  // Get default teto from metas_tetos config
+  const defaultTeto = useMemo(() => {
+    const tetoMeta = metas.find(m => m.tipo === "teto_liberacao");
+    return tetoMeta?.valor || 0;
+  }, [metas]);
+
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+
+  // Build queue data for each liberador
+  const queueData = useMemo(() => {
+    return liberadores.map(lib => {
+      const teto = tetoOverrides[lib.id] ?? defaultTeto;
+      const assignedRequests = requests.filter(r =>
+        (r.assigned_to === lib.nome_completo || r.assigned_to === lib.id) &&
+        r.status !== "concluido" &&
+        (r.created_at || "").substring(0, 7) === currentMonth
+      );
+      const totalValor = assignedRequests.reduce((sum, r) => sum + (Number(r.valor_venda_avista) || 0), 0);
+      const remaining = Math.max(0, teto - totalValor);
+      const lastAssignment = assignedRequests.length > 0
+        ? assignedRequests.reduce((latest, r) => {
+            const d = new Date(r.updated_at || r.created_at).getTime();
+            return d > latest ? d : latest;
+          }, 0)
+        : 0;
+      const pct = teto > 0 ? Math.min(100, (totalValor / teto) * 100) : 0;
+
+      return {
+        id: lib.id,
+        nome: lib.nome_completo,
+        cargo: lib.cargo_nome || "",
+        telefone: lib.telefone || lib.whatsapp || "",
+        email: lib.email || "",
+        teto,
+        totalSolicitacoes: assignedRequests.length,
+        totalValor,
+        remaining,
+        lastAssignment,
+        pct,
+      };
+    }).sort((a, b) => {
+      // Queue priority: least recently assigned first, then most remaining capacity
+      if (a.lastAssignment !== b.lastAssignment) return a.lastAssignment - b.lastAssignment;
+      return b.remaining - a.remaining;
+    });
+  }, [liberadores, requests, tetoOverrides, defaultTeto, currentMonth]);
+
+  const handleSaveTeto = (libId: string) => {
+    const val = parseFloat(tetoEditValue.replace(/\D/g, "")) / 100;
+    if (val > 0) {
+      setTetoOverrides(prev => ({ ...prev, [libId]: val }));
+      toast.success("Teto atualizado!");
+    }
+    setEditingTeto(null);
+  };
+
+  if (liberadores.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
+          <p>Nenhum liberador/técnico/conferente cadastrado e ativo</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Queue order indicator */}
+      <div className="bg-muted/30 rounded-lg border p-3">
+        <h4 className="text-sm font-semibold flex items-center gap-2 mb-2">
+          <Shield className="h-4 w-4 text-primary" />
+          Ordem da Fila de Distribuição
+        </h4>
+        <div className="flex items-center gap-2 flex-wrap">
+          {queueData.map((lib, idx) => (
+            <Badge
+              key={lib.id}
+              variant={idx === 0 ? "default" : "outline"}
+              className={cn("text-xs gap-1", idx === 0 && "bg-primary text-primary-foreground")}
+            >
+              {idx + 1}º {lib.nome.split(" ")[0]}
+              {lib.remaining > 0 && <span className="opacity-70">({formatCurrency(lib.remaining)})</span>}
+            </Badge>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2">
+          Próximo na fila: <strong className="text-primary">{queueData[0]?.nome || "—"}</strong> — baseado na última atribuição e capacidade restante.
+        </p>
+      </div>
+
+      {/* Liberador cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {queueData.map((lib, idx) => (
+          <Card key={lib.id} className={cn("transition-all", idx === 0 && "border-primary/50 ring-1 ring-primary/20")}>
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={idx === 0 ? "default" : "secondary"} className="text-[10px] h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                      {idx + 1}
+                    </Badge>
+                    <p className="text-sm font-semibold">{lib.nome}</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{lib.cargo}</p>
+                </div>
+                {idx === 0 && (
+                  <Badge className="bg-primary/10 text-primary text-[9px] border-primary/30">
+                    Próximo da Fila
+                  </Badge>
+                )}
+              </div>
+
+              {/* Contact info */}
+              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                {lib.telefone && (
+                  <a href={`https://wa.me/55${lib.telefone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 hover:text-primary transition-colors">
+                    <Phone className="h-3 w-3" />{lib.telefone}
+                  </a>
+                )}
+                {lib.email && (
+                  <span className="flex items-center gap-1 truncate">
+                    <Mail className="h-3 w-3" />{lib.email}
+                  </span>
+                )}
+              </div>
+
+              {/* Teto */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Teto de Liberação</span>
+                  {editingTeto === lib.id ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={tetoEditValue}
+                        onChange={e => {
+                          const digits = e.target.value.replace(/\D/g, "");
+                          setTetoEditValue(digits ? (parseInt(digits) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "");
+                        }}
+                        className="h-6 w-28 text-[10px]"
+                        autoFocus
+                        onKeyDown={e => e.key === "Enter" && handleSaveTeto(lib.id)}
+                      />
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSaveTeto(lib.id)}>
+                        <Save className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold text-foreground">{formatCurrency(lib.teto)}</span>
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => {
+                          setEditingTeto(lib.id);
+                          setTetoEditValue(lib.teto > 0 ? lib.teto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "");
+                        }}>
+                          <Pencil className="h-2.5 w-2.5" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Progress */}
+                <Progress
+                  value={lib.pct}
+                  className={cn("h-2", lib.pct >= 100 ? "[&>div]:bg-destructive" : lib.pct >= 80 ? "[&>div]:bg-amber-500" : "")}
+                />
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>{formatCurrency(lib.totalValor)} utilizado</span>
+                  <span className={cn(lib.remaining === 0 ? "text-destructive font-semibold" : "text-emerald-600")}>
+                    {lib.remaining > 0 ? `${formatCurrency(lib.remaining)} restante` : "Teto atingido"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-foreground">{lib.totalSolicitacoes}</p>
+                  <p className="text-[9px] text-muted-foreground">Solicitações</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-foreground">{lib.pct.toFixed(0)}%</p>
+                  <p className="text-[9px] text-muted-foreground">Capacidade</p>
+                </div>
+              </div>
+
+              {lib.lastAssignment > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  Última atribuição: {format(new Date(lib.lastAssignment), "dd/MM/yy HH:mm", { locale: ptBR })}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 }
