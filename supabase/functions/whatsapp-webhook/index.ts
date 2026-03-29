@@ -183,9 +183,9 @@ serve(async (req) => {
         tracking_id: trackingId,
         tenant_id: client.tenant_id,
         mensagem: messageText,
-        remetente_tipo: "cliente",
-        remetente_nome: client.nome || "Cliente",
-        lida: false,
+        remetente_tipo: isFromMe ? "loja" : "cliente",
+        remetente_nome: isFromMe ? "Você" : (client.nome || "Cliente"),
+        lida: isFromMe ? true : false,
         created_at: now,
         ...(media?.url
           ? {
