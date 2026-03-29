@@ -454,7 +454,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   // Handle initialClientId from dashboard alerts
   useEffect(() => {
     if (!initialClientId || conversations.length === 0) return;
-    const match = conversations.find(c => c.clientId === initialClientId);
+    const match = conversations.find(c => c.client_id === initialClientId);
     if (match) {
       setSelected(match);
       onInitialClientHandled?.();
