@@ -1162,6 +1162,7 @@ export function EmailPanel() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="contacts" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
