@@ -132,12 +132,12 @@ export function NegotiationControlPanel({ conversation, tenantId, messageCount, 
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-md border border-border bg-background/70 p-2">
                 <div className="flex items-center gap-1 text-muted-foreground mb-1"><Brain className="h-3 w-3" /> Estratégia</div>
-                <div className="font-semibold text-foreground capitalize">{decision.strategy.replaceAll("_", " ")}</div>
+                <div className="font-semibold text-foreground capitalize">{decision.strategy.replace(/_/g, " ")}</div>
                 <div className="text-[10px] text-muted-foreground mt-1">{decision.strategy_confidence}% confiança</div>
               </div>
               <div className="rounded-md border border-border bg-background/70 p-2">
                 <div className="flex items-center gap-1 text-muted-foreground mb-1"><Clock3 className="h-3 w-3" /> Timing</div>
-                <div className="font-semibold text-foreground capitalize">{decision.timing.replaceAll("_", " ")}</div>
+                <div className="font-semibold text-foreground capitalize">{decision.timing.replace(/_/g, " ")}</div>
                 {decision.wait_minutes ? <div className="text-[10px] text-muted-foreground mt-1">Aguardar {decision.wait_minutes} min</div> : null}
               </div>
             </div>
@@ -166,7 +166,7 @@ export function NegotiationControlPanel({ conversation, tenantId, messageCount, 
               <div className="flex flex-wrap gap-1">
                 {decision.closing_signals.map((signal) => (
                   <Badge key={signal} variant={signal === "nenhum" ? "outline" : "secondary"} className="text-[10px] capitalize">
-                    {signal.replaceAll("_", " ")}
+                    {signal.replace(/_/g, " ")}
                   </Badge>
                 ))}
               </div>
@@ -186,7 +186,7 @@ export function NegotiationControlPanel({ conversation, tenantId, messageCount, 
             <div className="rounded-md border border-border bg-background/70 p-2 space-y-1">
               <div className="flex items-center gap-1 text-muted-foreground"><Sparkles className="h-3 w-3" /> Leitura em tempo real</div>
               <p className="text-muted-foreground">{decision.strategy_reasoning}</p>
-              <p className="text-muted-foreground">Próximo movimento previsto: <span className="text-foreground font-medium">{decision.predicted_move.nextMove.replaceAll("_", " ")}</span></p>
+              <p className="text-muted-foreground">Próximo movimento previsto: <span className="text-foreground font-medium">{decision.predicted_move.nextMove.replace(/_/g, " ")}</span></p>
             </div>
           </div>
         </ScrollArea>

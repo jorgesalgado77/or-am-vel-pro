@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type ComponentProps } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
@@ -239,7 +239,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
   const [interventionMode, setInterventionMode] = useState<"automatico" | "assistido" | "manual">("assistido");
   const [closeSaleOpen, setCloseSaleOpen] = useState(false);
-  const [closeSaleClient, setCloseSaleClient] = useState<unknown>(null);
+  const [closeSaleClient, setCloseSaleClient] = useState<ComponentProps<typeof CloseSaleModal>["client"] | null>(null);
   const [closeSaleSimData, setCloseSaleSimData] = useState<CloseSaleData | undefined>(undefined);
   const [closeSaleSaving, setCloseSaleSaving] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
@@ -998,19 +998,20 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 onCloseSale={handleCloseSaleFromAI}
               />
             </div>
-            <ChatRightPanel
-              conversation={selected}
-              tenantId={tenantId}
-              messageCount={0}
-              aiSuggestion={suggestion}
-              aiLoading={aiLoading}
-              aiTipoCopy={tipoCopy}
-              aiDiscProfile={discProfile}
-              onUseSuggestion={handleUseSuggestion}
-              isMobile={isMobile}
-              mobileOpen={mobileAiOpen}
-              onMobileOpenChange={setMobileAiOpen}
-            />
+              <ChatRightPanel
+                conversation={selected}
+                tenantId={tenantId}
+                messageCount={messageCount}
+                aiSuggestion={suggestion}
+                aiLoading={aiLoading}
+                aiTipoCopy={tipoCopy}
+                aiDiscProfile={discProfile}
+                onUseSuggestion={handleUseSuggestion}
+                interventionMode={interventionMode}
+                isMobile={isMobile}
+                mobileOpen={mobileAiOpen}
+                onMobileOpenChange={setMobileAiOpen}
+              />
           </>
         ) : (
           <div className="text-center p-8 text-muted-foreground">
