@@ -72,8 +72,8 @@ function buildTriggerContext(
     client_name: client.nome || "Cliente",
     client_status: client.status || "novo",
     days_inactive: daysInactive,
-    has_simulation: (client.valor_orcamento ?? 0) > 0,
-    valor_orcamento: client.valor_orcamento ?? 0,
+    has_simulation: false,
+    valor_orcamento: 0,
     generated_message: trigger.generated_message,
   };
 }
@@ -128,19 +128,16 @@ export function useVendaZapTriggers(tenantId: string | null) {
           created_at: t.created_at as string,
           client_nome: client?.nome || "Cliente",
           client_status: client?.status,
-          valor_orcamento: client?.valor_orcamento ?? undefined,
           days_inactive: client?.updated_at
             ? Math.floor((Date.now() - new Date(client.updated_at).getTime()) / 86400000)
             : 0,
-          has_simulation: (client?.valor_orcamento ?? 0) > 0,
         };
 
-        // Run CDE for pending triggers with budget
-        if (enriched.status === "pending" && client && (client.valor_orcamento ?? 0) > 0) {
+        // Run CDE for pending triggers
+        if (enriched.status === "pending" && client) {
           try {
             const triggerCtx = buildTriggerContext(t as Parameters<typeof buildTriggerContext>[0], client);
             enriched.decision = await engine.handleTrigger(triggerCtx);
-            // Override generated_message with CDE's intelligent message
             enriched.generated_message = enriched.decision.message;
           } catch {
             // fallback to original message
@@ -187,7 +184,6 @@ export function useVendaZapTriggers(tenantId: string | null) {
             id: newTrigger.client_id as string,
             nome: "Cliente",
             status: "novo",
-            valor_orcamento: null,
             updated_at: null,
           };
 
@@ -201,26 +197,23 @@ export function useVendaZapTriggers(tenantId: string | null) {
             created_at: newTrigger.created_at as string,
             client_nome: clientData.nome,
             client_status: clientData.status,
-            valor_orcamento: clientData.valor_orcamento ?? undefined,
             days_inactive: clientData.updated_at
               ? Math.floor((Date.now() - new Date(clientData.updated_at).getTime()) / 86400000)
               : 0,
-            has_simulation: (clientData.valor_orcamento ?? 0) > 0,
           };
 
           // Run CDE analysis for new trigger
-          if ((clientData.valor_orcamento ?? 0) > 0) {
-            try {
-              const engine = getCommercialEngine();
-              const triggerCtx = buildTriggerContext(
-                { id: enriched.id, tenant_id: enriched.tenant_id, client_id: enriched.client_id, trigger_type: enriched.trigger_type, generated_message: enriched.generated_message },
-                clientData,
-              );
-              enriched.decision = await engine.handleTrigger(triggerCtx);
-              enriched.generated_message = enriched.decision.message;
-            } catch {
-              // fallback
-            }
+          try {
+            const engine = getCommercialEngine();
+            const triggerCtx = buildTriggerContext(
+              { id: enriched.id, tenant_id: enriched.tenant_id, client_id: enriched.client_id, trigger_type: enriched.trigger_type, generated_message: enriched.generated_message },
+              clientData,
+            );
+            enriched.decision = await engine.handleTrigger(triggerCtx);
+            enriched.generated_message = enriched.decision.message;
+          } catch {
+            // fallback
+          }
           }
 
           setTriggers((prev) => [enriched, ...prev]);
