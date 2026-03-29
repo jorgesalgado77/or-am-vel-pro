@@ -20,7 +20,48 @@ const supabaseAdmin = createClient(
 );
 
 function normalizePhone(raw = "") {
-  return String(raw).replace(/\D/g, "").replace(/^55(\d{10,11})$/, "$1");
+  return String(raw).replace(/@.*/, "").replace(/\D/g, "").replace(/^55(\d{10,11})$/, "$1");
+}
+
+function pickContactPhone(body: any, isEvolution: boolean) {
+  if (isEvolution) {
+    return (
+      body?.data?.key?.remoteJid
+      || body?.data?.participant
+      || body?.data?.participantPn
+      || body?.data?.cleanedParticipantPn
+      || ""
+    );
+  }
+
+  return (
+    body?.phone
+    || body?.sender
+    || body?.from
+    || body?.chatId
+    || body?.remoteJid
+    || body?.key?.remoteJid
+    || body?.participantPhone
+    || body?.participant
+    || ""
+  );
+}
+
+function pickEventTimestamp(body: any, isEvolution: boolean) {
+  const raw = isEvolution
+    ? body?.data?.messageTimestamp || body?.messageTimestamp || body?.timestamp
+    : body?.momment || body?.moment || body?.messageTimestamp || body?.timestamp;
+
+  if (!raw) return new Date().toISOString();
+
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric)) {
+    const millis = numeric > 1_000_000_000_000 ? numeric : numeric * 1000;
+    return new Date(millis).toISOString();
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 
 function pickTextMessage(body: any, isEvolution: boolean) {
@@ -157,25 +198,22 @@ serve(async (req) => {
       ? Boolean(body?.data?.key?.fromMe)
       : body?.isFromMe === true || body?.fromMe === true;
 
-    const senderPhone = isEvolution
-      ? body?.data?.key?.remoteJid?.replace(/@.*/, "") || ""
-      : body?.phone || body?.sender || body?.from || "";
-
-    const cleanPhone = normalizePhone(senderPhone);
+    const rawContactPhone = pickContactPhone(body, isEvolution);
+    const cleanPhone = normalizePhone(rawContactPhone);
     const media = pickMedia(body, isEvolution);
     const messageText = pickTextMessage(body, isEvolution).trim() || media?.name || "[Mensagem recebida]";
+    const now = pickEventTimestamp(body, isEvolution);
 
-    if (!cleanPhone) {
-      return respond({ status: "ignored_missing_phone" });
+    if (!cleanPhone || body?.isGroup === true || String(rawContactPhone).includes("@g.us") || body?.isNewsletter === true) {
+      return respond({ status: "ignored_missing_phone_or_group" });
     }
 
     const client = await findClientByPhone(cleanPhone);
     if (!client) {
-      return respond({ status: "no_client_match", phone: cleanPhone });
+      return respond({ status: "no_client_match", phone: cleanPhone, from_me: isFromMe });
     }
 
     const trackingId = await getTrackingId(client, cleanPhone);
-    const now = new Date().toISOString();
 
     const { error: insertError } = await supabaseAdmin
       .from("tracking_messages")
