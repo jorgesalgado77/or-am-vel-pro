@@ -164,7 +164,10 @@ export function CommercialAIPanel() {
     ? `Leads: ${metrics.leads_count}, Propostas: ${metrics.proposals_sent}, Fechados: ${metrics.deals_closed}, ` +
       `Conversão: ${metrics.conversion_rate}%, Faturamento: R$${metrics.revenue.toFixed(2)}, ` +
       `Ticket Médio: R$${metrics.average_ticket.toFixed(2)}, Tempo Médio: ${metrics.avg_close_days}d, ` +
-      `Leads Parados: ${stalledLeads.length}, Leads Quentes: ${hotLeads.length}`
+      `Leads Parados: ${stalledLeads.length}, Leads Quentes: ${hotLeads.length}` +
+      (metaLoja ? `, Meta Loja: R$${metaLoja.valor.toFixed(2)}, % Atingido Meta Loja: ${((metrics.revenue / metaLoja.valor) * 100).toFixed(1)}%` : "") +
+      (metaVendedor ? `, Meta Vendedor Padrão: R$${metaVendedor.valor.toFixed(2)}` : "") +
+      (tetoLiberacao ? `, Teto Liberação: R$${tetoLiberacao.valor.toFixed(2)}` : "")
     : "";
 
   // Auto-scroll chat
@@ -585,7 +588,16 @@ export function CommercialAIPanel() {
 
           {/* Quick Actions */}
           <div className="flex flex-wrap gap-2 mt-3">
-            {["Como estão minhas vendas?", "Quem devo atender agora?", "Ranking da equipe", "Dicas para vender mais", "Analise meus gargalos"].map(q => (
+            {[
+              "Como estão minhas vendas?",
+              "Como posso melhorar meus resultados e bater minha meta?",
+              "Quem devo atender agora?",
+              "Ranking da equipe",
+              "Dicas para vender mais",
+              "Analise meus gargalos",
+              "Qual o status da meta da loja?",
+              "Quais leads estão parados e precisam de ação?",
+            ].map(q => (
               <Button
                 key={q}
                 variant="outline"
