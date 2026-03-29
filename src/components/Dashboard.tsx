@@ -501,6 +501,50 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <KpiCard icon={UserCheck} label="Sem Orçamento" value={String(stats.clientsWithoutSim)} />
       </div>
 
+      {/* Meta Loja Card — visible to admin/gerente */}
+      {isAdminOrGerente && metaLoja && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Store className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">Meta Loja — Mês Atual</h3>
+                  <Badge variant={stats.faturamentoContratos >= metaLoja.valor ? "default" : "secondary"} className="text-xs">
+                    {stats.faturamentoContratos >= metaLoja.valor ? "✓ Atingida" : "Em andamento"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">Meta: {formatCurrency(metaLoja.valor)}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-3">
+              <div className="text-center">
+                <p className="text-lg font-bold text-primary">{formatCurrency(stats.faturamentoContratos)}</p>
+                <p className="text-[10px] text-muted-foreground">Faturado</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-foreground">
+                  {metaLoja.valor > 0 ? ((stats.faturamentoContratos / metaLoja.valor) * 100).toFixed(1) : "0"}%
+                </p>
+                <p className="text-[10px] text-muted-foreground">Atingido</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-destructive">
+                  {metaLoja.valor > 0 ? Math.max(0, 100 - (stats.faturamentoContratos / metaLoja.valor) * 100).toFixed(1) : "100"}%
+                </p>
+                <p className="text-[10px] text-muted-foreground">Faltante</p>
+              </div>
+            </div>
+            <Progress
+              value={metaLoja.valor > 0 ? Math.min(100, (stats.faturamentoContratos / metaLoja.valor) * 100) : 0}
+              className="h-3"
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Lead Source Cards with Projetista filter */}
       <Card>
         <CardContent className="p-4 space-y-3">
