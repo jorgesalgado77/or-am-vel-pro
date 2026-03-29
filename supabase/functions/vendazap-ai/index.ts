@@ -553,15 +553,10 @@ serve(async (req) => {
       const tId = typeof body.tenant_id === "string" ? body.tenant_id : null;
       const count = typeof body.count === "number" ? Math.min(body.count, 8) : 4;
 
-      const LOVABLE_KEY = Deno.env.get("LOVABLE_API_KEY");
       const OPENAI_KEY = await resolveApiKey(tId, "openai");
-      const aiKey = LOVABLE_KEY || OPENAI_KEY;
-      if (!aiKey) return respond({ error: "Nenhuma API de IA configurada" }, 500);
+      if (!OPENAI_KEY) return respond({ error: "Chave OpenAI não configurada" }, 500);
 
-      const isLovable = Boolean(LOVABLE_KEY);
-      const aiUrl = isLovable
-        ? "https://ai.gateway.lovable.dev/v1/chat/completions"
-        : "https://api.openai.com/v1/chat/completions";
+      const aiUrl = "https://api.openai.com/v1/chat/completions";
 
       const tipos = ["reativacao", "objecao", "urgencia", "fechamento", "reversao", "primeiro_contato", "follow_up", "pos_venda"];
       const labels: Record<string, string> = {
@@ -590,11 +585,11 @@ Exemplo:
         const aiRes = await fetch(aiUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${aiKey}`,
+            Authorization: `Bearer ${OPENAI_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: isLovable ? "google/gemini-3-flash-preview" : "gpt-4o-mini",
+            model: "gpt-4o-mini",
             messages: [
               { role: "system", content: "Retorne apenas JSON válido, sem markdown." },
               { role: "user", content: prompt },
