@@ -100,9 +100,9 @@ export default function Index() {
   const [forcedPasswordChange, setForcedPasswordChange] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const { unreadCount: unreadMessages } = useRealtimeMessages();
-
   const [activeView, setActiveView] = useState("dashboard");
+  const [pendingChatClientId, setPendingChatClientId] = useState<string | null>(null);
+  const { unreadCount: unreadMessages } = useRealtimeMessages(activeView);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== "undefined" && window.innerWidth < 768) return true;
     const saved = localStorage.getItem("sidebar-collapsed");
@@ -211,6 +211,17 @@ export default function Index() {
       return [event, handler] as const;
     });
     return () => { handlers.forEach(([event, handler]) => window.removeEventListener(event, handler)); };
+  }, []);
+
+  useEffect(() => {
+    const handleOpenClientChat = (event: Event) => {
+      const customEvent = event as CustomEvent<{ clientId?: string | null }>;
+      setPendingChatClientId(customEvent.detail?.clientId || null);
+      setActiveView("vendazap-chat");
+    };
+
+    window.addEventListener("open-vendazap-chat-client", handleOpenClientChat as EventListener);
+    return () => window.removeEventListener("open-vendazap-chat-client", handleOpenClientChat as EventListener);
   }, []);
 
   const viewMeta = VIEW_TITLES[activeView] || VIEW_TITLES.simulator;
@@ -399,6 +410,8 @@ export default function Index() {
                 <VendaZapChat
                   tenantId={authUser?.tenant_id || null}
                   userId={authUser?.id}
+                  initialClientId={pendingChatClientId}
+                  onInitialClientHandled={() => setPendingChatClientId(null)}
                   onDealRoom={(clientName, contractId) => {
                     setActiveView("dealroom");
                   }}
