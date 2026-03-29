@@ -75,9 +75,9 @@ export function useCommercialDecision({ tenantId }: UseCommercialDecisionParams)
       const messageContext = engine.generateMessageContext(context);
       const strategy = await engine.suggestStrategy(context);
 
-      // Override strategy with optimization if confidence is high enough
+      // Enrich strategy with optimization insights if confidence is high
       if (optimization && optimization.strategy_confidence >= 60) {
-        strategy.recommended_strategy = optimization.recommended_strategy;
+        strategy.action = `Usar estratégia "${optimization.recommended_strategy}": ${optimization.reasoning}`;
         strategy.reasoning = optimization.reasoning;
       }
 

@@ -330,7 +330,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     const localTenantId = getTenantId();
     if (localTenantId && client) {
       const totalValue = simulationData?.valorFinal || totalAmbientes;
-      const discountPct = simulationData?.desconto1 || 0;
+      const discountPct = (simulationData as any)?.desconto1 || 0;
       const table = supabase.from("ai_learning_events" as unknown as "clients");
       void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
         .insert([{
