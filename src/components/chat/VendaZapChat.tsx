@@ -1106,6 +1106,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
             }
 
             // Create tracking (conversation) only — NO lead auto-creation
+            // Tag with current user's name so the conversation is private to them
             toast.loading("Criando conversa...", { id: "wa-flow", duration: 3000 });
             const { data: createdTracking, error: trackError } = await supabase
               .from("client_tracking")
@@ -1115,6 +1116,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 nome_cliente: clientName,
                 numero_contrato: contractNumber,
                 status: "em_negociacao",
+                projetista: currentUser?.nome_completo || null,
               } as any)
               .select("id, client_id, nome_cliente, numero_contrato")
               .maybeSingle();
