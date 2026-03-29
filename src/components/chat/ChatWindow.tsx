@@ -11,6 +11,7 @@ import { TEMPERATURE_CONFIG } from "@/lib/leadTemperature";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import { useQuickReplies } from "@/hooks/useQuickReplies";
 import { sendWhatsAppText, sendWhatsAppMedia } from "@/lib/whatsappSender";
+import { VendaZapMonitorIndicator } from "./VendaZapMonitorIndicator";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
   messageCount?: number;
   onMessagesLoaded?: (count: number) => void;
   detectedDiscProfile?: string;
+  vendazapActive?: boolean;
 }
 
 const PAGE_SIZE = 40;
@@ -63,6 +65,7 @@ function getConversationPhone(conversation: ChatConversation | null | undefined)
 export function ChatWindow({
   conversation, onBack, onStartDealRoom, onCreateLead,
   inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded, detectedDiscProfile,
+  vendazapActive = false,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [trackingIds, setTrackingIds] = useState<string[]>([conversation.id]);
@@ -375,6 +378,12 @@ export function ChatWindow({
             {conversation.numero_contrato}
           </p>
         </div>
+
+        <VendaZapMonitorIndicator
+          trackingId={conversation.id}
+          tenantId={tenantId}
+          enabled={vendazapActive}
+        />
 
         <CloseDealButton
           trackingId={conversation.id}

@@ -11,6 +11,7 @@ import { TopSellingProductsChart } from "@/components/dashboard/TopSellingProduc
 import { DealInsightsWidget } from "@/components/dashboard/DealInsightsWidget";
 import { LowStockAlerts } from "@/components/dashboard/LowStockAlerts";
 import { HighResistanceAlerts } from "@/components/dashboard/HighResistanceAlerts";
+import { CDEUrgencyWidget } from "@/components/dashboard/CDEUrgencyWidget";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/financing";
@@ -444,6 +445,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
       <DealInsightsWidget />
       <HighResistanceAlerts />
+      <CDEUrgencyWidget />
       {/* Date Filter Bar */}
       <Card>
         <CardContent className="p-4">
