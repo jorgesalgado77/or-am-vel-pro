@@ -1,14 +1,9 @@
-/**
- * HighResistanceAlerts — Dashboard widget showing clients with high
- * resistance (>70) detected by the ClientBehaviorEngine.
- * Queries tracking_messages for recent conversations and scores them.
- */
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertTriangle, Shield, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, Shield, RefreshCw, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { getBehaviorEngine, type BehaviorContext } from "@/services/commercial/ClientBehaviorEngine";
@@ -41,21 +36,28 @@ export function HighResistanceAlerts() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  const openClientChat = useCallback((clientId: string, clientName: string) => {
+    window.dispatchEvent(new CustomEvent("open-vendazap-chat-client", {
+      detail: { clientId, clientName },
+    }));
+  }, []);
+
   const analyze = useCallback(async () => {
     setLoading(true);
     try {
       const tenantId = await getResolvedTenantId();
-      
-      // Get active clients with recent messages
+
       let clientQuery = supabase
         .from("clients")
         .select("id, nome")
         .eq("status", "em_negociacao");
       if (tenantId) clientQuery = clientQuery.eq("tenant_id", tenantId);
       const { data: clients } = await clientQuery;
-      if (!clients || clients.length === 0) { setAlerts([]); return; }
+      if (!clients || clients.length === 0) {
+        setAlerts([]);
+        return;
+      }
 
-      // Get recent messages grouped by client tracking
       let msgQuery = supabase
         .from("tracking_messages")
         .select("tracking_id, mensagem, remetente_tipo, created_at")
@@ -64,8 +66,7 @@ export function HighResistanceAlerts() {
       if (tenantId) msgQuery = msgQuery.eq("tenant_id", tenantId);
       const { data: messages } = await msgQuery;
 
-      // Get trackings to map to clients
-      const clientIds = clients.map(c => c.id);
+      const clientIds = clients.map((client) => client.id);
       let trackingQuery = supabase
         .from("client_tracking")
         .select("id, client_id")
@@ -73,42 +74,44 @@ export function HighResistanceAlerts() {
       if (tenantId) trackingQuery = trackingQuery.eq("tenant_id", tenantId);
       const { data: trackings } = await trackingQuery;
 
-      if (!trackings || !messages) { setAlerts([]); return; }
+      if (!trackings || !messages) {
+        setAlerts([]);
+        return;
+      }
 
       const trackingToClient = new Map<string, string>();
-      trackings.forEach(t => trackingToClient.set(t.id, t.client_id));
+      trackings.forEach((tracking) => trackingToClient.set(tracking.id, tracking.client_id));
 
       const clientNameMap = new Map<string, string>();
-      clients.forEach(c => clientNameMap.set(c.id, c.nome));
+      clients.forEach((client) => clientNameMap.set(client.id, client.nome));
 
-      // Group messages by client
       const clientMessages = new Map<string, Array<{ mensagem: string; remetente_tipo: string }>>();
-      messages.forEach(m => {
-        const clientId = trackingToClient.get(m.tracking_id);
+      messages.forEach((message) => {
+        const clientId = trackingToClient.get(message.tracking_id);
         if (!clientId) return;
-        const arr = clientMessages.get(clientId) || [];
-        arr.push({ mensagem: m.mensagem, remetente_tipo: m.remetente_tipo });
-        clientMessages.set(clientId, arr);
+        const current = clientMessages.get(clientId) || [];
+        current.push({ mensagem: message.mensagem, remetente_tipo: message.remetente_tipo });
+        clientMessages.set(clientId, current);
       });
 
       const engine = getBehaviorEngine();
       const highResistance: AlertClient[] = [];
 
-      clientMessages.forEach((msgs, clientId) => {
-        if (msgs.length < 2) return; // Need at least some conversation
+      clientMessages.forEach((conversation, clientId) => {
+        if (conversation.length < 2) return;
         const name = clientNameMap.get(clientId) || "Cliente";
-        const ctx: BehaviorContext = {
+        const context: BehaviorContext = {
           clientName: name,
           status: "em_negociacao",
           daysInactive: 0,
           hasSimulation: false,
-          conversationHistory: msgs.slice(-20),
+          conversationHistory: conversation.slice(-20),
         };
 
-        const resistance = engine.detectResistanceLevel(ctx);
+        const resistance = engine.detectResistanceLevel(context);
         if (resistance.level > 70) {
-          const engagement = engine.calculateEngagementScore(ctx);
-          const prediction = engine.predictNextMove(ctx);
+          const engagement = engine.calculateEngagementScore(context);
+          const prediction = engine.predictNextMove(context);
           highResistance.push({
             clientName: name,
             clientId,
@@ -122,16 +125,18 @@ export function HighResistanceAlerts() {
         }
       });
 
-      highResistance.sort((a, b) => b.resistanceLevel - a.resistanceLevel);
+      highResistance.sort((left, right) => right.resistanceLevel - left.resistanceLevel);
       setAlerts(highResistance);
-    } catch (err) {
-      console.error("HighResistanceAlerts error:", err);
+    } catch (error) {
+      console.error("HighResistanceAlerts error:", error);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { analyze(); }, [analyze]);
+  useEffect(() => {
+    analyze();
+  }, [analyze]);
 
   if (alerts.length === 0 && !loading) return null;
 
@@ -166,36 +171,44 @@ export function HighResistanceAlerts() {
           <p className="text-[11px] text-muted-foreground text-center py-2">Analisando clientes...</p>
         )}
 
-        {displayAlerts.map(a => (
+        {displayAlerts.map((alert) => (
           <div
-            key={a.clientId}
-            className="flex items-center justify-between p-2 rounded-lg bg-background border border-border"
+            key={alert.clientId}
+            className="flex items-center justify-between gap-3 p-2 rounded-lg bg-background border border-border"
           >
             <div className="space-y-0.5 min-w-0 flex-1">
-              <p className="text-xs font-medium text-foreground truncate">{a.clientName}</p>
-              <div className="flex items-center gap-2">
+              <p className="text-xs font-medium text-foreground truncate">{alert.clientName}</p>
+              <div className="flex items-center gap-2 flex-wrap">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="flex items-center gap-1 text-[10px] text-destructive font-medium cursor-help">
                       <Shield className="h-3 w-3" />
-                      Resistência: {a.resistanceLevel}%
+                      Resistência: {alert.resistanceLevel}%
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-[10px] max-w-[200px]">
-                    {a.objections.length > 0 ? a.objections.join(" • ") : "Resistência alta detectada"}
+                    {alert.objections.length > 0 ? alert.objections.join(" • ") : "Resistência alta detectada"}
                   </TooltipContent>
                 </Tooltip>
                 <span className="text-[10px] text-muted-foreground">
-                  Engajamento: {a.engagementScore}
+                  Engajamento: {alert.engagementScore}
                 </span>
               </div>
             </div>
-            <Badge
-              variant="outline"
-              className="text-[9px] h-5 shrink-0 ml-2"
-            >
-              {MOVE_LABELS[a.predictedMove] || a.predictedMove}
-            </Badge>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge variant="outline" className="text-[9px] h-5 shrink-0">
+                {MOVE_LABELS[alert.predictedMove] || alert.predictedMove}
+              </Badge>
+              <Button
+                size="sm"
+                className="h-7 gap-1 text-[10px]"
+                onClick={() => openClientChat(alert.clientId, alert.clientName)}
+              >
+                <MessageCircle className="h-3 w-3" />
+                Reengajar
+              </Button>
+            </div>
           </div>
         ))}
 
