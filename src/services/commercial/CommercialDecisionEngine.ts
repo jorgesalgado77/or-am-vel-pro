@@ -22,6 +22,9 @@ import type {
   StrategyRecommendation,
   SalesRules,
   FormaPagamento,
+  TriggerContext,
+  TriggerAction,
+  TriggerActionType,
 } from "./types";
 
 // ==================== SALES RULES CACHE ====================
@@ -504,6 +507,110 @@ export class CommercialDecisionEngine {
       strategy,
       suggestedAction,
       urgency,
+    };
+  }
+
+  // ─── handleTrigger (INTELLIGENT TRIGGER DECISION) ──────────
+  /**
+   * Analyzes a trigger and decides the best automated action
+   * using the full CDE analysis instead of just notifying.
+   */
+  async handleTrigger(trigger: TriggerContext): Promise<TriggerAction> {
+    const ctx: DealContext = {
+      tenant_id: trigger.tenant_id,
+      customer: {
+        id: trigger.client_id,
+        name: trigger.client_name,
+        status: trigger.client_status,
+        days_inactive: trigger.days_inactive,
+        has_simulation: trigger.has_simulation,
+      },
+      pricing: { total_price: trigger.valor_orcamento },
+      payment: {
+        forma_pagamento: "Boleto",
+        parcelas: 1,
+        valor_entrada: 0,
+        plus_percentual: 0,
+      },
+      discounts: { desconto1: 0, desconto2: 0, desconto3: 0 },
+    };
+
+    const [analysis, discount] = await Promise.all([
+      this.analyzeDeal(ctx),
+      this.decideDiscount(ctx),
+    ]);
+
+    const messageCtx = this.generateMessageContext(ctx);
+    let action: TriggerActionType = "send_message";
+    let message = trigger.generated_message;
+    let reasoning = "";
+
+    // Decision logic per trigger type
+    switch (trigger.trigger_type) {
+      case "no_response": {
+        if (trigger.days_inactive > 10 && analysis.closing_probability < 20) {
+          action = "wait";
+          reasoning = `Lead frio (${analysis.closing_probability}% prob.) com ${trigger.days_inactive}d inativo — aguardar ou escalar.`;
+          if (analysis.risk_level === "high") action = "escalate";
+        } else if (analysis.closing_probability > 60) {
+          action = "suggest_dealroom";
+          message = `Olá ${trigger.client_name}! Preparei uma sala exclusiva com seu projeto e condições especiais. Posso te enviar o link?`;
+          reasoning = `Alta probabilidade (${analysis.closing_probability}%) — convide para Deal Room.`;
+        } else if (trigger.days_inactive > 5) {
+          action = "send_with_discount";
+          reasoning = `${trigger.days_inactive}d sem resposta — oferecer desconto para reativar.`;
+          message = `Olá ${trigger.client_name}! Tenho uma condição especial para você fechar esta semana. Posso te apresentar?`;
+        } else {
+          action = "send_message";
+          reasoning = `Follow-up padrão — ${trigger.days_inactive}d sem resposta.`;
+        }
+        break;
+      }
+
+      case "expiring_budget": {
+        if (analysis.closing_probability > 50) {
+          action = "send_with_discount";
+          reasoning = `Orçamento expirando + boa probabilidade (${analysis.closing_probability}%) — oferecer condição especial.`;
+          message = `${trigger.client_name}, seu orçamento está expirando! Consigo manter as condições se fecharmos esta semana. Vamos conversar?`;
+        } else {
+          action = "send_message";
+          reasoning = `Orçamento expirando — notificar e tentar reativar.`;
+          message = `Olá ${trigger.client_name}! Seu orçamento está perto de expirar. Gostaria de revisar as condições antes?`;
+        }
+        break;
+      }
+
+      case "viewed_no_reply": {
+        if (analysis.closing_probability > 70) {
+          action = "suggest_dealroom";
+          message = `Vi que você checou a proposta, ${trigger.client_name}! Que tal uma reunião rápida para tirar dúvidas? Posso abrir uma sala online agora!`;
+          reasoning = `Visualizou + alta probabilidade — oportunidade de fechar.`;
+        } else if (analysis.risk_level === "high") {
+          action = "send_with_discount";
+          reasoning = `Visualizou mas não respondeu + risco alto — oferecer incentivo.`;
+          message = `${trigger.client_name}, percebi que viu a proposta! Tenho uma condição especial que pode te interessar. Posso te contar?`;
+        } else {
+          action = "schedule_followup";
+          reasoning = `Visualizou sem responder — agendar follow-up em 24h.`;
+        }
+        break;
+      }
+    }
+
+    // Determine urgency from analysis
+    let urgency: TriggerAction["urgency"] = "this_week";
+    if (analysis.risk_level === "high" && analysis.closing_probability > 50) urgency = "immediate";
+    else if (analysis.risk_level === "high") urgency = "today";
+    else if (analysis.closing_probability > 70) urgency = "immediate";
+    else if (analysis.closing_probability < 25) urgency = "low";
+
+    return {
+      action,
+      message,
+      urgency,
+      reasoning,
+      discount: action === "send_with_discount" ? discount : undefined,
+      closing_probability: analysis.closing_probability,
     };
   }
 

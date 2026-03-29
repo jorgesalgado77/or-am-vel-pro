@@ -16,4 +16,8 @@ export type {
   MessageContext,
   StrategyRecommendation,
   SalesRules,
+  TriggerContext,
+  TriggerAction,
+  TriggerActionType,
+  TriggerType,
 } from "./types";

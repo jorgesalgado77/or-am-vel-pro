@@ -42,7 +42,9 @@ export type AuditAction =
   | "tenant_excluido"
   | "solicitacao_medida_criada"
   | "desconto_excedido_aprovacao"
-  | "relatorio_semanal_comercial";
+  | "relatorio_semanal_comercial"
+  | "vendazap_trigger_auto_sent"
+  | "vendazap_trigger_auto_executed";
 
 export type AuditEntity =
   | "client"
