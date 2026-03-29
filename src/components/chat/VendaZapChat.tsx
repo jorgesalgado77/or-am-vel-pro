@@ -1009,6 +1009,34 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     }
   }, [isAdminOrManager, selected, fetchConversations]);
 
+  // Auto-consolidate duplicate trackings by phone
+  const [consolidating, setConsolidating] = useState(false);
+  const handleConsolidateTrackings = useCallback(async (dryRun = false) => {
+    if (!tenantId || !isAdminOrManager) return;
+    setConsolidating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("consolidate-trackings", {
+        body: { tenant_id: tenantId, dry_run: dryRun },
+      });
+      if (error) throw error;
+      if (data?.consolidated === 0) {
+        toast.info("Nenhuma duplicata encontrada. Tudo limpo! ✅");
+      } else if (dryRun) {
+        const groups = data.groups || [];
+        const names = groups.map((g: any) => `${g.primary_name} (${g.removed_names.join(", ")})`).join("; ");
+        toast.info(`${data.consolidated} grupo(s) duplicado(s) encontrado(s): ${names}. Clique novamente para consolidar.`, { duration: 8000 });
+      } else {
+        toast.success(`✅ ${data.consolidated} grupo(s) consolidado(s). ${data.total_removed} registro(s) removido(s), ${data.total_messages_moved} mensagem(ns) realocada(s).`, { duration: 8000 });
+        fetchConversations();
+      }
+    } catch (err) {
+      console.error("Consolidation error:", err);
+      toast.error("Erro ao consolidar trackings");
+    } finally {
+      setConsolidating(false);
+    }
+  }, [tenantId, isAdminOrManager, fetchConversations]);
+
   const existingConvIds = useMemo(() => new Set(conversations.map((c) => c.id)), [conversations]);
 
   // Handle store message sent — trigger simulator reply
