@@ -3,6 +3,7 @@
  */
 
 export { CommercialDecisionEngine, getCommercialEngine, formatCurrency } from "./CommercialDecisionEngine";
+export type { GenerateMessageParams } from "@/hooks/useVendaZap";
 export { ClientContextBuilder, getContextBuilder } from "./ClientContextBuilder";
 export { ClientBehaviorEngine, getBehaviorEngine } from "./ClientBehaviorEngine";
 export type { BuildContextOptions } from "./ClientContextBuilder";

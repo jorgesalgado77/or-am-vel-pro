@@ -29,6 +29,14 @@ import type {
 
 // ==================== SALES RULES CACHE ====================
 
+interface SalesRulesRow {
+  min_margin?: number | null;
+  max_discount?: number | null;
+  preferred_payment?: string | null;
+  max_parcelas?: number | null;
+  approval_required_above?: number | null;
+}
+
 const rulesCache = new Map<string, { rules: SalesRules; ts: number }>();
 const RULES_CACHE_TTL = 5 * 60 * 1000; // 5 min
 
@@ -37,19 +45,21 @@ async function fetchSalesRules(tenantId: string): Promise<SalesRules> {
   if (cached && Date.now() - cached.ts < RULES_CACHE_TTL) return cached.rules;
 
   const { data } = await supabase
-    .from("sales_rules" as any)
+    .from("sales_rules" as unknown as "clients")
     .select("*")
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
-  const rules: SalesRules = data
+  const row = data as unknown as SalesRulesRow | null;
+
+  const rules: SalesRules = row
     ? {
         tenant_id: tenantId,
-        min_margin: Number((data as any).min_margin) || 0,
-        max_discount: Number((data as any).max_discount) || 100,
-        preferred_payment: (data as any).preferred_payment || "Boleto",
-        max_parcelas: (data as any).max_parcelas || undefined,
-        approval_required_above: (data as any).approval_required_above || undefined,
+        min_margin: Number(row.min_margin) || 0,
+        max_discount: Number(row.max_discount) || 100,
+        preferred_payment: row.preferred_payment || "Boleto",
+        max_parcelas: row.max_parcelas || undefined,
+        approval_required_above: row.approval_required_above || undefined,
       }
     : {
         tenant_id: tenantId,
@@ -454,13 +464,15 @@ export class CommercialDecisionEngine {
     };
   }
 
-  // ─── decideClientAction (ORCHESTRATION) ────────────────────
+  // ─── decideNextAction / decideClientAction (ORCHESTRATION) ──
   /**
-   * Central orchestration method. Combines all CDE capabilities into a
+   * Central orchestration method. Combines ALL CDE capabilities into a
    * single decision object for a given client context.
    * Use ClientContextBuilder to construct the DealContext before calling.
+   *
+   * Alias: decideNextAction() — the preferred unified entry point.
    */
-  async decideClientAction(ctx: DealContext, availableParcelas: number[] = [1, 6, 12, 18, 24]): Promise<{
+  async decideNextAction(ctx: DealContext, availableParcelas: number[] = [1, 6, 12, 18, 24]): Promise<{
     analysis: DealAnalysis;
     scenarios: DealScenario[];
     discount: DiscountDecision;
@@ -469,7 +481,7 @@ export class CommercialDecisionEngine {
     suggestedAction: string;
     urgency: "immediate" | "today" | "this_week" | "low";
   }> {
-    // Run analysis and discount in parallel
+    // Run analysis, scenarios, and discount in parallel
     const [analysis, scenarios, discount] = await Promise.all([
       this.analyzeDeal(ctx),
       this.generateScenarios(ctx, availableParcelas),
@@ -508,6 +520,11 @@ export class CommercialDecisionEngine {
       suggestedAction,
       urgency,
     };
+  }
+
+  /** @deprecated Use decideNextAction() instead */
+  async decideClientAction(ctx: DealContext, availableParcelas?: number[]) {
+    return this.decideNextAction(ctx, availableParcelas);
   }
 
   // ─── handleTrigger (INTELLIGENT TRIGGER DECISION) ──────────
