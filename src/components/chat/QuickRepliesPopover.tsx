@@ -155,22 +155,41 @@ export function QuickRepliesPopover({ replies, onSelect, onAdd, onRemove, loadin
     objecao: "Objeção",
   };
 
+  const DISC_META: Record<string, { emoji: string; label: string }> = {
+    D: { emoji: "🔴", label: "Dominante" },
+    I: { emoji: "🟡", label: "Influente" },
+    S: { emoji: "🟢", label: "Estável" },
+    C: { emoji: "🔵", label: "Conforme" },
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
-          title="Respostas rápidas"
+          className={`h-9 w-9 shrink-0 relative ${detectedDiscProfile ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          title={detectedDiscProfile ? `Respostas rápidas — DISC: ${DISC_META[detectedDiscProfile]?.label || detectedDiscProfile}` : "Respostas rápidas"}
         >
           <Zap className="h-4 w-4" />
+          {detectedDiscProfile && DISC_META[detectedDiscProfile] && (
+            <span className="absolute -top-0.5 -right-0.5 text-[9px] leading-none">
+              {DISC_META[detectedDiscProfile].emoji}
+            </span>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="start" side="top">
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-semibold text-foreground">Respostas Rápidas</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-foreground">Respostas Rápidas</h4>
+              {detectedDiscProfile && DISC_META[detectedDiscProfile] && (
+                <Badge variant="secondary" className="text-[9px] h-4 px-1.5 gap-0.5">
+                  {DISC_META[detectedDiscProfile].emoji} {DISC_META[detectedDiscProfile].label}
+                </Badge>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="icon"
