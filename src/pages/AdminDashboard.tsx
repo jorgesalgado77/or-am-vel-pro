@@ -744,6 +744,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
               <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
               <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
+              <TabsTrigger value="sysdiag" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Server className="h-4 w-4" />Saúde do Sistema</TabsTrigger>
               <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" />
