@@ -149,24 +149,41 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
 
   const openConversation = async (tracking: TrackingWithMessages) => {
     setSelectedTracking(tracking);
+
+    // Find all tracking IDs for the same client (to show unified history)
+    const { data: relatedTrackings } = await supabase
+      .from("client_tracking")
+      .select("id, client_id")
+      .eq("id", tracking.id)
+      .single();
+
+    let allTrackingIds = [tracking.id];
+    if (relatedTrackings?.client_id) {
+      const { data: siblings } = await supabase
+        .from("client_tracking")
+        .select("id")
+        .eq("client_id", relatedTrackings.client_id);
+      if (siblings) {
+        allTrackingIds = Array.from(new Set([tracking.id, ...siblings.map((s: any) => s.id)]));
+      }
+    }
+
     const { data } = await supabase
       .from("tracking_messages")
       .select("*")
-      .eq("tracking_id", tracking.id)
+      .in("tracking_id", allTrackingIds)
       .order("created_at", { ascending: true });
     if (data) setMessages(data as any);
 
-    // Mark client messages as read
+    // Mark client messages as read across all related trackings
     await supabase
       .from("tracking_messages")
       .update({ lida: true } as any)
-      .eq("tracking_id", tracking.id)
+      .in("tracking_id", allTrackingIds)
       .eq("remetente_tipo", "cliente")
       .eq("lida", false);
 
-    // Update local count
     setTrackings((prev) => prev.map((t) => t.id === tracking.id ? { ...t, unread_count: 0 } : t));
-
     const newTotal = trackings.reduce((sum, t) => sum + (t.id === tracking.id ? 0 : t.unread_count), 0);
     onUnreadChange?.(newTotal);
   };
