@@ -206,9 +206,21 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                   <FileText className="h-3 w-3 text-muted-foreground" />
                   <span className="text-[10px] text-muted-foreground">{sim.sim_count} {sim.sim_count === 1 ? "simulação" : "simulações"}</span>
                 </div>
-                <span className="text-[10px] text-muted-foreground">
-                  Última: {format(new Date(sim.created_at), "dd/MM/yy")}
-                </span>
+                <div className="flex items-center gap-1">
+                  <KanbanDealBadge
+                    clientId={client.id}
+                    clientName={client.nome}
+                    clientStatus={clientStatus}
+                    tenantId={tenantId}
+                    daysInactive={daysInColumn}
+                    hasSimulation
+                    valorOrcamento={sim.valor_com_desconto}
+                    temperature={(client as any).lead_temperature}
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    Última: {format(new Date(sim.created_at), "dd/MM/yy")}
+                  </span>
+                </div>
               </div>
             )}
             {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && client.vendedor && (
