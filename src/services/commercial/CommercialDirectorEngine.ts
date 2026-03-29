@@ -316,11 +316,14 @@ export class CommercialDirectorEngine {
       const totalAttempted = open.length + closed.length;
       const convRate = totalAttempted > 0 ? (closed.length / totalAttempted) * 100 : 0;
 
-      // Revenue
+      // Revenue — use valor_com_desconto (valor à vista)
       let revenue = 0;
       for (const c of closed) {
         const contract = contracts.find(ct => ct.client_id === c.id);
-        if (contract?.valor_contrato) revenue += Number(contract.valor_contrato);
+        if (contract) {
+          const val = Number(contract.valor_com_desconto) || Number(contract.valor_contrato) || 0;
+          revenue += val;
+        }
       }
 
       // Avg days
