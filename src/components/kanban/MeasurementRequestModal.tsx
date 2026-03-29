@@ -15,6 +15,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { formatCurrency } from "@/lib/financing";
@@ -1658,24 +1659,43 @@ export function MeasurementRequestModal({
       let userCargoNome = "";
       let userNomeCompleto = "";
       try {
+        // Try multiple strategies to find the current user
+        let userRow: any = null;
+
+        // Strategy 1: Use auth_user_id from Supabase Auth session
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData?.session?.user?.id;
         if (uid && tenantId) {
-          const { data: userRow } = await (supabase as any)
+          const { data } = await (supabase as any)
             .from("usuarios")
             .select("nome_completo, cargo_id")
             .eq("auth_user_id", uid)
             .eq("tenant_id", tenantId)
             .maybeSingle();
-          userNomeCompleto = userRow?.nome_completo || "";
-          if (userRow?.cargo_id) {
-            const { data: cargoRow } = await (supabase as any)
-              .from("cargos")
-              .select("nome")
-              .eq("id", userRow.cargo_id)
+          userRow = data;
+        }
+
+        // Strategy 2: Fallback to current_user_id from localStorage
+        if (!userRow?.nome_completo) {
+          const localUserId = localStorage.getItem("current_user_id");
+          if (localUserId) {
+            const { data } = await (supabase as any)
+              .from("usuarios")
+              .select("nome_completo, cargo_id")
+              .eq("id", localUserId)
               .maybeSingle();
-            userCargoNome = cargoRow?.nome || "";
+            if (data?.nome_completo) userRow = data;
           }
+        }
+
+        userNomeCompleto = userRow?.nome_completo || "";
+        if (userRow?.cargo_id) {
+          const { data: cargoRow } = await (supabase as any)
+            .from("cargos")
+            .select("nome")
+            .eq("id", userRow.cargo_id)
+            .maybeSingle();
+          userCargoNome = cargoRow?.nome || "";
         }
       } catch { /* silent */ }
 
