@@ -1746,7 +1746,7 @@ export function MeasurementRequestModal({
       if (existingRequestId) {
         // UPDATE existing request
         payload.last_edited_by = userInfo.usuario_nome || "Sistema";
-        payload.last_edited_by_cargo = userInfo.cargo_nome || "";
+        payload.last_edited_by_cargo = userCargoNome;
         payload.last_edited_at = new Date().toISOString();
         const res = await supabase.from("measurement_requests" as any)
           .update(payload)
