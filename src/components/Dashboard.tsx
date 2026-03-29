@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays, Megaphone, Share2, UserPlus } from "lucide-react";
+import { Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff, ClipboardList, Search, RefreshCw, Plus, FileCheck, DollarSign, CalendarDays, Megaphone, Share2, UserPlus, Target, Store } from "lucide-react";
 import { TopSellingProductsChart } from "@/components/dashboard/TopSellingProductsChart";
 import { DealInsightsWidget } from "@/components/dashboard/DealInsightsWidget";
 import { LowStockAlerts } from "@/components/dashboard/LowStockAlerts";
@@ -30,6 +30,9 @@ import {
 } from "recharts";
 import type { Database } from "@/integrations/supabase/types";
 import { type DateFilterPreset, DATE_FILTER_OPTIONS, getDateRange, isInRange } from "@/lib/dateFilterUtils";
+import { useMetasTetos } from "@/hooks/useMetasTetos";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { Progress } from "@/components/ui/progress";
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
 interface LastSimInfo {
