@@ -171,19 +171,36 @@ export function KanbanClientDialog({
       });
 
     // Load measurement request info
-    supabase
-      .from("measurement_requests" as any)
-      .select("status, created_at")
-      .eq("client_id", client.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }: any) => {
-        if (data && data.length > 0) {
-          setMeasurementInfo({ exists: true, status: data[0].status, created_at: data[0].created_at });
-        } else {
-          setMeasurementInfo({ exists: false, status: null, created_at: null });
-        }
-      });
+    const fetchMeasurement = () => {
+      supabase
+        .from("measurement_requests" as any)
+        .select("status, created_at")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .then(({ data }: any) => {
+          if (data && data.length > 0) {
+            setMeasurementInfo({ exists: true, status: data[0].status, created_at: data[0].created_at });
+          } else {
+            setMeasurementInfo({ exists: false, status: null, created_at: null });
+          }
+        });
+    };
+    fetchMeasurement();
+
+    // Realtime subscription for measurement requests
+    const mrChannel = supabase
+      .channel(`mr-dialog-${client.id}`)
+      .on(
+        "postgres_changes" as any,
+        { event: "*", schema: "public", table: "measurement_requests", filter: `client_id=eq.${client.id}` },
+        () => fetchMeasurement()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(mrChannel);
+    };
   }, [client?.id, client?.nome]);
 
   if (!client) return null;
