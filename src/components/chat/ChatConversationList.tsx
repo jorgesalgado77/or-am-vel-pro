@@ -34,6 +34,7 @@ interface Props {
   onStartConversation?: () => void;
   currentUserName?: string | null;
   isAdminOrManager?: boolean;
+  deletedIds?: Set<string>;
 }
 
 type TempFilter = LeadTemperature | "all";
@@ -52,12 +53,12 @@ function timeAgo(dateStr?: string) {
 }
 
 const ConversationItem = memo(function ConversationItem({
-  conv, isSelected, onSelect, onDelete, isAdmin, isDuplicate, onShowDuplicates,
-}: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void; onDelete?: (c: ChatConversation) => void; isAdmin?: boolean; isDuplicate?: boolean; onShowDuplicates?: () => void }) {
+  conv, isSelected, onSelect, onDelete, isAdmin, isDuplicate, onShowDuplicates, isDeleting,
+}: { conv: ChatConversation; isSelected: boolean; onSelect: (c: ChatConversation) => void; onDelete?: (c: ChatConversation) => void; isAdmin?: boolean; isDuplicate?: boolean; onShowDuplicates?: () => void; isDeleting?: boolean }) {
   const tempConfig = conv.lead_temperature ? TEMPERATURE_CONFIG[conv.lead_temperature] : null;
   const displayPhone = conv.phone || (conv.numero_contrato?.startsWith("WA-") ? conv.numero_contrato.replace("WA-", "") : null);
   return (
-    <div className="relative group">
+    <div className={cn("relative group transition-all duration-300", isDeleting && "opacity-0 -translate-x-full h-0 overflow-hidden")}>
       <button
         onClick={() => onSelect(conv)}
         className={cn(
