@@ -43,6 +43,7 @@ export function ClientsKanban({
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
+  const [measurementStatus, setMeasurementStatus] = useState<Record<string, { status: string; assigned_to: string | null }>>({});
   const [comercialExpanded, setComercialExpanded] = useState(true);
   const [operacionalExpanded, setOperacionalExpanded] = useState(true);
 
