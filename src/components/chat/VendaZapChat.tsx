@@ -992,6 +992,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 tenantId={tenantId}
                 onMessageSent={handleMessageSent}
                 detectedDiscProfile={discProfile}
+                vendazapActive={!!addon?.ativo}
               />
             </div>
             <ChatRightPanel
