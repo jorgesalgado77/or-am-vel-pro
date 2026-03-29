@@ -451,6 +451,62 @@ export class CommercialDecisionEngine {
     };
   }
 
+  // ─── decideClientAction (ORCHESTRATION) ────────────────────
+  /**
+   * Central orchestration method. Combines all CDE capabilities into a
+   * single decision object for a given client context.
+   * Use ClientContextBuilder to construct the DealContext before calling.
+   */
+  async decideClientAction(ctx: DealContext, availableParcelas: number[] = [1, 6, 12, 18, 24]): Promise<{
+    analysis: DealAnalysis;
+    scenarios: DealScenario[];
+    discount: DiscountDecision;
+    messageContext: MessageContext;
+    strategy: StrategyRecommendation;
+    suggestedAction: string;
+    urgency: "immediate" | "today" | "this_week" | "low";
+  }> {
+    // Run analysis and discount in parallel
+    const [analysis, scenarios, discount] = await Promise.all([
+      this.analyzeDeal(ctx),
+      this.generateScenarios(ctx, availableParcelas),
+      this.decideDiscount(ctx),
+    ]);
+
+    const messageContext = this.generateMessageContext(ctx);
+    const strategy = await this.suggestStrategy(ctx);
+
+    // Determine urgency
+    let urgency: "immediate" | "today" | "this_week" | "low" = "this_week";
+    if (analysis.risk_level === "high" && analysis.closing_probability > 50) {
+      urgency = "immediate";
+    } else if (analysis.risk_level === "high") {
+      urgency = "today";
+    } else if (analysis.closing_probability > 70) {
+      urgency = "immediate";
+    } else if (analysis.closing_probability < 25) {
+      urgency = "low";
+    }
+
+    // Build a human-readable suggested action
+    let suggestedAction = strategy.action;
+    if (urgency === "immediate" && ctx.customer.days_inactive <= 1) {
+      suggestedAction = `🔥 Feche agora com ${ctx.customer.name}! Prob. ${analysis.closing_probability}%.`;
+    } else if (ctx.customer.days_inactive > 7) {
+      suggestedAction = `⚠️ Reative ${ctx.customer.name} urgente — ${ctx.customer.days_inactive}d sem contato.`;
+    }
+
+    return {
+      analysis,
+      scenarios,
+      discount,
+      messageContext,
+      strategy,
+      suggestedAction,
+      urgency,
+    };
+  }
+
   // ─── getLeadTemperature (convenience) ─────────────────────
   getLeadTemperature(status: string, daysInactive: number, hasSimulation: boolean): LeadTemperature {
     return calcLeadTemperature({ status, diasSemResposta: daysInactive, temSimulacao: hasSimulation });
