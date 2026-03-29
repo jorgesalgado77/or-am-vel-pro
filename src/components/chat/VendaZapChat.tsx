@@ -451,6 +451,16 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
 
   useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
+  // Handle initialClientId from dashboard alerts
+  useEffect(() => {
+    if (!initialClientId || conversations.length === 0) return;
+    const match = conversations.find(c => c.clientId === initialClientId);
+    if (match) {
+      setSelected(match);
+      onInitialClientHandled?.();
+    }
+  }, [initialClientId, conversations, onInitialClientHandled]);
+
   // AI auto-suggestion with debounce
   const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
     if (!addon?.ativo) return;
