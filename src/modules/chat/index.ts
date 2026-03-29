@@ -29,3 +29,4 @@ export { useTypingIndicator } from "@/hooks/useTypingIndicator";
 export { useVendaZap } from "@/hooks/useVendaZap";
 export { useVendaZapTriggers } from "@/hooks/useVendaZapTriggers";
 export { useCommercialDecision } from "@/hooks/useCommercialDecision";
+export { useLearningEvents } from "@/hooks/useLearningEvents";
