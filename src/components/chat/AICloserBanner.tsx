@@ -18,12 +18,22 @@ import { getContextBuilder } from "@/services/commercial/ClientContextBuilder";
 import type { DealAnalysis, DealScenario, StrategyRecommendation } from "@/services/commercial/types";
 import type { ChatConversation } from "./types";
 
+export interface CloseSaleData {
+  valorFinal: number;
+  valorEntrada: number;
+  parcelas: number;
+  valorParcela: number;
+  formaPagamento: string;
+  vendedor?: string;
+  numeroOrcamento?: string;
+}
+
 interface Props {
   conversation: ChatConversation;
   tenantId: string | null;
   lastClientMessage?: string;
   onSendProposal?: (text: string) => void;
-  onCloseSale?: () => void;
+  onCloseSale?: (data: CloseSaleData) => void;
 }
 
 interface CloserState {
@@ -221,12 +231,23 @@ export const AICloserBanner = memo(function AICloserBanner({
           Enviar Proposta
         </Button>
 
-        {onCloseSale && (
+        {onCloseSale && state.bestScenario && (
           <Button
             variant="outline"
             size="sm"
             className="h-7 text-xs gap-1.5 border-amber-500/30 text-amber-700 dark:text-amber-400"
-            onClick={onCloseSale}
+            onClick={() => {
+              const scenario = state.bestScenario!;
+              onCloseSale({
+                valorFinal: scenario.simulation.valorFinal,
+                valorEntrada: scenario.valor_entrada,
+                parcelas: scenario.parcelas,
+                valorParcela: scenario.simulation.valorParcela,
+                formaPagamento: scenario.forma_pagamento,
+                vendedor: conversation.vendedor_nome || undefined,
+                numeroOrcamento: conversation.numero_contrato || undefined,
+              });
+            }}
           >
             <FileSignature className="h-3 w-3" />
             Fechar Venda

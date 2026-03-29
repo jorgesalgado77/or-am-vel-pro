@@ -8,6 +8,8 @@ import { useWhatsAppSimulator } from "@/hooks/useWhatsAppSimulator";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
+import { CloseSaleModal } from "@/components/CloseSaleModal";
+import type { CloseSaleData } from "./AICloserBanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Wifi, WifiOff, Loader2, Brain, Phone, Trash2 } from "lucide-react";
@@ -209,6 +211,10 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
   const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
   const [interventionMode, setInterventionMode] = useState<"automatico" | "assistido" | "manual">("assistido");
+  const [closeSaleOpen, setCloseSaleOpen] = useState(false);
+  const [closeSaleClient, setCloseSaleClient] = useState<any>(null);
+  const [closeSaleSimData, setCloseSaleSimData] = useState<CloseSaleData | undefined>(undefined);
+  const [closeSaleSaving, setCloseSaleSaving] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const conversationsRef = useRef<ChatConversation[]>([]);
 
@@ -665,6 +671,94 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     }
   };
 
+  const handleCloseSaleFromAI = useCallback(async (data: CloseSaleData) => {
+    if (!selected) return;
+    if (selected.client_id) {
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", selected.client_id)
+        .maybeSingle();
+      setCloseSaleClient(clientData || null);
+    } else {
+      setCloseSaleClient(null);
+    }
+    setCloseSaleSimData(data);
+    setCloseSaleOpen(true);
+  }, [selected]);
+
+  const handleCloseSaleConfirm = useCallback(async (formData: Record<string, unknown>, items: unknown[], itemDetails: unknown[]) => {
+    if (!tenantId || !selected) return;
+    setCloseSaleSaving(true);
+    try {
+      // Build contract HTML using template if available
+      const { data: templateRow } = await supabase
+        .from("contract_templates")
+        .select("conteudo_html")
+        .limit(1)
+        .maybeSingle();
+
+      const template = (templateRow as unknown as Record<string, string> | null)?.conteudo_html || "<p>Contrato gerado automaticamente</p>";
+
+      const { buildContractHtml } = await import("@/services/contractService");
+      const { data: settingsData } = await supabase
+        .from("company_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      const contractHtml = buildContractHtml(template, {
+        formData,
+        client: {
+          nome: selected.nome_cliente,
+          cpf: null,
+          telefone1: selected.phone || null,
+          email: null,
+          numero_orcamento: selected.numero_contrato || null,
+          vendedor: selected.vendedor_nome || null,
+        },
+        valorTela: closeSaleSimData?.valorFinal || 0,
+        result: {
+          valorFinal: closeSaleSimData?.valorFinal || 0,
+          valorParcela: closeSaleSimData?.valorParcela || 0,
+          valorComDesconto: closeSaleSimData?.valorFinal || 0,
+        },
+        formaPagamento: closeSaleSimData?.formaPagamento || "",
+        parcelas: closeSaleSimData?.parcelas || 1,
+        valorEntrada: closeSaleSimData?.valorEntrada || 0,
+        settings: settingsData || {},
+        selectedIndicador: null,
+        comissaoPercentual: 0,
+        items: items as Array<{ quantidade: number; descricao_ambiente: string; fornecedor: string; prazo: string; valor_ambiente: number }>,
+        itemDetails: itemDetails as Array<{ item_num: number; titulos: string; corpo: string; porta: string; puxador: string; complemento: string; modelo: string }>,
+      });
+
+      const insertPayload = {
+        client_id: selected.client_id!,
+        conteudo_html: contractHtml,
+        tenant_id: tenantId,
+      };
+      const { error } = await supabase.from("client_contracts").insert(insertPayload);
+
+      if (error) throw error;
+
+      if (selected.client_id) {
+        await supabase
+          .from("clients")
+          .update({ etapa_funil: "contrato" } as Record<string, unknown>)
+          .eq("id", selected.client_id);
+      }
+
+      toast.success("🎉 Contrato gerado com sucesso!");
+      setCloseSaleOpen(false);
+    } catch (err) {
+      console.error("[CloseSale] Error:", err);
+      toast.error("Erro ao gerar contrato");
+    } finally {
+      setCloseSaleSaving(false);
+    }
+  }, [tenantId, selected, closeSaleSimData]);
+
   const handleStartConversation = useCallback(async (trackingId: string, clientName: string, contractNumber: string) => {
     setShowStartModal(false);
 
@@ -1024,6 +1118,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 onMessageSent={handleMessageSent}
                 detectedDiscProfile={discProfile}
                 vendazapActive={!!addon?.ativo}
+                onCloseSale={handleCloseSaleFromAI}
               />
             </div>
             <ChatRightPanel
@@ -1257,6 +1352,16 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Close Sale Modal — triggered by AI Closer Banner */}
+      <CloseSaleModal
+        open={closeSaleOpen}
+        onClose={() => setCloseSaleOpen(false)}
+        onConfirm={handleCloseSaleConfirm as any}
+        client={closeSaleClient}
+        simulationData={closeSaleSimData}
+        saving={closeSaleSaving}
+      />
       </div>
     </div>
   );
