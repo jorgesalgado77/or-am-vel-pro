@@ -115,7 +115,7 @@ function RichTextToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElem
         <PopoverContent className="w-auto p-1" align="start">
           <div className="flex flex-col gap-0.5">
             {FONT_SIZES.map(s => (
-              <Button key={s} variant="ghost" size="sm" className="h-6 text-xs justify-start" onClick={() => exec("fontSize", "7") || (() => {
+              <Button key={s} variant="ghost" size="sm" className="h-6 text-xs justify-start" onClick={() => {
                 const sel = window.getSelection();
                 if (sel && sel.rangeCount > 0) {
                   const range = sel.getRangeAt(0);
@@ -123,7 +123,8 @@ function RichTextToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElem
                   span.style.fontSize = s;
                   try { range.surroundContents(span); } catch {}
                 }
-              })()}>
+                editorRef.current?.focus();
+              }}>
                 {s}
               </Button>
             ))}
