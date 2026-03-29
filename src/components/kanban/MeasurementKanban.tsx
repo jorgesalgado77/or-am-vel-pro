@@ -101,7 +101,7 @@ export function MeasurementKanban() {
 
     setLoading(true);
 
-    const [requestsRes, clientsRes, settingsRes, tenantRes] = await Promise.all([
+    const [requestsRes, clientsRes, settingsRes, tenantRes, trackingRes] = await Promise.all([
       supabase
         .from("measurement_requests" as any)
         .select("*")
@@ -109,7 +109,7 @@ export function MeasurementKanban() {
         .order("created_at", { ascending: false }),
       supabase
         .from("clients" as any)
-        .select("id, vendedor, responsavel_id")
+        .select("id, vendedor, responsavel_id, numero_orcamento")
         .eq("tenant_id", tenantId),
       supabase
         .from("company_settings" as any)
@@ -121,6 +121,10 @@ export function MeasurementKanban() {
         .select("codigo_loja")
         .eq("id", tenantId)
         .maybeSingle(),
+      supabase
+        .from("client_tracking" as any)
+        .select("client_id, numero_contrato, projetista")
+        .eq("tenant_id", tenantId),
     ]);
 
     if (requestsRes.error) {
@@ -129,37 +133,48 @@ export function MeasurementKanban() {
     }
 
     const clientsById = new Map((clientsRes.data || []).map((client: any) => [client.id, client]));
+    const trackingByClientId = new Map((trackingRes.data || []).map((t: any) => [t.client_id, t]));
     const tenantStoreCode = (settingsRes.data as any)?.codigo_loja || (tenantRes.data as any)?.codigo_loja || "";
 
     const enrichedRequests = ((requestsRes.data as any[]) || []).map((request) => {
       const client = clientsById.get(request.client_id);
+      const tracking = trackingByClientId.get(request.client_id);
       const snapshot = request.client_snapshot || {};
 
       const sellerUser = findUserByReference(client?.responsavel_id)
         || findUserByReference(client?.vendedor)
+        || findUserByReference(tracking?.projetista)
         || findUserByReference(request.seller_name)
+        || findUserByReference(request.created_by)
         || null;
 
       const createdByIsSystem = ["sistema", "system"].includes(normalizeValue(request.created_by));
       const createdUser = createdByIsSystem
-        ? (sellerUser || findUserByReference(client?.vendedor))
-        : (findUserByReference(request.created_by) || sellerUser || findUserByReference(client?.vendedor));
+        ? (sellerUser || findUserByReference(client?.vendedor) || findUserByReference(tracking?.projetista))
+        : (findUserByReference(request.created_by) || sellerUser);
 
       const editedUser = findUserByReference(request.last_edited_by);
       const technicianUser = findUserByReference(request.assigned_to) || findUserByReference(request.technician_name);
 
+      const resolvedContractNumber = request.contract_number
+        || tracking?.numero_contrato
+        || snapshot.contract_number
+        || snapshot.numero_contrato
+        || client?.numero_orcamento
+        || "";
+
       return {
         ...request,
-        seller_name: sellerUser?.nome_completo || client?.vendedor || request.seller_name || "—",
+        seller_name: sellerUser?.nome_completo || client?.vendedor || tracking?.projetista || request.seller_name || "—",
         seller_cargo: sellerUser?.cargo_nome || request.seller_cargo || "",
-        client_seller_name: sellerUser?.nome_completo || client?.vendedor || request.seller_name || "—",
+        client_seller_name: sellerUser?.nome_completo || client?.vendedor || tracking?.projetista || request.seller_name || "—",
         client_seller_cargo: sellerUser?.cargo_nome || "",
         technician_name: technicianUser?.nome_completo || request.technician_name || request.assigned_to || "",
         store_code: request.store_code || snapshot.store_code || snapshot.codigo_loja || tenantStoreCode || "—",
-        contract_number: request.contract_number || snapshot.contract_number || snapshot.numero_contrato || "",
+        contract_number: resolvedContractNumber,
         contract_url: request.contract_url || snapshot.contract_url || "",
         briefing_url: request.briefing_url || snapshot.briefing_url || "",
-        created_by_resolved: createdUser?.nome_completo || client?.vendedor || request.created_by || "—",
+        created_by_resolved: createdUser?.nome_completo || client?.vendedor || tracking?.projetista || request.created_by || "—",
         created_by_cargo: createdUser?.cargo_nome || sellerUser?.cargo_nome || request.created_by_cargo || "",
         last_edited_by_resolved: editedUser?.nome_completo || request.last_edited_by || "",
         last_edited_by_cargo: editedUser?.cargo_nome || request.last_edited_by_cargo || "",
@@ -286,13 +301,17 @@ export function MeasurementKanban() {
   }, [columnData]);
 
   const tecnicosEProjetistas = useMemo(() =>
-    usuarios.filter((user) => user.ativo && user.cargo_nome && (
-      user.cargo_nome.toLowerCase().includes("liberador") ||
-      user.cargo_nome.toLowerCase().includes("tecnico") ||
-      user.cargo_nome.toLowerCase().includes("técnico") ||
-      user.cargo_nome.toLowerCase().includes("conferente") ||
-      user.cargo_nome.toLowerCase().includes("medidor")
-    )),
+    usuarios.filter((user) => {
+      if (!user.ativo || !user.cargo_nome) return false;
+      const cargo = user.cargo_nome.toLowerCase();
+      if (cargo.includes("gerente")) return false;
+      return (
+        cargo.includes("liberador") ||
+        cargo.includes("tecnico") ||
+        cargo.includes("técnico") ||
+        cargo.includes("conferente")
+      );
+    }),
   [usuarios]);
 
   const defaultTetoLiberacao = useMemo(() => {
