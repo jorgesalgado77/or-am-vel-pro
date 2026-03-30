@@ -133,7 +133,7 @@ export function ClientsKanban({
     activeColumns.forEach(col => { map[col.id] = []; });
     
     filtered.forEach(client => {
-      let status = (client as any).status || "novo";
+      let status = String((client as any).status || "novo").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_");
       
       if (isTechnicalRole) {
         // For technical roles, map statuses to their specific columns

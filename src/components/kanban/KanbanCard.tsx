@@ -240,20 +240,19 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 )}
               </div>
             )}
-            {expired && (
-              <div className="flex items-center gap-1 mt-1.5">
-                <AlertTriangle className="h-3 w-3 text-destructive" />
-                <span className="text-[10px] text-destructive font-medium">Orçamento expirado</span>
-              </div>
-            )}
-            {clientStatus === "fechado" && (
+            {hasClosedContract ? (
               <div className="flex items-center gap-1 mt-1.5">
                 <CheckCircle2 className="h-3 w-3 text-success" />
                 <span className="text-[10px] text-success font-semibold">
                   ✅ Contrato Fechado {(client as any).data_contrato ? `— ${format(new Date((client as any).data_contrato), "dd/MM/yy")}` : ""}
                 </span>
               </div>
-            )}
+            ) : expired ? (
+              <div className="flex items-center gap-1 mt-1.5">
+                <AlertTriangle className="h-3 w-3 text-destructive" />
+                <span className="text-[10px] text-destructive font-medium">Orçamento expirado</span>
+              </div>
+            ) : null}
           </div>
         </div>
       )}
