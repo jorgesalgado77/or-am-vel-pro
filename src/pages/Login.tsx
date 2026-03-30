@@ -39,7 +39,7 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
-  const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string } | null>(null);
+  const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string; logo_url?: string | null } | null>(null);
   const [highlightForgotPassword, setHighlightForgotPassword] = useState(false);
 
 
