@@ -208,7 +208,11 @@ export function ClientsKanban({
     if (!client) return;
     const oldStatus = (client as any).status || "novo";
     setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
-    const { error } = await supabase.from("clients").update({ status: newStatus } as any).eq("id", draggableId);
+    const updatePayload: any = { status: newStatus };
+    if (newStatus === "fechado") {
+      updatePayload.data_contrato = new Date().toISOString();
+    }
+    const { error } = await supabase.from("clients").update(updatePayload).eq("id", draggableId);
     if (error) {
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
       toast.error("Erro ao mover cliente");
