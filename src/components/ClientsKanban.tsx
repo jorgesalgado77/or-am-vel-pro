@@ -115,7 +115,7 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus]);
 
   const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : isAdmin ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
 
