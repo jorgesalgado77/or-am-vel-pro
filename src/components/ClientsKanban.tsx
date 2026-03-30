@@ -142,12 +142,26 @@ export function ClientsKanban({
             status = "negativos";
           } else if (mr.status === "enviado_compras") {
             status = "enviado_compras";
-          } else if (mr.assigned_to) {
-            status = "em_liberado";
-          } else if (status === "em_medicao" || status === "fechado") {
-            status = "em_medicao";
+          } else if (isGerenteTecnico) {
+            // Gerente Técnico: unassigned = Nova Solicitação, assigned = Em Medição, with assigned_to & status liberado = Em Liberação
+            if (!mr.assigned_to) {
+              status = "nova_solicitacao";
+            } else if (mr.status === "em_liberacao" || mr.status === "liberado") {
+              status = "em_liberado";
+            } else {
+              status = "em_medicao";
+            }
           } else {
-            status = "nova_solicitacao";
+            // Basic technical: assigned_to me → Em Liberação means they are working
+            if (mr.assigned_to) {
+              if (mr.status === "em_liberacao" || mr.status === "liberado") {
+                status = "em_liberado";
+              } else {
+                status = "nova_solicitacao";
+              }
+            } else {
+              status = "nova_solicitacao";
+            }
           }
         } else {
           status = "nova_solicitacao";
