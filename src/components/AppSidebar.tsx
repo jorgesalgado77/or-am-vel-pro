@@ -77,7 +77,7 @@ export function AppSidebar({
   ];
 
   const bottomItems = [
-    { id: "settings", label: "Configurações", icon: Settings, show: isAdmin || hasPermission("configuracoes") },
+    { id: "settings", label: "Configurações", icon: Settings, show: isAdmin || hasPermission("configuracoes"), badge: null as any },
   ];
 
   const NavButton = ({ id, label, icon: Icon, badge: itemBadge, destructive, onClick }: {
