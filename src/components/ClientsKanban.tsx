@@ -14,6 +14,7 @@ import { KanbanColumn } from "./kanban/KanbanColumn";
 const KanbanClientDialog = lazy(() => import("./kanban/KanbanClientDialog").then(m => ({ default: m.KanbanClientDialog })));
 import { KanbanLiberadorPanel } from "./kanban/KanbanLiberadorPanel";
 import { KanbanSkeleton } from "./kanban/KanbanSkeleton";
+import { MeasurementScheduleDialog, type MeasurementScheduleData } from "./kanban/MeasurementScheduleDialog";
 import { useKanbanData } from "@/hooks/useKanbanData";
 
 export function ClientsKanban({
@@ -39,6 +40,7 @@ export function ClientsKanban({
   const [liberadorMonth, setLiberadorMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [comercialExpanded, setComercialExpanded] = useState(true);
   const [operacionalExpanded, setOperacionalExpanded] = useState(true);
+  const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string; oldStatus: string } | null>(null);
 
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
@@ -221,9 +223,16 @@ export function ClientsKanban({
     const oldStatus = (client as any).status || "novo";
 
     if (isTechnicalRole) {
+      // Intercept moves to "em_medicao" → show scheduling dialog
+      if (newStatus === "em_medicao") {
+        // Optimistic move
+        setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
+        setPendingSchedule({ clientId: draggableId, clientName: client.nome, oldStatus });
+        return;
+      }
+
       // Technical roles: update measurement_requests, not clients
       const mrStatus = technicalStatusMap[newStatus] || newStatus;
-      // Optimistic update
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
 
       const { error } = await supabase
@@ -261,6 +270,59 @@ export function ClientsKanban({
       }
     }
   }, [localClients, currentUser, tenantId, setLocalClients, isTechnicalRole]);
+
+  // Handle measurement scheduling confirmation
+  const handleScheduleConfirm = useCallback(async (data: MeasurementScheduleData) => {
+    if (!pendingSchedule) return;
+    const { clientId, clientName, oldStatus } = pendingSchedule;
+
+    // 1. Update measurement_requests status
+    const mrStatus = technicalStatusMap["em_medicao"] || "em_andamento";
+    const { error: mrError } = await supabase
+      .from("measurement_requests" as any)
+      .update({ status: mrStatus, updated_at: new Date().toISOString() } as any)
+      .eq("client_id", clientId)
+      .eq("tenant_id", tenantId);
+
+    if (mrError) {
+      setLocalClients(prev => prev.map(c => c.id === clientId ? { ...c, status: oldStatus } as any : c));
+      toast.error("Erro ao mover solicitação");
+      setPendingSchedule(null);
+      return;
+    }
+
+    // 2. Create task automatically
+    const { error: taskError } = await supabase
+      .from("tasks" as any)
+      .insert({
+        tenant_id: tenantId,
+        titulo: `Medição - ${clientName}`,
+        descricao: data.observations || `Agendamento de medição para o cliente ${clientName}`,
+        data_tarefa: data.date,
+        horario: data.time,
+        tipo: "medicao",
+        status: "pendente",
+        responsavel_id: currentUser?.id || null,
+        responsavel_nome: currentUser?.nome_completo || null,
+        criado_por: currentUser?.nome_completo || "Sistema",
+      } as any);
+
+    if (taskError) {
+      console.error("Erro ao criar tarefa:", taskError);
+      toast.warning("Medição movida, mas erro ao criar tarefa automática");
+    } else {
+      toast.success(`Medição agendada para ${data.date} às ${data.time} — Tarefa criada!`);
+    }
+
+    setPendingSchedule(null);
+  }, [pendingSchedule, tenantId, currentUser, setLocalClients]);
+
+  const handleScheduleCancel = useCallback(() => {
+    if (pendingSchedule) {
+      setLocalClients(prev => prev.map(c => c.id === pendingSchedule.clientId ? { ...c, status: pendingSchedule.oldStatus } as any : c));
+    }
+    setPendingSchedule(null);
+  }, [pendingSchedule, setLocalClients]);
 
   const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 
@@ -414,6 +476,13 @@ export function ClientsKanban({
           />
         </Suspense>
       )}
+
+      <MeasurementScheduleDialog
+        open={!!pendingSchedule}
+        clientName={pendingSchedule?.clientName || ""}
+        onConfirm={handleScheduleConfirm}
+        onCancel={handleScheduleCancel}
+      />
     </div>
   );
 }

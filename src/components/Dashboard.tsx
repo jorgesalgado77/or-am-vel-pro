@@ -41,6 +41,7 @@ const DealInsightsWidget = lazy(() => import("@/components/dashboard/DealInsight
 const HighResistanceAlerts = lazy(() => import("@/components/dashboard/HighResistanceAlerts").then(m => ({ default: m.HighResistanceAlerts })));
 const CDEUrgencyWidget = lazy(() => import("@/components/dashboard/CDEUrgencyWidget").then(m => ({ default: m.CDEUrgencyWidget })));
 const AIInsightsWidget = lazy(() => import("@/components/dashboard/AIInsightsWidget").then(m => ({ default: m.AIInsightsWidget })));
+const MeasurementCalendarWidget = lazy(() => import("@/components/dashboard/MeasurementCalendarWidget").then(m => ({ default: m.MeasurementCalendarWidget })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -68,6 +69,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const { metaLoja } = useMetasTetos();
   const { currentUser } = useCurrentUser();
   const isAdminOrGerente = ["administrador", "gerente"].includes(currentUser?.cargo_nome?.toLowerCase() || "");
+  const cargoLower = (currentUser?.cargo_nome || "").toLowerCase();
+  const isTechnicalRole = cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("liberador") || cargoLower.includes("conferente");
 
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
     evolucao: false, projetista: false, indicador: false, contratos: false, leads_origem: false, vendedor_leads: false,
@@ -306,6 +309,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <CDEUrgencyWidget />
         <AIInsightsWidget />
       </Suspense>
+
+      {/* Measurement Calendar for technical roles */}
+      {isTechnicalRole && (
+        <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
+          <MeasurementCalendarWidget />
+        </Suspense>
+      )}
 
       {/* Date Filter */}
       <DashboardDateFilter
