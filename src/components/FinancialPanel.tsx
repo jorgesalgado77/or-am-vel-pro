@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/financing";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
-import { Wallet, Users, BarChart3, Brain } from "lucide-react";
+import { Wallet, Users, BarChart3, Brain, Receipt } from "lucide-react";
 import { useFinancialData, type FinancialAccount } from "@/hooks/useFinancialData";
 import { FinancialHeader } from "@/components/financial/FinancialHeader";
 import { FinancialAccountsTab } from "@/components/financial/FinancialAccountsTab";
