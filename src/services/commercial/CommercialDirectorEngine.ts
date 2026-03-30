@@ -352,10 +352,11 @@ export class CommercialDirectorEngine {
 
       // Avg days
       let totalDays = 0, daysCount = 0;
-      for (const c of closed) {
-        const contract = contracts.find(ct => ct.client_id === c.id);
-        if (contract) {
-          const days = Math.floor((new Date(contract.created_at).getTime() - new Date(c.created_at).getTime()) / 86400000);
+      for (const cid of closed) {
+        const client = clients.find(c => c.id === cid);
+        const contract = contractsByClientId.get(cid);
+        if (client && contract) {
+          const days = Math.floor((new Date(contract.created_at).getTime() - new Date(client.created_at).getTime()) / 86400000);
           totalDays += Math.max(0, days);
           daysCount++;
         }
