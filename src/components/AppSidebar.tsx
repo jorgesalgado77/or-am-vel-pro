@@ -2,23 +2,22 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
-  MessageCircle, Receipt, CreditCard, Circle, Bot, Video, UserCircle, Megaphone,
+  MessageCircle, Receipt, CreditCard, Bot, Video, Megaphone,
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
-  Box, Loader2, Bell, BellRing, BellOff, ClipboardCheck, Ruler, Package,
+  Box, ClipboardCheck, Ruler, Package,
 } from "lucide-react";
 import { PushNotificationToggle } from "@/components/tasks/PushNotificationToggle";
 
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useNotificationCenter, type AppNotification } from "@/hooks/useNotificationCenter";
+import { useNotificationCenter } from "@/hooks/useNotificationCenter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTheme } from "@/hooks/useTheme";
+import { SidebarNotifications } from "@/components/sidebar/SidebarNotifications";
+import { SidebarUserProfile } from "@/components/sidebar/SidebarUserProfile";
 import type { OnlineUser } from "@/hooks/useOnlinePresence";
 
 interface AppSidebarProps {
@@ -33,10 +32,6 @@ interface AppSidebarProps {
   onToggleCollapse: () => void;
 }
 
-function getInitials(name: string) {
-  return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
-}
-
 const THEME_ICONS = { light: Sun, dark: Moon, system: Monitor } as const;
 const THEME_LABELS = { light: "Claro", dark: "Escuro", system: "Automático" } as const;
 
@@ -48,13 +43,10 @@ export function AppSidebar({
   const { settings } = useCompanySettings();
   const { currentUser, logout, hasPermission } = useCurrentUser();
   const { mode, cycleTheme } = useTheme();
-  const [showNotifications, setShowNotifications] = useState(false);
 
   const tenantId = (currentUser as any)?.tenant_id || null;
   const { notifications, unreadCount: unreadNotifications, markAsRead, markAllRead } = useNotificationCenter(
-    currentUser?.id,
-    currentUser?.nome_completo,
-    tenantId
+    currentUser?.id, currentUser?.nome_completo, tenantId
   );
 
   const isAdmin = currentUser?.cargo_nome?.toUpperCase().includes("ADMINISTRADOR") || currentUser?.cargo_nome?.toUpperCase().includes("ADMIN");
@@ -86,10 +78,7 @@ export function AppSidebar({
   ];
 
   const bottomItems = [
-    {
-      id: "messages", label: "Mensagens", icon: MessageCircle, show: hasPermission("mensagens"),
-      badge: unreadMessages > 0 ? unreadMessages : null,
-    },
+    { id: "messages", label: "Mensagens", icon: MessageCircle, show: hasPermission("mensagens"), badge: unreadMessages > 0 ? unreadMessages : null },
     { id: "settings", label: "Configurações", icon: Settings, show: isAdmin || hasPermission("configuracoes") },
   ];
 
@@ -140,7 +129,6 @@ export function AppSidebar({
     <aside
       className={cn(
         "border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0 overflow-hidden transition-all duration-300",
-        // Mobile: offcanvas overlay; Desktop: static sidebar
         "max-md:z-40 max-md:shadow-2xl md:z-30",
         collapsed
           ? "max-md:-translate-x-full max-md:w-64 md:w-[60px]"
@@ -172,64 +160,14 @@ export function AppSidebar({
         </Tooltip>
 
         <div className={cn("flex items-center", collapsed ? "flex-col gap-1" : "gap-0.5")}>
-          <Popover open={showNotifications} onOpenChange={setShowNotifications}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground relative" onClick={() => setShowNotifications(true)}>
-                <Bell className="h-4 w-4" />
-                {unreadNotifications > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full h-4 min-w-[16px] flex items-center justify-center px-0.5">
-                    {unreadNotifications > 9 ? "9+" : unreadNotifications}
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent side="right" align="start" className="w-80 p-0 max-h-[400px] flex flex-col">
-              <div className="p-3 border-b border-border flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground">Notificações</h4>
-                  <p className="text-[10px] text-muted-foreground">{unreadNotifications} não lida(s) de {notifications.length}</p>
-                </div>
-                {unreadNotifications > 0 && (
-                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllRead}>
-                    Marcar lidas
-                  </Button>
-                )}
-              </div>
-              <div className="flex-1 overflow-y-auto max-h-[320px]">
-                {notifications.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-8">Nenhuma notificação</p>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {notifications.map(n => {
-                      const dateStr = (() => { try { return format(new Date(n.created_at), "dd/MM/yy HH:mm"); } catch { return "—"; } })();
-                      const typeIcon = n.type === "lead" ? "🆕" : n.type === "tarefa" ? "📋" : n.type === "mensagem" ? "💬" : "🔔";
-                      return (
-                        <button
-                          key={n.id}
-                          className={cn("w-full text-left px-3 py-2.5 text-xs hover:bg-secondary/50 transition-colors", !n.lido && "bg-primary/5")}
-                          onClick={() => {
-                            markAsRead(n.id);
-                            if (n.link_view) onViewChange(n.link_view);
-                            setShowNotifications(false);
-                          }}
-                        >
-                          <div className="flex items-start gap-2">
-                            {!n.lido && <span className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />}
-                            <span className="text-sm shrink-0">{typeIcon}</span>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-foreground font-medium">{n.titulo}</p>
-                              <p className="text-muted-foreground leading-relaxed mt-0.5">{n.descricao}</p>
-                              <p className="text-muted-foreground mt-1">{dateStr}</p>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <SidebarNotifications
+            notifications={notifications}
+            unreadCount={unreadNotifications}
+            markAsRead={markAsRead}
+            markAllRead={markAllRead}
+            onNavigate={onViewChange}
+            collapsed={collapsed}
+          />
 
           <PushNotificationToggle tenantId={tenantId} userId={currentUser?.id} />
 
@@ -264,111 +202,12 @@ export function AppSidebar({
 
       {/* User profile section */}
       <div className={cn("border-t border-border", collapsed ? "p-2" : "p-3")}>
-        {!currentUser ? (
-          /* Loading skeleton while profile resolves */
-          collapsed ? (
-            <div className="flex flex-col items-center gap-2">
-              <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
-              <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />
-            </div>
-          ) : (
-            <div className="flex items-start gap-3 mb-2">
-              <div className="h-10 w-10 rounded-full bg-muted animate-pulse shrink-0" />
-              <div className="min-w-0 flex-1 space-y-2 py-1">
-                <div className="h-3.5 w-24 bg-muted rounded animate-pulse" />
-                <div className="h-3 w-16 bg-muted rounded animate-pulse" />
-                <div className="h-2.5 w-32 bg-muted rounded animate-pulse" />
-              </div>
-            </div>
-          )
-        ) : collapsed ? (
-          <div className="flex flex-col items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button onClick={onProfile} className="focus:outline-none">
-                  <Avatar className="h-9 w-9 ring-2 ring-primary/20 hover:ring-primary/40 transition-all cursor-pointer">
-                    {currentUser.foto_url ? (
-                      <AvatarImage src={currentUser.foto_url} alt={currentUser.nome_completo} />
-                    ) : null}
-                    <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
-                      {getInitials(currentUser.nome_completo)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs">
-                <p className="font-medium">{currentUser.apelido || currentUser.nome_completo}</p>
-                {currentUser.cargo_nome && <p className="text-muted-foreground">{currentUser.cargo_nome}</p>}
-              </TooltipContent>
-            </Tooltip>
-            <Circle className="h-2.5 w-2.5 fill-green-500 text-green-500" />
-          </div>
-        ) : (
-          <>
-            <div className="flex items-start gap-3 mb-2">
-              <Avatar className="h-10 w-10 shrink-0 ring-2 ring-primary/20">
-                {currentUser.foto_url ? (
-                  <AvatarImage src={currentUser.foto_url} alt={currentUser.nome_completo} />
-                ) : null}
-                <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
-                  {getInitials(currentUser.nome_completo)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {currentUser.apelido || currentUser.nome_completo}
-                </p>
-                {currentUser.cargo_nome && (
-                  <p className="text-xs text-muted-foreground truncate">{currentUser.cargo_nome}</p>
-                )}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className="flex items-center gap-1.5 mt-1 text-xs text-green-600 hover:text-green-700 transition-colors cursor-pointer">
-                      <Circle className="h-2.5 w-2.5 fill-green-500 text-green-500" />
-                      Online {onlineUsers.length > 0 && `(${onlineUsers.length})`}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent side="right" align="end" className="w-64 p-0">
-                    <div className="p-3 border-b border-border">
-                      <h4 className="text-sm font-semibold text-foreground">Usuários Online</h4>
-                      <p className="text-xs text-muted-foreground">{onlineUsers.length} conectado(s) agora</p>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto p-2 space-y-1">
-                      {onlineUsers.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-2">Nenhum usuário online</p>
-                      ) : (
-                        onlineUsers.map((user) => (
-                          <div key={user.userId} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-secondary/50">
-                            <Avatar className="h-7 w-7 shrink-0">
-                              {user.fotoUrl ? <AvatarImage src={user.fotoUrl} alt={user.nome} /> : null}
-                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">
-                                {getInitials(user.nome)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-medium text-foreground truncate">{user.nome}</p>
-                              {user.cargo && <p className="text-[10px] text-muted-foreground truncate">{user.cargo}</p>}
-                            </div>
-                            <Circle className="h-2 w-2 fill-green-500 text-green-500 shrink-0" />
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                {currentUser.email && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <Mail className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{currentUser.email}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onProfile}>
-              <UserCircle className="h-3.5 w-3.5" />Meu Perfil
-            </Button>
-          </>
-        )}
+        <SidebarUserProfile
+          currentUser={currentUser}
+          onlineUsers={onlineUsers}
+          collapsed={collapsed}
+          onProfile={onProfile}
+        />
       </div>
     </aside>
   );
