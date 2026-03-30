@@ -37,6 +37,7 @@ import {AdminAffiliates} from "@/components/admin/AdminAffiliates";
 import {AdminTutorials} from "@/components/admin/AdminTutorials";
 import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
 import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
+import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
 import {format, isAfter, isBefore} from "date-fns";
 import {ptBR} from "date-fns/locale";
 
@@ -834,6 +835,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </CardContent>
           </Card>
         </div>
+
+        <AdminSharedApiUsageList />
 
         <Tabs defaultValue="lojas" className="space-y-4">
           <ScrollArea className="w-full">

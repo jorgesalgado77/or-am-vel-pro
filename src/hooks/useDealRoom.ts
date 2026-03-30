@@ -11,6 +11,7 @@ interface DealRoomAccess {
 }
 
 interface DealRoomMetrics {
+  totalAberturas: number;
   totalVendas: number;
   totalTransacionado: number;
   totalTaxas: number;
@@ -180,18 +181,59 @@ export function useDealRoom() {
 
   const getMetrics = useCallback(async (filters?: {
     tenant_id?: string;
+    date_from?: string;
+    date_to?: string;
   }): Promise<{ metrics: DealRoomMetrics; ranking: VendorRank[]; transactions: DealRoomTransaction[]; proposalStats?: any } | null> => {
     setLoading(true);
     try {
       const tid = filters?.tenant_id;
       if (!tid) return null;
 
-      // Get ALL transactions for reference
-      const { data: transactions } = await supabase
+      let transactionsQuery = supabase
         .from("dealroom_transactions")
         .select("*")
         .eq("tenant_id", tid)
         .order("created_at", { ascending: false });
+
+      let usageQuery = supabase
+        .from("dealroom_usage")
+        .select("id, usage_date, created_at")
+        .eq("tenant_id", tid);
+
+      let transcriptsQuery = (supabase as any)
+        .from("dealroom_meeting_transcripts")
+        .select("session_id, created_at")
+        .eq("tenant_id", tid);
+
+      let proposalsQuery = (supabase as any)
+        .from("dealroom_proposals")
+        .select("status, valor_proposta")
+        .eq("tenant_id", tid);
+
+      if (filters?.date_from) {
+        transactionsQuery = transactionsQuery.gte("created_at", `${filters.date_from}T00:00:00`);
+        usageQuery = usageQuery.gte("usage_date", filters.date_from);
+        transcriptsQuery = transcriptsQuery.gte("created_at", `${filters.date_from}T00:00:00`);
+        proposalsQuery = proposalsQuery.gte("created_at", `${filters.date_from}T00:00:00`);
+      }
+
+      if (filters?.date_to) {
+        transactionsQuery = transactionsQuery.lte("created_at", `${filters.date_to}T23:59:59`);
+        usageQuery = usageQuery.lte("usage_date", filters.date_to);
+        transcriptsQuery = transcriptsQuery.lte("created_at", `${filters.date_to}T23:59:59`);
+        proposalsQuery = proposalsQuery.lte("created_at", `${filters.date_to}T23:59:59`);
+      }
+
+      const [transactionsRes, usageRes, transcriptsRes, proposalsRes] = await Promise.all([
+        transactionsQuery,
+        usageQuery,
+        transcriptsQuery,
+        proposalsQuery,
+      ]);
+
+      const transactions = transactionsRes.data;
+      const usageRows = (usageRes.data || []) as Array<{ id: string; usage_date: string; created_at: string }>;
+      const transcriptRows = (transcriptsRes.data || []) as Array<{ session_id: string | null; created_at: string }>;
 
       const txns = (transactions || []) as DealRoomTransaction[];
 
@@ -202,6 +244,8 @@ export function useDealRoom() {
       const totalTransacionado = confirmedTxns.reduce((s, t) => s + (t.valor_venda || 0), 0);
       const totalTaxas = confirmedTxns.reduce((s, t) => s + (t.taxa_plataforma_valor || 0), 0);
       const ticketMedio = totalVendas > 0 ? totalTransacionado / totalVendas : 0;
+      const totalAberturas = usageRows.length;
+      const totalReunioes = new Set(transcriptRows.map((row) => row.session_id).filter(Boolean)).size;
 
       // Build vendor ranking from confirmed transactions only
       const vendorMap: Record<string, { nome: string; total: number; vendas: number }> = {};
@@ -222,10 +266,7 @@ export function useDealRoom() {
       // Get proposals from dealroom_proposals table
       let proposalStats = { total: 0, enviadas: 0, visualizadas: 0, aceitas: 0, pagas: 0, recusadas: 0 };
       try {
-        const { data: proposals } = await supabase
-          .from("dealroom_proposals" as any)
-          .select("status, valor_proposta")
-          .eq("tenant_id", tid);
+        const proposals = proposalsRes.data;
 
         if (proposals && Array.isArray(proposals)) {
           proposalStats = {
@@ -241,8 +282,19 @@ export function useDealRoom() {
         // Table might not exist yet
       }
 
+      const conversionBase = totalAberturas || totalReunioes || proposalStats.total;
+      const taxaConversao = conversionBase > 0 ? (totalVendas / conversionBase) * 100 : 0;
+
       return {
-        metrics: { totalVendas, totalTransacionado, totalTaxas, ticketMedio, totalReunioes: 0, taxaConversao: 0 },
+        metrics: {
+          totalAberturas,
+          totalVendas,
+          totalTransacionado,
+          totalTaxas,
+          ticketMedio,
+          totalReunioes,
+          taxaConversao,
+        },
         ranking,
         transactions: txns,
         proposalStats,

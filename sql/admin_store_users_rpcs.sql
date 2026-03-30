@@ -35,6 +35,13 @@ END;
 $$;
 
 -- ===== 2. RPCs Admin Store Users =====
+DROP FUNCTION IF EXISTS public.admin_list_store_users(uuid);
+DROP FUNCTION IF EXISTS public.admin_list_store_cargos(uuid);
+DROP FUNCTION IF EXISTS public.admin_upsert_store_user(uuid, uuid, text, text, text, uuid, text, numeric, numeric, boolean);
+DROP FUNCTION IF EXISTS public.admin_delete_store_user(uuid, uuid);
+DROP FUNCTION IF EXISTS public.admin_reset_store_user_password(uuid, text);
+DROP FUNCTION IF EXISTS public.admin_toggle_store_user(uuid, boolean);
+
 CREATE OR REPLACE FUNCTION public.admin_list_store_users(p_tenant_id uuid)
 RETURNS TABLE(
   id uuid, nome_completo text, email text, telefone text,
@@ -122,3 +129,10 @@ BEGIN
   END IF;
   UPDATE public.usuarios SET ativo=p_ativo WHERE id=p_user_id;
 END; $$;
+
+GRANT EXECUTE ON FUNCTION public.admin_list_store_users(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_store_cargos(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_upsert_store_user(uuid, uuid, text, text, text, uuid, text, numeric, numeric, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_store_user(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_reset_store_user_password(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_toggle_store_user(uuid, boolean) TO authenticated;

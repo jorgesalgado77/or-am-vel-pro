@@ -11,6 +11,14 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Users, Trash2, KeyRound, RefreshCw, Search, Plus, Pencil } from "lucide-react";
+import {
+  adminDeleteStoreUser,
+  adminListStoreCargos,
+  adminListStoreUsers,
+  adminResetStoreUserPassword,
+  adminToggleStoreUser,
+  adminUpsertStoreUser,
+} from "@/lib/adminStoreUsersApi";
 
 interface StoreUser {
   id: string;
@@ -92,34 +100,19 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
       setUsers(parsed);
     } catch (err: any) {
       console.error("Erro ao carregar usuários:", err);
-      // Fallback: direct query (may fail with RLS)
-      const { data } = await supabase
-        .from("usuarios")
-        .select("id, nome_completo, email, telefone, cargo_id, ativo, tipo_regime, salario_fixo, comissao_percentual")
-        .eq("tenant_id", tenantId)
-        .order("ativo", { ascending: false })
-        .order("nome_completo");
-
-      if (data) {
-        const cargoIds = [...new Set(data.filter(u => u.cargo_id).map(u => u.cargo_id!))];
-        let cargoMap: Record<string, string> = {};
-        if (cargoIds.length > 0) {
-          const { data: cargosData } = await supabase.from("cargos").select("id, nome").in("id", cargoIds);
-          if (cargosData) cargosData.forEach(c => { cargoMap[c.id] = c.nome; });
-        }
-        setUsers(data.map(u => ({
-          id: u.id,
-          nome_completo: u.nome_completo,
-          email: u.email,
-          telefone: u.telefone,
-          cargo_id: u.cargo_id,
-          cargo_nome: u.cargo_id ? cargoMap[u.cargo_id] || null : null,
-          ativo: u.ativo,
-          tipo_regime: u.tipo_regime,
-          salario_fixo: Number(u.salario_fixo) || 0,
-          comissao_percentual: Number(u.comissao_percentual) || 0,
-        })));
-      }
+      const fallbackUsers = await adminListStoreUsers(tenantId);
+      setUsers(fallbackUsers.map((u) => ({
+        id: u.id,
+        nome_completo: u.nome_completo,
+        email: u.email,
+        telefone: u.telefone,
+        cargo_id: u.cargo_id,
+        cargo_nome: u.cargo_nome,
+        ativo: u.ativo,
+        tipo_regime: u.tipo_regime,
+        salario_fixo: Number(u.salario_fixo) || 0,
+        comissao_percentual: Number(u.comissao_percentual) || 0,
+      })));
     }
     setLoading(false);
   }, [tenantId]);
@@ -129,7 +122,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
       const { data } = await (supabase as any).rpc("admin_list_store_cargos", { p_tenant_id: tenantId });
       if (data) setCargos(data);
     } catch {
-      const { data } = await supabase.from("cargos").select("id, nome").eq("tenant_id", tenantId).order("nome");
+      const data = await adminListStoreCargos(tenantId);
       if (data) setCargos(data);
     }
   }, [tenantId]);
@@ -147,7 +140,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
     try {
       await (supabase as any).rpc("admin_toggle_store_user", { p_user_id: user.id, p_ativo: newAtivo });
     } catch {
-      await supabase.from("usuarios").update({ ativo: newAtivo } as any).eq("id", user.id);
+      await adminToggleStoreUser(user.id, newAtivo);
     }
     toast.success(`${user.nome_completo} ${newAtivo ? "ativado" : "desativado"}`);
     loadUsers();
@@ -200,37 +193,20 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
       setFormOpen(false);
       loadUsers();
     } catch (err: any) {
-      // Fallback direct
       try {
-        if (editingUser) {
-          await supabase.from("usuarios").update({
-            nome_completo: form.nome_completo.trim(),
-            email: form.email.trim() || null,
-            telefone: form.telefone.trim() || null,
-            cargo_id: form.cargo_id || null,
-            tipo_regime: form.tipo_regime || null,
-            salario_fixo: form.salario_fixo,
-            comissao_percentual: form.comissao_percentual,
-            ativo: form.ativo,
-          } as any).eq("id", editingUser.id);
-          toast.success("Usuário atualizado!");
-        } else {
-          const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: "123456" }) as any;
-          await supabase.from("usuarios").insert({
-            tenant_id: tenantId,
-            nome_completo: form.nome_completo.trim(),
-            email: form.email.trim() || null,
-            telefone: form.telefone.trim() || null,
-            cargo_id: form.cargo_id || null,
-            tipo_regime: form.tipo_regime || null,
-            salario_fixo: form.salario_fixo,
-            comissao_percentual: form.comissao_percentual,
-            ativo: form.ativo,
-            senha: hashedSenha || "123456",
-            primeiro_login: true,
-          } as any);
-          toast.success("Usuário criado! Senha padrão: 123456");
-        }
+        await adminUpsertStoreUser({
+          tenant_id: tenantId,
+          user_id: editingUser?.id || null,
+          nome_completo: form.nome_completo.trim(),
+          email: form.email.trim() || null,
+          telefone: form.telefone.trim() || null,
+          cargo_id: form.cargo_id || null,
+          tipo_regime: form.tipo_regime || null,
+          salario_fixo: form.salario_fixo,
+          comissao_percentual: form.comissao_percentual,
+          ativo: form.ativo,
+        });
+        toast.success(editingUser ? "Usuário atualizado!" : "Usuário criado! Senha padrão: 123456");
         setFormOpen(false);
         loadUsers();
       } catch (e2: any) {
@@ -263,10 +239,8 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
       toast.success(`Senha de ${resetUser.nome_completo} resetada! O usuário deverá trocar no próximo login.`);
       setResetDialogOpen(false);
     } catch {
-      // Fallback
       try {
-        const { data: hashedSenha } = await supabase.rpc("hash_password", { plain_text: resetPassword.trim() }) as any;
-        await supabase.from("usuarios").update({ senha: hashedSenha || resetPassword.trim(), primeiro_login: true } as any).eq("id", resetUser.id);
+        await adminResetStoreUserPassword(resetUser.id, resetPassword.trim());
         toast.success(`Senha de ${resetUser.nome_completo} resetada!`);
         setResetDialogOpen(false);
       } catch (err: any) {
@@ -294,7 +268,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
       toast.success(`${deleteUser.nome_completo} excluído com sucesso.`);
     } catch {
       try {
-        await supabase.from("usuarios").delete().eq("id", deleteUser.id);
+        await adminDeleteStoreUser(deleteUser.id, tenantId);
         toast.success(`${deleteUser.nome_completo} excluído com sucesso.`);
       } catch (err: any) {
         toast.error("Erro: " + (err?.message || "desconhecido"));
