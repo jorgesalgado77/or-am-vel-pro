@@ -40,7 +40,7 @@ export function ClientsKanban({
   const [liberadorMonth, setLiberadorMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [comercialExpanded, setComercialExpanded] = useState(true);
   const [operacionalExpanded, setOperacionalExpanded] = useState(true);
-  const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string; oldStatus: string } | null>(null);
+  const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string } | null>(null);
 
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
