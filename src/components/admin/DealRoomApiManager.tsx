@@ -77,6 +77,37 @@ export function DealRoomApiManager() {
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, "success" | "error" | null>>({});
 
+  const getInvokeErrorMessage = async (err: unknown): Promise<string> => {
+    if (!err) return "Falha ao testar conexão.";
+
+    const maybeError = err as { message?: string; context?: Response };
+    let base = maybeError.message || "Falha ao testar conexão.";
+
+    const context = maybeError.context;
+    if (context && typeof context === "object" && "text" in context) {
+      try {
+        const cloned = context.clone();
+        const contentType = cloned.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const payload = await cloned.json();
+          const apiError = payload?.error || payload?.message;
+          if (apiError) {
+            base = String(apiError);
+          }
+        } else {
+          const text = (await cloned.text())?.trim();
+          if (text) {
+            base = text.slice(0, 200);
+          }
+        }
+      } catch {
+        // mantém mensagem base
+      }
+    }
+
+    return base;
+  };
+
   const fetchData = async () => {
     setLoading(true);
 
@@ -225,7 +256,8 @@ export function DealRoomApiManager() {
       });
 
       if (fnError) {
-        throw fnError;
+        const invokeMessage = await getInvokeErrorMessage(fnError);
+        throw new Error(invokeMessage);
       }
 
       if (data?.valid) {
@@ -235,8 +267,9 @@ export function DealRoomApiManager() {
         toast.error(`❌ ${definition.label}: ${data?.error || "Falha na conexão"}`);
         setTestResults((prev) => ({ ...prev, [provider]: "error" }));
       }
-    } catch {
-      toast.error(`❌ Erro ao testar ${definition.label}. Verifique a conexão.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Verifique a conexão e permissões do endpoint.";
+      toast.error(`❌ ${definition.label}: ${message}`);
       setTestResults((prev) => ({ ...prev, [provider]: "error" }));
     } finally {
       setTestingProvider(null);
