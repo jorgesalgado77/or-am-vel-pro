@@ -62,7 +62,7 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     // Fetch contracts (source of truth for closed deals)
     const { data: contracts } = await (supabase as any)
       .from("client_contracts")
-      .select("id, client_id, simulation_id, created_at")
+      .select("id, client_id, simulation_id, created_at, valor_contrato, valor_com_desconto, vendedor_id")
       .eq("tenant_id", tenantId);
 
     // Fetch tracking records for valor_contrato and data_fechamento
