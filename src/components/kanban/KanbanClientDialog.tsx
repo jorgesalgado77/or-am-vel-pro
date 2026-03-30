@@ -207,7 +207,8 @@ export function KanbanClientDialog({
 
   if (!client) return null;
 
-  const isExpired = lastSim ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
+  const clientIsFechado = hasContract || (client as any).status === "fechado";
+  const isExpired = lastSim && !clientIsFechado ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
   
   // If client has a contract, show "Fechado" tag
   const effectiveStatus = hasContract ? "fechado" : status;
@@ -587,7 +588,12 @@ export function KanbanClientDialog({
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Validade</span>
-                    {isExpired ? (
+                    {clientIsFechado ? (
+                      <Badge variant="outline" className="text-xs gap-1 border-success text-success bg-success/10">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Contrato Fechado{(client as any).data_contrato ? ` • ${format(new Date((client as any).data_contrato), "dd/MM/yyyy")}` : ""}
+                      </Badge>
+                    ) : isExpired ? (
                       <Badge variant="destructive" className="text-xs gap-1"><AlertTriangle className="h-3 w-3" />Expirado</Badge>
                     ) : (
                       <span className="text-sm text-foreground">Até {format(addDays(new Date(lastSim.created_at), budgetValidityDays), "dd/MM/yyyy")}</span>
