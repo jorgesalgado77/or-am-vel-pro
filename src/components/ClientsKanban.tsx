@@ -263,28 +263,18 @@ export function ClientsKanban({
     }
   }, [localClients, currentUser, tenantId, setLocalClients, isTechnicalRole]);
 
+  // Open scheduling dialog from card action button
+  const handleOpenSchedule = useCallback((clientId: string, clientName: string) => {
+    setPendingSchedule({ clientId, clientName });
+  }, []);
+
   // Handle measurement scheduling confirmation
   const handleScheduleConfirm = useCallback(async (data: MeasurementScheduleData) => {
     if (!pendingSchedule) return;
-    const { clientId, clientName, oldStatus } = pendingSchedule;
+    const { clientId, clientName } = pendingSchedule;
     const client = localClients.find(c => c.id === clientId);
 
-    // 1. Update measurement_requests status
-    const mrStatus = technicalStatusMap["em_medicao"] || "em_andamento";
-    const { error: mrError } = await supabase
-      .from("measurement_requests" as any)
-      .update({ status: mrStatus, updated_at: new Date().toISOString() } as any)
-      .eq("client_id", clientId)
-      .eq("tenant_id", tenantId);
-
-    if (mrError) {
-      setLocalClients(prev => prev.map(c => c.id === clientId ? { ...c, status: oldStatus } as any : c));
-      toast.error("Erro ao mover solicitação");
-      setPendingSchedule(null);
-      return;
-    }
-
-    // 2. Save schedule history
+    // 1. Save schedule history
     await supabase.from("measurement_schedule_history" as any).insert({
       tenant_id: tenantId,
       client_id: clientId,
