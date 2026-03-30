@@ -43,7 +43,9 @@ export function ClientsKanban({
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
   const isAdmin = cargoNome.includes("administrador");
-  const isTechnicalRole = cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente");
+  const isGerenteTecnico = cargoNome.includes("gerente") && (cargoNome.includes("tecnico") || cargoNome.includes("técnico"));
+  const isBasicTechnical = !isGerenteTecnico && (cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente"));
+  const isTechnicalRole = isGerenteTecnico || isBasicTechnical;
 
   const indicadorMap = useMemo(() => {
     const map: Record<string, { nome: string; comissao: number }> = {};
@@ -78,8 +80,13 @@ export function ClientsKanban({
       const isTecnico = cargoNome.includes("tecnico") || cargoNome.includes("técnico");
       const isConferente = cargoNome.includes("conferente");
       
-      if (isLiberador || isTecnico || isConferente) {
-        // Technical roles: show only clients that have measurement requests assigned to them
+      const isGerTecnico = isGerente && (cargoNome.includes("tecnico") || cargoNome.includes("técnico"));
+      
+      if (isGerTecnico) {
+        // Gerente Técnico: see ALL clients that have measurement requests (any)
+        baseClients = baseClients.filter(c => measurementStatus[c.id]);
+      } else if (isLiberador || isTecnico || isConferente) {
+        // Basic technical roles: show only clients with measurement requests assigned to them
         const userName = currentUser.nome_completo || "";
         baseClients = baseClients.filter(c => {
           const mr = measurementStatus[c.id];
@@ -135,12 +142,26 @@ export function ClientsKanban({
             status = "negativos";
           } else if (mr.status === "enviado_compras") {
             status = "enviado_compras";
-          } else if (mr.assigned_to) {
-            status = "em_liberado";
-          } else if (status === "em_medicao" || status === "fechado") {
-            status = "em_medicao";
+          } else if (isGerenteTecnico) {
+            // Gerente Técnico: unassigned = Nova Solicitação, assigned = Em Medição, with assigned_to & status liberado = Em Liberação
+            if (!mr.assigned_to) {
+              status = "nova_solicitacao";
+            } else if (mr.status === "em_liberacao" || mr.status === "liberado") {
+              status = "em_liberado";
+            } else {
+              status = "em_medicao";
+            }
           } else {
-            status = "nova_solicitacao";
+            // Basic technical: assigned_to me → Em Liberação means they are working
+            if (mr.assigned_to) {
+              if (mr.status === "em_liberacao" || mr.status === "liberado") {
+                status = "em_liberado";
+              } else {
+                status = "nova_solicitacao";
+              }
+            } else {
+              status = "nova_solicitacao";
+            }
           }
         } else {
           status = "nova_solicitacao";

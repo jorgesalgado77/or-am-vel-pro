@@ -169,12 +169,15 @@ export function useKanbanData(externalClients: Client[]) {
   // Fetch measurements + auto-move
   useEffect(() => {
     if (!tenantId || localClients.length === 0) return;
-    const isTechnical = cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente");
+    const isGerenteTecnico = cargoNome.includes("gerente") && (cargoNome.includes("tecnico") || cargoNome.includes("técnico"));
+    const isBasicTechnical = !isGerenteTecnico && (cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente"));
+    const isTechnical = isGerenteTecnico || isBasicTechnical;
     const fetchMeasurements = async () => {
       const currentClients = localClientsRef.current;
       let query = supabase.from("measurement_requests" as any).select("client_id, status, assigned_to").eq("tenant_id", tenantId);
-      // For technical roles, only fetch requests assigned to them
-      if (isTechnical && currentUser) {
+      // For basic technical roles, only fetch requests assigned to them
+      // Gerente Técnico sees ALL requests to manage assignments
+      if (isBasicTechnical && currentUser) {
         const userName = currentUser.nome_completo;
         query = query.or(`assigned_to.eq.${userName},assigned_to.eq.${currentUser.id}`);
       }
@@ -197,16 +200,25 @@ export function useKanbanData(externalClients: Client[]) {
     const channel = supabase
       .channel("kanban-measurement-sync")
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "measurement_requests", filter: `tenant_id=eq.${tenantId}` }, (payload: any) => {
-        // Alert technical users when a new request is assigned to them
         if (isTechnical && currentUser && (payload.eventType === "INSERT" || payload.eventType === "UPDATE")) {
           const newData = payload.new;
           const oldData = payload.old;
-          const userName = currentUser.nome_completo;
-          const isAssignedToMe = newData?.assigned_to === userName || newData?.assigned_to === currentUser.id;
-          const wasAssignedToMe = oldData?.assigned_to === userName || oldData?.assigned_to === currentUser.id;
-          if (isAssignedToMe && !wasAssignedToMe) {
+
+          // Gerente Técnico: alert on ALL new measurement requests (INSERT)
+          if (isGerenteTecnico && payload.eventType === "INSERT") {
             playNotificationSound();
-            toast.info("📐 Nova solicitação de medida recebida!", { description: `Uma nova solicitação foi atribuída a você.`, duration: 8000 });
+            toast.info("📐 Nova solicitação de medida recebida!", { description: "Uma nova solicitação chegou para atribuição.", duration: 8000 });
+          }
+
+          // Basic technical roles: alert when assigned to them
+          if (isBasicTechnical) {
+            const userName = currentUser.nome_completo;
+            const isAssignedToMe = newData?.assigned_to === userName || newData?.assigned_to === currentUser.id;
+            const wasAssignedToMe = oldData?.assigned_to === userName || oldData?.assigned_to === currentUser.id;
+            if (isAssignedToMe && !wasAssignedToMe) {
+              playNotificationSound();
+              toast.info("📐 Nova solicitação de medida recebida!", { description: "Uma nova solicitação foi atribuída a você.", duration: 8000 });
+            }
           }
         }
         fetchMeasurements();
