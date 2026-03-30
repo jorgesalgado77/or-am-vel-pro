@@ -409,10 +409,73 @@ export function DealRoomApiManager() {
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 pb-4">
                       <p className="text-sm text-muted-foreground">{definition.description}</p>
+
+                      {/* Stripe webhook instructions */}
+                      {definition.provider === "stripe" && (
+                        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+                          <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                            <ExternalLink className="h-4 w-4 text-primary" /> Configuração do Webhook Stripe
+                          </p>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Webhook URL (copie e cole no Stripe Dashboard)</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                readOnly
+                                value={`https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/stripe-webhook`}
+                                className="text-xs font-mono bg-background"
+                              />
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="shrink-0"
+                                onClick={() => {
+                                  navigator.clipboard.writeText("https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/stripe-webhook");
+                                  toast.success("URL copiada!");
+                                }}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground space-y-1">
+                            <p className="font-semibold text-foreground">Passo a passo:</p>
+                            <p>1. Acesse <strong>Stripe Dashboard → Developers → Webhooks</strong></p>
+                            <p>2. Clique em <strong>"Add endpoint"</strong></p>
+                            <p>3. Cole a URL acima no campo <strong>"Endpoint URL"</strong></p>
+                            <p>4. Em <strong>"Events to send"</strong>, selecione:</p>
+                            <p className="pl-3 font-mono">checkout.session.completed, customer.subscription.updated, customer.subscription.deleted, invoice.paid, invoice.payment_failed</p>
+                            <p>5. Após criar, clique no endpoint → <strong>"Reveal Signing Secret"</strong></p>
+                            <p>6. Copie o <strong>whsec_...</strong> e cole no campo <strong>"Webhook Signing Secret"</strong> abaixo</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs"
+                            onClick={() => window.open("https://dashboard.stripe.com/webhooks", "_blank")}
+                          >
+                            <ExternalLink className="h-3 w-3" /> Abrir Stripe Webhooks
+                          </Button>
+                        </div>
+                      )}
+
                       <div className="grid md:grid-cols-2 gap-3">
                         {definition.fields.map((field) => {
                           const group = field.group === "configuracoes" ? "configuracoes" : "credenciais";
                           const value = draft[group][field.key] || "";
+
+                          // Auto-fill webhook_url for Stripe
+                          if (definition.provider === "stripe" && field.key === "webhook_url") {
+                            return (
+                              <div key={field.key} className="space-y-2">
+                                <Label className="text-muted-foreground">{field.label}</Label>
+                                <Input
+                                  readOnly
+                                  value="https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/stripe-webhook"
+                                  className="text-xs font-mono bg-muted"
+                                />
+                              </div>
+                            );
+                          }
 
                           return (
                             <div key={field.key} className="space-y-2">
