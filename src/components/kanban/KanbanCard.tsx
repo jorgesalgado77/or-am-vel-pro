@@ -269,6 +269,17 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 <span className="text-[10px] text-destructive font-medium">Orçamento expirado</span>
               </div>
             ) : null}
+            {/* Schedule measurement action button for technical cards in em_medicao */}
+            {onScheduleMeasurement && (clientStatus === "em_medicao" || clientStatus === "nova_solicitacao") && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onScheduleMeasurement(client.id, client.nome); }}
+                className="flex items-center gap-1 mt-1.5 w-full text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 rounded px-1.5 py-1 transition-colors"
+                title="Agendar ou reagendar medição"
+              >
+                <CalendarPlus className="h-3 w-3" />
+                Agendar Medição
+              </button>
+            )}
           </div>
         </div>
       )}
