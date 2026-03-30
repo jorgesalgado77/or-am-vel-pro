@@ -35,7 +35,7 @@ export function MeasurementCalendarWidget() {
       }
 
       const { data } = await query.order("data_tarefa", { ascending: true });
-      setTasks((data as Task[]) || []);
+      setTasks(((data as any[]) || []) as Task[]);
     };
     fetchTasks();
   }, [currentUser]);
