@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.director-weekly-report]
 verify_jwt = false
+
+[functions.dealroom-api-test]
+verify_jwt = false
