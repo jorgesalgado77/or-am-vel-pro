@@ -2,6 +2,7 @@
  * Modal to view full measurement request details including all data and attachments.
  * Shows seller, technician, store, contract and briefing info with proper scroll.
  * Attachment previews resolve Supabase storage paths to working public URLs.
+ * Direct DB lookups resolve creator/seller names from usuarios table.
  */
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import { forwardRef, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 
 interface MeasurementRequest {
   id: string;
