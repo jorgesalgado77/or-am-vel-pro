@@ -337,11 +337,8 @@ export function ClientsKanban({
   }, [pendingSchedule, tenantId, currentUser, setLocalClients, localClients]);
 
   const handleScheduleCancel = useCallback(() => {
-    if (pendingSchedule) {
-      setLocalClients(prev => prev.map(c => c.id === pendingSchedule.clientId ? { ...c, status: pendingSchedule.oldStatus } as any : c));
-    }
     setPendingSchedule(null);
-  }, [pendingSchedule, setLocalClients]);
+  }, []);
 
   const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 
