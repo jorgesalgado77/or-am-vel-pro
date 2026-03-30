@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,38 +6,88 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Clock, Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { CalendarIcon, Clock, Loader2, History, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/lib/supabaseClient";
 
 export interface MeasurementScheduleData {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   observations: string;
+  rescheduleReason?: string; // Only when rescheduling
+}
+
+export interface ScheduleHistoryEntry {
+  id: string;
+  date: string;
+  time: string;
+  observations: string;
+  reason: string | null;
+  created_by: string;
+  created_at: string;
 }
 
 interface Props {
   open: boolean;
   clientName: string;
+  clientId?: string;
+  tenantId?: string;
+  isReschedule?: boolean;
   onConfirm: (data: MeasurementScheduleData) => Promise<void>;
   onCancel: () => void;
 }
 
-export function MeasurementScheduleDialog({ open, clientName, onConfirm, onCancel }: Props) {
+export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId, isReschedule, onConfirm, onCancel }: Props) {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("09:00");
   const [observations, setObservations] = useState("");
+  const [rescheduleReason, setRescheduleReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<ScheduleHistoryEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Fetch schedule history
+  useEffect(() => {
+    if (!open || !clientId || !tenantId) { setHistory([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("measurement_schedule_history" as any)
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
+      setHistory((data as any[] || []) as ScheduleHistoryEntry[]);
+    })();
+  }, [open, clientId, tenantId]);
+
+  // Reset on open
+  useEffect(() => {
+    if (open) {
+      setDate(undefined);
+      setTime("09:00");
+      setObservations("");
+      setRescheduleReason("");
+      setShowHistory(false);
+    }
+  }, [open]);
+
+  const hasHistory = history.length > 0;
+  const effectiveIsReschedule = isReschedule || hasHistory;
 
   const handleConfirm = async () => {
     if (!date) return;
+    if (effectiveIsReschedule && !rescheduleReason.trim()) return;
     setSaving(true);
     try {
       await onConfirm({
         date: format(date, "yyyy-MM-dd"),
         time,
         observations,
+        rescheduleReason: effectiveIsReschedule ? rescheduleReason.trim() : undefined,
       });
     } finally {
       setSaving(false);
@@ -49,7 +99,7 @@ export function MeasurementScheduleDialog({ open, clientName, onConfirm, onCance
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            📐 Agendar Medição
+            {effectiveIsReschedule ? <><RefreshCw className="h-5 w-5" /> Reagendar Medição</> : <>📐 Agendar Medição</>}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
             Cliente: <span className="font-semibold text-foreground">{clientName}</span>
@@ -57,6 +107,19 @@ export function MeasurementScheduleDialog({ open, clientName, onConfirm, onCance
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {effectiveIsReschedule && (
+            <div className="space-y-2">
+              <Label className="text-destructive">Motivo do Reagendamento *</Label>
+              <Textarea
+                placeholder="Descreva o motivo do reagendamento..."
+                value={rescheduleReason}
+                onChange={(e) => setRescheduleReason(e.target.value)}
+                rows={2}
+                className="border-destructive/30 focus-visible:ring-destructive/30"
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Data da Medição *</Label>
             <Popover>
@@ -107,15 +170,59 @@ export function MeasurementScheduleDialog({ open, clientName, onConfirm, onCance
               rows={3}
             />
           </div>
+
+          {/* Schedule history */}
+          {hasHistory && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1.5 px-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                <History className="h-3.5 w-3.5" />
+                Histórico ({history.length} agendamento{history.length > 1 ? "s" : ""})
+              </Button>
+              {showHistory && (
+                <ScrollArea className="max-h-40">
+                  <div className="space-y-2">
+                    {history.map((h, i) => (
+                      <div key={h.id || i} className="text-xs border rounded-md p-2 space-y-1 bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {h.date} às {h.time}
+                          </span>
+                          {i === 0 && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Último</Badge>}
+                        </div>
+                        {h.reason && (
+                          <p className="text-destructive/80">
+                            <span className="font-medium">Motivo:</span> {h.reason}
+                          </p>
+                        )}
+                        {h.observations && <p className="text-muted-foreground">{h.observations}</p>}
+                        <p className="text-muted-foreground/60">
+                          por {h.created_by} em {h.created_at ? format(new Date(h.created_at), "dd/MM/yy HH:mm") : "—"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onCancel} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={handleConfirm} disabled={!date || saving}>
+          <Button
+            onClick={handleConfirm}
+            disabled={!date || saving || (effectiveIsReschedule && !rescheduleReason.trim())}
+          >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Confirmar Agendamento
+            {effectiveIsReschedule ? "Confirmar Reagendamento" : "Confirmar Agendamento"}
           </Button>
         </DialogFooter>
       </DialogContent>

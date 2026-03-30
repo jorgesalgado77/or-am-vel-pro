@@ -275,6 +275,7 @@ export function ClientsKanban({
   const handleScheduleConfirm = useCallback(async (data: MeasurementScheduleData) => {
     if (!pendingSchedule) return;
     const { clientId, clientName, oldStatus } = pendingSchedule;
+    const client = localClients.find(c => c.id === clientId);
 
     // 1. Update measurement_requests status
     const mrStatus = technicalStatusMap["em_medicao"] || "em_andamento";
@@ -291,13 +292,25 @@ export function ClientsKanban({
       return;
     }
 
-    // 2. Create task automatically
+    // 2. Save schedule history
+    await supabase.from("measurement_schedule_history" as any).insert({
+      tenant_id: tenantId,
+      client_id: clientId,
+      date: data.date,
+      time: data.time,
+      observations: data.observations || "",
+      reason: data.rescheduleReason || null,
+      created_by: currentUser?.nome_completo || "Sistema",
+    } as any).then(() => {});
+
+    // 3. Create task automatically
+    const formattedDate = data.date.split("-").reverse().join("/");
     const { error: taskError } = await supabase
       .from("tasks" as any)
       .insert({
         tenant_id: tenantId,
         titulo: `Medição - ${clientName}`,
-        descricao: data.observations || `Agendamento de medição para o cliente ${clientName}`,
+        descricao: `${data.rescheduleReason ? `[REAGENDAMENTO] ${data.rescheduleReason}\n\n` : ""}Agendamento: ${formattedDate} às ${data.time}\n${data.observations || "Sem observações"}`,
         data_tarefa: data.date,
         horario: data.time,
         tipo: "medicao",
@@ -311,11 +324,35 @@ export function ClientsKanban({
       console.error("Erro ao criar tarefa:", taskError);
       toast.warning("Medição movida, mas erro ao criar tarefa automática");
     } else {
-      toast.success(`Medição agendada para ${data.date} às ${data.time} — Tarefa criada!`);
+      toast.success(`Medição ${data.rescheduleReason ? "reagendada" : "agendada"} para ${formattedDate} às ${data.time} — Tarefa criada!`);
     }
 
+    // 4. Push notification
+    try {
+      const { sendPushIfEnabled } = await import("@/lib/pushHelper");
+      if (currentUser?.id) {
+        sendPushIfEnabled(
+          "medicoes",
+          currentUser.id,
+          `📐 Medição ${data.rescheduleReason ? "Reagendada" : "Agendada"}`,
+          `Cliente: ${clientName} — ${formattedDate} às ${data.time}`,
+          "medicao"
+        );
+      }
+    } catch { /* silent */ }
+
+    // 5. WhatsApp notification to client
+    try {
+      const clientPhone = (client as any)?.telefone1 || (client as any)?.telefone2;
+      if (clientPhone) {
+        const { sendWhatsAppText } = await import("@/lib/whatsappSender");
+        const msg = `📐 *${data.rescheduleReason ? "Reagendamento" : "Agendamento"} de Medição*\n\nOlá! ${data.rescheduleReason ? `Sua medição foi reagendada.\nMotivo: ${data.rescheduleReason}\n\n` : ""}Sua medição foi agendada para:\n📅 *${formattedDate}* às 🕐 *${data.time}*\n${data.observations ? `\n📝 ${data.observations}` : ""}\n\nQualquer dúvida, entre em contato conosco!`;
+        sendWhatsAppText(clientPhone, msg).catch(() => {});
+      }
+    } catch { /* silent */ }
+
     setPendingSchedule(null);
-  }, [pendingSchedule, tenantId, currentUser, setLocalClients]);
+  }, [pendingSchedule, tenantId, currentUser, setLocalClients, localClients]);
 
   const handleScheduleCancel = useCallback(() => {
     if (pendingSchedule) {
