@@ -1249,6 +1249,15 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       <AdminUsersModal open={showUsersModal} onOpenChange={setShowUsersModal} tenants={tenants} />
       <AdminClientsModal open={showClientsModal} onOpenChange={setShowClientsModal} tenants={tenants} />
       <AdminInactiveStoresModal open={showInactiveModal} onOpenChange={setShowInactiveModal} tenants={tenants} />
+      {storeUsersTarget && (
+        <AdminStoreUsersModal
+          open={storeUsersModalOpen}
+          onOpenChange={setStoreUsersModalOpen}
+          tenantId={storeUsersTarget.id}
+          tenantName={storeUsersTarget.nome_loja}
+          codigoLoja={storeUsersTarget.codigo_loja}
+        />
+      )}
     </div>
   );
 }
