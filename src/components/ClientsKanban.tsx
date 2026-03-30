@@ -406,6 +406,7 @@ export function ClientsKanban({
                       canDelete={canDelete}
                       onClientClick={setExpandedClient}
                       onDelete={onDelete}
+                      onScheduleMeasurement={handleOpenSchedule}
                     />
                   ))
                 ) : (
