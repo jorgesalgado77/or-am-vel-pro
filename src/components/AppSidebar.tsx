@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
-  MessageCircle, Receipt, CreditCard, Bot, Video, Megaphone,
+  MessageSquare, Receipt, CreditCard, BrainCircuit, Video, Megaphone,
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
-  Box, ClipboardCheck, Ruler, Package,
+  Box, ClipboardCheck, Ruler, Package, UserCircle, Sparkles,
 } from "lucide-react";
 import { PushNotificationToggle } from "@/components/tasks/PushNotificationToggle";
 
@@ -57,16 +57,16 @@ export function AppSidebar({
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
-    { id: "commercial-ai", label: "IA Gerente", icon: Bot, perm: "clientes" as const, show: true, badge: "NOVO" },
+    { id: "commercial-ai", label: "IA Gerente", icon: BrainCircuit, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true, badge: null },
     { id: "catalog", label: "Catálogo", icon: Package, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
     { id: "measurements", label: "Medidas", icon: Ruler, perm: "clientes" as const, show: cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador"), badge: null },
     { id: "tasks", label: "Tarefas", icon: ClipboardCheck, perm: "clientes" as const, show: true, badge: null },
     { id: "emails", label: "Email", icon: Mail, perm: "clientes" as const, show: true, badge: "NOVO" },
-    { id: "messages", label: "Mensagens", icon: MessageCircle, perm: "mensagens" as const, show: hasPermission("mensagens"), badge: unreadMessages > 0 ? unreadMessages : null },
-    { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "vendazap" as const, show: hasPermission("vendazap"), badge: "ADD-ON" },
-    { id: "vendazap-chat", label: "Chat Vendas", icon: MessageCircle, perm: "chat_vendas" as const, show: hasPermission("chat_vendas"), badge: "ADD-ON" },
+    { id: "messages", label: "Mensagens", icon: MessageSquare, perm: "mensagens" as const, show: hasPermission("mensagens"), badge: unreadMessages > 0 ? unreadMessages : null },
+    { id: "vendazap", label: "VendaZap AI", icon: Sparkles, perm: "vendazap" as const, show: hasPermission("vendazap"), badge: "ADD-ON" },
+    { id: "vendazap-chat", label: "Chat Vendas", icon: Phone, perm: "chat_vendas" as const, show: hasPermission("chat_vendas"), badge: "ADD-ON" },
     { id: "dealroom", label: "Deal Room", icon: Video, perm: "dealroom" as const, show: hasPermission("dealroom"), badge: "ADD-ON" },
     { id: "smart3d", label: "3D Smart Import", icon: Box, perm: "smart3d" as const, show: hasPermission("smart3d"), badge: "ADD-ON" },
     { id: "funnel", label: "Funil de Captação", icon: Megaphone, perm: "funil" as const, show: hasPermission("funil"), badge: null },
@@ -193,7 +193,7 @@ export function AppSidebar({
           {bottomItems.filter(i => i.show).map((item) => (
             <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} badge={item.badge} />
           ))}
-          <NavButton label="Meu Perfil" icon={Users} onClick={onProfile} />
+          <NavButton label="Meu Perfil" icon={UserCircle} onClick={onProfile} />
           {hasPermission("suporte") && <NavButton label="Suporte" icon={LifeBuoy} onClick={onSupport} />}
           <NavButton label="Sair" icon={LogOut} destructive onClick={async () => { await logout(); navigate("/"); }} />
         </div>
