@@ -383,7 +383,7 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
     // Also get contracts for revenue
     const { data: contractsForRanking } = await (supabase as any)
       .from("client_contracts")
-      .select("client_id, simulation_id")
+      .select("client_id, simulation_id, valor_contrato, valor_com_desconto")
       .eq("tenant_id", tenantId);
 
     const { data: usuarios } = await (supabase as any)
@@ -394,17 +394,32 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
 
     if (!clients || !usuarios) return;
 
-    // Get simulations for revenue
+    // Build contract value map (prefer valor_com_desconto, fallback to simulation, then valor_contrato)
+    const contractValueMap = new Map<string, number>();
     const simIds = (contractsForRanking || []).map((c: any) => c.simulation_id).filter(Boolean);
     let sims: any[] = [];
     if (simIds.length > 0) {
       const { data: s } = await (supabase as any).from("simulations").select("id, client_id, valor_tela, desconto1, desconto2, desconto3").in("id", simIds);
       sims = s || [];
     }
-    const simByClient = new Map(sims.map((s: any) => {
-      const contract = (contractsForRanking || []).find((c: any) => c.simulation_id === s.id);
-      return [contract?.client_id, s];
-    }));
+    const simMap = new Map(sims.map((s: any) => [s.id, s]));
+
+    for (const ct of (contractsForRanking || []) as any[]) {
+      let valor = 0;
+      if (ct.valor_com_desconto && Number(ct.valor_com_desconto) > 0) {
+        valor = Number(ct.valor_com_desconto);
+      } else {
+        const sim = ct.simulation_id ? simMap.get(ct.simulation_id) : null;
+        if (sim) {
+          valor = sim.valor_tela || 0;
+          if (sim.desconto1) valor *= (1 - sim.desconto1 / 100);
+          if (sim.desconto2) valor *= (1 - sim.desconto2 / 100);
+          if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
+        }
+        if (valor === 0 && ct.valor_contrato) valor = Number(ct.valor_contrato) || 0;
+      }
+      contractValueMap.set(ct.client_id, valor);
+    }
 
     const scoreMap = new Map<string, { deals: number; revenue: number }>();
 
@@ -412,14 +427,7 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
       const seller = c.vendedor || "Sem vendedor";
       const existing = scoreMap.get(seller) || { deals: 0, revenue: 0 };
       existing.deals += 1;
-      const sim = simByClient.get(c.id);
-      if (sim) {
-        let valor = sim.valor_tela || 0;
-        if (sim.desconto1) valor *= (1 - sim.desconto1 / 100);
-        if (sim.desconto2) valor *= (1 - sim.desconto2 / 100);
-        if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
-        existing.revenue += valor;
-      }
+      existing.revenue += contractValueMap.get(c.id) || 0;
       scoreMap.set(seller, existing);
     });
 
