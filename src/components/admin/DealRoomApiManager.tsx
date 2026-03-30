@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDays } from "date-fns";
 import { toast } from "sonner";
+import { Copy, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
