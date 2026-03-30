@@ -412,7 +412,7 @@ export default function Login() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
+            <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4" autoComplete="off">
               <div className="space-y-1.5">
                 <Label htmlFor="codigoLoja" className="text-xs sm:text-sm font-medium text-white/80">
                   Código da Loja
