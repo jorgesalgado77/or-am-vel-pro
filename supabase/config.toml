@@ -27,6 +27,9 @@ verify_jwt = false
 [functions.cashflow-ai]
 verify_jwt = false
 
+[functions.plan-ai]
+verify_jwt = false
+
 [functions.whatsapp-bot]
 verify_jwt = false
 
