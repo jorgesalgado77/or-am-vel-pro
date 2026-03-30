@@ -47,15 +47,16 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
   const overdueAlertDismissedRef = useRef(false);
   const lastOverdueCheckRef = useRef(0);
 
-  // Fetch ALL incomplete tasks (not just today's with time)
+  // Fetch only tasks assigned to the current user (each user sees only their own)
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !userId) return;
 
     const fetchAllTasks = async () => {
       const { data } = await supabase
         .from("tasks" as any)
         .select("*")
         .eq("tenant_id", tenantId)
+        .eq("responsavel_id", userId)
         .in("status", ["nova", "pendente", "em_execucao"])
         .order("data_tarefa", { ascending: true });
       
@@ -75,7 +76,7 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
     fetchAllTasks();
     const interval = setInterval(fetchAllTasks, 60_000);
     return () => clearInterval(interval);
-  }, [tenantId]);
+  }, [tenantId, userId]);
 
   // Realtime
   useEffect(() => {
