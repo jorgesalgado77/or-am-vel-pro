@@ -146,15 +146,47 @@ export function useKanbanData(externalClients: Client[]) {
     if (!tenantId || localClients.length === 0) return;
     const fetchContractClients = async () => {
       const currentClients = localClientsRef.current;
-      const { data } = await supabase.from("client_contracts").select("client_id").eq("tenant_id", tenantId);
+      const { data } = await supabase.from("client_contracts").select("client_id, created_at").eq("tenant_id", tenantId);
       if (data) {
         const ids = new Set((data as any[]).map((d: any) => d.client_id));
+        const contractDateByClientId = new Map<string, string>();
+        (data as any[]).forEach((d: any) => {
+          if (d.client_id && d.created_at && !contractDateByClientId.has(d.client_id)) {
+            contractDateByClientId.set(d.client_id, d.created_at);
+          }
+        });
+
         setContractClientIds(ids);
-        const needsUpdate = currentClients.filter(c => ids.has(c.id) && (c as any).status !== "fechado");
-        if (needsUpdate.length > 0) {
-          const updateIds = needsUpdate.map(c => c.id);
-          await supabase.from("clients").update({ status: "fechado" } as any).in("id", updateIds);
-          setLocalClients(prev => prev.map(c => updateIds.includes(c.id) ? { ...c, status: "fechado" } as any : c));
+
+        const needsStatusUpdate = currentClients.filter(c => ids.has(c.id) && (c as any).status !== "fechado");
+        const missingContractDate = currentClients.filter(c => ids.has(c.id) && !(c as any).data_contrato);
+
+        if (needsStatusUpdate.length > 0 || missingContractDate.length > 0) {
+          const patchById = new Map<string, { status?: string; data_contrato?: string }>();
+
+          needsStatusUpdate.forEach((c) => {
+            const existing = patchById.get(c.id) || {};
+            patchById.set(c.id, { ...existing, status: "fechado" });
+          });
+
+          missingContractDate.forEach((c) => {
+            const existing = patchById.get(c.id) || {};
+            patchById.set(c.id, {
+              ...existing,
+              data_contrato: contractDateByClientId.get(c.id) || new Date().toISOString(),
+            });
+          });
+
+          await Promise.all(
+            Array.from(patchById.entries()).map(([id, payload]) =>
+              supabase.from("clients").update(payload as any).eq("id", id)
+            )
+          );
+
+          setLocalClients(prev => prev.map(c => {
+            const patch = patchById.get(c.id);
+            return patch ? ({ ...c, ...patch } as any) : c;
+          }));
         }
       }
     };
