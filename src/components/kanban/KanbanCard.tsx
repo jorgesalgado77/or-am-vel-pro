@@ -74,7 +74,7 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
   }
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, onClick, onQuickDelete }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, onClick, onQuickDelete, onScheduleMeasurement }: KanbanCardProps) {
   const clientStatus = ((client as any).status || "novo").toLowerCase();
   const hasClosedContract = clientStatus === "fechado" || !!(client as any).data_contrato;
   const expired = sim && !hasClosedContract ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
