@@ -384,7 +384,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               pieceCount: parsed.pieces, totalValue: parsed.total, importedAt: new Date(), file,
               fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
               puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
-            } as ImportedEnvironment & Record<string, string>]);
+            } as any]);
             setImportedFile(file);
             if (parsed.software && parsed.software !== "generico") setDetectedSoftware(parsed.software);
             toast.success(`Ambiente "${parsed.envName}" importado: ${formatCurrency(parsed.total)}`);
