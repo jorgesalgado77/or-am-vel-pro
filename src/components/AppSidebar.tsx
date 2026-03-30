@@ -57,13 +57,13 @@ export function AppSidebar({
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
-    { id: "commercial-ai", label: "IA Gerente", icon: BrainCircuit, perm: "clientes" as const, show: true, badge: "NOVO" },
-    { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true, badge: null },
-    { id: "catalog", label: "Catálogo", icon: Package, perm: "clientes" as const, show: true, badge: "NOVO" },
+    { id: "commercial-ai", label: "IA Gerente", icon: BrainCircuit, perm: "ia_gerente" as const, show: hasPermission("ia_gerente"), badge: "NOVO" },
+    { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: hasPermission("clientes"), badge: null },
+    { id: "catalog", label: "Catálogo", icon: Package, perm: "catalogo" as const, show: hasPermission("catalogo"), badge: "NOVO" },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
-    { id: "measurements", label: "Medidas", icon: Ruler, perm: "clientes" as const, show: cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador"), badge: null },
+    { id: "measurements", label: "Medidas", icon: Ruler, perm: "medicao" as const, show: hasPermission("medicao") || cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador") || cargoLower.includes("liberador") || cargoLower.includes("conferente"), badge: null },
     { id: "tasks", label: "Tarefas", icon: ClipboardCheck, perm: "clientes" as const, show: true, badge: null },
-    { id: "emails", label: "Email", icon: Mail, perm: "clientes" as const, show: true, badge: "NOVO" },
+    { id: "emails", label: "Email", icon: Mail, perm: "email" as const, show: hasPermission("email"), badge: "NOVO" },
     { id: "messages", label: "Mensagens", icon: MessageSquare, perm: "mensagens" as const, show: hasPermission("mensagens"), badge: unreadMessages > 0 ? unreadMessages : null },
     { id: "vendazap", label: "VendaZap AI", icon: Sparkles, perm: "vendazap" as const, show: hasPermission("vendazap"), badge: "ADD-ON" },
     { id: "vendazap-chat", label: "Chat Vendas", icon: Phone, perm: "chat_vendas" as const, show: hasPermission("chat_vendas"), badge: "ADD-ON" },
@@ -73,7 +73,7 @@ export function AppSidebar({
     { id: "campaigns", label: "Campanhas", icon: BookOpen, perm: "campanhas" as const, show: hasPermission("campanhas"), badge: "NOVO" },
     { id: "financial", label: "Financeiro", icon: Wallet, perm: "financeiro" as const, show: hasPermission("financeiro"), badge: "NOVO" },
     { id: "referrals", label: "Indicações", icon: Gift, perm: "indicacoes" as const, show: hasPermission("indicacoes"), badge: "NOVO" },
-    { id: "tutorials", label: "Tutoriais", icon: GraduationCap, perm: "clientes" as const, show: true, badge: null },
+    { id: "tutorials", label: "Tutoriais", icon: GraduationCap, perm: "tutoriais" as const, show: hasPermission("tutoriais"), badge: null },
   ];
 
   const bottomItems = [
