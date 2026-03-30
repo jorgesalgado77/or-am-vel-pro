@@ -206,17 +206,24 @@ export function useKanbanData(externalClients: Client[]) {
     const isTechnical = isGerenteTecnico || isBasicTechnical;
     const fetchMeasurements = async () => {
       const currentClients = localClientsRef.current;
-      let query = supabase.from("measurement_requests" as any).select("client_id, status, assigned_to").eq("tenant_id", tenantId);
-      // For basic technical roles, only fetch requests assigned to them
-      // Gerente Técnico sees ALL requests to manage assignments
-      if (isBasicTechnical && currentUser) {
-        const userName = currentUser.nome_completo;
-        query = query.or(`assigned_to.eq.${userName},assigned_to.eq.${currentUser.id}`);
-      }
-      const { data } = await query;
+      // Always fetch ALL measurement requests for the tenant — filter client-side
+      // This avoids .or() URL-encoding issues with names containing spaces/accents
+      const { data } = await supabase.from("measurement_requests" as any).select("client_id, status, assigned_to").eq("tenant_id", tenantId);
       if (!data) return;
+
+      // For basic technical roles, filter to only requests assigned to them (by name or ID)
+      let filtered = data as any[];
+      if (isBasicTechnical && currentUser) {
+        const userName = (currentUser.nome_completo || "").toLowerCase().trim();
+        const userId = currentUser.id;
+        filtered = filtered.filter((r: any) => {
+          const assignedTo = (r.assigned_to || "").toLowerCase().trim();
+          return assignedTo === userName || assignedTo === userId;
+        });
+      }
+
       const statusMap: Record<string, { status: string; assigned_to: string | null }> = {};
-      (data as any[]).forEach((r: any) => { statusMap[r.client_id] = { status: r.status || "pending", assigned_to: r.assigned_to || null }; });
+      filtered.forEach((r: any) => { statusMap[r.client_id] = { status: r.status || "pending", assigned_to: r.assigned_to || null }; });
       setMeasurementStatus(statusMap);
       if (!isTechnical) {
         const updates: Array<{ id: string; status: string }> = [];
