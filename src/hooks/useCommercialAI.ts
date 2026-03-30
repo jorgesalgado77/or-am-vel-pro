@@ -101,18 +101,29 @@ export function useCommercialAI(tenantId: string | null, userId?: string, userRo
 
     for (const contract of (contracts || [])) {
       let valor = 0;
-      const sim = contract.simulation_id ? simMap.get(contract.simulation_id) : null;
-      if (sim) {
-        valor = sim.valor_tela || 0;
-        if (sim.desconto1) valor *= (1 - sim.desconto1 / 100);
-        if (sim.desconto2) valor *= (1 - sim.desconto2 / 100);
-        if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
+      // Priority 1: valor_com_desconto directly from contract (valor à vista)
+      if (contract.valor_com_desconto && Number(contract.valor_com_desconto) > 0) {
+        valor = Number(contract.valor_com_desconto);
+      } else {
+        // Priority 2: calculate from simulation
+        const sim = contract.simulation_id ? simMap.get(contract.simulation_id) : null;
+        if (sim) {
+          valor = sim.valor_tela || 0;
+          if (sim.desconto1) valor *= (1 - sim.desconto1 / 100);
+          if (sim.desconto2) valor *= (1 - sim.desconto2 / 100);
+          if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
+        }
+        // Priority 3: valor_contrato from contract
+        if (valor === 0 && contract.valor_contrato) {
+          valor = Number(contract.valor_contrato) || 0;
+        }
+        // Priority 4: tracking valor_contrato
+        const track = trackingMap.get(contract.client_id) as any;
+        if (valor === 0 && track?.valor_contrato) {
+          valor = Number(track.valor_contrato) || 0;
+        }
       }
-      // Fallback to tracking valor_contrato
       const track = trackingMap.get(contract.client_id) as any;
-      if (valor === 0 && track?.valor_contrato) {
-        valor = Number(track.valor_contrato) || 0;
-      }
       const closedAt = track?.data_fechamento || contract.created_at;
       contractRevenues.push({ clientId: contract.client_id, valor, closedAt });
     }
