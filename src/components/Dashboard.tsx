@@ -310,6 +310,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
         <AIInsightsWidget />
       </Suspense>
 
+      {/* Measurement Calendar for technical roles */}
+      {isTechnicalRole && (
+        <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
+          <MeasurementCalendarWidget />
+        </Suspense>
+      )}
+
       {/* Date Filter */}
       <DashboardDateFilter
         datePreset={datePreset} onPresetChange={setDatePreset}
