@@ -207,7 +207,7 @@ export function ClientsKanban({
     const client = localClients.find(c => c.id === draggableId);
     if (!client) return;
     const oldStatus = (client as any).status || "novo";
-    setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
+    setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus, ...(newStatus === "fechado" ? { data_contrato: new Date().toISOString() } : {}) } as any : c));
     const updatePayload: any = { status: newStatus };
     if (newStatus === "fechado") {
       updatePayload.data_contrato = new Date().toISOString();
