@@ -57,7 +57,7 @@ export function AppSidebar({
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
-    { id: "commercial-ai", label: "IA Gerente", icon: Bot, perm: "clientes" as const, show: true, badge: "NOVO" },
+    { id: "commercial-ai", label: "IA Gerente", icon: BrainCircuit, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true, badge: null },
     { id: "catalog", label: "Catálogo", icon: Package, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
