@@ -14,10 +14,11 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const authHeader = req.headers.get("authorization") || "";
 
     // Verify the caller is an admin master
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: authError } = await userClient.auth.getUser();
@@ -38,6 +39,149 @@ serve(async (req) => {
 
     const body = await req.json();
     const { action, tenant_id, email, senha_hash, nome } = body;
+
+    if (action === "list_store_users") {
+      if (!tenant_id) return json({ error: "tenant_id é obrigatório" }, 400);
+
+      const { data: users, error } = await adminClient
+        .from("usuarios")
+        .select("id, nome_completo, email, telefone, cargo_id, ativo, tipo_regime, salario_fixo, comissao_percentual, apelido, foto_url")
+        .eq("tenant_id", tenant_id)
+        .order("ativo", { ascending: false })
+        .order("nome_completo");
+
+      if (error) return json({ error: error.message }, 500);
+
+      const cargoIds = [...new Set((users || []).map((user: any) => user.cargo_id).filter(Boolean))];
+      let cargoMap: Record<string, string> = {};
+
+      if (cargoIds.length > 0) {
+        const { data: cargos } = await adminClient.from("cargos").select("id, nome").in("id", cargoIds as string[]);
+        cargoMap = Object.fromEntries((cargos || []).map((cargo: any) => [cargo.id, cargo.nome]));
+      }
+
+      return json((users || []).map((user: any) => ({
+        ...user,
+        cargo_nome: user.cargo_id ? cargoMap[user.cargo_id] || null : null,
+      })));
+    }
+
+    if (action === "list_store_cargos") {
+      if (!tenant_id) return json({ error: "tenant_id é obrigatório" }, 400);
+
+      const { data, error } = await adminClient
+        .from("cargos")
+        .select("id, nome")
+        .eq("tenant_id", tenant_id)
+        .order("nome");
+
+      if (error) return json({ error: error.message }, 500);
+      return json(data || []);
+    }
+
+    if (action === "toggle_store_user") {
+      if (!body.user_id) return json({ error: "user_id é obrigatório" }, 400);
+
+      const { error } = await adminClient
+        .from("usuarios")
+        .update({ ativo: Boolean(body.ativo) })
+        .eq("id", body.user_id);
+
+      if (error) return json({ error: error.message }, 500);
+      return json({ success: true });
+    }
+
+    if (action === "delete_store_user") {
+      if (!body.user_id || !tenant_id) return json({ error: "user_id e tenant_id são obrigatórios" }, 400);
+
+      const { error } = await adminClient
+        .from("usuarios")
+        .delete()
+        .eq("id", body.user_id)
+        .eq("tenant_id", tenant_id);
+
+      if (error) return json({ error: error.message }, 500);
+      return json({ success: true });
+    }
+
+    if (action === "reset_store_user_password") {
+      if (!body.user_id || !body.new_password) return json({ error: "user_id e new_password são obrigatórios" }, 400);
+      if (String(body.new_password).trim().length < 6) return json({ error: "A senha deve ter ao menos 6 caracteres" }, 400);
+
+      const { data: hashedPassword, error: hashError } = await adminClient.rpc("hash_password", {
+        plain_text: String(body.new_password).trim(),
+      });
+
+      if (hashError) return json({ error: hashError.message }, 500);
+
+      const { error } = await adminClient
+        .from("usuarios")
+        .update({ senha: hashedPassword || String(body.new_password).trim(), primeiro_login: true })
+        .eq("id", body.user_id);
+
+      if (error) return json({ error: error.message }, 500);
+
+      try {
+        await adminClient.rpc("admin_update_user_password", {
+          p_user_id: body.user_id,
+          p_new_password: String(body.new_password).trim(),
+        });
+      } catch {
+        // noop
+      }
+
+      return json({ success: true });
+    }
+
+    if (action === "upsert_store_user") {
+      if (!tenant_id || !body.nome_completo || !String(body.nome_completo).trim()) {
+        return json({ error: "tenant_id e nome_completo são obrigatórios" }, 400);
+      }
+
+      if (body.user_id) {
+        const { error } = await adminClient
+          .from("usuarios")
+          .update({
+            nome_completo: String(body.nome_completo).trim(),
+            email: body.email ? String(body.email).trim() : null,
+            telefone: body.telefone ? String(body.telefone).trim() : null,
+            cargo_id: body.cargo_id || null,
+            tipo_regime: body.tipo_regime || null,
+            salario_fixo: Number(body.salario_fixo) || 0,
+            comissao_percentual: Number(body.comissao_percentual) || 0,
+            ativo: body.ativo !== false,
+          })
+          .eq("id", body.user_id)
+          .eq("tenant_id", tenant_id);
+
+        if (error) return json({ error: error.message }, 500);
+        return json({ user_id: body.user_id });
+      }
+
+      const { data: hashedPassword, error: hashError } = await adminClient.rpc("hash_password", { plain_text: "123456" });
+      if (hashError) return json({ error: hashError.message }, 500);
+
+      const { data, error } = await adminClient
+        .from("usuarios")
+        .insert({
+          tenant_id,
+          nome_completo: String(body.nome_completo).trim(),
+          email: body.email ? String(body.email).trim() : null,
+          telefone: body.telefone ? String(body.telefone).trim() : null,
+          cargo_id: body.cargo_id || null,
+          tipo_regime: body.tipo_regime || null,
+          salario_fixo: Number(body.salario_fixo) || 0,
+          comissao_percentual: Number(body.comissao_percentual) || 0,
+          ativo: body.ativo !== false,
+          senha: hashedPassword || "123456",
+          primeiro_login: true,
+        })
+        .select("id")
+        .single();
+
+      if (error) return json({ error: error.message }, 500);
+      return json({ user_id: data?.id });
+    }
 
     if (action === "repair_access") {
       if (!tenant_id || !email || !senha_hash) {
