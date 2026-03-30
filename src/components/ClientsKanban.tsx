@@ -40,7 +40,7 @@ export function ClientsKanban({
   const [liberadorMonth, setLiberadorMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [comercialExpanded, setComercialExpanded] = useState(true);
   const [operacionalExpanded, setOperacionalExpanded] = useState(true);
-  const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string; oldStatus: string } | null>(null);
+  const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string } | null>(null);
 
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
@@ -223,14 +223,6 @@ export function ClientsKanban({
     const oldStatus = (client as any).status || "novo";
 
     if (isTechnicalRole) {
-      // Intercept moves to "em_medicao" → show scheduling dialog
-      if (newStatus === "em_medicao") {
-        // Optimistic move
-        setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
-        setPendingSchedule({ clientId: draggableId, clientName: client.nome, oldStatus });
-        return;
-      }
-
       // Technical roles: update measurement_requests, not clients
       const mrStatus = technicalStatusMap[newStatus] || newStatus;
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
@@ -271,28 +263,18 @@ export function ClientsKanban({
     }
   }, [localClients, currentUser, tenantId, setLocalClients, isTechnicalRole]);
 
+  // Open scheduling dialog from card action button
+  const handleOpenSchedule = useCallback((clientId: string, clientName: string) => {
+    setPendingSchedule({ clientId, clientName });
+  }, []);
+
   // Handle measurement scheduling confirmation
   const handleScheduleConfirm = useCallback(async (data: MeasurementScheduleData) => {
     if (!pendingSchedule) return;
-    const { clientId, clientName, oldStatus } = pendingSchedule;
+    const { clientId, clientName } = pendingSchedule;
     const client = localClients.find(c => c.id === clientId);
 
-    // 1. Update measurement_requests status
-    const mrStatus = technicalStatusMap["em_medicao"] || "em_andamento";
-    const { error: mrError } = await supabase
-      .from("measurement_requests" as any)
-      .update({ status: mrStatus, updated_at: new Date().toISOString() } as any)
-      .eq("client_id", clientId)
-      .eq("tenant_id", tenantId);
-
-    if (mrError) {
-      setLocalClients(prev => prev.map(c => c.id === clientId ? { ...c, status: oldStatus } as any : c));
-      toast.error("Erro ao mover solicitação");
-      setPendingSchedule(null);
-      return;
-    }
-
-    // 2. Save schedule history
+    // 1. Save schedule history
     await supabase.from("measurement_schedule_history" as any).insert({
       tenant_id: tenantId,
       client_id: clientId,
@@ -355,11 +337,8 @@ export function ClientsKanban({
   }, [pendingSchedule, tenantId, currentUser, setLocalClients, localClients]);
 
   const handleScheduleCancel = useCallback(() => {
-    if (pendingSchedule) {
-      setLocalClients(prev => prev.map(c => c.id === pendingSchedule.clientId ? { ...c, status: pendingSchedule.oldStatus } as any : c));
-    }
     setPendingSchedule(null);
-  }, [pendingSchedule, setLocalClients]);
+  }, []);
 
   const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 
@@ -427,6 +406,7 @@ export function ClientsKanban({
                       canDelete={canDelete}
                       onClientClick={setExpandedClient}
                       onDelete={onDelete}
+                      onScheduleMeasurement={handleOpenSchedule}
                     />
                   ))
                 ) : (
