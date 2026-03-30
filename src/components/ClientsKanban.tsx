@@ -293,7 +293,7 @@ export function ClientsKanban({
                   ))
                 ) : (
                   <>
-                    {isAdmin && (
+                    {(isAdmin || isGerente) && (
                       <button
                         onClick={() => setComercialExpanded(prev => !prev)}
                         className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group"
