@@ -95,6 +95,14 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
           onClick={() => onClick(client)}
         >
           <div className="p-2 sm:p-3">
+            {/* Selo de contrato fechado no topo */}
+            {hasClosedContract && clientStatus !== "novo" && (
+              <div className="mb-1.5">
+                <Badge className="text-[9px] h-4 px-1.5 font-semibold bg-success/15 text-success border-success/30 gap-0.5" variant="outline">
+                  <CheckCircle2 className="h-2.5 w-2.5" />Contrato
+                </Badge>
+              </div>
+            )}
             {/* Badge de tipo na coluna Novo */}
             {clientStatus === "novo" && (
               <div className="mb-1.5">
