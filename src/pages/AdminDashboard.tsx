@@ -19,6 +19,7 @@ import {
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
+import {AdminStoreUsersModal} from "@/components/admin/AdminStoreUsersModal";
 import {AdminClientsModal} from "@/components/admin/AdminClientsModal";
 import {AdminInactiveStoresModal} from "@/components/admin/AdminInactiveStoresModal";
 import {AdminContractsValueCard} from "@/components/admin/AdminContractsValueCard";
@@ -117,6 +118,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [repairDialogOpen, setRepairDialogOpen] = useState(false);
   const [repairTenant, setRepairTenant] = useState<Tenant | null>(null);
   const [repairPassword, setRepairPassword] = useState("123456");
+  const [storeUsersModalOpen, setStoreUsersModalOpen] = useState(false);
+  const [storeUsersTarget, setStoreUsersTarget] = useState<Tenant | null>(null);
   const [repairingAccess, setRepairingAccess] = useState(false);
 
   // Tenant form
@@ -903,6 +906,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setStoreUsersTarget(t); setStoreUsersModalOpen(true); }} title="Ver usuários da loja">
+                                <Users className="h-3 w-3" />
+                              </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTenant(t)} title="Editar loja">
                                 <Edit className="h-3 w-3" />
                               </Button>
@@ -1243,6 +1249,15 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       <AdminUsersModal open={showUsersModal} onOpenChange={setShowUsersModal} tenants={tenants} />
       <AdminClientsModal open={showClientsModal} onOpenChange={setShowClientsModal} tenants={tenants} />
       <AdminInactiveStoresModal open={showInactiveModal} onOpenChange={setShowInactiveModal} tenants={tenants} />
+      {storeUsersTarget && (
+        <AdminStoreUsersModal
+          open={storeUsersModalOpen}
+          onOpenChange={setStoreUsersModalOpen}
+          tenantId={storeUsersTarget.id}
+          tenantName={storeUsersTarget.nome_loja}
+          codigoLoja={storeUsersTarget.codigo_loja}
+        />
+      )}
     </div>
   );
 }
