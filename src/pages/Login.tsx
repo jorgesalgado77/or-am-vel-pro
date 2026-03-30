@@ -39,7 +39,7 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [planBlocked, setPlanBlocked] = useState<PlanBlockInfo | null>(null);
-  const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string } | null>(null);
+  const [tenantInfo, setTenantInfo] = useState<{ nome: string; subtitulo: string; logo_url?: string | null } | null>(null);
   const [highlightForgotPassword, setHighlightForgotPassword] = useState(false);
 
 
@@ -212,6 +212,7 @@ export default function Login() {
             setTenantInfo({
               nome: r.nome || r.company_name || r.nome_empresa || r.nome_loja,
               subtitulo: r.subtitulo || r.company_subtitle || "",
+              logo_url: r.logo_url || null,
             });
             return;
           }
@@ -228,11 +229,11 @@ export default function Login() {
         if (!cancelled && tenantData?.id) {
           const { data: csData } = await supabase
             .from("company_settings" as unknown as "clients")
-            .select("company_name, nome_empresa, company_subtitle")
+            .select("company_name, nome_empresa, company_subtitle, logo_url")
             .eq("tenant_id", tenantData.id)
             .maybeSingle();
 
-          const cs = csData as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string } | null;
+          const cs = csData as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string; logo_url?: string } | null;
 
           if (!cancelled) {
             const nome = cs?.company_name || cs?.nome_empresa || (tenantData as unknown as { nome_loja: string }).nome_loja;
@@ -240,6 +241,7 @@ export default function Login() {
               setTenantInfo({
                 nome,
                 subtitulo: cs?.company_subtitle || "",
+                logo_url: cs?.logo_url || null,
               });
               return;
             }
@@ -255,16 +257,17 @@ export default function Login() {
         if (!cancelled && tid) {
           const { data: csData3 } = await supabase
             .from("company_settings" as unknown as "clients")
-            .select("company_name, nome_empresa, company_subtitle")
+            .select("company_name, nome_empresa, company_subtitle, logo_url")
             .eq("tenant_id", tid)
             .maybeSingle();
 
-          const cs3 = csData3 as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string } | null;
+          const cs3 = csData3 as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string; logo_url?: string } | null;
 
           if (!cancelled) {
             setTenantInfo({
               nome: cs3?.company_name || cs3?.nome_empresa || "Loja",
               subtitulo: cs3?.company_subtitle || "",
+              logo_url: cs3?.logo_url || null,
             });
           }
         } else if (!cancelled) {
@@ -391,8 +394,16 @@ export default function Login() {
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-5 sm:p-8 space-y-5">
             {/* Header */}
             <div className="text-center space-y-2">
-              <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
-                <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+              <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)] overflow-hidden">
+                {tenantInfo?.logo_url ? (
+                  <img
+                    src={tenantInfo.logo_url}
+                    alt={companyName}
+                    className="w-full h-full object-contain p-1"
+                  />
+                ) : (
+                  <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+                )}
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{companyName}</h1>
@@ -401,7 +412,7 @@ export default function Login() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
+            <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4" autoComplete="off">
               <div className="space-y-1.5">
                 <Label htmlFor="codigoLoja" className="text-xs sm:text-sm font-medium text-white/80">
                   Código da Loja
