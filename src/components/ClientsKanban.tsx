@@ -75,14 +75,15 @@ export function ClientsKanban({
       const isAdm = cargoNome.includes("administrador");
       const isGerente = cargoNome.includes("gerente");
       const isLiberador = cargoNome.includes("liberador");
-      if (isLiberador) {
-        const [lYear, lMonth] = liberadorMonth.split("-").map(Number);
-        const lMonthStart = new Date(lYear, lMonth - 1, 1);
-        const lMonthEnd = endOfDay(new Date(lYear, lMonth, 0));
+      const isTecnico = cargoNome.includes("tecnico") || cargoNome.includes("técnico");
+      const isConferente = cargoNome.includes("conferente");
+      
+      if (isLiberador || isTecnico || isConferente) {
+        // Technical roles: show only clients that have measurement requests assigned to them
+        const userName = currentUser.nome_completo || "";
         baseClients = baseClients.filter(c => {
-          if ((c as any).status !== "fechado") return false;
-          const updatedAt = new Date(c.updated_at);
-          return !isBefore(updatedAt, lMonthStart) && !isAfter(updatedAt, lMonthEnd);
+          const mr = measurementStatus[c.id];
+          return mr && (mr.assigned_to === userName || mr.assigned_to === currentUser.id);
         });
       } else if (!isAdm && !isGerente) {
         const userName = currentUser.nome_completo || currentUser.apelido || "";
