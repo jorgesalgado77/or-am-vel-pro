@@ -83,6 +83,15 @@ interface PlanPriceMap {
   [slug: string]: { mensal: number; anual: number };
 }
 
+interface SubscriptionPlanOption {
+  id: string;
+  slug: string;
+  nome: string;
+  max_usuarios: number;
+  preco_mensal: number;
+  preco_anual_mensal: number;
+}
+
 function getPlanStatus(tenant: Tenant) {
   const now = new Date();
   if (tenant.plano === "trial") {
@@ -103,6 +112,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlanOption[]>([]);
   const [tenantStats, setTenantStats] = useState<TenantStats>({});
   const [loading, setLoading] = useState(true);
   const [addonInterestCount, setAddonInterestCount] = useState(0);
@@ -120,6 +130,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [repairPassword, setRepairPassword] = useState("123456");
   const [storeUsersModalOpen, setStoreUsersModalOpen] = useState(false);
   const [storeUsersTarget, setStoreUsersTarget] = useState<Tenant | null>(null);
+  const [statusTenant, setStatusTenant] = useState<Tenant | null>(null);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [selectedStatusPlan, setSelectedStatusPlan] = useState("");
+  const [selectedStatusPeriod, setSelectedStatusPeriod] = useState("mensal");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [repairingAccess, setRepairingAccess] = useState(false);
 
   // Tenant form
@@ -207,7 +222,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const [tenantsRes, paymentsRes, plansRes] = await Promise.all([
       supabase.rpc("admin_list_all_tenants" as any),
       supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
-      supabase.from("subscription_plans" as any).select("slug, preco_mensal, preco_anual_mensal").eq("ativo", true),
+      supabase
+        .from("subscription_plans" as any)
+        .select("id, slug, nome, max_usuarios, preco_mensal, preco_anual_mensal")
+        .eq("ativo", true)
+        .order("ordem", { ascending: true }),
     ]);
 
     // Fallback: if RPC fails (e.g. no admin auth session), query tenants directly
@@ -224,10 +243,12 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTenants(tenantData);
     if (paymentsRes.data) setPayments(paymentsRes.data as any);
     if (plansRes.data) {
+      const plans = (plansRes.data as any[]) as SubscriptionPlanOption[];
       const prices: PlanPriceMap = {};
-      (plansRes.data as any[]).forEach(p => {
-        prices[p.slug] = { mensal: p.preco_mensal, anual: p.preco_anual_mensal * 12 };
+      plans.forEach((p) => {
+        prices[p.slug] = { mensal: Number(p.preco_mensal) || 0, anual: (Number(p.preco_anual_mensal) || 0) * 12 };
       });
+      setSubscriptionPlans(plans);
       setPlanPrices(prices);
     }
     // Fetch stats for all tenants
@@ -280,6 +301,97 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       detalhes: { loja: tenant.nome_loja },
     });
     toast.success(`${tenant.nome_loja} ${newAtivo ? "ativada" : "desativada"}`);
+    fetchData();
+  };
+
+  const openStatusDialog = (tenant: Tenant) => {
+    const fallbackPlan = subscriptionPlans.find((plan) => plan.slug !== "trial")?.slug || "";
+    setStatusTenant(tenant);
+    setSelectedStatusPlan(tenant.plano !== "trial" ? tenant.plano : fallbackPlan);
+    setSelectedStatusPeriod(tenant.plano_periodo || "mensal");
+    setStatusDialogOpen(true);
+  };
+
+  const renewTrialForTenant = async () => {
+    if (!statusTenant) return;
+    setUpdatingStatus(true);
+    const now = new Date();
+    const trialEnd = new Date(now);
+    trialEnd.setDate(trialEnd.getDate() + 7);
+
+    const { error } = await supabase.from("tenants").update({
+      plano: "trial",
+      plano_periodo: "mensal",
+      trial_inicio: now.toISOString(),
+      trial_fim: trialEnd.toISOString(),
+      assinatura_inicio: null,
+      assinatura_fim: null,
+      ativo: true,
+    } as any).eq("id", statusTenant.id);
+
+    setUpdatingStatus(false);
+    if (error) {
+      toast.error("Erro ao renovar trial: " + error.message);
+      return;
+    }
+
+    logAudit({
+      acao: "tenant_ativado",
+      entidade: "tenant",
+      entidade_id: statusTenant.id,
+      usuario_nome: adminName,
+      tenant_id: statusTenant.id,
+      detalhes: { loja: statusTenant.nome_loja, dias: 7, origem: "renovacao_trial" },
+    });
+    toast.success(`Trial renovado por 7 dias para ${statusTenant.nome_loja}`);
+    setStatusDialogOpen(false);
+    setStatusTenant(null);
+    fetchData();
+  };
+
+  const activatePlanForTenant = async () => {
+    if (!statusTenant) return;
+    const selectedPlan = subscriptionPlans.find((plan) => plan.slug === selectedStatusPlan);
+    if (!selectedPlan) {
+      toast.error("Selecione um plano para ativar a loja.");
+      return;
+    }
+
+    setUpdatingStatus(true);
+    const now = new Date();
+    const endDate = new Date(now);
+    if (selectedStatusPeriod === "anual") {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    } else {
+      endDate.setMonth(endDate.getMonth() + 1);
+    }
+
+    const { error } = await supabase.from("tenants").update({
+      plano: selectedPlan.slug,
+      plano_periodo: selectedStatusPeriod,
+      assinatura_inicio: now.toISOString(),
+      assinatura_fim: endDate.toISOString(),
+      ativo: true,
+      max_usuarios: selectedPlan.max_usuarios,
+    } as any).eq("id", statusTenant.id);
+
+    setUpdatingStatus(false);
+    if (error) {
+      toast.error("Erro ao ativar plano: " + error.message);
+      return;
+    }
+
+    logAudit({
+      acao: "tenant_ativado",
+      entidade: "tenant",
+      entidade_id: statusTenant.id,
+      usuario_nome: adminName,
+      tenant_id: statusTenant.id,
+      detalhes: { loja: statusTenant.nome_loja, plano: selectedPlan.slug, periodo: selectedStatusPeriod, origem: "alteracao_plano" },
+    });
+    toast.success(`Loja ${statusTenant.nome_loja} atualizada para o plano ${selectedPlan.nome}`);
+    setStatusDialogOpen(false);
+    setStatusTenant(null);
     fetchData();
   };
 
@@ -829,7 +941,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                           <TableCell className="text-center text-sm">{tenantStats[t.id]?.clientes ?? 0}</TableCell>
                           <TableCell className="text-center text-sm">{tenantStats[t.id]?.simulacoes ?? 0}</TableCell>
                           <TableCell>
-                            <Badge variant={status.variant}>{status.text}</Badge>
+                            <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent" onClick={() => openStatusDialog(t)}>
+                              <Badge variant={status.variant} className="cursor-pointer">{status.text}</Badge>
+                            </Button>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {validadeDate ? format(new Date(validadeDate), "dd/MM/yyyy", { locale: ptBR }) : "—"}
@@ -1198,6 +1312,81 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <DialogFooter>
             <Button variant="outline" onClick={() => setRepairDialogOpen(false)} disabled={repairingAccess}>Cancelar</Button>
             <Button onClick={repairTenantAccess} disabled={repairingAccess}>{repairingAccess ? "Reparando..." : "Reparar acesso"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={statusDialogOpen} onOpenChange={(open) => {
+        setStatusDialogOpen(open);
+        if (!open) {
+          setStatusTenant(null);
+          setSelectedStatusPlan("");
+          setSelectedStatusPeriod("mensal");
+        }
+      }}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Alterar status da loja</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Loja</Label>
+              <div className="text-sm font-medium text-foreground">{statusTenant?.nome_loja || "—"}</div>
+              <div className="text-xs text-muted-foreground">{statusTenant?.codigo_loja || "—"}</div>
+            </div>
+
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Renovar Trial</p>
+                <p className="text-xs text-muted-foreground">Ativa a loja por mais 7 dias em modo teste.</p>
+              </div>
+              <Button variant="outline" className="w-full" onClick={renewTrialForTenant} disabled={updatingStatus}>
+                {updatingStatus ? "Atualizando..." : "Renovar trial por 7 dias"}
+              </Button>
+            </div>
+
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Ativar com plano</p>
+                <p className="text-xs text-muted-foreground">Escolha um plano cadastrado para liberar a loja.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Plano</Label>
+                  <Select value={selectedStatusPlan} onValueChange={setSelectedStatusPlan}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Selecione um plano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subscriptionPlans.filter((plan) => plan.slug !== "trial").map((plan) => (
+                        <SelectItem key={plan.id} value={plan.slug}>{plan.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Período</Label>
+                  <Select value={selectedStatusPeriod} onValueChange={setSelectedStatusPeriod}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mensal">Mensal</SelectItem>
+                      <SelectItem value="anual">Anual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button className="w-full" onClick={activatePlanForTenant} disabled={updatingStatus || !selectedStatusPlan || subscriptionPlans.filter((plan) => plan.slug !== "trial").length === 0}>
+                {updatingStatus ? "Atualizando..." : "Ativar loja com plano"}
+              </Button>
+              {subscriptionPlans.filter((plan) => plan.slug !== "trial").length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum plano ativo cadastrado além do trial.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)} disabled={updatingStatus}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
