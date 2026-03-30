@@ -476,6 +476,13 @@ export function ClientsKanban({
           />
         </Suspense>
       )}
+
+      <MeasurementScheduleDialog
+        open={!!pendingSchedule}
+        clientName={pendingSchedule?.clientName || ""}
+        onConfirm={handleScheduleConfirm}
+        onCancel={handleScheduleCancel}
+      />
     </div>
   );
 }
