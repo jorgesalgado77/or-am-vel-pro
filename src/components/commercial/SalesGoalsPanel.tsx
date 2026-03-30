@@ -166,7 +166,7 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
     // Use client_contracts with valor_com_desconto (valor à vista) as source of truth
     const { data: contractsData } = await supabase
       .from("client_contracts" as any)
-      .select("client_id, vendedor_id, valor_com_desconto, valor_contrato, created_at")
+      .select("client_id, vendedor_id, valor_com_desconto, valor_contrato, simulation_id, created_at")
       .eq("tenant_id", tenantId);
 
     // Also fetch clients for leads count
@@ -188,6 +188,18 @@ export function SalesGoalsPanel({ tenantId }: SalesGoalsPanelProps) {
           const val = Number(c.valor_com_desconto) || Number(c.valor_contrato) || 0;
           return sum + val;
         }, 0);
+        // If no revenue from vendedor_id match, try matching by client's responsavel_id
+        if (currentValue === 0) {
+          const allMonthContracts = (contractsData || []).filter((c: any) =>
+            (c.created_at || "").substring(0, 7) === selectedMonth
+          );
+          // Check if any client associated with this user has contracts
+          const userClients = (clientsData || []).filter((cl: any) => cl.responsavel_id === g.user_id);
+          const userClientIds = new Set(userClients.map((cl: any) => cl.id));
+          currentValue = allMonthContracts
+            .filter((c: any) => userClientIds.has(c.client_id))
+            .reduce((sum: number, c: any) => sum + (Number(c.valor_com_desconto) || Number(c.valor_contrato) || 0), 0);
+        }
       } else if (g.goal_type === "deals") {
         currentValue = monthContracts.length;
       } else if (g.goal_type === "leads") {
