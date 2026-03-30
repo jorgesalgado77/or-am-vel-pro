@@ -169,28 +169,51 @@ export function useKanbanData(externalClients: Client[]) {
   // Fetch measurements + auto-move
   useEffect(() => {
     if (!tenantId || localClients.length === 0) return;
+    const isTechnical = cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente");
     const fetchMeasurements = async () => {
       const currentClients = localClientsRef.current;
-      const { data } = await supabase.from("measurement_requests" as any).select("client_id, status, assigned_to").eq("tenant_id", tenantId);
+      let query = supabase.from("measurement_requests" as any).select("client_id, status, assigned_to").eq("tenant_id", tenantId);
+      // For technical roles, only fetch requests assigned to them
+      if (isTechnical && currentUser) {
+        const userName = currentUser.nome_completo;
+        query = query.or(`assigned_to.eq.${userName},assigned_to.eq.${currentUser.id}`);
+      }
+      const { data } = await query;
       if (!data) return;
       const statusMap: Record<string, { status: string; assigned_to: string | null }> = {};
       (data as any[]).forEach((r: any) => { statusMap[r.client_id] = { status: r.status || "pending", assigned_to: r.assigned_to || null }; });
       setMeasurementStatus(statusMap);
-      const updates: Array<{ id: string; status: string }> = [];
-      currentClients.filter(c => (c as any).status === "fechado" && statusMap[c.id]).forEach(c => updates.push({ id: c.id, status: "em_medicao" }));
-      currentClients.filter(c => (c as any).status === "em_medicao" && statusMap[c.id]?.assigned_to).forEach(c => updates.push({ id: c.id, status: "em_liberado" }));
-      if (updates.length > 0) {
-        await Promise.all(updates.map(u => supabase.from("clients").update({ status: u.status } as any).eq("id", u.id)));
-        setLocalClients(prev => prev.map(c => { const u = updates.find(x => x.id === c.id); return u ? { ...c, status: u.status } as any : c; }));
+      if (!isTechnical) {
+        const updates: Array<{ id: string; status: string }> = [];
+        currentClients.filter(c => (c as any).status === "fechado" && statusMap[c.id]).forEach(c => updates.push({ id: c.id, status: "em_medicao" }));
+        currentClients.filter(c => (c as any).status === "em_medicao" && statusMap[c.id]?.assigned_to).forEach(c => updates.push({ id: c.id, status: "em_liberado" }));
+        if (updates.length > 0) {
+          await Promise.all(updates.map(u => supabase.from("clients").update({ status: u.status } as any).eq("id", u.id)));
+          setLocalClients(prev => prev.map(c => { const u = updates.find(x => x.id === c.id); return u ? { ...c, status: u.status } as any : c; }));
+        }
       }
     };
     fetchMeasurements();
     const channel = supabase
       .channel("kanban-measurement-sync")
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "measurement_requests", filter: `tenant_id=eq.${tenantId}` }, () => { fetchMeasurements(); })
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "measurement_requests", filter: `tenant_id=eq.${tenantId}` }, (payload: any) => {
+        // Alert technical users when a new request is assigned to them
+        if (isTechnical && currentUser && (payload.eventType === "INSERT" || payload.eventType === "UPDATE")) {
+          const newData = payload.new;
+          const oldData = payload.old;
+          const userName = currentUser.nome_completo;
+          const isAssignedToMe = newData?.assigned_to === userName || newData?.assigned_to === currentUser.id;
+          const wasAssignedToMe = oldData?.assigned_to === userName || oldData?.assigned_to === currentUser.id;
+          if (isAssignedToMe && !wasAssignedToMe) {
+            playNotificationSound();
+            toast.info("📐 Nova solicitação de medida recebida!", { description: `Uma nova solicitação foi atribuída a você.`, duration: 8000 });
+          }
+        }
+        fetchMeasurements();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId, localClients.length]);
+  }, [tenantId, localClients.length, cargoNome, currentUser]);
 
   // One-time orcamento fix (admin only)
   const fixedRef = useRef(false);
