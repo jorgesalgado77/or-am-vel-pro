@@ -23,6 +23,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { type DateFilterPreset, getDateRange, isInRange } from "@/lib/dateFilterUtils";
 import { useMetasTetos } from "@/hooks/useMetasTetos";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { AIWidgetsSkeleton, ChartsSkeleton, TablesSkeleton } from "@/components/dashboard/DashboardSkeletons";
 
 // Lazy-loaded heavy sub-components
 const EvolutionChart = lazy(() => import("@/components/dashboard/DashboardCharts").then(m => ({ default: m.EvolutionChart })));
@@ -298,7 +299,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   return (
     <div className="space-y-6">
-      <Suspense fallback={<div className="h-20 flex items-center justify-center text-muted-foreground text-sm">Carregando...</div>}>
+      <Suspense fallback={<AIWidgetsSkeleton />}>
         <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
         <DealInsightsWidget />
         <HighResistanceAlerts />
@@ -403,7 +404,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       </div>
 
       {/* Lazy-loaded charts */}
-      <Suspense fallback={ChartFallback}>
+      <Suspense fallback={<ChartsSkeleton />}>
         {visibleCharts.evolucao && <EvolutionChart data={lineData} />}
         {visibleCharts.contratos && <ContractsEvolutionChart data={contractsLineData} />}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -421,7 +422,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       </Suspense>
 
       {/* Lazy-loaded tables */}
-      <Suspense fallback={ChartFallback}>
+      <Suspense fallback={<TablesSkeleton />}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <DashboardProjetistaTable byProjetista={stats.byProjetista} cargos={cargos} comissaoPolicy={comissaoPolicyDash} />
           <DashboardIndicadorTable byIndicador={stats.byIndicador} />
@@ -429,7 +430,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       </Suspense>
 
       {/* Lazy-loaded bottom sections */}
-      <Suspense fallback={ChartFallback}>
+      <Suspense fallback={<ChartsSkeleton />}>
         <TopSellingProductsChart />
         <LowStockAlerts />
         <ContractTrackingList clients={clients} lastSims={lastSims} />
