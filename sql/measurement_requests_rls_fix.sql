@@ -1,196 +1,95 @@
 -- ============================================================
 -- CORREÇÃO DE RLS PARA measurement_requests
--- Execute este SQL no editor SQL do backend.
--- Objetivo:
--- 1) manter isolamento multi-tenant via get_my_tenant_id()
--- 2) permitir que administrador/gerente veja os registros do tenant
--- 3) permitir que técnico/liberador/conferente leia cards atribuídos
---    por nome, apelido, e-mail, id do usuário e auth_user_id
--- 4) evitar recursão de policy usando SECURITY DEFINER
+-- Execute este SQL no editor SQL do backend (Supabase).
+--
+-- A policy antiga "Tenant isolation" usa WHERE usuarios.id = auth.uid(),
+-- que falha para usuários cujo campo 'id' difere do auth.uid() (o correto
+-- é auth_user_id). Além disso, a policy ALL não diferencia admin de técnico,
+-- impedindo técnicos/liberadores/conferentes de verem cards atribuídos.
+--
+-- Esta correção:
+-- 1) Remove a policy antiga
+-- 2) Cria função SECURITY DEFINER que resolve por auth_user_id + nome
+-- 3) Admin/Gerente vê tudo do tenant
+-- 4) Técnico/Liberador/Conferente vê apenas assigned_to ou created_by
 -- ============================================================
 
--- Normaliza nomes/identificadores para comparação segura
-create or replace function public.normalize_identity_label(_value text)
-returns text
-language sql
-immutable
-as $$
-  select lower(
-    trim(
-      translate(
-        coalesce(_value, ''),
-        'ÁÀÃÂÄáàãâäÉÈÊËéèêëÍÌÎÏíìîïÓÒÕÔÖóòõôöÚÙÛÜúùûüÇç',
-        'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCc'
-      )
-    )
-  )
+-- 1) Remover policy antiga
+DROP POLICY IF EXISTS "Tenant isolation" ON public.measurement_requests;
+
+-- 2) Função de normalização
+CREATE OR REPLACE FUNCTION public.normalize_identity_label(_value text)
+RETURNS text
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT lower(trim(translate(
+    coalesce(_value, ''),
+    'ÁÀÃÂÄáàãâäÉÈÊËéèêëÍÌÎÏíìîïÓÒÕÔÖóòõôöÚÙÛÜúùûüÇç',
+    'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCc'
+  )))
 $$;
 
--- Decide se o usuário autenticado pode visualizar/editar a solicitação
-create or replace function public.can_access_measurement_request(
+-- 3) Função SECURITY DEFINER para resolver acesso
+CREATE OR REPLACE FUNCTION public.can_access_measurement_request(
   _tenant_id text,
   _assigned_to text,
-  _created_by text default null,
-  _client_snapshot jsonb default '{}'::jsonb
+  _created_by text DEFAULT NULL
 )
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  with me as (
-    select
-      u.id::text as user_row_id,
-      coalesce(u.auth_user_id::text, '') as auth_user_id,
-      public.normalize_identity_label(u.nome_completo) as nome_completo,
-      public.normalize_identity_label(u.apelido) as apelido,
-      public.normalize_identity_label(u.email) as email,
-      public.normalize_identity_label(c.nome) as cargo_nome,
-      coalesce(u.tenant_id::text, '') as tenant_id
-    from public.usuarios u
-    left join public.cargos c on c.id = u.cargo_id
-    where u.ativo = true
-      and (
-        u.id = auth.uid()
-        or u.auth_user_id = auth.uid()
-      )
-    order by case when u.auth_user_id = auth.uid() then 0 else 1 end
-    limit 1
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH me AS (
+    SELECT
+      u.id::text AS uid,
+      coalesce(u.auth_user_id::text, '') AS auth_uid,
+      public.normalize_identity_label(u.nome_completo) AS nome,
+      public.normalize_identity_label(u.apelido) AS apelido,
+      public.normalize_identity_label(u.email) AS email,
+      public.normalize_identity_label(c.nome) AS cargo,
+      u.tenant_id::text AS tid
+    FROM public.usuarios u
+    LEFT JOIN public.cargos c ON c.id = u.cargo_id
+    WHERE u.ativo = true
+      AND (u.id = auth.uid() OR u.auth_user_id = auth.uid())
+    ORDER BY CASE WHEN u.auth_user_id = auth.uid() THEN 0 ELSE 1 END
+    LIMIT 1
   )
-  select exists (
-    select 1
-    from me
-    where me.tenant_id = coalesce(_tenant_id, '')
-      and (
-        me.cargo_nome like '%administrador%'
-        or me.cargo_nome like '%gerente%'
-        or public.normalize_identity_label(_assigned_to) = any(array[
-          me.user_row_id,
-          me.auth_user_id,
-          me.nome_completo,
-          me.apelido,
-          me.email
-        ])
-        or public.normalize_identity_label(_created_by) = any(array[
-          me.user_row_id,
-          me.auth_user_id,
-          me.nome_completo,
-          me.apelido,
-          me.email
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'assigned_to_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'assigned_to_auth_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'tecnico_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'tecnico_auth_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'liberador_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'liberador_auth_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'conferente_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'conferente_auth_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'assigned_to_name') = any(array[
-          me.nome_completo,
-          me.apelido,
-          me.email
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'technician_name') = any(array[
-          me.nome_completo,
-          me.apelido,
-          me.email
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'tecnico_nome') = any(array[
-          me.nome_completo,
-          me.apelido,
-          me.email
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'liberador_nome') = any(array[
-          me.nome_completo,
-          me.apelido,
-          me.email
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'conferente_nome') = any(array[
-          me.nome_completo,
-          me.apelido,
-          me.email
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'created_by_user_id') = any(array[
-          me.user_row_id,
-          me.auth_user_id
-        ])
-        or public.normalize_identity_label(_client_snapshot ->> 'created_by_user_name') = any(array[
-          me.nome_completo,
-          me.apelido,
-          me.email
-        ])
+  SELECT EXISTS (
+    SELECT 1 FROM me
+    WHERE me.tid = _tenant_id
+      AND (
+        -- Admin/Gerente: acesso total ao tenant
+        me.cargo LIKE '%administrador%'
+        OR me.cargo LIKE '%gerente%'
+        -- Técnico/Liberador/Conferente: acesso por atribuição
+        OR public.normalize_identity_label(_assigned_to) IN (me.uid, me.auth_uid, me.nome, me.apelido, me.email)
+        OR public.normalize_identity_label(_created_by) IN (me.uid, me.auth_uid, me.nome, me.apelido, me.email)
       )
   )
 $$;
 
-alter table public.measurement_requests enable row level security;
+-- 4) Garantir RLS ativo
+ALTER TABLE public.measurement_requests ENABLE ROW LEVEL SECURITY;
 
-grant select, insert, update on public.measurement_requests to authenticated;
+-- 5) Policies novas
+CREATE POLICY "mr_select_secure" ON public.measurement_requests
+  FOR SELECT TO authenticated
+  USING (public.can_access_measurement_request(tenant_id::text, assigned_to, created_by));
 
-create policy "measurement_requests_select_secure"
-on public.measurement_requests
-for select
-to authenticated
-using (
-  public.can_access_measurement_request(
-    tenant_id::text,
-    assigned_to,
-    created_by,
-    coalesce(client_snapshot, '{}'::jsonb)
-  )
-);
+CREATE POLICY "mr_insert_tenant" ON public.measurement_requests
+  FOR INSERT TO authenticated
+  WITH CHECK (tenant_id::text IN (
+    SELECT u.tenant_id::text FROM public.usuarios u
+    WHERE u.id = auth.uid() OR u.auth_user_id = auth.uid()
+  ));
 
-create policy "measurement_requests_insert_tenant"
-on public.measurement_requests
-for insert
-to authenticated
-with check (
-  tenant_id::text = public.get_my_tenant_id()::text
-);
+CREATE POLICY "mr_update_secure" ON public.measurement_requests
+  FOR UPDATE TO authenticated
+  USING (public.can_access_measurement_request(tenant_id::text, assigned_to, created_by))
+  WITH CHECK (tenant_id::text IN (
+    SELECT u.tenant_id::text FROM public.usuarios u
+    WHERE u.id = auth.uid() OR u.auth_user_id = auth.uid()
+  ));
 
-create policy "measurement_requests_update_secure"
-on public.measurement_requests
-for update
-to authenticated
-using (
-  public.can_access_measurement_request(
-    tenant_id::text,
-    assigned_to,
-    created_by,
-    coalesce(client_snapshot, '{}'::jsonb)
-  )
-)
-with check (
-  tenant_id::text = public.get_my_tenant_id()::text
-);
-
--- Opcional: remova policies antigas conflitantes depois de validar esta correção.
--- Exemplo:
--- drop policy if exists "measurement_requests_select" on public.measurement_requests;
--- drop policy if exists "measurement_requests_update" on public.measurement_requests;
+-- 6) Grants
+GRANT SELECT, INSERT, UPDATE ON public.measurement_requests TO authenticated;
