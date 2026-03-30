@@ -201,7 +201,7 @@ export default function Index() {
       "navigate-to-simulator": () => setActiveView("simulator"),
       "navigate-to-products": () => setActiveView("catalog"),
       "navigate-to-campaigns": () => setActiveView("campaigns"),
-      "navigate-to-payroll": () => setActiveView("payroll"),
+      "navigate-to-payroll": () => setActiveView("financial"),
       "navigate-to-commercial-ai": () => setActiveView("commercial-ai"),
       "navigate-to-dashboard": () => setActiveView("dashboard"),
       "navigate-to-contracts": () => setActiveView("contracts"),
@@ -411,7 +411,7 @@ export default function Index() {
               )}
 
               {activeView === "payroll" && (
-                <PayrollReport onBack={() => setActiveView("dashboard")} />
+                <PayrollReport onBack={() => setActiveView("financial")} />
               )}
 
               {activeView === "settings" && <SettingsPanel />}

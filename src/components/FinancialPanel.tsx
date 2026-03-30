@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/financing";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
-import { Wallet, Users, BarChart3, Brain } from "lucide-react";
+import { Wallet, Users, BarChart3, Brain, Receipt } from "lucide-react";
 import { useFinancialData, type FinancialAccount } from "@/hooks/useFinancialData";
 import { FinancialHeader } from "@/components/financial/FinancialHeader";
 import { FinancialAccountsTab } from "@/components/financial/FinancialAccountsTab";
@@ -16,6 +16,7 @@ import { FinancialAccountDialog, type FinancialFormData } from "@/components/fin
 const FinancialPayrollTab = lazy(() => import("@/components/financial/FinancialPayrollTab").then(m => ({ default: m.FinancialPayrollTab })));
 const FinancialForecastTab = lazy(() => import("@/components/financial/FinancialForecastTab").then(m => ({ default: m.FinancialForecastTab })));
 const FinancialAnalysisTab = lazy(() => import("@/components/financial/FinancialAnalysisTab").then(m => ({ default: m.FinancialAnalysisTab })));
+const PayrollReport = lazy(() => import("@/components/PayrollReport").then(m => ({ default: m.PayrollReport })));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-12">
@@ -158,6 +159,9 @@ export function FinancialPanel() {
           <TabsTrigger value="analise" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm gap-1.5">
             <Brain className="h-4 w-4" /> Análise
           </TabsTrigger>
+          <TabsTrigger value="folha-completa" className="data-[state=active]:bg-green-500/10 data-[state=active]:text-green-600 data-[state=active]:shadow-sm gap-1.5">
+            <Receipt className="h-4 w-4" /> Folha Completa
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="contas" className="mt-4">
@@ -190,6 +194,10 @@ export function FinancialPanel() {
 
           <TabsContent value="analise" className="mt-4">
             <FinancialAnalysisTab fin={fin} />
+          </TabsContent>
+
+          <TabsContent value="folha-completa" className="mt-4">
+            <PayrollReport onBack={() => {}} />
           </TabsContent>
         </Suspense>
       </Tabs>

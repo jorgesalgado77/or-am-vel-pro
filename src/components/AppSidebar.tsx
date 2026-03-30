@@ -57,29 +57,27 @@ export function AppSidebar({
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
+    { id: "commercial-ai", label: "IA Gerente", icon: Bot, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: true, badge: null },
+    { id: "catalog", label: "Catálogo", icon: Package, perm: "clientes" as const, show: true, badge: "NOVO" },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
-    { id: "payroll", label: "Folha de Pagamento", icon: Receipt, perm: "folha_pagamento" as const, show: hasPermission("folha_pagamento"), badge: null },
-    { id: "financial", label: "Financeiro", icon: Wallet, perm: "financeiro" as const, show: hasPermission("financeiro"), badge: "NOVO" },
-    { id: "plans", label: "Planos de Assinatura", icon: CreditCard, perm: "planos" as const, show: hasPermission("planos"), badge: null },
-    { id: "funnel", label: "Funil de Captação", icon: Megaphone, perm: "funil" as const, show: hasPermission("funil"), badge: null },
-    { id: "campaigns", label: "Campanhas", icon: BookOpen, perm: "campanhas" as const, show: hasPermission("campanhas"), badge: "NOVO" },
-    { id: "referrals", label: "Indicações", icon: Gift, perm: "indicacoes" as const, show: hasPermission("indicacoes"), badge: "NOVO" },
+    { id: "measurements", label: "Medidas", icon: Ruler, perm: "clientes" as const, show: cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador"), badge: null },
+    { id: "tasks", label: "Tarefas", icon: ClipboardCheck, perm: "clientes" as const, show: true, badge: null },
+    { id: "emails", label: "Email", icon: Mail, perm: "clientes" as const, show: true, badge: "NOVO" },
+    { id: "messages", label: "Mensagens", icon: MessageCircle, perm: "mensagens" as const, show: hasPermission("mensagens"), badge: unreadMessages > 0 ? unreadMessages : null },
     { id: "vendazap", label: "VendaZap AI", icon: Bot, perm: "vendazap" as const, show: hasPermission("vendazap"), badge: "ADD-ON" },
     { id: "vendazap-chat", label: "Chat Vendas", icon: MessageCircle, perm: "chat_vendas" as const, show: hasPermission("chat_vendas"), badge: "ADD-ON" },
     { id: "dealroom", label: "Deal Room", icon: Video, perm: "dealroom" as const, show: hasPermission("dealroom"), badge: "ADD-ON" },
     { id: "smart3d", label: "3D Smart Import", icon: Box, perm: "smart3d" as const, show: hasPermission("smart3d"), badge: "ADD-ON" },
-    { id: "catalog", label: "Catálogo", icon: Package, perm: "clientes" as const, show: true, badge: "NOVO" },
-    { id: "commercial-ai", label: "IA Gerente", icon: Bot, perm: "clientes" as const, show: true, badge: "NOVO" },
-    { id: "tasks", label: "Tarefas", icon: ClipboardCheck, perm: "clientes" as const, show: true, badge: null },
-    { id: "emails", label: "Email", icon: Mail, perm: "clientes" as const, show: true, badge: "NOVO" },
-    { id: "measurements", label: "Medidas", icon: Ruler, perm: "clientes" as const, show: cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador"), badge: null },
+    { id: "funnel", label: "Funil de Captação", icon: Megaphone, perm: "funil" as const, show: hasPermission("funil"), badge: null },
+    { id: "campaigns", label: "Campanhas", icon: BookOpen, perm: "campanhas" as const, show: hasPermission("campanhas"), badge: "NOVO" },
+    { id: "financial", label: "Financeiro", icon: Wallet, perm: "financeiro" as const, show: hasPermission("financeiro"), badge: "NOVO" },
+    { id: "referrals", label: "Indicações", icon: Gift, perm: "indicacoes" as const, show: hasPermission("indicacoes"), badge: "NOVO" },
     { id: "tutorials", label: "Tutoriais", icon: GraduationCap, perm: "clientes" as const, show: true, badge: null },
   ];
 
   const bottomItems = [
-    { id: "messages", label: "Mensagens", icon: MessageCircle, show: hasPermission("mensagens"), badge: unreadMessages > 0 ? unreadMessages : null },
-    { id: "settings", label: "Configurações", icon: Settings, show: isAdmin || hasPermission("configuracoes") },
+    { id: "settings", label: "Configurações", icon: Settings, show: isAdmin || hasPermission("configuracoes"), badge: null as any },
   ];
 
   const NavButton = ({ id, label, icon: Icon, badge: itemBadge, destructive, onClick }: {
@@ -195,6 +193,7 @@ export function AppSidebar({
           {bottomItems.filter(i => i.show).map((item) => (
             <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} badge={item.badge} />
           ))}
+          <NavButton label="Meu Perfil" icon={Users} onClick={onProfile} />
           {hasPermission("suporte") && <NavButton label="Suporte" icon={LifeBuoy} onClick={onSupport} />}
           <NavButton label="Sair" icon={LogOut} destructive onClick={async () => { await logout(); navigate("/"); }} />
         </div>
