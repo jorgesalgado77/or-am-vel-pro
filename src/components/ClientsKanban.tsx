@@ -250,42 +250,36 @@ export function ClientsKanban({
               }}
             >
               <div className="inline-flex min-w-max gap-2 sm:gap-3 px-1 pb-1" style={{ transform: "scaleY(-1)" }}>
-                {isAdmin && (
-                  <button
-                    onClick={() => setComercialExpanded(prev => !prev)}
-                    className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group"
-                  >
-                    <ChevronRight className={cn("h-3.5 w-3.5 text-primary/70 transition-transform duration-200", comercialExpanded && "rotate-90")} />
-                    <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Comercial</span>
-                  </button>
-                )}
-                {(!isAdmin || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => (
-                  <KanbanColumn
-                    key={col.id}
-                    col={col}
-                    clients={columnData[col.id] || []}
-                    lastSims={lastSims}
-                    budgetValidityDays={settings.budget_validity_days}
-                    cargoNome={cargoNome}
-                    tenantId={tenantId || ""}
-                    followUpStatus={followUpStatus}
-                    measurementStatus={measurementStatus}
-                    canDelete={canDelete}
-                    onClientClick={setExpandedClient}
-                    onDelete={onDelete}
-                  />
-                ))}
-
-                {isAdmin && (
+                {isTechnicalRole ? (
+                  /* Technical roles see flat columns without sections */
+                  KANBAN_COLUMNS_TECNICO.map(col => (
+                    <KanbanColumn
+                      key={col.id}
+                      col={col}
+                      clients={columnData[col.id] || []}
+                      lastSims={lastSims}
+                      budgetValidityDays={settings.budget_validity_days}
+                      cargoNome={cargoNome}
+                      tenantId={tenantId || ""}
+                      followUpStatus={followUpStatus}
+                      measurementStatus={measurementStatus}
+                      canDelete={canDelete}
+                      onClientClick={setExpandedClient}
+                      onDelete={onDelete}
+                    />
+                  ))
+                ) : (
                   <>
-                    <button
-                      onClick={() => setOperacionalExpanded(prev => !prev)}
-                      className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group border-l border-border/60 ml-1"
-                    >
-                      <ChevronRight className={cn("h-3.5 w-3.5 text-accent-foreground/70 transition-transform duration-200", operacionalExpanded && "rotate-90")} />
-                      <span className="text-[10px] font-bold text-accent-foreground/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Operacional</span>
-                    </button>
-                    {operacionalExpanded && KANBAN_COLUMNS_OPERACIONAL.map(col => (
+                    {isAdmin && (
+                      <button
+                        onClick={() => setComercialExpanded(prev => !prev)}
+                        className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group"
+                      >
+                        <ChevronRight className={cn("h-3.5 w-3.5 text-primary/70 transition-transform duration-200", comercialExpanded && "rotate-90")} />
+                        <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Comercial</span>
+                      </button>
+                    )}
+                    {(!isAdmin || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => (
                       <KanbanColumn
                         key={col.id}
                         col={col}
@@ -301,6 +295,34 @@ export function ClientsKanban({
                         onDelete={onDelete}
                       />
                     ))}
+
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => setOperacionalExpanded(prev => !prev)}
+                          className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group border-l border-border/60 ml-1"
+                        >
+                          <ChevronRight className={cn("h-3.5 w-3.5 text-accent-foreground/70 transition-transform duration-200", operacionalExpanded && "rotate-90")} />
+                          <span className="text-[10px] font-bold text-accent-foreground/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Operacional</span>
+                        </button>
+                        {operacionalExpanded && KANBAN_COLUMNS_OPERACIONAL.map(col => (
+                          <KanbanColumn
+                            key={col.id}
+                            col={col}
+                            clients={columnData[col.id] || []}
+                            lastSims={lastSims}
+                            budgetValidityDays={settings.budget_validity_days}
+                            cargoNome={cargoNome}
+                            tenantId={tenantId || ""}
+                            followUpStatus={followUpStatus}
+                            measurementStatus={measurementStatus}
+                            canDelete={canDelete}
+                            onClientClick={setExpandedClient}
+                            onDelete={onDelete}
+                          />
+                        ))}
+                      </>
+                    )}
                   </>
                 )}
               </div>
