@@ -281,23 +281,27 @@ export function ClientsKanban({
         </DragDropContext>
       )}
 
-      <KanbanClientDialog
-        client={expandedClient}
-        onClose={() => setExpandedClient(null)}
-        lastSim={expandedClient ? lastSims[expandedClient.id] : undefined}
-        budgetValidityDays={settings.budget_validity_days}
-        cargoNome={cargoNome}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        indicadorMap={indicadorMap}
-        usuarios={usuarios}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onSimulate={onSimulate}
-        onHistory={onHistory}
-        onContracts={onContracts}
-        onClientUpdate={handleClientUpdate}
-      />
+      {expandedClient && (
+        <Suspense fallback={null}>
+          <KanbanClientDialog
+            client={expandedClient}
+            onClose={() => setExpandedClient(null)}
+            lastSim={lastSims[expandedClient.id]}
+            budgetValidityDays={settings.budget_validity_days}
+            cargoNome={cargoNome}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            indicadorMap={indicadorMap}
+            usuarios={usuarios}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onSimulate={onSimulate}
+            onHistory={onHistory}
+            onContracts={onContracts}
+            onClientUpdate={handleClientUpdate}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
