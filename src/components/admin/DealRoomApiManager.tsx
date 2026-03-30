@@ -389,6 +389,21 @@ export function DealRoomApiManager() {
                           {draft.is_active ? "Ativa" : "Inativa"}
                         </Badge>
                         <Badge variant="outline" className="text-[10px]">{activeShares} loja(s)</Badge>
+                        {isProviderConnected(definition.provider) && (
+                          <Badge className="text-[10px] bg-green-600 hover:bg-green-700 text-white gap-1">
+                            <CheckCircle2 className="h-3 w-3" /> Conectada
+                          </Badge>
+                        )}
+                        {testResults[definition.provider] === "success" && !isProviderConnected(definition.provider) && (
+                          <Badge className="text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white gap-1">
+                            <Wifi className="h-3 w-3" /> Teste OK
+                          </Badge>
+                        )}
+                        {testResults[definition.provider] === "error" && (
+                          <Badge variant="destructive" className="text-[10px] gap-1">
+                            <XCircle className="h-3 w-3" /> Falha
+                          </Badge>
+                        )}
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 pb-4">
