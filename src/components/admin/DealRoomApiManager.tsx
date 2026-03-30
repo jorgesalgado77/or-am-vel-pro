@@ -73,6 +73,8 @@ export function DealRoomApiManager() {
   const [shareEndsAt, setShareEndsAt] = useState("");
   const [shareSaving, setShareSaving] = useState(false);
   const [providerSaving, setProviderSaving] = useState<string | null>(null);
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, "success" | "error" | null>>({});
 
   const fetchData = async () => {
     setLoading(true);
