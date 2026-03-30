@@ -716,12 +716,12 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   }, [pendingLeadConv, selected, tenantId, currentUser, fetchConversations]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] rounded-lg border border-border overflow-hidden bg-background shadow-sm">
+    <div className="flex flex-col h-[calc(100dvh-120px)] md:h-[calc(100vh-140px)] rounded-none md:rounded-lg border-0 md:border md:border-border overflow-hidden bg-background md:shadow-sm">
       {/* WhatsApp Connection Status Bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/30">
-        <span className="text-xs font-medium text-foreground">Chat de Vendas</span>
-        <div className="flex items-center gap-2">
-          {isAdminOrManager && (
+      <div className="flex items-center justify-between px-2 md:px-3 py-1 md:py-1.5 border-b border-border bg-muted/30">
+        <span className="text-[11px] md:text-xs font-medium text-foreground">Chat de Vendas</span>
+        <div className="flex items-center gap-1 md:gap-2">
+          {isAdminOrManager && !isMobile && (
             <Button
               variant="ghost"
               size="sm"
@@ -733,7 +733,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
               {consolidating ? "..." : "Consolidar"}
             </Button>
           )}
-          {whatsappStatus === "online" && isAdminOrManager && (
+          {whatsappStatus === "online" && isAdminOrManager && !isMobile && (
             <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowWhatsAppContacts(true)}>
               <Phone className="h-3 w-3" /> Contatos WA
             </Button>
@@ -741,9 +741,9 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
           <WhatsAppStatusTag status={whatsappStatus} provider={whatsappProvider} />
         </div>
       </div>
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-      {/* Conversation list */}
-      <div className={`w-72 shrink-0 ${selected ? "hidden md:flex md:flex-col" : "flex flex-col w-full md:w-72"} overflow-hidden`}>
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+      {/* Conversation list — full screen on mobile when nothing selected, sidebar on desktop */}
+      <div className={`border-r border-border md:border-r transition-all duration-200 ease-in-out ${selected ? "hidden md:flex md:flex-col md:w-72 md:shrink-0" : "flex flex-col w-full md:w-72 md:shrink-0"} overflow-hidden`}>
         {/* Simulator Panel — fixed at top */}
         <WhatsAppSimulatorPanel
           config={simConfig}
@@ -773,8 +773,8 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         </div>
       </div>
 
-      {/* Chat window + Right panel */}
-      <div className={`flex-1 min-h-0 ${selected ? "flex" : "hidden md:flex md:items-center md:justify-center"}`}>
+      {/* Chat window + Right panel — full screen on mobile when selected */}
+      <div className={`flex-1 min-w-0 min-h-0 ${selected ? "flex flex-col md:flex-row" : "hidden md:flex md:items-center md:justify-center"}`}>
         {selected ? (
           <>
             <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
