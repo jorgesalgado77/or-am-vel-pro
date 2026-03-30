@@ -68,7 +68,13 @@ const COLUMNS = [
 ];
 
 function normalizeValue(value: string | null | undefined) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s*\([^)]*\)\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 export function MeasurementKanban() {
@@ -142,7 +148,14 @@ export function MeasurementKanban() {
       const tracking = trackingByClientId.get(request.client_id);
       const snapshot = request.client_snapshot || {};
 
+      const snapshotSellerRef = snapshot.responsavel_id
+        || snapshot.seller_id
+        || snapshot.vendedor
+        || snapshot.seller_name
+        || snapshot.projetista;
+
       const sellerUser = findUserByReference(client?.responsavel_id)
+        || findUserByReference(snapshotSellerRef)
         || findUserByReference(client?.vendedor)
         || findUserByReference(tracking?.projetista)
         || findUserByReference(request.seller_name)
@@ -151,10 +164,23 @@ export function MeasurementKanban() {
 
       const createdByIsSystem = ["sistema", "system"].includes(normalizeValue(request.created_by));
       const createdUser = createdByIsSystem
-        ? (sellerUser || findUserByReference(client?.vendedor) || findUserByReference(tracking?.projetista))
-        : (findUserByReference(request.created_by) || sellerUser);
+        ? (
+            findUserByReference(snapshot.created_by_user_id)
+            || findUserByReference(snapshot.created_by_user_name)
+            || sellerUser
+            || findUserByReference(client?.vendedor)
+            || findUserByReference(tracking?.projetista)
+          )
+        : (
+            findUserByReference(snapshot.created_by_user_id)
+            || findUserByReference(snapshot.created_by_user_name)
+            || findUserByReference(request.created_by)
+            || sellerUser
+          );
 
-      const editedUser = findUserByReference(request.last_edited_by);
+      const editedUser = findUserByReference(snapshot.last_edited_by_user_id)
+        || findUserByReference(snapshot.last_edited_by_user_name)
+        || findUserByReference(request.last_edited_by);
       const technicianUser = findUserByReference(request.assigned_to) || findUserByReference(request.technician_name);
 
       const resolvedContractNumber = request.contract_number
@@ -166,19 +192,19 @@ export function MeasurementKanban() {
 
       return {
         ...request,
-        seller_name: sellerUser?.nome_completo || client?.vendedor || tracking?.projetista || request.seller_name || "—",
-        seller_cargo: sellerUser?.cargo_nome || request.seller_cargo || "",
-        client_seller_name: sellerUser?.nome_completo || client?.vendedor || tracking?.projetista || request.seller_name || "—",
-        client_seller_cargo: sellerUser?.cargo_nome || "",
+        seller_name: sellerUser?.nome_completo || snapshot.vendedor || snapshot.seller_name || client?.vendedor || tracking?.projetista || request.seller_name || "—",
+        seller_cargo: sellerUser?.cargo_nome || snapshot.seller_cargo || request.seller_cargo || "",
+        client_seller_name: sellerUser?.nome_completo || snapshot.vendedor || snapshot.seller_name || client?.vendedor || tracking?.projetista || request.seller_name || "—",
+        client_seller_cargo: sellerUser?.cargo_nome || snapshot.seller_cargo || "",
         technician_name: technicianUser?.nome_completo || request.technician_name || request.assigned_to || "",
         store_code: request.store_code || snapshot.store_code || snapshot.codigo_loja || tenantStoreCode || "—",
         contract_number: resolvedContractNumber,
         contract_url: request.contract_url || snapshot.contract_url || "",
         briefing_url: request.briefing_url || snapshot.briefing_url || "",
-        created_by_resolved: createdUser?.nome_completo || client?.vendedor || tracking?.projetista || request.created_by || "—",
-        created_by_cargo: createdUser?.cargo_nome || sellerUser?.cargo_nome || request.created_by_cargo || "",
+        created_by_resolved: createdUser?.nome_completo || snapshot.created_by_user_name || snapshot.vendedor || client?.vendedor || tracking?.projetista || request.created_by || "—",
+        created_by_cargo: createdUser?.cargo_nome || snapshot.created_by_user_cargo || sellerUser?.cargo_nome || snapshot.seller_cargo || request.created_by_cargo || "",
         last_edited_by_resolved: editedUser?.nome_completo || request.last_edited_by || "",
-        last_edited_by_cargo: editedUser?.cargo_nome || request.last_edited_by_cargo || "",
+        last_edited_by_cargo: editedUser?.cargo_nome || snapshot.last_edited_by_user_cargo || request.last_edited_by_cargo || "",
       } satisfies MeasurementRequest;
     });
 
@@ -187,6 +213,20 @@ export function MeasurementKanban() {
   }, [findUserByReference]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  useEffect(() => {
+    if (!detailRequest) return;
+
+    const liveRequest = requests.find((request) => request.id === detailRequest.id);
+    if (!liveRequest) {
+      setDetailRequest(null);
+      return;
+    }
+
+    if (liveRequest !== detailRequest) {
+      setDetailRequest(liveRequest);
+    }
+  }, [requests, detailRequest]);
 
   useEffect(() => {
     const tenantId = getTenantId();
