@@ -124,7 +124,8 @@ export function ClientsKanban({
     });
   }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus]);
 
-  const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : isAdmin ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
+  const isGerente = cargoNome.includes("gerente") && !isGerenteTecnico;
+  const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : (isAdmin || isGerente) ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
 
   // Column data
   const columnData = useMemo(() => {
@@ -292,7 +293,7 @@ export function ClientsKanban({
                   ))
                 ) : (
                   <>
-                    {isAdmin && (
+                    {(isAdmin || isGerente) && (
                       <button
                         onClick={() => setComercialExpanded(prev => !prev)}
                         className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group"
@@ -301,7 +302,7 @@ export function ClientsKanban({
                         <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Comercial</span>
                       </button>
                     )}
-                    {(!isAdmin || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => (
+                    {(!(isAdmin || isGerente) || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => (
                       <KanbanColumn
                         key={col.id}
                         col={col}
@@ -318,7 +319,7 @@ export function ClientsKanban({
                       />
                     ))}
 
-                    {isAdmin && (
+                    {(isAdmin || isGerente) && (
                       <>
                         <button
                           onClick={() => setOperacionalExpanded(prev => !prev)}
