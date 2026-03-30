@@ -27,6 +27,7 @@ interface KanbanCardProps {
   assignedTechnician?: string | null;
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
+  onScheduleMeasurement?: (clientId: string, clientName: string) => void;
 }
 
 /** Map column id to card tint styles (border-left + subtle bg) */
