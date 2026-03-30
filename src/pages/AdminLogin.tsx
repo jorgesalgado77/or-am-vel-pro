@@ -118,7 +118,7 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex relative overflow-hidden">
+    <div className="min-h-screen flex relative overflow-hidden min-h-[100dvh]">
       <ParticleBackground />
 
 
@@ -162,14 +162,14 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
       </div>
 
       {/* Login form */}
-      <div className="flex-1 flex items-center justify-center relative z-10 p-6">
+      <div className="flex-1 flex items-center justify-center relative z-10 p-4 sm:p-6">
         <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="w-full max-w-md"
         >
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-8 space-y-6">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-5 sm:p-8 space-y-5 sm:space-y-6">
             {/* Header */}
             <div className="text-center space-y-3">
               <div className="lg:hidden mx-auto w-16 h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">

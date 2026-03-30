@@ -616,24 +616,24 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card px-6 py-3 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Shield className="h-5 w-5 text-primary" />
+      <header className="border-b border-border bg-card px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Painel Admin Master</h1>
-            <p className="text-xs text-muted-foreground">Olá, {adminName}</p>
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Painel Admin Master</h1>
+            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Olá, {adminName}</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={onLogout} className="gap-2 text-muted-foreground">
-          <LogOut className="h-4 w-4" /> Sair
+        <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1.5 sm:gap-2 text-muted-foreground shrink-0">
+          <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sair</span>
         </Button>
       </header>
 
-      <main className="max-w-7xl mx-auto p-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9 gap-2 sm:gap-3">
           <Card>
             <CardContent className="p-3 flex items-center gap-2">
               <Store className="h-4 w-4 text-primary shrink-0" />
@@ -754,12 +754,12 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
           {/* TAB: Lojas */}
           <TabsContent value="lojas" className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h3 className="text-lg font-semibold text-foreground">Lojas Cadastradas ({filteredTenants.length})</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h3 className="text-base sm:text-lg font-semibold text-foreground">Lojas Cadastradas ({filteredTenants.length})</h3>
               <div className="flex gap-2 flex-wrap">
-                <Input placeholder="Buscar loja..." value={searchTenant} onChange={e => setSearchTenant(e.target.value)} className="w-48 h-8 text-sm" />
+                <Input placeholder="Buscar loja..." value={searchTenant} onChange={e => setSearchTenant(e.target.value)} className="w-full sm:w-48 h-9 sm:h-8 text-sm" />
                 <Select value={filterPlano} onValueChange={setFilterPlano}>
-                  <SelectTrigger className="w-32 h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-28 sm:w-32 h-9 sm:h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="trial">Trial</SelectItem>
@@ -767,16 +767,17 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                     <SelectItem value="premium">Premium</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" onClick={fetchData} className="gap-2 h-8">
-                  <RefreshCw className="h-3 w-3" /> Atualizar
+                <Button variant="outline" size="sm" onClick={fetchData} className="gap-2 h-9 sm:h-8 min-h-[44px] sm:min-h-0">
+                  <RefreshCw className="h-3 w-3" /> <span className="hidden xs:inline">Atualizar</span>
                 </Button>
-                <Button size="sm" onClick={openNewTenant} className="gap-2 h-8">
+                <Button size="sm" onClick={openNewTenant} className="gap-2 h-9 sm:h-8 min-h-[44px] sm:min-h-0">
                   <Plus className="h-3 w-3" /> Nova Loja
                 </Button>
               </div>
             </div>
             <Card>
               <CardContent className="p-0">
+                <ScrollArea className="w-full">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -918,6 +919,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                     })}
                   </TableBody>
                 </Table>
+                <ScrollBar orientation="horizontal" />
+                </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1164,7 +1167,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           setRepairPassword("123456");
         }
       }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Reparar acesso do administrador</DialogTitle>
           </DialogHeader>
@@ -1195,7 +1198,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingPayment ? "Editar Gateway" : "Novo Gateway"}</DialogTitle>
           </DialogHeader>
