@@ -43,7 +43,7 @@ interface UseSimulatorActionsParams {
   checkDiscount: (vt: number, d1: number, d2: number, d3: number, plus: number) => { allowed: boolean; violations: string[] };
   requestApproval: (data: any) => Promise<void>;
   validateAccess: (tenantId: string) => Promise<any>;
-  recordSale: (tenantId: string, data: any) => Promise<void>;
+  recordSale: (tenantId: string, data: any) => Promise<any>;
   onClientCreated?: () => void;
   newClient: any;
   showClientForm: boolean;
