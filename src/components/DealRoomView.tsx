@@ -1,12 +1,8 @@
-import {useState, useEffect} from "react";
-import {Button} from "@/components/ui/button";
-import {Video, ArrowLeft, CreditCard, FileText, Handshake} from "lucide-react";
-
-import {AddonPurchaseCard} from "@/components/AddonPurchaseCard";
-import {DealRoomStoreWidget} from "@/components/DealRoomStoreWidget";
-import {useDealRoom} from "@/hooks/useDealRoom";
-import {supabase} from "@/lib/supabaseClient";
-import {toast} from "sonner";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { DealRoomStoreWidget } from "@/components/DealRoomStoreWidget";
+import { DealRoomInterestForm } from "@/components/dealroom/DealRoomInterestForm";
+import { useDealRoomAccess } from "@/hooks/useDealRoomAccess";
 
 interface DealRoomViewProps {
   tenantId: string | null;
@@ -14,66 +10,7 @@ interface DealRoomViewProps {
 }
 
 export function DealRoomView({ tenantId, onBack }: DealRoomViewProps) {
-  const { validateAccess } = useDealRoom();
-  const [access, setAccess] = useState<{ allowed: boolean; reason?: string; plano?: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [formSent, setFormSent] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
-  const [formData, setFormData] = useState({ nome: "", email: "", telefone: "", mensagem: "" });
-
-  useEffect(() => {
-    if (!tenantId) {
-      setAccess({ allowed: false, reason: "Tenant não encontrado" });
-      setLoading(false);
-      return;
-    }
-    const check = async () => {
-      setLoading(true);
-      const result = await validateAccess(tenantId);
-      if (!result.allowed) {
-        // Check if admin granted access via recursos_vip
-        const { data: tenant } = await supabase
-          .from("tenants")
-          .select("recursos_vip")
-          .eq("id", tenantId)
-          .single();
-        const vip = (tenant as any)?.recursos_vip;
-        if (vip?.deal_room) {
-          setAccess({ allowed: true, plano: "vip" });
-          setLoading(false);
-          return;
-        }
-      }
-      setAccess(result);
-      setLoading(false);
-    };
-    check();
-  }, [tenantId]);
-
-  const handleSubmitInterest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.nome.trim() || !formData.telefone.trim()) {
-      toast.error("Preencha nome e telefone");
-      return;
-    }
-    setFormLoading(true);
-    const { error } = await supabase.from("support_tickets").insert({
-      tipo: "addon_interesse",
-      usuario_nome: formData.nome,
-      usuario_email: formData.email || null,
-      usuario_telefone: formData.telefone,
-      mensagem: `Interesse no add-on Deal Room. ${formData.mensagem}`.trim(),
-      status: "aberto",
-    });
-    setFormLoading(false);
-    if (error) {
-      toast.error("Erro ao enviar. Tente novamente.");
-    } else {
-      setFormSent(true);
-      toast.success("Interesse registrado! Entraremos em contato em breve.");
-    }
-  };
+  const { access, loading } = useDealRoomAccess(tenantId);
 
   if (loading) {
     return (
@@ -84,22 +21,7 @@ export function DealRoomView({ tenantId, onBack }: DealRoomViewProps) {
   }
 
   if (!access?.allowed) {
-    return (
-      <AddonPurchaseCard
-        addonName="Deal Room"
-        addonSlug="dealroom"
-        price="R$ 147"
-        priceExtra="+ 2% por venda"
-        description="Feche vendas em tempo real com apresentações profissionais, pagamento integrado e contratos automáticos."
-        features={[
-          { label: "Reuniões por vídeo", icon: <Video className="h-5 w-5" /> },
-          { label: "Pagamento integrado", icon: <CreditCard className="h-5 w-5" /> },
-          { label: "Contratos automáticos", icon: <FileText className="h-5 w-5" /> },
-        ]}
-        icon={<Handshake className="h-8 w-8 text-primary" />}
-        onBack={onBack}
-      />
-    );
+    return <DealRoomInterestForm onBack={onBack} />;
   }
 
   return (
