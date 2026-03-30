@@ -460,6 +460,18 @@ export function DealRoomApiManager() {
                         <Button onClick={() => saveProvider(definition.provider)} disabled={providerSaving === definition.provider}>
                           {providerSaving === definition.provider ? "Salvando..." : "Salvar configuração"}
                         </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => testConnection(definition.provider)}
+                          disabled={testingProvider === definition.provider}
+                          className="gap-1.5"
+                        >
+                          {testingProvider === definition.provider ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testando...</>
+                          ) : (
+                            <><Wifi className="h-3.5 w-3.5" /> Testar conexão</>
+                          )}
+                        </Button>
                         <Button variant="outline" onClick={() => openShareDialog(definition.provider)}>
                           Compartilhar com loja
                         </Button>
