@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MeasurementReport } from "./MeasurementReport";
-import { MeasurementDetailModal } from "./MeasurementDetailModal";
+import { MeasurementRequestModal } from "./MeasurementRequestModal";
+import { MeasurementKanbanCard } from "./MeasurementKanbanCard";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import {
   Ruler, AlertTriangle, CheckCircle2, Clock, RefreshCw, Search,
-  User, ChevronRight, Loader2, BarChart3, Pencil, Eye, Users, Phone, Mail, Shield, Save,
+  User, ChevronRight, Loader2, BarChart3, Pencil, Users, Phone, Mail, Shield, Save,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
@@ -26,6 +27,8 @@ import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
 import { sendWhatsAppText } from "@/lib/whatsappSender";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
+import type { Client, LastSimInfo } from "./kanbanTypes";
+import type { ClientTrackingRecord } from "@/hooks/useClientTracking";
 
 interface MeasurementRequest {
   id: string;
@@ -59,6 +62,10 @@ interface MeasurementRequest {
   created_by_resolved?: string;
   created_by_cargo?: string;
   last_edited_by_resolved?: string;
+  client_phone?: string | null;
+  client_record?: Client | null;
+  tracking_record?: ClientTrackingRecord | null;
+  last_sim?: LastSimInfo;
 }
 
 const COLUMNS = [
@@ -168,7 +175,7 @@ export function MeasurementKanban() {
         .order("created_at", { ascending: false }),
       supabase
         .from("clients" as any)
-        .select("id, vendedor, responsavel_id, numero_orcamento")
+        .select("*")
         .eq("tenant_id", tenantId),
       supabase
         .from("company_settings" as any)
@@ -182,7 +189,7 @@ export function MeasurementKanban() {
         .maybeSingle(),
       supabase
         .from("client_tracking" as any)
-        .select("client_id, numero_contrato, projetista")
+        .select("*")
         .eq("tenant_id", tenantId),
     ]);
 
@@ -192,13 +199,19 @@ export function MeasurementKanban() {
     }
 
     const clientsById = new Map((clientsRes.data || []).map((client: any) => [client.id, client]));
-    const trackingByClientId = new Map((trackingRes.data || []).map((t: any) => [t.client_id, t]));
+    const trackingByClientId = new Map<string, any>();
+    (trackingRes.data || []).forEach((tracking: any) => {
+      if (!trackingByClientId.has(tracking.client_id)) {
+        trackingByClientId.set(tracking.client_id, tracking);
+      }
+    });
     const tenantStoreCode = (settingsRes.data as any)?.codigo_loja || (tenantRes.data as any)?.codigo_loja || "";
 
     const enrichedRequests = ((requestsRes.data as any[]) || []).map((request) => {
       const client = clientsById.get(request.client_id);
       const tracking = trackingByClientId.get(request.client_id);
       const snapshot = request.client_snapshot || {};
+      const clientPhone = snapshot.telefone1 || snapshot.telefone || client?.telefone1 || client?.telefone || client?.celular || "";
 
       const snapshotSellerRef = snapshot.responsavel_id
         || snapshot.seller_id
@@ -282,6 +295,10 @@ export function MeasurementKanban() {
         created_by_cargo: createdUser?.cargo_nome || snapshot.created_by_user_cargo || sellerUser?.cargo_nome || snapshot.seller_cargo || request.created_by_cargo || "",
         last_edited_by_resolved: editedByName,
         last_edited_by_cargo: editedUser?.cargo_nome || snapshot.last_edited_by_user_cargo || request.last_edited_by_cargo || "",
+        client_phone: clientPhone,
+        client_record: client || null,
+        tracking_record: tracking || null,
+        last_sim: undefined,
       } satisfies MeasurementRequest;
     });
 
@@ -482,6 +499,59 @@ export function MeasurementKanban() {
 
   const nextQueueAssignee = queueOrder.find((item) => item.remaining > 0)?.nome || queueOrder[0]?.nome || null;
 
+  const selectedClient = useMemo(() => {
+    if (!detailRequest) return null;
+    if (detailRequest.client_record) return detailRequest.client_record;
+
+    const snapshot = detailRequest.client_snapshot || {};
+    const address = detailRequest.delivery_address || {};
+
+    return {
+      id: detailRequest.client_id,
+      tenant_id: detailRequest.tenant_id,
+      nome: detailRequest.nome_cliente,
+      telefone1: detailRequest.client_phone || snapshot.telefone1 || snapshot.telefone || "",
+      email: snapshot.email || "",
+      cpf: snapshot.cpf || "",
+      vendedor: detailRequest.client_seller_name || detailRequest.seller_name || snapshot.vendedor || snapshot.seller_name || "",
+      responsavel_id: snapshot.responsavel_id || null,
+      numero_orcamento: detailRequest.contract_number || snapshot.numero_orcamento || snapshot.numero_contrato || "",
+      delivery_address_zip: address.cep || snapshot.delivery_address_zip || snapshot.cep_entrega || "",
+      delivery_address_street: address.street || snapshot.delivery_address_street || snapshot.endereco_entrega || "",
+      delivery_address_number: address.number || snapshot.delivery_address_number || snapshot.numero_entrega || "",
+      delivery_address_complement: address.complement || snapshot.delivery_address_complement || snapshot.complemento_entrega || "",
+      delivery_address_district: address.district || snapshot.delivery_address_district || snapshot.bairro_entrega || "",
+      delivery_address_city: address.city || snapshot.delivery_address_city || snapshot.cidade_entrega || "",
+      delivery_address_state: address.state || snapshot.delivery_address_state || snapshot.uf_entrega || "",
+      created_at: detailRequest.created_at,
+      updated_at: detailRequest.updated_at,
+    } as Client;
+  }, [detailRequest]);
+
+  const selectedTracking = useMemo(() => {
+    if (!detailRequest) return null;
+    if (detailRequest.tracking_record) return detailRequest.tracking_record;
+
+    const snapshot = detailRequest.client_snapshot || {};
+
+    return {
+      id: detailRequest.tracking_id || "",
+      client_id: detailRequest.client_id,
+      numero_contrato: detailRequest.contract_number || snapshot.numero_contrato || snapshot.numero_orcamento || "",
+      nome_cliente: detailRequest.nome_cliente,
+      cpf_cnpj: snapshot.cpf || null,
+      quantidade_ambientes: detailRequest.ambientes?.length || 0,
+      valor_contrato: Number(detailRequest.valor_venda_avista) || 0,
+      data_fechamento: detailRequest.created_at,
+      projetista: detailRequest.client_seller_name || detailRequest.seller_name || snapshot.projetista || snapshot.vendedor || null,
+      status: detailRequest.status,
+      comissao_percentual: null,
+      comissao_valor: null,
+      comissao_status: null,
+      created_at: detailRequest.created_at,
+    } as ClientTrackingRecord;
+  }, [detailRequest]);
+
   return (
     <Tabs defaultValue="kanban" className="space-y-4">
       <TabsList>
@@ -544,163 +614,82 @@ export function MeasurementKanban() {
                           const isStalled = request.status === "novo" && daysOld > 3;
 
                           return (
-                            <Card
+                            <MeasurementKanbanCard
                               key={request.id}
-                              className={cn(
-                                "transition-all",
-                                isStalled && "border-destructive/50 bg-destructive/5 animate-pulse-slow",
-                                request.status === "concluido" && "border-emerald-500/30 bg-emerald-500/5",
-                              )}
-                            >
-                              <CardContent className="p-3 space-y-2">
-                                {isStalled && (
-                                  <div className="flex items-center gap-1.5 text-destructive">
-                                    <AlertTriangle className="h-3.5 w-3.5" />
-                                    <span className="text-[10px] font-semibold">
-                                      ⚠️ Parada há {daysOld} dias sem distribuição!
-                                    </span>
-                                  </div>
-                                )}
-
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-foreground truncate">{request.nome_cliente}</p>
-                                    <p className="text-[11px] text-muted-foreground">
-                                      {request.ambientes?.length || 0} ambiente(s) • {format(new Date(request.created_at), "dd/MM/yy", { locale: ptBR })}
-                                    </p>
-                                  </div>
-                                  <span className="text-sm font-bold text-emerald-600 whitespace-nowrap">
-                                    {formatCurrency(Number(request.valor_venda_avista) || 0)}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-1.5">
-                                  <Clock className="h-3 w-3 text-muted-foreground" />
-                                  <span className={cn(
-                                    "text-[10px] font-medium",
-                                    daysOld <= 1 ? "text-emerald-600" :
-                                    daysOld <= 3 ? "text-amber-600" :
-                                    "text-destructive",
-                                  )}>
-                                    {daysOld === 0 ? "Hoje" : `${daysOld} dia(s)`}
-                                  </span>
-                                  {request.created_by_resolved && (
+                              request={request}
+                              daysOld={daysOld}
+                              isStalled={isStalled}
+                              columnColor={column.color}
+                              onViewDetails={() => setDetailRequest(request)}
+                              assignmentControl={(
+                                <div className="flex items-center gap-1">
+                                  <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  {!request.assigned_to && nextQueueAssignee ? (
                                     <>
-                                      <span className="text-muted-foreground text-[10px]">•</span>
-                                      <span className="text-[10px] text-muted-foreground">por {request.created_by_resolved}</span>
-                                    </>
-                                  )}
-                                </div>
-
-                                {request.last_edited_by_resolved && (
-                                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-0.5">
-                                    <Pencil className="h-2.5 w-2.5" />
-                                    <span>
-                                      Editado por <span className="font-semibold text-foreground">{request.last_edited_by_resolved}</span>
-                                      {request.last_edited_by_cargo && <span className="text-primary"> ({request.last_edited_by_cargo})</span>}
-                                      {request.last_edited_at && (
-                                        <span> • {format(new Date(request.last_edited_at), "dd/MM HH:mm", { locale: ptBR })}</span>
-                                      )}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {request.ambientes && request.ambientes.length > 0 && (
-                                  <div className="space-y-1">
-                                    {request.ambientes.slice(0, 3).map((environment: any, index: number) => (
-                                      <div key={index} className="flex items-center justify-between text-[10px] bg-muted/30 rounded px-2 py-1">
-                                        <span className="truncate flex-1">{environment.name || `Ambiente ${index + 1}`}</span>
-                                        <span className="text-muted-foreground ml-2">{formatCurrency(environment.value || 0)}</span>
-                                      </div>
-                                    ))}
-                                    {request.ambientes.length > 3 && (
-                                      <span className="text-[10px] text-muted-foreground">+{request.ambientes.length - 3} mais...</span>
-                                    )}
-                                  </div>
-                                )}
-
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full h-7 text-[11px] gap-1.5"
-                                  onClick={() => setDetailRequest(request)}
-                                >
-                                  <Eye className="h-3 w-3" /> Ver Detalhes
-                                </Button>
-
-                                <Separator />
-
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center gap-1">
-                                    <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                    {!request.assigned_to && nextQueueAssignee ? (
-                                      <>
-                                        <Button
-                                          variant="default"
-                                          size="sm"
-                                          className="h-7 text-[10px] flex-1 gap-1"
-                                          onClick={() => handleAssign(request.id, nextQueueAssignee)}
-                                        >
-                                          ⚡ Atribuir · {nextQueueAssignee.split(" ")[0]}
-                                        </Button>
-                                        <Select
-                                          value="__none__"
-                                          onValueChange={(value) => handleAssign(request.id, value)}
-                                        >
-                                          <SelectTrigger className="h-7 w-7 p-0 flex items-center justify-center">
-                                            <ChevronRight className="h-3 w-3" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="__none__">Sem responsável</SelectItem>
-                                            {tecnicosEProjetistas.map((user) => (
-                                              <SelectItem key={user.id} value={user.nome_completo}>
-                                                {user.nome_completo} ({user.cargo_nome})
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      </>
-                                    ) : (
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        className="h-7 text-[10px] flex-1 gap-1"
+                                        onClick={() => handleAssign(request.id, nextQueueAssignee)}
+                                      >
+                                        ⚡ Atribuir · {nextQueueAssignee.split(" ")[0]}
+                                      </Button>
                                       <Select
-                                        value={request.assigned_to || "__none__"}
+                                        value="__none__"
                                         onValueChange={(value) => handleAssign(request.id, value)}
                                       >
-                                        <SelectTrigger className="h-7 text-[11px] flex-1">
-                                          <SelectValue>{request.technician_name || request.assigned_to || "Atribuir técnico"}</SelectValue>
+                                        <SelectTrigger className="h-7 w-7 p-0 flex items-center justify-center">
+                                          <ChevronRight className="h-3 w-3" />
                                         </SelectTrigger>
                                         <SelectContent>
                                           <SelectItem value="__none__">Sem responsável</SelectItem>
-                                          {nextQueueAssignee && (
-                                            <SelectItem value={nextQueueAssignee}>1º da fila · {nextQueueAssignee}</SelectItem>
-                                          )}
-                                          {tecnicosEProjetistas.filter((user) => user.nome_completo !== nextQueueAssignee).map((user) => (
+                                          {tecnicosEProjetistas.map((user) => (
                                             <SelectItem key={user.id} value={user.nome_completo}>
                                               {user.nome_completo} ({user.cargo_nome})
                                             </SelectItem>
                                           ))}
                                         </SelectContent>
                                       </Select>
-                                    )}
-                                  </div>
-
-                                  {request.status !== "novo" && (
-                                    <div className="flex items-center gap-2">
-                                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                      <Select value={request.status} onValueChange={(value) => handleStatusChange(request.id, value)}>
-                                        <SelectTrigger className="h-7 text-[11px] flex-1">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {COLUMNS.map((columnOption) => (
-                                            <SelectItem key={columnOption.id} value={columnOption.id}>{columnOption.icon} {columnOption.label}</SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                                    </>
+                                  ) : (
+                                    <Select
+                                      value={request.assigned_to || "__none__"}
+                                      onValueChange={(value) => handleAssign(request.id, value)}
+                                    >
+                                      <SelectTrigger className="h-7 text-[11px] flex-1">
+                                        <SelectValue>{request.technician_name || request.assigned_to || "Atribuir técnico"}</SelectValue>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="__none__">Sem responsável</SelectItem>
+                                        {nextQueueAssignee && (
+                                          <SelectItem value={nextQueueAssignee}>1º da fila · {nextQueueAssignee}</SelectItem>
+                                        )}
+                                        {tecnicosEProjetistas.filter((user) => user.nome_completo !== nextQueueAssignee).map((user) => (
+                                          <SelectItem key={user.id} value={user.nome_completo}>
+                                            {user.nome_completo} ({user.cargo_nome})
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   )}
                                 </div>
-                              </CardContent>
-                            </Card>
+                              )}
+                              statusControl={request.status !== "novo" ? (
+                                <div className="flex items-center gap-2">
+                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <Select value={request.status} onValueChange={(value) => handleStatusChange(request.id, value)}>
+                                    <SelectTrigger className="h-7 text-[11px] flex-1">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {COLUMNS.map((columnOption) => (
+                                        <SelectItem key={columnOption.id} value={columnOption.id}>{columnOption.icon} {columnOption.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              ) : null}
+                            />
                           );
                         })
                       )}
@@ -747,11 +736,15 @@ export function MeasurementKanban() {
         />
       </TabsContent>
 
-      <MeasurementDetailModal
-        open={!!detailRequest}
-        onOpenChange={(open) => !open && setDetailRequest(null)}
-        request={detailRequest}
-      />
+      {detailRequest && selectedClient && selectedTracking && (
+        <MeasurementRequestModal
+          open={!!detailRequest}
+          onOpenChange={(open) => !open && setDetailRequest(null)}
+          client={selectedClient}
+          tracking={selectedTracking}
+          lastSim={detailRequest.last_sim}
+        />
+      )}
     </Tabs>
   );
 }
