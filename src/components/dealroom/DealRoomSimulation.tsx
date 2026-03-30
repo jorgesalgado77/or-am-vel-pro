@@ -392,7 +392,7 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
                         <p className="text-[10px] font-semibold text-muted-foreground">Ambientes Importados</p>
                         {envs.map((env: any, i: number) => (
                           <div key={i} className="flex justify-between text-xs">
-                            <span className="truncate max-w-[180px]">{env.name || env}</span>
+                            <span className="truncate max-w-[180px]">{env.environmentName || env.name || env.fileName || "Ambiente"}</span>
                             {env.value != null && <span className="font-mono">{formatCurrency(Number(env.value))}</span>}
                           </div>
                         ))}
