@@ -80,8 +80,13 @@ export function ClientsKanban({
       const isTecnico = cargoNome.includes("tecnico") || cargoNome.includes("técnico");
       const isConferente = cargoNome.includes("conferente");
       
-      if (isLiberador || isTecnico || isConferente) {
-        // Technical roles: show only clients that have measurement requests assigned to them
+      const isGerTecnico = isGerente && (cargoNome.includes("tecnico") || cargoNome.includes("técnico"));
+      
+      if (isGerTecnico) {
+        // Gerente Técnico: see ALL clients that have measurement requests (any)
+        baseClients = baseClients.filter(c => measurementStatus[c.id]);
+      } else if (isLiberador || isTecnico || isConferente) {
+        // Basic technical roles: show only clients with measurement requests assigned to them
         const userName = currentUser.nome_completo || "";
         baseClients = baseClients.filter(c => {
           const mr = measurementStatus[c.id];

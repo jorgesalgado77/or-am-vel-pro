@@ -175,8 +175,9 @@ export function useKanbanData(externalClients: Client[]) {
     const fetchMeasurements = async () => {
       const currentClients = localClientsRef.current;
       let query = supabase.from("measurement_requests" as any).select("client_id, status, assigned_to").eq("tenant_id", tenantId);
-      // For technical roles, only fetch requests assigned to them
-      if (isTechnical && currentUser) {
+      // For basic technical roles, only fetch requests assigned to them
+      // Gerente Técnico sees ALL requests to manage assignments
+      if (isBasicTechnical && currentUser) {
         const userName = currentUser.nome_completo;
         query = query.or(`assigned_to.eq.${userName},assigned_to.eq.${currentUser.id}`);
       }
