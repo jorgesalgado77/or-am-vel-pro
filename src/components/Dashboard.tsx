@@ -69,6 +69,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const { metaLoja } = useMetasTetos();
   const { currentUser } = useCurrentUser();
   const isAdminOrGerente = ["administrador", "gerente"].includes(currentUser?.cargo_nome?.toLowerCase() || "");
+  const cargoLower = (currentUser?.cargo_nome || "").toLowerCase();
+  const isTechnicalRole = cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("liberador") || cargoLower.includes("conferente");
 
   const [visibleCharts, setVisibleCharts] = useState<Record<ChartKey, boolean>>({
     evolucao: false, projetista: false, indicador: false, contratos: false, leads_origem: false, vendedor_leads: false,
