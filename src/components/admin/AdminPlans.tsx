@@ -103,47 +103,107 @@ export function AdminPlans() {
     ],
   };
 
-  const generateDescription = () => {
+  const generateDescription = async () => {
     if (!fNome.trim()) { toast.error("Informe o nome do plano primeiro"); return; }
     setGeneratingDesc(true);
-    
-    const preco = parseFloat(fPrecoMensal) || 0;
+
     const enabledFeats = ALL_FEATURES.filter(f => fFuncionalidades[f.key]).map(f => f.label);
-    
-    setTimeout(() => {
-      let desc = "";
-      if (preco === 0) {
-        desc = `Experimente o ${fNome} gratuitamente e descubra como o OrçaMóvel PRO pode transformar suas vendas de móveis planejados.`;
-      } else if (preco <= 80) {
-        desc = `O plano ${fNome} é ideal para lojas que buscam profissionalizar a gestão de vendas com ${enabledFeats.length} funcionalidades essenciais por apenas R$ ${preco.toFixed(2).replace(".", ",")}/mês.`;
+    const preco = parseFloat(fPrecoMensal) || 0;
+
+    try {
+      const { data, error } = await supabase.functions.invoke("plan-ai", {
+        body: {
+          action: "generate_description",
+          plan_name: fNome.trim(),
+          plan_slug: fSlug.trim(),
+          enabled_features: enabledFeats,
+          price: preco,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const result = data?.result?.trim();
+      if (result) {
+        setFDescricao(result);
+        toast.success("Descrição gerada com IA!");
       } else {
-        desc = `O plano ${fNome} oferece a experiência completa do OrçaMóvel PRO com ${enabledFeats.length} funcionalidades avançadas, incluindo ${enabledFeats.slice(0, 3).join(", ")} e muito mais. Maximize seus resultados por R$ ${preco.toFixed(2).replace(".", ",")}/mês.`;
+        throw new Error("Resposta vazia da IA");
       }
-      setFDescricao(desc);
+    } catch (err: any) {
+      console.warn("[AdminPlans] AI description fallback:", err);
+      // Fallback local
+      const preco = parseFloat(fPrecoMensal) || 0;
+      const enabledFeats = ALL_FEATURES.filter(f => fFuncionalidades[f.key]).map(f => f.label);
+      if (preco === 0) {
+        setFDescricao(`Experimente o ${fNome} gratuitamente e descubra como o OrçaMóvel PRO pode transformar suas vendas de móveis planejados.`);
+      } else if (preco <= 80) {
+        setFDescricao(`O plano ${fNome} é ideal para lojas que buscam profissionalizar a gestão de vendas com ${enabledFeats.length} funcionalidades essenciais por apenas R$ ${preco.toFixed(2).replace(".", ",")}/mês.`);
+      } else {
+        setFDescricao(`O plano ${fNome} oferece a experiência completa do OrçaMóvel PRO com ${enabledFeats.length} funcionalidades avançadas, incluindo ${enabledFeats.slice(0, 3).join(", ")} e muito mais.`);
+      }
+      toast.success("Descrição gerada (local)!");
+    } finally {
       setGeneratingDesc(false);
-      toast.success("Descrição gerada!");
-    }, 800);
+    }
   };
 
-  const suggestFeatures = () => {
+  const suggestFeatures = async () => {
     if (!fSlug.trim() && !fNome.trim()) { toast.error("Informe o slug ou nome do plano"); return; }
     setSuggestingFeatures(true);
-    
-    setTimeout(() => {
+
+    const enabledFeats = ALL_FEATURES.filter(f => fFuncionalidades[f.key]).map(f => f.label);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("plan-ai", {
+        body: {
+          action: "suggest_features",
+          plan_name: fNome.trim(),
+          plan_slug: fSlug.trim(),
+          enabled_features: enabledFeats,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const result = data?.result?.trim();
+      if (result) {
+        // Parse JSON from AI response
+        const jsonMatch = result.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const suggestions = JSON.parse(jsonMatch[0]) as { label: string; included: boolean }[];
+          const newFeats = suggestions.filter(s => !fFeatures.some(f => f.label === s.label));
+          if (newFeats.length === 0) {
+            toast.info("Todas as sugestões já estão na lista");
+          } else {
+            setFFeatures(prev => [...prev, ...newFeats]);
+            toast.success(`${newFeats.length} features sugeridas pela IA!`);
+          }
+        } else {
+          throw new Error("Formato inválido");
+        }
+      } else {
+        throw new Error("Resposta vazia");
+      }
+    } catch (err: any) {
+      console.warn("[AdminPlans] AI suggest fallback:", err);
+      // Fallback local
       const slug = fSlug.trim().toLowerCase();
       const suggestions = SUGGESTED_FEATURES_MAP[slug] || SUGGESTED_FEATURES_MAP.basico;
       const newFeats = suggestions
         .filter(s => !fFeatures.some(f => f.label === s))
         .map(label => ({ label, included: true }));
-      
       if (newFeats.length === 0) {
         toast.info("Todas as sugestões já estão na lista");
       } else {
         setFFeatures(prev => [...prev, ...newFeats]);
         toast.success(`${newFeats.length} features sugeridas adicionadas!`);
       }
+    } finally {
       setSuggestingFeatures(false);
-    }, 600);
+    }
   };
 
   const fetchPlans = async () => {
