@@ -319,7 +319,7 @@ export function ClientsKanban({
                       />
                     ))}
 
-                    {isAdmin && (
+                    {(isAdmin || isGerente) && (
                       <>
                         <button
                           onClick={() => setOperacionalExpanded(prev => !prev)}
