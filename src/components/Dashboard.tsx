@@ -131,6 +131,45 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   useEffect(() => { fetchTrackingStats(); }, [fetchTrackingStats]);
 
+  // Notify technical users about pending measurement schedules on login
+  useEffect(() => {
+    if (!isTechnicalRole || !currentUser) return;
+    const checkPending = async () => {
+      const tenantId = (currentUser as any).tenant_id;
+      if (!tenantId) return;
+      try {
+        // Find measurement_requests in "em_medicao" columns that have no scheduled task
+        const { data: mrData } = await supabase
+          .from("measurement_requests" as any)
+          .select("client_id")
+          .eq("tenant_id", tenantId)
+          .eq("status", "em_andamento");
+
+        if (!mrData || mrData.length === 0) return;
+
+        const clientIds = (mrData as any[]).map(r => r.client_id);
+        // Check which ones have pending tasks
+        const { data: taskData } = await supabase
+          .from("tasks" as any)
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("tipo", "medicao")
+          .in("status", ["nova", "pendente", "em_execucao"]);
+
+        const scheduledCount = (taskData as any[] || []).length;
+        const unscheduledCount = clientIds.length - scheduledCount;
+
+        if (unscheduledCount > 0) {
+          toast.warning(
+            `📐 Você tem ${unscheduledCount} medição(ões) em andamento sem agendamento confirmado. Acesse o Kanban para agendar.`,
+            { duration: 8000 }
+          );
+        }
+      } catch { /* silent */ }
+    };
+    checkPending();
+  }, [isTechnicalRole, currentUser]);
+
   const toggleChart = useCallback((key: ChartKey) => {
     setVisibleCharts(prev => ({ ...prev, [key]: !prev[key] }));
   }, []);
