@@ -506,10 +506,16 @@ export function MeasurementKanban() {
     const snapshot = detailRequest.client_snapshot || {};
     const address = detailRequest.delivery_address || {};
 
-    return {
+    return ({
       id: detailRequest.client_id,
       tenant_id: detailRequest.tenant_id,
       nome: detailRequest.nome_cliente,
+      indicador_id: "",
+      numero_orcamento_seq: 0,
+      quantidade_ambientes: detailRequest.ambientes?.length || 0,
+      descricao_ambientes: "",
+      status: detailRequest.status,
+      valor_total: Number(detailRequest.valor_venda_avista) || 0,
       telefone1: detailRequest.client_phone || snapshot.telefone1 || snapshot.telefone || "",
       email: snapshot.email || "",
       cpf: snapshot.cpf || "",
@@ -525,7 +531,7 @@ export function MeasurementKanban() {
       delivery_address_state: address.state || snapshot.delivery_address_state || snapshot.uf_entrega || "",
       created_at: detailRequest.created_at,
       updated_at: detailRequest.updated_at,
-    } as Client;
+    } as unknown as Client);
   }, [detailRequest]);
 
   const selectedTracking = useMemo(() => {
@@ -534,7 +540,7 @@ export function MeasurementKanban() {
 
     const snapshot = detailRequest.client_snapshot || {};
 
-    return {
+    return ({
       id: detailRequest.tracking_id || "",
       client_id: detailRequest.client_id,
       numero_contrato: detailRequest.contract_number || snapshot.numero_contrato || snapshot.numero_orcamento || "",
@@ -549,7 +555,7 @@ export function MeasurementKanban() {
       comissao_valor: null,
       comissao_status: null,
       created_at: detailRequest.created_at,
-    } as ClientTrackingRecord;
+    } as ClientTrackingRecord);
   }, [detailRequest]);
 
   return (
@@ -827,6 +833,22 @@ function FilaLiberacaoTab({
     });
   }, [liberadores, requests, tetoOverrides, defaultTeto, currentMonth]);
 
+  const assignmentHistory = useMemo(() => {
+    return requests
+      .filter(r => r.assigned_to)
+      .map(r => ({
+        id: r.id,
+        cliente: r.nome_cliente,
+        tecnico: r.technician_name || r.assigned_to || "",
+        valor: Number(r.valor_venda_avista) || 0,
+        data: r.updated_at || r.created_at,
+        status: r.status,
+      }))
+      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+  }, [requests]);
+
+  const [showHistory, setShowHistory] = useState(false);
+
   const handleSaveTeto = (libId: string) => {
     const val = parseFloat(tetoEditValue.replace(/\D/g, "")) / 100;
     if (val > 0) {
@@ -846,23 +868,6 @@ function FilaLiberacaoTab({
       </Card>
     );
   }
-
-  // Build assignment history from all requests that have been assigned
-  const assignmentHistory = useMemo(() => {
-    return requests
-      .filter(r => r.assigned_to)
-      .map(r => ({
-        id: r.id,
-        cliente: r.nome_cliente,
-        tecnico: r.technician_name || r.assigned_to || "",
-        valor: Number(r.valor_venda_avista) || 0,
-        data: r.updated_at || r.created_at,
-        status: r.status,
-      }))
-      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-  }, [requests]);
-
-  const [showHistory, setShowHistory] = useState(false);
 
   return (
     <div className="space-y-4">
