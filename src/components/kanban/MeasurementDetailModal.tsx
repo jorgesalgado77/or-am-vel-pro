@@ -82,6 +82,110 @@ const STATUS_MAP: Record<string, { label: string; icon: string; className: strin
   concluido: { label: "Concluído", icon: "✅", className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30" },
 };
 
+const GENERIC_USER_LABELS = new Set(["", "sistema", "system", "admin", "administrador", "administrator", "usuario", "usuário", "user", "sem nome", "—"]);
+
+interface DeliveryAddress {
+  cep?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  district?: string;
+  city?: string;
+  state?: string;
+}
+
+function normalizeValue(value: string | null | undefined) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s*\([^)]*\)\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isGenericUserLabel(value: string | null | undefined) {
+  return GENERIC_USER_LABELS.has(normalizeValue(value));
+}
+
+function pickFilled(...values: Array<string | number | null | undefined>) {
+  for (const value of values) {
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text && text !== "—") return text;
+  }
+  return "";
+}
+
+function pickHumanLabel(...values: Array<string | null | undefined>) {
+  return values.find((value) => typeof value === "string" && value.trim() && !isGenericUserLabel(value)) || "";
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function asArray<T>(value: T | T[] | null | undefined): T[] {
+  if (Array.isArray(value)) return value;
+  return value ? [value] : [];
+}
+
+function normalizeAddressEntry(raw: any): DeliveryAddress | null {
+  if (!raw) return null;
+
+  if (typeof raw === "string") {
+    const street = raw.trim();
+    return street ? { street } : null;
+  }
+
+  const entry: DeliveryAddress = {
+    cep: pickFilled(raw.cep, raw.zip, raw.postal_code),
+    street: pickFilled(raw.street, raw.endereco, raw.address, raw.logradouro),
+    number: pickFilled(raw.number, raw.numero),
+    complement: pickFilled(raw.complement, raw.complemento),
+    district: pickFilled(raw.district, raw.bairro),
+    city: pickFilled(raw.city, raw.cidade),
+    state: pickFilled(raw.state, raw.uf, raw.estado),
+  };
+
+  return Object.values(entry).some(Boolean) ? entry : null;
+}
+
+function dedupeAddresses(entries: Array<DeliveryAddress | null | undefined>) {
+  const seen = new Set<string>();
+  return entries.filter((entry): entry is DeliveryAddress => {
+    if (!entry) return false;
+    const key = JSON.stringify(entry);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function formatAddressLines(address: DeliveryAddress) {
+  const line1 = [
+    address.street,
+    address.number ? `, ${address.number}` : "",
+    address.complement ? ` - ${address.complement}` : "",
+  ].join("");
+  const line2 = [
+    address.district,
+    address.city ? `${address.district ? " • " : ""}${address.city}` : "",
+    address.state ? ` - ${address.state}` : "",
+  ].join("");
+
+  return {
+    line1: line1.trim(),
+    line2: line2.trim(),
+    cep: address.cep || "",
+  };
+}
+
 function resolveAttachmentUrl(rawAttachment: any): string {
   if (!rawAttachment) return "";
 
@@ -285,101 +389,168 @@ const AttachmentPreview = forwardRef<HTMLButtonElement, { attachment: Normalized
 export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [relatedRecords, setRelatedRecords] = useState<{ client: any | null; tracking: any | null }>({ client: null, tracking: null });
   const [resolvedNames, setResolvedNames] = useState<{
     creator: string; creatorCargo: string; seller: string; sellerCargo: string;
     editor: string; editorCargo: string;
   }>({ creator: "", creatorCargo: "", seller: "", sellerCargo: "", editor: "", editorCargo: "" });
 
-  // Direct DB lookup for names - runs when request changes
   useEffect(() => {
     if (!request) return;
     let active = true;
 
-    const GENERIC = new Set(["", "sistema", "system", "admin", "administrador", "usuario", "usuário", "sem nome", "—"]);
-    const isGeneric = (v: string | null | undefined) => GENERIC.has((v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s*\([^)]*\)\s*$/g, "").trim().toLowerCase());
-
     const resolve = async () => {
-      const tenantId = getTenantId();
+      const tenantId = getTenantId() || request.tenant_id;
       if (!tenantId) return;
       const snapshot = request.client_snapshot || {};
 
-      // Fetch all tenant users once
-      const { data: users } = await supabase
-        .from("usuarios")
-        .select("id, auth_user_id, nome_completo, apelido, email, cargo_id, cargos(nome)")
-        .eq("tenant_id", tenantId) as any;
+      const emptyResponse = Promise.resolve({ data: null } as any);
+      const [{ data: usersData }, { data: cargosData }, { data: clientData }, { data: trackingData }] = await Promise.all([
+        (supabase.from("usuarios").select("id, auth_user_id, nome_completo, apelido, email, cargo_id").eq("tenant_id", tenantId)) as any,
+        (supabase.from("cargos").select("id, nome").eq("tenant_id", tenantId)) as any,
+        request.client_id
+          ? ((supabase.from("clients" as any).select("*").eq("id", request.client_id).maybeSingle()) as any)
+          : emptyResponse,
+        request.tracking_id
+          ? ((supabase.from("client_tracking" as any).select("*").eq("id", request.tracking_id).maybeSingle()) as any)
+          : request.client_id
+            ? ((supabase.from("client_tracking" as any).select("*").eq("client_id", request.client_id).order("updated_at", { ascending: false }).limit(1).maybeSingle()) as any)
+            : emptyResponse,
+      ]);
 
-      if (!active || !users?.length) return;
+      const cargoMap = new Map((cargosData || []).map((cargo: any) => [cargo.id, cargo.nome]));
+      const users = (usersData || []).map((user: any) => ({
+        ...user,
+        cargo_nome: cargoMap.get(user.cargo_id) || "",
+      }));
 
       const findUser = (...refs: Array<string | null | undefined>) => {
         for (const ref of refs) {
-          if (!ref || isGeneric(ref)) continue;
-          const norm = ref.trim().toLowerCase();
-          const match = users.find((u: any) =>
-            u.id?.toLowerCase() === norm ||
-            u.auth_user_id?.toLowerCase() === norm ||
-            u.nome_completo?.toLowerCase() === norm ||
-            u.apelido?.toLowerCase() === norm ||
-            u.email?.toLowerCase() === norm
-          );
-          if (match) return match;
+          const normalizedRef = normalizeValue(ref);
+          if (!normalizedRef || isGenericUserLabel(ref)) continue;
+
+          const exactMatch = users.find((user: any) => {
+            const candidates = [
+              user.id,
+              user.auth_user_id,
+              user.nome_completo,
+              user.apelido,
+              user.email,
+              typeof user.email === "string" ? user.email.split("@")[0] : "",
+            ].map((candidate) => normalizeValue(candidate));
+
+            return candidates.includes(normalizedRef);
+          });
+
+          if (exactMatch) return exactMatch;
+
+          const fuzzyMatches = users.filter((user: any) => {
+            const name = normalizeValue(user.nome_completo);
+            const nickname = normalizeValue(user.apelido);
+            return Boolean(
+              normalizedRef.length > 2
+              && ((name && (name.includes(normalizedRef) || normalizedRef.includes(name)))
+                || (nickname && (nickname.includes(normalizedRef) || normalizedRef.includes(nickname))))
+            );
+          });
+
+          if (fuzzyMatches.length === 1) return fuzzyMatches[0];
         }
+
         return null;
       };
 
-      const getName = (u: any) => u?.nome_completo || u?.apelido || "";
-      const getCargo = (u: any) => u?.cargos?.nome || "";
+      const getName = (user: any) => pickHumanLabel(user?.nome_completo, user?.apelido);
+      const getCargo = (user: any) => pickFilled(user?.cargo_nome);
 
-      // Also try auth session id
-      let authUid: string | null = null;
-      try {
-        const { data: sess } = await supabase.auth.getSession();
-        authUid = sess?.session?.user?.id || null;
-      } catch {}
+      const fallbackSellerUser = findUser(clientData?.responsavel_id, snapshot.responsavel_id);
+      const sellerUser = findUser(
+        clientData?.responsavel_id,
+        snapshot.responsavel_id,
+        snapshot.seller_id,
+        snapshot.vendedor_id,
+        clientData?.vendedor,
+        trackingData?.projetista,
+        snapshot.vendedor_nome,
+        snapshot.projetista_nome,
+        snapshot.vendedor,
+        snapshot.projetista,
+        snapshot.seller_name,
+        request.client_seller_name,
+        request.seller_name,
+      ) || fallbackSellerUser;
 
-      // Resolve creator
+      const sellerName = pickHumanLabel(
+        getName(sellerUser),
+        clientData?.vendedor,
+        trackingData?.projetista,
+        snapshot.vendedor_nome,
+        snapshot.projetista_nome,
+        snapshot.vendedor,
+        snapshot.projetista,
+        snapshot.seller_name,
+        request.client_seller_name,
+        request.seller_name,
+        getName(fallbackSellerUser),
+      ) || "—";
+
+      const sellerCargo = pickFilled(
+        getCargo(sellerUser),
+        getCargo(fallbackSellerUser),
+        snapshot.seller_cargo,
+        request.client_seller_cargo,
+        request.seller_cargo,
+      );
+
       const creatorUser = findUser(
         snapshot.created_by_user_id,
         request.created_by,
         snapshot.created_by_user_name,
-        snapshot.responsavel_id,
-      );
+        request.created_by_resolved,
+        clientData?.responsavel_id,
+      ) || sellerUser;
 
-      // Resolve seller
-      const sellerUser = findUser(
-        snapshot.responsavel_id,
-        snapshot.seller_id,
-        snapshot.vendedor,
-        snapshot.projetista,
-        snapshot.seller_name,
-        request.seller_name,
-        request.client_seller_name,
-      ) || creatorUser;
-
-      // Resolve editor
       const editorUser = findUser(
         snapshot.last_edited_by_user_id,
         request.last_edited_by,
         snapshot.last_edited_by_user_name,
+        request.last_edited_by_resolved,
       );
 
-      // Pick best non-generic name from resolved user or pre-enriched fields
-      const pick = (...vals: Array<string | null | undefined>) =>
-        vals.find(v => v && v.trim() && !isGeneric(v)) || "—";
-
       if (active) {
+        setRelatedRecords({ client: clientData || null, tracking: trackingData || null });
         setResolvedNames({
-          creator: pick(getName(creatorUser), request.created_by_resolved, snapshot.created_by_user_name, getName(sellerUser)),
-          creatorCargo: pick(getCargo(creatorUser), request.created_by_cargo, snapshot.created_by_user_cargo, getCargo(sellerUser)),
-          seller: pick(getName(sellerUser), request.client_seller_name, request.seller_name, snapshot.vendedor, snapshot.projetista, getName(creatorUser)),
-          sellerCargo: pick(getCargo(sellerUser), request.client_seller_cargo, request.seller_cargo),
-          editor: pick(getName(editorUser), request.last_edited_by_resolved, snapshot.last_edited_by_user_name),
-          editorCargo: pick(getCargo(editorUser), request.last_edited_by_cargo, snapshot.last_edited_by_user_cargo),
+          creator: pickHumanLabel(
+            getName(creatorUser),
+            request.created_by_resolved,
+            snapshot.created_by_user_name,
+            snapshot.created_by_name,
+            sellerName,
+          ) || "—",
+          creatorCargo: pickFilled(
+            getCargo(creatorUser),
+            snapshot.created_by_user_cargo,
+            request.created_by_cargo,
+            sellerCargo,
+          ),
+          seller: sellerName,
+          sellerCargo,
+          editor: pickHumanLabel(
+            getName(editorUser),
+            request.last_edited_by_resolved,
+            snapshot.last_edited_by_user_name,
+            request.last_edited_by,
+          ),
+          editorCargo: pickFilled(
+            getCargo(editorUser),
+            snapshot.last_edited_by_user_cargo,
+            request.last_edited_by_cargo,
+          ),
         });
       }
     };
 
-    resolve();
+    void resolve();
     return () => { active = false; };
   }, [request]);
 
@@ -387,15 +558,65 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
 
   const statusInfo = STATUS_MAP[request.status] || STATUS_MAP.novo;
   const snapshot = request.client_snapshot || {};
-  const address = request.delivery_address || {};
-  const hasAddress = address.cep || address.street;
+  const clientRecord = relatedRecords.client;
+  const trackingRecord = relatedRecords.tracking;
+  const deliveryAddresses = dedupeAddresses([
+    normalizeAddressEntry(request.delivery_address),
+    ...asArray(snapshot.enderecos_entrega).map(normalizeAddressEntry),
+    normalizeAddressEntry(snapshot.delivery_address),
+    normalizeAddressEntry({
+      cep: snapshot.delivery_address_zip || snapshot.cep_entrega || snapshot.cep,
+      street: snapshot.delivery_address_street || snapshot.endereco_entrega || snapshot.endereco,
+      number: snapshot.delivery_address_number || snapshot.numero_entrega || snapshot.numero,
+      complement: snapshot.delivery_address_complement || snapshot.complemento_entrega || snapshot.complemento,
+      district: snapshot.delivery_address_district || snapshot.bairro_entrega || snapshot.bairro,
+      city: snapshot.delivery_address_city || snapshot.cidade_entrega || snapshot.cidade,
+      state: snapshot.delivery_address_state || snapshot.uf_entrega || snapshot.estado || snapshot.uf,
+    }),
+    normalizeAddressEntry({
+      cep: clientRecord?.delivery_address_zip || clientRecord?.cep_entrega || clientRecord?.cep,
+      street: clientRecord?.delivery_address_street || clientRecord?.endereco_entrega || clientRecord?.endereco,
+      number: clientRecord?.delivery_address_number || clientRecord?.numero_entrega || clientRecord?.numero,
+      complement: clientRecord?.delivery_address_complement || clientRecord?.complemento_entrega || clientRecord?.complemento,
+      district: clientRecord?.delivery_address_district || clientRecord?.bairro_entrega || clientRecord?.bairro,
+      city: clientRecord?.delivery_address_city || clientRecord?.cidade_entrega || clientRecord?.cidade,
+      state: clientRecord?.delivery_address_state || clientRecord?.uf_entrega || clientRecord?.estado || clientRecord?.uf,
+    }),
+  ]);
+  const hasAddress = deliveryAddresses.length > 0;
+  const clientPhone = pickFilled(snapshot.telefone1, snapshot.telefone, clientRecord?.telefone1, clientRecord?.telefone, clientRecord?.celular);
+  const clientEmail = pickFilled(snapshot.email, clientRecord?.email);
+  const clientCpf = pickFilled(snapshot.cpf, clientRecord?.cpf, clientRecord?.cpf_cnpj);
 
-  const creatorName = resolvedNames.creator || request.created_by_resolved || "—";
-  const creatorCargo = resolvedNames.creatorCargo || request.created_by_cargo || "";
-  const editorName = resolvedNames.editor !== "—" ? resolvedNames.editor : null;
-  const editorCargo = resolvedNames.editorCargo || "";
-  const sellerName = resolvedNames.seller || request.client_seller_name || "—";
-  const sellerCargo = resolvedNames.sellerCargo || "";
+  const creatorName = pickHumanLabel(
+    resolvedNames.creator,
+    request.created_by_resolved,
+    snapshot.created_by_user_name,
+    request.created_by,
+    clientRecord?.vendedor,
+    trackingRecord?.projetista,
+  ) || "—";
+  const creatorCargo = pickFilled(resolvedNames.creatorCargo, request.created_by_cargo, snapshot.created_by_user_cargo);
+  const editorName = pickHumanLabel(
+    resolvedNames.editor,
+    request.last_edited_by_resolved,
+    snapshot.last_edited_by_user_name,
+    request.last_edited_by,
+  ) || null;
+  const editorCargo = pickFilled(resolvedNames.editorCargo, request.last_edited_by_cargo, snapshot.last_edited_by_user_cargo);
+  const sellerName = pickHumanLabel(
+    resolvedNames.seller,
+    request.client_seller_name,
+    request.seller_name,
+    clientRecord?.vendedor,
+    trackingRecord?.projetista,
+    snapshot.vendedor_nome,
+    snapshot.projetista_nome,
+    snapshot.vendedor,
+    snapshot.projetista,
+    snapshot.seller_name,
+  ) || "—";
+  const sellerCargo = pickFilled(resolvedNames.sellerCargo, request.client_seller_cargo, request.seller_cargo, snapshot.seller_cargo);
   const storeCode = request.store_code || snapshot.store_code || snapshot.codigo_loja || "—";
   const contractNumber = request.contract_number || snapshot.contract_number || snapshot.numero_contrato || snapshot.numero_orcamento || "";
 
@@ -420,49 +641,100 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    // Build image pages (3 per page)
+    const sellerLabel = `${sellerName}${sellerCargo ? ` (${sellerCargo})` : ""}`;
+    const creatorLabel = `${creatorName}${creatorCargo ? ` (${creatorCargo})` : ""}`;
+    const editorLabel = editorName ? `${editorName}${editorCargo ? ` (${editorCargo})` : ""}` : "";
+    const addressCards = deliveryAddresses.map((entry, index) => {
+      const formatted = formatAddressLines(entry);
+      return `
+        <div class="address-card">
+          <p class="label">Endereço ${deliveryAddresses.length > 1 ? index + 1 : ""}</p>
+          <p class="value">${escapeHtml(formatted.line1 || "—")}</p>
+          ${formatted.line2 ? `<p class="muted">${escapeHtml(formatted.line2)}</p>` : ""}
+          ${formatted.cep ? `<p class="muted">CEP: ${escapeHtml(formatted.cep)}</p>` : ""}
+        </div>
+      `;
+    }).join("");
+
+    const contactSection = `
+      <div class="section">
+        <h3>📞 Contato do Cliente</h3>
+        <div class="grid">
+          <div><p class="label">Nome</p><p class="value">${escapeHtml(request.nome_cliente || "—")}</p></div>
+          ${clientPhone ? `<div><p class="label">Telefone</p><p class="value">${escapeHtml(clientPhone)}</p></div>` : ""}
+          ${clientEmail ? `<div><p class="label">E-mail</p><p class="value">${escapeHtml(clientEmail)}</p></div>` : ""}
+          ${clientCpf ? `<div><p class="label">CPF/CNPJ</p><p class="value">${escapeHtml(clientCpf)}</p></div>` : ""}
+          <div><p class="label">Vendedor / Projetista</p><p class="value">${escapeHtml(sellerLabel || "—")}</p></div>
+        </div>
+      </div>
+    `;
+
+    const deliverySection = hasAddress ? `
+      <div class="section">
+        <h3>📍 Endereços de Entrega</h3>
+        <div class="address-list">${addressCards}</div>
+      </div>
+    ` : "";
+
+    const printHeader = `
+      <div class="header">
+        <div><h2 style="margin:0">📐 Solicitação de Medida</h2><p style="margin:4px 0;font-size:12px;color:#666">${escapeHtml(request.nome_cliente)}</p></div>
+        <div style="text-align:right"><span class="badge">${escapeHtml(`${statusInfo.icon} ${statusInfo.label}`)}</span>
+        ${contractNumber ? `<p style="font-size:11px;margin:4px 0">Nº ${escapeHtml(contractNumber)}</p>` : ""}</div>
+      </div>
+    `;
+
     let imagePages = "";
     for (let i = 0; i < allImageUrls.length; i += 3) {
       const pageImages = allImageUrls.slice(i, i + 3);
-      imagePages += `<div class="page-break"><h3 style="margin:0 0 12px;font-size:14px;color:#333;">📎 Anexos (${i + 1}–${Math.min(i + 3, allImageUrls.length)} de ${allImageUrls.length})</h3><div style="display:flex;flex-direction:column;gap:12px;align-items:center;">`;
+      imagePages += `<section class="print-page">
+        ${printHeader}
+        ${contactSection}
+        ${deliverySection}
+        <div class="section"><h3>📎 Anexos (${i + 1}–${Math.min(i + 3, allImageUrls.length)} de ${allImageUrls.length})</h3><div style="display:flex;flex-direction:column;gap:12px;align-items:center;">`;
       pageImages.forEach(url => {
         imagePages += `<img src="${url}" style="max-width:100%;max-height:280px;border-radius:8px;object-fit:contain;border:1px solid #ddd;" crossorigin="anonymous" />`;
       });
-      imagePages += `</div></div>`;
+      imagePages += `</div></div></section>`;
     }
 
     printWindow.document.write(`
-      <html><head><title>Solicitação - ${request.nome_cliente}</title>
+      <html><head><title>Solicitação - ${escapeHtml(request.nome_cliente)}</title>
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; color: #1a1a1a; }
+        @page { margin: 12mm; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .section { margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+        .print-page { page-break-after: always; padding: 6px 0; }
+        .print-page:last-child { page-break-after: auto; }
+        .section { margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; break-inside: avoid; }
         .section h3 { margin: 0 0 8px; font-size: 14px; color: #333; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .address-list { display: grid; gap: 8px; }
+        .address-card { padding: 8px; border: 1px solid #eee; border-radius: 6px; }
         .label { font-size: 10px; text-transform: uppercase; color: #888; }
         .value { font-size: 13px; font-weight: 500; }
+        .muted { margin: 4px 0 0; font-size: 11px; color: #666; }
         .env { padding: 8px; border: 1px solid #eee; border-radius: 6px; margin: 4px 0; display: flex; justify-content: space-between; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #f0f0f0; }
-        .page-break { page-break-before: always; padding-top: 20px; }
-        @media print { body { padding: 0; } .page-break { page-break-before: always; } }
+        @media print { body { margin: 0; } }
       </style></head><body>
-      <div class="header">
-        <div><h2 style="margin:0">📐 Solicitação de Medida</h2><p style="margin:4px 0;font-size:12px;color:#666">${request.nome_cliente}</p></div>
-        <div style="text-align:right"><span class="badge">${statusInfo.icon} ${statusInfo.label}</span>
-        ${contractNumber ? `<p style="font-size:11px;margin:4px 0">Nº ${contractNumber}</p>` : ""}</div>
-      </div>
-      <div class="section"><h3>👤 Criado por</h3><p class="value">${creatorName}${creatorCargo ? ` (${creatorCargo})` : ""}</p><p class="label">${format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p></div>
-      ${editorName ? `<div class="section"><h3>✏️ Editado por</h3><p class="value">${editorName}${editorCargo ? ` (${editorCargo})` : ""}</p></div>` : ""}
-      <div class="section"><h3>👤 Cliente</h3><div class="grid">
-        <div><p class="label">Nome</p><p class="value">${request.nome_cliente}</p></div>
-        <div><p class="label">Valor à Vista</p><p class="value" style="color:#16a34a">${formatCurrency(Number(request.valor_venda_avista) || 0)}</p></div>
-        <div><p class="label">Vendedor / Projetista</p><p class="value">${sellerName}${sellerCargo ? ` (${sellerCargo})` : ""}</p></div>
-        <div><p class="label">Código da Loja</p><p class="value">${storeCode}</p></div>
-      </div></div>
-      <div class="section"><h3>📋 Ambientes (${request.ambientes?.length || 0})</h3>
-        ${(request.ambientes || []).map((env: any, i: number) => `<div class="env"><span>${env.name || `Ambiente ${i + 1}`}</span><span style="color:#16a34a;font-weight:bold">${formatCurrency(env.value || 0)}</span></div>`).join("")}
-      </div>
-      ${request.observacoes ? `<div class="section"><h3>📝 Observações</h3><p style="font-size:13px;white-space:pre-wrap">${request.observacoes}</p></div>` : ""}
+      <section class="print-page">
+        ${printHeader}
+        <div class="section"><h3>👤 Criado por</h3><p class="value">${escapeHtml(creatorLabel || "—")}</p><p class="label">${format(new Date(request.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p></div>
+        ${editorName ? `<div class="section"><h3>✏️ Editado por</h3><p class="value">${escapeHtml(editorLabel)}</p>${request.last_edited_at || request.updated_at ? `<p class="label">${format(new Date(request.last_edited_at || request.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>` : ""}</div>` : ""}
+        <div class="section"><h3>👤 Cliente</h3><div class="grid">
+          <div><p class="label">Nome</p><p class="value">${escapeHtml(request.nome_cliente || "—")}</p></div>
+          <div><p class="label">Valor à Vista</p><p class="value" style="color:#16a34a">${formatCurrency(Number(request.valor_venda_avista) || 0)}</p></div>
+          <div><p class="label">Vendedor / Projetista</p><p class="value">${escapeHtml(sellerLabel || "—")}</p></div>
+          <div><p class="label">Código da Loja</p><p class="value">${escapeHtml(storeCode)}</p></div>
+        </div></div>
+        ${contactSection}
+        ${deliverySection}
+        <div class="section"><h3>📋 Ambientes (${request.ambientes?.length || 0})</h3>
+          ${(request.ambientes || []).map((env: any, i: number) => `<div class="env"><span>${escapeHtml(env.name || `Ambiente ${i + 1}`)}</span><span style="color:#16a34a;font-weight:bold">${formatCurrency(env.value || 0)}</span></div>`).join("")}
+        </div>
+        ${request.observacoes ? `<div class="section"><h3>📝 Observações</h3><p style="font-size:13px;white-space:pre-wrap">${escapeHtml(request.observacoes)}</p></div>` : ""}
+      </section>
       ${imagePages}
       </body></html>
     `);
@@ -660,12 +932,19 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
               {hasAddress && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-primary" /> Endereço de Entrega
+                    <MapPin className="h-4 w-4 text-primary" /> Endereços de Entrega
                   </h3>
-                  <div className="bg-muted/30 rounded-lg p-3 border text-sm text-foreground">
-                    <p>{address.street}{address.number ? `, ${address.number}` : ""}{address.complement ? ` - ${address.complement}` : ""}</p>
-                    <p className="text-muted-foreground">{address.district}{address.city ? ` • ${address.city}` : ""}{address.state ? ` - ${address.state}` : ""}</p>
-                    {address.cep && <p className="text-muted-foreground text-xs mt-1">CEP: {address.cep}</p>}
+                  <div className="space-y-2">
+                    {deliveryAddresses.map((entry, index) => {
+                      const formatted = formatAddressLines(entry);
+                      return (
+                        <div key={`${formatted.line1}-${formatted.cep}-${index}`} className="bg-muted/30 rounded-lg p-3 border text-sm text-foreground">
+                          <p>{formatted.line1 || "—"}</p>
+                          {formatted.line2 && <p className="text-muted-foreground">{formatted.line2}</p>}
+                          {formatted.cep && <p className="text-muted-foreground text-xs mt-1">CEP: {formatted.cep}</p>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
