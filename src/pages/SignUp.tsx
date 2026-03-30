@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { provisionNewStore, createUsuarioProfile, checkEmailExists } from "@/lib/accountProvisioning";
 import { sendWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 import { FirstAccessCredentialsCard } from "@/components/auth/FirstAccessCredentialsCard";
+import { ParticleBackground } from "@/components/auth/ParticleBackground";
 import { supabase } from "@/lib/supabaseClient";
 
 interface CreatedAccountState {
