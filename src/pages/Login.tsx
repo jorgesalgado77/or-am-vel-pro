@@ -212,6 +212,7 @@ export default function Login() {
             setTenantInfo({
               nome: r.nome || r.company_name || r.nome_empresa || r.nome_loja,
               subtitulo: r.subtitulo || r.company_subtitle || "",
+              logo_url: r.logo_url || null,
             });
             return;
           }
@@ -228,11 +229,11 @@ export default function Login() {
         if (!cancelled && tenantData?.id) {
           const { data: csData } = await supabase
             .from("company_settings" as unknown as "clients")
-            .select("company_name, nome_empresa, company_subtitle")
+            .select("company_name, nome_empresa, company_subtitle, logo_url")
             .eq("tenant_id", tenantData.id)
             .maybeSingle();
 
-          const cs = csData as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string } | null;
+          const cs = csData as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string; logo_url?: string } | null;
 
           if (!cancelled) {
             const nome = cs?.company_name || cs?.nome_empresa || (tenantData as unknown as { nome_loja: string }).nome_loja;
@@ -240,6 +241,7 @@ export default function Login() {
               setTenantInfo({
                 nome,
                 subtitulo: cs?.company_subtitle || "",
+                logo_url: cs?.logo_url || null,
               });
               return;
             }
@@ -255,16 +257,17 @@ export default function Login() {
         if (!cancelled && tid) {
           const { data: csData3 } = await supabase
             .from("company_settings" as unknown as "clients")
-            .select("company_name, nome_empresa, company_subtitle")
+            .select("company_name, nome_empresa, company_subtitle, logo_url")
             .eq("tenant_id", tid)
             .maybeSingle();
 
-          const cs3 = csData3 as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string } | null;
+          const cs3 = csData3 as unknown as { company_name?: string; nome_empresa?: string; company_subtitle?: string; logo_url?: string } | null;
 
           if (!cancelled) {
             setTenantInfo({
               nome: cs3?.company_name || cs3?.nome_empresa || "Loja",
               subtitulo: cs3?.company_subtitle || "",
+              logo_url: cs3?.logo_url || null,
             });
           }
         } else if (!cancelled) {
