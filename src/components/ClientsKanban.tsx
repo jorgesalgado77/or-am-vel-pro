@@ -116,7 +116,7 @@ export function ClientsKanban({
     });
   }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth]);
 
-  const activeColumns = isAdmin ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
+  const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : isAdmin ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
 
   // Column data
   const columnData = useMemo(() => {
