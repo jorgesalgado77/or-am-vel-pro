@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,26 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return respond({ valid: false, error: "Não autorizado" }, 401);
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return respond({ valid: false, error: "Configuração de autenticação ausente" }, 500);
+    }
+
+    const token = authHeader.replace("Bearer ", "").trim();
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: claimData, error: claimError } = await supabaseAuth.auth.getClaims(token);
+    if (claimError || !claimData?.claims?.sub) {
+      return respond({ valid: false, error: "Sessão inválida. Faça login novamente." }, 401);
+    }
+
     const { provider, credenciais, configuracoes } = await req.json();
 
     if (!provider) {
