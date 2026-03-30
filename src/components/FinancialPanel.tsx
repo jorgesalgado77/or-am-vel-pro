@@ -195,6 +195,10 @@ export function FinancialPanel() {
           <TabsContent value="analise" className="mt-4">
             <FinancialAnalysisTab fin={fin} />
           </TabsContent>
+
+          <TabsContent value="folha-completa" className="mt-4">
+            <PayrollReport onBack={() => {}} />
+          </TabsContent>
         </Suspense>
       </Tabs>
 

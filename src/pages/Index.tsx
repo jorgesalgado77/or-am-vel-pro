@@ -411,7 +411,7 @@ export default function Index() {
               )}
 
               {activeView === "payroll" && (
-                <PayrollReport onBack={() => setActiveView("dashboard")} />
+                <PayrollReport onBack={() => setActiveView("financial")} />
               )}
 
               {activeView === "settings" && <SettingsPanel />}
