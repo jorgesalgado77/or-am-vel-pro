@@ -790,7 +790,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 <Button
                   type="button"
                   size="sm"
-                  className="fixed bottom-20 right-4 z-40 h-10 rounded-full shadow-lg gap-2 md:hidden"
+                  className="fixed bottom-20 right-4 z-40 h-10 w-10 rounded-full shadow-lg p-0 md:hidden"
                   onClick={() => setMobileAiOpen((prev) => !prev)}
                 >
                   <Brain className="h-4 w-4" />
