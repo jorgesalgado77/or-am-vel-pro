@@ -81,9 +81,10 @@ export const DEALROOM_API_CATALOG: DealRoomApiProviderDefinition[] = [
     category: "pagamento",
     description: "Checkout, cobranças e webhooks do Deal Room.",
     fields: [
-      { key: "publishable_key", label: "Publishable Key", placeholder: "pk_live_...", required: true },
-      { key: "secret_key", label: "Secret Key", type: "password", placeholder: "sk_live_...", required: true },
-      { key: "webhook_url", label: "Webhook URL", type: "url", placeholder: "https://...", group: "configuracoes" },
+      { key: "publishable_key", label: "Publishable Key", placeholder: "pk_live_... ou pk_test_...", required: true },
+      { key: "secret_key", label: "Secret Key", type: "password", placeholder: "sk_live_... ou sk_test_...", required: true },
+      { key: "webhook_secret", label: "Webhook Signing Secret", type: "password", placeholder: "whsec_...", required: true },
+      { key: "webhook_url", label: "Webhook URL (auto-gerada)", type: "url", placeholder: "Gerada automaticamente", group: "configuracoes" },
     ],
   },
   {
