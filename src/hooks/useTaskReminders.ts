@@ -99,6 +99,15 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         const updated = payload.new as unknown as Task;
         const today = new Date().toISOString().slice(0, 10);
         
+        // Only process tasks assigned to current user
+        if (updated.responsavel_id !== userId) {
+          // Remove if was previously in our list (reassigned away)
+          setTasks(prev => prev.filter(t => t.id !== updated.id));
+          setOverdueTasks(prev => prev.filter(t => t.id !== updated.id));
+          setActiveReminders(prev => prev.filter(r => r.task.id !== updated.id));
+          return;
+        }
+        
         if (["nova", "pendente", "em_execucao"].includes(updated.status)) {
           setOverdueTasks(prev => {
             const exists = prev.find(t => t.id === updated.id);

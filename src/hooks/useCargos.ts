@@ -24,6 +24,12 @@ export interface CargoPermissoes {
   divulgue_ganhe: boolean;
   mensagens: boolean;
   suporte: boolean;
+  // Additional feature permissions
+  ia_gerente: boolean;
+  catalogo: boolean;
+  medicao: boolean;
+  tutoriais: boolean;
+  email: boolean;
 }
 
 const DEFAULT_PERMISSOES: CargoPermissoes = {
@@ -47,6 +53,11 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   divulgue_ganhe: true,
   mensagens: true,
   suporte: true,
+  ia_gerente: true,
+  catalogo: true,
+  medicao: false,
+  tutoriais: true,
+  email: true,
 };
 
 export interface Cargo {
