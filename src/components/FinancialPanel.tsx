@@ -16,6 +16,7 @@ import { FinancialAccountDialog, type FinancialFormData } from "@/components/fin
 const FinancialPayrollTab = lazy(() => import("@/components/financial/FinancialPayrollTab").then(m => ({ default: m.FinancialPayrollTab })));
 const FinancialForecastTab = lazy(() => import("@/components/financial/FinancialForecastTab").then(m => ({ default: m.FinancialForecastTab })));
 const FinancialAnalysisTab = lazy(() => import("@/components/financial/FinancialAnalysisTab").then(m => ({ default: m.FinancialAnalysisTab })));
+const PayrollReport = lazy(() => import("@/components/PayrollReport").then(m => ({ default: m.PayrollReport })));
 
 const TabLoader = () => (
   <div className="flex items-center justify-center py-12">
