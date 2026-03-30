@@ -3,7 +3,7 @@
  * Shows seller, technician, store, contract and briefing info with proper scroll.
  * Attachment previews resolve Supabase storage paths to working public URLs.
  */
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -14,7 +14,7 @@ import {
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
@@ -184,7 +184,7 @@ function normalizeAttachment(rawAttachment: any, index: number): NormalizedAttac
   return { url, name, kind, thumbnailUrl: thumbnailUrl || undefined };
 }
 
-function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAttachment; onClick: () => void }) {
+const AttachmentPreview = forwardRef<HTMLButtonElement, { attachment: NormalizedAttachment; onClick: () => void }>(function AttachmentPreview({ attachment, onClick }, ref) {
   const [imgError, setImgError] = useState(false);
   const [pdfThumbnailUrl, setPdfThumbnailUrl] = useState(attachment.thumbnailUrl || "");
 
@@ -248,6 +248,7 @@ function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAtta
 
   return (
     <button
+      ref={ref}
       onClick={onClick}
       className="group relative rounded-lg overflow-hidden border bg-background hover:ring-2 hover:ring-primary/50 transition-all aspect-square"
       type="button"
@@ -277,7 +278,7 @@ function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAtta
       </div>
     </button>
   );
-}
+});
 
 export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
@@ -364,6 +365,9 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
                 {statusInfo.icon} {statusInfo.label}
               </Badge>
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Visualize auditoria, cliente, ambientes, anexos e dados completos da solicitação de medida.
+            </DialogDescription>
             <div className="flex items-center gap-2 mt-2">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={handleFullscreen}>
                 <Maximize2 className="h-3 w-3" /> Expandir

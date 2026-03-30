@@ -67,6 +67,19 @@ const COLUMNS = [
   { id: "concluido", label: "Concluído", icon: "✅", color: "hsl(142 71% 45%)" },
 ];
 
+const GENERIC_USER_LABELS = new Set([
+  "",
+  "sistema",
+  "system",
+  "admin",
+  "administrador",
+  "administrator",
+  "usuario",
+  "usuário",
+  "user",
+  "sem nome",
+]);
+
 function normalizeValue(value: string | null | undefined) {
   return String(value || "")
     .normalize("NFD")
@@ -75,6 +88,10 @@ function normalizeValue(value: string | null | undefined) {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+function isGenericUserLabel(value: string | null | undefined) {
+  return GENERIC_USER_LABELS.has(normalizeValue(value));
 }
 
 export function MeasurementKanban() {
@@ -88,11 +105,28 @@ export function MeasurementKanban() {
   const [editingTeto, setEditingTeto] = useState<string | null>(null);
   const [tetoEditValue, setTetoEditValue] = useState("");
 
-  const findUserByReference = useCallback((reference: string | null | undefined) => {
+  const getUserDisplayName = useCallback((user: any) => {
+    if (!user) return "";
+
+    const candidates = [
+      user.nome_completo,
+      user.name,
+      user.full_name,
+      user.profile?.nome_completo,
+      user.profile?.full_name,
+      user.profile?.name,
+      user.apelido,
+      typeof user.email === "string" ? user.email.split("@")[0] : "",
+    ];
+
+    return candidates.find((value) => typeof value === "string" && value.trim() && !isGenericUserLabel(value)) || "";
+  }, []);
+
+  const findUserByReference = useCallback((reference: string | null | undefined, cargoHint?: string | null) => {
     if (!reference) return null;
     const normalized = normalizeValue(reference);
 
-    return usuarios.find((user: any) => {
+    const exactMatch = usuarios.find((user: any) => {
       const authId = normalizeValue(user.auth_user_id);
       const id = normalizeValue(user.id);
       const nome = normalizeValue(user.nome_completo);
@@ -100,7 +134,25 @@ export function MeasurementKanban() {
       const email = normalizeValue(user.email);
       return [id, authId, nome, apelido, email].includes(normalized);
     }) || null;
+
+    if (exactMatch) return exactMatch;
+    if (!isGenericUserLabel(reference)) return null;
+
+    const normalizedCargoHint = normalizeValue(cargoHint);
+    if (!normalizedCargoHint) return null;
+
+    const candidates = usuarios.filter((user: any) => {
+      const cargo = normalizeValue(user.cargo_nome);
+      if (!cargo) return false;
+      return cargo.includes(normalizedCargoHint) || normalizedCargoHint.includes(cargo);
+    });
+
+    return candidates.length === 1 ? candidates[0] : null;
   }, [usuarios]);
+
+  const pickBestHumanLabel = useCallback((...values: Array<string | null | undefined>) => {
+    return values.find((value) => typeof value === "string" && value.trim() && !isGenericUserLabel(value)) || "";
+  }, []);
 
   const fetchRequests = useCallback(async () => {
     const tenantId = getTenantId();
@@ -155,32 +207,32 @@ export function MeasurementKanban() {
         || snapshot.projetista;
 
       const sellerUser = findUserByReference(client?.responsavel_id)
-        || findUserByReference(snapshotSellerRef)
+        || findUserByReference(snapshotSellerRef, snapshot.seller_cargo)
         || findUserByReference(client?.vendedor)
         || findUserByReference(tracking?.projetista)
-        || findUserByReference(request.seller_name)
-        || findUserByReference(request.created_by)
+        || findUserByReference(request.seller_name, request.seller_cargo)
+        || findUserByReference(request.created_by, request.created_by_cargo)
         || null;
 
       const createdByIsSystem = ["sistema", "system"].includes(normalizeValue(request.created_by));
       const createdUser = createdByIsSystem
         ? (
-            findUserByReference(snapshot.created_by_user_id)
-            || findUserByReference(snapshot.created_by_user_name)
+            findUserByReference(snapshot.created_by_user_id, snapshot.created_by_user_cargo)
+            || findUserByReference(snapshot.created_by_user_name, snapshot.created_by_user_cargo)
             || sellerUser
             || findUserByReference(client?.vendedor)
             || findUserByReference(tracking?.projetista)
           )
         : (
-            findUserByReference(snapshot.created_by_user_id)
-            || findUserByReference(snapshot.created_by_user_name)
-            || findUserByReference(request.created_by)
+            findUserByReference(snapshot.created_by_user_id, snapshot.created_by_user_cargo)
+            || findUserByReference(snapshot.created_by_user_name, snapshot.created_by_user_cargo)
+            || findUserByReference(request.created_by, request.created_by_cargo)
             || sellerUser
           );
 
-      const editedUser = findUserByReference(snapshot.last_edited_by_user_id)
-        || findUserByReference(snapshot.last_edited_by_user_name)
-        || findUserByReference(request.last_edited_by);
+      const editedUser = findUserByReference(snapshot.last_edited_by_user_id, snapshot.last_edited_by_user_cargo || request.last_edited_by_cargo)
+        || findUserByReference(snapshot.last_edited_by_user_name, snapshot.last_edited_by_user_cargo || request.last_edited_by_cargo)
+        || findUserByReference(request.last_edited_by, snapshot.last_edited_by_user_cargo || request.last_edited_by_cargo);
       const technicianUser = findUserByReference(request.assigned_to) || findUserByReference(request.technician_name);
 
       const resolvedContractNumber = request.contract_number
@@ -190,27 +242,52 @@ export function MeasurementKanban() {
         || client?.numero_orcamento
         || "";
 
+      const sellerName = pickBestHumanLabel(
+        getUserDisplayName(sellerUser),
+        snapshot.vendedor,
+        snapshot.projetista,
+        snapshot.seller_name,
+        client?.vendedor,
+        tracking?.projetista,
+        request.seller_name,
+      ) || "—";
+
+      const createdByName = pickBestHumanLabel(
+        getUserDisplayName(createdUser),
+        snapshot.created_by_user_name,
+        sellerName,
+        client?.vendedor,
+        tracking?.projetista,
+        request.created_by,
+      ) || "—";
+
+      const editedByName = pickBestHumanLabel(
+        getUserDisplayName(editedUser),
+        snapshot.last_edited_by_user_name,
+        request.last_edited_by,
+      ) || "—";
+
       return {
         ...request,
-        seller_name: sellerUser?.nome_completo || snapshot.vendedor || snapshot.seller_name || client?.vendedor || tracking?.projetista || request.seller_name || "—",
+        seller_name: sellerName,
         seller_cargo: sellerUser?.cargo_nome || snapshot.seller_cargo || request.seller_cargo || "",
-        client_seller_name: sellerUser?.nome_completo || snapshot.vendedor || snapshot.seller_name || client?.vendedor || tracking?.projetista || request.seller_name || "—",
+        client_seller_name: sellerName,
         client_seller_cargo: sellerUser?.cargo_nome || snapshot.seller_cargo || "",
         technician_name: technicianUser?.nome_completo || request.technician_name || request.assigned_to || "",
         store_code: request.store_code || snapshot.store_code || snapshot.codigo_loja || tenantStoreCode || "—",
         contract_number: resolvedContractNumber,
         contract_url: request.contract_url || snapshot.contract_url || "",
         briefing_url: request.briefing_url || snapshot.briefing_url || "",
-        created_by_resolved: createdUser?.nome_completo || snapshot.created_by_user_name || snapshot.vendedor || client?.vendedor || tracking?.projetista || request.created_by || "—",
+        created_by_resolved: createdByName,
         created_by_cargo: createdUser?.cargo_nome || snapshot.created_by_user_cargo || sellerUser?.cargo_nome || snapshot.seller_cargo || request.created_by_cargo || "",
-        last_edited_by_resolved: editedUser?.nome_completo || request.last_edited_by || "",
+        last_edited_by_resolved: editedByName,
         last_edited_by_cargo: editedUser?.cargo_nome || snapshot.last_edited_by_user_cargo || request.last_edited_by_cargo || "",
       } satisfies MeasurementRequest;
     });
 
     setRequests(enrichedRequests);
     setLoading(false);
-  }, [findUserByReference]);
+  }, [findUserByReference, getUserDisplayName, pickBestHumanLabel]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
