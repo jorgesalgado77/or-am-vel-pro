@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { provisionNewStore, createUsuarioProfile, checkEmailExists } from "@/lib/accountProvisioning";
 import { sendWelcomeWhatsApp } from "@/lib/welcomeWhatsApp";
 import { FirstAccessCredentialsCard } from "@/components/auth/FirstAccessCredentialsCard";
+import { ParticleBackground } from "@/components/auth/ParticleBackground";
 import { supabase } from "@/lib/supabaseClient";
 
 interface CreatedAccountState {
@@ -30,86 +31,8 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [createdAccount, setCreatedAccount] = useState<CreatedAccountState | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const isMobile = useMemo(() => typeof window !== "undefined" && window.innerWidth < 768, []);
-  const particleCount = isMobile ? 20 : 60;
-  const connectionDistance = isMobile ? 80 : 120;
 
-  // Particle animation — lightweight for mobile
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animId: number;
-    const particles: { x: number; y: number; vx: number; vy: number; r: number; o: number }[] = [];
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = canvas.offsetWidth * dpr;
-      canvas.height = canvas.offsetHeight * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    for (let i = 0; i < particleCount; i++) {
-      particles.push({
-        x: Math.random() * canvas.offsetWidth,
-        y: Math.random() * canvas.offsetHeight,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        r: Math.random() * 2 + 0.5,
-        o: Math.random() * 0.4 + 0.1,
-      });
-    }
-
-    const draw = () => {
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      ctx.clearRect(0, 0, w, h);
-      for (const p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0) p.x = w;
-        if (p.x > w) p.x = 0;
-        if (p.y < 0) p.y = h;
-        if (p.y > h) p.y = 0;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(199,89%,70%,${p.o})`;
-        ctx.fill();
-      }
-
-      if (!isMobile || particleCount <= 25) {
-        for (let i = 0; i < particles.length; i++) {
-          for (let j = i + 1; j < particles.length; j++) {
-            const dx = particles[i].x - particles[j].x;
-            const dy = particles[i].y - particles[j].y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < connectionDistance) {
-              ctx.beginPath();
-              ctx.moveTo(particles[i].x, particles[i].y);
-              ctx.lineTo(particles[j].x, particles[j].y);
-              ctx.strokeStyle = `hsla(199,89%,60%,${0.08 * (1 - dist / connectionDistance)})`;
-              ctx.lineWidth = 0.5;
-              ctx.stroke();
-            }
-          }
-        }
-      }
-
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener("resize", resize);
-    };
-  }, [particleCount, connectionDistance, isMobile]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,29 +185,8 @@ export default function SignUp() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col lg:flex-row relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(199,89%,15%)] via-[hsl(199,89%,25%)] to-[hsl(222,47%,11%)]" />
-      <canvas ref={canvasRef} className="absolute inset-0 z-[1] w-full h-full" />
+      <ParticleBackground />
 
-      {/* Mesh gradient blobs — hidden on mobile for perf */}
-      {!isMobile && (
-        <div className="absolute inset-0 z-[2] pointer-events-none">
-          <motion.div
-            animate={{ x: [0, 60, -40, 0], y: [0, -50, 30, 0], scale: [1, 1.2, 0.9, 1] }}
-            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[hsl(199,89%,40%/0.18)] rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{ x: [0, -70, 50, 0], y: [0, 40, -60, 0], scale: [1, 0.85, 1.15, 1] }}
-            transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[hsl(160,84%,39%/0.12)] rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{ x: [0, 40, -30, 0], y: [0, -30, 50, 0] }}
-            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[40%] left-[30%] w-[350px] h-[350px] bg-[hsl(260,70%,50%/0.08)] rounded-full blur-3xl"
-          />
-        </div>
-      )}
 
       {/* Left decorative panel — desktop only */}
       <div className="hidden lg:flex lg:w-1/2 relative z-10 items-center justify-center p-12">
