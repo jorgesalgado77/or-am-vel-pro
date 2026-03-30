@@ -87,10 +87,13 @@ export function ClientsKanban({
         baseClients = baseClients.filter(c => measurementStatus[c.id]);
       } else if (isLiberador || isTecnico || isConferente) {
         // Basic technical roles: show only clients with measurement requests assigned to them
-        const userName = currentUser.nome_completo || "";
+        const userName = (currentUser.nome_completo || "").toLowerCase().trim();
+        const userId = currentUser.id;
         baseClients = baseClients.filter(c => {
           const mr = measurementStatus[c.id];
-          return mr && (mr.assigned_to === userName || mr.assigned_to === currentUser.id);
+          if (!mr) return false;
+          const assignedTo = (mr.assigned_to || "").toLowerCase().trim();
+          return assignedTo === userName || assignedTo === userId;
         });
       } else if (!isAdm && !isGerente) {
         const userName = currentUser.nome_completo || currentUser.apelido || "";
