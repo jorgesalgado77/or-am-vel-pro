@@ -293,7 +293,7 @@ export default function Index() {
           {/* Mobile overlay backdrop */}
           {isMobile && mobileMenuOpen && (
             <div
-              className="fixed inset-0 bg-black/50 z-20 transition-opacity"
+              className="fixed inset-0 bg-black/50 z-30 transition-opacity"
               onClick={() => setMobileMenuOpen(false)}
             />
           )}
@@ -325,12 +325,26 @@ export default function Index() {
 
           <main className={cn(
             "flex-1 min-w-0 transition-all duration-300",
-            isMobile ? "ml-[60px] p-3" : sidebarCollapsed ? "ml-[60px] p-6" : "ml-60 p-6"
+            // Mobile: full width, no margin; Desktop: offset by sidebar width
+            isMobile ? "ml-0 p-3 pt-14" : sidebarCollapsed ? "ml-[60px] p-6" : "ml-60 p-6"
           )}>
+            {/* Mobile top bar with hamburger */}
+            {isMobile && (
+              <div className="fixed top-0 left-0 right-0 z-20 h-12 bg-card border-b border-border flex items-center px-3 gap-3">
+                <button
+                  onClick={() => setMobileMenuOpen(prev => !prev)}
+                  className="h-9 w-9 flex items-center justify-center rounded-md hover:bg-secondary text-foreground"
+                  aria-label="Menu"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                </button>
+                <h2 className="text-sm font-semibold text-foreground truncate flex-1">{currentTitle}</h2>
+              </div>
+            )}
             <PlanBanner onNavigateToPlans={() => setActiveView("plans")} />
             <div className="mb-4 md:mb-6">
               <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-                <h2 className="text-base md:text-xl font-semibold text-foreground">{currentTitle}</h2>
+                {!isMobile && <h2 className="text-base md:text-xl font-semibold text-foreground">{currentTitle}</h2>}
                 {settings.codigo_loja && (
                   <span className="text-[10px] md:text-xs font-medium bg-muted text-muted-foreground px-1.5 md:px-2 py-0.5 rounded-md font-mono tabular-nums">
                     Cód. {settings.codigo_loja}
