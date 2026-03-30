@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
 import { sendWhatsAppText } from "@/lib/whatsappSender";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
 
 interface MeasurementRequest {
   id: string;
@@ -289,6 +290,21 @@ export function MeasurementKanban() {
         destinatario: assignedName,
       } as any).then(() => {});
 
+      // Play sound notification
+      playNotificationSound();
+
+      // Send push notification
+      if (assignedUser?.id) {
+        sendPushIfEnabled(
+          "medidas",
+          assignedUser.id,
+          "📐 Nova Solicitação de Medida",
+          `Cliente: ${requestTarget?.nome_cliente || "Cliente"} — Valor: ${formatCurrency(Number(requestTarget?.valor_venda_avista) || 0)}`,
+          `measurement-${id}`,
+        );
+      }
+
+      // Send WhatsApp notification
       if (assignedUser?.telefone) {
         const whatsappMessage = `📐 *Nova Solicitação de Medida*\n\n👤 Cliente: ${requestTarget?.nome_cliente || "Cliente"}\n💰 Valor à vista: ${formatCurrency(Number(requestTarget?.valor_venda_avista) || 0)}\n🏠 Ambientes: ${requestTarget?.ambientes?.length || 0}\n\nVocê foi colocado(a) na fila de atendimento desta solicitação.`;
         sendWhatsAppText(assignedUser.telefone, whatsappMessage).catch(() => {});

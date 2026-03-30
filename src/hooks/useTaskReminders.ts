@@ -47,15 +47,16 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
   const overdueAlertDismissedRef = useRef(false);
   const lastOverdueCheckRef = useRef(0);
 
-  // Fetch ALL incomplete tasks (not just today's with time)
+  // Fetch only tasks assigned to the current user (each user sees only their own)
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !userId) return;
 
     const fetchAllTasks = async () => {
       const { data } = await supabase
         .from("tasks" as any)
         .select("*")
         .eq("tenant_id", tenantId)
+        .eq("responsavel_id", userId)
         .in("status", ["nova", "pendente", "em_execucao"])
         .order("data_tarefa", { ascending: true });
       
@@ -75,7 +76,7 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
     fetchAllTasks();
     const interval = setInterval(fetchAllTasks, 60_000);
     return () => clearInterval(interval);
-  }, [tenantId]);
+  }, [tenantId, userId]);
 
   // Realtime
   useEffect(() => {
@@ -97,6 +98,15 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         }
         const updated = payload.new as unknown as Task;
         const today = new Date().toISOString().slice(0, 10);
+        
+        // Only process tasks assigned to current user
+        if (updated.responsavel_id !== userId) {
+          // Remove if was previously in our list (reassigned away)
+          setTasks(prev => prev.filter(t => t.id !== updated.id));
+          setOverdueTasks(prev => prev.filter(t => t.id !== updated.id));
+          setActiveReminders(prev => prev.filter(r => r.task.id !== updated.id));
+          return;
+        }
         
         if (["nova", "pendente", "em_execucao"].includes(updated.status)) {
           setOverdueTasks(prev => {

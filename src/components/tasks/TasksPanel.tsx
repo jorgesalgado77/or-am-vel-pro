@@ -20,10 +20,11 @@ interface Props {
   tenantId: string | null;
   userId?: string;
   userName?: string;
+  cargoNome?: string;
 }
 
-export function TasksPanel({ tenantId, userId, userName }: Props) {
-  const { tasks, loading, createTask, updateTaskStatus, updateTask, deleteTask } = useTasks(tenantId, userId);
+export function TasksPanel({ tenantId, userId, userName, cargoNome }: Props) {
+  const { tasks, loading, createTask, updateTaskStatus, updateTask, deleteTask } = useTasks(tenantId, userId, cargoNome);
   const { usuarios } = useUsuarios();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);

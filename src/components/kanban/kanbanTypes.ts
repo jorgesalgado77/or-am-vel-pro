@@ -41,6 +41,15 @@ export const KANBAN_COLUMNS_OPERACIONAL = [
   { id: "finalizado", label: "Finalizado", color: "hsl(142 71% 35%)", icon: "🏁" },
 ];
 
+// Columns for technical roles (técnico, liberador, conferente)
+export const KANBAN_COLUMNS_TECNICO = [
+  { id: "nova_solicitacao", label: "Nova Solicitação", color: "hsl(215 80% 55%)", icon: "📋" },
+  { id: "em_medicao", label: "Em Medição", color: "hsl(270 70% 55%)", icon: "📐" },
+  { id: "em_liberado", label: "Em Liberação", color: "hsl(30 80% 50%)", icon: "✔️" },
+  { id: "negativos", label: "Negativos", color: "hsl(0 72% 51%)", icon: "❌" },
+  { id: "enviado_compras", label: "Enviado Compras", color: "hsl(142 71% 45%)", icon: "🛒" },
+];
+
 export const KANBAN_COLUMNS = [...KANBAN_COLUMNS_COMERCIAL];
 
-export const KANBAN_ALL_COLUMNS = [...KANBAN_COLUMNS_COMERCIAL, ...KANBAN_COLUMNS_OPERACIONAL];
+export const KANBAN_ALL_COLUMNS = [...KANBAN_COLUMNS_COMERCIAL, ...KANBAN_COLUMNS_OPERACIONAL, ...KANBAN_COLUMNS_TECNICO];

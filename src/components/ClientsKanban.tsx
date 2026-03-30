@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  KANBAN_COLUMNS, KANBAN_ALL_COLUMNS, KANBAN_COLUMNS_COMERCIAL, KANBAN_COLUMNS_OPERACIONAL,
+  KANBAN_COLUMNS, KANBAN_ALL_COLUMNS, KANBAN_COLUMNS_COMERCIAL, KANBAN_COLUMNS_OPERACIONAL, KANBAN_COLUMNS_TECNICO,
   type Client, type ClientsKanbanProps,
 } from "./kanban/kanbanTypes";
 import { KanbanFilters } from "./kanban/KanbanFilters";
@@ -43,6 +43,7 @@ export function ClientsKanban({
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
   const isAdmin = cargoNome.includes("administrador");
+  const isTechnicalRole = cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente");
 
   const indicadorMap = useMemo(() => {
     const map: Record<string, { nome: string; comissao: number }> = {};
@@ -74,14 +75,15 @@ export function ClientsKanban({
       const isAdm = cargoNome.includes("administrador");
       const isGerente = cargoNome.includes("gerente");
       const isLiberador = cargoNome.includes("liberador");
-      if (isLiberador) {
-        const [lYear, lMonth] = liberadorMonth.split("-").map(Number);
-        const lMonthStart = new Date(lYear, lMonth - 1, 1);
-        const lMonthEnd = endOfDay(new Date(lYear, lMonth, 0));
+      const isTecnico = cargoNome.includes("tecnico") || cargoNome.includes("técnico");
+      const isConferente = cargoNome.includes("conferente");
+      
+      if (isLiberador || isTecnico || isConferente) {
+        // Technical roles: show only clients that have measurement requests assigned to them
+        const userName = currentUser.nome_completo || "";
         baseClients = baseClients.filter(c => {
-          if ((c as any).status !== "fechado") return false;
-          const updatedAt = new Date(c.updated_at);
-          return !isBefore(updatedAt, lMonthStart) && !isAfter(updatedAt, lMonthEnd);
+          const mr = measurementStatus[c.id];
+          return mr && (mr.assigned_to === userName || mr.assigned_to === currentUser.id);
         });
       } else if (!isAdm && !isGerente) {
         const userName = currentUser.nome_completo || currentUser.apelido || "";
@@ -113,40 +115,67 @@ export function ClientsKanban({
       }
       return true;
     });
-  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus]);
 
-  const activeColumns = isAdmin ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
+  const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : isAdmin ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
 
   // Column data
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
     activeColumns.forEach(col => { map[col.id] = []; });
+    
     filtered.forEach(client => {
       let status = (client as any).status || "novo";
-      if (status === "proposta_enviada") status = "em_negociacao";
-      if (status === "novo" && client.vendedor) status = "em_negociacao";
-      if (contractClientIds.has(client.id)) {
-        const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
-        if (!operationalIds.includes(status)) status = "fechado";
+      
+      if (isTechnicalRole) {
+        // For technical roles, map statuses to their specific columns
+        const mr = measurementStatus[client.id];
+        if (mr) {
+          if (mr.status === "negative" || mr.status === "negativos") {
+            status = "negativos";
+          } else if (mr.status === "enviado_compras") {
+            status = "enviado_compras";
+          } else if (mr.assigned_to) {
+            status = "em_liberado";
+          } else if (status === "em_medicao" || status === "fechado") {
+            status = "em_medicao";
+          } else {
+            status = "nova_solicitacao";
+          }
+        } else {
+          status = "nova_solicitacao";
+        }
+      } else {
+        // Standard flow for non-technical roles
+        if (status === "proposta_enviada") status = "em_negociacao";
+        if (status === "novo" && client.vendedor) status = "em_negociacao";
+        if (contractClientIds.has(client.id)) {
+          const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
+          if (!operationalIds.includes(status)) status = "fechado";
+        }
+        const mr = measurementStatus[client.id];
+        if (mr) {
+          if (status === "fechado") status = "em_medicao";
+          else if (status === "em_medicao" && mr.assigned_to) status = "em_liberado";
+        }
+        const sim = lastSims[client.id];
+        if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado" && !KANBAN_COLUMNS_OPERACIONAL.some(c => c.id === status)) {
+          if (isPast(addDays(new Date(sim.created_at), settings.budget_validity_days))) status = "expirado";
+        }
       }
-      const mr = measurementStatus[client.id];
-      if (mr) {
-        if (status === "fechado") status = "em_medicao";
-        else if (status === "em_medicao" && mr.assigned_to) status = "em_liberado";
-      }
-      const sim = lastSims[client.id];
-      if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado" && !KANBAN_COLUMNS_OPERACIONAL.some(c => c.id === status)) {
-        if (isPast(addDays(new Date(sim.created_at), settings.budget_validity_days))) status = "expirado";
-      }
+      
       const resolved = ((client as any).status === status ? client : { ...client, status }) as Client;
       if (map[status]) map[status].push(resolved);
-      else map["novo"].push({ ...resolved, status: "novo" } as Client);
+      else {
+        const fallbackCol = isTechnicalRole ? "nova_solicitacao" : "novo";
+        if (map[fallbackCol]) map[fallbackCol].push({ ...resolved, status: fallbackCol } as Client);
+      }
     });
     Object.keys(map).forEach(key => {
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns, isTechnicalRole]);
 
   // Drag and drop
   const handleDragEnd = useCallback(async (result: DropResult) => {
@@ -222,42 +251,36 @@ export function ClientsKanban({
               }}
             >
               <div className="inline-flex min-w-max gap-2 sm:gap-3 px-1 pb-1" style={{ transform: "scaleY(-1)" }}>
-                {isAdmin && (
-                  <button
-                    onClick={() => setComercialExpanded(prev => !prev)}
-                    className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group"
-                  >
-                    <ChevronRight className={cn("h-3.5 w-3.5 text-primary/70 transition-transform duration-200", comercialExpanded && "rotate-90")} />
-                    <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Comercial</span>
-                  </button>
-                )}
-                {(!isAdmin || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => (
-                  <KanbanColumn
-                    key={col.id}
-                    col={col}
-                    clients={columnData[col.id] || []}
-                    lastSims={lastSims}
-                    budgetValidityDays={settings.budget_validity_days}
-                    cargoNome={cargoNome}
-                    tenantId={tenantId || ""}
-                    followUpStatus={followUpStatus}
-                    measurementStatus={measurementStatus}
-                    canDelete={canDelete}
-                    onClientClick={setExpandedClient}
-                    onDelete={onDelete}
-                  />
-                ))}
-
-                {isAdmin && (
+                {isTechnicalRole ? (
+                  /* Technical roles see flat columns without sections */
+                  KANBAN_COLUMNS_TECNICO.map(col => (
+                    <KanbanColumn
+                      key={col.id}
+                      col={col}
+                      clients={columnData[col.id] || []}
+                      lastSims={lastSims}
+                      budgetValidityDays={settings.budget_validity_days}
+                      cargoNome={cargoNome}
+                      tenantId={tenantId || ""}
+                      followUpStatus={followUpStatus}
+                      measurementStatus={measurementStatus}
+                      canDelete={canDelete}
+                      onClientClick={setExpandedClient}
+                      onDelete={onDelete}
+                    />
+                  ))
+                ) : (
                   <>
-                    <button
-                      onClick={() => setOperacionalExpanded(prev => !prev)}
-                      className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group border-l border-border/60 ml-1"
-                    >
-                      <ChevronRight className={cn("h-3.5 w-3.5 text-accent-foreground/70 transition-transform duration-200", operacionalExpanded && "rotate-90")} />
-                      <span className="text-[10px] font-bold text-accent-foreground/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Operacional</span>
-                    </button>
-                    {operacionalExpanded && KANBAN_COLUMNS_OPERACIONAL.map(col => (
+                    {isAdmin && (
+                      <button
+                        onClick={() => setComercialExpanded(prev => !prev)}
+                        className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group"
+                      >
+                        <ChevronRight className={cn("h-3.5 w-3.5 text-primary/70 transition-transform duration-200", comercialExpanded && "rotate-90")} />
+                        <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Comercial</span>
+                      </button>
+                    )}
+                    {(!isAdmin || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => (
                       <KanbanColumn
                         key={col.id}
                         col={col}
@@ -273,6 +296,34 @@ export function ClientsKanban({
                         onDelete={onDelete}
                       />
                     ))}
+
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => setOperacionalExpanded(prev => !prev)}
+                          className="flex items-center self-start gap-1 cursor-pointer hover:bg-muted/50 rounded-md px-1 py-2 transition-colors group border-l border-border/60 ml-1"
+                        >
+                          <ChevronRight className={cn("h-3.5 w-3.5 text-accent-foreground/70 transition-transform duration-200", operacionalExpanded && "rotate-90")} />
+                          <span className="text-[10px] font-bold text-accent-foreground/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Operacional</span>
+                        </button>
+                        {operacionalExpanded && KANBAN_COLUMNS_OPERACIONAL.map(col => (
+                          <KanbanColumn
+                            key={col.id}
+                            col={col}
+                            clients={columnData[col.id] || []}
+                            lastSims={lastSims}
+                            budgetValidityDays={settings.budget_validity_days}
+                            cargoNome={cargoNome}
+                            tenantId={tenantId || ""}
+                            followUpStatus={followUpStatus}
+                            measurementStatus={measurementStatus}
+                            canDelete={canDelete}
+                            onClientClick={setExpandedClient}
+                            onDelete={onDelete}
+                          />
+                        ))}
+                      </>
+                    )}
                   </>
                 )}
               </div>

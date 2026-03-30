@@ -4,21 +4,28 @@ import type { Task, TaskStatus } from "@/components/tasks/taskTypes";
 import { playNotificationSound } from "@/lib/notificationSound";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
 
-export function useTasks(tenantId: string | null, userId: string | undefined) {
+export function useTasks(tenantId: string | null, userId: string | undefined, cargoNome?: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const isAdminOrManager = cargoNome?.includes("administrador") || cargoNome?.includes("gerente");
 
   const fetchTasks = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("tasks" as any)
       .select("*")
       .eq("tenant_id", tenantId)
       .order("data_tarefa", { ascending: true });
+    // Non-admin/gerente users only see their own tasks
+    if (!isAdminOrManager && userId) {
+      query = query.eq("responsavel_id", userId);
+    }
+    const { data } = await query;
     if (data) setTasks(data as unknown as Task[]);
     setLoading(false);
-  }, [tenantId]);
+  }, [tenantId, userId, isAdminOrManager]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
