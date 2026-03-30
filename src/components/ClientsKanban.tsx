@@ -13,6 +13,7 @@ import { KanbanFilters } from "./kanban/KanbanFilters";
 import { KanbanColumn } from "./kanban/KanbanColumn";
 import { KanbanClientDialog } from "./kanban/KanbanClientDialog";
 import { KanbanLiberadorPanel } from "./kanban/KanbanLiberadorPanel";
+import { KanbanSkeleton } from "./kanban/KanbanSkeleton";
 import { useKanbanData } from "@/hooks/useKanbanData";
 
 export function ClientsKanban({
@@ -207,7 +208,7 @@ export function ClientsKanban({
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">Carregando...</div>
+        <KanbanSkeleton />
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex-1 min-h-0 min-w-0">
