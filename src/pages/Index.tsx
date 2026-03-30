@@ -456,7 +456,7 @@ export default function Index() {
               )}
 
               {activeView === "tasks" && (
-                <TasksPanel tenantId={authUser?.tenant_id || null} userId={authUser?.id} userName={authUser?.nome_completo || authUser?.apelido || ""} />
+                <TasksPanel tenantId={authUser?.tenant_id || null} userId={authUser?.id} userName={authUser?.nome_completo || authUser?.apelido || ""} cargoNome={authUser?.cargo_nome?.toLowerCase() || ""} />
               )}
 
               {activeView === "measurements" && <MeasurementKanban />}
