@@ -200,16 +200,25 @@ export function useKanbanData(externalClients: Client[]) {
     const channel = supabase
       .channel("kanban-measurement-sync")
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "measurement_requests", filter: `tenant_id=eq.${tenantId}` }, (payload: any) => {
-        // Alert technical users when a new request is assigned to them
         if (isTechnical && currentUser && (payload.eventType === "INSERT" || payload.eventType === "UPDATE")) {
           const newData = payload.new;
           const oldData = payload.old;
-          const userName = currentUser.nome_completo;
-          const isAssignedToMe = newData?.assigned_to === userName || newData?.assigned_to === currentUser.id;
-          const wasAssignedToMe = oldData?.assigned_to === userName || oldData?.assigned_to === currentUser.id;
-          if (isAssignedToMe && !wasAssignedToMe) {
+
+          // Gerente Técnico: alert on ALL new measurement requests (INSERT)
+          if (isGerenteTecnico && payload.eventType === "INSERT") {
             playNotificationSound();
-            toast.info("📐 Nova solicitação de medida recebida!", { description: `Uma nova solicitação foi atribuída a você.`, duration: 8000 });
+            toast.info("📐 Nova solicitação de medida recebida!", { description: "Uma nova solicitação chegou para atribuição.", duration: 8000 });
+          }
+
+          // Basic technical roles: alert when assigned to them
+          if (isBasicTechnical) {
+            const userName = currentUser.nome_completo;
+            const isAssignedToMe = newData?.assigned_to === userName || newData?.assigned_to === currentUser.id;
+            const wasAssignedToMe = oldData?.assigned_to === userName || oldData?.assigned_to === currentUser.id;
+            if (isAssignedToMe && !wasAssignedToMe) {
+              playNotificationSound();
+              toast.info("📐 Nova solicitação de medida recebida!", { description: "Uma nova solicitação foi atribuída a você.", duration: 8000 });
+            }
           }
         }
         fetchMeasurements();
