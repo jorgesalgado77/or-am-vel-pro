@@ -14,6 +14,7 @@ import { KanbanColumn } from "./kanban/KanbanColumn";
 const KanbanClientDialog = lazy(() => import("./kanban/KanbanClientDialog").then(m => ({ default: m.KanbanClientDialog })));
 import { KanbanLiberadorPanel } from "./kanban/KanbanLiberadorPanel";
 import { KanbanSkeleton } from "./kanban/KanbanSkeleton";
+import { MeasurementScheduleDialog, type MeasurementScheduleData } from "./kanban/MeasurementScheduleDialog";
 import { useKanbanData } from "@/hooks/useKanbanData";
 
 export function ClientsKanban({
