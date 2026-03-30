@@ -159,6 +159,9 @@ export function FinancialPanel() {
           <TabsTrigger value="analise" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm gap-1.5">
             <Brain className="h-4 w-4" /> Análise
           </TabsTrigger>
+          <TabsTrigger value="folha-completa" className="data-[state=active]:bg-green-500/10 data-[state=active]:text-green-600 data-[state=active]:shadow-sm gap-1.5">
+            <Receipt className="h-4 w-4" /> Folha Completa
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="contas" className="mt-4">
