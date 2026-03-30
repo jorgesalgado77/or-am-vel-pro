@@ -294,7 +294,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     { key: "leads_origem", label: "Leads por Origem" }, { key: "vendedor_leads", label: "Leads por Vendedor" },
   ], []);
 
-  const ChartFallback = <div className="h-[280px] flex items-center justify-center text-muted-foreground text-sm">Carregando gráfico...</div>;
+  // Skeleton fallbacks are now imported from DashboardSkeletons
 
   return (
     <div className="space-y-6">
