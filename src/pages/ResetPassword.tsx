@@ -52,8 +52,8 @@ export default function ResetPassword() {
 
   if (!isRecovery && !success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a1628]">
-        <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none" />
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <ParticleBackground showBlobs={false} />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
