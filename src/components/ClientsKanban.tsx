@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { ChevronRight } from "lucide-react";
 import { addDays, isPast, format, endOfDay, startOfDay, startOfMonth, subMonths, subDays, isAfter, isBefore } from "date-fns";
@@ -11,7 +11,7 @@ import {
 } from "./kanban/kanbanTypes";
 import { KanbanFilters } from "./kanban/KanbanFilters";
 import { KanbanColumn } from "./kanban/KanbanColumn";
-import { KanbanClientDialog } from "./kanban/KanbanClientDialog";
+const KanbanClientDialog = lazy(() => import("./kanban/KanbanClientDialog").then(m => ({ default: m.KanbanClientDialog })));
 import { KanbanLiberadorPanel } from "./kanban/KanbanLiberadorPanel";
 import { KanbanSkeleton } from "./kanban/KanbanSkeleton";
 import { useKanbanData } from "@/hooks/useKanbanData";
@@ -281,23 +281,27 @@ export function ClientsKanban({
         </DragDropContext>
       )}
 
-      <KanbanClientDialog
-        client={expandedClient}
-        onClose={() => setExpandedClient(null)}
-        lastSim={expandedClient ? lastSims[expandedClient.id] : undefined}
-        budgetValidityDays={settings.budget_validity_days}
-        cargoNome={cargoNome}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        indicadorMap={indicadorMap}
-        usuarios={usuarios}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onSimulate={onSimulate}
-        onHistory={onHistory}
-        onContracts={onContracts}
-        onClientUpdate={handleClientUpdate}
-      />
+      {expandedClient && (
+        <Suspense fallback={null}>
+          <KanbanClientDialog
+            client={expandedClient}
+            onClose={() => setExpandedClient(null)}
+            lastSim={lastSims[expandedClient.id]}
+            budgetValidityDays={settings.budget_validity_days}
+            cargoNome={cargoNome}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            indicadorMap={indicadorMap}
+            usuarios={usuarios}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onSimulate={onSimulate}
+            onHistory={onHistory}
+            onContracts={onContracts}
+            onClientUpdate={handleClientUpdate}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
