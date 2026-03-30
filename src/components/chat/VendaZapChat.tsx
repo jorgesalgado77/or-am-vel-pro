@@ -10,19 +10,8 @@ import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { CloseSaleModal } from "@/components/CloseSaleModal";
 import type { CloseSaleData } from "./AICloserBanner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wifi, WifiOff, Loader2, Brain, Phone, Trash2, Merge } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Loader2, Brain, Phone, Merge } from "lucide-react";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
@@ -31,9 +20,10 @@ import { SimulatorMetricsPanel } from "./SimulatorMetricsPanel";
 import { StartConversationModal } from "./StartConversationModal";
 import { ChatRightPanel } from "./ChatRightPanel";
 import { WhatsAppContactsList } from "./WhatsAppContactsList";
+import { useWhatsAppConnectionStatus, WhatsAppStatusTag } from "./useWhatsAppConnection";
+import { VendaZapChatDialogs } from "./VendaZapChatDialogs";
 import type { ChatConversation } from "./types";
 
-type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
 
 function isConversationAssignedToUser(conversation: ChatConversation | null | undefined, userName: string) {
   if (!conversation || !userName) return false;
@@ -42,182 +32,6 @@ function isConversationAssignedToUser(conversation: ChatConversation | null | un
   return [conversation.vendedor_nome, conversation.projetista_nome]
     .filter(Boolean)
     .some((name) => String(name).trim().toLowerCase() === normalizedUserName);
-}
-
-function useWhatsAppConnectionStatus(tenantId: string | null) {
-  const [status, setStatus] = useState<WhatsAppConnectionStatus>("checking");
-  const [provider, setProvider] = useState<string | null>(null);
-  const syncedWebhookRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!tenantId) { setStatus("not_configured"); return; }
-
-    const checkConnection = async () => {
-      setStatus("checking");
-
-      let response = await supabase
-        .from("whatsapp_settings")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .limit(1)
-        .maybeSingle();
-
-      if (response.error?.code === "42703" || response.error?.code === "PGRST204") {
-        response = await supabase
-          .from("whatsapp_settings")
-          .select("*")
-          .limit(1)
-          .maybeSingle();
-      }
-
-      const settings = response.data as any;
-
-      if (!settings || !settings.ativo) {
-        setStatus("not_configured");
-        return;
-      }
-
-      const defaultWebhookUrl = "https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook";
-      if (!settings.zapi_webhook_url || settings.zapi_webhook_url.includes("whatsapp-bot")) {
-        const correctedUrl = (settings.zapi_webhook_url || defaultWebhookUrl).replace("whatsapp-bot", "whatsapp-webhook");
-        settings.zapi_webhook_url = correctedUrl;
-        await supabase
-          .from("whatsapp_settings")
-          .update({ zapi_webhook_url: correctedUrl } as any)
-          .eq("id", settings.id);
-        console.log("[WhatsApp] Auto-corrected webhook URL on chat open:", correctedUrl);
-      }
-
-      setProvider(settings.provider);
-
-      if (settings.provider === "zapi" && settings.zapi_instance_id && settings.zapi_token && settings.zapi_client_token) {
-        try {
-          if (settings.zapi_webhook_url) {
-            const webhookUrl = settings.zapi_webhook_url.includes("whatsapp-bot")
-              ? settings.zapi_webhook_url.replace("whatsapp-bot", "whatsapp-webhook")
-              : settings.zapi_webhook_url;
-            
-            const syncKey = `${settings.zapi_instance_id}:${webhookUrl}`;
-            if (syncedWebhookRef.current !== syncKey) {
-              const headers = {
-                "Content-Type": "application/json",
-                "Client-Token": settings.zapi_client_token,
-                ...(settings.zapi_security_token ? { "Security-Token": settings.zapi_security_token } : {}),
-              };
-
-              const baseUrl = `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}`;
-
-              const [receivedRes, deliveryRes, notifyRes] = await Promise.all([
-                // Incoming messages webhook
-                fetch(`${baseUrl}/update-webhook-received`, {
-                  method: "PUT",
-                  headers,
-                  body: JSON.stringify({ value: webhookUrl }),
-                }),
-                // Delivery receipts webhook
-                fetch(`${baseUrl}/update-webhook-received-delivery`, {
-                  method: "PUT",
-                  headers,
-                  body: JSON.stringify({ value: webhookUrl }),
-                }),
-                // Also mirror outbound messages
-                fetch(`${baseUrl}/update-notify-sent-by-me`, {
-                  method: "PUT",
-                  headers,
-                  body: JSON.stringify({ notifySentByMe: true }),
-                }),
-              ]);
-
-              console.log("[WhatsApp] Webhook sync:", {
-                received: receivedRes.ok,
-                delivery: deliveryRes.ok,
-                notify: notifyRes.ok,
-                url: webhookUrl,
-              });
-
-              if (receivedRes.ok && deliveryRes.ok && notifyRes.ok) {
-                syncedWebhookRef.current = syncKey;
-              }
-            }
-          }
-
-          const res = await fetch(
-            `https://api.z-api.io/instances/${settings.zapi_instance_id}/token/${settings.zapi_token}/status`,
-            {
-              headers: {
-                "Client-Token": settings.zapi_client_token,
-                ...(settings.zapi_security_token ? { "Security-Token": settings.zapi_security_token } : {}),
-              },
-            }
-          );
-          const data = await res.json().catch(() => null);
-          const connected =
-            data?.connected === true ||
-            data?.smartphoneConnected === true ||
-            (typeof data?.error === "string" && data.error.toLowerCase().includes("already connected"));
-          setStatus(connected ? "online" : "offline");
-        } catch {
-          setStatus("offline");
-        }
-      } else if (settings.provider === "evolution" && settings.evolution_api_url && settings.evolution_api_key) {
-        try {
-          const instanceName = settings.evolution_instance_name || "default";
-          const res = await fetch(
-            `${settings.evolution_api_url.replace(/\/$/, "")}/instance/connectionState/${instanceName}`,
-            { headers: { apikey: settings.evolution_api_key } }
-          );
-          const data = await res.json().catch(() => null);
-          const state = data?.instance?.state || data?.state || "";
-          setStatus(state === "open" || state === "connected" ? "online" : "offline");
-        } catch {
-          setStatus("offline");
-        }
-      } else {
-        setStatus("not_configured");
-      }
-    };
-
-    checkConnection();
-    const interval = setInterval(checkConnection, 60000);
-    return () => clearInterval(interval);
-  }, [tenantId]);
-
-  return { status, provider };
-}
-
-function WhatsAppStatusTag({ status, provider }: { status: WhatsAppConnectionStatus; provider: string | null }) {
-  if (status === "checking") {
-    return (
-      <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 border-muted-foreground/30 text-muted-foreground animate-pulse">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        Verificando...
-      </Badge>
-    );
-  }
-  if (status === "online") {
-    const label = provider === "zapi" ? "Z-API Online" : provider === "evolution" ? "Evolution Online" : "WhatsApp Online";
-    return (
-      <Badge className="gap-1.5 text-[10px] px-2 py-0.5 bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 hover:bg-emerald-500/20">
-        <Wifi className="h-3 w-3" />
-        {label}
-      </Badge>
-    );
-  }
-  if (status === "offline") {
-    const label = provider === "zapi" ? "Z-API Offline" : provider === "evolution" ? "Evolution Offline" : "WhatsApp Offline";
-    return (
-      <Badge variant="destructive" className="gap-1.5 text-[10px] px-2 py-0.5">
-        <WifiOff className="h-3 w-3" />
-        {label}
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="gap-1.5 text-[10px] px-2 py-0.5 text-muted-foreground">
-      <WifiOff className="h-3 w-3" />
-      Não configurado
-    </Badge>
-  );
 }
 
 interface Props {
@@ -1171,74 +985,20 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
         }}
       />
 
-      {/* Lead Creation Confirmation Dialog */}
-      <AlertDialog open={!!pendingLeadConv} onOpenChange={(open) => !open && setPendingLeadConv(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Criar novo lead?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deseja criar um novo lead para <strong>{pendingLeadConv?.nome_cliente}</strong>?
-              {pendingLeadConv?.phone && <> (Tel: {pendingLeadConv.phone})</>}
-              <br />
-              O lead será adicionado na coluna <strong>&quot;Novo&quot;</strong> com origem <strong>&quot;CHAT DE VENDAS&quot;</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCreateLead}>Criar Lead</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Conversation Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-              <Trash2 className="h-5 w-5" />
-              Excluir conversa permanentemente?
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>
-                  Tem certeza que deseja excluir a conversa com <strong className="text-foreground">{deleteTarget?.nome_cliente}</strong>?
-                </p>
-                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 space-y-1.5">
-                  <p className="text-xs font-medium text-destructive">⚠️ Esta ação é irreversível:</p>
-                  <ul className="text-xs text-muted-foreground space-y-0.5 list-disc pl-4">
-                    <li>Todas as mensagens serão apagadas</li>
-                    <li>O registro de acompanhamento será removido</li>
-                    <li>Não será possível recuperar o histórico</li>
-                  </ul>
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? (
-                <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Excluindo...</>
-              ) : (
-                "Excluir permanentemente"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Close Sale Modal — triggered by AI Closer Banner */}
-      <CloseSaleModal
-        open={closeSaleOpen}
-        onClose={() => setCloseSaleOpen(false)}
-        onConfirm={handleCloseSaleConfirm as any}
-        client={closeSaleClient}
-        simulationData={closeSaleSimData}
-        saving={closeSaleSaving}
+      <VendaZapChatDialogs
+        pendingLeadConv={pendingLeadConv}
+        setPendingLeadConv={setPendingLeadConv}
+        onCreateLead={handleCreateLead}
+        deleteTarget={deleteTarget}
+        setDeleteTarget={setDeleteTarget}
+        confirmDelete={confirmDelete}
+        deleting={deleting}
+        closeSaleOpen={closeSaleOpen}
+        setCloseSaleOpen={setCloseSaleOpen}
+        closeSaleClient={closeSaleClient}
+        closeSaleSimData={closeSaleSimData}
+        closeSaleSaving={closeSaleSaving}
+        onCloseSaleConfirm={handleCloseSaleConfirm as any}
       />
       </div>
     </div>
