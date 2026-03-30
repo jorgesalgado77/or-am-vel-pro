@@ -26,6 +26,8 @@ import type { ChatConversation } from "./types";
 
 type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
 
+type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
+
 function isConversationAssignedToUser(conversation: ChatConversation | null | undefined, userName: string) {
   if (!conversation || !userName) return false;
 
