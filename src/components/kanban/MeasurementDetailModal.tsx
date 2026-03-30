@@ -2,6 +2,7 @@
  * Modal to view full measurement request details including all data and attachments.
  * Shows seller, technician, store, contract and briefing info with proper scroll.
  * Attachment previews resolve Supabase storage paths to working public URLs.
+ * Direct DB lookups resolve creator/seller names from usuarios table.
  */
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import { forwardRef, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 
 interface MeasurementRequest {
   id: string;
@@ -283,6 +285,103 @@ const AttachmentPreview = forwardRef<HTMLButtonElement, { attachment: Normalized
 export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [resolvedNames, setResolvedNames] = useState<{
+    creator: string; creatorCargo: string; seller: string; sellerCargo: string;
+    editor: string; editorCargo: string;
+  }>({ creator: "", creatorCargo: "", seller: "", sellerCargo: "", editor: "", editorCargo: "" });
+
+  // Direct DB lookup for names - runs when request changes
+  useEffect(() => {
+    if (!request) return;
+    let active = true;
+
+    const GENERIC = new Set(["", "sistema", "system", "admin", "administrador", "usuario", "usuário", "sem nome", "—"]);
+    const isGeneric = (v: string | null | undefined) => GENERIC.has((v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s*\([^)]*\)\s*$/g, "").trim().toLowerCase());
+
+    const resolve = async () => {
+      const tenantId = getTenantId();
+      if (!tenantId) return;
+      const snapshot = request.client_snapshot || {};
+
+      // Fetch all tenant users once
+      const { data: users } = await supabase
+        .from("usuarios")
+        .select("id, auth_user_id, nome_completo, apelido, email, cargo_id, cargos(nome)")
+        .eq("tenant_id", tenantId) as any;
+
+      if (!active || !users?.length) return;
+
+      const findUser = (...refs: Array<string | null | undefined>) => {
+        for (const ref of refs) {
+          if (!ref || isGeneric(ref)) continue;
+          const norm = ref.trim().toLowerCase();
+          const match = users.find((u: any) =>
+            u.id?.toLowerCase() === norm ||
+            u.auth_user_id?.toLowerCase() === norm ||
+            u.nome_completo?.toLowerCase() === norm ||
+            u.apelido?.toLowerCase() === norm ||
+            u.email?.toLowerCase() === norm
+          );
+          if (match) return match;
+        }
+        return null;
+      };
+
+      const getName = (u: any) => u?.nome_completo || u?.apelido || "";
+      const getCargo = (u: any) => u?.cargos?.nome || "";
+
+      // Also try auth session id
+      let authUid: string | null = null;
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        authUid = sess?.session?.user?.id || null;
+      } catch {}
+
+      // Resolve creator
+      const creatorUser = findUser(
+        snapshot.created_by_user_id,
+        request.created_by,
+        snapshot.created_by_user_name,
+        snapshot.responsavel_id,
+      );
+
+      // Resolve seller
+      const sellerUser = findUser(
+        snapshot.responsavel_id,
+        snapshot.seller_id,
+        snapshot.vendedor,
+        snapshot.projetista,
+        snapshot.seller_name,
+        request.seller_name,
+        request.client_seller_name,
+      ) || creatorUser;
+
+      // Resolve editor
+      const editorUser = findUser(
+        snapshot.last_edited_by_user_id,
+        request.last_edited_by,
+        snapshot.last_edited_by_user_name,
+      );
+
+      // Pick best non-generic name from resolved user or pre-enriched fields
+      const pick = (...vals: Array<string | null | undefined>) =>
+        vals.find(v => v && v.trim() && !isGeneric(v)) || "—";
+
+      if (active) {
+        setResolvedNames({
+          creator: pick(getName(creatorUser), request.created_by_resolved, snapshot.created_by_user_name, getName(sellerUser)),
+          creatorCargo: pick(getCargo(creatorUser), request.created_by_cargo, snapshot.created_by_user_cargo, getCargo(sellerUser)),
+          seller: pick(getName(sellerUser), request.client_seller_name, request.seller_name, snapshot.vendedor, snapshot.projetista, getName(creatorUser)),
+          sellerCargo: pick(getCargo(sellerUser), request.client_seller_cargo, request.seller_cargo),
+          editor: pick(getName(editorUser), request.last_edited_by_resolved, snapshot.last_edited_by_user_name),
+          editorCargo: pick(getCargo(editorUser), request.last_edited_by_cargo, snapshot.last_edited_by_user_cargo),
+        });
+      }
+    };
+
+    resolve();
+    return () => { active = false; };
+  }, [request]);
 
   if (!request) return null;
 
@@ -291,20 +390,47 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
   const address = request.delivery_address || {};
   const hasAddress = address.cep || address.street;
 
-  const creatorName = request.created_by_resolved || request.client_seller_name || request.seller_name || request.created_by || "—";
-  const creatorCargo = request.created_by_cargo || request.client_seller_cargo || request.seller_cargo || "";
-  const editorName = request.last_edited_by_resolved || request.last_edited_by || null;
-  const editorCargo = request.last_edited_by_cargo || "";
-  const sellerName = request.client_seller_name || request.seller_name || snapshot.vendedor || "—";
-  const sellerCargo = request.client_seller_cargo || request.seller_cargo || "";
+  const creatorName = resolvedNames.creator || request.created_by_resolved || "—";
+  const creatorCargo = resolvedNames.creatorCargo || request.created_by_cargo || "";
+  const editorName = resolvedNames.editor !== "—" ? resolvedNames.editor : null;
+  const editorCargo = resolvedNames.editorCargo || "";
+  const sellerName = resolvedNames.seller || request.client_seller_name || "—";
+  const sellerCargo = resolvedNames.sellerCargo || "";
   const storeCode = request.store_code || snapshot.store_code || snapshot.codigo_loja || "—";
   const contractNumber = request.contract_number || snapshot.contract_number || snapshot.numero_contrato || snapshot.numero_orcamento || "";
+
+  // Collect all attachment image URLs for print pages
+  const allImageUrls: string[] = [];
+  (request.ambientes || []).forEach((env: any) => {
+    const atts = env.attachments || env.images || [];
+    atts.forEach((att: any) => {
+      const url = resolveAttachmentUrl(att);
+      if (!url) return;
+      const name = typeof att === "object" ? (att.name || att.file_name || "") : "";
+      const mime = typeof att === "object" ? (att.type || att.mimeType || att.mime_type || "") : "";
+      if (isImageFile(url, name, mime)) {
+        allImageUrls.push(url);
+      }
+    });
+  });
 
   const handlePrint = () => {
     const printContent = contentRef.current;
     if (!printContent) return;
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
+
+    // Build image pages (3 per page)
+    let imagePages = "";
+    for (let i = 0; i < allImageUrls.length; i += 3) {
+      const pageImages = allImageUrls.slice(i, i + 3);
+      imagePages += `<div class="page-break"><h3 style="margin:0 0 12px;font-size:14px;color:#333;">📎 Anexos (${i + 1}–${Math.min(i + 3, allImageUrls.length)} de ${allImageUrls.length})</h3><div style="display:flex;flex-direction:column;gap:12px;align-items:center;">`;
+      pageImages.forEach(url => {
+        imagePages += `<img src="${url}" style="max-width:100%;max-height:280px;border-radius:8px;object-fit:contain;border:1px solid #ddd;" crossorigin="anonymous" />`;
+      });
+      imagePages += `</div></div>`;
+    }
+
     printWindow.document.write(`
       <html><head><title>Solicitação - ${request.nome_cliente}</title>
       <style>
@@ -317,8 +443,8 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
         .value { font-size: 13px; font-weight: 500; }
         .env { padding: 8px; border: 1px solid #eee; border-radius: 6px; margin: 4px 0; display: flex; justify-content: space-between; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #f0f0f0; }
-        img { max-width: 120px; max-height: 120px; border-radius: 6px; object-fit: cover; margin: 4px; }
-        @media print { body { padding: 0; } }
+        .page-break { page-break-before: always; padding-top: 20px; }
+        @media print { body { padding: 0; } .page-break { page-break-before: always; } }
       </style></head><body>
       <div class="header">
         <div><h2 style="margin:0">📐 Solicitação de Medida</h2><p style="margin:4px 0;font-size:12px;color:#666">${request.nome_cliente}</p></div>
@@ -337,10 +463,22 @@ export function MeasurementDetailModal({ open, onOpenChange, request }: Props) {
         ${(request.ambientes || []).map((env: any, i: number) => `<div class="env"><span>${env.name || `Ambiente ${i + 1}`}</span><span style="color:#16a34a;font-weight:bold">${formatCurrency(env.value || 0)}</span></div>`).join("")}
       </div>
       ${request.observacoes ? `<div class="section"><h3>📝 Observações</h3><p style="font-size:13px;white-space:pre-wrap">${request.observacoes}</p></div>` : ""}
+      ${imagePages}
       </body></html>
     `);
     printWindow.document.close();
-    setTimeout(() => { printWindow.print(); }, 300);
+    // Wait for images to load before printing
+    const images = printWindow.document.querySelectorAll("img");
+    let loaded = 0;
+    const total = images.length;
+    if (total === 0) {
+      setTimeout(() => { printWindow.print(); }, 300);
+    } else {
+      const checkReady = () => { loaded++; if (loaded >= total) setTimeout(() => printWindow.print(), 400); };
+      images.forEach(img => { img.onload = checkReady; img.onerror = checkReady; });
+      // Fallback timeout
+      setTimeout(() => { printWindow.print(); }, 5000);
+    }
   };
 
   const handleFullscreen = () => {
