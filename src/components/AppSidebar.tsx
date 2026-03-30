@@ -139,8 +139,12 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0 overflow-hidden transition-all duration-300 z-30",
-        collapsed ? "w-[60px]" : "w-60",
+        "border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0 overflow-hidden transition-all duration-300",
+        // Mobile: offcanvas overlay; Desktop: static sidebar
+        "max-md:z-40 max-md:shadow-2xl md:z-30",
+        collapsed
+          ? "max-md:-translate-x-full max-md:w-64 md:w-[60px]"
+          : "max-md:w-64 max-md:translate-x-0 md:w-60",
       )}
     >
       {/* Header */}
