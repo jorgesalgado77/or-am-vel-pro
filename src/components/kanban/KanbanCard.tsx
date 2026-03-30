@@ -67,7 +67,8 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
 }
 
 export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, onClick, onQuickDelete }: KanbanCardProps) {
-  const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
+  const isFechado = ((client as any).status || "novo") === "fechado";
+  const expired = sim && !isFechado ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
 
   const clientStatus = (client as any).status || "novo";
