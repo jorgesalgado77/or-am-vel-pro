@@ -169,7 +169,9 @@ export function useKanbanData(externalClients: Client[]) {
   // Fetch measurements + auto-move
   useEffect(() => {
     if (!tenantId || localClients.length === 0) return;
-    const isTechnical = cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente");
+    const isGerenteTecnico = cargoNome.includes("gerente") && (cargoNome.includes("tecnico") || cargoNome.includes("técnico"));
+    const isBasicTechnical = !isGerenteTecnico && (cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente"));
+    const isTechnical = isGerenteTecnico || isBasicTechnical;
     const fetchMeasurements = async () => {
       const currentClients = localClientsRef.current;
       let query = supabase.from("measurement_requests" as any).select("client_id, status, assigned_to").eq("tenant_id", tenantId);
