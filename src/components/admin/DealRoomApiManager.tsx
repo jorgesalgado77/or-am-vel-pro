@@ -216,59 +216,28 @@ export function DealRoomApiManager() {
     setTestResults((prev) => ({ ...prev, [provider]: null }));
 
     try {
-      // Test based on provider type
-      let testUrl = "";
-      let testHeaders: Record<string, string> = {};
+      const { data, error: fnError } = await supabase.functions.invoke("dealroom-api-test", {
+        body: {
+          provider,
+          credenciais: draft.credenciais,
+          configuracoes: draft.configuracoes,
+        },
+      });
 
-      switch (provider) {
-        case "openai":
-          testUrl = "https://api.openai.com/v1/models";
-          testHeaders = { Authorization: `Bearer ${draft.credenciais.api_key}` };
-          break;
-        case "daily":
-          testUrl = "https://api.daily.co/v1/rooms";
-          testHeaders = { Authorization: `Bearer ${draft.credenciais.api_key}` };
-          break;
-        case "stripe":
-          testUrl = "https://api.stripe.com/v1/balance";
-          testHeaders = { Authorization: `Bearer ${draft.credenciais.secret_key}` };
-          break;
-        case "livekit":
-          // LiveKit needs server-side validation; check if URL is reachable
-          if (draft.configuracoes.ws_url) {
-            testUrl = draft.configuracoes.ws_url.replace("wss://", "https://").replace("ws://", "http://");
-          }
-          break;
-        default:
-          // For providers without direct test endpoints, validate fields are filled
-          toast.success(`Campos de ${definition.label} validados com sucesso.`);
-          setTestResults((prev) => ({ ...prev, [provider]: "success" }));
-          setTestingProvider(null);
-          return;
+      if (fnError) {
+        throw fnError;
       }
 
-      if (testUrl) {
-        const { data } = await supabase.functions.invoke("onboarding-ai", {
-          body: {
-            action: "validate_api_key",
-            provider: provider === "stripe" ? "stripe" : provider === "daily" ? "daily" : provider,
-            api_key: draft.credenciais.api_key || draft.credenciais.secret_key || "",
-            api_url: testUrl,
-          },
-        });
-
-        if (data?.valid) {
-          toast.success(`✅ ${definition.label} conectada com sucesso!`);
-          setTestResults((prev) => ({ ...prev, [provider]: "success" }));
-        } else {
-          toast.error(`❌ ${definition.label}: ${data?.error || "Falha na conexão"}`);
-          setTestResults((prev) => ({ ...prev, [provider]: "error" }));
-        }
+      if (data?.valid) {
+        toast.success(`✅ ${definition.label} conectada com sucesso!${data.details ? ` — ${data.details}` : ""}`);
+        setTestResults((prev) => ({ ...prev, [provider]: "success" }));
+      } else {
+        toast.error(`❌ ${definition.label}: ${data?.error || "Falha na conexão"}`);
+        setTestResults((prev) => ({ ...prev, [provider]: "error" }));
       }
     } catch {
-      // Fallback: if edge function is unavailable, do basic field validation
-      toast.success(`Campos de ${definition.label} validados. Teste direto indisponível.`);
-      setTestResults((prev) => ({ ...prev, [provider]: "success" }));
+      toast.error(`❌ Erro ao testar ${definition.label}. Verifique a conexão.`);
+      setTestResults((prev) => ({ ...prev, [provider]: "error" }));
     } finally {
       setTestingProvider(null);
     }
