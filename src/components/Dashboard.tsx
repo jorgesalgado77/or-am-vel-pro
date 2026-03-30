@@ -1,5 +1,4 @@
 import { useMemo, useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { ProfileCompletenessCard } from "@/components/ProfileCompletenessCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,10 +8,6 @@ import {
   Users, Calculator, TrendingUp, UserCheck, AlertTriangle, Eye, EyeOff,
   FileCheck, DollarSign, Megaphone, Share2, UserPlus, Store,
 } from "lucide-react";
-import { DealInsightsWidget } from "@/components/dashboard/DealInsightsWidget";
-import { HighResistanceAlerts } from "@/components/dashboard/HighResistanceAlerts";
-import { CDEUrgencyWidget } from "@/components/dashboard/CDEUrgencyWidget";
-import { AIInsightsWidget } from "@/components/dashboard/AIInsightsWidget";
 import { KpiCard } from "@/components/dashboard/DashboardKpiCard";
 import { DashboardDateFilter } from "@/components/dashboard/DashboardDateFilter";
 import { formatCurrency } from "@/lib/financing";
@@ -40,6 +35,11 @@ const DashboardIndicadorTable = lazy(() => import("@/components/dashboard/Dashbo
 const TopSellingProductsChart = lazy(() => import("@/components/dashboard/TopSellingProductsChart").then(m => ({ default: m.TopSellingProductsChart })));
 const LowStockAlerts = lazy(() => import("@/components/dashboard/LowStockAlerts").then(m => ({ default: m.LowStockAlerts })));
 const ContractTrackingList = lazy(() => import("@/components/dashboard/ContractTrackingList").then(m => ({ default: m.ContractTrackingList })));
+const ProfileCompletenessCard = lazy(() => import("@/components/ProfileCompletenessCard").then(m => ({ default: m.ProfileCompletenessCard })));
+const DealInsightsWidget = lazy(() => import("@/components/dashboard/DealInsightsWidget").then(m => ({ default: m.DealInsightsWidget })));
+const HighResistanceAlerts = lazy(() => import("@/components/dashboard/HighResistanceAlerts").then(m => ({ default: m.HighResistanceAlerts })));
+const CDEUrgencyWidget = lazy(() => import("@/components/dashboard/CDEUrgencyWidget").then(m => ({ default: m.CDEUrgencyWidget })));
+const AIInsightsWidget = lazy(() => import("@/components/dashboard/AIInsightsWidget").then(m => ({ default: m.AIInsightsWidget })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -298,11 +298,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   return (
     <div className="space-y-6">
-      <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
-      <DealInsightsWidget />
-      <HighResistanceAlerts />
-      <CDEUrgencyWidget />
-      <AIInsightsWidget />
+      <Suspense fallback={<div className="h-20 flex items-center justify-center text-muted-foreground text-sm">Carregando...</div>}>
+        <ProfileCompletenessCard onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
+        <DealInsightsWidget />
+        <HighResistanceAlerts />
+        <CDEUrgencyWidget />
+        <AIInsightsWidget />
+      </Suspense>
 
       {/* Date Filter */}
       <DashboardDateFilter
