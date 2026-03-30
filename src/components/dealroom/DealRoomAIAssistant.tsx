@@ -1,11 +1,15 @@
-import { useState } from "react";
+/**
+ * DealRoomAIAssistant — AI that reads chat, simulation, and video transcription
+ */
+
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
-  Brain, Send, Lightbulb, MessageSquare, RefreshCw,
+  Brain, Send, Lightbulb, RefreshCw, Mic, FileText,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
@@ -14,7 +18,10 @@ import { toast } from "sonner";
 interface DealRoomAIAssistantProps {
   tenantId: string;
   clientName?: string;
+  clientId?: string;
   proposalValue?: number;
+  sessionId?: string;
+  transcription?: Array<{ speaker: string; text: string; timestamp?: string }>;
 }
 
 interface AIMessage {
@@ -26,14 +33,82 @@ const QUICK_PROMPTS = [
   { label: "Argumentos de venda", prompt: "Me dê 5 argumentos de venda poderosos para convencer o cliente a fechar agora" },
   { label: "Responder objeção de preço", prompt: "O cliente acha que o preço está alto. Como devo responder?" },
   { label: "Técnica de urgência", prompt: "Sugira uma técnica de urgência para acelerar o fechamento" },
-  { label: "Comparativo concorrência", prompt: "Como posso mostrar que nosso produto é melhor que a concorrência?" },
-  { label: "Oferecer desconto", prompt: "Qual a melhor forma de oferecer um desconto sem desvalorizar o produto?" },
+  { label: "Analisar conversa", prompt: "Analise toda a conversa do WhatsApp e da reunião. Quais objeções surgiram? Quais sinais de fechamento? O que devo fazer agora?" },
+  { label: "Resumo da reunião", prompt: "Faça um resumo executivo da reunião até agora, destacando pontos-chave, objeções e próximos passos." },
 ];
 
-export function DealRoomAIAssistant({ tenantId, clientName, proposalValue }: DealRoomAIAssistantProps) {
+export function DealRoomAIAssistant({ tenantId, clientName, clientId, proposalValue, sessionId, transcription }: DealRoomAIAssistantProps) {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [contextLoaded, setContextLoaded] = useState(false);
+  const [chatContext, setChatContext] = useState("");
+  const [simContext, setSimContext] = useState("");
+
+  // Build context from WhatsApp chat + simulations
+  const buildContext = useCallback(async () => {
+    if (!clientId) return;
+    let chatCtx = "";
+    let simCtx = "";
+
+    // Fetch WhatsApp messages
+    const { data: tracking } = await supabase
+      .from("client_tracking" as any)
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("tenant_id", tenantId)
+      .limit(1);
+
+    if (tracking && (tracking as any[]).length > 0) {
+      const trackingId = (tracking as any[])[0].id;
+      const { data: msgs } = await supabase
+        .from("whatsapp_messages" as any)
+        .select("sender, content, created_at")
+        .eq("tracking_id", trackingId)
+        .order("created_at", { ascending: true })
+        .limit(50);
+
+      if (msgs && (msgs as any[]).length > 0) {
+        chatCtx = "\n\n=== HISTÓRICO DO CHAT DE VENDAS (WhatsApp) ===\n" +
+          (msgs as any[]).map((m: any) =>
+            `[${m.sender === "me" ? "Vendedor" : "Cliente"}]: ${m.content}`
+          ).join("\n");
+      }
+    }
+
+    // Fetch simulations
+    const { data: sims } = await supabase
+      .from("simulations")
+      .select("valor_tela, desconto1, desconto2, desconto3, forma_pagamento, parcelas, valor_final, created_at")
+      .eq("client_id", clientId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (sims && sims.length > 0) {
+      simCtx = "\n\n=== SIMULAÇÕES DO CLIENTE ===\n" +
+        sims.map((s: any, i: number) =>
+          `Simulação ${i + 1}: Valor Tela ${formatCurrency(s.valor_tela || 0)}, ` +
+          `Descontos: ${s.desconto1 || 0}%+${s.desconto2 || 0}%+${s.desconto3 || 0}%, ` +
+          `Forma: ${s.forma_pagamento || "N/A"}, ${s.parcelas || 1}x, ` +
+          `Valor Final: ${formatCurrency(s.valor_final || 0)}`
+        ).join("\n");
+    }
+
+    setChatContext(chatCtx);
+    setSimContext(simCtx);
+    setContextLoaded(true);
+  }, [clientId, tenantId]);
+
+  useEffect(() => { buildContext(); }, [buildContext]);
+
+  const getTranscriptionContext = () => {
+    if (!transcription || transcription.length === 0) return "";
+    return "\n\n=== TRANSCRIÇÃO DA REUNIÃO (em tempo real) ===\n" +
+      transcription.map(e =>
+        `[${e.speaker === "vendedor" ? "Vendedor" : "Cliente"}${e.timestamp ? ` ${e.timestamp}` : ""}]: ${e.text}`
+      ).join("\n");
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -43,15 +118,19 @@ export function DealRoomAIAssistant({ tenantId, clientName, proposalValue }: Dea
     setLoading(true);
 
     try {
-      const context = `Contexto: Estou em uma reunião de vendas na Deal Room.
+      const transcriptionCtx = getTranscriptionContext();
+      const fullContext = `Contexto: Estou em uma reunião de vendas na Deal Room.
 Cliente: ${clientName || "não informado"}.
 Valor da proposta: ${proposalValue ? formatCurrency(proposalValue) : "não definido"}.
-Sou um projetista/vendedor de móveis planejados.`;
+Sou um projetista/vendedor de móveis planejados.${chatContext}${simContext}${transcriptionCtx}`;
 
       const { data, error } = await supabase.functions.invoke("vendazap-ai", {
         body: {
           messages: [
-            { role: "system", content: `Você é um assistente de vendas especializado em negociação de móveis planejados. Ajude o vendedor com argumentos, técnicas de fechamento e respostas para objeções. Seja direto e prático. ${context}` },
+            {
+              role: "system",
+              content: `Você é um assistente de vendas inteligente na Deal Room. Você tem acesso a TODO o histórico de conversa do WhatsApp, todas as simulações de orçamento e a transcrição da reunião por vídeo em tempo real. Use TODAS essas informações para dar conselhos precisos, identificar objeções, sinais de fechamento e sugerir ações. Seja direto e prático. ${fullContext}`,
+            },
             ...messages.map(m => ({ role: m.role, content: m.content })),
             { role: "user", content: text },
           ],
@@ -60,7 +139,6 @@ Sou um projetista/vendedor de móveis planejados.`;
       });
 
       if (error) throw error;
-
       const aiResponse = data?.reply || data?.choices?.[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.";
       setMessages(prev => [...prev, { role: "assistant", content: aiResponse }]);
     } catch {
@@ -75,6 +153,15 @@ Sou um projetista/vendedor de móveis planejados.`;
       <div className="flex items-center gap-2">
         <Brain className="h-4 w-4 text-primary" />
         <h4 className="text-sm font-semibold text-foreground">Assistente de Negociação</h4>
+        {contextLoaded && (
+          <div className="flex gap-1 ml-auto">
+            {chatContext && <Badge variant="outline" className="text-[8px] gap-0.5"><Mic className="h-2.5 w-2.5" /> Chat</Badge>}
+            {simContext && <Badge variant="outline" className="text-[8px] gap-0.5"><FileText className="h-2.5 w-2.5" /> Sim</Badge>}
+            {transcription && transcription.length > 0 && (
+              <Badge variant="outline" className="text-[8px] gap-0.5 border-primary/50 text-primary"><Mic className="h-2.5 w-2.5" /> Vídeo</Badge>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick prompts */}
@@ -98,7 +185,10 @@ Sou um projetista/vendedor de móveis planejados.`;
             <div className="text-center py-8 space-y-2">
               <Brain className="h-8 w-8 text-muted-foreground mx-auto" />
               <p className="text-xs text-muted-foreground">
-                Use a IA para obter argumentos de venda, responder objeções e técnicas de fechamento.
+                A IA tem acesso ao chat de vendas, simulações e transcrição da reunião.
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Pergunte qualquer coisa sobre a negociação!
               </p>
             </div>
           )}
