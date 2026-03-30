@@ -394,8 +394,16 @@ export default function Login() {
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl shadow-black/20 p-5 sm:p-8 space-y-5">
             {/* Header */}
             <div className="text-center space-y-2">
-              <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)]">
-                <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+              <div className="mx-auto w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] flex items-center justify-center shadow-lg shadow-[hsl(var(--primary)/0.3)] overflow-hidden">
+                {tenantInfo?.logo_url ? (
+                  <img
+                    src={tenantInfo.logo_url}
+                    alt={companyName}
+                    className="w-full h-full object-contain p-1"
+                  />
+                ) : (
+                  <Store className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+                )}
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{companyName}</h1>
