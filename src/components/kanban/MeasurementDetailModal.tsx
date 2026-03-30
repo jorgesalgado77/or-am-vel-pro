@@ -14,7 +14,9 @@ import {
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState, useMemo, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "@/lib/supabaseClient";
 
 interface MeasurementRequest {
@@ -67,7 +69,10 @@ interface NormalizedAttachment {
   url: string;
   name: string;
   kind: "image" | "pdf" | "file";
+  thumbnailUrl?: string;
 }
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const STATUS_MAP: Record<string, { label: string; icon: string; className: string }> = {
   novo: { label: "Novo", icon: "🆕", className: "bg-primary/10 text-primary border-primary/30" },
@@ -159,6 +164,13 @@ function normalizeAttachment(rawAttachment: any, index: number): NormalizedAttac
   const source = typeof rawAttachment === "object" && !Array.isArray(rawAttachment) ? rawAttachment : null;
   const name = source?.name || source?.file_name || source?.fileName || `Anexo ${index + 1}`;
   const mimeType = source?.type || source?.mimeType || source?.mime_type || source?.kind || "";
+  const thumbnailUrl = resolveAttachmentUrl(
+    source?.thumbnailUrl
+    || source?.thumbnail_url
+    || source?.previewUrl
+    || source?.preview_url
+    || "",
+  );
 
   const kind = isImageFile(url, name, mimeType)
     ? "image"
@@ -169,13 +181,59 @@ function normalizeAttachment(rawAttachment: any, index: number): NormalizedAttac
   // For images/pdfs, require a URL
   if (!url && kind !== "file") return null;
 
-  return { url, name, kind };
+  return { url, name, kind, thumbnailUrl: thumbnailUrl || undefined };
 }
 
 function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAttachment; onClick: () => void }) {
   const [imgError, setImgError] = useState(false);
+  const [pdfThumbnailUrl, setPdfThumbnailUrl] = useState(attachment.thumbnailUrl || "");
 
-  if (!attachment.url || attachment.kind === "file" || (attachment.kind === "image" && imgError)) {
+  useEffect(() => {
+    let active = true;
+
+    if (attachment.kind !== "pdf" || attachment.thumbnailUrl || !attachment.url) {
+      setPdfThumbnailUrl(attachment.thumbnailUrl || "");
+      return () => {
+        active = false;
+      };
+    }
+
+    const loadPdfThumbnail = async () => {
+      try {
+        const pdf = await pdfjsLib.getDocument(attachment.url).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.1 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context || !active) return;
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvas, canvasContext: context, viewport }).promise;
+
+        if (active) {
+          setPdfThumbnailUrl(canvas.toDataURL("image/png"));
+        }
+      } catch {
+        if (active) {
+          setPdfThumbnailUrl("");
+        }
+      }
+    };
+
+    void loadPdfThumbnail();
+
+    return () => {
+      active = false;
+    };
+  }, [attachment.kind, attachment.thumbnailUrl, attachment.url]);
+
+  const visualPreviewUrl = attachment.kind === "pdf"
+    ? pdfThumbnailUrl
+    : (attachment.thumbnailUrl || attachment.url);
+
+  if (!attachment.url || attachment.kind === "file" || (attachment.kind === "image" && (imgError || !visualPreviewUrl)) || (attachment.kind === "pdf" && !visualPreviewUrl)) {
     return (
       <div className="rounded-lg border bg-muted/30 aspect-square flex flex-col items-center justify-center p-2">
         {attachment.kind === "image" ? (
@@ -194,9 +252,9 @@ function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAtta
       className="group relative rounded-lg overflow-hidden border bg-background hover:ring-2 hover:ring-primary/50 transition-all aspect-square"
       type="button"
     >
-      {attachment.kind === "image" ? (
+      {(attachment.kind === "image" || attachment.kind === "pdf") ? (
         <img
-          src={attachment.url}
+          src={visualPreviewUrl}
           alt={attachment.name}
           className="w-full h-full object-cover"
           loading="lazy"
@@ -208,6 +266,11 @@ function AttachmentPreview({ attachment, onClick }: { attachment: NormalizedAtta
           <span className="text-[8px] font-bold text-destructive uppercase">PDF</span>
           <span className="text-[7px] text-muted-foreground truncate w-full text-center">{attachment.name}</span>
         </div>
+      )}
+      {attachment.kind === "pdf" && (
+        <Badge variant="secondary" className="absolute left-1.5 bottom-1.5 h-5 px-1.5 text-[9px] uppercase">
+          PDF
+        </Badge>
       )}
       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
         <Eye className="h-5 w-5 text-white" />

@@ -81,6 +81,7 @@ interface MeasurementRequestModalProps {
 export function MeasurementRequestModal({
   open, onOpenChange, client, tracking, lastSim,
 }: MeasurementRequestModalProps) {
+  const { currentUser } = useCurrentUser();
   const [environments, setEnvironments] = useState<EnvironmentData[]>([]);
   const [importedFiles, setImportedFiles] = useState<{ name: string; url: string; type: string }[]>([]);
   const [envAttachments, setEnvAttachments] = useState<Record<string, EnvironmentAttachment[]>>({});
@@ -1656,8 +1657,8 @@ export function MeasurementRequestModal({
       const userInfo = getAuditUserInfo();
 
       // Fetch current user's name and cargo for edit tracking
-      let userCargoNome = "";
-      let userNomeCompleto = "";
+      let userCargoNome = currentUser?.cargo_nome || "";
+      let userNomeCompleto = currentUser?.nome_completo || "";
       try {
         // Try multiple strategies to find the current user
         let userRow: any = null;
@@ -1688,8 +1689,8 @@ export function MeasurementRequestModal({
           }
         }
 
-        userNomeCompleto = userRow?.nome_completo || "";
-        if (userRow?.cargo_id) {
+        userNomeCompleto = userNomeCompleto || userRow?.nome_completo || "";
+        if (!userCargoNome && userRow?.cargo_id) {
           const { data: cargoRow } = await (supabase as any)
             .from("cargos")
             .select("nome")
@@ -1765,6 +1766,17 @@ export function MeasurementRequestModal({
           telefone1: editableFields.telefone,
           email: editableFields.email,
           cpf: editableFields.cpf,
+          vendedor: client.vendedor || tracking?.projetista || "",
+          projetista: tracking?.projetista || client.vendedor || "",
+          responsavel_id: (client as any)?.responsavel_id || null,
+          seller_name: client.vendedor || tracking?.projetista || "",
+          seller_cargo: "",
+          created_by_user_id: currentUser?.id || userInfo.usuario_id || null,
+          created_by_user_name: userNomeCompleto || null,
+          created_by_user_cargo: userCargoNome || null,
+          last_edited_by_user_id: currentUser?.id || userInfo.usuario_id || null,
+          last_edited_by_user_name: userNomeCompleto || null,
+          last_edited_by_user_cargo: userCargoNome || null,
         },
         delivery_address: {
           cep: normalizedAddress.cep,
