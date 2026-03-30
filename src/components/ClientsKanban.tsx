@@ -202,6 +202,15 @@ export function ClientsKanban({
     return map;
   }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns, isTechnicalRole]);
 
+  // Map technical column IDs to measurement_requests status values
+  const technicalStatusMap: Record<string, string> = {
+    nova_solicitacao: "novo",
+    em_medicao: "em_andamento",
+    em_liberado: "em_liberacao",
+    negativos: "negative",
+    enviado_compras: "enviado_compras",
+  };
+
   // Drag and drop
   const handleDragEnd = useCallback(async (result: DropResult) => {
     const { draggableId, destination, source } = result;
@@ -210,25 +219,48 @@ export function ClientsKanban({
     const client = localClients.find(c => c.id === draggableId);
     if (!client) return;
     const oldStatus = (client as any).status || "novo";
-    setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus, ...(newStatus === "fechado" ? { data_contrato: new Date().toISOString() } : {}) } as any : c));
-    const updatePayload: any = { status: newStatus };
-    if (newStatus === "fechado") {
-      updatePayload.data_contrato = new Date().toISOString();
-    }
-    const { error } = await supabase.from("clients").update(updatePayload).eq("id", draggableId);
-    if (error) {
-      setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
-      toast.error("Erro ao mover cliente");
+
+    if (isTechnicalRole) {
+      // Technical roles: update measurement_requests, not clients
+      const mrStatus = technicalStatusMap[newStatus] || newStatus;
+      // Optimistic update
+      setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
+
+      const { error } = await supabase
+        .from("measurement_requests" as any)
+        .update({ status: mrStatus, updated_at: new Date().toISOString() } as any)
+        .eq("client_id", draggableId)
+        .eq("tenant_id", tenantId);
+
+      if (error) {
+        setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
+        toast.error("Erro ao mover solicitação");
+      } else {
+        const colLabel = [...KANBAN_COLUMNS_TECNICO, ...KANBAN_ALL_COLUMNS].find(c => c.id === newStatus)?.label || newStatus;
+        toast.success(`${client.nome} movido para "${colLabel}"`);
+      }
     } else {
-      const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
-      toast.success(`${client.nome} movido para "${colLabel}"`);
-      supabase.from("client_movements" as any).insert({
-        tenant_id: tenantId, client_id: draggableId,
-        from_column: source.droppableId, to_column: newStatus,
-        moved_by: currentUser?.nome_completo || "Sistema",
-      }).then(() => {});
+      // Standard flow: update clients table
+      setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus, ...(newStatus === "fechado" ? { data_contrato: new Date().toISOString() } : {}) } as any : c));
+      const updatePayload: any = { status: newStatus };
+      if (newStatus === "fechado") {
+        updatePayload.data_contrato = new Date().toISOString();
+      }
+      const { error } = await supabase.from("clients").update(updatePayload).eq("id", draggableId);
+      if (error) {
+        setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
+        toast.error("Erro ao mover cliente");
+      } else {
+        const colLabel = KANBAN_ALL_COLUMNS.find(c => c.id === newStatus)?.label;
+        toast.success(`${client.nome} movido para "${colLabel}"`);
+        supabase.from("client_movements" as any).insert({
+          tenant_id: tenantId, client_id: draggableId,
+          from_column: source.droppableId, to_column: newStatus,
+          moved_by: currentUser?.nome_completo || "Sistema",
+        }).then(() => {});
+      }
     }
-  }, [localClients, currentUser, tenantId, setLocalClients]);
+  }, [localClients, currentUser, tenantId, setLocalClients, isTechnicalRole]);
 
   const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 

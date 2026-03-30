@@ -48,9 +48,9 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
       return { borderColor: col.color, bgClass: "bg-[hsl(0_72%_51%/0.12)] dark:bg-[hsl(0_72%_51%/0.18)]" };
     // Operacional
     case "em_medicao":
-      return { borderColor: col.color, bgClass: "bg-[hsl(200_70%_50%/0.12)] dark:bg-[hsl(200_70%_50%/0.18)]" };
+      return { borderColor: col.color, bgClass: "bg-[hsl(270_70%_55%/0.12)] dark:bg-[hsl(270_70%_55%/0.18)]" };
     case "em_liberado":
-      return { borderColor: col.color, bgClass: "bg-[hsl(180_60%_45%/0.12)] dark:bg-[hsl(180_60%_45%/0.18)]" };
+      return { borderColor: col.color, bgClass: "bg-[hsl(30_80%_50%/0.12)] dark:bg-[hsl(30_80%_50%/0.18)]" };
     case "em_compras":
       return { borderColor: col.color, bgClass: "bg-[hsl(45_90%_50%/0.12)] dark:bg-[hsl(45_90%_50%/0.18)]" };
     case "para_entrega":
@@ -61,6 +61,13 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
       return { borderColor: col.color, bgClass: "bg-[hsl(15_80%_55%/0.12)] dark:bg-[hsl(15_80%_55%/0.18)]" };
     case "finalizado":
       return { borderColor: col.color, bgClass: "bg-[hsl(142_71%_35%/0.12)] dark:bg-[hsl(142_71%_35%/0.18)]" };
+    // Técnico
+    case "nova_solicitacao":
+      return { borderColor: col.color, bgClass: "bg-[hsl(215_80%_55%/0.12)] dark:bg-[hsl(215_80%_55%/0.18)]" };
+    case "negativos":
+      return { borderColor: col.color, bgClass: "bg-[hsl(0_72%_51%/0.12)] dark:bg-[hsl(0_72%_51%/0.18)]" };
+    case "enviado_compras":
+      return { borderColor: col.color, bgClass: "bg-[hsl(142_71%_45%/0.12)] dark:bg-[hsl(142_71%_45%/0.18)]" };
     default:
       return { borderColor: col.color, bgClass: "" };
   }
