@@ -81,35 +81,66 @@ export function AdminLoginDiagnostics() {
 
   const fetchEntries = async () => {
     setLoading(true);
-    let query = supabase
-      .from("login_diagnostics" as any)
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(500);
+    try {
+      // Try with all columns first
+      let query = supabase
+        .from("login_diagnostics" as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
 
-    if (emailFilter.trim()) {
-      query = query.ilike("email", `%${emailFilter.trim()}%`);
-    }
-    if (lojaFilter.trim()) {
-      query = query.ilike("codigo_loja", `%${lojaFilter.trim().replace(/\D/g, "")}%`);
-    }
-    if (resultFilter !== "all") {
-      query = query.eq("resultado", resultFilter);
-    }
-    if (dateFrom) {
-      query = query.gte("created_at", dateFrom.toISOString());
-    }
-    if (dateTo) {
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-      query = query.lte("created_at", end.toISOString());
-    }
+      if (emailFilter.trim()) {
+        query = query.ilike("email", `%${emailFilter.trim()}%`);
+      }
+      if (lojaFilter.trim()) {
+        query = query.ilike("codigo_loja", `%${lojaFilter.trim().replace(/\D/g, "")}%`);
+      }
+      if (resultFilter !== "all") {
+        query = query.eq("resultado", resultFilter);
+      }
+      if (dateFrom) {
+        query = query.gte("created_at", dateFrom.toISOString());
+      }
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        query = query.lte("created_at", end.toISOString());
+      }
 
-    const { data, error } = await query;
-    if (error) {
-      toast.error("Erro ao carregar diagnósticos: " + error.message);
-    } else {
-      setEntries((data as any) || []);
+      const { data, error } = await query;
+      if (error) {
+        // If error is about missing column, retry without codigo_loja filter
+        if (error.message?.includes("codigo_loja")) {
+          console.warn("[Diagnostics] Column codigo_loja missing, fetching without it");
+          let fallbackQuery = supabase
+            .from("login_diagnostics" as any)
+            .select("id, email, tenant_id, usuario_id, cargo_nome, auth_user_id, resultado, detalhes, created_at")
+            .order("created_at", { ascending: false })
+            .limit(500);
+
+          if (emailFilter.trim()) fallbackQuery = fallbackQuery.ilike("email", `%${emailFilter.trim()}%`);
+          if (resultFilter !== "all") fallbackQuery = fallbackQuery.eq("resultado", resultFilter);
+          if (dateFrom) fallbackQuery = fallbackQuery.gte("created_at", dateFrom.toISOString());
+          if (dateTo) {
+            const end = new Date(dateTo);
+            end.setHours(23, 59, 59, 999);
+            fallbackQuery = fallbackQuery.lte("created_at", end.toISOString());
+          }
+
+          const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+          if (fallbackError) {
+            toast.error("Erro ao carregar diagnósticos: " + fallbackError.message);
+          } else {
+            setEntries((fallbackData as any) || []);
+          }
+        } else {
+          toast.error("Erro ao carregar diagnósticos: " + error.message);
+        }
+      } else {
+        setEntries((data as any) || []);
+      }
+    } catch (err: any) {
+      toast.error("Erro inesperado: " + (err?.message || "desconhecido"));
     }
     setLoading(false);
   };
