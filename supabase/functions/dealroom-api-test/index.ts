@@ -2,13 +2,18 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return respond({ valid: false, error: "Método não permitido" }, 405);
   }
 
   try {
@@ -40,7 +45,7 @@ serve(async (req) => {
             error = res.status === 401 ? "API Key inválida ou expirada" : `Erro ${res.status}: ${body.slice(0, 100)}`;
           }
         } catch (e) {
-          error = `Erro de rede: ${e.message}`;
+          error = `Erro de rede: ${e instanceof Error ? e.message : String(e)}`;
         }
         break;
       }
@@ -62,7 +67,7 @@ serve(async (req) => {
             error = res.status === 401 ? "API Key inválida" : `Erro ${res.status}: ${body.slice(0, 100)}`;
           }
         } catch (e) {
-          error = `Erro de rede: ${e.message}`;
+          error = `Erro de rede: ${e instanceof Error ? e.message : String(e)}`;
         }
         break;
       }
@@ -86,7 +91,7 @@ serve(async (req) => {
             error = res.status === 401 ? "Secret Key inválida" : `Erro ${res.status}: ${body.slice(0, 100)}`;
           }
         } catch (e) {
-          error = `Erro de rede: ${e.message}`;
+          error = `Erro de rede: ${e instanceof Error ? e.message : String(e)}`;
         }
         break;
       }
@@ -112,7 +117,7 @@ serve(async (req) => {
             error = `Servidor retornou erro ${res.status}`;
           }
         } catch (e) {
-          error = `Servidor inacessível: ${e.message}`;
+          error = `Servidor inacessível: ${e instanceof Error ? e.message : String(e)}`;
         }
         break;
       }
@@ -137,7 +142,7 @@ serve(async (req) => {
             error = res.status === 401 ? "Credenciais inválidas" : `Erro ${res.status}`;
           }
         } catch (e) {
-          error = `Erro de rede: ${e.message}`;
+          error = `Erro de rede: ${e instanceof Error ? e.message : String(e)}`;
         }
         break;
       }
@@ -165,7 +170,7 @@ serve(async (req) => {
               error = `Endpoint retornou erro ${res.status}`;
             }
           } catch (e) {
-            error = `Endpoint inacessível: ${e.message}`;
+            error = `Endpoint inacessível: ${e instanceof Error ? e.message : String(e)}`;
           }
         } else {
           valid = true;
