@@ -267,6 +267,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SimulatorParametersForm
+          getOptionsForField={getOptionsForField}
           valorTela={valorTela} setValorTela={setValorTela}
           desconto1={desconto1} setDesconto1={setDesconto1}
           desconto2={desconto2} setDesconto2={setDesconto2}
