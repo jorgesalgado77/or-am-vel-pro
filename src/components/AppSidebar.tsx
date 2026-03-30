@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
-  MessageCircle, Receipt, CreditCard, Bot, Video, Megaphone,
+  MessageSquare, Receipt, CreditCard, BrainCircuit, Video, Megaphone,
   BookOpen, Gift, Wallet, PanelLeftClose, PanelLeft, Sun, Moon, Monitor, GraduationCap,
-  Box, ClipboardCheck, Ruler, Package,
+  Box, ClipboardCheck, Ruler, Package, UserCircle, Sparkles,
 } from "lucide-react";
 import { PushNotificationToggle } from "@/components/tasks/PushNotificationToggle";
 
