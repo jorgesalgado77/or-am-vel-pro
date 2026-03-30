@@ -2,18 +2,21 @@
  * ArbitragePanel — Painel de Arbitragem de Negociação
  */
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Gift, TrendingUp, TrendingDown, Shield, Zap, DollarSign,
   Check, Edit, Send, Loader2, AlertTriangle, Target, Percent,
+  Users, History,
 } from "lucide-react";
 import { useNegotiationArbitrage } from "@/hooks/useNegotiationArbitrage";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
 import type { ArbitrageScenario, ArbitrageScenarioType } from "@/services/commercial/NegotiationArbitrageEngine";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -44,6 +47,12 @@ const SCENARIO_CONFIG: Record<ArbitrageScenarioType, {
   },
 };
 
+interface ClientOption {
+  id: string;
+  nome: string;
+  vendedor?: string;
+}
+
 export function ArbitragePanel() {
   const { tenantId } = useTenant();
   const { user } = useAuth();
@@ -56,8 +65,67 @@ export function ArbitragePanel() {
   const [valorProposta, setValorProposta] = useState("");
   const [valorConcorrente, setValorConcorrente] = useState("");
   const [clientName, setClientName] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDiscount, setEditDiscount] = useState("");
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [loadingSim, setLoadingSim] = useState(false);
+
+  // Load clients for the picker
+  useEffect(() => {
+    if (!tenantId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("clients" as any)
+        .select("id, nome, vendedor")
+        .eq("tenant_id", tenantId)
+        .neq("status", "perdido")
+        .order("nome");
+      if (data) setClients((data as any[]).map(c => ({ id: c.id, nome: c.nome, vendedor: c.vendedor })));
+    })();
+  }, [tenantId]);
+
+  // When a client is selected, set name and optionally load last simulation
+  const handleClientSelect = useCallback(async (clientId: string) => {
+    if (clientId === "__manual__") {
+      setSelectedClientId("");
+      setClientName("");
+      setValorProposta("");
+      return;
+    }
+    setSelectedClientId(clientId);
+    const client = clients.find(c => c.id === clientId);
+    if (client) setClientName(client.nome);
+  }, [clients]);
+
+  const handleLoadLastSimulation = useCallback(async () => {
+    const clientId = selectedClientId;
+    if (!clientId || !tenantId) {
+      toast.error("Selecione um cliente primeiro");
+      return;
+    }
+    setLoadingSim(true);
+    const { data: sims } = await supabase
+      .from("simulations" as any)
+      .select("id, valor_tela, desconto1, desconto2, desconto3, created_at")
+      .eq("tenant_id", tenantId)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (sims && (sims as any[]).length > 0) {
+      const sim = (sims as any[])[0];
+      let valor = sim.valor_tela || 0;
+      if (sim.desconto1) valor *= (1 - sim.desconto1 / 100);
+      if (sim.desconto2) valor *= (1 - sim.desconto2 / 100);
+      if (sim.desconto3) valor *= (1 - sim.desconto3 / 100);
+      setValorProposta(valor.toFixed(2));
+      toast.success(`Simulação carregada: ${formatCurrency(valor)}`);
+    } else {
+      toast.info("Nenhuma simulação encontrada para este cliente");
+    }
+    setLoadingSim(false);
+  }, [selectedClientId, tenantId]);
 
   const handleGenerate = async () => {
     const vp = parseFloat(valorProposta.replace(/[^\d.,]/g, "").replace(",", "."));
@@ -73,7 +141,7 @@ export function ArbitragePanel() {
     await generateScenarios({
       tenant_id: tenantId || "",
       user_id: user?.id,
-      client_id: "manual",
+      client_id: selectedClientId || "manual",
       client_name: clientName || "Cliente",
       valor_proposta: vp,
       valor_concorrente: vc,
@@ -112,13 +180,56 @@ export function ArbitragePanel() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input
-              placeholder="Nome do cliente"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="text-sm"
-            />
+          {/* Client Picker Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Users className="h-3 w-3" /> Cliente
+              </label>
+              <Select value={selectedClientId || "__manual__"} onValueChange={handleClientSelect}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Selecione ou digite" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__manual__">✏️ Digitar manualmente</SelectItem>
+                  {clients.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome} {c.vendedor ? `(${c.vendedor})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {!selectedClientId && (
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Nome manual</label>
+                <Input
+                  placeholder="Nome do cliente"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            )}
+            {selectedClientId && (
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Simulação</label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5 text-xs"
+                  onClick={handleLoadLastSimulation}
+                  disabled={loadingSim}
+                >
+                  {loadingSim ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+                  Carregar Última Simulação
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Values Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               placeholder="Valor da proposta (R$)"
               value={valorProposta}
