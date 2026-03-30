@@ -187,7 +187,7 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
               </div>
               <div className="flex items-center gap-1">
                 {sim && (
-                  <span className={cn("text-xs font-semibold", expired ? "text-destructive" : "text-foreground")}>
+                  <span className={cn("text-xs font-semibold", expired ? "text-destructive" : isFechado ? "text-success" : "text-foreground")}>
                     {formatCurrency(sim.valor_com_desconto)}
                   </span>
                 )}
