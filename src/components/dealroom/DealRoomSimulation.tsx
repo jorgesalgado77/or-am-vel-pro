@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Calculator, FileDown, Send, Edit3, Save, ArrowLeft, Clock,
-  DollarSign, Percent, CreditCard, RefreshCw, CheckCircle,
+  DollarSign, Percent, CreditCard, RefreshCw, CheckCircle, Plus,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
@@ -45,6 +45,7 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
   const [loading, setLoading] = useState(true);
   const [selectedSim, setSelectedSim] = useState<Simulation | null>(null);
   const [editing, setEditing] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [editForm, setEditForm] = useState({
     valor_tela: "",
     desconto1: "",
@@ -424,6 +425,167 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
     );
   }
 
+  // Start creating new simulation
+  const startCreate = () => {
+    setCreating(true);
+    setSelectedSim(null);
+    setEditing(false);
+    setEditForm({
+      valor_tela: "",
+      desconto1: "0",
+      desconto2: "0",
+      desconto3: "0",
+      forma_pagamento: "A vista",
+      parcelas: "1",
+      valor_entrada: "",
+    });
+  };
+
+  const saveNewSimulation = async () => {
+    const valorTela = unmaskCurrency(editForm.valor_tela);
+    if (valorTela <= 0) {
+      toast.error("Valor de Tela deve ser maior que zero");
+      return;
+    }
+    const valorComDesconto = calcValorComDesconto(editForm);
+    const valorEntrada = unmaskCurrency(editForm.valor_entrada);
+    if (valorEntrada > valorComDesconto) {
+      toast.error("Entrada não pode ser maior que o valor com desconto");
+      return;
+    }
+    const saldo = valorComDesconto - valorEntrada;
+    const parcelas = Number(editForm.parcelas) || 1;
+    const valorParcela = parcelas > 0 ? saldo / parcelas : saldo;
+
+    setSaving(true);
+    const { error } = await supabase.from("simulations").insert({
+      tenant_id: tenantId,
+      client_id: clientId!,
+      valor_tela: valorTela,
+      desconto1: Number(editForm.desconto1) || 0,
+      desconto2: Number(editForm.desconto2) || 0,
+      desconto3: Number(editForm.desconto3) || 0,
+      forma_pagamento: editForm.forma_pagamento,
+      parcelas,
+      valor_entrada: valorEntrada,
+      valor_final: valorComDesconto,
+      valor_parcela: valorParcela,
+    });
+    setSaving(false);
+
+    if (error) {
+      toast.error("Erro ao criar simulação");
+    } else {
+      toast.success("Simulação criada!");
+      setCreating(false);
+      loadSimulations();
+    }
+  };
+
+  // New simulation form
+  if (creating) {
+    const valorDesc = calcValorComDesconto(editForm);
+    const entrada = unmaskCurrency(editForm.valor_entrada);
+    const saldo = valorDesc - entrada;
+
+    return (
+      <div className="space-y-3 p-1">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setCreating(false)}>
+            <ArrowLeft className="h-3 w-3" /> Voltar
+          </Button>
+          <span className="text-xs font-semibold text-foreground">Nova Simulação</span>
+        </div>
+        <ScrollArea className="h-[380px]">
+          <div className="space-y-3 pr-2">
+            <div>
+              <Label className="text-xs">Valor de Tela</Label>
+              <Input inputMode="numeric" className="h-8 text-sm mt-1" placeholder="R$ 0,00" value={editForm.valor_tela}
+                onChange={handleCurrencyChange("valor_tela")} />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <Label className="text-[10px]">Desc. 1 (%)</Label>
+                <Input type="number" className="h-8 text-sm mt-1" value={editForm.desconto1}
+                  onChange={e => setEditForm(p => ({ ...p, desconto1: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-[10px]">Desc. 2 (%)</Label>
+                <Input type="number" className="h-8 text-sm mt-1" value={editForm.desconto2}
+                  onChange={e => setEditForm(p => ({ ...p, desconto2: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-[10px]">Desc. 3 (%)</Label>
+                <Input type="number" className="h-8 text-sm mt-1" value={editForm.desconto3}
+                  onChange={e => setEditForm(p => ({ ...p, desconto3: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Forma de Pagamento</Label>
+              <Select value={editForm.forma_pagamento} onValueChange={v => setEditForm(p => ({ ...p, forma_pagamento: v }))}>
+                <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A vista">À Vista</SelectItem>
+                  <SelectItem value="Pix">Pix</SelectItem>
+                  <SelectItem value="Credito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="Boleto">Boleto</SelectItem>
+                  <SelectItem value="Credito / Boleto">Crédito + Boleto</SelectItem>
+                  <SelectItem value="Entrada e Entrega">Entrada e Entrega</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Parcelas</Label>
+                <Input type="number" min={1} className="h-8 text-sm mt-1" value={editForm.parcelas}
+                  onChange={e => setEditForm(p => ({ ...p, parcelas: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Entrada</Label>
+                <Input inputMode="numeric" className="h-8 text-sm mt-1" placeholder="R$ 0,00" value={editForm.valor_entrada}
+                  onChange={handleCurrencyChange("valor_entrada")} />
+              </div>
+            </div>
+
+            {/* Live preview */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-2 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Com descontos</span>
+                  <span className="font-semibold">{formatCurrency(valorDesc)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Entrada</span>
+                  <span>{formatCurrency(entrada)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Saldo</span>
+                  <span>{formatCurrency(saldo)}</span>
+                </div>
+                <div className="flex justify-between text-xs font-bold border-t pt-1">
+                  <span>Parcela</span>
+                  <span className="text-primary">
+                    {Number(editForm.parcelas) || 1}x de {formatCurrency(saldo / (Number(editForm.parcelas) || 1))}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-2">
+              <Button className="flex-1 h-8 text-xs gap-1" onClick={saveNewSimulation} disabled={saving}>
+                {saving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Criar Simulação
+              </Button>
+              <Button variant="outline" className="h-8 text-xs" onClick={() => setCreating(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  }
+
   // Simulations list
   return (
     <div className="space-y-3 p-1">
@@ -432,16 +594,24 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
           <Calculator className="h-3.5 w-3.5 text-primary" />
           Simulações de {clientName || "Cliente"}
         </h4>
-        <Badge variant="secondary" className="text-[10px]">{simulations.length}</Badge>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px]" onClick={startCreate}>
+            <Plus className="h-3 w-3" /> Nova
+          </Button>
+          <Badge variant="secondary" className="text-[10px]">{simulations.length}</Badge>
+        </div>
       </div>
 
       {simulations.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-center">
             <Calculator className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mb-3">
               Nenhuma simulação salva para este cliente
             </p>
+            <Button size="sm" className="gap-1.5 text-xs" onClick={startCreate}>
+              <Plus className="h-3 w-3" /> Criar Simulação
+            </Button>
           </CardContent>
         </Card>
       ) : (
