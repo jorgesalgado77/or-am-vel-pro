@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, CheckCircle2, User, Building2 } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 
 interface FieldCheck {
   label: string;

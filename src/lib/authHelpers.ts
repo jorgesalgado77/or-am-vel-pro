@@ -2,7 +2,7 @@
  * Pure utility functions extracted from AuthContext to reduce file size.
  * These handle user resolution, tenant lookup, legacy login, etc.
  */
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { setTenantState } from "@/lib/tenantState";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import type { User as SupabaseAuthUser } from "@supabase/supabase-js";

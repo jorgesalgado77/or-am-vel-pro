@@ -8,7 +8,7 @@ import { logAudit } from "@/services/auditService";
 import { ClientTrackingModal } from "@/components/ClientTrackingModal";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { maskCodigoLoja, unmask } from "@/lib/masks";
 import { motion } from "framer-motion";
 import { ParticleBackground } from "@/components/auth/ParticleBackground";
