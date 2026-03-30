@@ -43,7 +43,9 @@ export function ClientsKanban({
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
   const isAdmin = cargoNome.includes("administrador");
-  const isTechnicalRole = cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente");
+  const isGerenteTecnico = cargoNome.includes("gerente") && (cargoNome.includes("tecnico") || cargoNome.includes("técnico"));
+  const isBasicTechnical = !isGerenteTecnico && (cargoNome.includes("tecnico") || cargoNome.includes("técnico") || cargoNome.includes("liberador") || cargoNome.includes("conferente"));
+  const isTechnicalRole = isGerenteTecnico || isBasicTechnical;
 
   const indicadorMap = useMemo(() => {
     const map: Record<string, { nome: string; comissao: number }> = {};
