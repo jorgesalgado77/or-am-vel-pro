@@ -3,7 +3,7 @@ import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Badge} from "@/components/ui/badge";
 import {Loader2, Users, TrendingUp, Globe, Calendar} from "lucide-react";
 import {useAuth} from "@/contexts/AuthContext";
-import {supabase} from "@/integrations/supabase/client";
+import {supabase} from "@/lib/supabaseClient";
 import {BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell} from "recharts";
 import {format, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";

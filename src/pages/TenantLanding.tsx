@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import {
   CheckCircle2, Phone, Mail, User, ArrowRight, Loader2, Star, Shield,
   Paperclip, FileText, Play, Pause, Volume2, VolumeX, Maximize,

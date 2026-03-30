@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Lock, Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { ParticleBackground } from "@/components/auth/ParticleBackground";
 

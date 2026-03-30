@@ -13,7 +13,7 @@ import {Badge} from "@/components/ui/badge";
 import {Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin} from "lucide-react";
 import {cn} from "@/lib/utils";
 import {format} from "date-fns";
-import {supabase} from "@/integrations/supabase/client";
+import {supabase} from "@/lib/supabaseClient";
 import {useAuth} from "@/contexts/AuthContext";
 import {toast} from "sonner";
 
