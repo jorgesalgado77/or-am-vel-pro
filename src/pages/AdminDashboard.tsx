@@ -336,12 +336,12 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     }
 
     logAudit({
-      acao: "tenant_trial_renovado",
+      acao: "tenant_ativado",
       entidade: "tenant",
       entidade_id: statusTenant.id,
       usuario_nome: adminName,
       tenant_id: statusTenant.id,
-      detalhes: { loja: statusTenant.nome_loja, dias: 7 },
+      detalhes: { loja: statusTenant.nome_loja, dias: 7, origem: "renovacao_trial" },
     });
     toast.success(`Trial renovado por 7 dias para ${statusTenant.nome_loja}`);
     setStatusDialogOpen(false);
@@ -382,12 +382,12 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     }
 
     logAudit({
-      acao: "tenant_plano_atualizado",
+      acao: "tenant_ativado",
       entidade: "tenant",
       entidade_id: statusTenant.id,
       usuario_nome: adminName,
       tenant_id: statusTenant.id,
-      detalhes: { loja: statusTenant.nome_loja, plano: selectedPlan.slug, periodo: selectedStatusPeriod },
+      detalhes: { loja: statusTenant.nome_loja, plano: selectedPlan.slug, periodo: selectedStatusPeriod, origem: "alteracao_plano" },
     });
     toast.success(`Loja ${statusTenant.nome_loja} atualizada para o plano ${selectedPlan.nome}`);
     setStatusDialogOpen(false);
@@ -1312,6 +1312,81 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <DialogFooter>
             <Button variant="outline" onClick={() => setRepairDialogOpen(false)} disabled={repairingAccess}>Cancelar</Button>
             <Button onClick={repairTenantAccess} disabled={repairingAccess}>{repairingAccess ? "Reparando..." : "Reparar acesso"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={statusDialogOpen} onOpenChange={(open) => {
+        setStatusDialogOpen(open);
+        if (!open) {
+          setStatusTenant(null);
+          setSelectedStatusPlan("");
+          setSelectedStatusPeriod("mensal");
+        }
+      }}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Alterar status da loja</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Loja</Label>
+              <div className="text-sm font-medium text-foreground">{statusTenant?.nome_loja || "—"}</div>
+              <div className="text-xs text-muted-foreground">{statusTenant?.codigo_loja || "—"}</div>
+            </div>
+
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Renovar Trial</p>
+                <p className="text-xs text-muted-foreground">Ativa a loja por mais 7 dias em modo teste.</p>
+              </div>
+              <Button variant="outline" className="w-full" onClick={renewTrialForTenant} disabled={updatingStatus}>
+                {updatingStatus ? "Atualizando..." : "Renovar trial por 7 dias"}
+              </Button>
+            </div>
+
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Ativar com plano</p>
+                <p className="text-xs text-muted-foreground">Escolha um plano cadastrado para liberar a loja.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Plano</Label>
+                  <Select value={selectedStatusPlan} onValueChange={setSelectedStatusPlan}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Selecione um plano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subscriptionPlans.filter((plan) => plan.slug !== "trial").map((plan) => (
+                        <SelectItem key={plan.id} value={plan.slug}>{plan.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Período</Label>
+                  <Select value={selectedStatusPeriod} onValueChange={setSelectedStatusPeriod}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mensal">Mensal</SelectItem>
+                      <SelectItem value="anual">Anual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button className="w-full" onClick={activatePlanForTenant} disabled={updatingStatus || !selectedStatusPlan || subscriptionPlans.filter((plan) => plan.slug !== "trial").length === 0}>
+                {updatingStatus ? "Atualizando..." : "Ativar loja com plano"}
+              </Button>
+              {subscriptionPlans.filter((plan) => plan.slug !== "trial").length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum plano ativo cadastrado além do trial.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)} disabled={updatingStatus}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
