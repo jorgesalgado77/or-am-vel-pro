@@ -29,7 +29,9 @@ const SalesRulesTab = lazy(() => import("@/components/settings/SalesRulesTab").t
 const MetasTetosTab = lazy(() => import("@/components/settings/MetasTetosTab").then(m => ({ default: m.MetasTetosTab })));
 const BackupTab = lazy(() => import("@/components/settings/BackupTab").then(m => ({ default: m.BackupTab })));
 
-const TabLoader = () => (
+const TabLoader = lazy(() => import("@/components/settings/SettingsTabSkeleton").then(m => ({ default: m.SettingsTabSkeleton })));
+
+const TabFallback = () => (
   <div className="flex items-center justify-center py-12">
     <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
@@ -81,7 +83,7 @@ export function SettingsPanel() {
           {isAdmin && <TabsTrigger value="backup" className="gap-2"><Database className="h-4 w-4" />Backup</TabsTrigger>}
         </TabsList>
 
-        <Suspense fallback={<TabLoader />}>
+        <Suspense fallback={<TabFallback />}>
           {activeTab === "company" && <TabsContent value="company" forceMount><CompanySettingsTab /></TabsContent>}
           {activeTab === "cargos" && <TabsContent value="cargos" forceMount><CargosTab /></TabsContent>}
           {activeTab === "usuarios" && <TabsContent value="usuarios" forceMount><UsuariosTab /></TabsContent>}
