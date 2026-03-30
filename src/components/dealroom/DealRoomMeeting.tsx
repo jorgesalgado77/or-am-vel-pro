@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Video, ArrowLeft, MessageSquare, Paperclip, CreditCard,
   FileSignature, Brain, User, Maximize2, Copy, ExternalLink,
-  FileText, Settings, Calculator,
+  FileText, Settings, Calculator, Mic, MicOff, FileDown, Save,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
@@ -23,6 +23,7 @@ import { DealRoomWatermark } from "./DealRoomWatermark";
 import { DealRoomVideoConfig, type VideoProvider } from "./DealRoomVideoConfig";
 import { DealRoomContractPdf } from "./DealRoomContractPdf";
 import { DealRoomSimulation } from "./DealRoomSimulation";
+import { useMeetingTranscription } from "@/hooks/useMeetingTranscription";
 
 interface DealRoomMeetingProps {
   tenantId: string;
@@ -55,6 +56,15 @@ export function DealRoomMeeting({
     provider: VideoProvider; apiKey?: string; roomUrl?: string;
     serverUrl?: string; token?: string;
   }>({ provider: "jitsi" });
+
+  // Meeting transcription
+  const transcription = useMeetingTranscription({
+    tenantId,
+    sessionId,
+    clientName,
+    clientId,
+    userId,
+  });
 
   const clientLink = `${window.location.origin}/sala/${sessionId}`;
 
@@ -172,6 +182,9 @@ export function DealRoomMeeting({
     );
   };
 
+  const formatElapsed = (s: number) =>
+    `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] bg-background">
       {/* Screen protection */}
@@ -192,6 +205,31 @@ export function DealRoomMeeting({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Transcription controls */}
+          {transcription.isTranscribing ? (
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+              <span className="text-xs text-destructive font-mono">{formatElapsed(transcription.elapsedSeconds)}</span>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={transcription.stopTranscription}>
+                <MicOff className="h-3 w-3" /> Parar
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={transcription.startTranscription}>
+              <Mic className="h-3 w-3" /> Transcrever
+            </Button>
+          )}
+          {transcription.transcript.length > 0 && (
+            <>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={transcription.saveTranscription}>
+                <Save className="h-3 w-3" /> Salvar
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={transcription.exportTranscriptionPdf}>
+                <FileDown className="h-3 w-3" /> PDF
+              </Button>
+            </>
+          )}
+
           <Button variant="outline" size="sm" onClick={() => setShowVideoConfig(true)} className="gap-1 text-xs">
             <Settings className="h-3.5 w-3.5" /> Provedor
           </Button>
@@ -223,6 +261,20 @@ export function DealRoomMeeting({
           {/* Floating watermark */}
           <DealRoomWatermark storeName={storeInfo.nome} storePhone={storeInfo.telefone} />
 
+          {/* Live transcription overlay */}
+          {transcription.isTranscribing && transcription.transcript.length > 0 && (
+            <div className="absolute bottom-16 left-4 right-4 max-h-20 overflow-hidden pointer-events-none">
+              <div className="bg-black/70 rounded-lg px-3 py-2">
+                <p className="text-white text-xs truncate">
+                  <span className="text-primary font-semibold">
+                    {transcription.transcript[transcription.transcript.length - 1].speaker === "vendedor" ? "🎤 " : "👤 "}
+                  </span>
+                  {transcription.transcript[transcription.transcript.length - 1].text}
+                </p>
+              </div>
+            </div>
+          )}
+
           <DealRoomControls
             jitsiApi={jitsiApiRef.current}
             onToggleFullscreen={toggleFullscreen}
@@ -236,7 +288,12 @@ export function DealRoomMeeting({
             <TabsList className="w-full justify-start rounded-none border-b px-1 bg-muted/30 overflow-x-auto flex-shrink-0">
               <TabsTrigger value="chat" className="gap-1 text-[10px] px-2"><MessageSquare className="h-3 w-3" /> Chat</TabsTrigger>
               <TabsTrigger value="simulacao" className="gap-1 text-[10px] px-2"><Calculator className="h-3 w-3" /> Simulação</TabsTrigger>
-              <TabsTrigger value="ai" className="gap-1 text-[10px] px-2"><Brain className="h-3 w-3" /> IA</TabsTrigger>
+              <TabsTrigger value="ai" className="gap-1 text-[10px] px-2">
+                <Brain className="h-3 w-3" /> IA
+                {transcription.transcript.length > 0 && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 ml-0.5" />
+                )}
+              </TabsTrigger>
               <TabsTrigger value="anexos" className="gap-1 text-[10px] px-2"><Paperclip className="h-3 w-3" /> Anexos</TabsTrigger>
               <TabsTrigger value="pagamento" className="gap-1 text-[10px] px-2"><CreditCard className="h-3 w-3" /> Pagar</TabsTrigger>
               <TabsTrigger value="assinatura" className="gap-1 text-[10px] px-2"><FileSignature className="h-3 w-3" /> Assinar</TabsTrigger>
@@ -245,7 +302,13 @@ export function DealRoomMeeting({
 
             <ScrollArea className="flex-1">
               <TabsContent value="chat" className="m-0 p-0 h-full">
-                <DealRoomChat sessionId={sessionId} tenantId={tenantId} userId={userId} />
+                <DealRoomChat
+                  sessionId={sessionId}
+                  tenantId={tenantId}
+                  userId={userId}
+                  clientId={clientId}
+                  clientName={clientName}
+                />
               </TabsContent>
               <TabsContent value="simulacao" className="m-0 p-3">
                 <DealRoomSimulation
@@ -259,7 +322,14 @@ export function DealRoomMeeting({
                 />
               </TabsContent>
               <TabsContent value="ai" className="m-0 p-3">
-                <DealRoomAIAssistant tenantId={tenantId} clientName={clientName} proposalValue={proposalValue} />
+                <DealRoomAIAssistant
+                  tenantId={tenantId}
+                  clientName={clientName}
+                  clientId={clientId}
+                  proposalValue={proposalValue}
+                  sessionId={sessionId}
+                  transcription={transcription.transcript}
+                />
               </TabsContent>
               <TabsContent value="anexos" className="m-0 p-3">
                 <DealRoomAttachments sessionId={sessionId} tenantId={tenantId} />
