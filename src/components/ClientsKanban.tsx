@@ -332,7 +332,7 @@ export function ClientsKanban({
       const { sendPushIfEnabled } = await import("@/lib/pushHelper");
       if (currentUser?.id) {
         sendPushIfEnabled(
-          "medicoes",
+          "medidas",
           currentUser.id,
           `📐 Medição ${data.rescheduleReason ? "Reagendada" : "Agendada"}`,
           `Cliente: ${clientName} — ${formattedDate} às ${data.time}`,
