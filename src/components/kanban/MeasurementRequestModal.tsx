@@ -1659,6 +1659,8 @@ export function MeasurementRequestModal({
       // Fetch current user's name and cargo for edit tracking
       let userCargoNome = currentUser?.cargo_nome || "";
       let userNomeCompleto = currentUser?.nome_completo || "";
+      let sellerNomeResolvido = client.vendedor || tracking?.projetista || "";
+      let sellerCargoResolvido = "";
       try {
         // Try multiple strategies to find the current user
         let userRow: any = null;
@@ -1697,6 +1699,26 @@ export function MeasurementRequestModal({
             .eq("id", userRow.cargo_id)
             .maybeSingle();
           userCargoNome = cargoRow?.nome || "";
+        }
+
+        if (tenantId && (client as any)?.responsavel_id) {
+          const { data: sellerRow } = await (supabase as any)
+            .from("usuarios")
+            .select("nome_completo, apelido, cargo_id")
+            .eq("id", (client as any).responsavel_id)
+            .eq("tenant_id", tenantId)
+            .maybeSingle();
+
+          sellerNomeResolvido = sellerNomeResolvido || sellerRow?.nome_completo || sellerRow?.apelido || "";
+
+          if (sellerRow?.cargo_id) {
+            const { data: sellerCargoRow } = await (supabase as any)
+              .from("cargos")
+              .select("nome")
+              .eq("id", sellerRow.cargo_id)
+              .maybeSingle();
+            sellerCargoResolvido = sellerCargoRow?.nome || "";
+          }
         }
       } catch { /* silent */ }
 
@@ -1766,11 +1788,14 @@ export function MeasurementRequestModal({
           telefone1: editableFields.telefone,
           email: editableFields.email,
           cpf: editableFields.cpf,
-          vendedor: client.vendedor || tracking?.projetista || "",
-          projetista: tracking?.projetista || client.vendedor || "",
+          vendedor: sellerNomeResolvido || tracking?.projetista || "",
+          projetista: tracking?.projetista || sellerNomeResolvido || "",
           responsavel_id: (client as any)?.responsavel_id || null,
-          seller_name: client.vendedor || tracking?.projetista || "",
-          seller_cargo: "",
+          seller_id: (client as any)?.responsavel_id || null,
+          seller_name: sellerNomeResolvido || tracking?.projetista || "",
+          vendedor_nome: sellerNomeResolvido || null,
+          projetista_nome: tracking?.projetista || sellerNomeResolvido || null,
+          seller_cargo: sellerCargoResolvido || "",
           created_by_user_id: currentUser?.id || userInfo.usuario_id || null,
           created_by_user_name: userNomeCompleto || null,
           created_by_user_cargo: userCargoNome || null,
