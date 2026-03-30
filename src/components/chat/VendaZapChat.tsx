@@ -34,6 +34,7 @@ function isConversationAssignedToUser(conversation: ChatConversation | null | un
     .some((name) => String(name).trim().toLowerCase() === normalizedUserName);
 }
 
+interface Props {
   tenantId: string | null;
   userId?: string;
   initialClientId?: string | null;
