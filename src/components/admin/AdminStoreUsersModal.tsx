@@ -75,7 +75,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("admin_list_store_users", { p_tenant_id: tenantId }) as any;
+      const { data, error } = await (supabase as any).rpc("admin_list_store_users", { p_tenant_id: tenantId });
       if (error) throw error;
       const parsed: StoreUser[] = (data || []).map((u: any) => ({
         id: u.id,
@@ -126,7 +126,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
 
   const loadCargos = useCallback(async () => {
     try {
-      const { data } = await supabase.rpc("admin_list_store_cargos", { p_tenant_id: tenantId }) as any;
+      const { data } = await (supabase as any).rpc("admin_list_store_cargos", { p_tenant_id: tenantId });
       if (data) setCargos(data);
     } catch {
       const { data } = await supabase.from("cargos").select("id, nome").eq("tenant_id", tenantId).order("nome");
@@ -145,7 +145,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
   const toggleUserActive = async (user: StoreUser) => {
     const newAtivo = !user.ativo;
     try {
-      await supabase.rpc("admin_toggle_store_user", { p_user_id: user.id, p_ativo: newAtivo } as any);
+      await (supabase as any).rpc("admin_toggle_store_user", { p_user_id: user.id, p_ativo: newAtivo });
     } catch {
       await supabase.from("usuarios").update({ ativo: newAtivo } as any).eq("id", user.id);
     }
@@ -184,7 +184,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
     }
     setSaving(true);
     try {
-      await supabase.rpc("admin_upsert_store_user", {
+      await (supabase as any).rpc("admin_upsert_store_user", {
         p_tenant_id: tenantId,
         p_user_id: editingUser?.id || null,
         p_nome_completo: form.nome_completo.trim(),
@@ -195,7 +195,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
         p_salario_fixo: form.salario_fixo,
         p_comissao_percentual: form.comissao_percentual,
         p_ativo: form.ativo,
-      } as any);
+      });
       toast.success(editingUser ? "Usuário atualizado!" : "Usuário criado! Senha padrão: 123456");
       setFormOpen(false);
       loadUsers();
@@ -256,7 +256,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
     }
     setResetting(true);
     try {
-      await supabase.rpc("admin_reset_store_user_password", {
+      await (supabase as any).rpc("admin_reset_store_user_password", {
         p_user_id: resetUser.id,
         p_new_password: resetPassword.trim(),
       } as any);
@@ -287,7 +287,7 @@ export function AdminStoreUsersModal({ open, onOpenChange, tenantId, tenantName,
     if (!deleteUser) return;
     setDeleting(true);
     try {
-      await supabase.rpc("admin_delete_store_user", {
+      await (supabase as any).rpc("admin_delete_store_user", {
         p_user_id: deleteUser.id,
         p_tenant_id: tenantId,
       } as any);
