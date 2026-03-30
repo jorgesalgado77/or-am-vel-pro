@@ -67,7 +67,8 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
 }
 
 export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, onClick, onQuickDelete }: KanbanCardProps) {
-  const expired = sim ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
+  const isFechado = ((client as any).status || "novo") === "fechado";
+  const expired = sim && !isFechado ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
 
   const clientStatus = (client as any).status || "novo";
@@ -186,7 +187,7 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
               </div>
               <div className="flex items-center gap-1">
                 {sim && (
-                  <span className={cn("text-xs font-semibold", expired ? "text-destructive" : "text-foreground")}>
+                  <span className={cn("text-xs font-semibold", expired ? "text-destructive" : isFechado ? "text-success" : "text-foreground")}>
                     {formatCurrency(sim.valor_com_desconto)}
                   </span>
                 )}
@@ -249,7 +250,9 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
             {clientStatus === "fechado" && (
               <div className="flex items-center gap-1 mt-1.5">
                 <CheckCircle2 className="h-3 w-3 text-success" />
-                <span className="text-[10px] text-success font-semibold">✅ Contrato Fechado</span>
+                <span className="text-[10px] text-success font-semibold">
+                  ✅ Contrato Fechado {(client as any).data_contrato ? `— ${format(new Date((client as any).data_contrato), "dd/MM/yy")}` : ""}
+                </span>
               </div>
             )}
           </div>
