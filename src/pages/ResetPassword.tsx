@@ -73,18 +73,8 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a1628] relative overflow-hidden">
-      <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none" />
-
-      {/* Mesh gradient */}
-      <div className="fixed inset-0 pointer-events-none">
-        <motion.div
-          className="absolute w-[500px] h-[500px] rounded-full opacity-20 blur-[120px]"
-          style={{ background: "radial-gradient(circle, hsl(var(--primary)), transparent)" }}
-          animate={{ x: [0, 100, -50, 0], y: [0, -80, 60, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        />
-      </div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      <ParticleBackground />
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}
