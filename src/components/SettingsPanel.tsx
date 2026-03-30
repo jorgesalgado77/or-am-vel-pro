@@ -83,7 +83,7 @@ export function SettingsPanel() {
           {isAdmin && <TabsTrigger value="backup" className="gap-2"><Database className="h-4 w-4" />Backup</TabsTrigger>}
         </TabsList>
 
-        <Suspense fallback={<TabLoader />}>
+        <Suspense fallback={<TabFallback />}>
           {activeTab === "company" && <TabsContent value="company" forceMount><CompanySettingsTab /></TabsContent>}
           {activeTab === "cargos" && <TabsContent value="cargos" forceMount><CargosTab /></TabsContent>}
           {activeTab === "usuarios" && <TabsContent value="usuarios" forceMount><UsuariosTab /></TabsContent>}
