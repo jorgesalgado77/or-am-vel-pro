@@ -224,7 +224,7 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 </div>
               </div>
             )}
-            {(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && (client.vendedor || assignedTechnician) && (
+            {(client.vendedor || assignedTechnician) && (
               <div className="flex items-center gap-1 mt-1.5 flex-wrap">
                 {client.vendedor && (
                   <>
@@ -238,12 +238,6 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                     <span className="text-[10px] text-emerald-600 font-medium truncate">{assignedTechnician}</span>
                   </>
                 )}
-              </div>
-            )}
-            {!(cargoNome.includes("administrador") || cargoNome.includes("gerente")) && assignedTechnician && (
-              <div className="flex items-center gap-1 mt-1.5">
-                <UserCheck className="h-3 w-3 text-emerald-500/70 shrink-0" />
-                <span className="text-[10px] text-emerald-600 font-medium truncate">{assignedTechnician}</span>
               </div>
             )}
             {expired && (
