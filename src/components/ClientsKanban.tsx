@@ -122,32 +122,59 @@ export function ClientsKanban({
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
     activeColumns.forEach(col => { map[col.id] = []; });
+    
     filtered.forEach(client => {
       let status = (client as any).status || "novo";
-      if (status === "proposta_enviada") status = "em_negociacao";
-      if (status === "novo" && client.vendedor) status = "em_negociacao";
-      if (contractClientIds.has(client.id)) {
-        const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
-        if (!operationalIds.includes(status)) status = "fechado";
+      
+      if (isTechnicalRole) {
+        // For technical roles, map statuses to their specific columns
+        const mr = measurementStatus[client.id];
+        if (mr) {
+          if (mr.status === "negative" || mr.status === "negativos") {
+            status = "negativos";
+          } else if (mr.status === "enviado_compras") {
+            status = "enviado_compras";
+          } else if (mr.assigned_to) {
+            status = "em_liberado";
+          } else if (status === "em_medicao" || status === "fechado") {
+            status = "em_medicao";
+          } else {
+            status = "nova_solicitacao";
+          }
+        } else {
+          status = "nova_solicitacao";
+        }
+      } else {
+        // Standard flow for non-technical roles
+        if (status === "proposta_enviada") status = "em_negociacao";
+        if (status === "novo" && client.vendedor) status = "em_negociacao";
+        if (contractClientIds.has(client.id)) {
+          const operationalIds = KANBAN_COLUMNS_OPERACIONAL.map(c => c.id);
+          if (!operationalIds.includes(status)) status = "fechado";
+        }
+        const mr = measurementStatus[client.id];
+        if (mr) {
+          if (status === "fechado") status = "em_medicao";
+          else if (status === "em_medicao" && mr.assigned_to) status = "em_liberado";
+        }
+        const sim = lastSims[client.id];
+        if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado" && !KANBAN_COLUMNS_OPERACIONAL.some(c => c.id === status)) {
+          if (isPast(addDays(new Date(sim.created_at), settings.budget_validity_days))) status = "expirado";
+        }
       }
-      const mr = measurementStatus[client.id];
-      if (mr) {
-        if (status === "fechado") status = "em_medicao";
-        else if (status === "em_medicao" && mr.assigned_to) status = "em_liberado";
-      }
-      const sim = lastSims[client.id];
-      if (sim && status !== "fechado" && status !== "perdido" && status !== "expirado" && !KANBAN_COLUMNS_OPERACIONAL.some(c => c.id === status)) {
-        if (isPast(addDays(new Date(sim.created_at), settings.budget_validity_days))) status = "expirado";
-      }
+      
       const resolved = ((client as any).status === status ? client : { ...client, status }) as Client;
       if (map[status]) map[status].push(resolved);
-      else map["novo"].push({ ...resolved, status: "novo" } as Client);
+      else {
+        const fallbackCol = isTechnicalRole ? "nova_solicitacao" : "novo";
+        if (map[fallbackCol]) map[fallbackCol].push({ ...resolved, status: fallbackCol } as Client);
+      }
     });
     Object.keys(map).forEach(key => {
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns, isTechnicalRole]);
 
   // Drag and drop
   const handleDragEnd = useCallback(async (result: DropResult) => {
