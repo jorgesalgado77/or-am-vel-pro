@@ -8,7 +8,7 @@ import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone, UserCheck } from "lucide-react";
+import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone, UserCheck, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
