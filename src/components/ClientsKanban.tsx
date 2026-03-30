@@ -13,6 +13,7 @@ import { KanbanFilters } from "./kanban/KanbanFilters";
 import { KanbanColumn } from "./kanban/KanbanColumn";
 import { KanbanClientDialog } from "./kanban/KanbanClientDialog";
 import { KanbanLiberadorPanel } from "./kanban/KanbanLiberadorPanel";
+import { KanbanSkeleton } from "./kanban/KanbanSkeleton";
 import { useKanbanData } from "@/hooks/useKanbanData";
 
 export function ClientsKanban({
