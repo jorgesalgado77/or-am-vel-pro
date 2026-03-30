@@ -302,24 +302,48 @@ export class CommercialDirectorEngine {
     ]);
 
     const contractClientIds = new Set(contracts.map(c => c.client_id));
+    // Build a map: vendedor_id -> contracts for that seller
+    const contractsByVendorId = new Map<string, any[]>();
+    const contractsByClientId = new Map<string, any>();
+    for (const ct of contracts) {
+      contractsByClientId.set(ct.client_id, ct);
+      if (ct.vendedor_id) {
+        const arr = contractsByVendorId.get(ct.vendedor_id) || [];
+        arr.push(ct);
+        contractsByVendorId.set(ct.vendedor_id, arr);
+      }
+    }
+
     const threeDaysAgo = new Date();
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
     const results: VendorAnalysis[] = [];
 
     for (const user of usuarios) {
+      // Match clients by vendedor name OR responsavel_id
       const userClients = clients.filter(c => c.vendedor === user.nome_completo || c.responsavel_id === user.id);
-      const closed = userClients.filter(c => contractClientIds.has(c.id));
+      
+      // Also find contracts directly assigned via vendedor_id
+      const directContracts = contractsByVendorId.get(user.id) || [];
+      const directContractClientIds = new Set(directContracts.map((c: any) => c.client_id));
+      
+      // Merge: clients matched by name/responsavel + clients from contracts by vendedor_id
+      const allClientIds = new Set(userClients.map(c => c.id));
+      for (const cid of directContractClientIds) {
+        allClientIds.add(cid);
+      }
+      
+      const closed = Array.from(allClientIds).filter(cid => contractClientIds.has(cid));
       const open = userClients.filter(c => !contractClientIds.has(c.id) && c.status !== "perdido");
       const stalled = open.filter(c => new Date(c.updated_at || c.created_at) < threeDaysAgo);
 
       const totalAttempted = open.length + closed.length;
       const convRate = totalAttempted > 0 ? (closed.length / totalAttempted) * 100 : 0;
 
-      // Revenue — use valor_com_desconto (valor à vista)
+      // Revenue — use valor_com_desconto (valor à vista) from contracts
       let revenue = 0;
-      for (const c of closed) {
-        const contract = contracts.find(ct => ct.client_id === c.id);
+      for (const cid of closed) {
+        const contract = contractsByClientId.get(cid);
         if (contract) {
           const val = Number(contract.valor_com_desconto) || Number(contract.valor_contrato) || 0;
           revenue += val;
