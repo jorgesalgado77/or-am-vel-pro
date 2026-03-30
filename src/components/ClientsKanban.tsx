@@ -302,7 +302,7 @@ export function ClientsKanban({
                         <span className="text-[10px] font-bold text-primary/70 uppercase tracking-wider [writing-mode:vertical-lr] rotate-180">Comercial</span>
                       </button>
                     )}
-                    {(!isAdmin || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => (
+                    {(!(isAdmin || isGerente) || comercialExpanded) && KANBAN_COLUMNS_COMERCIAL.map(col => (
                       <KanbanColumn
                         key={col.id}
                         col={col}
