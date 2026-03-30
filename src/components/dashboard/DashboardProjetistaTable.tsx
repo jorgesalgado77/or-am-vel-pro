@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
 import { calcularComissao } from "@/hooks/useComissaoPolicy";
-import type { CargoPermissoes } from "@/hooks/useCargos";
+import type { Cargo } from "@/hooks/useCargos";
 
 interface ProjetistaData {
   count: number;
@@ -19,7 +19,7 @@ interface ProjetistaData {
 
 interface DashboardProjetistaTableProps {
   byProjetista: [string, ProjetistaData][];
-  cargos: CargoPermissoes[];
+  cargos: Cargo[];
   comissaoPolicy: ReturnType<typeof import("@/hooks/useComissaoPolicy").useComissaoPolicy>["policy"];
 }
 

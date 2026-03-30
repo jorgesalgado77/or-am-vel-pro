@@ -84,11 +84,11 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
 
   const fetchSellers = useCallback(async () => {
     const tenantId = await getResolvedTenantId();
-    let query = supabase.from("usuarios").select("nome, cargo_nome").eq("ativo", true);
+    let query = (supabase as any).from("usuarios").select("nome_completo, cargo_nome").eq("ativo", true);
     if (tenantId) query = query.eq("tenant_id", tenantId);
     const { data } = await query;
     if (data) {
-      const names = data.map((u: Record<string, unknown>) => u.nome as string).filter(Boolean).sort();
+      const names = (data as any[]).map((u) => u.nome_completo as string).filter(Boolean).sort();
       setAllSellers(names);
     }
   }, []);
@@ -182,7 +182,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
 
   const handleStatusChange = useCallback(async (row: TrackingRow, newStatus: string) => {
     if (row.tracking_id) {
-      const { error } = await supabase.from("client_tracking").update({ status: newStatus, updated_at: new Date().toISOString() } as Record<string, unknown>).eq("id", row.tracking_id);
+      const { error } = await (supabase as any).from("client_tracking").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", row.tracking_id);
       if (error) { toast.error("Erro ao atualizar status"); return; }
       toast.success("Status atualizado!");
       setTrackings((prev) => prev.map((t) => t.id === row.id ? { ...t, status: newStatus } : t));
@@ -193,7 +193,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
 
     const tenantId = await getResolvedTenantId();
     const comissaoResult = calcularComissao(row.valor_contrato, 0, comissaoPolicy, null);
-    const { data, error } = await supabase.from("client_tracking").insert({
+    const { data, error } = await (supabase as any).from("client_tracking").insert({
       contract_id: row.contract_id, client_id: row.client_id,
       numero_contrato: row.numero_contrato !== "—" ? row.numero_contrato : "",
       nome_cliente: row.nome_cliente, cpf_cnpj: row.cpf_cnpj,
@@ -203,7 +203,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
       comissao_valor: Math.round((row.valor_contrato * comissaoResult.percentual / 100) * 100) / 100,
       comissao_status: "pendente",
       ...(tenantId ? { tenant_id: tenantId } : {}),
-    } as Record<string, unknown>).select("id").single();
+    }).select("id").single();
 
     if (error) { toast.error("Erro ao atualizar status"); return; }
     toast.success("Status atualizado!");
@@ -223,7 +223,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
     const { data: clientData } = await clientQuery.single();
     const comissaoResult = calcularComissao(form.valor_contrato, 0, comissaoPolicy, null);
 
-    const { error } = await supabase.from("client_tracking").insert({
+    const { error } = await (supabase as any).from("client_tracking").insert({
       client_id: clientData?.id || "00000000-0000-0000-0000-000000000000",
       numero_contrato: form.numero_contrato.trim(), nome_cliente: form.nome_cliente.trim(),
       cpf_cnpj: form.cpf_cnpj.trim() || null, quantidade_ambientes: form.quantidade_ambientes,
@@ -233,7 +233,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
       comissao_valor: Math.round((form.valor_contrato * comissaoResult.percentual / 100) * 100) / 100,
       comissao_status: "pendente",
       ...(tenantId ? { tenant_id: tenantId } : {}),
-    } as Record<string, unknown>);
+    });
     setSaving(false);
     if (error) toast.error("Erro ao adicionar");
     else {
