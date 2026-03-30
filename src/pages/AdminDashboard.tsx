@@ -83,6 +83,15 @@ interface PlanPriceMap {
   [slug: string]: { mensal: number; anual: number };
 }
 
+interface SubscriptionPlanOption {
+  id: string;
+  slug: string;
+  nome: string;
+  max_usuarios: number;
+  preco_mensal: number;
+  preco_anual_mensal: number;
+}
+
 function getPlanStatus(tenant: Tenant) {
   const now = new Date();
   if (tenant.plano === "trial") {
@@ -103,6 +112,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlanOption[]>([]);
   const [tenantStats, setTenantStats] = useState<TenantStats>({});
   const [loading, setLoading] = useState(true);
   const [addonInterestCount, setAddonInterestCount] = useState(0);
@@ -120,6 +130,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [repairPassword, setRepairPassword] = useState("123456");
   const [storeUsersModalOpen, setStoreUsersModalOpen] = useState(false);
   const [storeUsersTarget, setStoreUsersTarget] = useState<Tenant | null>(null);
+  const [statusTenant, setStatusTenant] = useState<Tenant | null>(null);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [selectedStatusPlan, setSelectedStatusPlan] = useState("");
+  const [selectedStatusPeriod, setSelectedStatusPeriod] = useState("mensal");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [repairingAccess, setRepairingAccess] = useState(false);
 
   // Tenant form
@@ -207,7 +222,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     const [tenantsRes, paymentsRes, plansRes] = await Promise.all([
       supabase.rpc("admin_list_all_tenants" as any),
       supabase.from("payment_settings").select("*").order("created_at", { ascending: false }),
-      supabase.from("subscription_plans" as any).select("slug, preco_mensal, preco_anual_mensal").eq("ativo", true),
+      supabase
+        .from("subscription_plans" as any)
+        .select("id, slug, nome, max_usuarios, preco_mensal, preco_anual_mensal")
+        .eq("ativo", true)
+        .order("ordem", { ascending: true }),
     ]);
 
     // Fallback: if RPC fails (e.g. no admin auth session), query tenants directly
@@ -224,10 +243,12 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     setTenants(tenantData);
     if (paymentsRes.data) setPayments(paymentsRes.data as any);
     if (plansRes.data) {
+      const plans = (plansRes.data as any[]) as SubscriptionPlanOption[];
       const prices: PlanPriceMap = {};
-      (plansRes.data as any[]).forEach(p => {
-        prices[p.slug] = { mensal: p.preco_mensal, anual: p.preco_anual_mensal * 12 };
+      plans.forEach((p) => {
+        prices[p.slug] = { mensal: Number(p.preco_mensal) || 0, anual: (Number(p.preco_anual_mensal) || 0) * 12 };
       });
+      setSubscriptionPlans(plans);
       setPlanPrices(prices);
     }
     // Fetch stats for all tenants
@@ -280,6 +301,97 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       detalhes: { loja: tenant.nome_loja },
     });
     toast.success(`${tenant.nome_loja} ${newAtivo ? "ativada" : "desativada"}`);
+    fetchData();
+  };
+
+  const openStatusDialog = (tenant: Tenant) => {
+    const fallbackPlan = subscriptionPlans.find((plan) => plan.slug !== "trial")?.slug || "";
+    setStatusTenant(tenant);
+    setSelectedStatusPlan(tenant.plano !== "trial" ? tenant.plano : fallbackPlan);
+    setSelectedStatusPeriod(tenant.plano_periodo || "mensal");
+    setStatusDialogOpen(true);
+  };
+
+  const renewTrialForTenant = async () => {
+    if (!statusTenant) return;
+    setUpdatingStatus(true);
+    const now = new Date();
+    const trialEnd = new Date(now);
+    trialEnd.setDate(trialEnd.getDate() + 7);
+
+    const { error } = await supabase.from("tenants").update({
+      plano: "trial",
+      plano_periodo: "mensal",
+      trial_inicio: now.toISOString(),
+      trial_fim: trialEnd.toISOString(),
+      assinatura_inicio: null,
+      assinatura_fim: null,
+      ativo: true,
+    } as any).eq("id", statusTenant.id);
+
+    setUpdatingStatus(false);
+    if (error) {
+      toast.error("Erro ao renovar trial: " + error.message);
+      return;
+    }
+
+    logAudit({
+      acao: "tenant_trial_renovado",
+      entidade: "tenant",
+      entidade_id: statusTenant.id,
+      usuario_nome: adminName,
+      tenant_id: statusTenant.id,
+      detalhes: { loja: statusTenant.nome_loja, dias: 7 },
+    });
+    toast.success(`Trial renovado por 7 dias para ${statusTenant.nome_loja}`);
+    setStatusDialogOpen(false);
+    setStatusTenant(null);
+    fetchData();
+  };
+
+  const activatePlanForTenant = async () => {
+    if (!statusTenant) return;
+    const selectedPlan = subscriptionPlans.find((plan) => plan.slug === selectedStatusPlan);
+    if (!selectedPlan) {
+      toast.error("Selecione um plano para ativar a loja.");
+      return;
+    }
+
+    setUpdatingStatus(true);
+    const now = new Date();
+    const endDate = new Date(now);
+    if (selectedStatusPeriod === "anual") {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    } else {
+      endDate.setMonth(endDate.getMonth() + 1);
+    }
+
+    const { error } = await supabase.from("tenants").update({
+      plano: selectedPlan.slug,
+      plano_periodo: selectedStatusPeriod,
+      assinatura_inicio: now.toISOString(),
+      assinatura_fim: endDate.toISOString(),
+      ativo: true,
+      max_usuarios: selectedPlan.max_usuarios,
+    } as any).eq("id", statusTenant.id);
+
+    setUpdatingStatus(false);
+    if (error) {
+      toast.error("Erro ao ativar plano: " + error.message);
+      return;
+    }
+
+    logAudit({
+      acao: "tenant_plano_atualizado",
+      entidade: "tenant",
+      entidade_id: statusTenant.id,
+      usuario_nome: adminName,
+      tenant_id: statusTenant.id,
+      detalhes: { loja: statusTenant.nome_loja, plano: selectedPlan.slug, periodo: selectedStatusPeriod },
+    });
+    toast.success(`Loja ${statusTenant.nome_loja} atualizada para o plano ${selectedPlan.nome}`);
+    setStatusDialogOpen(false);
+    setStatusTenant(null);
     fetchData();
   };
 
@@ -829,7 +941,9 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                           <TableCell className="text-center text-sm">{tenantStats[t.id]?.clientes ?? 0}</TableCell>
                           <TableCell className="text-center text-sm">{tenantStats[t.id]?.simulacoes ?? 0}</TableCell>
                           <TableCell>
-                            <Badge variant={status.variant}>{status.text}</Badge>
+                            <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent" onClick={() => openStatusDialog(t)}>
+                              <Badge variant={status.variant} className="cursor-pointer">{status.text}</Badge>
+                            </Button>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {validadeDate ? format(new Date(validadeDate), "dd/MM/yyyy", { locale: ptBR }) : "—"}
