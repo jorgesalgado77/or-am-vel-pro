@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  KANBAN_COLUMNS, KANBAN_ALL_COLUMNS, KANBAN_COLUMNS_COMERCIAL, KANBAN_COLUMNS_OPERACIONAL,
+  KANBAN_COLUMNS, KANBAN_ALL_COLUMNS, KANBAN_COLUMNS_COMERCIAL, KANBAN_COLUMNS_OPERACIONAL, KANBAN_COLUMNS_TECNICO,
   type Client, type ClientsKanbanProps,
 } from "./kanban/kanbanTypes";
 import { KanbanFilters } from "./kanban/KanbanFilters";
