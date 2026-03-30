@@ -207,8 +207,8 @@ export function KanbanClientDialog({
 
   if (!client) return null;
 
-  const isFechado = effectiveStatus === "fechado" || hasContract || (client as any).status === "fechado";
-  const isExpired = lastSim && !isFechado ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
+  const clientIsFechado = hasContract || (client as any).status === "fechado";
+  const isExpired = lastSim && !clientIsFechado ? isPast(addDays(new Date(lastSim.created_at), budgetValidityDays)) : false;
   
   // If client has a contract, show "Fechado" tag
   const effectiveStatus = hasContract ? "fechado" : status;
