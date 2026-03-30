@@ -517,6 +517,8 @@ export function ClientsKanban({
       <MeasurementScheduleDialog
         open={!!pendingSchedule}
         clientName={pendingSchedule?.clientName || ""}
+        clientId={pendingSchedule?.clientId}
+        tenantId={tenantId}
         onConfirm={handleScheduleConfirm}
         onCancel={handleScheduleCancel}
       />
