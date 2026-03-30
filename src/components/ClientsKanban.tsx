@@ -223,14 +223,6 @@ export function ClientsKanban({
     const oldStatus = (client as any).status || "novo";
 
     if (isTechnicalRole) {
-      // Intercept moves to "em_medicao" → show scheduling dialog
-      if (newStatus === "em_medicao") {
-        // Optimistic move
-        setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
-        setPendingSchedule({ clientId: draggableId, clientName: client.nome, oldStatus });
-        return;
-      }
-
       // Technical roles: update measurement_requests, not clients
       const mrStatus = technicalStatusMap[newStatus] || newStatus;
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
