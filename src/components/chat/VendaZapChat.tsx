@@ -10,19 +10,8 @@ import { playLeadNotificationSound } from "@/lib/notificationSound";
 import { toast } from "sonner";
 import { CloseSaleModal } from "@/components/CloseSaleModal";
 import type { CloseSaleData } from "./AICloserBanner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wifi, WifiOff, Loader2, Brain, Phone, Trash2, Merge } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Loader2, Brain, Phone, Merge } from "lucide-react";
 import { ChatConversationList } from "./ChatConversationList";
 import { ChatWindow } from "./ChatWindow";
 import { AutoPilotPanel } from "./AutoPilotPanel";
@@ -31,6 +20,8 @@ import { SimulatorMetricsPanel } from "./SimulatorMetricsPanel";
 import { StartConversationModal } from "./StartConversationModal";
 import { ChatRightPanel } from "./ChatRightPanel";
 import { WhatsAppContactsList } from "./WhatsAppContactsList";
+import { useWhatsAppConnectionStatus, WhatsAppStatusTag } from "./useWhatsAppConnection";
+import { VendaZapChatDialogs } from "./VendaZapChatDialogs";
 import type { ChatConversation } from "./types";
 
 type WhatsAppConnectionStatus = "checking" | "online" | "offline" | "not_configured";
