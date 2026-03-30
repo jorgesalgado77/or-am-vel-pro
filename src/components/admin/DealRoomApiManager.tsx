@@ -246,14 +246,26 @@ export function DealRoomApiManager() {
     setTestingProvider(provider);
     setTestResults((prev) => ({ ...prev, [provider]: null }));
 
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke("dealroom-api-test", {
+    const invokeTest = async () => {
+      return await supabase.functions.invoke("dealroom-api-test", {
         body: {
           provider,
           credenciais: draft.credenciais,
           configuracoes: draft.configuracoes,
         },
       });
+    };
+
+    try {
+      let { data, error: fnError } = await invokeTest();
+
+      const needsSessionRefresh = fnError?.message?.toLowerCase().includes("invalid jwt");
+      if (needsSessionRefresh) {
+        await supabase.auth.refreshSession();
+        const retryResult = await invokeTest();
+        data = retryResult.data;
+        fnError = retryResult.error;
+      }
 
       if (fnError) {
         const invokeMessage = await getInvokeErrorMessage(fnError);
