@@ -110,6 +110,7 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
             </div>
           )}
+          <div className="p-2 sm:p-3">
             {/* Selo de contrato fechado no topo */}
             {hasClosedContract && clientStatus !== "novo" && (
               <div className="mb-1.5">
