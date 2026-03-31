@@ -503,6 +503,18 @@ export function ClientsKanban({
         clientName={pendingSchedule?.clientName || ""}
         clientId={pendingSchedule?.clientId}
         tenantId={tenantId}
+        clientAddress={(() => {
+          if (!pendingSchedule) return null;
+          const c = localClients.find(cl => cl.id === pendingSchedule.clientId) as any;
+          if (!c?.endereco && !c?.cidade) return null;
+          return [c.endereco, c.bairro, c.cidade, c.estado || c.uf, c.cep].filter(Boolean).join(", ");
+        })()}
+        technicianAddress={(() => {
+          if (!currentUser) return null;
+          const u = currentUser as any;
+          if (!u.endereco && !u.cidade) return null;
+          return [u.endereco, u.numero, u.bairro, u.cidade, u.uf, u.cep].filter(Boolean).join(", ");
+        })()}
         onConfirm={handleScheduleConfirm}
         onCancel={handleScheduleCancel}
       />
