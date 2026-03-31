@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
-export type ApiProvider = "openai" | "perplexity" | "evolution" | "resend" | "stripe" | "asaas" | "pdf" | "google_calendar" | "google_calendar_oauth";
+export type ApiProvider = "openai" | "perplexity" | "evolution" | "resend" | "stripe" | "asaas" | "pdf" | "google_calendar" | "google_calendar_oauth" | "google_maps";
 
 export interface ApiKeyRecord {
   id: string;
