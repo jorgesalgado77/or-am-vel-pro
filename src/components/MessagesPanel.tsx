@@ -62,6 +62,11 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
   const [newReply, setNewReply] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { currentUser } = useCurrentUser();
+
+  // Determine if user should see all messages or only their own
+  const cargoLower = currentUser?.cargo_nome?.toLowerCase() || "";
+  const isGlobalRole = cargoLower.includes("admin") || cargoLower.includes("gerente");
 
   const fetchTrackingsWithMessages = async () => {
     setLoading(true);
