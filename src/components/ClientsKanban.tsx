@@ -289,6 +289,7 @@ export function ClientsKanban({
           moved_by: currentUser?.nome_completo || "Sistema",
         }).then(() => {});
       }
+      setSavingCardId(null);
     }
   }, [localClients, currentUser, tenantId, setLocalClients, setMeasurementStatus, measurementStatus, isTechnicalRole]);
 
