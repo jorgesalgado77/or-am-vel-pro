@@ -26,6 +26,9 @@ interface MeasurementCardRequest {
   last_edited_by_resolved?: string;
   last_edited_by_cargo?: string | null;
   last_edited_at?: string | null;
+  scheduled_date?: string | null;
+  scheduled_time?: string | null;
+  scheduled_km?: number | null;
 }
 
 interface MeasurementKanbanCardProps {
