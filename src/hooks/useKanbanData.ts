@@ -21,7 +21,7 @@ export function useKanbanData(externalClients: Client[]) {
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
   const [measurementStatus, setMeasurementStatus] = useState<Record<string, { status: string; assigned_to: string | null }>>({});
-  const [scheduledMeasurements, setScheduledMeasurements] = useState<Record<string, { date: string; time: string }>>({});
+  const [scheduledMeasurements, setScheduledMeasurements] = useState<Record<string, { date: string; time: string; km?: number }>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
 
   const { settings } = useCompanySettings();
