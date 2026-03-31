@@ -354,6 +354,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       {/* Measurement Calendar for technical roles */}
       {isTechnicalRole && (
         <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
+          <TechnicalDashboardCards userId={currentUser?.id} userName={currentUser?.nome_completo || currentUser?.apelido || ""} />
           <MeasurementCalendarWidget />
         </Suspense>
       )}
