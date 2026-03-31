@@ -277,9 +277,9 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 <span className="text-[10px] text-success font-semibold">
                   📅 {scheduledMeasurement.date} às {scheduledMeasurement.time}
                 </span>
-                {(scheduledMeasurement as any).km && (
+                {scheduledMeasurement.km && (
                   <Badge variant="outline" className="text-[9px] h-4 px-1 font-medium border-primary/40 text-primary ml-auto">
-                    🚗 {(scheduledMeasurement as any).km} km
+                    🚗 {scheduledMeasurement.km} km
                   </Badge>
                 )}
               </div>
