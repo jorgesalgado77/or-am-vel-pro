@@ -55,6 +55,7 @@ export function AppSidebar({
   const ThemeIcon = THEME_ICONS[mode];
   const companyName = settings.company_name || "OrçaMóvel PRO";
   const companySubtitle = settings.company_subtitle || "Orce. Venda. Simplifique";
+  const pendingMeasurements = usePendingMeasurements(currentUser?.id, currentUser?.cargo_nome || undefined);
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
@@ -62,7 +63,7 @@ export function AppSidebar({
     { id: "clients", label: "Clientes", icon: Users, perm: "clientes" as const, show: hasPermission("clientes"), badge: null },
     { id: "catalog", label: "Catálogo", icon: Package, perm: "catalogo" as const, show: hasPermission("catalogo"), badge: "NOVO" },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
-    { id: "measurements", label: "Medidas", icon: Ruler, perm: "medicao" as const, show: hasPermission("medicao") || cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador") || cargoLower.includes("liberador") || cargoLower.includes("conferente"), badge: null },
+    { id: "measurements", label: "Medidas", icon: Ruler, perm: "medicao" as const, show: hasPermission("medicao") || cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador") || cargoLower.includes("liberador") || cargoLower.includes("conferente"), badge: pendingMeasurements > 0 ? pendingMeasurements : null },
     { id: "tasks", label: "Tarefas", icon: ClipboardCheck, perm: "clientes" as const, show: true, badge: null },
     { id: "emails", label: "Email", icon: Mail, perm: "email" as const, show: hasPermission("email"), badge: "NOVO" },
     { id: "messages", label: "Mensagens", icon: MessageSquare, perm: "mensagens" as const, show: hasPermission("mensagens"), badge: unreadMessages > 0 ? unreadMessages : null },

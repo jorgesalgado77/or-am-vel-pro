@@ -270,6 +270,15 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 <span className="text-[10px] text-destructive font-medium">Orçamento expirado</span>
               </div>
             ) : null}
+            {/* Scheduled measurement indicator */}
+            {scheduledMeasurement && (
+              <div className="flex items-center gap-1 mt-1.5">
+                <CalendarCheck className="h-3 w-3 text-emerald-500" />
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  📅 {scheduledMeasurement.date} às {scheduledMeasurement.time}
+                </span>
+              </div>
+            )}
             {/* Schedule measurement action button for technical cards in em_medicao */}
             {onScheduleMeasurement && (clientStatus === "em_medicao" || clientStatus === "nova_solicitacao") && (
               <button
@@ -278,7 +287,7 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 title="Agendar ou reagendar medição"
               >
                 <CalendarPlus className="h-3 w-3" />
-                Agendar Medição
+                {scheduledMeasurement ? "Reagendar Medição" : "Agendar Medição"}
               </button>
             )}
           </div>
