@@ -339,10 +339,22 @@ export function AdminWhatsAppConfig() {
         enviar_notificacoes: enviarNotificacoes,
       } as any)
       .eq("id", settings.id);
+
+    if (!error && provider === "uazap") {
+      try {
+        await saveUazapProviderConfig();
+        await syncUazapShares();
+      } catch (syncError: any) {
+        toast.error("Configuração salva, mas falhou ao sincronizar UAZAP: " + (syncError?.message || "erro desconhecido"));
+      }
+    }
+
     setSaving(false);
     if (error) toast.error("Erro ao salvar configurações");
     else {
       toast.success("Configurações salvas!");
+      fetchUazapConfig();
+      fetchTenantsAndShares();
       fetchSettings();
     }
   };
