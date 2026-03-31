@@ -25,7 +25,7 @@ interface KanbanCardProps {
   tenantId: string;
   followUpStatus?: "active" | "paused" | "completed";
   assignedTechnician?: string | null;
-  scheduledMeasurement?: { date: string; time: string } | null;
+  scheduledMeasurement?: { date: string; time: string; km?: number } | null;
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
   onScheduleMeasurement?: (clientId: string, clientName: string) => void;
@@ -272,11 +272,16 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
             ) : null}
             {/* Scheduled measurement indicator */}
             {scheduledMeasurement && (
-              <div className="flex items-center gap-1 mt-1.5">
-                <CalendarCheck className="h-3 w-3 text-emerald-500" />
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+              <div className="flex items-center gap-1.5 mt-1.5 bg-success/10 border border-success/30 rounded-md px-2 py-1">
+                <CalendarCheck className="h-3.5 w-3.5 text-success shrink-0" />
+                <span className="text-[10px] text-success font-semibold">
                   📅 {scheduledMeasurement.date} às {scheduledMeasurement.time}
                 </span>
+                {scheduledMeasurement.km && (
+                  <Badge variant="outline" className="text-[9px] h-4 px-1 font-medium border-primary/40 text-primary ml-auto">
+                    🚗 {scheduledMeasurement.km} km
+                  </Badge>
+                )}
               </div>
             )}
             {/* Schedule measurement action button for technical cards in em_medicao */}

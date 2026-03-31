@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, Clock, Eye, Pencil, Phone, Ruler, Store, User, UserCheck } from "lucide-react";
+import { AlertTriangle, CalendarCheck, Clock, Eye, MapPin, Pencil, Phone, Ruler, Store, User, UserCheck } from "lucide-react";
 
 interface MeasurementCardRequest {
   id: string;
@@ -26,6 +26,9 @@ interface MeasurementCardRequest {
   last_edited_by_resolved?: string;
   last_edited_by_cargo?: string | null;
   last_edited_at?: string | null;
+  scheduled_date?: string | null;
+  scheduled_time?: string | null;
+  scheduled_km?: number | null;
 }
 
 interface MeasurementKanbanCardProps {
@@ -155,6 +158,20 @@ export function MeasurementKanbanCard({
           )}
         </div>
 
+        {/* Scheduled measurement indicator */}
+        {request.scheduled_date && request.scheduled_time && (
+          <div className="flex items-center gap-1.5 bg-success/10 border border-success/30 rounded-md px-2 py-1">
+            <CalendarCheck className="h-3.5 w-3.5 text-success shrink-0" />
+            <span className="text-[10px] text-success font-semibold">
+              📅 {request.scheduled_date} às {request.scheduled_time}
+            </span>
+            {request.scheduled_km && (
+              <Badge variant="outline" className="text-[9px] h-4 px-1 font-medium border-primary/40 text-primary ml-auto">
+                <MapPin className="h-2.5 w-2.5 mr-0.5" /> {request.scheduled_km} km
+              </Badge>
+            )}
+          </div>
+        )}
         <div className="rounded-lg border bg-background/80 p-2.5 space-y-2">
           <Button variant="outline" size="sm" className="w-full h-8 text-[11px] gap-1.5" onClick={onViewDetails}>
             <Eye className="h-3.5 w-3.5" /> Ver detalhes

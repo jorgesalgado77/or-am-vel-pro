@@ -282,6 +282,7 @@ export function ClientsKanban({
       time: data.time,
       observations: data.observations || "",
       reason: data.rescheduleReason || null,
+      round_trip_km: data.roundTripKm || null,
       created_by: currentUser?.nome_completo || "Sistema",
     } as any).then(() => {});
 

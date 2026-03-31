@@ -15,7 +15,7 @@ interface KanbanColumnProps {
   tenantId: string;
   followUpStatus: Record<string, "active" | "paused" | "completed">;
   measurementStatus: Record<string, { status: string; assigned_to: string | null }>;
-  scheduledMeasurements?: Record<string, { date: string; time: string }>;
+  scheduledMeasurements?: Record<string, { date: string; time: string; km?: number }>;
   canDelete: boolean;
   onClientClick: (client: Client) => void;
   onDelete: (id: string) => void;

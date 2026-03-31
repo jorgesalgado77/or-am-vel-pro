@@ -8,17 +8,19 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Clock, Loader2, History, RefreshCw } from "lucide-react";
+import { CalendarIcon, Clock, Loader2, History, MapPin, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabaseClient";
+import { useGoogleMapsKey, calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
 
 export interface MeasurementScheduleData {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   observations: string;
-  rescheduleReason?: string; // Only when rescheduling
+  rescheduleReason?: string;
+  roundTripKm?: number | null;
 }
 
 export interface ScheduleHistoryEntry {
@@ -37,11 +39,13 @@ interface Props {
   clientId?: string;
   tenantId?: string;
   isReschedule?: boolean;
+  clientAddress?: string | null;
+  technicianAddress?: string | null;
   onConfirm: (data: MeasurementScheduleData) => Promise<void>;
   onCancel: () => void;
 }
 
-export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId, isReschedule, onConfirm, onCancel }: Props) {
+export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId, isReschedule, clientAddress, technicianAddress, onConfirm, onCancel }: Props) {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("09:00");
   const [observations, setObservations] = useState("");
@@ -49,6 +53,11 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<ScheduleHistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [kmResult, setKmResult] = useState<{ km: number; duration: string } | null>(null);
+  const [kmLoading, setKmLoading] = useState(false);
+  const [kmError, setKmError] = useState<string | null>(null);
+
+  const { googleMapsKey } = useGoogleMapsKey(tenantId || null);
 
   // Fetch schedule history
   useEffect(() => {
@@ -72,8 +81,31 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
       setObservations("");
       setRescheduleReason("");
       setShowHistory(false);
+      setKmResult(null);
+      setKmError(null);
     }
   }, [open]);
+
+  // Calculate KM when dialog opens
+  useEffect(() => {
+    if (!open || !googleMapsKey || !clientAddress || !technicianAddress) {
+      if (open && (!clientAddress || !technicianAddress)) {
+        setKmError("Endereço do cliente ou técnico não cadastrado");
+      }
+      return;
+    }
+    setKmLoading(true);
+    setKmError(null);
+    calculateRoundTripKm(googleMapsKey, technicianAddress, clientAddress)
+      .then(result => {
+        if (result) {
+          setKmResult(result);
+        } else {
+          setKmError("Não foi possível calcular a distância");
+        }
+      })
+      .finally(() => setKmLoading(false));
+  }, [open, googleMapsKey, clientAddress, technicianAddress]);
 
   const hasHistory = history.length > 0;
   const effectiveIsReschedule = isReschedule || hasHistory;
@@ -88,6 +120,7 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
         time,
         observations,
         rescheduleReason: effectiveIsReschedule ? rescheduleReason.trim() : undefined,
+        roundTripKm: kmResult?.km || null,
       });
     } finally {
       setSaving(false);
@@ -105,6 +138,30 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
             Cliente: <span className="font-semibold text-foreground">{clientName}</span>
           </p>
         </DialogHeader>
+
+        {/* KM Distance Section */}
+        <div className="rounded-lg border p-3 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">Distância (ida e volta)</span>
+          </div>
+          {kmLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculando distância...
+            </div>
+          ) : kmResult ? (
+            <div className="flex items-center gap-3">
+              <Badge className="text-sm font-bold bg-primary/15 text-primary border-primary/30" variant="outline">
+                🚗 {kmResult.km} km
+              </Badge>
+              <span className="text-xs text-muted-foreground">Tempo estimado (ida): {kmResult.duration}</span>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {kmError || (!googleMapsKey ? "Google Maps API não configurada. Configure em Configurações > APIs." : "Aguardando...")}
+            </p>
+          )}
+        </div>
 
         <div className="space-y-4 py-2">
           {effectiveIsReschedule && (
