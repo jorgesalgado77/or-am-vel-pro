@@ -387,14 +387,26 @@ export function AdminWhatsAppConfig() {
         }
 
         const baseUrl = uazapServerUrl.replace(/\/$/, "");
+        const instanceId = encodeURIComponent(uazapInstanceId.trim());
+        const instanceToken = encodeURIComponent(uazapInstanceToken.trim());
+
+        // UAZAP (uazapiGO) é compatível com rotas estilo Z-API por instância/token.
+        // Evitamos rotas /instance/* que retornam 404 em alguns ambientes (como free.uazapi.com).
         const candidates: Array<{ url: string; headers?: Record<string, string> }> = [
-          { url: `${baseUrl}/instance/fetchInstances`, headers: { apikey: uazapAdminToken } },
-          { url: `${baseUrl}/instance/fetchInstances`, headers: { Authorization: `Bearer ${uazapAdminToken}` } },
-          { url: `${baseUrl}/instance/status/${encodeURIComponent(uazapInstanceId)}`, headers: { apikey: uazapAdminToken } },
-          { url: `${baseUrl}/instance/status/${encodeURIComponent(uazapInstanceToken)}`, headers: { apikey: uazapAdminToken } },
-          { url: `${baseUrl}/instance/connectionState/${encodeURIComponent(uazapInstanceId)}`, headers: { apikey: uazapAdminToken } },
-          { url: `${baseUrl}/health` },
-          { url: `${baseUrl}` },
+          {
+            url: `${baseUrl}/instances/${instanceId}/token/${instanceToken}/status`,
+            headers: {
+              "Client-Token": uazapClientToken,
+              ...(uazapAdminToken ? { "Security-Token": uazapAdminToken } : {}),
+            },
+          },
+          {
+            url: `${baseUrl}/instances/${instanceId}/token/${instanceToken}`,
+            headers: {
+              "Client-Token": uazapClientToken,
+              ...(uazapAdminToken ? { "Security-Token": uazapAdminToken } : {}),
+            },
+          },
         ];
 
         let success = false;
@@ -414,13 +426,15 @@ export function AdminWhatsAppConfig() {
               payload = null;
             }
 
-            const statusText = String(payload?.status || "").toLowerCase();
+            const statusText = String(payload?.status || payload?.state || "").toLowerCase();
             const isConnected =
               payload?.connected === true ||
               payload?.authenticated === true ||
               payload?.smartphoneConnected === true ||
+              payload?.status === "CONNECTED" ||
               statusText === "connected" ||
-              statusText === "open";
+              statusText === "open" ||
+              statusText === "online";
 
             if (res.ok || isConnected) {
               success = true;
@@ -436,7 +450,11 @@ export function AdminWhatsAppConfig() {
         if (success) {
           toast.success("Conexão com UAZAP estabelecida!");
         } else {
-          toast.error(`Erro na conexão UAZAP: ${lastStatus || "sem status"} ${lastDetail}`);
+          if (lastStatus === 404) {
+            toast.error("Erro 404 na UAZAP: confirme Server URL (ex: https://free.uazapi.com) e os dados da instância/token.");
+          } else {
+            toast.error(`Erro na conexão UAZAP: ${lastStatus || "sem status"} ${lastDetail}`);
+          }
         }
       }
     } catch {
