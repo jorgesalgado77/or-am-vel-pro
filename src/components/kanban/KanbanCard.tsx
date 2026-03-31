@@ -90,13 +90,14 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
-            "rounded-lg border shadow-sm transition-colors cursor-pointer group border-l-[3px] sm:border-l-[4px]",
+            "relative rounded-lg border shadow-sm transition-colors cursor-pointer group border-l-[3px] sm:border-l-[4px]",
             tint.bgClass,
             "hover:shadow-md hover:border-primary/30",
             "active:scale-[0.98]",
             snapshot.isDragging && "shadow-lg ring-2 ring-primary/40 scale-[1.02]",
             expired && "border-destructive/30",
-            clientStatus === "fechado" && "ring-2 ring-success/50"
+            clientStatus === "fechado" && "ring-2 ring-success/50",
+            isSaving && "pointer-events-none opacity-60"
           )}
           style={{
             ...provided.draggableProps.style,
@@ -104,7 +105,11 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
           }}
           onClick={() => onClick(client)}
         >
-          <div className="p-2 sm:p-3">
+          {isSaving && (
+            <div className="absolute inset-0 z-10 grid place-items-center bg-background/50 rounded-lg">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            </div>
+          )}
             {/* Selo de contrato fechado no topo */}
             {hasClosedContract && clientStatus !== "novo" && (
               <div className="mb-1.5">
