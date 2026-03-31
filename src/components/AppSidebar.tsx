@@ -64,6 +64,7 @@ export function AppSidebar({
     { id: "catalog", label: "Catálogo", icon: Package, perm: "catalogo" as const, show: hasPermission("catalogo"), badge: "NOVO" },
     { id: "simulator", label: "Negociação", icon: Calculator, perm: "simulador" as const, show: true, badge: null },
     { id: "measurements", label: "Medidas", icon: Ruler, perm: "medicao" as const, show: hasPermission("medicao") || cargoLower.includes("gerente") || cargoLower.includes("tecnico") || cargoLower.includes("técnico") || cargoLower.includes("administrador") || cargoLower.includes("liberador") || cargoLower.includes("conferente"), badge: pendingMeasurements > 0 ? pendingMeasurements : null },
+    { id: "liberacao", label: "Liberação", icon: ShieldCheck, perm: "clientes" as const, show: true, badge: null },
     { id: "tasks", label: "Tarefas", icon: ClipboardCheck, perm: "clientes" as const, show: true, badge: null },
     { id: "emails", label: "Email", icon: Mail, perm: "email" as const, show: hasPermission("email"), badge: "NOVO" },
     { id: "messages", label: "Mensagens", icon: MessageSquare, perm: "mensagens" as const, show: hasPermission("mensagens"), badge: unreadMessages > 0 ? unreadMessages : null },
