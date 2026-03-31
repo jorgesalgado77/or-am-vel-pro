@@ -479,53 +479,60 @@ export function ClientsKanban({
     setPendingSchedule(null);
   }, []);
 
-  // Retroactively create pending tasks for cards already in "em_medicao" without a schedule
-  const retroSyncRef = useRef(false);
+  // Keep tasks synchronized with cards already in Em Medição
   useEffect(() => {
-    if (retroSyncRef.current || !isTechnicalRole || !tenantId || loading) return;
-    const emMedicaoClients = (columnData["em_medicao"] || []).filter(c => !scheduledMeasurements[c.id]);
+    if (!isTechnicalRole || !tenantId || loading) return;
+
+    const emMedicaoClients = localClients.filter((client) => {
+      const measurement = measurementStatus[client.id];
+      return normalizeStatusKey(measurement?.status) === "em_medicao" && !scheduledMeasurements[client.id];
+    });
+
     if (emMedicaoClients.length === 0) return;
-    retroSyncRef.current = true;
 
     (async () => {
-      for (const client of emMedicaoClients) {
-        // Check if a task already exists for this client measurement
-        const { data: existing } = await supabase
-          .from("tasks" as any)
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .like("titulo", `Medição - ${client.nome}%`)
-          .in("status", ["pendente", "em_execucao", "nova"])
-          .limit(1);
+      const titles = emMedicaoClients.map((client) => getMeasurementTaskTitle(client.nome));
+      const { data: existingTasks, error: existingError } = await supabase
+        .from("tasks" as any)
+        .select("id, titulo")
+        .eq("tenant_id", tenantId)
+        .in("titulo", titles)
+        .in("status", ["nova", "pendente", "em_execucao", "concluida"]);
 
-        if (existing && existing.length > 0) continue;
+      if (existingError) {
+        console.error("Erro ao buscar tarefas de medição:", existingError);
+        return;
+      }
 
-        const today = format(new Date(), "yyyy-MM-dd");
-        const { error: taskErr } = await supabase.from("tasks" as any).insert({
+      const existingTitles = new Set(((existingTasks || []) as any[]).map((task) => task.titulo));
+      const missingTasks = emMedicaoClients
+        .filter((client) => !existingTitles.has(getMeasurementTaskTitle(client.nome)))
+        .map((client) => ({
           tenant_id: tenantId,
-          titulo: `Medição - ${client.nome}`,
+          titulo: getMeasurementTaskTitle(client.nome),
           descricao: `Solicitação de medição em andamento sem data de agendamento definida.\nAguardando agendamento.`,
-          data_tarefa: today,
+          data_tarefa: format(new Date(), "yyyy-MM-dd"),
           horario: null,
           tipo: "medicao",
           status: "pendente",
           responsavel_id: currentUser?.id || null,
           responsavel_nome: currentUser?.nome_completo || null,
-          criado_por: currentUser?.nome_completo || "Sistema",
-        } as any);
+          criado_por: currentUser?.id || null,
+        }));
 
-        if (!taskErr) {
-          toast.info(`📋 Tarefa pendente criada: Medição - ${client.nome}`);
-          import("@/lib/notificationSound").then(({ playNotificationSound }) => playNotificationSound()).catch(() => {});
-          import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
-            if (currentUser?.id) {
-              sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `Medição - ${client.nome} aguardando agendamento`, `task-medicao-${client.id}`);
-            }
-          }).catch(() => {});
-        }
+      if (missingTasks.length === 0) return;
+
+      const { error: insertError } = await supabase.from("tasks" as any).insert(missingTasks as any);
+      if (insertError) {
+        console.error("Erro ao criar tarefas pendentes de medição:", insertError);
+        return;
       }
+
+      missingTasks.forEach((task) => {
+        toast.info(`📋 Tarefa pendente criada: ${task.titulo}`);
+      });
     })();
-  }, [columnData, scheduledMeasurements, isTechnicalRole, tenantId, loading, currentUser]);
+  }, [localClients, measurementStatus, scheduledMeasurements, isTechnicalRole, tenantId, loading, currentUser, getMeasurementTaskTitle, normalizeStatusKey]);
 
   const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 
