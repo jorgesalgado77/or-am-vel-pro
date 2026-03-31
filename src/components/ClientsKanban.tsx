@@ -287,29 +287,44 @@ export function ClientsKanban({
         const colLabel = [...KANBAN_COLUMNS_TECNICO, ...KANBAN_ALL_COLUMNS].find(c => c.id === newStatus)?.label || newStatus;
         toast.success(`${client.nome} movido para "${colLabel}"`);
 
-        // Auto-create pending task when moving to "em_medicao" without a scheduled date
+        // Auto-sync measurement task from persisted technical state
         if (newStatus === "em_medicao") {
           const hasSchedule = scheduledMeasurements[draggableId];
-          if (!hasSchedule) {
-            const today = format(new Date(), "yyyy-MM-dd");
-            supabase.from("tasks" as any).insert({
-              tenant_id: tenantId,
-              titulo: `Medição - ${client.nome}`,
-              descricao: `Solicitação de medição movida para "Em Medição" sem data de agendamento definida.\nAguardando agendamento.`,
-              data_tarefa: today,
-              horario: null,
-              tipo: "medicao",
-              status: "pendente",
-              responsavel_id: currentUser?.id || null,
-              responsavel_nome: currentUser?.nome_completo || null,
-              criado_por: currentUser?.nome_completo || "Sistema",
-            } as any).then(({ error: taskErr }) => {
-              if (!taskErr) {
-                toast.info(`📋 Tarefa pendente criada: Medição - ${client.nome}`);
-                // Send notifications
+          const title = getMeasurementTaskTitle(client.nome);
+          const taskPayload = {
+            tenant_id: tenantId,
+            titulo: title,
+            descricao: hasSchedule
+              ? `Agendamento: ${hasSchedule.date} às ${hasSchedule.time}${hasSchedule.km ? `\nDistância estimada: ${hasSchedule.km} km` : ""}`
+              : `Solicitação de medição movida para \"Em Medição\" sem data de agendamento definida.\nAguardando agendamento.`,
+            data_tarefa: parseScheduledDateToIso(hasSchedule?.date),
+            horario: hasSchedule?.time || null,
+            tipo: "medicao",
+            status: hasSchedule ? "em_execucao" : "pendente",
+            responsavel_id: currentUser?.id || null,
+            responsavel_nome: currentUser?.nome_completo || null,
+            criado_por: currentUser?.id || null,
+          };
+
+          supabase
+            .from("tasks" as any)
+            .select("id, status")
+            .eq("tenant_id", tenantId)
+            .eq("titulo", title)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .then(async ({ data: existingTasks, error: selectErr }) => {
+              if (selectErr) return;
+              const existingTask = existingTasks?.[0] as any;
+              const result = existingTask
+                ? await supabase.from("tasks" as any).update(taskPayload as any).eq("id", existingTask.id)
+                : await supabase.from("tasks" as any).insert(taskPayload as any);
+
+              if (!result.error && !hasSchedule) {
+                toast.info(`📋 Tarefa pendente criada: ${title}`);
                 import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
                   if (currentUser?.id) {
-                    sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `Medição - ${client.nome} aguardando agendamento`, `task-medicao-${draggableId}`);
+                    sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `${title} aguardando agendamento`, `task-medicao-${draggableId}`);
                   }
                 }).catch(() => {});
                 import("@/lib/notificationSound").then(({ playNotificationSound }) => {
@@ -317,15 +332,13 @@ export function ClientsKanban({
                 }).catch(() => {});
               }
             });
-          }
         }
 
-        // Auto-complete task when liberação is finalized (moved to em_liberado or enviado_compras)
         if (newStatus === "em_liberado" || newStatus === "enviado_compras") {
           supabase.from("tasks" as any)
             .update({ status: "concluida" } as any)
             .eq("tenant_id", tenantId)
-            .like("titulo", `Medição - ${client.nome}%`)
+            .eq("titulo", getMeasurementTaskTitle(client.nome))
             .in("status", ["pendente", "em_execucao", "nova"])
             .then(({ error: updErr }) => {
               if (!updErr) {
