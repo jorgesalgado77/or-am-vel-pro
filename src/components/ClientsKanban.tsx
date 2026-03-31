@@ -229,6 +229,8 @@ export function ClientsKanban({
     if (!client) return;
     const oldStatus = (client as any).status || "novo";
 
+    setSavingCardId(draggableId);
+
     if (isTechnicalRole) {
       // Technical roles: update measurement_requests, not clients
       const mrStatus = technicalStatusMap[newStatus] || newStatus;
