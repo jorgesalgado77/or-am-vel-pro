@@ -82,6 +82,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
                   followUpStatus={followUpStatus[client.id]}
                   assignedTechnician={measurementStatus[client.id]?.assigned_to || null}
                   scheduledMeasurement={scheduledMeasurements?.[client.id] || null}
+                  isSaving={savingCardId === client.id}
                   onClick={onClientClick}
                   onQuickDelete={canDelete ? (c) => {
                     if (window.confirm(`Excluir o lead "${c.nome}"? Esta ação não pode ser desfeita.`)) {
