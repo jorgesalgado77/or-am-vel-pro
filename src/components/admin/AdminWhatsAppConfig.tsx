@@ -391,7 +391,12 @@ export function AdminWhatsAppConfig() {
         }
 
         const baseUrl = uazapServerUrl.replace(/\/$/, "");
-        const instanceId = encodeURIComponent(uazapInstanceId.trim());
+        const rawInstanceId = uazapInstanceId.trim();
+        const slugInstanceId = rawInstanceId
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9_-]/g, "");
+        const instanceIdVariants = Array.from(new Set([rawInstanceId, slugInstanceId].filter(Boolean)));
         const instanceToken = encodeURIComponent(uazapInstanceToken.trim());
         const adminHeaders: Record<string, string>[] = [
           { apikey: uazapAdminToken },
@@ -406,37 +411,48 @@ export function AdminWhatsAppConfig() {
 
         // UAZAP possui variação de rotas entre servidores (free/proxy/versões).
         // Testamos sequencialmente para evitar falso negativo por 404 em apenas um path.
-        const candidates: Array<{ url: string; headers?: Record<string, string> }> = [
-          ...apiPrefixes.flatMap((prefix) => [
-            ...adminHeaders.map((headers) => ({
-              url: `${baseUrl}${prefix}/instance/status/${instanceId}`,
-              headers,
-            })),
-            ...adminHeaders.map((headers) => ({
-              url: `${baseUrl}${prefix}/instance/connectionState/${instanceId}`,
-              headers,
-            })),
-          ]),
-          ...apiPrefixes.flatMap((prefix) => [
-            {
-              url: `${baseUrl}${prefix}/instances/${instanceId}/token/${instanceToken}/status`,
-              headers: instanceHeaders,
-            },
-            {
-              url: `${baseUrl}${prefix}/instances/${instanceId}/token/${instanceToken}`,
-              headers: instanceHeaders,
-            },
-          ]),
+        const candidates: Array<{ url: string; headers?: Record<string, string>; auth: string }> = [
+          ...instanceIdVariants.flatMap((instanceVariant) => {
+            const encodedId = encodeURIComponent(instanceVariant);
+            return [
+              ...apiPrefixes.flatMap((prefix) => [
+                ...adminHeaders.map((headers) => ({
+                  url: `${baseUrl}${prefix}/instance/status/${encodedId}`,
+                  headers,
+                  auth: headers.apikey ? "apikey" : "bearer",
+                })),
+                ...adminHeaders.map((headers) => ({
+                  url: `${baseUrl}${prefix}/instance/connectionState/${encodedId}`,
+                  headers,
+                  auth: headers.apikey ? "apikey" : "bearer",
+                })),
+              ]),
+              ...apiPrefixes.flatMap((prefix) => [
+                {
+                  url: `${baseUrl}${prefix}/instances/${encodedId}/token/${instanceToken}/status`,
+                  headers: instanceHeaders,
+                  auth: "client+security-token",
+                },
+                {
+                  url: `${baseUrl}${prefix}/instances/${encodedId}/token/${instanceToken}`,
+                  headers: instanceHeaders,
+                  auth: "client+security-token",
+                },
+              ]),
+            ];
+          }),
         ];
 
         let success = false;
         let lastStatus: number | null = null;
         let lastDetail = "";
+        let all404 = true;
 
         for (const candidate of candidates) {
           try {
             const res = await fetch(candidate.url, { method: "GET", headers: candidate.headers });
             lastStatus = res.status;
+            if (res.status !== 404) all404 = false;
 
             const raw = await res.text();
             let payload: any = null;
@@ -457,7 +473,7 @@ export function AdminWhatsAppConfig() {
               statusText === "online";
 
             const detail = payload?.message || payload?.error || payload?.status || payload?.state || (raw ? raw.slice(0, 120) : "sem detalhe");
-            attempts.push(`[${res.status}] ${res.statusText || "sem status"} - ${candidate.url} :: ${detail}`);
+            attempts.push(`[${res.status}] ${res.statusText || "sem status"} - (${candidate.auth}) ${candidate.url} :: ${detail}`);
 
             if (res.ok || isConnected) {
               success = true;
@@ -467,6 +483,7 @@ export function AdminWhatsAppConfig() {
             lastDetail = payload?.message || payload?.error || raw || "Resposta sem detalhes";
           } catch (err: any) {
             lastDetail = err?.message || "Falha de rede";
+            all404 = false;
             attempts.push(`[ERR] ${lastDetail} - ${candidate.url}`);
           }
         }
@@ -476,7 +493,18 @@ export function AdminWhatsAppConfig() {
         if (success) {
           toast.success("Conexão com UAZAP estabelecida!");
         } else {
-          toast.error(`Erro UAZAP: ${lastStatus || "sem status"} ${lastDetail}. Veja o log de endpoints abaixo.`);
+          if (all404) {
+            const all404Hint = [
+              "⚠️ Todos os endpoints retornaram 404.",
+              "• O Server URL provavelmente não é o host de API da sua instância.",
+              "• Teste com host de API correto do seu painel UAZAP.",
+              "• Instância com acento pode falhar por slug: tente ORCA em vez de ORÇA.",
+            ].join("\n");
+            setConnectionTestLog((prev) => `${prev}\n\n${all404Hint}`);
+            toast.error("Todos os endpoints deram 404: ajuste Server URL da API e use instância sem acento (ex: ORCA).");
+          } else {
+            toast.error(`Erro UAZAP: ${lastStatus || "sem status"} ${lastDetail}. Veja o log de endpoints abaixo.`);
+          }
         }
       }
     } catch {
