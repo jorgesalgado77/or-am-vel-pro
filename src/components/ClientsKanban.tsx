@@ -465,13 +465,7 @@ export function ClientsKanban({
                         followUpStatus={followUpStatus}
                         measurementStatus={measurementStatus}
                         scheduledMeasurements={scheduledMeasurements}
-                        canDelete={canDelete}
-                        onClientClick={setExpandedClient}
-                        onDelete={onDelete}
-                      />
-                    ))}
-
-                    {(isAdmin || isGerente) && (
+                        savingCardId={savingCardId}
                       <>
                         <button
                           onClick={() => setOperacionalExpanded(prev => !prev)}
