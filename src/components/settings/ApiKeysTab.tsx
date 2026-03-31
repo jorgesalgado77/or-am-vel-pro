@@ -85,6 +85,18 @@ export function ApiKeysTab() {
             valid = !!pData?.content || pData?.error === undefined;
             if (!valid) errorMsg = pData?.error || "Chave Perplexity inválida";
           }
+        } else if (selectedProvider === "google_maps") {
+          // Validate Google Maps API key with a simple geocoding test
+          const res = await fetch(
+            `https://maps.googleapis.com/maps/api/distancematrix/json?origins=São Paulo&destinations=Rio de Janeiro&key=${apiKey.trim()}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            valid = data?.status === "OK" && data?.rows?.[0]?.elements?.[0]?.status === "OK";
+            if (!valid) errorMsg = data?.error_message || "Chave Google Maps inválida ou sem permissão para Distance Matrix API";
+          } else {
+            errorMsg = "Chave Google Maps inválida";
+          }
         } else {
           // For other providers, validate format only
           valid = apiKey.trim().length > 10;
