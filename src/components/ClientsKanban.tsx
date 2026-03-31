@@ -267,6 +267,53 @@ export function ClientsKanban({
       } else {
         const colLabel = [...KANBAN_COLUMNS_TECNICO, ...KANBAN_ALL_COLUMNS].find(c => c.id === newStatus)?.label || newStatus;
         toast.success(`${client.nome} movido para "${colLabel}"`);
+
+        // Auto-create pending task when moving to "em_medicao" without a scheduled date
+        if (newStatus === "em_medicao") {
+          const hasSchedule = scheduledMeasurements[draggableId];
+          if (!hasSchedule) {
+            const today = format(new Date(), "yyyy-MM-dd");
+            supabase.from("tasks" as any).insert({
+              tenant_id: tenantId,
+              titulo: `Medição - ${client.nome}`,
+              descricao: `Solicitação de medição movida para "Em Medição" sem data de agendamento definida.\nAguardando agendamento.`,
+              data_tarefa: today,
+              horario: null,
+              tipo: "medicao",
+              status: "pendente",
+              responsavel_id: currentUser?.id || null,
+              responsavel_nome: currentUser?.nome_completo || null,
+              criado_por: currentUser?.nome_completo || "Sistema",
+            } as any).then(({ error: taskErr }) => {
+              if (!taskErr) {
+                toast.info(`📋 Tarefa pendente criada: Medição - ${client.nome}`);
+                // Send notifications
+                import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
+                  if (currentUser?.id) {
+                    sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `Medição - ${client.nome} aguardando agendamento`, `task-medicao-${draggableId}`);
+                  }
+                }).catch(() => {});
+                import("@/lib/notificationSound").then(({ playNotificationSound }) => {
+                  playNotificationSound();
+                }).catch(() => {});
+              }
+            });
+          }
+        }
+
+        // Auto-complete task when liberação is finalized (moved to em_liberado or enviado_compras)
+        if (newStatus === "em_liberado" || newStatus === "enviado_compras") {
+          supabase.from("tasks" as any)
+            .update({ status: "concluida" } as any)
+            .eq("tenant_id", tenantId)
+            .like("titulo", `Medição - ${client.nome}%`)
+            .in("status", ["pendente", "em_execucao", "nova"])
+            .then(({ error: updErr }) => {
+              if (!updErr) {
+                toast.info(`✅ Tarefa de medição concluída automaticamente`);
+              }
+            });
+        }
       }
       setSavingCardId(null);
     } else {
@@ -316,28 +363,60 @@ export function ClientsKanban({
       created_by: currentUser?.nome_completo || "Sistema",
     } as any).then(() => {});
 
-    // 3. Create task automatically
+    // 3. Update existing pending task to em_execucao, or create one if none exists
     const formattedDate = data.date.split("-").reverse().join("/");
-    const { error: taskError } = await supabase
-      .from("tasks" as any)
-      .insert({
-        tenant_id: tenantId,
-        titulo: `Medição - ${clientName}`,
-        descricao: `${data.rescheduleReason ? `[REAGENDAMENTO] ${data.rescheduleReason}\n\n` : ""}Agendamento: ${formattedDate} às ${data.time}\n${data.observations || "Sem observações"}`,
-        data_tarefa: data.date,
-        horario: data.time,
-        tipo: "medicao",
-        status: "pendente",
-        responsavel_id: currentUser?.id || null,
-        responsavel_nome: currentUser?.nome_completo || null,
-        criado_por: currentUser?.nome_completo || "Sistema",
-      } as any);
+    const descricao = `${data.rescheduleReason ? `[REAGENDAMENTO] ${data.rescheduleReason}\n\n` : ""}Agendamento: ${formattedDate} às ${data.time}\n${data.observations || "Sem observações"}`;
 
-    if (taskError) {
-      console.error("Erro ao criar tarefa:", taskError);
-      toast.warning("Medição movida, mas erro ao criar tarefa automática");
+    // Try to find an existing pending task for this measurement
+    const { data: existingTasks } = await supabase
+      .from("tasks" as any)
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .like("titulo", `Medição - ${clientName}%`)
+      .in("status", ["pendente", "nova"])
+      .limit(1);
+
+    if (existingTasks && existingTasks.length > 0) {
+      // Promote existing task to em_execucao with schedule details
+      const { error: updateErr } = await supabase
+        .from("tasks" as any)
+        .update({
+          status: "em_execucao",
+          data_tarefa: data.date,
+          horario: data.time,
+          descricao,
+        } as any)
+        .eq("id", (existingTasks[0] as any).id);
+
+      if (updateErr) {
+        console.error("Erro ao atualizar tarefa:", updateErr);
+        toast.warning("Medição agendada, mas erro ao atualizar tarefa");
+      } else {
+        toast.success(`Medição ${data.rescheduleReason ? "reagendada" : "agendada"} para ${formattedDate} às ${data.time} — Tarefa movida para Em Execução!`);
+      }
     } else {
-      toast.success(`Medição ${data.rescheduleReason ? "reagendada" : "agendada"} para ${formattedDate} às ${data.time} — Tarefa criada!`);
+      // No existing task — create one directly as em_execucao
+      const { error: taskError } = await supabase
+        .from("tasks" as any)
+        .insert({
+          tenant_id: tenantId,
+          titulo: `Medição - ${clientName}`,
+          descricao,
+          data_tarefa: data.date,
+          horario: data.time,
+          tipo: "medicao",
+          status: "em_execucao",
+          responsavel_id: currentUser?.id || null,
+          responsavel_nome: currentUser?.nome_completo || null,
+          criado_por: currentUser?.nome_completo || "Sistema",
+        } as any);
+
+      if (taskError) {
+        console.error("Erro ao criar tarefa:", taskError);
+        toast.warning("Medição agendada, mas erro ao criar tarefa automática");
+      } else {
+        toast.success(`Medição ${data.rescheduleReason ? "reagendada" : "agendada"} para ${formattedDate} às ${data.time} — Tarefa criada em execução!`);
+      }
     }
 
     // 4. Push notification
