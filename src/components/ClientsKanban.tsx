@@ -450,6 +450,54 @@ export function ClientsKanban({
     setPendingSchedule(null);
   }, []);
 
+  // Retroactively create pending tasks for cards already in "em_medicao" without a schedule
+  const retroSyncRef = useRef(false);
+  useEffect(() => {
+    if (retroSyncRef.current || !isTechnicalRole || !tenantId || loading) return;
+    const emMedicaoClients = (columnData["em_medicao"] || []).filter(c => !scheduledMeasurements[c.id]);
+    if (emMedicaoClients.length === 0) return;
+    retroSyncRef.current = true;
+
+    (async () => {
+      for (const client of emMedicaoClients) {
+        // Check if a task already exists for this client measurement
+        const { data: existing } = await supabase
+          .from("tasks" as any)
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .like("titulo", `Medição - ${client.nome}%`)
+          .in("status", ["pendente", "em_execucao", "nova"])
+          .limit(1);
+
+        if (existing && existing.length > 0) continue;
+
+        const today = format(new Date(), "yyyy-MM-dd");
+        const { error: taskErr } = await supabase.from("tasks" as any).insert({
+          tenant_id: tenantId,
+          titulo: `Medição - ${client.nome}`,
+          descricao: `Solicitação de medição em andamento sem data de agendamento definida.\nAguardando agendamento.`,
+          data_tarefa: today,
+          horario: null,
+          tipo: "medicao",
+          status: "pendente",
+          responsavel_id: currentUser?.id || null,
+          responsavel_nome: currentUser?.nome_completo || null,
+          criado_por: currentUser?.nome_completo || "Sistema",
+        } as any);
+
+        if (!taskErr) {
+          toast.info(`📋 Tarefa pendente criada: Medição - ${client.nome}`);
+          import("@/lib/notificationSound").then(({ playNotificationSound }) => playNotificationSound()).catch(() => {});
+          import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
+            if (currentUser?.id) {
+              sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `Medição - ${client.nome} aguardando agendamento`, `task-medicao-${client.id}`);
+            }
+          }).catch(() => {});
+        }
+      }
+    })();
+  }, [columnData, scheduledMeasurements, isTechnicalRole, tenantId, loading, currentUser]);
+
   const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 
   const clearFilters = () => {
