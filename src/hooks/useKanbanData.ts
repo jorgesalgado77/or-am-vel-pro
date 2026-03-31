@@ -237,6 +237,28 @@ export function useKanbanData(externalClients: Client[]) {
       }
     };
     fetchMeasurements();
+
+    // Fetch scheduled measurement dates per client
+    const fetchScheduledDates = async () => {
+      const { data: histData } = await supabase
+        .from("measurement_schedule_history" as any)
+        .select("client_id, date, time, created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
+      if (histData) {
+        const schedMap: Record<string, { date: string; time: string }> = {};
+        (histData as any[]).forEach((h: any) => {
+          // Keep only the latest per client
+          if (!schedMap[h.client_id]) {
+            const formattedDate = h.date.includes("-") ? h.date.split("-").reverse().join("/") : h.date;
+            schedMap[h.client_id] = { date: formattedDate, time: h.time };
+          }
+        });
+        setScheduledMeasurements(schedMap);
+      }
+    };
+    fetchScheduledDates();
+
     const channel = supabase
       .channel("kanban-measurement-sync")
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "measurement_requests", filter: `tenant_id=eq.${tenantId}` }, (payload: any) => {
@@ -262,6 +284,7 @@ export function useKanbanData(externalClients: Client[]) {
           }
         }
         fetchMeasurements();
+        fetchScheduledDates();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
