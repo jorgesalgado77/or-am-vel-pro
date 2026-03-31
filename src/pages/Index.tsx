@@ -182,7 +182,10 @@ export default function Index() {
   const handleSimulate = (client: Client) => { setSimulatingClient(client); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null); setActiveView("simulator"); };
   const handleHistory = (client: Client) => { setHistoryClient(client); setSimulatingClient(null); setContractsClient(null); setActiveView("history"); };
   const handleContracts = (client: Client) => { setContractsClient(client); setSimulatingClient(null); setHistoryClient(null); setActiveView("contracts"); };
-  const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null); };
+  const handleViewChange = (v: string) => {
+    if (v === "liberacao") { setShowLiberacao(true); return; }
+    setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null);
+  };
 
   // Listen for navigation events from Mia and other assistants
   useEffect(() => {
