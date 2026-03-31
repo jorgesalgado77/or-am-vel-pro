@@ -24,7 +24,7 @@ interface KanbanColumnProps {
 
 export const KanbanColumn = React.memo(function KanbanColumn({
   col, clients, lastSims, budgetValidityDays, cargoNome, tenantId,
-  followUpStatus, measurementStatus, canDelete, onClientClick, onDelete, onScheduleMeasurement,
+  followUpStatus, measurementStatus, scheduledMeasurements, canDelete, onClientClick, onDelete, onScheduleMeasurement,
 }: KanbanColumnProps) {
   return (
     <div className="flex flex-col min-w-[170px] w-[170px] sm:min-w-[200px] sm:w-[200px] md:min-w-[220px] md:w-[220px] lg:min-w-[240px] lg:w-[240px] shrink-0">
