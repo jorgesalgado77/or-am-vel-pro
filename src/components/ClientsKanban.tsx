@@ -43,6 +43,25 @@ export function ClientsKanban({
   const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string } | null>(null);
   const [savingCardId, setSavingCardId] = useState<string | null>(null);
 
+  const getMeasurementTaskTitle = useCallback((clientName: string) => `Medição - ${clientName}`, []);
+
+  const normalizeStatusKey = useCallback((value?: string | null) => {
+    return String(value || "novo")
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "_");
+  }, []);
+
+  const parseScheduledDateToIso = useCallback((scheduledDate?: string | null) => {
+    if (!scheduledDate) return format(new Date(), "yyyy-MM-dd");
+    if (scheduledDate.includes("-")) return scheduledDate;
+    const [day, month, year] = scheduledDate.split("/");
+    if (!day || !month || !year) return format(new Date(), "yyyy-MM-dd");
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }, []);
+
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
   const isAdmin = cargoNome.includes("administrador");
