@@ -9,6 +9,7 @@ import {supabase} from "@/lib/supabaseClient";
 import {getTenantId} from "@/lib/tenantState";
 import {toast} from "sonner";
 import {format} from "date-fns";
+import {useCurrentUser} from "@/hooks/useCurrentUser";
 
 function formatPhoneMask(phone: string | null | undefined): string {
   if (!phone) return "—";
