@@ -389,24 +389,39 @@ export function AdminWhatsAppConfig() {
         const baseUrl = uazapServerUrl.replace(/\/$/, "");
         const instanceId = encodeURIComponent(uazapInstanceId.trim());
         const instanceToken = encodeURIComponent(uazapInstanceToken.trim());
+        const adminHeaders: Record<string, string>[] = [
+          { apikey: uazapAdminToken },
+          { Authorization: `Bearer ${uazapAdminToken}` },
+        ];
+        const instanceHeaders: Record<string, string> = {
+          "Client-Token": uazapClientToken,
+          ...(uazapAdminToken ? { "Security-Token": uazapAdminToken } : {}),
+        };
+        const apiPrefixes = ["", "/api", "/v1"];
 
-        // UAZAP (uazapiGO) é compatível com rotas estilo Z-API por instância/token.
-        // Evitamos rotas /instance/* que retornam 404 em alguns ambientes (como free.uazapi.com).
+        // UAZAP possui variação de rotas entre servidores (free/proxy/versões).
+        // Testamos sequencialmente para evitar falso negativo por 404 em apenas um path.
         const candidates: Array<{ url: string; headers?: Record<string, string> }> = [
-          {
-            url: `${baseUrl}/instances/${instanceId}/token/${instanceToken}/status`,
-            headers: {
-              "Client-Token": uazapClientToken,
-              ...(uazapAdminToken ? { "Security-Token": uazapAdminToken } : {}),
+          ...apiPrefixes.flatMap((prefix) => [
+            ...adminHeaders.map((headers) => ({
+              url: `${baseUrl}${prefix}/instance/status/${instanceId}`,
+              headers,
+            })),
+            ...adminHeaders.map((headers) => ({
+              url: `${baseUrl}${prefix}/instance/connectionState/${instanceId}`,
+              headers,
+            })),
+          ]),
+          ...apiPrefixes.flatMap((prefix) => [
+            {
+              url: `${baseUrl}${prefix}/instances/${instanceId}/token/${instanceToken}/status`,
+              headers: instanceHeaders,
             },
-          },
-          {
-            url: `${baseUrl}/instances/${instanceId}/token/${instanceToken}`,
-            headers: {
-              "Client-Token": uazapClientToken,
-              ...(uazapAdminToken ? { "Security-Token": uazapAdminToken } : {}),
+            {
+              url: `${baseUrl}${prefix}/instances/${instanceId}/token/${instanceToken}`,
+              headers: instanceHeaders,
             },
-          },
+          ]),
         ];
 
         let success = false;
