@@ -372,7 +372,8 @@ export function useKanbanData(externalClients: Client[]) {
 
   return {
     localClients, setLocalClients,
-    lastSims, followUpStatus, contractClientIds, measurementStatus, scheduledMeasurements,
+    measurementStatus, setMeasurementStatus,
+    lastSims, followUpStatus, contractClientIds, scheduledMeasurements,
     expandedClient, setExpandedClient,
     settings, projetistas, usuarios, indicadores, currentUser,
     tenantId, cargoNome,

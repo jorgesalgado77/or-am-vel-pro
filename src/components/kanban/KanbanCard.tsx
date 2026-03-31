@@ -77,7 +77,7 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
 
 export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, scheduledMeasurement, onClick, onQuickDelete, onScheduleMeasurement }: KanbanCardProps) {
   const clientStatus = ((client as any).status || "novo").toLowerCase();
-  const hasClosedContract = clientStatus === "fechado" || !!(client as any).data_contrato;
+  const hasClosedContract = !!(client as any).contrato_fechado_visual || clientStatus === "fechado" || !!(client as any).data_contrato;
   const expired = sim && !hasClosedContract ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
   const daysInColumn = differenceInDays(new Date(), new Date(client.updated_at));
   const tint = getColumnTint(clientStatus);
@@ -228,7 +228,7 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                   <KanbanDealBadge
                     clientId={client.id}
                     clientName={client.nome}
-                    clientStatus={clientStatus}
+                    clientStatus={hasClosedContract ? "fechado" : clientStatus}
                     tenantId={tenantId}
                     daysInactive={daysInColumn}
                     hasSimulation
@@ -241,9 +241,9 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 </div>
               </div>
             )}
-            {(client.vendedor || assignedTechnician) && (
+            {((client.vendedor && !cargoNome.includes("vendedor")) || assignedTechnician) && (
               <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                {client.vendedor && (
+                {client.vendedor && !cargoNome.includes("vendedor") && (
                   <>
                     <User className="h-3 w-3 text-primary/60 shrink-0" />
                     <span className="text-[10px] text-primary/80 font-medium truncate">{client.vendedor}</span>

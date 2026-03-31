@@ -22,7 +22,7 @@ export function ClientsKanban({
 }: ClientsKanbanProps) {
   const {
     localClients, setLocalClients,
-    lastSims, followUpStatus, contractClientIds, measurementStatus, scheduledMeasurements,
+    lastSims, followUpStatus, contractClientIds, measurementStatus, setMeasurementStatus, scheduledMeasurements,
     expandedClient, setExpandedClient,
     settings, projetistas, usuarios, indicadores, currentUser,
     tenantId, cargoNome, handleClientUpdate,
@@ -132,6 +132,33 @@ export function ClientsKanban({
   const isGerente = cargoNome.includes("gerente") && !isGerenteTecnico;
   const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : (isAdmin || isGerente) ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;
 
+  const resolveTechnicalColumn = useCallback((measurementRequestStatus?: string | null) => {
+    const normalized = String(measurementRequestStatus || "novo")
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "_");
+
+    switch (normalized) {
+      case "em_andamento":
+      case "em_medicao":
+        return "em_medicao";
+      case "em_liberacao":
+      case "liberado":
+      case "em_liberado":
+        return "em_liberado";
+      case "negative":
+      case "negativo":
+      case "negativos":
+        return "negativos";
+      case "enviado_compras":
+        return "enviado_compras";
+      default:
+        return "nova_solicitacao";
+    }
+  }, []);
+
   // Column data
   const columnData = useMemo(() => {
     const map: Record<string, Client[]> = {};
@@ -141,34 +168,9 @@ export function ClientsKanban({
       let status = String((client as any).status || "novo").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_");
       
       if (isTechnicalRole) {
-        // For technical roles, map statuses to their specific columns
         const mr = measurementStatus[client.id];
         if (mr) {
-          if (mr.status === "negative" || mr.status === "negativos") {
-            status = "negativos";
-          } else if (mr.status === "enviado_compras") {
-            status = "enviado_compras";
-          } else if (isGerenteTecnico) {
-            // Gerente Técnico: unassigned = Nova Solicitação, assigned = Em Medição, with assigned_to & status liberado = Em Liberação
-            if (!mr.assigned_to) {
-              status = "nova_solicitacao";
-            } else if (mr.status === "em_liberacao" || mr.status === "liberado") {
-              status = "em_liberado";
-            } else {
-              status = "em_medicao";
-            }
-          } else {
-            // Basic technical: assigned_to me → Em Liberação means they are working
-            if (mr.assigned_to) {
-              if (mr.status === "em_liberacao" || mr.status === "liberado") {
-                status = "em_liberado";
-              } else {
-                status = "nova_solicitacao";
-              }
-            } else {
-              status = "nova_solicitacao";
-            }
-          }
+          status = resolveTechnicalColumn(mr.status);
         } else {
           status = "nova_solicitacao";
         }
@@ -191,7 +193,11 @@ export function ClientsKanban({
         }
       }
       
-      const resolved = ((client as any).status === status ? client : { ...client, status }) as Client;
+      const resolved = {
+        ...client,
+        status,
+        contrato_fechado_visual: contractClientIds.has(client.id) || !!(client as any).data_contrato,
+      } as Client;
       if (map[status]) map[status].push(resolved);
       else {
         const fallbackCol = isTechnicalRole ? "nova_solicitacao" : "novo";
@@ -202,7 +208,7 @@ export function ClientsKanban({
       map[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     });
     return map;
-  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns, isTechnicalRole]);
+  }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns, isTechnicalRole, resolveTechnicalColumn]);
 
   // Map technical column IDs to measurement_requests status values
   const technicalStatusMap: Record<string, string> = {
@@ -225,7 +231,15 @@ export function ClientsKanban({
     if (isTechnicalRole) {
       // Technical roles: update measurement_requests, not clients
       const mrStatus = technicalStatusMap[newStatus] || newStatus;
+      const previousMeasurement = measurementStatus[draggableId];
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus } as any : c));
+      setMeasurementStatus(prev => ({
+        ...prev,
+        [draggableId]: {
+          status: mrStatus,
+          assigned_to: prev[draggableId]?.assigned_to ?? previousMeasurement?.assigned_to ?? null,
+        },
+      }));
 
       const { error } = await supabase
         .from("measurement_requests" as any)
@@ -235,6 +249,17 @@ export function ClientsKanban({
 
       if (error) {
         setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: oldStatus } as any : c));
+        setMeasurementStatus(prev => {
+          if (!previousMeasurement) {
+            const next = { ...prev };
+            delete next[draggableId];
+            return next;
+          }
+          return {
+            ...prev,
+            [draggableId]: previousMeasurement,
+          };
+        });
         toast.error("Erro ao mover solicitação");
       } else {
         const colLabel = [...KANBAN_COLUMNS_TECNICO, ...KANBAN_ALL_COLUMNS].find(c => c.id === newStatus)?.label || newStatus;
@@ -261,7 +286,7 @@ export function ClientsKanban({
         }).then(() => {});
       }
     }
-  }, [localClients, currentUser, tenantId, setLocalClients, isTechnicalRole]);
+  }, [localClients, currentUser, tenantId, setLocalClients, setMeasurementStatus, measurementStatus, isTechnicalRole]);
 
   // Open scheduling dialog from card action button
   const handleOpenSchedule = useCallback((clientId: string, clientName: string) => {
