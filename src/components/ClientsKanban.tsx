@@ -486,6 +486,7 @@ export function ClientsKanban({
                             followUpStatus={followUpStatus}
                             measurementStatus={measurementStatus}
                             scheduledMeasurements={scheduledMeasurements}
+                            savingCardId={savingCardId}
                             canDelete={canDelete}
                             onClientClick={setExpandedClient}
                             onDelete={onDelete}
