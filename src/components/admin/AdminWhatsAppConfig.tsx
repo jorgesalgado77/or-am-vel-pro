@@ -386,10 +386,58 @@ export function AdminWhatsAppConfig() {
           return;
         }
 
-        const testUrl = `${uazapServerUrl.replace(/\/$/, "")}/instance/fetchInstances`;
-        const res = await fetch(testUrl, { headers: { apikey: uazapAdminToken } });
-        if (res.ok) toast.success("Conexão com UAZAP estabelecida!");
-        else toast.error(`Erro na conexão UAZAP: ${res.status} ${res.statusText}`);
+        const baseUrl = uazapServerUrl.replace(/\/$/, "");
+        const candidates: Array<{ url: string; headers?: Record<string, string> }> = [
+          { url: `${baseUrl}/instance/fetchInstances`, headers: { apikey: uazapAdminToken } },
+          { url: `${baseUrl}/instance/fetchInstances`, headers: { Authorization: `Bearer ${uazapAdminToken}` } },
+          { url: `${baseUrl}/instance/status/${encodeURIComponent(uazapInstanceId)}`, headers: { apikey: uazapAdminToken } },
+          { url: `${baseUrl}/instance/status/${encodeURIComponent(uazapInstanceToken)}`, headers: { apikey: uazapAdminToken } },
+          { url: `${baseUrl}/instance/connectionState/${encodeURIComponent(uazapInstanceId)}`, headers: { apikey: uazapAdminToken } },
+          { url: `${baseUrl}/health` },
+          { url: `${baseUrl}` },
+        ];
+
+        let success = false;
+        let lastStatus: number | null = null;
+        let lastDetail = "";
+
+        for (const candidate of candidates) {
+          try {
+            const res = await fetch(candidate.url, { method: "GET", headers: candidate.headers });
+            lastStatus = res.status;
+
+            const raw = await res.text();
+            let payload: any = null;
+            try {
+              payload = raw ? JSON.parse(raw) : null;
+            } catch {
+              payload = null;
+            }
+
+            const statusText = String(payload?.status || "").toLowerCase();
+            const isConnected =
+              payload?.connected === true ||
+              payload?.authenticated === true ||
+              payload?.smartphoneConnected === true ||
+              statusText === "connected" ||
+              statusText === "open";
+
+            if (res.ok || isConnected) {
+              success = true;
+              break;
+            }
+
+            lastDetail = payload?.message || payload?.error || raw || "Resposta sem detalhes";
+          } catch (err: any) {
+            lastDetail = err?.message || "Falha de rede";
+          }
+        }
+
+        if (success) {
+          toast.success("Conexão com UAZAP estabelecida!");
+        } else {
+          toast.error(`Erro na conexão UAZAP: ${lastStatus || "sem status"} ${lastDetail}`);
+        }
       }
     } catch {
       toast.error("Erro ao testar conexão. Verifique a URL e credenciais.");
