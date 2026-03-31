@@ -391,6 +391,33 @@ export function AdminWhatsAppConfig() {
         }
 
         const baseUrl = uazapServerUrl.replace(/\/$/, "");
+        try {
+          const parsedUrl = new URL(baseUrl);
+          const host = parsedUrl.hostname.toLowerCase();
+          const path = parsedUrl.pathname.toLowerCase();
+          const invalidPublicHost = host === "free.uazapi.com" || host === "uazapi.dev" || host === "www.uazapi.dev";
+          const isPanelPath = path.includes("/interno");
+
+          if (invalidPublicHost || isPanelPath) {
+            const guidance = [
+              "❌ Server URL inválido para teste de API.",
+              `Informado: ${baseUrl}`,
+              "Use o host REAL da API da sua instância (copiado do painel UAZAP), não o host público/painel.",
+              "Exemplo esperado: https://SEU_HOST_DE_API",
+              "Instância: ORCA (sem acento)",
+            ].join("\n");
+            setConnectionTestLog(guidance);
+            toast.error("Server URL inválido: use o host de API da instância (não free.uazapi.com).");
+            setTesting(false);
+            return;
+          }
+        } catch {
+          setConnectionTestLog("❌ URL inválida. Informe a Server URL completa, iniciando com https://");
+          toast.error("Server URL inválido. Informe uma URL completa (https://...).");
+          setTesting(false);
+          return;
+        }
+
         const rawInstanceId = uazapInstanceId.trim();
         const slugInstanceId = rawInstanceId
           .normalize("NFD")
@@ -765,6 +792,9 @@ export function AdminWhatsAppConfig() {
               <div>
                 <Label>Server URL</Label>
                 <Input value={uazapServerUrl} onChange={(e) => setUazapServerUrl(e.target.value)} placeholder="https://seu-servidor-uazap.com" className="mt-1" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use o host da API da sua instância (não <span className="font-medium">https://free.uazapi.com</span>)
+                </p>
               </div>
               <div>
                 <Label>Admin Token</Label>
