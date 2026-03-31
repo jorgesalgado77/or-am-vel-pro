@@ -459,6 +459,7 @@ export function ClientsKanban({
                             tenantId={tenantId || ""}
                             followUpStatus={followUpStatus}
                             measurementStatus={measurementStatus}
+                            scheduledMeasurements={scheduledMeasurements}
                             canDelete={canDelete}
                             onClientClick={setExpandedClient}
                             onDelete={onDelete}
