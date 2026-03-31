@@ -139,28 +139,53 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
           </p>
         </DialogHeader>
 
-        {/* KM Distance Section */}
-        <div className="rounded-lg border p-3 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold">Distância (ida e volta)</span>
-          </div>
-          {kmLoading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculando distância...
+        {/* Address Section */}
+        <div className="rounded-lg border p-3 space-y-2.5">
+          {/* Client delivery address */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5">
+              <Home className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-semibold">Endereço de Entrega — Cliente</span>
             </div>
-          ) : kmResult ? (
-            <div className="flex items-center gap-3">
-              <Badge className="text-sm font-bold bg-primary/15 text-primary border-primary/30" variant="outline">
-                🚗 {kmResult.km} km
-              </Badge>
-              <span className="text-xs text-muted-foreground">Tempo estimado (ida): {kmResult.duration}</span>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {kmError || (!googleMapsKey ? "Google Maps API não configurada. Configure em Configurações > APIs." : "Aguardando...")}
+            <p className="text-xs text-muted-foreground pl-5">
+              {clientAddress || <span className="italic">Endereço não cadastrado</span>}
             </p>
-          )}
+          </div>
+
+          {/* Technician base address */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5">
+              <Navigation className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-xs font-semibold">Base — Ponto de Partida</span>
+            </div>
+            <p className="text-xs text-muted-foreground pl-5">
+              {technicianAddress || <span className="italic">Endereço não cadastrado</span>}
+            </p>
+          </div>
+
+          {/* KM Distance */}
+          <div className="border-t pt-2 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Distância (ida e volta)</span>
+            </div>
+            {kmLoading ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculando distância...
+              </div>
+            ) : kmResult ? (
+              <div className="flex items-center gap-3">
+                <Badge className="text-sm font-bold bg-primary/15 text-primary border-primary/30" variant="outline">
+                  🚗 {kmResult.km} km
+                </Badge>
+                <span className="text-xs text-muted-foreground">Tempo estimado (ida): {kmResult.duration}</span>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {kmError || (!googleMapsKey ? "Google Maps API não configurada. Configure em Configurações > APIs." : "Aguardando...")}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4 py-2">
