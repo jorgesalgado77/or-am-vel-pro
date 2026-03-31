@@ -395,29 +395,34 @@ export function ClientsKanban({
       created_by: currentUser?.nome_completo || "Sistema",
     } as any).then(() => {});
 
-    // 3. Update existing pending task to em_execucao, or create one if none exists
+    // 3. Update existing measurement task from current schedule state
     const formattedDate = data.date.split("-").reverse().join("/");
+    const title = getMeasurementTaskTitle(clientName);
     const descricao = `${data.rescheduleReason ? `[REAGENDAMENTO] ${data.rescheduleReason}\n\n` : ""}Agendamento: ${formattedDate} às ${data.time}\n${data.observations || "Sem observações"}`;
 
-    // Try to find an existing pending task for this measurement
     const { data: existingTasks } = await supabase
       .from("tasks" as any)
       .select("id")
       .eq("tenant_id", tenantId)
-      .like("titulo", `Medição - ${clientName}%`)
-      .in("status", ["pendente", "nova"])
+      .eq("titulo", title)
+      .order("created_at", { ascending: false })
       .limit(1);
 
+    const taskPayload = {
+      status: "em_execucao",
+      data_tarefa: data.date,
+      horario: data.time,
+      descricao,
+      tipo: "medicao",
+      responsavel_id: currentUser?.id || null,
+      responsavel_nome: currentUser?.nome_completo || null,
+      criado_por: currentUser?.id || null,
+    };
+
     if (existingTasks && existingTasks.length > 0) {
-      // Promote existing task to em_execucao with schedule details
       const { error: updateErr } = await supabase
         .from("tasks" as any)
-        .update({
-          status: "em_execucao",
-          data_tarefa: data.date,
-          horario: data.time,
-          descricao,
-        } as any)
+        .update(taskPayload as any)
         .eq("id", (existingTasks[0] as any).id);
 
       if (updateErr) {
@@ -427,20 +432,12 @@ export function ClientsKanban({
         toast.success(`Medição ${data.rescheduleReason ? "reagendada" : "agendada"} para ${formattedDate} às ${data.time} — Tarefa movida para Em Execução!`);
       }
     } else {
-      // No existing task — create one directly as em_execucao
       const { error: taskError } = await supabase
         .from("tasks" as any)
         .insert({
           tenant_id: tenantId,
-          titulo: `Medição - ${clientName}`,
-          descricao,
-          data_tarefa: data.date,
-          horario: data.time,
-          tipo: "medicao",
-          status: "em_execucao",
-          responsavel_id: currentUser?.id || null,
-          responsavel_nome: currentUser?.nome_completo || null,
-          criado_por: currentUser?.nome_completo || "Sistema",
+          titulo: title,
+          ...taskPayload,
         } as any);
 
       if (taskError) {
