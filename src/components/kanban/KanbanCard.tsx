@@ -26,6 +26,7 @@ interface KanbanCardProps {
   followUpStatus?: "active" | "paused" | "completed";
   assignedTechnician?: string | null;
   scheduledMeasurement?: { date: string; time: string; km?: number } | null;
+  isSaving?: boolean;
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
   onScheduleMeasurement?: (clientId: string, clientName: string) => void;
