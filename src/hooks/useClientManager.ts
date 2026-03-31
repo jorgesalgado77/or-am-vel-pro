@@ -31,7 +31,8 @@ export function useClientManager() {
       return;
     }
 
-    setLoading(true);
+    // Only show loading skeleton on first load (no cached data yet)
+    if (clients.length === 0) setLoading(true);
     const result = await clientService.fetchClients();
     if (result.error) {
       toast.error(result.error);
@@ -40,7 +41,7 @@ export function useClientManager() {
       setClients(result.clients);
     }
     setLoading(false);
-  }, [authLoading, session]);
+  }, [authLoading, session, clients.length]);
 
   const fetchLastSims = useCallback(async () => {
     if (authLoading || !session) {
