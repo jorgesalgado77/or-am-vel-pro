@@ -41,6 +41,7 @@ export function ClientsKanban({
   const [comercialExpanded, setComercialExpanded] = useState(true);
   const [operacionalExpanded, setOperacionalExpanded] = useState(true);
   const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string } | null>(null);
+  const [savingCardId, setSavingCardId] = useState<string | null>(null);
 
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
