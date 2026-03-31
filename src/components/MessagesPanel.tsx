@@ -9,6 +9,7 @@ import {supabase} from "@/lib/supabaseClient";
 import {getTenantId} from "@/lib/tenantState";
 import {toast} from "sonner";
 import {format} from "date-fns";
+import {useCurrentUser} from "@/hooks/useCurrentUser";
 
 function formatPhoneMask(phone: string | null | undefined): string {
   if (!phone) return "—";
@@ -61,6 +62,11 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
   const [newReply, setNewReply] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { currentUser } = useCurrentUser();
+
+  // Determine if user should see all messages or only their own
+  const cargoLower = currentUser?.cargo_nome?.toLowerCase() || "";
+  const isGlobalRole = cargoLower.includes("admin") || cargoLower.includes("gerente");
 
   const fetchTrackingsWithMessages = async () => {
     setLoading(true);
@@ -69,17 +75,49 @@ export const MessagesPanel = forwardRef<HTMLDivElement, MessagesPanelProps>(func
 
     let trackQuery = supabase
       .from("client_tracking")
-      .select("id, numero_contrato, nome_cliente, client_id")
+      .select("id, numero_contrato, nome_cliente, client_id, projetista")
       .order("updated_at", { ascending: false });
     if (tenantId) trackQuery = trackQuery.eq("tenant_id", tenantId);
-    const { data: allTrackings } = await trackQuery;
+    const { data: rawTrackings } = await trackQuery;
 
-    if (!allTrackings || allTrackings.length === 0) { setTrackings([]); setLoading(false); return; }
+    if (!rawTrackings || rawTrackings.length === 0) { setTrackings([]); setLoading(false); return; }
 
-    const trackingIdList = (allTrackings as any[]).map((t) => t.id);
+    // For non-global roles, filter trackings by user ownership
+    let allTrackings = rawTrackings as any[];
+    if (!isGlobalRole && currentUser) {
+      const userName = currentUser.nome_completo?.toLowerCase() || "";
+      const userApelido = currentUser.apelido?.toLowerCase() || "";
+
+      // Get client IDs to check vendedor field
+      const cIds = Array.from(new Set(allTrackings.map(t => t.client_id).filter(Boolean)));
+      let clientVendedorMap: Record<string, string> = {};
+      if (cIds.length > 0) {
+        const { data: cData } = await supabase
+          .from("clients")
+          .select("id, vendedor")
+          .in("id", cIds);
+        (cData || []).forEach((c: any) => {
+          clientVendedorMap[c.id] = (c.vendedor || "").toLowerCase();
+        });
+      }
+
+      allTrackings = allTrackings.filter((t: any) => {
+        const projetista = (t.projetista || "").toLowerCase();
+        const vendedor = clientVendedorMap[t.client_id] || "";
+        const nomeCliente = (t.nome_cliente || "").toLowerCase();
+        return (
+          (userName && (projetista.includes(userName) || vendedor.includes(userName) || nomeCliente.includes(userName))) ||
+          (userApelido && (projetista.includes(userApelido) || vendedor.includes(userApelido) || nomeCliente.includes(userApelido)))
+        );
+      });
+
+      if (allTrackings.length === 0) { setTrackings([]); setLoading(false); return; }
+    }
+
+    const trackingIdList = allTrackings.map((t: any) => t.id);
 
     // Get client phone numbers
-    const clientIds = Array.from(new Set((allTrackings as any[]).map((t) => t.client_id).filter(Boolean)));
+    const clientIds = Array.from(new Set(allTrackings.map((t: any) => t.client_id).filter(Boolean)));
     let clientPhoneMap: Record<string, string> = {};
     if (clientIds.length > 0) {
       const { data: clientsData } = await supabase

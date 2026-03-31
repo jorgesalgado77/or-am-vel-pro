@@ -37,6 +37,7 @@ const ProductCatalog = lazy(() => import("@/components/ProductCatalog").then(m =
 const CommercialAIPanel = lazy(() => import("@/components/commercial/CommercialAIPanel").then(m => ({ default: m.CommercialAIPanel })));
 const EmailPanel = lazy(() => import("@/components/EmailPanel").then(m => ({ default: m.EmailPanel })));
 const OnboardingAIAssistant = lazy(() => import("@/components/onboarding/OnboardingAIAssistant").then(m => ({ default: m.OnboardingAIAssistant })));
+const LiberacaoModal = lazy(() => import("@/components/LiberacaoModal").then(m => ({ default: m.LiberacaoModal })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
@@ -111,6 +112,7 @@ export default function Index() {
     return saved === "true";
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLiberacao, setShowLiberacao] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
@@ -181,7 +183,10 @@ export default function Index() {
   const handleSimulate = (client: Client) => { setSimulatingClient(client); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null); setActiveView("simulator"); };
   const handleHistory = (client: Client) => { setHistoryClient(client); setSimulatingClient(null); setContractsClient(null); setActiveView("history"); };
   const handleContracts = (client: Client) => { setContractsClient(client); setSimulatingClient(null); setHistoryClient(null); setActiveView("contracts"); };
-  const handleViewChange = (v: string) => { setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null); };
+  const handleViewChange = (v: string) => {
+    if (v === "liberacao") { setShowLiberacao(true); return; }
+    setActiveView(v); setSimulatingClient(null); setHistoryClient(null); setContractsClient(null); setLoadedSimulation(null);
+  };
 
   // Listen for navigation events from Mia and other assistants
   useEffect(() => {
@@ -482,6 +487,7 @@ export default function Index() {
             )}
             <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
             <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
+            <LiberacaoModal open={showLiberacao} onClose={() => setShowLiberacao(false)} />
           </Suspense>
           <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
           <Suspense fallback={null}>
