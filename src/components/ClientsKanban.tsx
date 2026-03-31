@@ -43,6 +43,25 @@ export function ClientsKanban({
   const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string } | null>(null);
   const [savingCardId, setSavingCardId] = useState<string | null>(null);
 
+  const getMeasurementTaskTitle = useCallback((clientName: string) => `Medição - ${clientName}`, []);
+
+  const normalizeStatusKey = useCallback((value?: string | null) => {
+    return String(value || "novo")
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "_");
+  }, []);
+
+  const parseScheduledDateToIso = useCallback((scheduledDate?: string | null) => {
+    if (!scheduledDate) return format(new Date(), "yyyy-MM-dd");
+    if (scheduledDate.includes("-")) return scheduledDate;
+    const [day, month, year] = scheduledDate.split("/");
+    if (!day || !month || !year) return format(new Date(), "yyyy-MM-dd");
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }, []);
+
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
   const isAdmin = cargoNome.includes("administrador");
@@ -268,29 +287,44 @@ export function ClientsKanban({
         const colLabel = [...KANBAN_COLUMNS_TECNICO, ...KANBAN_ALL_COLUMNS].find(c => c.id === newStatus)?.label || newStatus;
         toast.success(`${client.nome} movido para "${colLabel}"`);
 
-        // Auto-create pending task when moving to "em_medicao" without a scheduled date
+        // Auto-sync measurement task from persisted technical state
         if (newStatus === "em_medicao") {
           const hasSchedule = scheduledMeasurements[draggableId];
-          if (!hasSchedule) {
-            const today = format(new Date(), "yyyy-MM-dd");
-            supabase.from("tasks" as any).insert({
-              tenant_id: tenantId,
-              titulo: `Medição - ${client.nome}`,
-              descricao: `Solicitação de medição movida para "Em Medição" sem data de agendamento definida.\nAguardando agendamento.`,
-              data_tarefa: today,
-              horario: null,
-              tipo: "medicao",
-              status: "pendente",
-              responsavel_id: currentUser?.id || null,
-              responsavel_nome: currentUser?.nome_completo || null,
-              criado_por: currentUser?.nome_completo || "Sistema",
-            } as any).then(({ error: taskErr }) => {
-              if (!taskErr) {
-                toast.info(`📋 Tarefa pendente criada: Medição - ${client.nome}`);
-                // Send notifications
+          const title = getMeasurementTaskTitle(client.nome);
+          const taskPayload = {
+            tenant_id: tenantId,
+            titulo: title,
+            descricao: hasSchedule
+              ? `Agendamento: ${hasSchedule.date} às ${hasSchedule.time}${hasSchedule.km ? `\nDistância estimada: ${hasSchedule.km} km` : ""}`
+              : `Solicitação de medição movida para \"Em Medição\" sem data de agendamento definida.\nAguardando agendamento.`,
+            data_tarefa: parseScheduledDateToIso(hasSchedule?.date),
+            horario: hasSchedule?.time || null,
+            tipo: "medicao",
+            status: hasSchedule ? "em_execucao" : "pendente",
+            responsavel_id: currentUser?.id || null,
+            responsavel_nome: currentUser?.nome_completo || null,
+            criado_por: currentUser?.id || null,
+          };
+
+          supabase
+            .from("tasks" as any)
+            .select("id, status")
+            .eq("tenant_id", tenantId)
+            .eq("titulo", title)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .then(async ({ data: existingTasks, error: selectErr }) => {
+              if (selectErr) return;
+              const existingTask = existingTasks?.[0] as any;
+              const result = existingTask
+                ? await supabase.from("tasks" as any).update(taskPayload as any).eq("id", existingTask.id)
+                : await supabase.from("tasks" as any).insert(taskPayload as any);
+
+              if (!result.error && !hasSchedule) {
+                toast.info(`📋 Tarefa pendente criada: ${title}`);
                 import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
                   if (currentUser?.id) {
-                    sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `Medição - ${client.nome} aguardando agendamento`, `task-medicao-${draggableId}`);
+                    sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `${title} aguardando agendamento`, `task-medicao-${draggableId}`);
                   }
                 }).catch(() => {});
                 import("@/lib/notificationSound").then(({ playNotificationSound }) => {
@@ -298,15 +332,13 @@ export function ClientsKanban({
                 }).catch(() => {});
               }
             });
-          }
         }
 
-        // Auto-complete task when liberação is finalized (moved to em_liberado or enviado_compras)
         if (newStatus === "em_liberado" || newStatus === "enviado_compras") {
           supabase.from("tasks" as any)
             .update({ status: "concluida" } as any)
             .eq("tenant_id", tenantId)
-            .like("titulo", `Medição - ${client.nome}%`)
+            .eq("titulo", getMeasurementTaskTitle(client.nome))
             .in("status", ["pendente", "em_execucao", "nova"])
             .then(({ error: updErr }) => {
               if (!updErr) {
@@ -363,29 +395,34 @@ export function ClientsKanban({
       created_by: currentUser?.nome_completo || "Sistema",
     } as any).then(() => {});
 
-    // 3. Update existing pending task to em_execucao, or create one if none exists
+    // 3. Update existing measurement task from current schedule state
     const formattedDate = data.date.split("-").reverse().join("/");
+    const title = getMeasurementTaskTitle(clientName);
     const descricao = `${data.rescheduleReason ? `[REAGENDAMENTO] ${data.rescheduleReason}\n\n` : ""}Agendamento: ${formattedDate} às ${data.time}\n${data.observations || "Sem observações"}`;
 
-    // Try to find an existing pending task for this measurement
     const { data: existingTasks } = await supabase
       .from("tasks" as any)
       .select("id")
       .eq("tenant_id", tenantId)
-      .like("titulo", `Medição - ${clientName}%`)
-      .in("status", ["pendente", "nova"])
+      .eq("titulo", title)
+      .order("created_at", { ascending: false })
       .limit(1);
 
+    const taskPayload = {
+      status: "em_execucao",
+      data_tarefa: data.date,
+      horario: data.time,
+      descricao,
+      tipo: "medicao",
+      responsavel_id: currentUser?.id || null,
+      responsavel_nome: currentUser?.nome_completo || null,
+      criado_por: currentUser?.id || null,
+    };
+
     if (existingTasks && existingTasks.length > 0) {
-      // Promote existing task to em_execucao with schedule details
       const { error: updateErr } = await supabase
         .from("tasks" as any)
-        .update({
-          status: "em_execucao",
-          data_tarefa: data.date,
-          horario: data.time,
-          descricao,
-        } as any)
+        .update(taskPayload as any)
         .eq("id", (existingTasks[0] as any).id);
 
       if (updateErr) {
@@ -395,20 +432,12 @@ export function ClientsKanban({
         toast.success(`Medição ${data.rescheduleReason ? "reagendada" : "agendada"} para ${formattedDate} às ${data.time} — Tarefa movida para Em Execução!`);
       }
     } else {
-      // No existing task — create one directly as em_execucao
       const { error: taskError } = await supabase
         .from("tasks" as any)
         .insert({
           tenant_id: tenantId,
-          titulo: `Medição - ${clientName}`,
-          descricao,
-          data_tarefa: data.date,
-          horario: data.time,
-          tipo: "medicao",
-          status: "em_execucao",
-          responsavel_id: currentUser?.id || null,
-          responsavel_nome: currentUser?.nome_completo || null,
-          criado_por: currentUser?.nome_completo || "Sistema",
+          titulo: title,
+          ...taskPayload,
         } as any);
 
       if (taskError) {
@@ -450,53 +479,60 @@ export function ClientsKanban({
     setPendingSchedule(null);
   }, []);
 
-  // Retroactively create pending tasks for cards already in "em_medicao" without a schedule
-  const retroSyncRef = useRef(false);
+  // Keep tasks synchronized with cards already in Em Medição
   useEffect(() => {
-    if (retroSyncRef.current || !isTechnicalRole || !tenantId || loading) return;
-    const emMedicaoClients = (columnData["em_medicao"] || []).filter(c => !scheduledMeasurements[c.id]);
+    if (!isTechnicalRole || !tenantId || loading) return;
+
+    const emMedicaoClients = localClients.filter((client) => {
+      const measurement = measurementStatus[client.id];
+      return normalizeStatusKey(measurement?.status) === "em_medicao" && !scheduledMeasurements[client.id];
+    });
+
     if (emMedicaoClients.length === 0) return;
-    retroSyncRef.current = true;
 
     (async () => {
-      for (const client of emMedicaoClients) {
-        // Check if a task already exists for this client measurement
-        const { data: existing } = await supabase
-          .from("tasks" as any)
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .like("titulo", `Medição - ${client.nome}%`)
-          .in("status", ["pendente", "em_execucao", "nova"])
-          .limit(1);
+      const titles = emMedicaoClients.map((client) => getMeasurementTaskTitle(client.nome));
+      const { data: existingTasks, error: existingError } = await supabase
+        .from("tasks" as any)
+        .select("id, titulo")
+        .eq("tenant_id", tenantId)
+        .in("titulo", titles)
+        .in("status", ["nova", "pendente", "em_execucao", "concluida"]);
 
-        if (existing && existing.length > 0) continue;
+      if (existingError) {
+        console.error("Erro ao buscar tarefas de medição:", existingError);
+        return;
+      }
 
-        const today = format(new Date(), "yyyy-MM-dd");
-        const { error: taskErr } = await supabase.from("tasks" as any).insert({
+      const existingTitles = new Set(((existingTasks || []) as any[]).map((task) => task.titulo));
+      const missingTasks = emMedicaoClients
+        .filter((client) => !existingTitles.has(getMeasurementTaskTitle(client.nome)))
+        .map((client) => ({
           tenant_id: tenantId,
-          titulo: `Medição - ${client.nome}`,
+          titulo: getMeasurementTaskTitle(client.nome),
           descricao: `Solicitação de medição em andamento sem data de agendamento definida.\nAguardando agendamento.`,
-          data_tarefa: today,
+          data_tarefa: format(new Date(), "yyyy-MM-dd"),
           horario: null,
           tipo: "medicao",
           status: "pendente",
           responsavel_id: currentUser?.id || null,
           responsavel_nome: currentUser?.nome_completo || null,
-          criado_por: currentUser?.nome_completo || "Sistema",
-        } as any);
+          criado_por: currentUser?.id || null,
+        }));
 
-        if (!taskErr) {
-          toast.info(`📋 Tarefa pendente criada: Medição - ${client.nome}`);
-          import("@/lib/notificationSound").then(({ playNotificationSound }) => playNotificationSound()).catch(() => {});
-          import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
-            if (currentUser?.id) {
-              sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `Medição - ${client.nome} aguardando agendamento`, `task-medicao-${client.id}`);
-            }
-          }).catch(() => {});
-        }
+      if (missingTasks.length === 0) return;
+
+      const { error: insertError } = await supabase.from("tasks" as any).insert(missingTasks as any);
+      if (insertError) {
+        console.error("Erro ao criar tarefas pendentes de medição:", insertError);
+        return;
       }
+
+      missingTasks.forEach((task) => {
+        toast.info(`📋 Tarefa pendente criada: ${task.titulo}`);
+      });
     })();
-  }, [columnData, scheduledMeasurements, isTechnicalRole, tenantId, loading, currentUser]);
+  }, [localClients, measurementStatus, scheduledMeasurements, isTechnicalRole, tenantId, loading, currentUser, getMeasurementTaskTitle, normalizeStatusKey]);
 
   const hasActiveFilters = filterProjetista || filterIndicador || filterTemperature || filterTipoCliente || periodFilter !== "mes_atual";
 
