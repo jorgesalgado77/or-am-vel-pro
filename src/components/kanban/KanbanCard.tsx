@@ -8,7 +8,7 @@ import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone, UserCheck, CalendarPlus, CalendarCheck } from "lucide-react";
+import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone, UserCheck, CalendarPlus, CalendarCheck, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
@@ -26,6 +26,7 @@ interface KanbanCardProps {
   followUpStatus?: "active" | "paused" | "completed";
   assignedTechnician?: string | null;
   scheduledMeasurement?: { date: string; time: string; km?: number } | null;
+  isSaving?: boolean;
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
   onScheduleMeasurement?: (clientId: string, clientName: string) => void;
@@ -75,7 +76,7 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
   }
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, scheduledMeasurement, onClick, onQuickDelete, onScheduleMeasurement }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, scheduledMeasurement, isSaving, onClick, onQuickDelete, onScheduleMeasurement }: KanbanCardProps) {
   const clientStatus = ((client as any).status || "novo").toLowerCase();
   const hasClosedContract = !!(client as any).contrato_fechado_visual || clientStatus === "fechado" || !!(client as any).data_contrato;
   const expired = sim && !hasClosedContract ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
@@ -89,13 +90,14 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={cn(
-            "rounded-lg border shadow-sm transition-colors cursor-pointer group border-l-[3px] sm:border-l-[4px]",
+            "relative rounded-lg border shadow-sm transition-colors cursor-pointer group border-l-[3px] sm:border-l-[4px]",
             tint.bgClass,
             "hover:shadow-md hover:border-primary/30",
             "active:scale-[0.98]",
             snapshot.isDragging && "shadow-lg ring-2 ring-primary/40 scale-[1.02]",
             expired && "border-destructive/30",
-            clientStatus === "fechado" && "ring-2 ring-success/50"
+            clientStatus === "fechado" && "ring-2 ring-success/50",
+            isSaving && "pointer-events-none opacity-60"
           )}
           style={{
             ...provided.draggableProps.style,
@@ -103,6 +105,11 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
           }}
           onClick={() => onClick(client)}
         >
+          {isSaving && (
+            <div className="absolute inset-0 z-10 grid place-items-center bg-background/50 rounded-lg">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            </div>
+          )}
           <div className="p-2 sm:p-3">
             {/* Selo de contrato fechado no topo */}
             {hasClosedContract && clientStatus !== "novo" && (

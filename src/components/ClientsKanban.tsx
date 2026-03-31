@@ -41,6 +41,7 @@ export function ClientsKanban({
   const [comercialExpanded, setComercialExpanded] = useState(true);
   const [operacionalExpanded, setOperacionalExpanded] = useState(true);
   const [pendingSchedule, setPendingSchedule] = useState<{ clientId: string; clientName: string } | null>(null);
+  const [savingCardId, setSavingCardId] = useState<string | null>(null);
 
   const canEdit = !currentUser || cargoNome === "administrador" || cargoNome === "gerente";
   const canDelete = !currentUser || cargoNome === "administrador";
@@ -228,6 +229,8 @@ export function ClientsKanban({
     if (!client) return;
     const oldStatus = (client as any).status || "novo";
 
+    setSavingCardId(draggableId);
+
     if (isTechnicalRole) {
       // Technical roles: update measurement_requests, not clients
       const mrStatus = technicalStatusMap[newStatus] || newStatus;
@@ -265,6 +268,7 @@ export function ClientsKanban({
         const colLabel = [...KANBAN_COLUMNS_TECNICO, ...KANBAN_ALL_COLUMNS].find(c => c.id === newStatus)?.label || newStatus;
         toast.success(`${client.nome} movido para "${colLabel}"`);
       }
+      setSavingCardId(null);
     } else {
       // Standard flow: update clients table
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus, ...(newStatus === "fechado" ? { data_contrato: new Date().toISOString() } : {}) } as any : c));
@@ -285,6 +289,7 @@ export function ClientsKanban({
           moved_by: currentUser?.nome_completo || "Sistema",
         }).then(() => {});
       }
+      setSavingCardId(null);
     }
   }, [localClients, currentUser, tenantId, setLocalClients, setMeasurementStatus, measurementStatus, isTechnicalRole]);
 
@@ -430,6 +435,7 @@ export function ClientsKanban({
                       followUpStatus={followUpStatus}
                       measurementStatus={measurementStatus}
                       scheduledMeasurements={scheduledMeasurements}
+                      savingCardId={savingCardId}
                       canDelete={canDelete}
                       onClientClick={setExpandedClient}
                       onDelete={onDelete}
@@ -459,6 +465,7 @@ export function ClientsKanban({
                         followUpStatus={followUpStatus}
                         measurementStatus={measurementStatus}
                         scheduledMeasurements={scheduledMeasurements}
+                        savingCardId={savingCardId}
                         canDelete={canDelete}
                         onClientClick={setExpandedClient}
                         onDelete={onDelete}
@@ -486,6 +493,7 @@ export function ClientsKanban({
                             followUpStatus={followUpStatus}
                             measurementStatus={measurementStatus}
                             scheduledMeasurements={scheduledMeasurements}
+                            savingCardId={savingCardId}
                             canDelete={canDelete}
                             onClientClick={setExpandedClient}
                             onDelete={onDelete}

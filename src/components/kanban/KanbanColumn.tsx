@@ -16,6 +16,7 @@ interface KanbanColumnProps {
   followUpStatus: Record<string, "active" | "paused" | "completed">;
   measurementStatus: Record<string, { status: string; assigned_to: string | null }>;
   scheduledMeasurements?: Record<string, { date: string; time: string; km?: number }>;
+  savingCardId?: string | null;
   canDelete: boolean;
   onClientClick: (client: Client) => void;
   onDelete: (id: string) => void;
@@ -24,7 +25,7 @@ interface KanbanColumnProps {
 
 export const KanbanColumn = React.memo(function KanbanColumn({
   col, clients, lastSims, budgetValidityDays, cargoNome, tenantId,
-  followUpStatus, measurementStatus, scheduledMeasurements, canDelete, onClientClick, onDelete, onScheduleMeasurement,
+  followUpStatus, measurementStatus, scheduledMeasurements, savingCardId, canDelete, onClientClick, onDelete, onScheduleMeasurement,
 }: KanbanColumnProps) {
   return (
     <div className="flex flex-col min-w-[170px] w-[170px] sm:min-w-[200px] sm:w-[200px] md:min-w-[220px] md:w-[220px] lg:min-w-[240px] lg:w-[240px] shrink-0">
@@ -81,6 +82,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
                   followUpStatus={followUpStatus[client.id]}
                   assignedTechnician={measurementStatus[client.id]?.assigned_to || null}
                   scheduledMeasurement={scheduledMeasurements?.[client.id] || null}
+                  isSaving={savingCardId === client.id}
                   onClick={onClientClick}
                   onQuickDelete={canDelete ? (c) => {
                     if (window.confirm(`Excluir o lead "${c.nome}"? Esta ação não pode ser desfeita.`)) {
