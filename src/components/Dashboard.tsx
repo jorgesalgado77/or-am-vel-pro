@@ -43,6 +43,7 @@ const HighResistanceAlerts = lazy(() => import("@/components/dashboard/HighResis
 const CDEUrgencyWidget = lazy(() => import("@/components/dashboard/CDEUrgencyWidget").then(m => ({ default: m.CDEUrgencyWidget })));
 const AIInsightsWidget = lazy(() => import("@/components/dashboard/AIInsightsWidget").then(m => ({ default: m.AIInsightsWidget })));
 const MeasurementCalendarWidget = lazy(() => import("@/components/dashboard/MeasurementCalendarWidget").then(m => ({ default: m.MeasurementCalendarWidget })));
+const TechnicalDashboardCards = lazy(() => import("@/components/dashboard/TechnicalDashboardCards").then(m => ({ default: m.TechnicalDashboardCards })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
