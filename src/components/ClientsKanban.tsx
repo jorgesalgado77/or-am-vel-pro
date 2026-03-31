@@ -268,6 +268,7 @@ export function ClientsKanban({
         const colLabel = [...KANBAN_COLUMNS_TECNICO, ...KANBAN_ALL_COLUMNS].find(c => c.id === newStatus)?.label || newStatus;
         toast.success(`${client.nome} movido para "${colLabel}"`);
       }
+      setSavingCardId(null);
     } else {
       // Standard flow: update clients table
       setLocalClients(prev => prev.map(c => c.id === draggableId ? { ...c, status: newStatus, ...(newStatus === "fechado" ? { data_contrato: new Date().toISOString() } : {}) } as any : c));
