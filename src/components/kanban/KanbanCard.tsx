@@ -241,9 +241,9 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 </div>
               </div>
             )}
-            {(client.vendedor || assignedTechnician) && (
+            {((client.vendedor && !cargoNome.includes("vendedor")) || assignedTechnician) && (
               <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                {client.vendedor && (
+                {client.vendedor && !cargoNome.includes("vendedor") && (
                   <>
                     <User className="h-3 w-3 text-primary/60 shrink-0" />
                     <span className="text-[10px] text-primary/80 font-medium truncate">{client.vendedor}</span>
