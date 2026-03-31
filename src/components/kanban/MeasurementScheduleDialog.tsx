@@ -81,8 +81,31 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
       setObservations("");
       setRescheduleReason("");
       setShowHistory(false);
+      setKmResult(null);
+      setKmError(null);
     }
   }, [open]);
+
+  // Calculate KM when dialog opens
+  useEffect(() => {
+    if (!open || !googleMapsKey || !clientAddress || !technicianAddress) {
+      if (open && (!clientAddress || !technicianAddress)) {
+        setKmError("Endereço do cliente ou técnico não cadastrado");
+      }
+      return;
+    }
+    setKmLoading(true);
+    setKmError(null);
+    calculateRoundTripKm(googleMapsKey, technicianAddress, clientAddress)
+      .then(result => {
+        if (result) {
+          setKmResult(result);
+        } else {
+          setKmError("Não foi possível calcular a distância");
+        }
+      })
+      .finally(() => setKmLoading(false));
+  }, [open, googleMapsKey, clientAddress, technicianAddress]);
 
   const hasHistory = history.length > 0;
   const effectiveIsReschedule = isReschedule || hasHistory;
@@ -97,6 +120,7 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
         time,
         observations,
         rescheduleReason: effectiveIsReschedule ? rescheduleReason.trim() : undefined,
+        roundTripKm: kmResult?.km || null,
       });
     } finally {
       setSaving(false);
