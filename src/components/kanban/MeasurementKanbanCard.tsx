@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, Clock, Eye, Pencil, Phone, Ruler, Store, User, UserCheck } from "lucide-react";
+import { AlertTriangle, CalendarCheck, Clock, Eye, MapPin, Pencil, Phone, Ruler, Store, User, UserCheck } from "lucide-react";
 
 interface MeasurementCardRequest {
   id: string;
