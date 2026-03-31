@@ -25,6 +25,7 @@ export const API_PROVIDERS: { value: ApiProvider; label: string; description: st
   { value: "pdf", label: "PDF Generator", description: "Geração de documentos PDF", urlRequired: true },
   { value: "google_calendar", label: "Google Calendar (API Key)", description: "Sincronizar tarefas (somente leitura)", urlRequired: false },
   { value: "google_calendar_oauth", label: "Google Calendar (OAuth)", description: "Client ID para OAuth 2.0 (Client Secret na URL)", urlRequired: true },
+  { value: "google_maps", label: "Google Maps", description: "Cálculo de distância KM (ida e volta)", urlRequired: false },
 ];
 
 export function useApiKeys(tenantId: string | null) {
