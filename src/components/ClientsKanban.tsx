@@ -22,7 +22,7 @@ export function ClientsKanban({
 }: ClientsKanbanProps) {
   const {
     localClients, setLocalClients,
-    lastSims, followUpStatus, contractClientIds, measurementStatus,
+    lastSims, followUpStatus, contractClientIds, measurementStatus, scheduledMeasurements,
     expandedClient, setExpandedClient,
     settings, projetistas, usuarios, indicadores, currentUser,
     tenantId, cargoNome, handleClientUpdate,
@@ -403,6 +403,7 @@ export function ClientsKanban({
                       tenantId={tenantId || ""}
                       followUpStatus={followUpStatus}
                       measurementStatus={measurementStatus}
+                      scheduledMeasurements={scheduledMeasurements}
                       canDelete={canDelete}
                       onClientClick={setExpandedClient}
                       onDelete={onDelete}
@@ -431,6 +432,7 @@ export function ClientsKanban({
                         tenantId={tenantId || ""}
                         followUpStatus={followUpStatus}
                         measurementStatus={measurementStatus}
+                        scheduledMeasurements={scheduledMeasurements}
                         canDelete={canDelete}
                         onClientClick={setExpandedClient}
                         onDelete={onDelete}
@@ -457,6 +459,7 @@ export function ClientsKanban({
                             tenantId={tenantId || ""}
                             followUpStatus={followUpStatus}
                             measurementStatus={measurementStatus}
+                            scheduledMeasurements={scheduledMeasurements}
                             canDelete={canDelete}
                             onClientClick={setExpandedClient}
                             onDelete={onDelete}

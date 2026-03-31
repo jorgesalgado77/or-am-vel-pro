@@ -8,7 +8,7 @@ import { format, addDays, isPast } from "date-fns";
 import { Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone, UserCheck, CalendarPlus } from "lucide-react";
+import { ArrowRight, UserPlus, GripVertical, Clock, AlertTriangle, User, Repeat, FileText, Trash2, CheckCircle2, Phone, UserCheck, CalendarPlus, CalendarCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/financing";
 import { TEMPERATURE_CONFIG, type LeadTemperature } from "@/lib/leadTemperature";
@@ -25,6 +25,7 @@ interface KanbanCardProps {
   tenantId: string;
   followUpStatus?: "active" | "paused" | "completed";
   assignedTechnician?: string | null;
+  scheduledMeasurement?: { date: string; time: string } | null;
   onClick: (client: Client) => void;
   onQuickDelete?: (client: Client) => void;
   onScheduleMeasurement?: (clientId: string, clientName: string) => void;
@@ -74,7 +75,7 @@ function getColumnTint(status: string): { borderColor: string; bgClass: string }
   }
 }
 
-export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, onClick, onQuickDelete, onScheduleMeasurement }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetValidityDays, cargoNome, tenantId, followUpStatus, assignedTechnician, scheduledMeasurement, onClick, onQuickDelete, onScheduleMeasurement }: KanbanCardProps) {
   const clientStatus = ((client as any).status || "novo").toLowerCase();
   const hasClosedContract = clientStatus === "fechado" || !!(client as any).data_contrato;
   const expired = sim && !hasClosedContract ? isPast(addDays(new Date(sim.created_at), budgetValidityDays)) : false;
@@ -269,6 +270,15 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 <span className="text-[10px] text-destructive font-medium">Orçamento expirado</span>
               </div>
             ) : null}
+            {/* Scheduled measurement indicator */}
+            {scheduledMeasurement && (
+              <div className="flex items-center gap-1 mt-1.5">
+                <CalendarCheck className="h-3 w-3 text-emerald-500" />
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  📅 {scheduledMeasurement.date} às {scheduledMeasurement.time}
+                </span>
+              </div>
+            )}
             {/* Schedule measurement action button for technical cards in em_medicao */}
             {onScheduleMeasurement && (clientStatus === "em_medicao" || clientStatus === "nova_solicitacao") && (
               <button
@@ -277,7 +287,7 @@ export const KanbanCard = memo(function KanbanCard({ client, index, sim, budgetV
                 title="Agendar ou reagendar medição"
               >
                 <CalendarPlus className="h-3 w-3" />
-                Agendar Medição
+                {scheduledMeasurement ? "Reagendar Medição" : "Agendar Medição"}
               </button>
             )}
           </div>

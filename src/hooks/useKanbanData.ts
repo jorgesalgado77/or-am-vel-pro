@@ -21,6 +21,7 @@ export function useKanbanData(externalClients: Client[]) {
   const [followUpStatus, setFollowUpStatus] = useState<Record<string, "active" | "paused" | "completed">>({});
   const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
   const [measurementStatus, setMeasurementStatus] = useState<Record<string, { status: string; assigned_to: string | null }>>({});
+  const [scheduledMeasurements, setScheduledMeasurements] = useState<Record<string, { date: string; time: string }>>({});
   const [expandedClient, setExpandedClient] = useState<Client | null>(null);
 
   const { settings } = useCompanySettings();
@@ -236,6 +237,28 @@ export function useKanbanData(externalClients: Client[]) {
       }
     };
     fetchMeasurements();
+
+    // Fetch scheduled measurement dates per client
+    const fetchScheduledDates = async () => {
+      const { data: histData } = await supabase
+        .from("measurement_schedule_history" as any)
+        .select("client_id, date, time, created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
+      if (histData) {
+        const schedMap: Record<string, { date: string; time: string }> = {};
+        (histData as any[]).forEach((h: any) => {
+          // Keep only the latest per client
+          if (!schedMap[h.client_id]) {
+            const formattedDate = h.date.includes("-") ? h.date.split("-").reverse().join("/") : h.date;
+            schedMap[h.client_id] = { date: formattedDate, time: h.time };
+          }
+        });
+        setScheduledMeasurements(schedMap);
+      }
+    };
+    fetchScheduledDates();
+
     const channel = supabase
       .channel("kanban-measurement-sync")
       .on("postgres_changes" as any, { event: "*", schema: "public", table: "measurement_requests", filter: `tenant_id=eq.${tenantId}` }, (payload: any) => {
@@ -261,6 +284,7 @@ export function useKanbanData(externalClients: Client[]) {
           }
         }
         fetchMeasurements();
+        fetchScheduledDates();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -349,7 +373,7 @@ export function useKanbanData(externalClients: Client[]) {
 
   return {
     localClients, setLocalClients,
-    lastSims, followUpStatus, contractClientIds, measurementStatus,
+    lastSims, followUpStatus, contractClientIds, measurementStatus, scheduledMeasurements,
     expandedClient, setExpandedClient,
     settings, projetistas, usuarios, indicadores, currentUser,
     tenantId, cargoNome,
