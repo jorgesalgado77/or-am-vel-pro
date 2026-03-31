@@ -111,6 +111,7 @@ export default function Index() {
     return saved === "true";
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showLiberacao, setShowLiberacao] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
