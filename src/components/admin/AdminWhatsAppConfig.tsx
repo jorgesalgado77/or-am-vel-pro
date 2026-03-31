@@ -130,6 +130,7 @@ export function AdminWhatsAppConfig() {
   // Test message
   const [testPhone, setTestPhone] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
+  const [connectionTestLog, setConnectionTestLog] = useState("");
 
   const fetchSettings = async () => {
     const { data } = await supabase
@@ -361,6 +362,7 @@ export function AdminWhatsAppConfig() {
 
   const handleTestConnection = async () => {
     setTesting(true);
+    setConnectionTestLog("");
     try {
       if (provider === "evolution") {
         if (!evolutionUrl || !evolutionKey) {
@@ -370,6 +372,7 @@ export function AdminWhatsAppConfig() {
         }
         const url = `${evolutionUrl.replace(/\/$/, "")}/instance/fetchInstances`;
         const res = await fetch(url, { headers: { apikey: evolutionKey } });
+        setConnectionTestLog(`[${res.status}] ${res.statusText} - ${url}`);
         if (res.ok) toast.success("Conexão com Evolution API estabelecida!");
         else toast.error(`Erro na conexão: ${res.status} ${res.statusText}`);
       } else if (provider === "twilio") {
@@ -378,6 +381,7 @@ export function AdminWhatsAppConfig() {
           setTesting(false);
           return;
         }
+        setConnectionTestLog("Twilio: use o botão 'Enviar Teste' para validar envio.");
         toast.info("Para testar o Twilio, use o botão 'Enviar Mensagem de Teste'.");
       } else {
         if (!uazapServerUrl || !uazapAdminToken || !uazapInstanceId || !uazapInstanceToken || !uazapClientToken) {
@@ -398,6 +402,7 @@ export function AdminWhatsAppConfig() {
           ...(uazapAdminToken ? { "Security-Token": uazapAdminToken } : {}),
         };
         const apiPrefixes = ["", "/api", "/v1"];
+        const attempts: string[] = [];
 
         // UAZAP possui variação de rotas entre servidores (free/proxy/versões).
         // Testamos sequencialmente para evitar falso negativo por 404 em apenas um path.
@@ -451,6 +456,9 @@ export function AdminWhatsAppConfig() {
               statusText === "open" ||
               statusText === "online";
 
+            const detail = payload?.message || payload?.error || payload?.status || payload?.state || (raw ? raw.slice(0, 120) : "sem detalhe");
+            attempts.push(`[${res.status}] ${res.statusText || "sem status"} - ${candidate.url} :: ${detail}`);
+
             if (res.ok || isConnected) {
               success = true;
               break;
@@ -459,17 +467,16 @@ export function AdminWhatsAppConfig() {
             lastDetail = payload?.message || payload?.error || raw || "Resposta sem detalhes";
           } catch (err: any) {
             lastDetail = err?.message || "Falha de rede";
+            attempts.push(`[ERR] ${lastDetail} - ${candidate.url}`);
           }
         }
+
+        setConnectionTestLog(attempts.join("\n"));
 
         if (success) {
           toast.success("Conexão com UAZAP estabelecida!");
         } else {
-          if (lastStatus === 404) {
-            toast.error("Erro 404 na UAZAP: confirme Server URL (ex: https://free.uazapi.com) e os dados da instância/token.");
-          } else {
-            toast.error(`Erro na conexão UAZAP: ${lastStatus || "sem status"} ${lastDetail}`);
-          }
+          toast.error(`Erro UAZAP: ${lastStatus || "sem status"} ${lastDetail}. Veja o log de endpoints abaixo.`);
         }
       }
     } catch {
@@ -889,6 +896,18 @@ export function AdminWhatsAppConfig() {
               {testing ? "Testando..." : "Testar Conexão"}
             </Button>
           </div>
+          {provider === "uazap" && (
+            <div>
+              <Label>Log do teste UAZAP (endpoint por tentativa)</Label>
+              <Textarea
+                value={connectionTestLog}
+                readOnly
+                placeholder="Clique em 'Testar Conexão' para ver os endpoints tentados e o status de cada um."
+                rows={7}
+                className="mt-1 font-mono text-xs"
+              />
+            </div>
+          )}
           <Separator />
           <div>
             <Label>Enviar Mensagem de Teste</Label>
