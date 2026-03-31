@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,12 +14,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, MessageSquare, CheckCircle2, XCircle,
-  Plus, Trash2, Edit, Send, Wifi, WifiOff, CalendarClock, Link2,
+  Plus, Trash2, Edit, Send, Wifi, WifiOff,
 } from "lucide-react";
 
-type WhatsAppProvider = "evolution" | "twilio" | "uazap";
+type WhatsAppProvider = "evolution" | "twilio" | "zapi";
 
-const UAZAP_PROVIDER_KEY = "uazap_whatsapp_master";
+const ZAPI_PROVIDER_KEY = "zapi_whatsapp_master";
 
 interface WhatsAppSettings {
   id: string;
@@ -44,33 +44,6 @@ interface MessageTemplate {
   created_at: string;
 }
 
-interface UazapShareRow {
-  id: string;
-  tenant_id: string;
-  starts_at: string;
-  ends_at: string;
-  is_active: boolean;
-}
-
-interface TenantRow {
-  id: string;
-  nome_loja: string;
-  codigo_loja: string | null;
-  ativo: boolean;
-}
-
-const formatForInput = (value?: string | null) => {
-  if (!value) return "";
-  const date = new Date(value);
-  const timezoneOffset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
-};
-
-const toIso = (value: string) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
-};
-
 const TEMPLATE_TYPES = [
   { value: "boas_vindas", label: "Boas-vindas" },
   { value: "credenciais", label: "Credenciais de Acesso" },
@@ -88,9 +61,9 @@ export function AdminWhatsAppConfig() {
   const [testing, setTesting] = useState(false);
   const [showEvolutionKey, setShowEvolutionKey] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
-  const [showUazapAdminToken, setShowUazapAdminToken] = useState(false);
-  const [showUazapInstanceToken, setShowUazapInstanceToken] = useState(false);
-  const [showUazapClientToken, setShowUazapClientToken] = useState(false);
+  const [showZapiSecurityToken, setShowZapiSecurityToken] = useState(false);
+  const [showZapiToken, setShowZapiToken] = useState(false);
+  const [showZapiClientToken, setShowZapiClientToken] = useState(false);
 
   // Form state
   const [provider, setProvider] = useState<WhatsAppProvider>("evolution");
@@ -100,23 +73,14 @@ export function AdminWhatsAppConfig() {
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioToken, setTwilioToken] = useState("");
   const [twilioPhone, setTwilioPhone] = useState("");
-  const [uazapServerUrl, setUazapServerUrl] = useState("");
-  const [uazapAdminToken, setUazapAdminToken] = useState("");
-  const [uazapInstanceId, setUazapInstanceId] = useState("");
-  const [uazapInstanceToken, setUazapInstanceToken] = useState("");
-  const [uazapClientToken, setUazapClientToken] = useState("");
-  const [uazapWebhookUrl, setUazapWebhookUrl] = useState("");
+  const [zapiInstanceId, setZapiInstanceId] = useState("");
+  const [zapiToken, setZapiToken] = useState("");
+  const [zapiClientToken, setZapiClientToken] = useState("");
+  const [zapiSecurityToken, setZapiSecurityToken] = useState("");
+  const [zapiWebhookUrl, setZapiWebhookUrl] = useState("");
   const [ativo, setAtivo] = useState(false);
   const [enviarContrato, setEnviarContrato] = useState(true);
   const [enviarNotificacoes, setEnviarNotificacoes] = useState(true);
-
-  const [tenants, setTenants] = useState<TenantRow[]>([]);
-  const [shares, setShares] = useState<UazapShareRow[]>([]);
-  const [shareTenantId, setShareTenantId] = useState("");
-  const [shareStartsAt, setShareStartsAt] = useState("");
-  const [shareEndsAt, setShareEndsAt] = useState("");
-  const [shareUsageLimit, setShareUsageLimit] = useState("");
-  const [sharing, setSharing] = useState(false);
 
   // Templates
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -163,11 +127,11 @@ export function AdminWhatsAppConfig() {
     setLoading(false);
   };
 
-  const fetchUazapConfig = async () => {
+  const fetchZapiConfig = async () => {
     const { data } = await (supabase as any)
       .from("dealroom_api_configs")
       .select("credenciais, configuracoes, is_active")
-      .eq("provider", UAZAP_PROVIDER_KEY)
+      .eq("provider", ZAPI_PROVIDER_KEY)
       .limit(1)
       .maybeSingle();
 
@@ -175,119 +139,12 @@ export function AdminWhatsAppConfig() {
     const cred = (data.credenciais || {}) as Record<string, string>;
     const cfg = (data.configuracoes || {}) as Record<string, string>;
 
-    setUazapServerUrl(cred.server_url || "");
-    setUazapAdminToken(cred.admin_token || "");
-    setUazapInstanceId(cred.instance_id || "");
-    setUazapInstanceToken(cred.instance_token || "");
-    setUazapClientToken(cred.client_token || "");
-    setUazapWebhookUrl(cfg.webhook_url || "");
-    setShareUsageLimit(cfg.usage_limit_messages || "");
+    setZapiInstanceId(cred.instance_id || "");
+    setZapiToken(cred.instance_token || "");
+    setZapiClientToken(cred.client_token || "");
+    setZapiSecurityToken(cred.security_token || "");
+    setZapiWebhookUrl(cfg.webhook_url || "");
     if (data.is_active) setAtivo(true);
-  };
-
-  const fetchTenantsAndShares = async () => {
-    const [tenantRpcRes, configRes] = await Promise.all([
-      (supabase as any).rpc("admin_list_all_tenants"),
-      (supabase as any)
-        .from("dealroom_api_configs")
-        .select("id")
-        .eq("provider", UAZAP_PROVIDER_KEY)
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    if (tenantRpcRes.data) {
-      setTenants((tenantRpcRes.data as any[]).map((tenant) => ({
-        id: tenant.id,
-        nome_loja: tenant.nome_loja,
-        codigo_loja: tenant.codigo_loja || null,
-        ativo: tenant.ativo,
-      })));
-    }
-
-    const configId = configRes.data?.id;
-    if (!configId) {
-      setShares([]);
-      return;
-    }
-
-    const { data: shareRows } = await (supabase as any)
-      .from("dealroom_api_shares")
-      .select("id, tenant_id, starts_at, ends_at, is_active")
-      .eq("config_id", configId)
-      .order("created_at", { ascending: false });
-
-    setShares((shareRows || []) as UazapShareRow[]);
-  };
-
-  const syncUazapShares = async () => {
-    const { data: config } = await (supabase as any)
-      .from("dealroom_api_configs")
-      .select("id, credenciais, configuracoes")
-      .eq("provider", UAZAP_PROVIDER_KEY)
-      .limit(1)
-      .maybeSingle();
-
-    if (!config?.id) return;
-
-    const now = new Date();
-    const { data: allShares } = await (supabase as any)
-      .from("dealroom_api_shares")
-      .select("id, tenant_id, starts_at, ends_at, is_active")
-      .eq("config_id", config.id);
-
-    if (!allShares?.length) return;
-
-    const cred = (config.credenciais || {}) as Record<string, string>;
-    const cfg = (config.configuracoes || {}) as Record<string, string>;
-    const webhookUrl = cfg.webhook_url || `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`;
-
-    for (const share of allShares as UazapShareRow[]) {
-      const startAt = new Date(share.starts_at);
-      const endAt = new Date(share.ends_at);
-
-      if (share.is_active && now > endAt) {
-        await (supabase as any)
-          .from("dealroom_api_shares")
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq("id", share.id);
-
-        await (supabase as any)
-          .from("whatsapp_settings")
-          .update({ ativo: false, updated_at: new Date().toISOString() })
-          .eq("tenant_id", share.tenant_id);
-        continue;
-      }
-
-      if (!share.is_active || now < startAt || now > endAt) continue;
-
-      const payload = {
-        tenant_id: share.tenant_id,
-        provider: "zapi",
-        zapi_instance_id: cred.instance_id || null,
-        zapi_token: cred.instance_token || null,
-        zapi_client_token: cred.client_token || null,
-        zapi_security_token: cred.admin_token || null,
-        zapi_webhook_url: webhookUrl,
-        ativo: true,
-        enviar_contrato: true,
-        enviar_notificacoes: true,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: existing } = await (supabase as any)
-        .from("whatsapp_settings")
-        .select("id")
-        .eq("tenant_id", share.tenant_id)
-        .limit(1)
-        .maybeSingle();
-
-      if (existing?.id) {
-        await (supabase as any).from("whatsapp_settings").update(payload).eq("id", existing.id);
-      } else {
-        await (supabase as any).from("whatsapp_settings").insert(payload);
-      }
-    }
   };
 
   const fetchTemplates = async () => {
@@ -299,28 +156,10 @@ export function AdminWhatsAppConfig() {
   };
 
   useEffect(() => {
-    const now = new Date();
-    setShareStartsAt(formatForInput(now.toISOString()));
-    setShareEndsAt(formatForInput(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()));
-
     fetchSettings();
     fetchTemplates();
-    fetchUazapConfig();
-    fetchTenantsAndShares();
-    syncUazapShares();
+    fetchZapiConfig();
   }, []);
-
-  const shareStatusMap = useMemo(() => {
-    const now = new Date();
-    return Object.fromEntries(shares.map((share) => {
-      const start = new Date(share.starts_at);
-      const end = new Date(share.ends_at);
-      if (!share.is_active) return [share.id, "Desconectado"];
-      if (now < start) return [share.id, "Agendado"];
-      if (now > end) return [share.id, "Expirado"];
-      return [share.id, "Compartilhada"];
-    }));
-  }, [shares]);
 
   const handleSave = async () => {
     if (!settings) return;
@@ -341,12 +180,11 @@ export function AdminWhatsAppConfig() {
       } as any)
       .eq("id", settings.id);
 
-    if (!error && provider === "uazap") {
+    if (!error && provider === "zapi") {
       try {
-        await saveUazapProviderConfig();
-        await syncUazapShares();
+        await saveZapiProviderConfig();
       } catch (syncError: any) {
-        toast.error("Configuração salva, mas falhou ao sincronizar UAZAP: " + (syncError?.message || "erro desconhecido"));
+        toast.error("Configuração salva, mas falhou ao sincronizar Z-API: " + (syncError?.message || "erro desconhecido"));
       }
     }
 
@@ -354,8 +192,7 @@ export function AdminWhatsAppConfig() {
     if (error) toast.error("Erro ao salvar configurações");
     else {
       toast.success("Configurações salvas!");
-      fetchUazapConfig();
-      fetchTenantsAndShares();
+      fetchZapiConfig();
       fetchSettings();
     }
   };
@@ -384,155 +221,32 @@ export function AdminWhatsAppConfig() {
         setConnectionTestLog("Twilio: use o botão 'Enviar Teste' para validar envio.");
         toast.info("Para testar o Twilio, use o botão 'Enviar Mensagem de Teste'.");
       } else {
-        if (!uazapServerUrl || !uazapAdminToken || !uazapInstanceId || !uazapInstanceToken || !uazapClientToken) {
-          toast.error("Preencha Server URL, Admin Token, Instância, Token e Client Token da UAZAP");
+        if (!zapiInstanceId || !zapiToken || !zapiClientToken) {
+          toast.error("Preencha Instância, Token e Client Token da Z-API");
           setTesting(false);
           return;
         }
 
-        const baseUrl = uazapServerUrl.replace(/\/$/, "");
-        try {
-          const parsedUrl = new URL(baseUrl);
-          const host = parsedUrl.hostname.toLowerCase();
-          const path = parsedUrl.pathname.toLowerCase();
-          const invalidPublicHost = host === "free.uazapi.com" || host === "uazapi.dev" || host === "www.uazapi.dev";
-          const isPanelPath = path.includes("/interno");
+        const statusUrl = `https://api.z-api.io/instances/${zapiInstanceId.trim()}/token/${zapiToken.trim()}/status`;
+        const res = await fetch(statusUrl, {
+          method: "GET",
+          headers: {
+            "Client-Token": zapiClientToken.trim(),
+            ...(zapiSecurityToken.trim() ? { "Security-Token": zapiSecurityToken.trim() } : {}),
+          },
+        });
 
-          if (invalidPublicHost || isPanelPath) {
-            const guidance = [
-              "❌ Server URL inválido para teste de API.",
-              `Informado: ${baseUrl}`,
-              "Use o host REAL da API da sua instância (copiado do painel UAZAP), não o host público/painel.",
-              "Exemplo esperado: https://SEU_HOST_DE_API",
-              "Instância: ORCA (sem acento)",
-            ].join("\n");
-            setConnectionTestLog(guidance);
-            toast.error("Server URL inválido: use o host de API da instância (não free.uazapi.com).");
-            setTesting(false);
-            return;
-          }
-        } catch {
-          setConnectionTestLog("❌ URL inválida. Informe a Server URL completa, iniciando com https://");
-          toast.error("Server URL inválido. Informe uma URL completa (https://...).");
-          setTesting(false);
-          return;
-        }
+        const payload = await res.json().catch(() => null);
+        const statusText = String(payload?.status || payload?.state || "").toLowerCase();
+        const isConnected =
+          payload?.connected === true ||
+          payload?.smartphoneConnected === true ||
+          statusText === "connected" ||
+          statusText === "open";
 
-        const rawInstanceId = uazapInstanceId.trim();
-        const slugInstanceId = rawInstanceId
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-zA-Z0-9_-]/g, "");
-        const instanceIdVariants = Array.from(new Set([rawInstanceId, slugInstanceId].filter(Boolean)));
-        const instanceToken = encodeURIComponent(uazapInstanceToken.trim());
-        const adminHeaders: Record<string, string>[] = [
-          { apikey: uazapAdminToken },
-          { Authorization: `Bearer ${uazapAdminToken}` },
-        ];
-        const instanceHeaders: Record<string, string> = {
-          "Client-Token": uazapClientToken,
-          ...(uazapAdminToken ? { "Security-Token": uazapAdminToken } : {}),
-        };
-        const apiPrefixes = ["", "/api", "/v1"];
-        const attempts: string[] = [];
-
-        // UAZAP possui variação de rotas entre servidores (free/proxy/versões).
-        // Testamos sequencialmente para evitar falso negativo por 404 em apenas um path.
-        const candidates: Array<{ url: string; headers?: Record<string, string>; auth: string }> = [
-          ...instanceIdVariants.flatMap((instanceVariant) => {
-            const encodedId = encodeURIComponent(instanceVariant);
-            return [
-              ...apiPrefixes.flatMap((prefix) => [
-                ...adminHeaders.map((headers) => ({
-                  url: `${baseUrl}${prefix}/instance/status/${encodedId}`,
-                  headers,
-                  auth: headers.apikey ? "apikey" : "bearer",
-                })),
-                ...adminHeaders.map((headers) => ({
-                  url: `${baseUrl}${prefix}/instance/connectionState/${encodedId}`,
-                  headers,
-                  auth: headers.apikey ? "apikey" : "bearer",
-                })),
-              ]),
-              ...apiPrefixes.flatMap((prefix) => [
-                {
-                  url: `${baseUrl}${prefix}/instances/${encodedId}/token/${instanceToken}/status`,
-                  headers: instanceHeaders,
-                  auth: "client+security-token",
-                },
-                {
-                  url: `${baseUrl}${prefix}/instances/${encodedId}/token/${instanceToken}`,
-                  headers: instanceHeaders,
-                  auth: "client+security-token",
-                },
-              ]),
-            ];
-          }),
-        ];
-
-        let success = false;
-        let lastStatus: number | null = null;
-        let lastDetail = "";
-        let all404 = true;
-
-        for (const candidate of candidates) {
-          try {
-            const res = await fetch(candidate.url, { method: "GET", headers: candidate.headers });
-            lastStatus = res.status;
-            if (res.status !== 404) all404 = false;
-
-            const raw = await res.text();
-            let payload: any = null;
-            try {
-              payload = raw ? JSON.parse(raw) : null;
-            } catch {
-              payload = null;
-            }
-
-            const statusText = String(payload?.status || payload?.state || "").toLowerCase();
-            const isConnected =
-              payload?.connected === true ||
-              payload?.authenticated === true ||
-              payload?.smartphoneConnected === true ||
-              payload?.status === "CONNECTED" ||
-              statusText === "connected" ||
-              statusText === "open" ||
-              statusText === "online";
-
-            const detail = payload?.message || payload?.error || payload?.status || payload?.state || (raw ? raw.slice(0, 120) : "sem detalhe");
-            attempts.push(`[${res.status}] ${res.statusText || "sem status"} - (${candidate.auth}) ${candidate.url} :: ${detail}`);
-
-            if (res.ok || isConnected) {
-              success = true;
-              break;
-            }
-
-            lastDetail = payload?.message || payload?.error || raw || "Resposta sem detalhes";
-          } catch (err: any) {
-            lastDetail = err?.message || "Falha de rede";
-            all404 = false;
-            attempts.push(`[ERR] ${lastDetail} - ${candidate.url}`);
-          }
-        }
-
-        setConnectionTestLog(attempts.join("\n"));
-
-        if (success) {
-          toast.success("Conexão com UAZAP estabelecida!");
-        } else {
-          if (all404) {
-            const all404Hint = [
-              "⚠️ Todos os endpoints retornaram 404.",
-              "• O Server URL provavelmente não é o host de API da sua instância.",
-              "• Teste com host de API correto do seu painel UAZAP.",
-              "• Instância com acento pode falhar por slug: tente ORCA em vez de ORÇA.",
-            ].join("\n");
-            setConnectionTestLog((prev) => `${prev}\n\n${all404Hint}`);
-            toast.error("Todos os endpoints deram 404: ajuste Server URL da API e use instância sem acento (ex: ORCA).");
-          } else {
-            toast.error(`Erro UAZAP: ${lastStatus || "sem status"} ${lastDetail}. Veja o log de endpoints abaixo.`);
-          }
-        }
+        setConnectionTestLog(`[${res.status}] ${res.statusText || "sem status"} - ${statusUrl} :: ${JSON.stringify(payload || {})}`);
+        if (res.ok || isConnected) toast.success("Conexão com Z-API estabelecida!");
+        else toast.error("Falha ao conectar na Z-API. Verifique Instância, Token e Client Token.");
       }
     } catch {
       toast.error("Erro ao testar conexão. Verifique a URL e credenciais.");
@@ -559,8 +273,23 @@ export function AdminWhatsAppConfig() {
         });
         if (res.ok) toast.success("Mensagem de teste enviada!");
         else toast.error("Erro ao enviar mensagem de teste");
-      } else if (provider === "uazap") {
-        toast.info("Para UAZAP, valide o envio diretamente na loja compartilhada após salvar o compartilhamento.");
+      } else if (provider === "zapi" && zapiInstanceId && zapiToken && zapiClientToken) {
+        const url = `https://api.z-api.io/instances/${zapiInstanceId.trim()}/token/${zapiToken.trim()}/send-text`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Client-Token": zapiClientToken.trim(),
+            ...(zapiSecurityToken.trim() ? { "Security-Token": zapiSecurityToken.trim() } : {}),
+          },
+          body: JSON.stringify({
+            phone: "55" + testPhone.replace(/\D/g, ""),
+            message: "✅ Mensagem de teste - OrçaMóvel PRO Admin Master",
+          }),
+        });
+
+        if (res.ok) toast.success("Mensagem de teste enviada via Z-API!");
+        else toast.error("Erro ao enviar mensagem de teste via Z-API");
       } else {
         toast.error("Configure as credenciais do provedor primeiro");
       }
@@ -570,21 +299,19 @@ export function AdminWhatsAppConfig() {
     setSendingTest(false);
   };
 
-  const saveUazapProviderConfig = async () => {
+  const saveZapiProviderConfig = async () => {
     const payload = {
-      provider: UAZAP_PROVIDER_KEY,
-      nome: "UAZAP WhatsApp",
+      provider: ZAPI_PROVIDER_KEY,
+      nome: "Z-API WhatsApp",
       categoria: "whatsapp",
       credenciais: {
-        server_url: uazapServerUrl.trim(),
-        admin_token: uazapAdminToken.trim(),
-        instance_id: uazapInstanceId.trim(),
-        instance_token: uazapInstanceToken.trim(),
-        client_token: uazapClientToken.trim(),
+        instance_id: zapiInstanceId.trim(),
+        instance_token: zapiToken.trim(),
+        client_token: zapiClientToken.trim(),
+        security_token: zapiSecurityToken.trim(),
       },
       configuracoes: {
-        webhook_url: (uazapWebhookUrl.trim() || `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`),
-        usage_limit_messages: shareUsageLimit.trim() || "",
+        webhook_url: (zapiWebhookUrl.trim() || `https://bdhfzjuwtkiexyeusnqq.supabase.co/functions/v1/whatsapp-webhook`),
       },
       is_active: ativo,
       updated_at: new Date().toISOString(),
@@ -596,52 +323,6 @@ export function AdminWhatsAppConfig() {
       .upsert(payload, { onConflict: "provider" });
 
     if (error) throw new Error(error.message);
-  };
-
-  const handleShareUazap = async () => {
-    if (!shareTenantId || !shareEndsAt) {
-      toast.error("Selecione a loja e a data final de compartilhamento");
-      return;
-    }
-
-    if (!uazapServerUrl || !uazapAdminToken || !uazapInstanceId || !uazapInstanceToken || !uazapClientToken) {
-      toast.error("Salve as credenciais da UAZAP antes de compartilhar.");
-      return;
-    }
-
-    setSharing(true);
-    try {
-      await saveUazapProviderConfig();
-
-      const { data: cfg } = await (supabase as any)
-        .from("dealroom_api_configs")
-        .select("id")
-        .eq("provider", UAZAP_PROVIDER_KEY)
-        .limit(1)
-        .single();
-
-      const { error } = await (supabase as any)
-        .from("dealroom_api_shares")
-        .upsert({
-          config_id: cfg.id,
-          tenant_id: shareTenantId,
-          starts_at: toIso(shareStartsAt),
-          ends_at: toIso(shareEndsAt),
-          is_active: true,
-          shared_by: "admin_master",
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "config_id,tenant_id" });
-
-      if (error) throw new Error(error.message);
-
-      await syncUazapShares();
-      await fetchTenantsAndShares();
-      toast.success("Compartilhamento da UAZAP salvo e sincronizado com a loja.");
-    } catch (error: any) {
-      toast.error("Erro ao compartilhar UAZAP: " + (error?.message || "desconhecido"));
-    } finally {
-      setSharing(false);
-    }
   };
 
   // Template CRUD
@@ -737,13 +418,13 @@ export function AdminWhatsAppConfig() {
                 <p className="text-xs text-muted-foreground mt-1">API gratuita e open-source</p>
               </button>
               <button
-                onClick={() => setProvider("uazap")}
+                onClick={() => setProvider("zapi")}
                 className={`p-4 rounded-lg border-2 transition-all text-left ${
-                  provider === "uazap" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"
+                  provider === "zapi" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/30"
                 }`}
               >
-                <p className="font-semibold text-sm text-foreground">UAZAP</p>
-                <p className="text-xs text-muted-foreground mt-1">Servidor próprio + token admin</p>
+                <p className="font-semibold text-sm text-foreground">Z-API</p>
+                <p className="text-xs text-muted-foreground mt-1">Oficial Z-API (instância + token)</p>
               </button>
               <button
                 onClick={() => setProvider("twilio")}
@@ -763,7 +444,7 @@ export function AdminWhatsAppConfig() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">
-            {provider === "evolution" ? "Evolution API — Credenciais" : provider === "uazap" ? "UAZAP — Credenciais" : "Twilio — Credenciais"}
+            {provider === "evolution" ? "Evolution API — Credenciais" : provider === "zapi" ? "Z-API — Credenciais" : "Twilio — Credenciais"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -787,49 +468,42 @@ export function AdminWhatsAppConfig() {
                 <Input value={evolutionInstance} onChange={(e) => setEvolutionInstance(e.target.value)} placeholder="Ex: minha-instancia" className="mt-1" />
               </div>
             </>
-          ) : provider === "uazap" ? (
+          ) : provider === "zapi" ? (
             <>
               <div>
-                <Label>Server URL</Label>
-                <Input value={uazapServerUrl} onChange={(e) => setUazapServerUrl(e.target.value)} placeholder="https://seu-servidor-uazap.com" className="mt-1" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Use o host da API da sua instância (não <span className="font-medium">https://free.uazapi.com</span>)
-                </p>
-              </div>
-              <div>
-                <Label>Admin Token</Label>
-                <div className="relative mt-1">
-                  <Input type={showUazapAdminToken ? "text" : "password"} value={uazapAdminToken} onChange={(e) => setUazapAdminToken(e.target.value)} placeholder="Token admin do servidor" className="pr-10" />
-                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowUazapAdminToken(!showUazapAdminToken)}>
-                    {showUazapAdminToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <div>
                 <Label>Instância</Label>
-                <Input value={uazapInstanceId} onChange={(e) => setUazapInstanceId(e.target.value)} placeholder="Nome/ID da instância" className="mt-1" />
+                <Input value={zapiInstanceId} onChange={(e) => setZapiInstanceId(e.target.value)} placeholder="Ex: ORCA" className="mt-1" />
               </div>
               <div>
-                <Label>Token da Instância</Label>
+                <Label>Token</Label>
                 <div className="relative mt-1">
-                  <Input type={showUazapInstanceToken ? "text" : "password"} value={uazapInstanceToken} onChange={(e) => setUazapInstanceToken(e.target.value)} placeholder="Token da instância" className="pr-10" />
-                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowUazapInstanceToken(!showUazapInstanceToken)}>
-                    {showUazapInstanceToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <Input type={showZapiToken ? "text" : "password"} value={zapiToken} onChange={(e) => setZapiToken(e.target.value)} placeholder="Token da instância" className="pr-10" />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowZapiToken(!showZapiToken)}>
+                    {showZapiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
               <div>
                 <Label>Client Token</Label>
                 <div className="relative mt-1">
-                  <Input type={showUazapClientToken ? "text" : "password"} value={uazapClientToken} onChange={(e) => setUazapClientToken(e.target.value)} placeholder="Token cliente da instância" className="pr-10" />
-                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowUazapClientToken(!showUazapClientToken)}>
-                    {showUazapClientToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <Input type={showZapiClientToken ? "text" : "password"} value={zapiClientToken} onChange={(e) => setZapiClientToken(e.target.value)} placeholder="Client-Token" className="pr-10" />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowZapiClientToken(!showZapiClientToken)}>
+                    {showZapiClientToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label>Security Token (opcional)</Label>
+                <div className="relative mt-1">
+                  <Input type={showZapiSecurityToken ? "text" : "password"} value={zapiSecurityToken} onChange={(e) => setZapiSecurityToken(e.target.value)} placeholder="Security-Token" className="pr-10" />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowZapiSecurityToken(!showZapiSecurityToken)}>
+                    {showZapiSecurityToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
               <div>
                 <Label>Webhook URL</Label>
-                <Input value={uazapWebhookUrl} onChange={(e) => setUazapWebhookUrl(e.target.value)} placeholder="https://.../functions/v1/whatsapp-webhook" className="mt-1" />
+                <Input value={zapiWebhookUrl} onChange={(e) => setZapiWebhookUrl(e.target.value)} placeholder="https://.../functions/v1/whatsapp-webhook" className="mt-1" />
               </div>
             </>
           ) : (
@@ -856,90 +530,6 @@ export function AdminWhatsAppConfig() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Link2 className="h-4 w-4" /> Compartilhar UAZAP com loja
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label>Loja</Label>
-              <Select value={shareTenantId} onValueChange={setShareTenantId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione a loja" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tenants.filter((tenant) => tenant.ativo).map((tenant) => (
-                    <SelectItem key={tenant.id} value={tenant.id}>
-                      {tenant.nome_loja} {tenant.codigo_loja ? `• ${tenant.codigo_loja}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Limite de uso (mensagens)</Label>
-              <Input value={shareUsageLimit} onChange={(e) => setShareUsageLimit(e.target.value.replace(/\D/g, ""))} placeholder="Ex: 2000" className="mt-1" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label>Início</Label>
-              <Input type="datetime-local" value={shareStartsAt} onChange={(e) => setShareStartsAt(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label>Fim</Label>
-              <Input type="datetime-local" value={shareEndsAt} onChange={(e) => setShareEndsAt(e.target.value)} className="mt-1" />
-            </div>
-          </div>
-
-          <Button onClick={handleShareUazap} disabled={sharing || provider !== "uazap"} className="gap-2">
-            <CalendarClock className="h-4 w-4" />
-            {sharing ? "Compartilhando..." : "Compartilhar com loja"}
-          </Button>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Loja</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shares.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-4">
-                    Nenhum compartilhamento ativo para UAZAP.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                shares.map((share) => {
-                  const tenant = tenants.find((t) => t.id === share.tenant_id);
-                  const status = shareStatusMap[share.id] || "Desconectado";
-                  return (
-                    <TableRow key={share.id}>
-                      <TableCell className="font-medium">{tenant?.nome_loja || "Loja"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {new Date(share.starts_at).toLocaleDateString("pt-BR")} até {new Date(share.ends_at).toLocaleDateString("pt-BR")}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={status === "Compartilhada" ? "default" : status === "Expirado" ? "destructive" : "secondary"}>
-                          {status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
       {/* Test connection & send */}
       <Card>
         <CardHeader className="pb-3">
@@ -954,13 +544,13 @@ export function AdminWhatsAppConfig() {
               {testing ? "Testando..." : "Testar Conexão"}
             </Button>
           </div>
-          {provider === "uazap" && (
+          {provider === "zapi" && (
             <div>
-              <Label>Log do teste UAZAP (endpoint por tentativa)</Label>
+              <Label>Log do teste Z-API</Label>
               <Textarea
                 value={connectionTestLog}
                 readOnly
-                placeholder="Clique em 'Testar Conexão' para ver os endpoints tentados e o status de cada um."
+                placeholder="Clique em 'Testar Conexão' para ver o retorno do endpoint de status."
                 rows={7}
                 className="mt-1 font-mono text-xs"
               />
