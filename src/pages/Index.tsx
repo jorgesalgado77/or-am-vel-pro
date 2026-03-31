@@ -37,6 +37,7 @@ const ProductCatalog = lazy(() => import("@/components/ProductCatalog").then(m =
 const CommercialAIPanel = lazy(() => import("@/components/commercial/CommercialAIPanel").then(m => ({ default: m.CommercialAIPanel })));
 const EmailPanel = lazy(() => import("@/components/EmailPanel").then(m => ({ default: m.EmailPanel })));
 const OnboardingAIAssistant = lazy(() => import("@/components/onboarding/OnboardingAIAssistant").then(m => ({ default: m.OnboardingAIAssistant })));
+const LiberacaoModal = lazy(() => import("@/components/LiberacaoModal").then(m => ({ default: m.LiberacaoModal })));
 
 import { CurrentUserContext } from "@/hooks/useCurrentUser";
 import { useTenantPlan, TenantPlanContext } from "@/hooks/useTenantPlan";
