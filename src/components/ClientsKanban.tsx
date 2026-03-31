@@ -267,6 +267,53 @@ export function ClientsKanban({
       } else {
         const colLabel = [...KANBAN_COLUMNS_TECNICO, ...KANBAN_ALL_COLUMNS].find(c => c.id === newStatus)?.label || newStatus;
         toast.success(`${client.nome} movido para "${colLabel}"`);
+
+        // Auto-create pending task when moving to "em_medicao" without a scheduled date
+        if (newStatus === "em_medicao") {
+          const hasSchedule = scheduledMeasurements[draggableId];
+          if (!hasSchedule) {
+            const today = format(new Date(), "yyyy-MM-dd");
+            supabase.from("tasks" as any).insert({
+              tenant_id: tenantId,
+              titulo: `Medição - ${client.nome}`,
+              descricao: `Solicitação de medição movida para "Em Medição" sem data de agendamento definida.\nAguardando agendamento.`,
+              data_tarefa: today,
+              horario: null,
+              tipo: "medicao",
+              status: "pendente",
+              responsavel_id: currentUser?.id || null,
+              responsavel_nome: currentUser?.nome_completo || null,
+              criado_por: currentUser?.nome_completo || "Sistema",
+            } as any).then(({ error: taskErr }) => {
+              if (!taskErr) {
+                toast.info(`📋 Tarefa pendente criada: Medição - ${client.nome}`);
+                // Send notifications
+                import("@/lib/pushHelper").then(({ sendPushIfEnabled }) => {
+                  if (currentUser?.id) {
+                    sendPushIfEnabled("tarefas", currentUser.id, "📋 Tarefa pendente criada", `Medição - ${client.nome} aguardando agendamento`, `task-medicao-${draggableId}`);
+                  }
+                }).catch(() => {});
+                import("@/lib/notificationSound").then(({ playNotificationSound }) => {
+                  playNotificationSound();
+                }).catch(() => {});
+              }
+            });
+          }
+        }
+
+        // Auto-complete task when liberação is finalized (moved to em_liberado or enviado_compras)
+        if (newStatus === "em_liberado" || newStatus === "enviado_compras") {
+          supabase.from("tasks" as any)
+            .update({ status: "concluida" } as any)
+            .eq("tenant_id", tenantId)
+            .like("titulo", `Medição - ${client.nome}%`)
+            .in("status", ["pendente", "em_execucao", "nova"])
+            .then(({ error: updErr }) => {
+              if (!updErr) {
+                toast.info(`✅ Tarefa de medição concluída automaticamente`);
+              }
+            });
+        }
       }
       setSavingCardId(null);
     } else {
