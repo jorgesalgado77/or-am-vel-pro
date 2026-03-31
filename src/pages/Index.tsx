@@ -487,6 +487,7 @@ export default function Index() {
             )}
             <SupportDialog open={showSupport} onClose={() => setShowSupport(false)} />
             <UserProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
+            <LiberacaoModal open={showLiberacao} onClose={() => setShowLiberacao(false)} />
           </Suspense>
           <UpgradePlanDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} message={upgradeMsg} />
           <Suspense fallback={null}>
