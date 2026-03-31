@@ -139,6 +139,30 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
           </p>
         </DialogHeader>
 
+        {/* KM Distance Section */}
+        <div className="rounded-lg border p-3 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">Distância (ida e volta)</span>
+          </div>
+          {kmLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculando distância...
+            </div>
+          ) : kmResult ? (
+            <div className="flex items-center gap-3">
+              <Badge className="text-sm font-bold bg-primary/15 text-primary border-primary/30" variant="outline">
+                🚗 {kmResult.km} km
+              </Badge>
+              <span className="text-xs text-muted-foreground">Tempo estimado (ida): {kmResult.duration}</span>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {kmError || (!googleMapsKey ? "Google Maps API não configurada. Configure em Configurações > APIs." : "Aguardando...")}
+            </p>
+          )}
+        </div>
+
         <div className="space-y-4 py-2">
           {effectiveIsReschedule && (
             <div className="space-y-2">
