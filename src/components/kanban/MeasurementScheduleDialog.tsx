@@ -8,11 +8,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Clock, Loader2, History, RefreshCw } from "lucide-react";
+import { CalendarIcon, Clock, Loader2, History, MapPin, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/lib/supabaseClient";
+import { useGoogleMapsKey, calculateRoundTripKm } from "@/hooks/useGoogleMapsKey";
 
 export interface MeasurementScheduleData {
   date: string; // YYYY-MM-DD
