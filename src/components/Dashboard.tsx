@@ -43,6 +43,7 @@ const HighResistanceAlerts = lazy(() => import("@/components/dashboard/HighResis
 const CDEUrgencyWidget = lazy(() => import("@/components/dashboard/CDEUrgencyWidget").then(m => ({ default: m.CDEUrgencyWidget })));
 const AIInsightsWidget = lazy(() => import("@/components/dashboard/AIInsightsWidget").then(m => ({ default: m.AIInsightsWidget })));
 const MeasurementCalendarWidget = lazy(() => import("@/components/dashboard/MeasurementCalendarWidget").then(m => ({ default: m.MeasurementCalendarWidget })));
+const TechnicalDashboardCards = lazy(() => import("@/components/dashboard/TechnicalDashboardCards").then(m => ({ default: m.TechnicalDashboardCards })));
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -353,6 +354,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       {/* Measurement Calendar for technical roles */}
       {isTechnicalRole && (
         <Suspense fallback={<div className="h-48 animate-pulse bg-muted rounded-lg" />}>
+          <TechnicalDashboardCards userId={currentUser?.id} userName={currentUser?.nome_completo || currentUser?.apelido || ""} />
           <MeasurementCalendarWidget />
         </Suspense>
       )}
