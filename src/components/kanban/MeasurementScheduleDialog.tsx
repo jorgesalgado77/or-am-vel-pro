@@ -19,7 +19,8 @@ export interface MeasurementScheduleData {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   observations: string;
-  rescheduleReason?: string; // Only when rescheduling
+  rescheduleReason?: string;
+  roundTripKm?: number | null;
 }
 
 export interface ScheduleHistoryEntry {
@@ -38,11 +39,13 @@ interface Props {
   clientId?: string;
   tenantId?: string;
   isReschedule?: boolean;
+  clientAddress?: string | null;
+  technicianAddress?: string | null;
   onConfirm: (data: MeasurementScheduleData) => Promise<void>;
   onCancel: () => void;
 }
 
-export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId, isReschedule, onConfirm, onCancel }: Props) {
+export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId, isReschedule, clientAddress, technicianAddress, onConfirm, onCancel }: Props) {
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("09:00");
   const [observations, setObservations] = useState("");
@@ -50,6 +53,11 @@ export function MeasurementScheduleDialog({ open, clientName, clientId, tenantId
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<ScheduleHistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [kmResult, setKmResult] = useState<{ km: number; duration: string } | null>(null);
+  const [kmLoading, setKmLoading] = useState(false);
+  const [kmError, setKmError] = useState<string | null>(null);
+
+  const { googleMapsKey } = useGoogleMapsKey(tenantId || null);
 
   // Fetch schedule history
   useEffect(() => {
