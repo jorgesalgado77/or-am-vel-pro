@@ -91,10 +91,12 @@ export const KanbanDealBadge = memo(function KanbanDealBadge({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge variant="outline" className={`text-[9px] h-4 px-1 font-medium gap-0.5 cursor-help ${urg.cls}`}>
-          <Brain className="h-2.5 w-2.5" />
-          {urg.label} {result.probability}%
-        </Badge>
+        <span className="inline-flex">
+          <Badge variant="outline" className={`text-[9px] h-4 px-1 font-medium gap-0.5 cursor-help ${urg.cls}`}>
+            <Brain className="h-2.5 w-2.5" />
+            {urg.label} {result.probability}%
+          </Badge>
+        </span>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-[240px] text-xs leading-relaxed">
         <p className="font-semibold mb-0.5">🧠 IA Comercial — {result.probability}% fechamento</p>
