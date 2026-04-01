@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+/**
+ * ProductDetailModal — Responsive product detail with gallery, video, and permission gating
+ */
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,20 +11,18 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import type { Product } from "@/hooks/useProductCatalog";
 import { formatCurrency } from "@/lib/financing";
-import { X, ZoomIn, Play, UserPlus, ShoppingCart } from "lucide-react";
+import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductImage {
   id: string;
   image_url: string;
-  is_default: boolean;
 }
 
 interface MediaItem {
   type: "image" | "video";
   url: string;
   thumbUrl: string;
-  primary: boolean;
   id: string;
 }
 
@@ -45,11 +46,120 @@ function getYouTubeThumb(url: string): string | null {
   return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null;
 }
 
+function getVideoEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
+  return url;
+}
+
+/* ─── Fullscreen Image Viewer with pinch-zoom ─── */
+function ImageViewer({ src, onClose }: { src: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-black flex flex-col" onClick={onClose}>
+      <div className="absolute top-3 right-3 z-10 flex gap-2">
+        <button className="bg-black/60 rounded-full p-2 text-white" onClick={e => { e.stopPropagation(); setScale(s => Math.min(s + 0.5, 4)); }}><ZoomIn className="h-5 w-5" /></button>
+        <button className="bg-black/60 rounded-full p-2 text-white" onClick={e => { e.stopPropagation(); setScale(s => Math.max(s - 0.5, 0.5)); }}><ZoomOut className="h-5 w-5" /></button>
+        <button className="bg-black/60 rounded-full p-2 text-white" onClick={onClose}><X className="h-5 w-5" /></button>
+      </div>
+      <div className="flex-1 overflow-auto flex items-center justify-center" onClick={e => e.stopPropagation()}>
+        <img
+          src={src}
+          alt=""
+          className="max-w-none transition-transform duration-200"
+          style={{ transform: `scale(${scale})` }}
+          draggable={false}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Fullscreen Video Player ─── */
+function VideoPlayer({ url, onClose }: { url: string; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(true);
+  const [muted, setMuted] = useState(false);
+  const [speed, setSpeed] = useState(1);
+
+  const isEmbed = url.includes("youtube") || url.includes("youtu.be") || url.includes("vimeo");
+  const embedUrl = getVideoEmbedUrl(url);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) { videoRef.current.play(); setPlaying(true); }
+    else { videoRef.current.pause(); setPlaying(false); }
+  };
+
+  const changeSpeed = (s: number) => {
+    setSpeed(s);
+    if (videoRef.current) videoRef.current.playbackRate = s;
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-black flex flex-col">
+      <div className="absolute top-3 right-3 z-10">
+        <button className="bg-black/60 rounded-full p-2 text-white" onClick={onClose}><X className="h-5 w-5" /></button>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center">
+        {isEmbed && embedUrl ? (
+          <iframe
+            src={embedUrl}
+            className="w-full h-full max-w-4xl max-h-[80vh] rounded-lg"
+            allowFullScreen
+            allow="autoplay; encrypted-media; fullscreen"
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            src={url}
+            autoPlay
+            className="w-full h-full max-w-4xl max-h-[80vh] object-contain"
+            onEnded={() => setPlaying(false)}
+          />
+        )}
+      </div>
+
+      {/* Controls for direct video */}
+      {!isEmbed && (
+        <div className="shrink-0 bg-black/80 px-4 py-3 flex items-center justify-center gap-4 flex-wrap">
+          <button className="text-white" onClick={togglePlay}>
+            {playing ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+          </button>
+          <button className="text-white" onClick={() => { setMuted(!muted); if (videoRef.current) videoRef.current.muted = !muted; }}>
+            {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+          <div className="flex gap-1">
+            {[1, 1.5, 2].map(s => (
+              <button
+                key={s}
+                className={`text-xs px-2 py-1 rounded ${speed === s ? "bg-primary text-primary-foreground" : "bg-white/20 text-white"}`}
+                onClick={() => changeSpeed(s)}
+              >
+                {s}x
+              </button>
+            ))}
+          </div>
+          <button className="text-white" onClick={() => videoRef.current?.requestFullscreen()}>
+            <Maximize className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main Modal ─── */
 export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const { currentUser } = useCurrentUser();
   const [images, setImages] = useState<ProductImage[]>([]);
-  const [expandedImage, setExpandedImage] = useState<string | null>(null);
-  const [showVideo, setShowVideo] = useState(false);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [viewerVideo, setViewerVideo] = useState<string | null>(null);
   const [selectedMediaIdx, setSelectedMediaIdx] = useState(0);
 
   const [showAddFlow, setShowAddFlow] = useState(false);
@@ -59,48 +169,45 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const [selectedSimId, setSelectedSimId] = useState("");
   const [loadingClients, setLoadingClients] = useState(false);
 
-  const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
-  const isRestricted = cargo === "VENDEDOR" || cargo === "PROJETISTA";
+  const cargoNome = (currentUser?.cargo_nome || "").toLowerCase();
+  const isAdmin = ["administrador", "admin"].includes(cargoNome);
+  const isRestricted = ["vendedor", "projetista"].includes(cargoNome);
   const videoUrl = (product as any)?.video_url || "";
 
+  // Build unified media list (images + video)
   const media = useMemo<MediaItem[]>(() => {
     const items: MediaItem[] = images.map(img => ({
       type: "image" as const,
       url: img.image_url,
       thumbUrl: img.image_url,
-      primary: !!img.is_default,
       id: img.id,
     }));
     if (videoUrl) {
-      const ytThumb = getYouTubeThumb(videoUrl);
       items.push({
         type: "video",
         url: videoUrl,
-        thumbUrl: ytThumb || "/placeholder.svg",
-        primary: false,
+        thumbUrl: getYouTubeThumb(videoUrl) || "/placeholder.svg",
         id: "video-0",
       });
     }
     return items;
   }, [images, videoUrl]);
 
-  const featured = media[selectedMediaIdx] || media.find(m => m.primary) || media[0] || null;
+  const featured = media[selectedMediaIdx] || media[0] || null;
 
+  // Load images — query WITHOUT is_default since column doesn't exist
   useEffect(() => {
     if (product && open) {
-      console.log("[ProductDetail] Loading images for product:", product.id);
       supabase.from("product_images" as any)
-        .select("id, image_url, is_default")
+        .select("id, image_url")
         .eq("product_id", product.id)
         .then(({ data, error }) => {
-          console.log("[ProductDetail] Images result:", { count: data?.length, error: error?.message, data });
+          console.log("[ProductDetail] images:", { count: data?.length, error: error?.message });
           setImages((data || []) as any);
-          setExpandedImage(null);
-          setShowVideo(false);
+          setViewerImage(null);
+          setViewerVideo(null);
           setShowAddFlow(false);
-          const loaded = (data || []) as any as ProductImage[];
-          const defaultIdx = loaded.findIndex(i => i.is_default);
-          setSelectedMediaIdx(defaultIdx >= 0 ? defaultIdx : 0);
+          setSelectedMediaIdx(0);
         });
     }
   }, [product, open]);
@@ -152,46 +259,34 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
     }
   };
 
-  const getVideoEmbedUrl = (url: string): string | null => {
-    if (!url) return null;
-    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
-    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
-    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-    return url;
-  };
-
   if (!product) return null;
-
-  const embedUrl = getVideoEmbedUrl(videoUrl);
-  const isDirectVideo = videoUrl && !videoUrl.includes("youtube") && !videoUrl.includes("youtu.be") && !videoUrl.includes("vimeo");
 
   return (
     <>
-      <Dialog open={open && !expandedImage && !showVideo} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[calc(100vw-24px)] max-w-lg max-h-[calc(100dvh-24px)] p-0 overflow-hidden flex flex-col gap-0">
-          <DialogHeader className="shrink-0 px-4 pt-4 pb-2 border-b">
-            <DialogTitle className="text-base leading-tight">{product.name}</DialogTitle>
+      <Dialog open={open && !viewerImage && !viewerVideo} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[calc(100vw-16px)] sm:w-[calc(100vw-24px)] max-w-lg max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-24px)] p-0 overflow-hidden flex flex-col gap-0">
+          <DialogHeader className="shrink-0 px-3 sm:px-4 pt-3 pb-2 border-b">
+            <DialogTitle className="text-sm sm:text-base leading-tight pr-6">{product.name}</DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3">
-            <div className="space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-4 py-3">
+            <div className="space-y-3">
               {/* Featured media */}
               {media.length > 0 && featured && (
                 <div className="space-y-2">
                   <div
                     className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted cursor-pointer group"
                     onClick={() => {
-                      if (featured.type === "video") setShowVideo(true);
-                      else setExpandedImage(featured.url);
+                      if (featured.type === "video") setViewerVideo(featured.url);
+                      else setViewerImage(featured.url);
                     }}
                   >
                     {featured.type === "video" ? (
                       <>
                         <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
-                            <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
+                          <div className="h-12 w-12 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
+                            <Play className="h-6 w-6 text-primary-foreground ml-0.5" />
                           </div>
                         </div>
                       </>
@@ -203,23 +298,21 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                         </div>
                       </>
                     )}
-                    {featured.primary && featured.type === "image" && (
-                      <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-medium">Padrão</span>
-                    )}
                   </div>
 
+                  {/* Thumbnail carousel */}
                   {media.length > 1 && (
                     <div className="flex gap-1.5 overflow-x-auto pb-1">
                       {media.map((item, idx) => (
                         <button
                           key={item.id}
-                          className={`relative shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-colors ${idx === selectedMediaIdx ? "border-primary" : "border-transparent hover:border-muted-foreground/30"}`}
+                          className={`relative shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-md overflow-hidden border-2 transition-colors ${idx === selectedMediaIdx ? "border-primary" : "border-transparent hover:border-muted-foreground/30"}`}
                           onClick={() => setSelectedMediaIdx(idx)}
                         >
                           <img src={item.thumbUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
                           {item.type === "video" && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                              <Play className="h-4 w-4 text-white" />
+                              <Play className="h-3.5 w-3.5 text-white" />
                             </div>
                           )}
                         </button>
@@ -229,7 +322,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                 </div>
               )}
 
-              {/* No media placeholder */}
               {media.length === 0 && (
                 <div className="w-full aspect-[4/3] rounded-lg border bg-muted flex items-center justify-center">
                   <span className="text-muted-foreground text-sm">Sem imagens</span>
@@ -237,15 +329,15 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               )}
 
               {/* Product details */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground text-xs block">Código Interno</span><p className="font-mono">{product.internal_code}</p></div>
-                {product.manufacturer_code && <div><span className="text-muted-foreground text-xs block">Cód. Fabricante</span><p className="font-mono">{product.manufacturer_code}</p></div>}
-                <div><span className="text-muted-foreground text-xs block">Categoria</span><p className="capitalize">{product.category}</p></div>
-                {product.environment && <div><span className="text-muted-foreground text-xs block">Ambiente</span><p className="capitalize">{product.environment}</p></div>}
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-muted-foreground text-xs block">Código Interno</span><p className="font-mono text-xs">{product.internal_code}</p></div>
+                {product.manufacturer_code && <div><span className="text-muted-foreground text-xs block">Cód. Fabricante</span><p className="font-mono text-xs">{product.manufacturer_code}</p></div>}
+                <div><span className="text-muted-foreground text-xs block">Categoria</span><p className="capitalize text-xs">{product.category}</p></div>
+                {product.environment && <div><span className="text-muted-foreground text-xs block">Ambiente</span><p className="capitalize text-xs">{product.environment}</p></div>}
               </div>
 
               {product.description && (
-                <div><span className="text-xs text-muted-foreground block">Descrição</span><p className="text-sm mt-1">{product.description}</p></div>
+                <div><span className="text-xs text-muted-foreground block">Descrição</span><p className="text-xs mt-1">{product.description}</p></div>
               )}
 
               {(product.width > 0 || product.height > 0 || product.depth > 0) && (
@@ -254,14 +346,14 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-xs text-muted-foreground block">Preço de Venda</span>
-                  <p className="font-bold text-primary text-lg">{formatCurrency(product.sale_price)}</p>
+                  <p className="font-bold text-primary text-base sm:text-lg">{formatCurrency(product.sale_price)}</p>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground block">Estoque</span>
-                  <p className="font-medium">{product.stock_quantity} un</p>
+                  <p className="font-medium text-xs">{product.stock_quantity} un</p>
                   <Badge variant="outline" className="text-[10px] mt-1">
                     {STOCK_LABELS[product.stock_status] || product.stock_status}
                   </Badge>
@@ -272,12 +364,13 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                 <div><span className="text-xs text-muted-foreground block">Fornecedor</span><p className="text-sm font-medium">{product.supplier.name}</p></div>
               )}
 
-              {!isRestricted && (
-                <div className="grid grid-cols-3 gap-3 text-sm bg-muted/30 rounded-lg p-3 border">
-                  <div><span className="text-xs text-muted-foreground block">Custo</span><p className="font-medium">{formatCurrency(product.cost_price)}</p></div>
-                  <div><span className="text-xs text-muted-foreground block">Markup</span><p className="font-medium">{product.markup_percentage}%</p></div>
+              {/* Admin-only: custo, markup, preço mínimo */}
+              {isAdmin && (
+                <div className="grid grid-cols-3 gap-2 text-sm bg-muted/30 rounded-lg p-3 border">
+                  <div><span className="text-xs text-muted-foreground block">Custo</span><p className="font-medium text-xs">{formatCurrency(product.cost_price)}</p></div>
+                  <div><span className="text-xs text-muted-foreground block">Markup</span><p className="font-medium text-xs">{product.markup_percentage}%</p></div>
                   {product.min_sale_price > 0 && (
-                    <div><span className="text-xs text-muted-foreground block">Preço Mín.</span><p className="font-medium">{formatCurrency(product.min_sale_price)}</p></div>
+                    <div><span className="text-xs text-muted-foreground block">Preço Mín.</span><p className="font-medium text-xs">{formatCurrency(product.min_sale_price)}</p></div>
                   )}
                 </div>
               )}
@@ -331,31 +424,11 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Expanded Image */}
-      {expandedImage && (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center cursor-pointer" onClick={() => setExpandedImage(null)}>
-          <button className="absolute top-4 right-4 text-white hover:text-white/80" onClick={() => setExpandedImage(null)}>
-            <X className="h-6 w-6" />
-          </button>
-          <img src={expandedImage} alt="" className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg" />
-        </div>
-      )}
+      {/* Fullscreen Image Viewer */}
+      {viewerImage && <ImageViewer src={viewerImage} onClose={() => setViewerImage(null)} />}
 
-      {/* Video Modal */}
-      {showVideo && videoUrl && (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center" onClick={() => setShowVideo(false)}>
-          <button className="absolute top-4 right-4 text-white hover:text-white/80 z-10" onClick={() => setShowVideo(false)}>
-            <X className="h-6 w-6" />
-          </button>
-          <div className="w-[90vw] max-w-3xl aspect-video" onClick={e => e.stopPropagation()}>
-            {isDirectVideo ? (
-              <video src={videoUrl} controls autoPlay className="w-full h-full rounded-lg" />
-            ) : embedUrl ? (
-              <iframe src={embedUrl} className="w-full h-full rounded-lg" allowFullScreen allow="autoplay; encrypted-media" />
-            ) : null}
-          </div>
-        </div>
-      )}
+      {/* Fullscreen Video Player */}
+      {viewerVideo && <VideoPlayer url={viewerVideo} onClose={() => setViewerVideo(null)} />}
     </>
   );
 }

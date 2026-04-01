@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
 import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
 import { toast } from "sonner";
 
