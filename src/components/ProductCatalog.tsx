@@ -201,6 +201,8 @@ export function ProductCatalog() {
     });
     const imgs = await loadProductImages(p.id);
     setImages(imgs);
+    setVideoFile(null);
+    setVideoPreview("");
     setDialogOpen(true);
   };
 
