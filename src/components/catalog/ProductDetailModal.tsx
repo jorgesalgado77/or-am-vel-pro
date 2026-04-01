@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabaseClient";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -38,16 +37,8 @@ const STOCK_LABELS: Record<string, string> = {
   indisponivel: "Indisponível",
 };
 
-interface ClientOption {
-  id: string;
-  name: string;
-}
-
-interface SimulationOption {
-  id: string;
-  valor_tela: number;
-  created_at: string;
-}
+interface ClientOption { id: string; name: string; }
+interface SimulationOption { id: string; valor_tela: number; created_at: string; }
 
 function getYouTubeThumb(url: string): string | null {
   const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
@@ -61,7 +52,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const [showVideo, setShowVideo] = useState(false);
   const [selectedMediaIdx, setSelectedMediaIdx] = useState(0);
 
-  // Add to simulation state
   const [showAddFlow, setShowAddFlow] = useState(false);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("");
@@ -71,10 +61,8 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
 
   const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
   const isRestricted = cargo === "VENDEDOR" || cargo === "PROJETISTA";
-
   const videoUrl = (product as any)?.video_url || "";
 
-  // Build unified media list
   const media = useMemo<MediaItem[]>(() => {
     const items: MediaItem[] = images.map(img => ({
       type: "image" as const,
@@ -100,13 +88,16 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
 
   useEffect(() => {
     if (product && open) {
-      supabase.from("product_images" as any).select("id, image_url, is_default").eq("product_id", product.id)
-        .then(({ data }) => {
+      console.log("[ProductDetail] Loading images for product:", product.id);
+      supabase.from("product_images" as any)
+        .select("id, image_url, is_default")
+        .eq("product_id", product.id)
+        .then(({ data, error }) => {
+          console.log("[ProductDetail] Images result:", { count: data?.length, error: error?.message, data });
           setImages((data || []) as any);
           setExpandedImage(null);
           setShowVideo(false);
           setShowAddFlow(false);
-          // Auto-select the default image
           const loaded = (data || []) as any as ProductImage[];
           const defaultIdx = loaded.findIndex(i => i.is_default);
           setSelectedMediaIdx(defaultIdx >= 0 ? defaultIdx : 0);
@@ -118,13 +109,8 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
     setLoadingClients(true);
     const tenantId = await getResolvedTenantId();
     if (!tenantId) { setLoadingClients(false); return; }
-
     let query = supabase.from("clients" as any).select("id, name").eq("tenant_id", tenantId).order("name").limit(100);
-
-    if (isRestricted && currentUser?.id) {
-      query = query.eq("responsavel_id", currentUser.id);
-    }
-
+    if (isRestricted && currentUser?.id) query = query.eq("responsavel_id", currentUser.id);
     const { data } = await query;
     setClients((data || []) as unknown as ClientOption[]);
     setLoadingClients(false);
@@ -142,19 +128,13 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
 
   const handleAddToSimulation = async () => {
     if (!product) return;
-
     if (!selectedClientId) {
-      sessionStorage.setItem("simulator_prefill", JSON.stringify({
-        ambiente: product.name,
-        valor: product.sale_price,
-        pecas: 1,
-      }));
+      sessionStorage.setItem("simulator_prefill", JSON.stringify({ ambiente: product.name, valor: product.sale_price, pecas: 1 }));
       window.dispatchEvent(new CustomEvent("navigate-to-simulator"));
       onOpenChange(false);
       toast.success("Produto incluído na simulação!");
       return;
     }
-
     if (selectedSimId) {
       const sim = simulations.find(s => s.id === selectedSimId);
       if (sim) {
@@ -164,11 +144,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
         onOpenChange(false);
       }
     } else {
-      sessionStorage.setItem("simulator_prefill", JSON.stringify({
-        ambiente: product.name,
-        valor: product.sale_price,
-        pecas: 1,
-      }));
+      sessionStorage.setItem("simulator_prefill", JSON.stringify({ ambiente: product.name, valor: product.sale_price, pecas: 1 }));
       window.dispatchEvent(new CustomEvent("navigate-to-simulator"));
       window.dispatchEvent(new CustomEvent("simulate-client", { detail: { clientId: selectedClientId } }));
       onOpenChange(false);
@@ -193,34 +169,26 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   return (
     <>
       <Dialog open={open && !expandedImage && !showVideo} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg max-h-[85dvh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-base">{product.name}</DialogTitle>
+        <DialogContent className="w-[calc(100vw-24px)] max-w-lg max-h-[calc(100dvh-24px)] p-0 overflow-hidden flex flex-col gap-0">
+          <DialogHeader className="shrink-0 px-4 pt-4 pb-2 border-b">
+            <DialogTitle className="text-base leading-tight">{product.name}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1">
-            <div className="space-y-4 pr-2">
+
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3">
+            <div className="space-y-4">
               {/* Featured media */}
               {media.length > 0 && featured && (
                 <div className="space-y-2">
-                  {/* Main display */}
                   <div
                     className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted cursor-pointer group"
                     onClick={() => {
-                      if (featured.type === "video") {
-                        setShowVideo(true);
-                      } else {
-                        setExpandedImage(featured.url);
-                      }
+                      if (featured.type === "video") setShowVideo(true);
+                      else setExpandedImage(featured.url);
                     }}
                   >
                     {featured.type === "video" ? (
                       <>
-                        <img
-                          src={featured.thumbUrl}
-                          alt="Vídeo"
-                          className="w-full h-full object-cover"
-                          onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
-                        />
+                        <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                           <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
                             <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
@@ -229,12 +197,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                       </>
                     ) : (
                       <>
-                        <img
-                          src={featured.url}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                          onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
-                        />
+                        <img src={featured.url} alt={product.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
                           <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
@@ -245,7 +208,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                     )}
                   </div>
 
-                  {/* Thumbnail carousel */}
                   {media.length > 1 && (
                     <div className="flex gap-1.5 overflow-x-auto pb-1">
                       {media.map((item, idx) => (
@@ -254,24 +216,23 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                           className={`relative shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-colors ${idx === selectedMediaIdx ? "border-primary" : "border-transparent hover:border-muted-foreground/30"}`}
                           onClick={() => setSelectedMediaIdx(idx)}
                         >
-                          <img
-                            src={item.thumbUrl}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
-                          />
+                          <img src={item.thumbUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
                           {item.type === "video" && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                               <Play className="h-4 w-4 text-white" />
                             </div>
                           )}
-                          {item.primary && item.type === "image" && (
-                            <span className="absolute top-0 left-0 bg-primary text-primary-foreground text-[6px] px-0.5 rounded-br font-medium">★</span>
-                          )}
                         </button>
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* No media placeholder */}
+              {media.length === 0 && (
+                <div className="w-full aspect-[4/3] rounded-lg border bg-muted flex items-center justify-center">
+                  <span className="text-muted-foreground text-sm">Sem imagens</span>
                 </div>
               )}
 
@@ -333,27 +294,16 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                       <UserPlus className="h-3.5 w-3.5 text-primary" />
                       Incluir Produto na Simulação
                     </p>
-
                     <div>
                       <span className="text-xs text-muted-foreground">Cliente (opcional)</span>
-                      <Select
-                        value={selectedClientId}
-                        onValueChange={v => {
-                          setSelectedClientId(v === "none" ? "" : v);
-                          setSelectedSimId("");
-                          if (v && v !== "none") loadSimulations(v);
-                        }}
-                      >
+                      <Select value={selectedClientId} onValueChange={v => { setSelectedClientId(v === "none" ? "" : v); setSelectedSimId(""); if (v && v !== "none") loadSimulations(v); }}>
                         <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder={loadingClients ? "Carregando..." : "Sem cliente (nova simulação)"} /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none" className="text-xs">Sem cliente (nova simulação)</SelectItem>
-                          {clients.map(c => (
-                            <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>
-                          ))}
+                          {clients.map(c => <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
-
                     {selectedClientId && simulations.length > 0 && (
                       <div>
                         <span className="text-xs text-muted-foreground">Simulação existente (opcional)</span>
@@ -361,16 +311,11 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                           <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="Nova simulação" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="new" className="text-xs">Nova simulação</SelectItem>
-                            {simulations.map(s => (
-                              <SelectItem key={s.id} value={s.id} className="text-xs">
-                                {formatCurrency(s.valor_tela)} — {new Date(s.created_at).toLocaleDateString("pt-BR")}
-                              </SelectItem>
-                            ))}
+                            {simulations.map(s => <SelectItem key={s.id} value={s.id} className="text-xs">{formatCurrency(s.valor_tela)} — {new Date(s.created_at).toLocaleDateString("pt-BR")}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
                     )}
-
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" className="flex-1 text-xs h-8" onClick={() => setShowAddFlow(false)}>Cancelar</Button>
                       <Button size="sm" className="flex-1 text-xs h-8 gap-1" onClick={handleAddToSimulation}>
@@ -382,7 +327,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                 )}
               </div>
             </div>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
