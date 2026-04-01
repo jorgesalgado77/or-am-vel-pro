@@ -184,6 +184,7 @@ export function ProductCatalog() {
       supplier_id: p.supplier_id || "",
       stock_quantity: p.stock_quantity,
       stock_status: p.stock_status,
+      video_url: p.video_url || "",
     });
     const imgs = await loadProductImages(p.id);
     setImages(imgs);
