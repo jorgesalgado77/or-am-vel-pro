@@ -439,7 +439,7 @@ export function ProductCatalog() {
                               </TableCell>
                               <TableCell className="text-xs hidden lg:table-cell">{p.supplier?.name || "—"}</TableCell>
                               <TableCell>
-                                <div className="flex gap-1">
+                                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Registrar venda" onClick={() => openSaleDialog(p)}>
                                     <ShoppingCart className="h-3.5 w-3.5" />
                                   </Button>
