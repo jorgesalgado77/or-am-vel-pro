@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
 import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
 import { toast } from "sonner";
 
@@ -112,6 +113,10 @@ export function ProductCatalog() {
     uploadProductImage, loadProductImages, deleteProductImage, setDefaultImage,
     importProducts, loadSuppliers,
   } = useProductCatalog();
+
+  const { currentUser, hasPermission } = useCurrentUser();
+  const canManageProducts = hasPermission("cadastrar_produtos");
+  const isAdmin = ["administrador", "admin"].includes((currentUser?.cargo_nome || "").toLowerCase());
 
   const [activeTab, setActiveTab] = useState("products");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -368,15 +373,17 @@ export function ProductCatalog() {
                   <Package className="h-4 w-4 text-primary" />
                   Catálogo de Produtos ({totalCount})
                 </CardTitle>
-                <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => importInputRef.current?.click()}>
-                    <FileSpreadsheet className="h-3.5 w-3.5" /> Importar
-                  </Button>
-                  <input ref={importInputRef} type="file" accept=".csv,.json" className="hidden" onChange={handleImport} />
-                  <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNewProduct}>
-                    <Plus className="h-3.5 w-3.5" /> Novo Produto
-                  </Button>
-                </div>
+                {canManageProducts && (
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => importInputRef.current?.click()}>
+                      <FileSpreadsheet className="h-3.5 w-3.5" /> Importar
+                    </Button>
+                    <input ref={importInputRef} type="file" accept=".csv,.json" className="hidden" onChange={handleImport} />
+                    <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNewProduct}>
+                      <Plus className="h-3.5 w-3.5" /> Novo Produto
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -413,8 +420,8 @@ export function ProductCatalog() {
                           <TableHead className="text-xs">Código</TableHead>
                           <TableHead className="text-xs">Nome</TableHead>
                           <TableHead className="text-xs hidden sm:table-cell">Categoria</TableHead>
-                          <TableHead className="text-xs text-right">Custo</TableHead>
-                          <TableHead className="text-xs text-right hidden md:table-cell">Markup</TableHead>
+                          {isAdmin && <TableHead className="text-xs text-right">Custo</TableHead>}
+                          {isAdmin && <TableHead className="text-xs text-right hidden md:table-cell">Markup</TableHead>}
                           <TableHead className="text-xs text-right">Venda</TableHead>
                           <TableHead className="text-xs hidden lg:table-cell">Estoque</TableHead>
                           <TableHead className="text-xs hidden lg:table-cell">Fornecedor</TableHead>
@@ -429,8 +436,8 @@ export function ProductCatalog() {
                               <TableCell className="text-xs font-mono">{p.internal_code}</TableCell>
                               <TableCell className="text-xs font-medium max-w-[200px] truncate">{p.name}</TableCell>
                               <TableCell className="text-xs capitalize hidden sm:table-cell">{p.category}</TableCell>
-                              <TableCell className="text-xs text-right">{formatBRL(p.cost_price)}</TableCell>
-                              <TableCell className="text-xs text-right hidden md:table-cell">{p.markup_percentage}%</TableCell>
+                              {isAdmin && <TableCell className="text-xs text-right">{formatBRL(p.cost_price)}</TableCell>}
+                              {isAdmin && <TableCell className="text-xs text-right hidden md:table-cell">{p.markup_percentage}%</TableCell>}
                               <TableCell className="text-xs text-right font-semibold text-primary">{formatBRL(p.sale_price)}</TableCell>
                               <TableCell className="hidden lg:table-cell">
                                 <Badge variant="outline" className={`text-[10px] ${status.color}`}>
@@ -443,12 +450,16 @@ export function ProductCatalog() {
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Registrar venda" onClick={() => openSaleDialog(p)}>
                                     <ShoppingCart className="h-3.5 w-3.5" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditProduct(p)}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteProduct(p.id)}>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
+                                  {canManageProducts && (
+                                    <>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditProduct(p)}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deleteProduct(p.id)}>
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>
