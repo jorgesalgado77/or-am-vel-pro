@@ -287,7 +287,7 @@ export function useProductCatalog() {
     page, setPage, totalPages, totalCount,
     saveProduct, deleteProduct,
     saveSupplier, deleteSupplier,
-    uploadProductImage, loadProductImages, deleteProductImage, setDefaultImage,
+    uploadProductImage, uploadProductVideo, loadProductImages, deleteProductImage, setDefaultImage,
     importProducts, loadProducts, loadSuppliers,
   };
 }
