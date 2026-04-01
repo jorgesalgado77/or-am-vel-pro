@@ -199,12 +199,22 @@ export function useProductCatalog() {
     if (upErr) { toast.error("Erro no upload da imagem"); return null; }
     const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
     const imageUrl = urlData.publicUrl;
-    const { data } = await supabase.from("product_images" as any).insert({ product_id: productId, image_url: imageUrl } as any).select().single();
+    const { data } = await supabase.from("product_images" as any).insert({ product_id: productId, image_url: imageUrl, is_default: false } as any).select().single();
     return data;
   };
 
+  const uploadProductVideo = async (productId: string, file: File) => {
+    if (!tenantId) return null;
+    const ext = file.name.split(".").pop();
+    const path = `${tenantId}/${productId}/video_${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("product-images").upload(path, file);
+    if (upErr) { toast.error("Erro no upload do vídeo"); return null; }
+    const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
   const loadProductImages = async (productId: string): Promise<ProductImage[]> => {
-    const { data } = await supabase.from("product_images" as any).select("*").eq("product_id", productId);
+    const { data } = await supabase.from("product_images" as any).select("id, product_id, image_url, is_default").eq("product_id", productId);
     return (data || []) as any;
   };
 
@@ -213,7 +223,6 @@ export function useProductCatalog() {
   };
 
   const setDefaultImage = async (productId: string, imageId: string) => {
-    // Unset all defaults for this product, then set the chosen one
     await supabase.from("product_images" as any).update({ is_default: false } as any).eq("product_id", productId);
     await supabase.from("product_images" as any).update({ is_default: true } as any).eq("id", imageId);
   };
