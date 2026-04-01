@@ -272,7 +272,14 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
         if (customEnd) pEnd = endOfDay(new Date(customEnd));
         break;
     }
+    // For vendedor/projetista: only show their own contracts
+    const userName = currentUser?.nome_completo || "";
     return trackings.filter((t) => {
+      if (isSellerRole && userName) {
+        const matchOwner = (t.projetista || "").toLowerCase() === userName.toLowerCase() ||
+          (t.vendedor || "").toLowerCase() === userName.toLowerCase();
+        if (!matchOwner) return false;
+      }
       const matchSearch = t.numero_contrato.toLowerCase().includes(search.toLowerCase()) ||
         t.nome_cliente.toLowerCase().includes(search.toLowerCase()) ||
         (t.projetista || "").toLowerCase().includes(search.toLowerCase());
@@ -288,7 +295,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
       }
       return matchSearch && matchProjetista && matchPeriod;
     });
-  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd]);
+  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd, isSellerRole, currentUser?.nome_completo]);
 
   const getStatusLabel = useCallback((val: string) => STATUS_OPTIONS.find((s) => s.value === val)?.label || val, []);
 
