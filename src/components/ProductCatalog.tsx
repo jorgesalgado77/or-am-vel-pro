@@ -131,7 +131,8 @@ export function ProductCatalog() {
   const [saleProduct, setSaleProduct] = useState<Product | null>(null);
   const [saleQty, setSaleQty] = useState(1);
   const [saleSaving, setSaleSaving] = useState(false);
-
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const openSaleDialog = (p: Product) => {
     setSaleProduct(p);
     setSaleQty(1);
