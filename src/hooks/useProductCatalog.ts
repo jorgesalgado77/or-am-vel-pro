@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 
 export interface Supplier {
@@ -71,8 +72,18 @@ export function useProductCatalog() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [resolvedTenantId, setResolvedTenantId] = useState<string | null>(getTenantId());
 
-  const tenantId = getTenantId();
+  // Resolve tenant ID asynchronously if not available in memory
+  useEffect(() => {
+    if (!resolvedTenantId) {
+      getResolvedTenantId().then(id => {
+        if (id) setResolvedTenantId(id);
+      });
+    }
+  }, [resolvedTenantId]);
+
+  const tenantId = resolvedTenantId;
 
   // --- SUPPLIERS ---
   const loadSuppliers = useCallback(async () => {

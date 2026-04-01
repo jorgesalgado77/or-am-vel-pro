@@ -13,6 +13,7 @@ import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { useComissaoPolicy, calcularComissao } from "@/hooks/useComissaoPolicy";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { format, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -70,6 +71,9 @@ interface ContractTrackingListProps {
 
 export const ContractTrackingList = memo(function ContractTrackingList({ clients, lastSims }: ContractTrackingListProps) {
   const { policy: comissaoPolicy } = useComissaoPolicy();
+  const { currentUser, hasPermission } = useCurrentUser();
+  const cargoNome = (currentUser?.cargo_nome || "").toLowerCase().trim();
+  const isSellerRole = cargoNome.includes("vendedor") || cargoNome.includes("projetista");
   const [trackings, setTrackings] = useState<TrackingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -268,7 +272,14 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
         if (customEnd) pEnd = endOfDay(new Date(customEnd));
         break;
     }
+    // For vendedor/projetista: only show their own contracts
+    const userName = currentUser?.nome_completo || "";
     return trackings.filter((t) => {
+      if (isSellerRole && userName) {
+        const matchOwner = (t.projetista || "").toLowerCase() === userName.toLowerCase() ||
+          (t.vendedor || "").toLowerCase() === userName.toLowerCase();
+        if (!matchOwner) return false;
+      }
       const matchSearch = t.numero_contrato.toLowerCase().includes(search.toLowerCase()) ||
         t.nome_cliente.toLowerCase().includes(search.toLowerCase()) ||
         (t.projetista || "").toLowerCase().includes(search.toLowerCase());
@@ -284,7 +295,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
       }
       return matchSearch && matchProjetista && matchPeriod;
     });
-  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd]);
+  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd, isSellerRole, currentUser?.nome_completo]);
 
   const getStatusLabel = useCallback((val: string) => STATUS_OPTIONS.find((s) => s.value === val)?.label || val, []);
 
@@ -308,15 +319,17 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar contrato, cliente ou projetista..." className="pl-9" />
           </div>
-          <div className="min-w-[180px]">
-            <Select value={filterProjetista} onValueChange={setFilterProjetista}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Projetista" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_all">Todos os projetistas</SelectItem>
-                {uniqueProjetistas.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!isSellerRole && (
+            <div className="min-w-[180px]">
+              <Select value={filterProjetista} onValueChange={setFilterProjetista}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Projetista" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_all">Todos os projetistas</SelectItem>
+                  {uniqueProjetistas.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="min-w-[180px]">
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
