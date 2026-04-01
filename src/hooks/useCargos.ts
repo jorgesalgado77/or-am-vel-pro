@@ -59,6 +59,7 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   medicao: false,
   tutoriais: true,
   email: true,
+  cadastrar_produtos: false,
 };
 
 export interface Cargo {

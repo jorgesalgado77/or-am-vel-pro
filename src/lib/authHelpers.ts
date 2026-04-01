@@ -47,6 +47,7 @@ export const DEFAULT_PERMS: CargoPermissoes = {
   medicao: true,
   tutoriais: true,
   email: true,
+  cadastrar_produtos: true,
 };
 
 export async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
