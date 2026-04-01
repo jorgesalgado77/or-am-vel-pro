@@ -720,15 +720,43 @@ export function ProductCatalog() {
                 </div>
               </div>
 
-              {/* Video URL */}
-              <div>
-                <Label className="text-xs flex items-center gap-1"><Video className="h-3.5 w-3.5" /> URL do Vídeo</Label>
+              {/* Video: URL or Upload */}
+              <div className="space-y-2">
+                <Label className="text-xs flex items-center gap-1"><Video className="h-3.5 w-3.5" /> Vídeo do Produto</Label>
                 <Input
                   value={form.video_url}
-                  onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))}
-                  className="mt-1 h-9 text-sm"
-                  placeholder="https://youtube.com/watch?v=... ou link direto do vídeo"
+                  onChange={e => { setForm(f => ({ ...f, video_url: e.target.value })); setVideoFile(null); setVideoPreview(""); }}
+                  className="h-9 text-sm"
+                  placeholder="https://youtube.com/watch?v=... ou link direto"
                 />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">ou</span>
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => videoInputRef.current?.click()}>
+                    <Upload className="h-3 w-3" /> Upload Vídeo
+                  </Button>
+                  <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setVideoFile(f);
+                      setVideoPreview(URL.createObjectURL(f));
+                      setForm(prev => ({ ...prev, video_url: "" }));
+                    }
+                  }} />
+                  {videoFile && <span className="text-xs text-muted-foreground truncate max-w-[150px]">{videoFile.name}</span>}
+                </div>
+                {/* Video preview */}
+                {videoPreview && (
+                  <video src={videoPreview} controls className="w-full max-h-40 rounded-md border" />
+                )}
+                {!videoPreview && form.video_url && (
+                  (() => {
+                    const ytMatch = form.video_url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+                    if (ytMatch) return <iframe src={`https://www.youtube.com/embed/${ytMatch[1]}`} className="w-full aspect-video rounded-md border" allowFullScreen />;
+                    const vimeoMatch = form.video_url.match(/vimeo\.com\/(\d+)/);
+                    if (vimeoMatch) return <iframe src={`https://player.vimeo.com/video/${vimeoMatch[1]}`} className="w-full aspect-video rounded-md border" allowFullScreen />;
+                    return <video src={form.video_url} controls className="w-full max-h-40 rounded-md border" />;
+                  })()
+                )}
               </div>
 
               {/* Images (only for existing products) */}
