@@ -47,6 +47,7 @@ export interface Product {
   supplier_id: string | null;
   stock_quantity: number;
   stock_status: "em_estoque" | "sob_encomenda" | "indisponivel";
+  video_url: string;
   created_at: string;
   supplier?: Supplier;
 }
