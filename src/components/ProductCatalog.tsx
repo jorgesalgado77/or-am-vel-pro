@@ -373,15 +373,17 @@ export function ProductCatalog() {
                   <Package className="h-4 w-4 text-primary" />
                   Catálogo de Produtos ({totalCount})
                 </CardTitle>
-                <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => importInputRef.current?.click()}>
-                    <FileSpreadsheet className="h-3.5 w-3.5" /> Importar
-                  </Button>
-                  <input ref={importInputRef} type="file" accept=".csv,.json" className="hidden" onChange={handleImport} />
-                  <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNewProduct}>
-                    <Plus className="h-3.5 w-3.5" /> Novo Produto
-                  </Button>
-                </div>
+                {canManageProducts && (
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => importInputRef.current?.click()}>
+                      <FileSpreadsheet className="h-3.5 w-3.5" /> Importar
+                    </Button>
+                    <input ref={importInputRef} type="file" accept=".csv,.json" className="hidden" onChange={handleImport} />
+                    <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={openNewProduct}>
+                      <Plus className="h-3.5 w-3.5" /> Novo Produto
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
