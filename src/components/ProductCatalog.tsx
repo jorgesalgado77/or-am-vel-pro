@@ -425,7 +425,7 @@ export function ProductCatalog() {
                         {products.map(p => {
                           const status = STOCK_STATUS_LABELS[p.stock_status] || STOCK_STATUS_LABELS.em_estoque;
                           return (
-                            <TableRow key={p.id}>
+                            <TableRow key={p.id} className="cursor-pointer" onClick={() => { setDetailProduct(p); setDetailOpen(true); }}>
                               <TableCell className="text-xs font-mono">{p.internal_code}</TableCell>
                               <TableCell className="text-xs font-medium max-w-[200px] truncate">{p.name}</TableCell>
                               <TableCell className="text-xs capitalize hidden sm:table-cell">{p.category}</TableCell>
