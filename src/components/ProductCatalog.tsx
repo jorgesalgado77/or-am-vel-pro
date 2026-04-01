@@ -107,7 +107,7 @@ export function ProductCatalog() {
     page, setPage, totalPages, totalCount,
     saveProduct, deleteProduct,
     saveSupplier, deleteSupplier,
-    uploadProductImage, loadProductImages, deleteProductImage,
+    uploadProductImage, loadProductImages, deleteProductImage, setDefaultImage,
     importProducts, loadSuppliers,
   } = useProductCatalog();
 
