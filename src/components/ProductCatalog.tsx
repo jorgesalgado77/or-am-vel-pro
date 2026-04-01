@@ -123,7 +123,10 @@ export function ProductCatalog() {
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   // Supplier dialog
