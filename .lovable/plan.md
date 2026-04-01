@@ -1,114 +1,112 @@
 
 
-## Plan: Melhorias no Simulador, Catálogo e Contratos
+## Plan: Contratos por Cargo, Catálogo, Funil Restrito e Automações Kanban
 
-This is a large multi-part request covering 7 areas. Here is the structured plan:
+### 1. Contratos Fechados — Filtro por Cargo (ContractTrackingList.tsx)
 
----
-
-### 1. Filtro por Período — Contratos Fechados (ContractTrackingList.tsx)
-
-Add a date period filter dropdown to the contracts tracking list with these presets:
-- **Mês Atual** (default), Mês Anterior, Últimos 3 Meses, Últimos 6 Meses, Ano Anterior, Personalizado (data início/fim)
-
-**Files:** `src/components/dashboard/ContractTrackingList.tsx`
-- Add state for period filter preset and custom date range
-- Add a Select dropdown beside the existing filters
-- Show DatePicker inputs when "Personalizado" is selected
-- Filter `trackings` by `data_fechamento` using the selected range
-
----
-
-### 2. Catálogo de Produtos — Visibilidade para Todos os Cargos + Detalhes do Produto
-
-Currently the product list loads by `tenant_id`. The issue may be RLS or the query filtering. Will verify RLS and ensure all roles see products.
+Currently the projetista filter shows all sellers. For vendedor/projetista roles, auto-filter to only show their own contracts and hide the filter dropdown.
 
 **Changes:**
-- **ProductCatalog.tsx**: Add click handler on product row to open a detail modal
-- **New component: `ProductDetailModal.tsx`**: Shows product image (with expand/zoom), name, dimensions, description, sale price, stock quantity, supplier name
-- For **Vendedor** role: show only sale price, stock, supplier (hide cost/markup)
-- Add image gallery with expand functionality
+- Import `useCurrentUser` hook
+- Get `currentUser` and `cargoNome`
+- If cargo is vendedor/projetista: set `filterProjetista` to the logged user's name, hide the projetista Select dropdown, and filter `trackings` server-side or client-side to only show rows where `projetista` or `vendedor` matches current user
+- If cargo is administrador/gerente: keep existing behavior with "Todos" option and individual names
 
-**Files:** `src/components/ProductCatalog.tsx`, new `src/components/catalog/ProductDetailModal.tsx`
-
----
-
-### 3. Product Picker Modal — Maior e Mais Completo
-
-Redesign `ProductPickerForSimulator.tsx`:
-- Increase dialog size to `sm:max-w-3xl`
-- Add filters: by name, environment, internal code, manufacturer code, stock status
-- Show product image (main), name, dimensions, details, sale price, stock quantity
-- Better card layout for each product with visual richness
-
-**Files:** `src/components/simulator/ProductPickerForSimulator.tsx`
+**File:** `src/components/dashboard/ContractTrackingList.tsx`
 
 ---
 
-### 4. Listas Separadas — Ambientes Importados vs Produtos Adicionados
+### 2. Catálogo de Produtos — Produtos não Aparecendo
 
-In the `SimulatorParametersForm.tsx`, split the current environments section into two distinct lists:
-- **Ambientes Importados** (from file import — TXT/XML)
-- **Produtos Adicionados** (from catalog picker)
+The `useProductCatalog` hook uses `getTenantId()` from `tenantState.ts` (in-memory). If this is null at mount time, the query never runs. The product "Sofá 3 Lugares" exists in the database but won't load if `tenantId` is null.
 
-Each list shows its own items with details and subtotals. Both subtotals sum to form the `Valor de Tela`.
+**Fix:**
+- In `useProductCatalog.ts`, fall back to `getResolvedTenantId()` (async) if `getTenantId()` returns null, similar to how other hooks work
+- Ensure `loadProducts` and `loadSuppliers` re-run when tenantId becomes available
+- Add `useEffect` with proper dependency on resolved tenant
 
-**Files:** `src/components/simulator/SimulatorParametersForm.tsx`, `src/components/SimulatorPanel.tsx`
-- Track `catalogProducts` as a separate state array (not merged into environments)
-- Display two tables with individual totals
-- Sum both for `valorTela`
+**File:** `src/hooks/useProductCatalog.ts`
 
 ---
 
-### 5. Desconto Plus — Correções e Comportamento de Seleção
+### 3. Funil de Captação — Restrições por Cargo (FunnelPanel.tsx)
 
-Currently `showPlus` controls visibility. Issues:
-- Plus not appearing — check `showPlus` logic in `useSimulatorRates`
-- When a payment option is selected, hide the others and show only the selected one with a checkbox to deselect
+For roles vendedor, projetista, gerente, liberador, conferente, técnico: make the following sections **read-only** (no edit/add/delete):
+- Vídeo Promocional
+- Carrossel de Imagens
+- Textos da Página
+- Cor Principal
+- Benefícios Listados
+- Faixas de Investimento
+- Redes Sociais
 
-**Changes in `SimulatorParametersForm.tsx`:**
-- Always show Desconto Plus section (remove `showPlus` gate or ensure it's always true)
-- For Forma de Pagamento: when selected, collapse other options and show a checkbox to deselect (radio-like behavior with uncheck)
-- Include Plus in AI strategy suggestions (`AIStrategyPanel.tsx` already uses `plusPercentual`)
+Only administrador can modify these sections.
 
----
+**Changes:**
+- Import `useCurrentUser`
+- Compute `isAdmin` from `cargoNome`
+- Conditionally disable all inputs, hide add/remove buttons, hide Save button for non-admin roles
+- Show a read-only info banner for non-admin users
+- Keep Link Público and Métricas visible and functional for all roles
 
-### 6. Vincular Cliente — Listbox de Vendedores/Projetistas + Modal de Dados Mínimos
-
-Redesign the `SimulatorClientPicker` section:
-- Add a Listbox showing active Vendedores/Projetistas:
-  - If user is Vendedor/Projetista: show only their own name (pre-selected)
-  - If Admin/Gerente: show all active Vendedores/Projetistas
-- After selecting the seller, show a modal to create a quick client with minimal data:
-  - Nome, Telefone WhatsApp, Email, Data do Orçamento (auto today), Número do Orçamento (auto-generated)
-- These data auto-populate the close sale contract
-
-**Files:** `src/components/simulator/SimulatorClientPicker.tsx`, new `src/components/simulator/QuickClientModal.tsx`, `src/components/SimulatorPanel.tsx`
+**File:** `src/components/FunnelPanel.tsx`
 
 ---
 
-### 7. Fornecedores — Verificar Visibilidade
+### 4. Kanban — Notificações de Cards Parados na Coluna "Novo"
 
-Ensure the suppliers tab in `ProductCatalog.tsx` loads and displays suppliers correctly for all roles. Check RLS on `suppliers` table.
+Cards in "novo" column should emit notifications about how long they've been idle.
+
+**Changes in `ClientsKanban.tsx`:**
+- After computing `columnData`, check cards in `novo` column
+- For each card, compute `daysInColumn = differenceInDays(now, client.updated_at)`
+- If `daysInColumn >= 1`, trigger a toast notification on mount (throttled, once per session using a ref)
+- Show the idle time on the KanbanCard for "novo" status cards
+
+**File:** `src/components/ClientsKanban.tsx`
+
+---
+
+### 5. Kanban — Cards em "Em Negociação" sem Orçamento
+
+Cards in "em_negociacao" without a simulation (`lastSims[client.id]` is undefined) should emit notification that they have no budget and are stalled.
+
+Cards with a simulation: check `budgetValidityDays` expiration — if expired, auto-move to "expirado" column (this already works via line 211-212).
+
+Cards without simulation AND no budget validity date: notify that they are without budgets.
+
+**Changes:**
+- Add notification logic in `useEffect` after `columnData` is computed
+- For cards in `em_negociacao` without simulation: emit grouped notification
+- Use a ref to avoid repeated notifications in the same session
+
+**File:** `src/components/ClientsKanban.tsx`
+
+---
+
+### 6. Kanban — Auto-move Expirados → Perdidos após 3 dias
+
+Cards in "expirado" column for more than 3 days should be automatically moved to "perdido" with a notification.
+
+**Changes:**
+- In the `columnData` computation or a separate `useEffect`, check cards in "expirado"
+- For each, compute days since they became expired (using `updated_at` or `sim.created_at + budgetValidityDays`)
+- If > 3 days in expirado, auto-update status to "perdido" via supabase and emit notification
+- Update local state optimistically
+
+**File:** `src/components/ClientsKanban.tsx`
 
 ---
 
 ### Technical Details
 
-**New files to create:**
-- `src/components/catalog/ProductDetailModal.tsx` — Product detail view with image expand
-- `src/components/simulator/QuickClientModal.tsx` — Minimal client creation modal
-
 **Files to modify:**
-- `src/components/dashboard/ContractTrackingList.tsx` — Add period filter
-- `src/components/ProductCatalog.tsx` — Add product click → detail modal, role-based field visibility
-- `src/components/simulator/ProductPickerForSimulator.tsx` — Larger dialog, more filters, product images
-- `src/components/simulator/SimulatorParametersForm.tsx` — Split lists, fix Plus visibility, payment selection UX
-- `src/components/simulator/SimulatorClientPicker.tsx` — Add seller listbox + quick client modal
-- `src/components/SimulatorPanel.tsx` — Separate catalog products state, wire new components
-- `src/components/AIStrategyPanel.tsx` — Ensure Plus is included in strategy scenarios
+- `src/components/dashboard/ContractTrackingList.tsx` — Role-based contract filtering
+- `src/hooks/useProductCatalog.ts` — Fix tenant resolution for product loading
+- `src/components/FunnelPanel.tsx` — Read-only mode for non-admin roles
+- `src/components/ClientsKanban.tsx` — Notifications for idle cards + auto-move expirado→perdido
 
-**Database considerations:**
-- Verify RLS on `products` and `suppliers` tables allows SELECT for all authenticated users with matching `tenant_id`
-- No new tables needed; uses existing `products`, `suppliers`, `product_images`, `clients`
+**No new files needed.**
+
+**Dependencies:** `useCurrentUser` hook (already exists), `differenceInDays` from date-fns (already imported).
 
