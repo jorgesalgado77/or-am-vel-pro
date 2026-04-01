@@ -319,15 +319,17 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar contrato, cliente ou projetista..." className="pl-9" />
           </div>
-          <div className="min-w-[180px]">
-            <Select value={filterProjetista} onValueChange={setFilterProjetista}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Projetista" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_all">Todos os projetistas</SelectItem>
-                {uniqueProjetistas.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!isSellerRole && (
+            <div className="min-w-[180px]">
+              <Select value={filterProjetista} onValueChange={setFilterProjetista}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Projetista" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_all">Todos os projetistas</SelectItem>
+                  {uniqueProjetistas.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="min-w-[180px]">
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
