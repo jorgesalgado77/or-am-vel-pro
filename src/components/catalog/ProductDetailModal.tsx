@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,14 @@ interface ProductImage {
   id: string;
   image_url: string;
   is_default: boolean;
+}
+
+interface MediaItem {
+  type: "image" | "video";
+  url: string;
+  thumbUrl: string;
+  primary: boolean;
+  id: string;
 }
 
 interface Props {
@@ -41,11 +49,17 @@ interface SimulationOption {
   created_at: string;
 }
 
+function getYouTubeThumb(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : null;
+}
+
 export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const { currentUser } = useCurrentUser();
   const [images, setImages] = useState<ProductImage[]>([]);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [showVideo, setShowVideo] = useState(false);
+  const [selectedMediaIdx, setSelectedMediaIdx] = useState(0);
 
   // Add to simulation state
   const [showAddFlow, setShowAddFlow] = useState(false);
@@ -58,6 +72,32 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
   const isRestricted = cargo === "VENDEDOR" || cargo === "PROJETISTA";
 
+  const videoUrl = (product as any)?.video_url || "";
+
+  // Build unified media list
+  const media = useMemo<MediaItem[]>(() => {
+    const items: MediaItem[] = images.map(img => ({
+      type: "image" as const,
+      url: img.image_url,
+      thumbUrl: img.image_url,
+      primary: !!img.is_default,
+      id: img.id,
+    }));
+    if (videoUrl) {
+      const ytThumb = getYouTubeThumb(videoUrl);
+      items.push({
+        type: "video",
+        url: videoUrl,
+        thumbUrl: ytThumb || "/placeholder.svg",
+        primary: false,
+        id: "video-0",
+      });
+    }
+    return items;
+  }, [images, videoUrl]);
+
+  const featured = media[selectedMediaIdx] || media.find(m => m.primary) || media[0] || null;
+
   useEffect(() => {
     if (product && open) {
       supabase.from("product_images" as any).select("id, image_url, is_default").eq("product_id", product.id)
@@ -66,6 +106,10 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
           setExpandedImage(null);
           setShowVideo(false);
           setShowAddFlow(false);
+          // Auto-select the default image
+          const loaded = (data || []) as any as ProductImage[];
+          const defaultIdx = loaded.findIndex(i => i.is_default);
+          setSelectedMediaIdx(defaultIdx >= 0 ? defaultIdx : 0);
         });
     }
   }, [product, open]);
@@ -77,7 +121,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
 
     let query = supabase.from("clients" as any).select("id, name").eq("tenant_id", tenantId).order("name").limit(100);
 
-    // If restricted role, only show own clients
     if (isRestricted && currentUser?.id) {
       query = query.eq("responsavel_id", currentUser.id);
     }
@@ -101,7 +144,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
     if (!product) return;
 
     if (!selectedClientId) {
-      // No client selected — go to simulator with product prefill
       sessionStorage.setItem("simulator_prefill", JSON.stringify({
         ambiente: product.name,
         valor: product.sale_price,
@@ -114,7 +156,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
     }
 
     if (selectedSimId) {
-      // Add product value to existing simulation
       const sim = simulations.find(s => s.id === selectedSimId);
       if (sim) {
         const newTotal = (sim.valor_tela || 0) + product.sale_price;
@@ -123,15 +164,12 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
         onOpenChange(false);
       }
     } else {
-      // Navigate to simulator with this client and product
       sessionStorage.setItem("simulator_prefill", JSON.stringify({
         ambiente: product.name,
         valor: product.sale_price,
         pecas: 1,
       }));
-      // Dispatch event to navigate to simulator with the selected client
       window.dispatchEvent(new CustomEvent("navigate-to-simulator"));
-      // Also dispatch to set client
       window.dispatchEvent(new CustomEvent("simulate-client", { detail: { clientId: selectedClientId } }));
       onOpenChange(false);
       toast.success("Produto incluído na simulação!");
@@ -140,19 +178,15 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
 
   const getVideoEmbedUrl = (url: string): string | null => {
     if (!url) return null;
-    // YouTube
     const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
     if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
-    // Vimeo
     const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
     if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-    // Direct video URL
     return url;
   };
 
   if (!product) return null;
 
-  const videoUrl = (product as any).video_url || "";
   const embedUrl = getVideoEmbedUrl(videoUrl);
   const isDirectVideo = videoUrl && !videoUrl.includes("youtube") && !videoUrl.includes("youtu.be") && !videoUrl.includes("vimeo");
 
@@ -165,29 +199,80 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
           </DialogHeader>
           <ScrollArea className="flex-1">
             <div className="space-y-4 pr-2">
-              {/* Images gallery */}
-              {images.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
-                  {images.map(img => (
-                    <div key={img.id} className={`relative w-24 h-24 rounded-md overflow-hidden border cursor-pointer group ${img.is_default ? "ring-2 ring-primary" : ""}`}
-                      onClick={() => setExpandedImage(img.image_url)}>
-                      <img src={img.image_url} alt="" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
-                        <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      {img.is_default && (
-                        <span className="absolute top-0.5 left-0.5 bg-primary text-primary-foreground text-[8px] px-1 rounded font-medium">Padrão</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Featured media */}
+              {media.length > 0 && featured && (
+                <div className="space-y-2">
+                  {/* Main display */}
+                  <div
+                    className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted cursor-pointer group"
+                    onClick={() => {
+                      if (featured.type === "video") {
+                        setShowVideo(true);
+                      } else {
+                        setExpandedImage(featured.url);
+                      }
+                    }}
+                  >
+                    {featured.type === "video" ? (
+                      <>
+                        <img
+                          src={featured.thumbUrl}
+                          alt="Vídeo"
+                          className="w-full h-full object-cover"
+                          onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
+                            <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <img
+                          src={featured.url}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
+                          <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </>
+                    )}
+                    {featured.primary && featured.type === "image" && (
+                      <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-medium">Padrão</span>
+                    )}
+                  </div>
 
-              {/* Video button */}
-              {videoUrl && (
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setShowVideo(true)}>
-                  <Play className="h-3.5 w-3.5" /> Ver Vídeo do Produto
-                </Button>
+                  {/* Thumbnail carousel */}
+                  {media.length > 1 && (
+                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                      {media.map((item, idx) => (
+                        <button
+                          key={item.id}
+                          className={`relative shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-colors ${idx === selectedMediaIdx ? "border-primary" : "border-transparent hover:border-muted-foreground/30"}`}
+                          onClick={() => setSelectedMediaIdx(idx)}
+                        >
+                          <img
+                            src={item.thumbUrl}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }}
+                          />
+                          {item.type === "video" && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <Play className="h-4 w-4 text-white" />
+                            </div>
+                          )}
+                          {item.primary && item.type === "image" && (
+                            <span className="absolute top-0 left-0 bg-primary text-primary-foreground text-[6px] px-0.5 rounded-br font-medium">★</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Product details */}
