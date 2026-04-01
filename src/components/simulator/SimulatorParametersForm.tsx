@@ -95,6 +95,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   onRequestUnlock, onFileImport, onRemoveEnvironment,
   onLoadSimulation, onProductPicker,
   VALOR_TELA_MAX, VALOR_ENTRADA_MAX,
+  catalogProducts, onUpdateCatalogProductQty, onRemoveCatalogProduct,
 }: SimulatorParametersFormProps) {
   return (
     <Card>

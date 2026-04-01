@@ -302,6 +302,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           onLoadSimulation={() => setLoadSimModalOpen(true)}
           onProductPicker={() => setProductPickerOpen(true)}
           VALOR_TELA_MAX={actions.VALOR_TELA_MAX} VALOR_ENTRADA_MAX={VALOR_ENTRADA_MAX}
+          catalogProducts={[]}
+          onUpdateCatalogProductQty={() => {}}
+          onRemoveCatalogProduct={() => {}}
         />
 
         <div className="space-y-6">
