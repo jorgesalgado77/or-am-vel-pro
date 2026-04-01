@@ -110,7 +110,7 @@ export function ProductCatalog() {
     page, setPage, totalPages, totalCount,
     saveProduct, deleteProduct,
     saveSupplier, deleteSupplier,
-    uploadProductImage, loadProductImages, deleteProductImage, setDefaultImage,
+    uploadProductImage, uploadProductVideo, loadProductImages, deleteProductImage, setDefaultImage,
     importProducts, loadSuppliers,
   } = useProductCatalog();
 
@@ -123,7 +123,10 @@ export function ProductCatalog() {
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   // Supplier dialog
@@ -170,6 +173,8 @@ export function ProductCatalog() {
   const openNewProduct = () => {
     setForm(emptyForm);
     setImages([]);
+    setVideoFile(null);
+    setVideoPreview("");
     setDialogOpen(true);
   };
 
@@ -196,6 +201,8 @@ export function ProductCatalog() {
     });
     const imgs = await loadProductImages(p.id);
     setImages(imgs);
+    setVideoFile(null);
+    setVideoPreview("");
     setDialogOpen(true);
   };
 
@@ -205,12 +212,31 @@ export function ProductCatalog() {
     if (form.cost_price <= 0) { toast.error("Informe o preço de custo"); return; }
     if (!form.supplier_id) { toast.error("Selecione um fornecedor"); return; }
 
+    // If there's a video file, upload first and set URL
+    let finalVideoUrl = form.video_url;
+    if (videoFile && form.id) {
+      const uploaded = await uploadProductVideo(form.id, videoFile);
+      if (uploaded) finalVideoUrl = uploaded;
+    }
+
     const result = await saveProduct({
       ...form,
+      video_url: finalVideoUrl,
       id: form.id || undefined,
       supplier_id: form.supplier_id || null,
     } as any);
-    if (result) setDialogOpen(false);
+    if (result) {
+      // If new product and has video file, upload after creation
+      if (!form.id && videoFile && result.id) {
+        const uploaded = await uploadProductVideo(result.id, videoFile);
+        if (uploaded) {
+          await saveProduct({ ...result, video_url: uploaded } as any);
+        }
+      }
+      setVideoFile(null);
+      setVideoPreview("");
+      setDialogOpen(false);
+    }
   };
 
   const handleImageUpload = async (files: FileList | null) => {
@@ -698,15 +724,43 @@ export function ProductCatalog() {
                 </div>
               </div>
 
-              {/* Video URL */}
-              <div>
-                <Label className="text-xs flex items-center gap-1"><Video className="h-3.5 w-3.5" /> URL do Vídeo</Label>
+              {/* Video: URL or Upload */}
+              <div className="space-y-2">
+                <Label className="text-xs flex items-center gap-1"><Video className="h-3.5 w-3.5" /> Vídeo do Produto</Label>
                 <Input
                   value={form.video_url}
-                  onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))}
-                  className="mt-1 h-9 text-sm"
-                  placeholder="https://youtube.com/watch?v=... ou link direto do vídeo"
+                  onChange={e => { setForm(f => ({ ...f, video_url: e.target.value })); setVideoFile(null); setVideoPreview(""); }}
+                  className="h-9 text-sm"
+                  placeholder="https://youtube.com/watch?v=... ou link direto"
                 />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">ou</span>
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => videoInputRef.current?.click()}>
+                    <Upload className="h-3 w-3" /> Upload Vídeo
+                  </Button>
+                  <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setVideoFile(f);
+                      setVideoPreview(URL.createObjectURL(f));
+                      setForm(prev => ({ ...prev, video_url: "" }));
+                    }
+                  }} />
+                  {videoFile && <span className="text-xs text-muted-foreground truncate max-w-[150px]">{videoFile.name}</span>}
+                </div>
+                {/* Video preview */}
+                {videoPreview && (
+                  <video src={videoPreview} controls className="w-full max-h-40 rounded-md border" />
+                )}
+                {!videoPreview && form.video_url && (
+                  (() => {
+                    const ytMatch = form.video_url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+                    if (ytMatch) return <iframe src={`https://www.youtube.com/embed/${ytMatch[1]}`} className="w-full aspect-video rounded-md border" allowFullScreen />;
+                    const vimeoMatch = form.video_url.match(/vimeo\.com\/(\d+)/);
+                    if (vimeoMatch) return <iframe src={`https://player.vimeo.com/video/${vimeoMatch[1]}`} className="w-full aspect-video rounded-md border" allowFullScreen />;
+                    return <video src={form.video_url} controls className="w-full max-h-40 rounded-md border" />;
+                  })()
+                )}
               </div>
 
               {/* Images (only for existing products) */}
