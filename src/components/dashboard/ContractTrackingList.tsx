@@ -71,6 +71,9 @@ interface ContractTrackingListProps {
 
 export const ContractTrackingList = memo(function ContractTrackingList({ clients, lastSims }: ContractTrackingListProps) {
   const { policy: comissaoPolicy } = useComissaoPolicy();
+  const { currentUser, hasPermission } = useCurrentUser();
+  const cargoNome = (currentUser?.cargo_nome || "").toLowerCase().trim();
+  const isSellerRole = cargoNome.includes("vendedor") || cargoNome.includes("projetista");
   const [trackings, setTrackings] = useState<TrackingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
