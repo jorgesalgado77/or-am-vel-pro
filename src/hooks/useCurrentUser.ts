@@ -40,6 +40,7 @@ const DEFAULT_PERMS: CargoPermissoes = {
   medicao: true,
   tutoriais: true,
   email: true,
+  cadastrar_produtos: true,
 };
 
 export function useCurrentUserLoader() {

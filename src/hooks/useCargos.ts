@@ -30,6 +30,7 @@ export interface CargoPermissoes {
   medicao: boolean;
   tutoriais: boolean;
   email: boolean;
+  cadastrar_produtos: boolean;
 }
 
 const DEFAULT_PERMISSOES: CargoPermissoes = {
@@ -58,6 +59,7 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   medicao: false,
   tutoriais: true,
   email: true,
+  cadastrar_produtos: false,
 };
 
 export interface Cargo {

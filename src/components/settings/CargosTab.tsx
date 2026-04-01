@@ -30,6 +30,7 @@ const PERM_LABELS_CORE: Record<string, string> = {
 const PERM_LABELS_MENU: Record<string, string> = {
   ia_gerente: "IA Gerente",
   catalogo: "Catálogo",
+  cadastrar_produtos: "Cadastrar Produtos",
   medicao: "Medição",
   tutoriais: "Tutoriais",
   email: "Email",
