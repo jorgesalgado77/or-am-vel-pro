@@ -94,7 +94,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
       .limit(20);
-    setSimulations((data || []) as SimulationOption[]);
+    setSimulations((data || []) as unknown as SimulationOption[]);
   }, []);
 
   const handleAddToSimulation = async () => {
