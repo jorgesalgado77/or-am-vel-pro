@@ -230,6 +230,51 @@ export function ClientsKanban({
     return map;
   }, [filtered, lastSims, settings.budget_validity_days, contractClientIds, measurementStatus, activeColumns, isTechnicalRole, resolveTechnicalColumn]);
 
+  // --- Kanban Notifications & Auto-move ---
+  const notifiedRef = useRef(false);
+  useEffect(() => {
+    if (loading || isTechnicalRole || notifiedRef.current) return;
+    notifiedRef.current = true;
+    const now = new Date();
+
+    // 1. Cards stuck in "novo" — notify idle time
+    const novoCards = columnData["novo"] || [];
+    const idleNovo = novoCards.filter(c => {
+      const days = differenceInDays(now, new Date(c.updated_at || c.created_at));
+      return days >= 1;
+    });
+    if (idleNovo.length > 0) {
+      const names = idleNovo.slice(0, 3).map(c => {
+        const days = differenceInDays(now, new Date(c.updated_at || c.created_at));
+        return `${c.nome} (${days}d)`;
+      }).join(", ");
+      toast.warning(`⏳ ${idleNovo.length} cliente(s) parado(s) na coluna "Novo": ${names}${idleNovo.length > 3 ? "..." : ""}`, { duration: 8000 });
+    }
+
+    // 2. Cards in "em_negociacao" without budget
+    const negociacaoCards = columnData["em_negociacao"] || [];
+    const semOrcamento = negociacaoCards.filter(c => !lastSims[c.id]);
+    if (semOrcamento.length > 0) {
+      const names = semOrcamento.slice(0, 3).map(c => c.nome).join(", ");
+      toast.warning(`📋 ${semOrcamento.length} cliente(s) em negociação sem orçamento: ${names}${semOrcamento.length > 3 ? "..." : ""}`, { duration: 8000 });
+    }
+
+    // 3. Auto-move expirados → perdidos after 3 days
+    const expiradoCards = columnData["expirado"] || [];
+    const toMove = expiradoCards.filter(c => {
+      const days = differenceInDays(now, new Date(c.updated_at || c.created_at));
+      return days > 3;
+    });
+    if (toMove.length > 0) {
+      toMove.forEach(async (c) => {
+        await supabase.from("clients").update({ status: "perdido" }).eq("id", c.id);
+      });
+      setLocalClients(prev => prev.map(c => toMove.some(t => t.id === c.id) ? { ...c, status: "perdido" } as any : c));
+      const names = toMove.slice(0, 3).map(c => c.nome).join(", ");
+      toast.error(`❌ ${toMove.length} cliente(s) movido(s) para "Perdido" após 3+ dias expirados: ${names}${toMove.length > 3 ? "..." : ""}`, { duration: 8000 });
+    }
+  }, [columnData, loading, isTechnicalRole, lastSims]);
+
   // Map technical column IDs to measurement_requests status values
   const technicalStatusMap: Record<string, string> = {
     nova_solicitacao: "novo",
