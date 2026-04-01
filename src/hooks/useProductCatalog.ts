@@ -212,6 +212,12 @@ export function useProductCatalog() {
     await supabase.from("product_images" as any).delete().eq("id", imageId);
   };
 
+  const setDefaultImage = async (productId: string, imageId: string) => {
+    // Unset all defaults for this product, then set the chosen one
+    await supabase.from("product_images" as any).update({ is_default: false } as any).eq("product_id", productId);
+    await supabase.from("product_images" as any).update({ is_default: true } as any).eq("id", imageId);
+  };
+
   // --- IMPORT CSV/JSON ---
   const importProducts = async (items: Array<{ name: string; internal_code: string; cost_price: number; markup_percentage: number; category?: string; supplier_name?: string; description?: string; width?: number; height?: number; depth?: number; stock_quantity?: number }>) => {
     if (!tenantId || items.length === 0) return;
