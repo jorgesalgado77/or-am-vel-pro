@@ -68,6 +68,9 @@ interface SimulatorParametersFormProps {
   onProductPicker: () => void;
   VALOR_TELA_MAX: number;
   VALOR_ENTRADA_MAX: number;
+  catalogProducts: Array<{ product: { id: string; internal_code: string; name: string; sale_price: number }; quantity: number }>;
+  onUpdateCatalogProductQty: (productId: string, qty: number) => void;
+  onRemoveCatalogProduct: (productId: string) => void;
 }
 
 export const SimulatorParametersForm = React.memo(function SimulatorParametersForm({
