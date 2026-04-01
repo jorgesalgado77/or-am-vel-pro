@@ -199,15 +199,26 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   useEffect(() => {
     if (product && open) {
       supabase.from("product_images" as any)
-        .select("id, image_url")
+        .select("id, image_url, is_default")
         .eq("product_id", product.id)
         .then(({ data, error }) => {
-          console.log("[ProductDetail] images:", { count: data?.length, error: error?.message });
-          setImages((data || []) as any);
+          if (error) {
+            // Fallback without is_default if column doesn't exist yet
+            supabase.from("product_images" as any)
+              .select("id, image_url")
+              .eq("product_id", product.id)
+              .then(({ data: d2 }) => {
+                setImages((d2 || []) as any);
+                setSelectedMediaIdx(0);
+              });
+          } else {
+            setImages((data || []) as any);
+            const defaultIdx = (data || []).findIndex((i: any) => i.is_default);
+            setSelectedMediaIdx(defaultIdx >= 0 ? defaultIdx : 0);
+          }
           setViewerImage(null);
           setViewerVideo(null);
           setShowAddFlow(false);
-          setSelectedMediaIdx(0);
         });
     }
   }, [product, open]);
