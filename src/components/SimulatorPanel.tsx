@@ -302,6 +302,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           onLoadSimulation={() => setLoadSimModalOpen(true)}
           onProductPicker={() => setProductPickerOpen(true)}
           VALOR_TELA_MAX={actions.VALOR_TELA_MAX} VALOR_ENTRADA_MAX={VALOR_ENTRADA_MAX}
+          catalogProducts={[]}
+          onUpdateCatalogProductQty={() => {}}
+          onRemoveCatalogProduct={() => {}}
         />
 
         <div className="space-y-6">
@@ -368,6 +371,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               clientSearch={clientSearch} setClientSearch={setClientSearch}
               searchingClients={searchingClients} clientResults={clientResults}
               onLinkClient={(c) => { setLinkedClient(c); setClientSearch(""); setClientResults([]); }}
+              vendedores={projetistas.map(p => ({ id: p.id, nome_completo: p.nome_completo }))}
+              selectedVendedorNome={newClient.vendedor}
+              onVendedorChange={(nome) => setNewClient(prev => ({ ...prev, vendedor: nome }))}
+              onQuickClientOpen={() => setShowClientForm(true)}
             />
           )}
 
