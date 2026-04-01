@@ -1,105 +1,114 @@
 
 
-# Negotiation Arbitrage Engine — Plano de Implementação
+## Plan: Melhorias no Simulador, Catálogo e Contratos
 
-## Resumo
+This is a large multi-part request covering 7 areas. Here is the structured plan:
 
-Criar um motor de arbitragem de negociação que se integra ao CommercialDecisionEngine existente, oferecendo cenários inteligentes que comparam **brinde estratégico vs desconto direto**, com proteção de margem, aprendizado contínuo e integração com VendaZap.
+---
 
-## Arquitetura
+### 1. Filtro por Período — Contratos Fechados (ContractTrackingList.tsx)
 
-```text
-┌──────────────────────────────┐
-│   CommercialDecisionEngine   │ (existente, não modificado)
-│   ├─ analyzeDeal()           │
-│   ├─ generateScenarios()     │
-│   └─ decideNextAction()      │
-└──────────┬───────────────────┘
-           │ usa
-┌──────────▼───────────────────┐
-│  NegotiationArbitrageEngine  │ (NOVO)
-│   ├─ generateArbitrageScenarios()
-│   ├─ findStrategicGifts()    │
-│   ├─ calculateGap()          │
-│   ├─ validateMargin()        │
-│   └─ recordOutcome()         │
-└──────────┬───────────────────┘
-           │ consulta
-    ┌──────▼──────┐
-    │ products    │ (catálogo existente)
-    │ catalog     │
-    └─────────────┘
-```
+Add a date period filter dropdown to the contracts tracking list with these presets:
+- **Mês Atual** (default), Mês Anterior, Últimos 3 Meses, Últimos 6 Meses, Ano Anterior, Personalizado (data início/fim)
 
-## Arquivos a Criar/Editar
+**Files:** `src/components/dashboard/ContractTrackingList.tsx`
+- Add state for period filter preset and custom date range
+- Add a Select dropdown beside the existing filters
+- Show DatePicker inputs when "Personalizado" is selected
+- Filter `trackings` by `data_fechamento` using the selected range
 
-### 1. NOVO: `src/services/commercial/NegotiationArbitrageEngine.ts`
+---
 
-Motor principal com tipos e lógica:
+### 2. Catálogo de Produtos — Visibilidade para Todos os Cargos + Detalhes do Produto
 
-- **Tipos**: `ArbitrageContext`, `ArbitrageScenario` (3 cenários: valor_maximo, equilibrado, agressivo), `GiftSuggestion`, `ArbitrageResult`
-- **`generateArbitrageScenarios(ctx)`**: Gera 3 cenários com cálculo de GAP, margem e probabilidade
-- **`findStrategicGifts(tenantId, budget, category)`**: Busca produtos do catálogo (`products_catalog`) que caibam no orçamento de brinde sem ultrapassar margem mínima
-- **`calculateGap(proposta, concorrente)`**: Calcula diferença real e impacto na margem
-- **`validateMargin(scenario, rules)`**: Valida contra `sales_rules` do tenant
-- **`recordOutcome(scenarioChosen, result)`**: Registra em `ai_learning_events` com `event_type: "arbitrage_scenario"` e metadata do cenário
+Currently the product list loads by `tenant_id`. The issue may be RLS or the query filtering. Will verify RLS and ensure all roles see products.
 
-Integração com `getCommercialEngine()` para análise de deal e `getOptimizationEngine()` para aprendizado.
+**Changes:**
+- **ProductCatalog.tsx**: Add click handler on product row to open a detail modal
+- **New component: `ProductDetailModal.tsx`**: Shows product image (with expand/zoom), name, dimensions, description, sale price, stock quantity, supplier name
+- For **Vendedor** role: show only sale price, stock, supplier (hide cost/markup)
+- Add image gallery with expand functionality
 
-### 2. NOVO: `src/hooks/useNegotiationArbitrage.ts`
+**Files:** `src/components/ProductCatalog.tsx`, new `src/components/catalog/ProductDetailModal.tsx`
 
-Hook React que expõe:
-- `generateScenarios(clientId, valorProposta, valorConcorrente?)` 
-- `approveScenario(scenarioId)` (aprovação gerente)
-- `editScenario(scenarioId, overrides)` (override manual)
-- `selectAndRecord(scenario, result)` (feedback loop)
-- Estados: `scenarios`, `loading`, `selectedScenario`
+---
 
-### 3. NOVO: `src/components/commercial/ArbitragePanel.tsx`
+### 3. Product Picker Modal — Maior e Mais Completo
 
-Painel UI com:
-- 3 cards de cenários (Valor Máximo, Equilibrado, Agressivo)
-- Badge de margem e probabilidade em cada cenário
-- Lista de brindes sugeridos (com imagem/nome do catálogo)
-- Botão "Gerar Mensagem" que cria copy para VendaZap
-- Botão "Aprovar" (visível apenas para Admin/Gerente)
-- Botão "Editar" para override manual de valores
+Redesign `ProductPickerForSimulator.tsx`:
+- Increase dialog size to `sm:max-w-3xl`
+- Add filters: by name, environment, internal code, manufacturer code, stock status
+- Show product image (main), name, dimensions, details, sale price, stock quantity
+- Better card layout for each product with visual richness
 
-### 4. EDITAR: `src/services/commercial/types.ts`
+**Files:** `src/components/simulator/ProductPickerForSimulator.tsx`
 
-Adicionar novo event_type `"arbitrage_scenario"` e strategy `"brinde"` nos tipos existentes (sem quebrar).
+---
 
-### 5. EDITAR: `src/services/commercial/index.ts`
+### 4. Listas Separadas — Ambientes Importados vs Produtos Adicionados
 
-Exportar `NegotiationArbitrageEngine` e `getArbitrageEngine`.
+In the `SimulatorParametersForm.tsx`, split the current environments section into two distinct lists:
+- **Ambientes Importados** (from file import — TXT/XML)
+- **Produtos Adicionados** (from catalog picker)
 
-### 6. EDITAR: `src/services/ai/types.ts`
+Each list shows its own items with details and subtotals. Both subtotals sum to form the `Valor de Tela`.
 
-Adicionar `"arbitrage_scenario"` ao `LearningEventType` e `"brinde"` ao `StrategyType`.
+**Files:** `src/components/simulator/SimulatorParametersForm.tsx`, `src/components/SimulatorPanel.tsx`
+- Track `catalogProducts` as a separate state array (not merged into environments)
+- Display two tables with individual totals
+- Sum both for `valorTela`
 
-### 7. EDITAR: `src/components/commercial/CommercialAIPanel.tsx`
+---
 
-Adicionar nova aba "Arbitragem" com o `ArbitragePanel`.
+### 5. Desconto Plus — Correções e Comportamento de Seleção
 
-## Detalhes Técnicos
+Currently `showPlus` controls visibility. Issues:
+- Plus not appearing — check `showPlus` logic in `useSimulatorRates`
+- When a payment option is selected, hide the others and show only the selected one with a checkbox to deselect
 
-**Cenários gerados:**
+**Changes in `SimulatorParametersForm.tsx`:**
+- Always show Desconto Plus section (remove `showPlus` gate or ensure it's always true)
+- For Forma de Pagamento: when selected, collapse other options and show a checkbox to deselect (radio-like behavior with uncheck)
+- Include Plus in AI strategy suggestions (`AIStrategyPanel.tsx` already uses `plusPercentual`)
 
-| Cenário | Desconto | Brinde | Parcelamento | Margem |
-|---------|----------|--------|--------------|--------|
-| Valor Máximo | 0% | Produto estratégico do catálogo | À vista | Máxima |
-| Equilibrado | Moderado | Opcional | Boleto médio | Média |
-| Agressivo | Máximo permitido | Nenhum | Máx parcelas | Mínima permitida |
+---
 
-**Busca de brindes**: Query `products_catalog` filtrando `tenant_id`, `stock_quantity > 0`, `cost_price <= orçamento_brinde` (calculado como % da margem excedente), ordenado por `cost_price DESC` para maximizar valor percebido.
+### 6. Vincular Cliente — Listbox de Vendedores/Projetistas + Modal de Dados Mínimos
 
-**Feedback loop**: Cada cenário escolhido grava em `ai_learning_events` com metadata `{ scenario_type, gift_included, gap_value, competitor_price }`. O `OptimizationEngine` já consome essa tabela.
+Redesign the `SimulatorClientPicker` section:
+- Add a Listbox showing active Vendedores/Projetistas:
+  - If user is Vendedor/Projetista: show only their own name (pre-selected)
+  - If Admin/Gerente: show all active Vendedores/Projetistas
+- After selecting the seller, show a modal to create a quick client with minimal data:
+  - Nome, Telefone WhatsApp, Email, Data do Orçamento (auto today), Número do Orçamento (auto-generated)
+- These data auto-populate the close sale contract
 
-**Intervenção humana**: Campo `approved_by` opcional no cenário. Se `sales_rules.approval_required_above` for atingido, o cenário fica em estado "pendente" até aprovação.
+**Files:** `src/components/simulator/SimulatorClientPicker.tsx`, new `src/components/simulator/QuickClientModal.tsx`, `src/components/SimulatorPanel.tsx`
 
-**Integração VendaZap**: Botão "Gerar Mensagem" chama `generateMessageContext()` do CDE existente, adicionando dados do cenário de arbitragem ao contexto para personalização.
+---
 
-## SQL Necessário
+### 7. Fornecedores — Verificar Visibilidade
 
-Nenhuma tabela nova necessária. Os eventos são registrados na tabela `ai_learning_events` existente. Apenas os tipos TypeScript precisam ser estendidos para incluir os novos valores de enum.
+Ensure the suppliers tab in `ProductCatalog.tsx` loads and displays suppliers correctly for all roles. Check RLS on `suppliers` table.
+
+---
+
+### Technical Details
+
+**New files to create:**
+- `src/components/catalog/ProductDetailModal.tsx` — Product detail view with image expand
+- `src/components/simulator/QuickClientModal.tsx` — Minimal client creation modal
+
+**Files to modify:**
+- `src/components/dashboard/ContractTrackingList.tsx` — Add period filter
+- `src/components/ProductCatalog.tsx` — Add product click → detail modal, role-based field visibility
+- `src/components/simulator/ProductPickerForSimulator.tsx` — Larger dialog, more filters, product images
+- `src/components/simulator/SimulatorParametersForm.tsx` — Split lists, fix Plus visibility, payment selection UX
+- `src/components/simulator/SimulatorClientPicker.tsx` — Add seller listbox + quick client modal
+- `src/components/SimulatorPanel.tsx` — Separate catalog products state, wire new components
+- `src/components/AIStrategyPanel.tsx` — Ensure Plus is included in strategy scenarios
+
+**Database considerations:**
+- Verify RLS on `products` and `suppliers` tables allows SELECT for all authenticated users with matching `tenant_id`
+- No new tables needed; uses existing `products`, `suppliers`, `product_images`, `clients`
 
