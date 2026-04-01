@@ -420,8 +420,8 @@ export function ProductCatalog() {
                           <TableHead className="text-xs">Código</TableHead>
                           <TableHead className="text-xs">Nome</TableHead>
                           <TableHead className="text-xs hidden sm:table-cell">Categoria</TableHead>
-                          <TableHead className="text-xs text-right">Custo</TableHead>
-                          <TableHead className="text-xs text-right hidden md:table-cell">Markup</TableHead>
+                          {isAdmin && <TableHead className="text-xs text-right">Custo</TableHead>}
+                          {isAdmin && <TableHead className="text-xs text-right hidden md:table-cell">Markup</TableHead>}
                           <TableHead className="text-xs text-right">Venda</TableHead>
                           <TableHead className="text-xs hidden lg:table-cell">Estoque</TableHead>
                           <TableHead className="text-xs hidden lg:table-cell">Fornecedor</TableHead>
