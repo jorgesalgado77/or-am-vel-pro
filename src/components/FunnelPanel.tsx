@@ -352,14 +352,14 @@ export function FunnelPanel() {
           <CardDescription>Adicione até 10 imagens que serão exibidas em carrossel na página pública. O visitante pode expandir cada imagem.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <input ref={imagesInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImagesUpload} />
+          <input ref={imagesInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImagesUpload} disabled={!isAdmin} />
           {config.carousel_images.length > 0 && (
             <DragDropContext onDragEnd={onDragEnd}>
               <Droppable droppableId="carousel-images" direction="horizontal">
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.droppableProps} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {config.carousel_images.map((img, i) => (
-                      <Draggable key={`img-${i}-${img}`} draggableId={`img-${i}`} index={i} isDragDisabled={i === 0}>
+                      <Draggable key={`img-${i}-${img}`} draggableId={`img-${i}`} index={i} isDragDisabled={i === 0 || !isAdmin}>
                         {(dragProvided, snapshot) => (
                           <div
                             ref={dragProvided.innerRef}
@@ -375,7 +375,7 @@ export function FunnelPanel() {
                               <div className="absolute top-1 left-1 bg-primary/80 text-primary-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold flex items-center gap-1">
                                 🔒 Fixa
                               </div>
-                            ) : (
+                            ) : isAdmin ? (
                               <>
                                 <div {...dragProvided.dragHandleProps} className="absolute top-1 left-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
                                   <GripVertical className="h-3.5 w-3.5" />
@@ -387,6 +387,8 @@ export function FunnelPanel() {
                                   <X className="h-3.5 w-3.5" />
                                 </button>
                               </>
+                            ) : (
+                              <div {...dragProvided.dragHandleProps} className="hidden" />
                             )}
                             <div className="absolute bottom-1 left-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">{i + 1}</div>
                           </div>
@@ -399,7 +401,7 @@ export function FunnelPanel() {
               </Droppable>
             </DragDropContext>
           )}
-          {config.carousel_images.length < 10 && (
+          {isAdmin && config.carousel_images.length < 10 && (
             <div
               className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
               onClick={() => imagesInputRef.current?.click()}
@@ -426,15 +428,15 @@ export function FunnelPanel() {
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Título Principal</Label>
-            <Input value={config.headline} onChange={(e) => setConfig(p => ({ ...p, headline: e.target.value }))} placeholder="Ganhe seu Projeto 3D Gratuito" />
+            <Input value={config.headline} onChange={(e) => setConfig(p => ({ ...p, headline: e.target.value }))} placeholder="Ganhe seu Projeto 3D Gratuito" disabled={!isAdmin} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Subtítulo</Label>
-            <Textarea value={config.sub_headline} onChange={(e) => setConfig(p => ({ ...p, sub_headline: e.target.value }))} placeholder="Deixe vazio para usar o texto padrão" rows={2} />
+            <Textarea value={config.sub_headline} onChange={(e) => setConfig(p => ({ ...p, sub_headline: e.target.value }))} placeholder="Deixe vazio para usar o texto padrão" rows={2} disabled={!isAdmin} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Texto do Botão</Label>
-            <Input value={config.cta_text} onChange={(e) => setConfig(p => ({ ...p, cta_text: e.target.value }))} placeholder="Solicite seu Projeto 3D Grátis" />
+            <Input value={config.cta_text} onChange={(e) => setConfig(p => ({ ...p, cta_text: e.target.value }))} placeholder="Solicite seu Projeto 3D Grátis" disabled={!isAdmin} />
           </div>
         </CardContent>
       </Card>
@@ -446,8 +448,8 @@ export function FunnelPanel() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
-            <input type="color" value={config.primary_color.startsWith("#") ? config.primary_color : "#2196F3"} onChange={(e) => setConfig(p => ({ ...p, primary_color: e.target.value }))} className="h-10 w-14 rounded-lg border border-border cursor-pointer" />
-            <Input value={config.primary_color} onChange={(e) => setConfig(p => ({ ...p, primary_color: e.target.value }))} className="max-w-[200px]" placeholder="#2196F3" />
+            <input type="color" value={config.primary_color.startsWith("#") ? config.primary_color : "#2196F3"} onChange={(e) => setConfig(p => ({ ...p, primary_color: e.target.value }))} className="h-10 w-14 rounded-lg border border-border cursor-pointer" disabled={!isAdmin} />
+            <Input value={config.primary_color} onChange={(e) => setConfig(p => ({ ...p, primary_color: e.target.value }))} className="max-w-[200px]" placeholder="#2196F3" disabled={!isAdmin} />
             <div className="h-10 w-10 rounded-lg shadow-inner" style={{ backgroundColor: config.primary_color }} />
           </div>
         </CardContent>
@@ -462,13 +464,15 @@ export function FunnelPanel() {
           {config.benefits.map((b, i) => (
             <div key={i} className="flex items-center gap-2">
               <div className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm">{b}</div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeBenefit(i)}><X className="h-4 w-4" /></Button>
+              {isAdmin && <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeBenefit(i)}><X className="h-4 w-4" /></Button>}
             </div>
           ))}
-          <div className="flex gap-2">
-            <Input value={newBenefit} onChange={(e) => setNewBenefit(e.target.value)} placeholder="Novo benefício..." onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addBenefit())} />
-            <Button variant="outline" size="icon" onClick={addBenefit}><Plus className="h-4 w-4" /></Button>
-          </div>
+          {isAdmin && (
+            <div className="flex gap-2">
+              <Input value={newBenefit} onChange={(e) => setNewBenefit(e.target.value)} placeholder="Novo benefício..." onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addBenefit())} />
+              <Button variant="outline" size="icon" onClick={addBenefit}><Plus className="h-4 w-4" /></Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -481,7 +485,7 @@ export function FunnelPanel() {
         <CardContent className="space-y-3">
           {config.investment_ranges.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              {editingRangeIdx === i ? (
+              {isAdmin && editingRangeIdx === i ? (
                 <>
                   <Input className="flex-1" value={editingRangeValue} onChange={(e) => setEditingRangeValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), confirmEditRange())} autoFocus />
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={confirmEditRange}><Check className="h-4 w-4" /></Button>
@@ -490,23 +494,33 @@ export function FunnelPanel() {
               ) : (
                 <>
                   <div className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm">{r}</div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => startEditRange(i)}><Pencil className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeInvestRange(i)}><X className="h-4 w-4" /></Button>
+                  {isAdmin && (
+                    <>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => startEditRange(i)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeInvestRange(i)}><X className="h-4 w-4" /></Button>
+                    </>
+                  )}
                 </>
               )}
             </div>
           ))}
-          <div className="flex gap-2">
-            <Input value={newInvestRange} onChange={(e) => setNewInvestRange(e.target.value)} placeholder="Ex: R$ 50.000 a R$ 100.000" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInvestRange())} />
-            <Button variant="outline" size="icon" onClick={addInvestRange}><Plus className="h-4 w-4" /></Button>
-          </div>
-          {config.investment_ranges.length === 0 && (
-            <Button variant="outline" size="sm" onClick={() => setConfig(p => ({ ...p, investment_ranges: DEFAULT_INVESTMENT_RANGES }))}>
-              Carregar valores padrão
-            </Button>
+          {isAdmin && (
+            <>
+              <div className="flex gap-2">
+                <Input value={newInvestRange} onChange={(e) => setNewInvestRange(e.target.value)} placeholder="Ex: R$ 50.000 a R$ 100.000" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addInvestRange())} />
+                <Button variant="outline" size="icon" onClick={addInvestRange}><Plus className="h-4 w-4" /></Button>
+              </div>
+              {config.investment_ranges.length === 0 && (
+                <Button variant="outline" size="sm" onClick={() => setConfig(p => ({ ...p, investment_ranges: DEFAULT_INVESTMENT_RANGES }))}>
+                  Carregar valores padrão
+                </Button>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Redes Sociais */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg"><Share2 className="h-5 w-5 text-primary" /> Redes Sociais</CardTitle>
@@ -529,6 +543,7 @@ export function FunnelPanel() {
                   value={config.social_links[key]}
                   onChange={(e) => setConfig(p => ({ ...p, social_links: { ...p.social_links, [key]: e.target.value } }))}
                   placeholder={placeholder}
+                  disabled={!isAdmin}
                 />
               </div>
             </div>
@@ -536,13 +551,15 @@ export function FunnelPanel() {
         </CardContent>
       </Card>
 
-      {/* Save */}
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving} className="gap-2 px-8">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Salvar Configurações
-        </Button>
-      </div>
+      {/* Save — only for admin */}
+      {isAdmin && (
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={saving} className="gap-2 px-8">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Salvar Configurações
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
