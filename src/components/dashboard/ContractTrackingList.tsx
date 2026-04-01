@@ -317,6 +317,26 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[180px]">
+            <Select value={periodFilter} onValueChange={setPeriodFilter}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mes_atual">Mês Atual</SelectItem>
+                <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
+                <SelectItem value="3meses">Últimos 3 Meses</SelectItem>
+                <SelectItem value="6meses">Últimos 6 Meses</SelectItem>
+                <SelectItem value="ano_anterior">Ano Anterior</SelectItem>
+                <SelectItem value="personalizado">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {periodFilter === "personalizado" && (
+            <div className="flex gap-2 items-center">
+              <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="h-9 text-sm w-36" />
+              <span className="text-xs text-muted-foreground">até</span>
+              <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="h-9 text-sm w-36" />
+            </div>
+          )}
         </div>
         <div className="rounded-md border overflow-auto">
           <Table>

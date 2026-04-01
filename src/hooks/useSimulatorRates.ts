@@ -66,7 +66,7 @@ export function useSimulatorRates({
   }, [currentBoletoRates]);
 
   const showParcelas = ["Credito", "Boleto", "Credito / Boleto"].includes(formaPagamento);
-  const showPlus = ["A vista", "Pix"].includes(formaPagamento);
+  const showPlus = true;
   const showCarencia = ["Boleto", "Credito / Boleto"].includes(formaPagamento);
 
   // Provider defaults
