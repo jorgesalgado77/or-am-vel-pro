@@ -13,7 +13,7 @@ import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { useComissaoPolicy, calcularComissao } from "@/hooks/useComissaoPolicy";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
