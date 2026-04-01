@@ -170,7 +170,7 @@ export function AIStrategyPanel({
         valorParcela: conservResult.valorParcela,
         margemEstimada: conservMargem,
         probabilidadeFechamento: conservProb,
-        descricao: "Menor desconto, máxima margem de lucro. Ideal para clientes já decididos.",
+        descricao: conservPlus > 0 ? `Menor desconto + Plus ${conservPlus}%, máxima margem. Ideal para clientes já decididos.` : "Menor desconto, máxima margem de lucro. Ideal para clientes já decididos.",
       },
       {
         type: "comercial",
