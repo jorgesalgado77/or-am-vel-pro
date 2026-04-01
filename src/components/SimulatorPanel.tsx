@@ -368,6 +368,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               clientSearch={clientSearch} setClientSearch={setClientSearch}
               searchingClients={searchingClients} clientResults={clientResults}
               onLinkClient={(c) => { setLinkedClient(c); setClientSearch(""); setClientResults([]); }}
+              vendedores={projetistas.map(p => ({ id: p.id, nome_completo: p.nome_completo }))}
+              selectedVendedorNome={newClient.vendedor}
+              onVendedorChange={(nome) => setNewClient(prev => ({ ...prev, vendedor: nome }))}
+              onQuickClientOpen={() => setShowClientForm(true)}
             />
           )}
 
