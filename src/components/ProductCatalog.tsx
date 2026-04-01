@@ -173,6 +173,8 @@ export function ProductCatalog() {
   const openNewProduct = () => {
     setForm(emptyForm);
     setImages([]);
+    setVideoFile(null);
+    setVideoPreview("");
     setDialogOpen(true);
   };
 
