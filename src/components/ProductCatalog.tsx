@@ -687,6 +687,17 @@ export function ProductCatalog() {
                 </div>
               </div>
 
+              {/* Video URL */}
+              <div>
+                <Label className="text-xs flex items-center gap-1"><Video className="h-3.5 w-3.5" /> URL do Vídeo</Label>
+                <Input
+                  value={form.video_url}
+                  onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))}
+                  className="mt-1 h-9 text-sm"
+                  placeholder="https://youtube.com/watch?v=... ou link direto do vídeo"
+                />
+              </div>
+
               {/* Images (only for existing products) */}
               {form.id && (
                 <div className="space-y-2">
@@ -711,6 +722,20 @@ export function ProductCatalog() {
                           >
                             <X className="h-3 w-3" />
                           </button>
+                          <div className="absolute bottom-0.5 left-0.5">
+                            <button
+                              className={`flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium transition-colors ${img.is_default ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100"}`}
+                              onClick={async () => {
+                                await setDefaultImage(form.id!, img.id);
+                                setImages(prev => prev.map(i => ({ ...i, is_default: i.id === img.id })));
+                                toast.success("Imagem padrão definida");
+                              }}
+                              title={img.is_default ? "Imagem padrão" : "Definir como padrão"}
+                            >
+                              <Star className="h-2.5 w-2.5" />
+                              {img.is_default ? "Padrão" : ""}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
