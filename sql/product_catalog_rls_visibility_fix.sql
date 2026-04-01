@@ -12,21 +12,35 @@
 -- 3) respeita a permissão de cargo "catalogo" quando ela existir
 -- ============================================================
 
--- 1) Função segura para descobrir o tenant do usuário autenticado
-CREATE OR REPLACE FUNCTION public.get_my_tenant_id_secure()
-RETURNS text
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT u.tenant_id::text
-  FROM public.usuarios u
-  WHERE u.auth_user_id = auth.uid()
-     OR u.id = auth.uid()
-  ORDER BY CASE WHEN u.auth_user_id = auth.uid() THEN 0 ELSE 1 END
-  LIMIT 1
-$$;
+-- 1) Garante a função segura para descobrir o tenant do usuário autenticado
+--    Caso já exista no banco, este bloco não altera a assinatura.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = 'get_my_tenant_id_secure'
+  ) THEN
+    EXECUTE $fn$
+      CREATE FUNCTION public.get_my_tenant_id_secure()
+      RETURNS text
+      LANGUAGE sql
+      STABLE
+      SECURITY DEFINER
+      SET search_path = public
+      AS $$
+        SELECT u.tenant_id::text
+        FROM public.usuarios u
+        WHERE u.auth_user_id = auth.uid()
+           OR u.id = auth.uid()
+        ORDER BY CASE WHEN u.auth_user_id = auth.uid() THEN 0 ELSE 1 END
+        LIMIT 1
+      $$
+    $fn$;
+  END IF;
+END $$;
 
 -- 2) Função para validar se o usuário autenticado tem acesso ao catálogo
 --    Se o cargo/permissão ainda não estiver vinculado, mantemos fallback true
