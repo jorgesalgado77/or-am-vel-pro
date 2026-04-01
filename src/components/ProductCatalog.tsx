@@ -114,6 +114,10 @@ export function ProductCatalog() {
     importProducts, loadSuppliers,
   } = useProductCatalog();
 
+  const { currentUser, hasPermission } = useCurrentUser();
+  const canManageProducts = hasPermission("cadastrar_produtos");
+  const isAdmin = ["administrador", "admin"].includes((currentUser?.cargo_nome || "").toLowerCase());
+
   const [activeTab, setActiveTab] = useState("products");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
