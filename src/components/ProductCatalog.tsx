@@ -436,8 +436,8 @@ export function ProductCatalog() {
                               <TableCell className="text-xs font-mono">{p.internal_code}</TableCell>
                               <TableCell className="text-xs font-medium max-w-[200px] truncate">{p.name}</TableCell>
                               <TableCell className="text-xs capitalize hidden sm:table-cell">{p.category}</TableCell>
-                              <TableCell className="text-xs text-right">{formatBRL(p.cost_price)}</TableCell>
-                              <TableCell className="text-xs text-right hidden md:table-cell">{p.markup_percentage}%</TableCell>
+                              {isAdmin && <TableCell className="text-xs text-right">{formatBRL(p.cost_price)}</TableCell>}
+                              {isAdmin && <TableCell className="text-xs text-right hidden md:table-cell">{p.markup_percentage}%</TableCell>}
                               <TableCell className="text-xs text-right font-semibold text-primary">{formatBRL(p.sale_price)}</TableCell>
                               <TableCell className="hidden lg:table-cell">
                                 <Badge variant="outline" className={`text-[10px] ${status.color}`}>
