@@ -13,6 +13,7 @@ import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { useComissaoPolicy, calcularComissao } from "@/hooks/useComissaoPolicy";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { format, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
