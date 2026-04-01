@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
+import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 
 export interface Supplier {
