@@ -75,7 +75,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
     const tenantId = await getResolvedTenantId();
     if (!tenantId) { setLoadingClients(false); return; }
 
-    let query = supabase.from("clients").select("id, name").eq("tenant_id", tenantId).order("name").limit(100);
+    let query = supabase.from("clients" as any).select("id, name").eq("tenant_id", tenantId).order("name").limit(100);
 
     // If restricted role, only show own clients
     if (isRestricted && currentUser?.id) {
@@ -83,7 +83,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
     }
 
     const { data } = await query;
-    setClients((data || []) as ClientOption[]);
+    setClients((data || []) as unknown as ClientOption[]);
     setLoadingClients(false);
   }, [isRestricted, currentUser?.id]);
 
