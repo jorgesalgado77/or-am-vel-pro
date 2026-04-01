@@ -903,6 +903,9 @@ export function ProductCatalog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Product Detail Modal */}
+      <ProductDetailModal product={detailProduct} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   );
 }
