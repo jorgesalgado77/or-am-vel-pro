@@ -80,6 +80,9 @@ const DEFAULT_CONFIG: FunnelConfig = {
 export function FunnelPanel() {
   const { settings } = useCompanySettings();
   const { user } = useAuth();
+  const { currentUser } = useCurrentUser();
+  const cargoNome = (currentUser?.cargo_nome || "").toLowerCase().trim();
+  const isAdmin = cargoNome.includes("administrador");
   const [config, setConfig] = useState<FunnelConfig>(DEFAULT_CONFIG);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
