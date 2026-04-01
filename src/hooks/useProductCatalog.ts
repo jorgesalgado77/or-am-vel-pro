@@ -47,6 +47,7 @@ export interface Product {
   supplier_id: string | null;
   stock_quantity: number;
   stock_status: "em_estoque" | "sob_encomenda" | "indisponivel";
+  video_url: string;
   created_at: string;
   supplier?: Supplier;
 }
@@ -55,6 +56,7 @@ export interface ProductImage {
   id: string;
   product_id: string;
   image_url: string;
+  is_default: boolean;
 }
 
 export function calculateSalePrice(cost: number, markup: number): number {
@@ -210,6 +212,12 @@ export function useProductCatalog() {
     await supabase.from("product_images" as any).delete().eq("id", imageId);
   };
 
+  const setDefaultImage = async (productId: string, imageId: string) => {
+    // Unset all defaults for this product, then set the chosen one
+    await supabase.from("product_images" as any).update({ is_default: false } as any).eq("product_id", productId);
+    await supabase.from("product_images" as any).update({ is_default: true } as any).eq("id", imageId);
+  };
+
   // --- IMPORT CSV/JSON ---
   const importProducts = async (items: Array<{ name: string; internal_code: string; cost_price: number; markup_percentage: number; category?: string; supplier_name?: string; description?: string; width?: number; height?: number; depth?: number; stock_quantity?: number }>) => {
     if (!tenantId || items.length === 0) return;
@@ -270,7 +278,7 @@ export function useProductCatalog() {
     page, setPage, totalPages, totalCount,
     saveProduct, deleteProduct,
     saveSupplier, deleteSupplier,
-    uploadProductImage, loadProductImages, deleteProductImage,
+    uploadProductImage, loadProductImages, deleteProductImage, setDefaultImage,
     importProducts, loadProducts, loadSuppliers,
   };
 }

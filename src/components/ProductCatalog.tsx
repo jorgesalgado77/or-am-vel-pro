@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -17,9 +18,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Package, Plus, Trash2, Pencil, Search, Loader2, Upload, Image as ImageIcon,
-  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart,
+  Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart, Video, Star,
 } from "lucide-react";
 import { useProductCatalog, calculateSalePrice, type Product, type Supplier, type ProductImage } from "@/hooks/useProductCatalog";
+import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
 import { toast } from "sonner";
 
@@ -68,13 +70,14 @@ interface ProductFormData {
   supplier_id: string;
   stock_quantity: number;
   stock_status: string;
+  video_url: string;
 }
 
 const emptyForm: ProductFormData = {
   name: "", internal_code: "", description: "", category: "geral",
   width: 0, height: 0, depth: 0, cost_price: 0, markup_percentage: 50,
   min_sale_price: 0, manufacturer_code: "", environment: "", environment_custom: "",
-  supplier_id: "", stock_quantity: 0, stock_status: "em_estoque",
+  supplier_id: "", stock_quantity: 0, stock_status: "em_estoque", video_url: "",
 };
 
 interface SupplierFormData {
@@ -106,7 +109,7 @@ export function ProductCatalog() {
     page, setPage, totalPages, totalCount,
     saveProduct, deleteProduct,
     saveSupplier, deleteSupplier,
-    uploadProductImage, loadProductImages, deleteProductImage,
+    uploadProductImage, loadProductImages, deleteProductImage, setDefaultImage,
     importProducts, loadSuppliers,
   } = useProductCatalog();
 
@@ -128,7 +131,8 @@ export function ProductCatalog() {
   const [saleProduct, setSaleProduct] = useState<Product | null>(null);
   const [saleQty, setSaleQty] = useState(1);
   const [saleSaving, setSaleSaving] = useState(false);
-
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const openSaleDialog = (p: Product) => {
     setSaleProduct(p);
     setSaleQty(1);
@@ -183,6 +187,7 @@ export function ProductCatalog() {
       supplier_id: p.supplier_id || "",
       stock_quantity: p.stock_quantity,
       stock_status: p.stock_status,
+      video_url: p.video_url || "",
     });
     const imgs = await loadProductImages(p.id);
     setImages(imgs);
@@ -420,7 +425,7 @@ export function ProductCatalog() {
                         {products.map(p => {
                           const status = STOCK_STATUS_LABELS[p.stock_status] || STOCK_STATUS_LABELS.em_estoque;
                           return (
-                            <TableRow key={p.id}>
+                            <TableRow key={p.id} className="cursor-pointer" onClick={() => { setDetailProduct(p); setDetailOpen(true); }}>
                               <TableCell className="text-xs font-mono">{p.internal_code}</TableCell>
                               <TableCell className="text-xs font-medium max-w-[200px] truncate">{p.name}</TableCell>
                               <TableCell className="text-xs capitalize hidden sm:table-cell">{p.category}</TableCell>
@@ -434,7 +439,7 @@ export function ProductCatalog() {
                               </TableCell>
                               <TableCell className="text-xs hidden lg:table-cell">{p.supplier?.name || "—"}</TableCell>
                               <TableCell>
-                                <div className="flex gap-1">
+                                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Registrar venda" onClick={() => openSaleDialog(p)}>
                                     <ShoppingCart className="h-3.5 w-3.5" />
                                   </Button>
@@ -682,6 +687,17 @@ export function ProductCatalog() {
                 </div>
               </div>
 
+              {/* Video URL */}
+              <div>
+                <Label className="text-xs flex items-center gap-1"><Video className="h-3.5 w-3.5" /> URL do Vídeo</Label>
+                <Input
+                  value={form.video_url}
+                  onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))}
+                  className="mt-1 h-9 text-sm"
+                  placeholder="https://youtube.com/watch?v=... ou link direto do vídeo"
+                />
+              </div>
+
               {/* Images (only for existing products) */}
               {form.id && (
                 <div className="space-y-2">
@@ -706,6 +722,20 @@ export function ProductCatalog() {
                           >
                             <X className="h-3 w-3" />
                           </button>
+                          <div className="absolute bottom-0.5 left-0.5">
+                            <button
+                              className={`flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium transition-colors ${img.is_default ? "bg-primary text-primary-foreground" : "bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100"}`}
+                              onClick={async () => {
+                                await setDefaultImage(form.id!, img.id);
+                                setImages(prev => prev.map(i => ({ ...i, is_default: i.id === img.id })));
+                                toast.success("Imagem padrão definida");
+                              }}
+                              title={img.is_default ? "Imagem padrão" : "Definir como padrão"}
+                            >
+                              <Star className="h-2.5 w-2.5" />
+                              {img.is_default ? "Padrão" : ""}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -873,6 +903,9 @@ export function ProductCatalog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Product Detail Modal */}
+      <ProductDetailModal product={detailProduct} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   );
 }
