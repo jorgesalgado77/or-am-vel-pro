@@ -253,16 +253,38 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
     return Array.from(set).sort();
   }, [trackings, allSellers]);
 
-  const filtered = useMemo(() =>
-    trackings.filter((t) => {
+  const filtered = useMemo(() => {
+    const now = new Date();
+    let pStart: Date | null = null;
+    let pEnd: Date | null = null;
+    switch (periodFilter) {
+      case "mes_atual": pStart = startOfMonth(now); pEnd = endOfDay(now); break;
+      case "mes_anterior": { const prev = subMonths(now, 1); pStart = startOfMonth(prev); pEnd = endOfMonth(prev); break; }
+      case "3meses": pStart = startOfDay(subMonths(now, 3)); pEnd = endOfDay(now); break;
+      case "6meses": pStart = startOfDay(subMonths(now, 6)); pEnd = endOfDay(now); break;
+      case "ano_anterior": { const y = now.getFullYear() - 1; pStart = new Date(y, 0, 1); pEnd = new Date(y, 11, 31, 23, 59, 59); break; }
+      case "personalizado":
+        if (customStart) pStart = startOfDay(new Date(customStart));
+        if (customEnd) pEnd = endOfDay(new Date(customEnd));
+        break;
+    }
+    return trackings.filter((t) => {
       const matchSearch = t.numero_contrato.toLowerCase().includes(search.toLowerCase()) ||
         t.nome_cliente.toLowerCase().includes(search.toLowerCase()) ||
         (t.projetista || "").toLowerCase().includes(search.toLowerCase());
       const matchProjetista = filterProjetista === "_all" || (t.projetista || t.vendedor) === filterProjetista;
-      return matchSearch && matchProjetista;
-    }),
-    [trackings, search, filterProjetista]
-  );
+      let matchPeriod = true;
+      if (pStart || pEnd) {
+        const d = t.data_fechamento ? new Date(t.data_fechamento) : null;
+        if (!d) matchPeriod = false;
+        else {
+          if (pStart && d < pStart) matchPeriod = false;
+          if (pEnd && d > pEnd) matchPeriod = false;
+        }
+      }
+      return matchSearch && matchProjetista && matchPeriod;
+    });
+  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd]);
 
   const getStatusLabel = useCallback((val: string) => STATUS_OPTIONS.find((s) => s.value === val)?.label || val, []);
 
