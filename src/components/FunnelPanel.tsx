@@ -265,6 +265,11 @@ export function FunnelPanel() {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {!isAdmin && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-3 text-sm text-amber-800 dark:text-amber-200 flex items-center gap-2">
+          🔒 Você está no modo visualização. Apenas administradores podem editar as configurações do funil.
+        </div>
+      )}
       {/* Link público */}
       <Card>
         <CardHeader>
