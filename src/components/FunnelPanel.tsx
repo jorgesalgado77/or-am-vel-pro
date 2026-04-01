@@ -307,22 +307,24 @@ export function FunnelPanel() {
           <CardDescription>Faça upload de um vídeo promocional que será exibido na página pública da sua loja.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} />
+          <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={!isAdmin} />
           {config.promo_video_url ? (
             <div className="space-y-3">
               <div className="rounded-xl overflow-hidden border border-border bg-black">
                 <video src={config.promo_video_url} controls className="w-full aspect-video" />
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => videoInputRef.current?.click()} disabled={uploadingVideo} className="gap-2">
-                  <Upload className="h-4 w-4" /> Trocar vídeo
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setConfig(p => ({ ...p, promo_video_url: "" }))} className="gap-2 text-destructive hover:text-destructive">
-                  <Trash2 className="h-4 w-4" /> Remover
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => videoInputRef.current?.click()} disabled={uploadingVideo} className="gap-2">
+                    <Upload className="h-4 w-4" /> Trocar vídeo
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setConfig(p => ({ ...p, promo_video_url: "" }))} className="gap-2 text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4" /> Remover
+                  </Button>
+                </div>
+              )}
             </div>
-          ) : (
+          ) : isAdmin ? (
             <div
               className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
               onClick={() => videoInputRef.current?.click()}
@@ -337,6 +339,8 @@ export function FunnelPanel() {
                 </>
               )}
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum vídeo configurado.</p>
           )}
         </CardContent>
       </Card>
