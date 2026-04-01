@@ -74,6 +74,9 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("_all");
+  const [periodFilter, setPeriodFilter] = useState("mes_atual");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     numero_contrato: "", nome_cliente: "", cpf_cnpj: "",
