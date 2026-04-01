@@ -13,7 +13,7 @@ import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { useComissaoPolicy, calcularComissao } from "@/hooks/useComissaoPolicy";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
@@ -74,6 +74,9 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("_all");
+  const [periodFilter, setPeriodFilter] = useState("mes_atual");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     numero_contrato: "", nome_cliente: "", cpf_cnpj: "",
@@ -250,16 +253,38 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
     return Array.from(set).sort();
   }, [trackings, allSellers]);
 
-  const filtered = useMemo(() =>
-    trackings.filter((t) => {
+  const filtered = useMemo(() => {
+    const now = new Date();
+    let pStart: Date | null = null;
+    let pEnd: Date | null = null;
+    switch (periodFilter) {
+      case "mes_atual": pStart = startOfMonth(now); pEnd = endOfDay(now); break;
+      case "mes_anterior": { const prev = subMonths(now, 1); pStart = startOfMonth(prev); pEnd = endOfMonth(prev); break; }
+      case "3meses": pStart = startOfDay(subMonths(now, 3)); pEnd = endOfDay(now); break;
+      case "6meses": pStart = startOfDay(subMonths(now, 6)); pEnd = endOfDay(now); break;
+      case "ano_anterior": { const y = now.getFullYear() - 1; pStart = new Date(y, 0, 1); pEnd = new Date(y, 11, 31, 23, 59, 59); break; }
+      case "personalizado":
+        if (customStart) pStart = startOfDay(new Date(customStart));
+        if (customEnd) pEnd = endOfDay(new Date(customEnd));
+        break;
+    }
+    return trackings.filter((t) => {
       const matchSearch = t.numero_contrato.toLowerCase().includes(search.toLowerCase()) ||
         t.nome_cliente.toLowerCase().includes(search.toLowerCase()) ||
         (t.projetista || "").toLowerCase().includes(search.toLowerCase());
       const matchProjetista = filterProjetista === "_all" || (t.projetista || t.vendedor) === filterProjetista;
-      return matchSearch && matchProjetista;
-    }),
-    [trackings, search, filterProjetista]
-  );
+      let matchPeriod = true;
+      if (pStart || pEnd) {
+        const d = t.data_fechamento ? new Date(t.data_fechamento) : null;
+        if (!d) matchPeriod = false;
+        else {
+          if (pStart && d < pStart) matchPeriod = false;
+          if (pEnd && d > pEnd) matchPeriod = false;
+        }
+      }
+      return matchSearch && matchProjetista && matchPeriod;
+    });
+  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd]);
 
   const getStatusLabel = useCallback((val: string) => STATUS_OPTIONS.find((s) => s.value === val)?.label || val, []);
 
@@ -292,6 +317,26 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[180px]">
+            <Select value={periodFilter} onValueChange={setPeriodFilter}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mes_atual">Mês Atual</SelectItem>
+                <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
+                <SelectItem value="3meses">Últimos 3 Meses</SelectItem>
+                <SelectItem value="6meses">Últimos 6 Meses</SelectItem>
+                <SelectItem value="ano_anterior">Ano Anterior</SelectItem>
+                <SelectItem value="personalizado">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {periodFilter === "personalizado" && (
+            <div className="flex gap-2 items-center">
+              <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="h-9 text-sm w-36" />
+              <span className="text-xs text-muted-foreground">até</span>
+              <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="h-9 text-sm w-36" />
+            </div>
+          )}
         </div>
         <div className="rounded-md border overflow-auto">
           <Table>

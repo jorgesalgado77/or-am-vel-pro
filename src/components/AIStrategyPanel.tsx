@@ -170,7 +170,7 @@ export function AIStrategyPanel({
         valorParcela: conservResult.valorParcela,
         margemEstimada: conservMargem,
         probabilidadeFechamento: conservProb,
-        descricao: "Menor desconto, máxima margem de lucro. Ideal para clientes já decididos.",
+        descricao: conservPlus > 0 ? `Menor desconto + Plus ${conservPlus}%, máxima margem. Ideal para clientes já decididos.` : "Menor desconto, máxima margem de lucro. Ideal para clientes já decididos.",
       },
       {
         type: "comercial",
@@ -261,17 +261,28 @@ export function AIStrategyPanel({
           </p>
 
           <div className="grid grid-cols-1 gap-3">
-            {scenarios.map((scenario) => (
+            {scenarios
+              .filter(s => !selectedStrategy || s.type === selectedStrategy)
+              .map((scenario) => (
               <div
                 key={scenario.type}
                 className={`relative rounded-lg border-2 p-4 cursor-pointer transition-all duration-200 ${scenario.borderColor} ${scenario.bgColor} ${
                   selectedStrategy === scenario.type ? "ring-2 ring-primary ring-offset-1" : ""
                 }`}
-                onClick={() => handleApply(scenario)}
+                onClick={() => {
+                  if (selectedStrategy === scenario.type) {
+                    setSelectedStrategy(null);
+                  } else {
+                    handleApply(scenario);
+                  }
+                }}
               >
                 {selectedStrategy === scenario.type && (
-                  <div className="absolute top-2 right-2">
-                    <Check className="h-4 w-4 text-primary" />
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded border-2 border-primary bg-primary flex items-center justify-center">
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Desmarcar</span>
                   </div>
                 )}
 
@@ -308,6 +319,12 @@ export function AIStrategyPanel({
                       {scenario.desconto1}% + {scenario.desconto2}% + {scenario.desconto3}%
                     </span>
                   </div>
+                  {scenario.plusPercentual > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Plus:</span>
+                      <span className="tabular-nums text-emerald-600 font-semibold">+{scenario.plusPercentual}%</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Parcelas:</span>
                     <span className="tabular-nums">
