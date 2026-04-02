@@ -10,12 +10,13 @@ import {Calendar} from "@/components/ui/calendar";
 import {ScrollArea} from "@/components/ui/scroll-area";
 import {Progress} from "@/components/ui/progress";
 import {Badge} from "@/components/ui/badge";
-import {Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin} from "lucide-react";
+import {Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin, Palette, RotateCcw, Check} from "lucide-react";
 import {cn} from "@/lib/utils";
 import {format} from "date-fns";
 import {supabase} from "@/lib/supabaseClient";
 import {useAuth} from "@/contexts/AuthContext";
 import {toast} from "sonner";
+import {COLOR_THEMES, getStoredThemeId, applyTheme, type ColorTheme} from "@/lib/colorThemes";
 
 // TikTok icon
 function TikTokIcon({ className }: { className?: string }) {
