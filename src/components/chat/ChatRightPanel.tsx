@@ -20,6 +20,7 @@ const DISC_PROFILES: Record<string, { label: string; emoji: string; tips: string
 interface Props {
   conversation: ChatConversation;
   tenantId: string | null;
+  userId?: string;
   messageCount: number;
   aiSuggestion: string;
   aiLoading: boolean;
