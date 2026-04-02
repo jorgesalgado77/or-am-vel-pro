@@ -95,10 +95,30 @@ export function AppSidebar({
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150",
           collapsed && "justify-center px-2",
-          destructive && "opacity-80 hover:opacity-100",
-          !destructive && isActive && "font-semibold",
-          !destructive && !isActive && "opacity-70 hover:opacity-100",
         )}
+        style={{
+          color: destructive
+            ? "hsl(0 72% 60%)"
+            : isActive
+              ? "hsl(var(--sidebar-primary))"
+              : "hsl(var(--sidebar-foreground))",
+          backgroundColor: isActive
+            ? "hsl(var(--sidebar-accent))"
+            : undefined,
+          opacity: !destructive && !isActive ? 0.75 : 1,
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive) {
+            e.currentTarget.style.backgroundColor = "hsl(var(--sidebar-accent))";
+            e.currentTarget.style.opacity = "1";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) {
+            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.opacity = "0.75";
+          }
+        }}
       >
         <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-300", collapsed && "scale-110")} />
         {!collapsed && <span className="truncate">{label}</span>}
@@ -108,7 +128,7 @@ export function AppSidebar({
           </span>
         )}
         {!collapsed && itemBadge && typeof itemBadge === "string" && (
-          <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 h-4 font-bold bg-primary/10 text-primary border-primary/20">
+          <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 h-4 font-bold" style={{ backgroundColor: "hsl(var(--sidebar-accent))", color: "hsl(var(--sidebar-primary))" }}>
             {itemBadge}
           </Badge>
         )}

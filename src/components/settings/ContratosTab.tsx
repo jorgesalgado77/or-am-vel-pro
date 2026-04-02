@@ -456,8 +456,11 @@ const DEFAULT_CONTRACT_HTML = `
     <p>O presente contrato tem por objeto a prestação de serviços conforme orçamento nº <strong>{{numero_orcamento}}</strong>, elaborado pelo(a) projetista <strong>{{projetista}}</strong>, responsável pela venda: <strong>{{responsavel_venda}}</strong>.</p>
 
     <h2>CLÁUSULA 2ª — DOS ITENS CONTRATADOS</h2>
-    {{itens_tabela}}
+     {{itens_tabela}}
     <p><strong>Total dos ambientes: {{total_ambientes}}</strong></p>
+
+    <h3>Produtos do Catálogo</h3>
+    {{produtos_catalogo}}
 
     <h3>Detalhamento dos materiais</h3>
     {{itens_detalhes}}
