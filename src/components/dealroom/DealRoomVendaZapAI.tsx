@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 import jsPDF from "jspdf";
 import { ClosingThermometer, analyzeClientMessage } from "@/components/vendazap/ClosingThermometer";
 import { NegotiationEvolutionPanel, learnFromMessage, buildLearningContext } from "@/components/vendazap/NegotiationLearning";
