@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { miaGenerateResponse } from "@/services/mia";
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 
 interface DealRoomAIAssistantProps {
   tenantId: string;
