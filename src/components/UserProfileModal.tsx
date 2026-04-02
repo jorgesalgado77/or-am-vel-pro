@@ -78,6 +78,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const [showPass, setShowPass] = useState(false);
   const [birthDate, setBirthDate] = useState<Date | undefined>();
   const [triedSave, setTriedSave] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState(getStoredThemeId);
 
   const [form, setForm] = useState<ProfileData>({
     nome_completo: "", apelido: "", email: "", telefone: "", telefone_whatsapp: "",
