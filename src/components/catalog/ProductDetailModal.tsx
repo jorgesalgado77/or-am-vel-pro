@@ -197,6 +197,51 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   }, [images, videoUrl]);
 
   const featured = media[selectedMediaIdx] || media[0] || null;
+  const isCurrentVideo = featured?.type === "video";
+
+  // Navigate to next/prev
+  const goNext = useCallback(() => {
+    setSelectedMediaIdx(i => (i + 1) % media.length);
+    setPlayingVideo(false);
+  }, [media.length]);
+
+  const goPrev = useCallback(() => {
+    setSelectedMediaIdx(i => (i - 1 + media.length) % media.length);
+    setPlayingVideo(false);
+  }, [media.length]);
+
+  // Auto-slide: 3s for images, skip for video (waits for video end)
+  useEffect(() => {
+    if (!open || media.length <= 1) return;
+    if (isCurrentVideo && playingVideo) {
+      // Don't auto-advance while video is playing
+      if (autoSlideRef.current) clearInterval(autoSlideRef.current);
+      return;
+    }
+    autoSlideRef.current = setInterval(() => {
+      setSelectedMediaIdx(i => {
+        const next = (i + 1) % media.length;
+        setPlayingVideo(false);
+        return next;
+      });
+    }, 3000);
+    return () => { if (autoSlideRef.current) clearInterval(autoSlideRef.current); };
+  }, [open, media.length, isCurrentVideo, playingVideo]);
+
+  // Auto-play video when video slide is selected
+  useEffect(() => {
+    if (isCurrentVideo) {
+      setPlayingVideo(true);
+    }
+  }, [selectedMediaIdx, isCurrentVideo]);
+
+  // Scroll thumbnail into view
+  useEffect(() => {
+    if (thumbContainerRef.current) {
+      const btn = thumbContainerRef.current.children[selectedMediaIdx] as HTMLElement;
+      if (btn) btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [selectedMediaIdx]);
 
   // Load images — query WITHOUT is_default since column doesn't exist
   useEffect(() => {
