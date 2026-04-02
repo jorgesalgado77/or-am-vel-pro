@@ -92,7 +92,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [plusUnlocked, setPlusUnlocked] = useState((init?.plus_percentual ?? 0) > 0 || (stored.plusUnlocked ?? false));
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
-  const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
+  const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | null>(null);
+  const [extremaLocked, setExtremaLocked] = useState(false);
+  const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>([]);
