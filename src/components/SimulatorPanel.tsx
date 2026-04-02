@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { SimulatorParametersForm } from "@/components/simulator/SimulatorParametersForm";
 import { SimulatorClientPicker, LinkedClientBadge } from "@/components/simulator/SimulatorClientPicker";
 import type { ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
+import type { SelectedProduct } from "@/components/simulator/ProductPickerForSimulator";
 import { SimulatorResultCard } from "@/components/simulator/SimulatorResultCard";
 import { SimulatorClientForm } from "@/components/simulator/SimulatorClientForm";
 import { useConversionHistory } from "@/hooks/useConversionHistory";
@@ -93,7 +94,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
-  const [catalogProductsTotal, setCatalogProductsTotal] = useState(0);
+  const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>([]);
 
   // ─── Client State ───
   const [linkedClient, setLinkedClient] = useState<Client | null>(null);
@@ -137,6 +138,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     nome: "", cpf: "", telefone1: "", telefone2: "", email: "",
     vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "",
   });
+  const catalogProductsTotal = useMemo(
+    () => catalogProducts.reduce((sum, item) => sum + item.product.sale_price * item.quantity, 0),
+    [catalogProducts],
+  );
 
   // ─── Hooks ───
   const { hasPermission, currentUser } = useCurrentUser();
@@ -303,9 +308,17 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           onLoadSimulation={() => setLoadSimModalOpen(true)}
           onProductPicker={() => setProductPickerOpen(true)}
           VALOR_TELA_MAX={actions.VALOR_TELA_MAX} VALOR_ENTRADA_MAX={VALOR_ENTRADA_MAX}
-          catalogProducts={[]}
-          onUpdateCatalogProductQty={() => {}}
-          onRemoveCatalogProduct={() => {}}
+          catalogProducts={catalogProducts}
+          onUpdateCatalogProductQty={(productId, qty) => {
+            setCatalogProducts((prev) => prev.map((item) => (
+              item.product.id === productId
+                ? { ...item, quantity: Math.max(1, Number.isFinite(qty) ? qty : 1) }
+                : item
+            )));
+          }}
+          onRemoveCatalogProduct={(productId) => {
+            setCatalogProducts((prev) => prev.filter((item) => item.product.id !== productId));
+          }}
         />
 
         <div className="space-y-6">
@@ -355,6 +368,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
               setDesconto3Unlocked(false); setPlusUnlocked(false);
               setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
+              setCatalogProducts([]);
               setLinkedClient(null); setClientSearch("");
               sessionStorage.removeItem(SIM_STORAGE_KEY);
               toast.success("Simulação limpa");
@@ -417,6 +431,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             setValorTela(sim.valor_tela); setDesconto1(sim.desconto1); setDesconto2(sim.desconto2); setDesconto3(sim.desconto3);
             setFormaPagamento(sim.forma_pagamento as FormaPagamento); setParcelas(sim.parcelas);
             setValorEntrada(sim.valor_entrada); setPlusPercentual(sim.plus_percentual);
+            setCatalogProducts([]);
             if (sim.desconto3 > 0) setDesconto3Unlocked(true);
             if (sim.plus_percentual > 0) setPlusUnlocked(true);
             if (sim.arquivo_nome) {
@@ -435,8 +450,17 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             toast.success(`Simulação de ${sim.client_name} carregada!`);
           }}
           productPickerOpen={productPickerOpen} setProductPickerOpen={setProductPickerOpen}
-          onProductPickerConfirm={(items, total) => {
-            setCatalogProductsTotal(total);
+          onProductPickerConfirm={(items) => {
+            setCatalogProducts((prev) => {
+              const merged = new Map(prev.map((item) => [item.product.id, item]));
+
+              for (const item of items) {
+                const existing = merged.get(item.product.id);
+                merged.set(item.product.id, existing ? { ...existing, quantity: existing.quantity + item.quantity } : item);
+              }
+
+              return Array.from(merged.values());
+            });
           }}
           resolvedTenantId={resolvedTenantId}
         />
