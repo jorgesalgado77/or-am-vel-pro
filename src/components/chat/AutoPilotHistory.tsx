@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bot, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { format } from "date-fns";
-
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 interface Interaction {
   id: string;
   mensagem_cliente: string | null;
