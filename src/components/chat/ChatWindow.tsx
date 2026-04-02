@@ -69,7 +69,7 @@ function getConversationPhone(conversation: ChatConversation | null | undefined)
 export function ChatWindow({
   conversation, onBack, onStartDealRoom, onCreateLead,
   inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded, detectedDiscProfile,
-  vendazapActive = false, onCloseSale,
+  vendazapActive = false, onCloseSale, initialAttachmentUrl, onAttachmentHandled,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [trackingIds, setTrackingIds] = useState<string[]>([conversation.id]);
