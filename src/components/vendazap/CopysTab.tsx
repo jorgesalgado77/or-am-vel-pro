@@ -141,14 +141,17 @@ export function CopysTab({ tenantId, readyCopies, onCopy, addon }: Props) {
     if (!tenantId) return;
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           action: "generate_copys",
           tenant_id: tenantId,
           count: 4,
           disc_profile: selectedDiscGen || undefined,
-        },
-      });
+        }, {
+          tenantId,
+          userId: "system",
+          origin: "chat",
+          context: "vendazap",
+        });
 
       if (error) throw error;
 

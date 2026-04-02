@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil, Lightbulb, Search, Globe, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { getTenantId } from "@/lib/tenantState";
 import { toast } from "sonner";
 
