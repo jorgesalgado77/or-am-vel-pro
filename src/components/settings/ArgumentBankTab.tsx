@@ -173,15 +173,18 @@ export function ArgumentBankTab() {
     if (!form.titulo.trim()) { toast.error("Digite um título primeiro"); return; }
     setImprovingTitle(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           messages: [
             { role: "system", content: "Você é um especialista em copywriting para vendas de móveis planejados. Melhore o título do argumento de venda para ser mais persuasivo, profissional e impactante. Retorne APENAS o título melhorado, sem explicações, aspas ou prefixos." },
             { role: "user", content: form.titulo },
           ],
           max_tokens: 100,
-        },
-      });
+        }, {
+          tenantId: getTenantId() || "",
+          userId: "system",
+          origin: "chat",
+          context: "argument",
+        });
       if (error) throw error;
       const improved = (data?.reply || "").trim();
       if (improved) { setForm(f => ({ ...f, titulo: improved })); toast.success("Título melhorado!"); }
