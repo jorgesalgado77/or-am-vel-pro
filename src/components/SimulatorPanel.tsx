@@ -241,6 +241,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   }, [currentUser]);
 
   // ─── Unlock Handlers ───
+  const isVendedorOrProjetista = useMemo(() => {
+    const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
+    return cargo.includes("VENDEDOR") || cargo.includes("PROJETISTA");
+  }, [currentUser]);
+
   const requestUnlock = (field: "desconto3" | "plus") => {
     if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
     if (field === "plus" && hasPermission("plus")) { setPlusUnlocked(true); return; }
@@ -249,7 +254,35 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setPendingUnlock(field); setPasswordInput(""); setPasswordDialogOpen(true);
   };
 
+  const requestExtremaUnlock = useCallback((_params: any, callback: () => void) => {
+    // Admin/gerente can apply directly
+    if (!isVendedorOrProjetista) {
+      callback();
+      return;
+    }
+    const requiredPassword = rates.settings.admin_password || rates.settings.manager_password;
+    if (!requiredPassword) { callback(); return; }
+    setPendingUnlock("extrema");
+    setPendingExtremaCallback(() => callback);
+    setPasswordInput("");
+    setPasswordDialogOpen(true);
+  }, [isVendedorOrProjetista, rates.settings.admin_password, rates.settings.manager_password]);
+
   const handlePasswordConfirm = () => {
+    if (pendingUnlock === "extrema") {
+      const pw = rates.settings.admin_password || rates.settings.manager_password;
+      if (passwordInput === pw) {
+        setPasswordDialogOpen(false);
+        setExtremaLocked(true);
+        setDesconto3Unlocked(true);
+        setPlusUnlocked(true);
+        if (pendingExtremaCallback) pendingExtremaCallback();
+        setPendingExtremaCallback(null);
+        toast.success("Estratégia Extrema liberada pelo gestor!");
+      } else { toast.error("Senha incorreta"); }
+      setPasswordInput("");
+      return;
+    }
     const requiredPassword = pendingUnlock === "desconto3" ? rates.settings.manager_password : rates.settings.admin_password;
     if (passwordInput === requiredPassword) {
       if (pendingUnlock === "desconto3") setDesconto3Unlocked(true);
@@ -260,7 +293,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setPasswordInput("");
   };
 
-  const passwordDialogTitle = pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
+  const passwordDialogTitle = pendingUnlock === "extrema" ? "Senha do Gerente / Administrador" : pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
 
   // ─── Render ───
   return (
