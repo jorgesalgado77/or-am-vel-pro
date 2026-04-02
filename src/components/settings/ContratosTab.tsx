@@ -69,6 +69,7 @@ const AVAILABLE_VARIABLES = [
   { var: "{{itens_tabela}}", desc: "Tabela de itens/ambientes" },
   { var: "{{itens_detalhes}}", desc: "Detalhes dos itens (materiais)" },
   { var: "{{total_ambientes}}", desc: "Total dos ambientes" },
+  { var: "{{produtos_catalogo}}", desc: "Tabela de produtos do catálogo" },
 ];
 
 export function ContratosTab() {
