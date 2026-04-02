@@ -65,7 +65,7 @@ interface SimulatorStoredState {
   desconto3Unlocked: boolean; plusUnlocked: boolean;
   hideIndicador: boolean; extremaLocked: boolean;
   selectedBoletoProvider: string; selectedCreditoProvider: string;
-  linkedClientId: string;
+  linkedClientId: string; activeStrategy: string;
   environments: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string }>;
   catalogProducts?: Array<{ product: { id: string; internal_code: string; name: string; description: string; category: string; sale_price: number; stock_status: string; image_url?: string }; quantity: number }>;
 }
@@ -106,6 +106,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | null>(null);
   const [extremaLocked, setExtremaLocked] = useState(stored.extremaLocked ?? false);
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
+  const [activeStrategy, setActiveStrategy] = useState<string>(stored.activeStrategy ?? "");
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
@@ -235,7 +236,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     const state: SimulatorStoredState = {
       valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada,
       plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked,
-      hideIndicador, extremaLocked,
+      hideIndicador, extremaLocked, activeStrategy,
       selectedBoletoProvider: rates.selectedBoletoProvider,
       selectedCreditoProvider: rates.selectedCreditoProvider,
       linkedClientId: linkedClient?.id || "",
@@ -243,7 +244,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       catalogProducts,
     };
     sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, hideIndicador, extremaLocked, rates.selectedBoletoProvider, rates.selectedCreditoProvider, linkedClient, environments, catalogProducts]);
+  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, hideIndicador, extremaLocked, activeStrategy, rates.selectedBoletoProvider, rates.selectedCreditoProvider, linkedClient, environments, catalogProducts]);
 
   // Update valorTela from environments (excluding catalog-products fake entry) + catalog total
   useEffect(() => {
@@ -430,6 +431,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               historicalConversionRate={conversionStats.conversionRate}
               onRequestExtremaUnlock={requestExtremaUnlock}
               extremaUnlocked={!isVendedorOrProjetista || extremaLocked}
+              initialStrategy={activeStrategy || undefined}
+              onStrategyChange={(s) => setActiveStrategy(s || "")}
             />
           </Suspense>
 
@@ -455,6 +458,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
               setDesconto3Unlocked(false); setPlusUnlocked(false); setExtremaLocked(false);
+              setActiveStrategy("");
               setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
               setCatalogProducts([]);
               setLinkedClient(null); setClientSearch("");

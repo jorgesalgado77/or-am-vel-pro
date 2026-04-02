@@ -68,6 +68,8 @@ interface AIStrategyPanelProps {
   historicalConversionRate?: number;
   onRequestExtremaUnlock?: (scenario: StrategyParams, callback: () => void) => void;
   extremaUnlocked?: boolean;
+  initialStrategy?: string;
+  onStrategyChange?: (strategy: string | null) => void;
 }
 
 // calculateClosingProbability now delegated to CommercialDecisionEngine
@@ -103,9 +105,15 @@ export function AIStrategyPanel({
   historicalConversionRate = 0,
   onRequestExtremaUnlock,
   extremaUnlocked,
+  initialStrategy,
+  onStrategyChange,
 }: AIStrategyPanelProps) {
-  const [enabled, setEnabled] = useState(false);
-  const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
+  const [enabled, setEnabled] = useState(!!initialStrategy);
+  const [selectedStrategy, setSelectedStrategyInternal] = useState<string | null>(initialStrategy || null);
+  const setSelectedStrategy = (s: string | null) => {
+    setSelectedStrategyInternal(s);
+    onStrategyChange?.(s);
+  };
 
   const scenarios = useMemo((): StrategyScenario[] => {
     if (!enabled || valorTela <= 0) return [];
