@@ -437,10 +437,38 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                   <span className="text-muted-foreground text-sm">Sem imagens</span>
                 </div>
               )}
-                </div>
+
+              {/* Product details */}
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-muted-foreground text-xs block">Código Interno</span><p className="font-mono text-xs">{product.internal_code}</p></div>
+                {product.manufacturer_code && <div><span className="text-muted-foreground text-xs block">Cód. Fabricante</span><p className="font-mono text-xs">{product.manufacturer_code}</p></div>}
+                <div><span className="text-muted-foreground text-xs block">Categoria</span><p className="capitalize text-xs">{product.category}</p></div>
+                {product.environment && <div><span className="text-muted-foreground text-xs block">Ambiente</span><p className="capitalize text-xs">{product.environment}</p></div>}
               </div>
 
-              {product.supplier && (
+              {product.description && (
+                <div><span className="text-xs text-muted-foreground block">Descrição</span><p className="text-xs mt-1">{product.description}</p></div>
+              )}
+
+              {(product.width > 0 || product.height > 0 || product.depth > 0) && (
+                <div><span className="text-xs text-muted-foreground block">Dimensões (L × A × P)</span>
+                  <p className="text-sm font-medium">{product.width} × {product.height} × {product.depth} cm</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-xs text-muted-foreground block">Preço de Venda</span>
+                  <p className="font-bold text-primary text-base sm:text-lg">{formatCurrency(product.sale_price)}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground block">Estoque</span>
+                  <p className="font-medium text-xs">{product.stock_quantity} un</p>
+                  <Badge variant="outline" className="text-[10px] mt-1">
+                    {STOCK_LABELS[product.stock_status] || product.stock_status}
+                  </Badge>
+                </div>
+              </div>
                 <div><span className="text-xs text-muted-foreground block">Fornecedor</span><p className="text-sm font-medium">{product.supplier.name}</p></div>
               )}
 
