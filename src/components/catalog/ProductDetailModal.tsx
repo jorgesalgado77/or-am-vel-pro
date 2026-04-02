@@ -217,7 +217,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
             setSelectedMediaIdx(defaultIdx >= 0 ? defaultIdx : 0);
           }
           setViewerImage(null);
-          setViewerVideo(null);
+          setPlayingVideo(false);
           setShowAddFlow(false);
         });
     }
