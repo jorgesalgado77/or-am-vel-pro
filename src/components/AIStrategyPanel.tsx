@@ -4,7 +4,7 @@ import {Badge} from "@/components/ui/badge";
 import {Switch} from "@/components/ui/switch";
 import {Label} from "@/components/ui/label";
 import {Separator} from "@/components/ui/separator";
-import {Brain, Shield, TrendingUp, Zap, Check, Target, Building2} from "lucide-react";
+import {Brain, Shield, TrendingUp, Zap, Check, Target, Building2, Flame} from "lucide-react";
 import {formatCurrency} from "@/lib/financing";
 import {toast} from "sonner";
 import {
