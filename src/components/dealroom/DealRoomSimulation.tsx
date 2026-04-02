@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
+import { parseArquivoNome } from "@/lib/parseArquivoNome";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import { toast } from "sonner";
 import { format } from "date-fns";
