@@ -225,6 +225,11 @@ class MIAOrchestrator {
   getLearning() {
     return this.learning;
   }
+
+  /** Get the research engine */
+  getResearch() {
+    return this.research;
+  }
 }
 
 // Singleton
