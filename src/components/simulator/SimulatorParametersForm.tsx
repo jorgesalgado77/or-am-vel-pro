@@ -253,13 +253,13 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
         <div>
           <div className="flex items-center justify-between">
             <Label>Indicador do Cliente</Label>
-            {selectedIndicadorId && comissaoPercentual > 0 && canHideIndicador && (
+            {canHideIndicador && (
               <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1 text-muted-foreground" onClick={() => setHideIndicador(!hideIndicador)}>
                 {hideIndicador ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                {hideIndicador ? "Mostrar" : "Ocultar"}
+                {hideIndicador ? "Mostrar Indicador" : "Ocultar Indicador"}
               </Button>
             )}
-            {selectedIndicadorId && comissaoPercentual > 0 && !canHideIndicador && (
+            {!canHideIndicador && (
               <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <Lock className="h-3 w-3" /> VIP
               </span>
