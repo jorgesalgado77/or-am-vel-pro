@@ -527,6 +527,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             setCatalogProducts([]);
             if (sim.desconto3 > 0) setDesconto3Unlocked(true);
             if (sim.plus_percentual > 0) setPlusUnlocked(true);
+            // Restore AI strategy
+            setActiveStrategy(sim.estrategia_ia || "");
             if (sim.arquivo_nome) {
               const { environments: envs, catalogProducts: catProds } = parseArquivoNome(sim.arquivo_nome);
               if (envs.length > 0) {
