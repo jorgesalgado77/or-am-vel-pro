@@ -447,7 +447,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               }
               if (catProds.length > 0) {
                 setCatalogProducts(catProds.map((cp: any) => ({
-                  product: { id: cp.product_id, internal_code: cp.internal_code, name: cp.name, sale_price: cp.sale_price },
+                  product: {
+                    id: cp.product_id, internal_code: cp.internal_code || "", name: cp.name || "",
+                    sale_price: cp.sale_price || 0, category: cp.category || "", stock_status: cp.stock_status || "in_stock",
+                    stock_quantity: cp.stock_quantity ?? 0, description: cp.description || "",
+                    width: cp.width ?? 0, height: cp.height ?? 0, depth: cp.depth ?? 0,
+                    environment: cp.environment || "", manufacturer_code: cp.manufacturer_code || "",
+                  },
                   quantity: cp.quantity,
                 })));
               }
