@@ -57,6 +57,7 @@ interface SimulatorStoredState {
   plusPercentual: number; carenciaDias: 30 | 60 | 90; selectedIndicadorId: string;
   desconto3Unlocked: boolean; plusUnlocked: boolean;
   environments: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string }>;
+  catalogProducts?: Array<{ product: { id: string; internal_code: string; name: string; description: string; category: string; sale_price: number; stock_status: string; image_url?: string }; quantity: number }>;
 }
 
 function loadStoredState(): Partial<SimulatorStoredState> {
