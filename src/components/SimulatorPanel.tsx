@@ -437,13 +437,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           productPickerOpen={productPickerOpen} setProductPickerOpen={setProductPickerOpen}
           onProductPickerConfirm={(items, total) => {
             setCatalogProductsTotal(total);
-            const productEnv: ImportedEnvironment = {
-              id: "catalog-products", fileName: "Catálogo",
-              environmentName: `Produtos Avulsos (${items.length})`,
-              pieceCount: items.reduce((s: any, i: any) => s + i.quantity, 0),
-              totalValue: total, importedAt: new Date(), file: new File([], "catalogo.json"),
-            };
-            setEnvironments(prev => [...prev.filter(e => e.id !== "catalog-products"), productEnv]);
           }}
           resolvedTenantId={resolvedTenantId}
         />
