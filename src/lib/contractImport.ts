@@ -291,6 +291,7 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
 
 const importDocx = async (file: File): Promise<ImportedContractContent> => {
   const arrayBuffer = await file.arrayBuffer();
+  const mammoth = (await import("mammoth")).default;
   const result = await mammoth.convertToHtml({ arrayBuffer });
 
   return {
