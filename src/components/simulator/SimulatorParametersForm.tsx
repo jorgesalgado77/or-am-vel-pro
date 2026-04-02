@@ -205,6 +205,35 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
               </Table>
             </div>
           )}
+
+          {/* Totalizador Geral */}
+          {(environments.filter(e => e.id !== "catalog-products").length > 0 || catalogProducts.length > 0) && (
+            <div className="mt-3 border rounded-md bg-muted/30 px-3 py-2 space-y-1">
+              <div className="flex justify-between text-[11px] text-muted-foreground">
+                <span>Subtotal Importados</span>
+                <span className="tabular-nums font-medium">
+                  {formatCurrency(environments.filter(e => e.id !== "catalog-products").reduce((s, e) => s + (e.totalValue || 0), 0))}
+                </span>
+              </div>
+              {catalogProducts.length > 0 && (
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>Subtotal Catálogo</span>
+                  <span className="tabular-nums font-medium">
+                    {formatCurrency(catalogProducts.reduce((s, i) => s + i.product.sale_price * i.quantity, 0))}
+                  </span>
+                </div>
+              )}
+              <div className="border-t border-border pt-1 flex justify-between text-xs font-semibold text-foreground">
+                <span>Valor de Tela</span>
+                <span className="tabular-nums text-primary">
+                  {formatCurrency(
+                    environments.filter(e => e.id !== "catalog-products").reduce((s, e) => s + (e.totalValue || 0), 0)
+                    + catalogProducts.reduce((s, i) => s + i.product.sale_price * i.quantity, 0)
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Indicador */}
