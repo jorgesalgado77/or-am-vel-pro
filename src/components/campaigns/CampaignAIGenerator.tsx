@@ -13,6 +13,7 @@ import { miaGenerateResponse } from "@/services/mia";
 import { useTenant } from "@/contexts/TenantContext";
 
 export function CampaignAIGenerator() {
+  const { tenantId } = useTenant();
   const [ambiente, setAmbiente] = useState("cozinha");
   const [plataforma, setPlataforma] = useState("instagram");
   const [objetivo, setObjetivo] = useState("captar leads");
