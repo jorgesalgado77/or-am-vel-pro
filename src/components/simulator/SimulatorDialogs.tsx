@@ -65,31 +65,37 @@ interface SimulatorDialogsProps {
 export const SimulatorDialogs = React.memo(function SimulatorDialogs(props: SimulatorDialogsProps) {
   return (
     <>
-      <Dialog open={props.passwordDialogOpen} onOpenChange={props.setPasswordDialogOpen}>
+      <Dialog open={props.passwordDialogOpen} onOpenChange={(open) => {
+        if (!open) props.setPasswordInput("");
+        props.setPasswordDialogOpen(open);
+      }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" />{props.passwordDialogTitle}</DialogTitle>
           </DialogHeader>
-          <div>
-            <Label>Informe a senha para desbloquear</Label>
-            <Input
-              type="password"
-              value={props.passwordInput}
-              onChange={(e) => props.setPasswordInput(e.target.value)}
-              className="mt-1"
-              placeholder="Senha"
-              onKeyDown={(e) => { if (e.key === "Enter") props.onPasswordConfirm(); }}
-              autoFocus
-              autoComplete="off"
-              data-1p-ignore
-              data-lpignore="true"
-              data-form-type="other"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => props.setPasswordDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={props.onPasswordConfirm}>Confirmar</Button>
-          </DialogFooter>
+          <form onSubmit={(e) => { e.preventDefault(); props.onPasswordConfirm(); }} autoComplete="off">
+            <div>
+              <Label>Informe a senha para desbloquear</Label>
+              <Input
+                type="password"
+                value={props.passwordInput}
+                onChange={(e) => props.setPasswordInput(e.target.value)}
+                className="mt-1"
+                placeholder="Senha"
+                autoFocus
+                autoComplete="new-password"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
+                name="unlock-pwd"
+                id="unlock-pwd"
+              />
+            </div>
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => { props.setPasswordInput(""); props.setPasswordDialogOpen(false); }}>Cancelar</Button>
+              <Button type="submit">Confirmar</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
