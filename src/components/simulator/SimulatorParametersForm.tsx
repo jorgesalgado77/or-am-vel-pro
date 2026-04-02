@@ -145,10 +145,10 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
             </Button>
           </div>
           {/* Ambientes Importados */}
-          <div className="mt-2 border rounded-md overflow-hidden">
-            <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
+          <div className="mt-2 border border-blue-200 dark:border-blue-800 rounded-md overflow-hidden">
+            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Ambientes Planejados</span>
+                <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">Ambientes Planejados</span>
                 {detectedSoftware && (
                   <Badge variant="secondary" className="text-[9px] h-5 gap-1 px-1.5 font-semibold">
                     <Cpu className="h-2.5 w-2.5" />
@@ -156,7 +156,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   </Badge>
                 )}
               </div>
-              <span className="text-xs text-muted-foreground">{importedEnvironments.length} arquivo(s)</span>
+              <span className="text-xs text-blue-600/70 dark:text-blue-400/70">{importedEnvironments.length} arquivo(s)</span>
             </div>
             <SimulatorEnvironmentsTable
               environments={importedEnvironments}
