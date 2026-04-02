@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
 import { toast } from "sonner";
