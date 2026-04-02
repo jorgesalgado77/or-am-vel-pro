@@ -208,7 +208,7 @@ export function AppSidebar({
       </nav>
 
       {/* User profile section */}
-      <div className={cn("border-t border-border", collapsed ? "p-2" : "p-3")}>
+      <div className={cn(collapsed ? "p-2" : "p-3")} style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
         <SidebarUserProfile
           currentUser={currentUser}
           onlineUsers={onlineUsers}
