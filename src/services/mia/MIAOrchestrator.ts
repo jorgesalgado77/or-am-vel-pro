@@ -19,6 +19,7 @@ import { getMIAMemoryEngine, type MIAMemoryEngine } from "./MIAMemoryEngine";
 import { getMIAActionEngine } from "./MIAActionEngine";
 import { getMIAActionExecutionEngine, type MIAActionExecutionEngine } from "./ActionExecutionEngine";
 import { getMIALearningEngine, type MIALearningEngine, type MIALearningScore } from "./MIALearningEngine";
+import { getResearchEngine, type ResearchEngine } from "./ResearchEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
 import { OnboardingEngine } from "./engines/OnboardingEngine";
@@ -32,6 +33,7 @@ class MIAOrchestrator {
   private actions = getMIAActionEngine();
   private actionExecution: MIAActionExecutionEngine = getMIAActionExecutionEngine();
   private learning: MIALearningEngine = getMIALearningEngine();
+  private research: ResearchEngine = getResearchEngine();
 
   constructor() {
     // Auto-register all engines
@@ -93,7 +95,40 @@ class MIAOrchestrator {
       }
 
       // Process through engine
-      const response = await engine.process(enrichedRequest);
+      let response = await engine.process(enrichedRequest);
+
+      // Enrich with research if needed (non-blocking on failure)
+      if (request.message && this.research.shouldSearch(request.message)) {
+        try {
+          const researchResult = await this.research.search({
+            query: request.message,
+            tenantId: context.tenant_id,
+            userId: context.user_id,
+            context: `Contexto: ${request.context}`,
+          });
+
+          if (researchResult.summary && researchResult.sources.length > 0) {
+            const sourcesText = researchResult.sources
+              .map((s) => `• [${s.title}](${s.url})`)
+              .join("\n");
+
+            response = {
+              ...response,
+              message: `${response.message}\n\n📊 **Pesquisa de Mercado:**\n${researchResult.summary}\n\n🔗 **Fontes:**\n${sourcesText}`,
+              data: {
+                ...response.data,
+                research: {
+                  summary: researchResult.summary,
+                  sources: researchResult.sources,
+                  cached: researchResult.cached,
+                },
+              },
+            };
+          }
+        } catch {
+          // Research failure is non-critical
+        }
+      }
 
       // Store relevant interaction in memory (non-critical)
       if (request.message && request.message.length > 5) {
@@ -189,6 +224,11 @@ class MIAOrchestrator {
   /** Get the learning engine */
   getLearning() {
     return this.learning;
+  }
+
+  /** Get the research engine */
+  getResearch() {
+    return this.research;
   }
 }
 
