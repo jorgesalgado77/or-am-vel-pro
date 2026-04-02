@@ -813,6 +813,8 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
                 detectedDiscProfile={discProfile}
                 vendazapActive={!!addon?.ativo}
                 onCloseSale={handleCloseSaleFromAI}
+                initialAttachmentUrl={pendingAttachment}
+                onAttachmentHandled={() => setPendingAttachment(null)}
               />
             </div>
               <ChatRightPanel
