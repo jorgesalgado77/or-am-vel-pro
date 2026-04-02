@@ -418,7 +418,7 @@ export function AIStrategyPanel({
                       {scenarios.map((s) => (
                         <Cell
                           key={s.type}
-                          fill={s.type === "conservadora" ? "hsl(152, 60%, 40%)" : s.type === "comercial" ? "hsl(40, 90%, 50%)" : "hsl(0, 70%, 50%)"}
+                          fill={s.type === "conservadora" ? "hsl(152, 60%, 40%)" : s.type === "comercial" ? "hsl(40, 90%, 50%)" : s.type === "extrema" ? "hsl(270, 60%, 50%)" : "hsl(0, 70%, 50%)"}
                         />
                       ))}
                     </Bar>
@@ -426,7 +426,7 @@ export function AIStrategyPanel({
                       {scenarios.map((s) => (
                         <Cell
                           key={s.type}
-                          fill={s.type === "conservadora" ? "hsl(152, 60%, 60%)" : s.type === "comercial" ? "hsl(40, 90%, 70%)" : "hsl(0, 70%, 70%)"}
+                          fill={s.type === "conservadora" ? "hsl(152, 60%, 60%)" : s.type === "comercial" ? "hsl(40, 90%, 70%)" : s.type === "extrema" ? "hsl(270, 60%, 70%)" : "hsl(0, 70%, 70%)"}
                           opacity={0.7}
                         />
                       ))}
