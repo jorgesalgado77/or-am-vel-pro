@@ -147,14 +147,14 @@ export function AppSidebar({
       >
         <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-300", collapsed && "scale-110")} />
         {!collapsed && <span className="truncate">{label}</span>}
-        {!collapsed && itemBadge && typeof itemBadge === "number" && (
+        {!collapsed && effectiveBadge && typeof effectiveBadge === "number" && (
           <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
-            {itemBadge}
+            {effectiveBadge}
           </span>
         )}
-        {!collapsed && itemBadge && typeof itemBadge === "string" && (
+        {!collapsed && effectiveBadge && typeof effectiveBadge === "string" && (
           <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 h-4 font-bold" style={{ backgroundColor: "hsl(var(--sidebar-accent))", color: "hsl(var(--sidebar-primary))" }}>
-            {itemBadge}
+            {effectiveBadge}
           </Badge>
         )}
       </button>
