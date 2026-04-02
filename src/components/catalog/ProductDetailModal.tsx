@@ -444,8 +444,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
       {/* Fullscreen Image Viewer */}
       {viewerImage && <ImageViewer src={viewerImage} onClose={() => setViewerImage(null)} />}
 
-      {/* Fullscreen Video Player */}
-      {viewerVideo && <VideoPlayer url={viewerVideo} onClose={() => setViewerVideo(null)} />}
     </>
   );
 }
