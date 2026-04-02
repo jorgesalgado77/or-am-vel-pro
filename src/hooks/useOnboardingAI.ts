@@ -1609,9 +1609,9 @@ export function useOnboardingAI(tenantId: string | null) {
 
   const savePreferences = useCallback(async (preferences: Record<string, string>) => {
     if (!tenantId) return;
-    await supabase.functions.invoke("onboarding-ai", {
-      body: { action: "save_preferences", tenant_id: tenantId, preferences },
-    });
+    await miaInvoke("onboarding-ai", {
+      action: "save_preferences", tenant_id: tenantId, preferences,
+    }, { tenantId, userId: "system", origin: "onboarding", context: "onboarding" });
     await refreshContext();
   }, [tenantId, refreshContext]);
 
