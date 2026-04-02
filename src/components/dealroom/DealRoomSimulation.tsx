@@ -390,7 +390,7 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
                   return (
                     <Card>
                       <CardContent className="p-2 space-y-1">
-                        <p className="text-[10px] font-semibold text-muted-foreground">Ambientes Importados</p>
+                        <p className="text-[10px] font-semibold text-muted-foreground">Ambientes Planejados</p>
                         {envs.map((env: any, i: number) => (
                           <div key={i} className="flex justify-between text-xs">
                             <span className="truncate max-w-[180px]">{env.environmentName || env.name || env.fileName || "Ambiente"}</span>

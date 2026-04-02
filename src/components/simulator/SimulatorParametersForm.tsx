@@ -242,7 +242,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   {formatCurrency(importedSubtotal)} + {formatCurrency(catalogSubtotal)}
                 </p>
                 <span className="sr-only">
-                  Subtotal Importados mais Subtotal Catálogo igual ao Valor de Tela
+                  Subtotal Planejados mais Subtotal Catálogo igual ao Valor de Tela
                 </span>
               </div>
             </div>
