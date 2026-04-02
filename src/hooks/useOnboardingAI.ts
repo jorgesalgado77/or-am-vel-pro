@@ -1489,9 +1489,9 @@ export function useOnboardingAI(tenantId: string | null) {
 
   const chatWithAI = useCallback(async (tid: string, chatMessages: { role: string; content: string }[]) => {
     try {
-      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
-        body: { action: "chat", tenant_id: tid, messages: chatMessages },
-      });
+      const { data, error } = await miaInvoke("onboarding-ai", {
+          action: "chat", tenant_id: tid, messages: chatMessages,
+        }, { tenantId: tid, userId: "system", origin: "onboarding", context: "onboarding" });
 
       if (error) throw error;
 
