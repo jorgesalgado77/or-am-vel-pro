@@ -355,7 +355,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
 
           <SimulatorResultCard
             valorTela={valorTela} valorTelaComComissao={valorTelaComComissao}
-            comissaoPercentual={comissaoPercentual} hideIndicador={hideIndicador}
+            comissaoPercentual={comissaoPercentual} hideIndicador={hideIndicador} plusPercentual={plusPercentual}
             result={result} valorEntrada={valorEntrada} parcelas={parcelas}
             showParcelas={rates.showParcelas} showCarencia={rates.showCarencia} carenciaDias={carenciaDias}
             saving={actions.saving} closingSale={actions.closingSale} hasClient={!!effectiveClient}
