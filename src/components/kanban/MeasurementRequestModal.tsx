@@ -807,7 +807,7 @@ export function MeasurementRequestModal({
               };
             });
 
-            nextImportedFiles = parsed
+            nextImportedFiles = envArray
               .filter((e: any) => e.fileUrl && e.fileName)
               .map((e: any) => ({
                 name: e.fileName,
