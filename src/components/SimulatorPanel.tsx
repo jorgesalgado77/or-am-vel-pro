@@ -10,6 +10,7 @@ import { useConversionHistory } from "@/hooks/useConversionHistory";
 
 import { calculateSimulation, formatCurrency, type FormaPagamento, type SimulationInput } from "@/lib/financing";
 import { supabase } from "@/lib/supabaseClient";
+import { parseArquivoNome } from "@/lib/parseArquivoNome";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useDiscountOptions } from "@/hooks/useDiscountOptions";
