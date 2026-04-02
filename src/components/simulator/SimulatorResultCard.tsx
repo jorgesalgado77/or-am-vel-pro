@@ -25,6 +25,7 @@ interface SimulatorResultCardProps {
   valorTelaComComissao: number;
   comissaoPercentual: number;
   hideIndicador: boolean;
+  plusPercentual: number;
   result: {
     valorComDesconto: number;
     valorFinal: number;
