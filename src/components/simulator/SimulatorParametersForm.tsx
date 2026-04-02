@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, X } from "lucide-react";
+import { Lock, LockOpen, Upload, EyeOff, Eye, FolderOpen, Cpu, Package, X, CircleDollarSign } from "lucide-react";
 import { SimulatorEnvironmentsTable, type ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
 import { formatCurrency, type FormaPagamento } from "@/lib/financing";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
@@ -97,6 +97,11 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   VALOR_TELA_MAX, VALOR_ENTRADA_MAX,
   catalogProducts, onUpdateCatalogProductQty, onRemoveCatalogProduct,
 }: SimulatorParametersFormProps) {
+  const importedEnvironments = environments.filter((environment) => environment.id !== "catalog-products");
+  const importedSubtotal = importedEnvironments.reduce((sum, environment) => sum + (environment.totalValue || 0), 0);
+  const catalogSubtotal = catalogProducts.reduce((sum, item) => sum + item.product.sale_price * item.quantity, 0);
+  const showTotals = importedEnvironments.length > 0 || catalogProducts.length > 0;
+
   return (
     <Card>
       <CardHeader className="pb-4">
@@ -150,10 +155,10 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   </Badge>
                 )}
               </div>
-              <span className="text-xs text-muted-foreground">{environments.filter(e => e.id !== "catalog-products").length} arquivo(s)</span>
+              <span className="text-xs text-muted-foreground">{importedEnvironments.length} arquivo(s)</span>
             </div>
             <SimulatorEnvironmentsTable
-              environments={environments.filter(e => e.id !== "catalog-products")}
+              environments={importedEnvironments}
               onUpdateName={(id, name) => setEnvironments((prev) => prev.map((item) => item.id === id ? { ...item, environmentName: name } : item))}
               onRemove={onRemoveEnvironment}
               canDelete={canDeleteEnvironment}
@@ -207,29 +212,37 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
           )}
 
           {/* Totalizador Geral */}
-          {(environments.filter(e => e.id !== "catalog-products").length > 0 || catalogProducts.length > 0) && (
-            <div className="mt-3 border rounded-md bg-muted/30 px-3 py-2 space-y-1">
+          {showTotals && (
+            <div className="mt-3 rounded-md border bg-muted/30 px-3 py-3 space-y-2">
               <div className="flex justify-between text-[11px] text-muted-foreground">
                 <span>Subtotal Importados</span>
                 <span className="tabular-nums font-medium">
-                  {formatCurrency(environments.filter(e => e.id !== "catalog-products").reduce((s, e) => s + (e.totalValue || 0), 0))}
+                  {formatCurrency(importedSubtotal)}
                 </span>
               </div>
               {catalogProducts.length > 0 && (
                 <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>Subtotal Catálogo</span>
                   <span className="tabular-nums font-medium">
-                    {formatCurrency(catalogProducts.reduce((s, i) => s + i.product.sale_price * i.quantity, 0))}
+                    {formatCurrency(catalogSubtotal)}
                   </span>
                 </div>
               )}
-              <div className="border-t border-border pt-1 flex justify-between text-xs font-semibold text-foreground">
-                <span>Valor de Tela</span>
-                <span className="tabular-nums text-primary">
-                  {formatCurrency(
-                    environments.filter(e => e.id !== "catalog-products").reduce((s, e) => s + (e.totalValue || 0), 0)
-                    + catalogProducts.reduce((s, i) => s + i.product.sale_price * i.quantity, 0)
-                  )}
+              <div className="rounded-md border border-primary/20 bg-primary/10 px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                    <CircleDollarSign className="h-3.5 w-3.5" />
+                    Valor de Tela
+                  </span>
+                  <span className="tabular-nums text-sm font-bold text-primary">
+                    {formatCurrency(importedSubtotal + catalogSubtotal)}
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {formatCurrency(importedSubtotal)} + {formatCurrency(catalogSubtotal)}
+                </p>
+                <span className="sr-only">
+                  Subtotal Importados mais Subtotal Catálogo igual ao Valor de Tela
                 </span>
               </div>
             </div>
