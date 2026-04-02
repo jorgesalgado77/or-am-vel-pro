@@ -66,6 +66,8 @@ interface AIStrategyPanelProps {
   calculateResult: (strategy: StrategyParams) => CalculatedResult;
   canAccess: boolean;
   historicalConversionRate?: number;
+  onRequestExtremaUnlock?: (scenario: StrategyParams, callback: () => void) => void;
+  extremaUnlocked?: boolean;
 }
 
 // calculateClosingProbability now delegated to CommercialDecisionEngine
