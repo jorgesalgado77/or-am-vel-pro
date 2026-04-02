@@ -4,6 +4,10 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TenantProvider, AuthProvider } from "@/modules/auth";
+import { initializeTheme } from "@/lib/colorThemes";
+
+// Initialize color theme from localStorage on app boot
+initializeTheme();
 
 const Index = lazy(() => import("./pages/Index.tsx"));
 const Admin = lazy(() => import("./pages/Admin.tsx"));
