@@ -29,6 +29,7 @@ class MIAOrchestrator {
   private engines: Map<MIAContextType, MIAEngineInterface> = new Map();
   private memory: MIAMemoryEngine = getMIAMemoryEngine();
   private actions = getMIAActionEngine();
+  private actionExecution: MIAActionExecutionEngine = getMIAActionExecutionEngine();
 
   constructor() {
     // Auto-register all engines
