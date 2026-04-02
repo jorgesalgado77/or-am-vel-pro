@@ -319,9 +319,10 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
     const match = conversations.find((conversation) => conversation.client_id === initialClientId);
     if (match) {
       setSelected(match);
+      if (initialAttachmentUrl) setPendingAttachment(initialAttachmentUrl);
       onInitialClientHandled?.();
     }
-  }, [initialClientId, conversations, onInitialClientHandled]);
+  }, [initialClientId, initialAttachmentUrl, conversations, onInitialClientHandled]);
 
   const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
     if (!addon?.ativo) return;
