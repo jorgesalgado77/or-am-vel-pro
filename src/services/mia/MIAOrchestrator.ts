@@ -95,7 +95,40 @@ class MIAOrchestrator {
       }
 
       // Process through engine
-      const response = await engine.process(enrichedRequest);
+      let response = await engine.process(enrichedRequest);
+
+      // Enrich with research if needed (non-blocking on failure)
+      if (request.message && this.research.shouldSearch(request.message)) {
+        try {
+          const researchResult = await this.research.search({
+            query: request.message,
+            tenantId: context.tenant_id,
+            userId: context.user_id,
+            context: `Contexto: ${request.context}`,
+          });
+
+          if (researchResult.summary && researchResult.sources.length > 0) {
+            const sourcesText = researchResult.sources
+              .map((s) => `• [${s.title}](${s.url})`)
+              .join("\n");
+
+            response = {
+              ...response,
+              message: `${response.message}\n\n📊 **Pesquisa de Mercado:**\n${researchResult.summary}\n\n🔗 **Fontes:**\n${sourcesText}`,
+              data: {
+                ...response.data,
+                research: {
+                  summary: researchResult.summary,
+                  sources: researchResult.sources,
+                  cached: researchResult.cached,
+                },
+              },
+            };
+          }
+        } catch {
+          // Research failure is non-critical
+        }
+      }
 
       // Store relevant interaction in memory (non-critical)
       if (request.message && request.message.length > 5) {
