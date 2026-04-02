@@ -288,8 +288,7 @@ export function useVendaZap(tenantId: string | null) {
         } catch { /* silent — learning context is optional */ }
       }
 
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           ...params,
           tenant_id: tenantId,
           prompt_sistema: addon.prompt_sistema,
@@ -297,13 +296,16 @@ export function useVendaZap(tenantId: string | null) {
           openai_model: addon.openai_model,
           max_tokens: addon.max_tokens_mensagem,
           learning_context: learningCtx,
-          // CDE enrichment — AI uses these for strategic messaging
           cde_tipo_copy: cdeContext.tipo_copy,
           cde_tom: cdeContext.tom,
           cde_disc_profile: cdeContext.disc_profile,
           cde_valor_orcamento: cdeContext.valor_orcamento,
-        },
-      });
+        }, {
+          tenantId,
+          userId: params.usuario_id || "system",
+          origin: "chat",
+          context: "vendazap",
+        });
 
       if (error) {
         const errorMessage = typeof error.message === "string" ? error.message : "Erro ao gerar mensagem.";
