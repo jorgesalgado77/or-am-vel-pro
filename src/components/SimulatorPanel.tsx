@@ -383,8 +383,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                 const r = calculateSimulation(input);
                 return { valorComDesconto: r.valorComDesconto, valorFinal: r.valorFinal, valorParcela: r.valorParcela, saldo: r.saldo };
               }}
-              canAccess={(() => { const cargo = currentUser?.cargo_nome?.toUpperCase() || ""; return cargo.includes("ADMIN") || cargo.includes("GERENTE") || cargo.includes("PROJETISTA"); })()}
+              canAccess={(() => { const cargo = currentUser?.cargo_nome?.toUpperCase() || ""; return cargo.includes("ADMIN") || cargo.includes("GERENTE") || cargo.includes("PROJETISTA") || cargo.includes("VENDEDOR"); })()}
               historicalConversionRate={conversionStats.conversionRate}
+              onRequestExtremaUnlock={requestExtremaUnlock}
+              extremaUnlocked={!isVendedorOrProjetista || extremaLocked}
             />
           </Suspense>
 
