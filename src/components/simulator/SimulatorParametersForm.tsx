@@ -437,11 +437,12 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
             <Label className="flex items-center gap-1">
               Desconto Plus (%)
               {!plusUnlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
-              {plusUnlocked && <LockOpen className="h-3 w-3 text-success" />}
+              {plusUnlocked && !extremaLocked && <LockOpen className="h-3 w-3 text-success" />}
+              {extremaLocked && <Lock className="h-3 w-3 text-amber-500" />}
             </Label>
             {plusUnlocked ? (
-              <Select value={String(plusPercentual)} onValueChange={(v) => setPlusPercentual(Number(v))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <Select value={String(plusPercentual)} onValueChange={(v) => setPlusPercentual(Number(v))} disabled={!!extremaLocked}>
+                <SelectTrigger className={`mt-1 ${extremaLocked ? "opacity-70" : ""}`}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {getOptionsForField("plus").map((v) => (
                     <SelectItem key={v} value={String(v)}>{v}%</SelectItem>
