@@ -31,6 +31,7 @@ class MIAOrchestrator {
   private memory: MIAMemoryEngine = getMIAMemoryEngine();
   private actions = getMIAActionEngine();
   private actionExecution: MIAActionExecutionEngine = getMIAActionExecutionEngine();
+  private learning: MIALearningEngine = getMIALearningEngine();
 
   constructor() {
     // Auto-register all engines
