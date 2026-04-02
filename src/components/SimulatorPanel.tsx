@@ -436,9 +436,28 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             if (sim.plus_percentual > 0) setPlusUnlocked(true);
             if (sim.arquivo_nome) {
               try {
-                const envs = JSON.parse(sim.arquivo_nome);
-                if (Array.isArray(envs) && envs.length > 0) {
-                  setEnvironments(envs.map((e: any) => ({
+                const parsed = JSON.parse(sim.arquivo_nome);
+                // New format: { environments: [...], catalogProducts: [...] }
+                if (parsed && !Array.isArray(parsed) && parsed.environments) {
+                  const envs = parsed.environments;
+                  if (Array.isArray(envs) && envs.length > 0) {
+                    setEnvironments(envs.map((e: any) => ({
+                      id: e.id || crypto.randomUUID(), fileName: e.fileName || e.name || "",
+                      environmentName: e.environmentName || e.name || "", pieceCount: e.pieceCount || 0,
+                      totalValue: e.totalValue || Number(e.value) || 0, importedAt: new Date(e.importedAt || Date.now()),
+                      file: new File([], e.fileName || ""),
+                    })));
+                  }
+                  // Restore catalog products
+                  if (Array.isArray(parsed.catalogProducts) && parsed.catalogProducts.length > 0) {
+                    setCatalogProducts(parsed.catalogProducts.map((cp: any) => ({
+                      product: { id: cp.product_id, internal_code: cp.internal_code, name: cp.name, sale_price: cp.sale_price },
+                      quantity: cp.quantity,
+                    })));
+                  }
+                } else if (Array.isArray(parsed) && parsed.length > 0) {
+                  // Legacy format: plain array of environments
+                  setEnvironments(parsed.map((e: any) => ({
                     id: e.id || crypto.randomUUID(), fileName: e.fileName || e.name || "",
                     environmentName: e.environmentName || e.name || "", pieceCount: e.pieceCount || 0,
                     totalValue: e.totalValue || Number(e.value) || 0, importedAt: new Date(e.importedAt || Date.now()),
