@@ -236,6 +236,7 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="7d">Últimos 7 dias</SelectItem>
                   <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                  <SelectItem value="prev_month">Mês anterior</SelectItem>
                   <SelectItem value="90d">Últimos 90 dias</SelectItem>
                 </SelectContent>
               </Select>
