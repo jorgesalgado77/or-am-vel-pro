@@ -65,7 +65,7 @@ interface SimulatorStoredState {
   desconto3Unlocked: boolean; plusUnlocked: boolean;
   hideIndicador: boolean; extremaLocked: boolean;
   selectedBoletoProvider: string; selectedCreditoProvider: string;
-  linkedClientId: string;
+  linkedClientId: string; activeStrategy: string;
   environments: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string }>;
   catalogProducts?: Array<{ product: { id: string; internal_code: string; name: string; description: string; category: string; sale_price: number; stock_status: string; image_url?: string }; quantity: number }>;
 }
