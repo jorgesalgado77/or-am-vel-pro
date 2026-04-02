@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Search, Check, ShoppingCart, Ruler } from "lucide-react";
+import { Package, Search, Check, ShoppingCart, Ruler, Eye } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
+import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
+import type { Product } from "@/hooks/useProductCatalog";
 
 export interface CatalogProduct {
   id: string;
