@@ -196,7 +196,7 @@ export function AppSidebar({
             <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} badge={item.badge} />
           ))}
 
-        <div className="pt-2 border-t border-border mx-1 space-y-0.5 mt-4">
+        <div className="pt-2 mx-1 space-y-0.5 mt-4" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
           {hasPermission("divulgue_ganhe") && <NavButton label="Divulgue e Ganhe" icon={Gift} badge="NOVO" onClick={() => navigate("/afiliado")} />}
           {bottomItems.filter(i => i.show).map((item) => (
             <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} badge={item.badge} />
