@@ -200,15 +200,18 @@ export function ArgumentBankTab() {
     if (!form.argumento.trim()) { toast.error("Digite um argumento primeiro"); return; }
     setImprovingArg(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           messages: [
             { role: "system", content: "Você é um especialista em vendas de móveis planejados. Melhore o argumento de venda para ser mais convincente, com linguagem persuasiva e técnica. Retorne APENAS o argumento melhorado, sem explicações, aspas ou prefixos. Máximo 500 caracteres." },
             { role: "user", content: form.argumento },
           ],
           max_tokens: 300,
-        },
-      });
+        }, {
+          tenantId: getTenantId() || "",
+          userId: "system",
+          origin: "chat",
+          context: "argument",
+        });
       if (error) throw error;
       const improved = (data?.reply || "").trim();
       if (improved) { setForm(f => ({ ...f, argumento: improved })); toast.success("Argumento melhorado!"); }
