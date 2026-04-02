@@ -10,12 +10,13 @@ import {Calendar} from "@/components/ui/calendar";
 import {ScrollArea} from "@/components/ui/scroll-area";
 import {Progress} from "@/components/ui/progress";
 import {Badge} from "@/components/ui/badge";
-import {Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin} from "lucide-react";
+import {Save, Upload, CalendarIcon, Eye, EyeOff, Facebook, Instagram, Linkedin, Palette, RotateCcw, Check} from "lucide-react";
 import {cn} from "@/lib/utils";
 import {format} from "date-fns";
 import {supabase} from "@/lib/supabaseClient";
 import {useAuth} from "@/contexts/AuthContext";
 import {toast} from "sonner";
+import {COLOR_THEMES, getStoredThemeId, applyTheme, type ColorTheme} from "@/lib/colorThemes";
 
 // TikTok icon
 function TikTokIcon({ className }: { className?: string }) {
@@ -77,6 +78,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const [showPass, setShowPass] = useState(false);
   const [birthDate, setBirthDate] = useState<Date | undefined>();
   const [triedSave, setTriedSave] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState(getStoredThemeId);
 
   const [form, setForm] = useState<ProfileData>({
     nome_completo: "", apelido: "", email: "", telefone: "", telefone_whatsapp: "",
@@ -526,6 +528,59 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                   <Label className="flex items-center gap-2"><Linkedin className="h-4 w-4 text-blue-700" /> LinkedIn</Label>
                   <Input value={form.linkedin} onChange={(e) => handleChange("linkedin", e.target.value)} className="mt-1" placeholder="https://linkedin.com/in/seu-perfil" />
                 </div>
+              </div>
+            </div>
+
+            {/* Color Theme */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Palette className="h-4 w-4 text-primary" />
+                Tema de Cores
+              </h3>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {COLOR_THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    onClick={() => {
+                      setSelectedTheme(theme.id);
+                      applyTheme(theme.id);
+                      toast.success(`Tema "${theme.name}" aplicado!`);
+                    }}
+                    className={cn(
+                      "relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all hover:scale-105",
+                      selectedTheme === theme.id
+                        ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                        : "border-border hover:border-muted-foreground/40"
+                    )}
+                    title={theme.name}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full shadow-sm border border-black/10"
+                      style={{ backgroundColor: theme.preview }}
+                    />
+                    {selectedTheme === theme.id && (
+                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                      </div>
+                    )}
+                    <span className="text-[9px] text-muted-foreground leading-tight text-center truncate w-full">{theme.name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs text-muted-foreground"
+                  onClick={() => {
+                    setSelectedTheme("default");
+                    applyTheme("default");
+                    toast.success("Tema padrão restaurado!");
+                  }}
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Restaurar Padrão
+                </Button>
               </div>
             </div>
 

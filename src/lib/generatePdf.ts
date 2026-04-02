@@ -38,6 +38,8 @@ interface SimulationPdfData {
   valorFinal: number;
   valorParcela: number;
   date?: string;
+  ambientes?: Array<{ environmentName: string; pieceCount: number; totalValue: number }>;
+  catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
 }
 
 function buildHtml(data: SimulationPdfData): string {
@@ -115,6 +117,30 @@ function buildHtml(data: SimulationPdfData): string {
       ${data.indicadorEmail ? `<div class="field"><div class="field-label">Email Indicador</div><div class="field-value">${data.indicadorEmail}</div></div>` : ""}
     </div>
   </div>
+
+  ${data.ambientes && data.ambientes.length > 0 ? `
+  <div class="section">
+    <div class="section-title">Composição — Ambientes Planejados</div>
+    <table>
+      <thead><tr><th>Ambiente</th><th class="value-col">Peças</th><th class="value-col">Valor</th></tr></thead>
+      <tbody>
+        ${data.ambientes.map(a => `<tr><td>${a.environmentName}</td><td class="value-col">${a.pieceCount}</td><td class="value-col">${formatCurrency(a.totalValue)}</td></tr>`).join("")}
+        <tr style="font-weight:600;border-top:2px solid #e2e8f0;"><td>Subtotal Planejados</td><td></td><td class="value-col">${formatCurrency(data.ambientes.reduce((s, a) => s + a.totalValue, 0))}</td></tr>
+      </tbody>
+    </table>
+  </div>` : ""}
+
+  ${data.catalogProducts && data.catalogProducts.length > 0 ? `
+  <div class="section">
+    <div class="section-title">Composição — Produtos do Catálogo</div>
+    <table>
+      <thead><tr><th>Código</th><th>Produto</th><th class="value-col">Qtd</th><th class="value-col">Valor Unit.</th><th class="value-col">Total</th></tr></thead>
+      <tbody>
+        ${data.catalogProducts.map(p => `<tr><td style="font-family:monospace;font-size:11px;">${p.internal_code}</td><td>${p.name}</td><td class="value-col">${p.quantity}</td><td class="value-col">${formatCurrency(p.sale_price)}</td><td class="value-col">${formatCurrency(p.sale_price * p.quantity)}</td></tr>`).join("")}
+        <tr style="font-weight:600;border-top:2px solid #e2e8f0;"><td colspan="4" style="text-align:right;">Subtotal Catálogo</td><td class="value-col">${formatCurrency(data.catalogProducts.reduce((s, p) => s + p.sale_price * p.quantity, 0))}</td></tr>
+      </tbody>
+    </table>
+  </div>` : ""}
 
   <div class="section">
     <div class="section-title">Resumo da Simulação</div>
