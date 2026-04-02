@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Download, X, Loader2, MessageCircle } from "lucide-react";
-import { useRef, useEffect, useState } from "react";
+import { Printer, Download, X, Loader2, MessageCircle, AlertTriangle } from "lucide-react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 
 interface PdfPreviewModalProps {
@@ -15,60 +15,92 @@ interface PdfPreviewModalProps {
 export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId }: PdfPreviewModalProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState(false);
+  const [fetching, setFetching] = useState(false);
 
   // Convert signed URL to blob URL for iframe compatibility
   useEffect(() => {
-    if (!pdfUrl || !open) { setBlobUrl(null); return; }
-    let revoked = false;
+    if (!pdfUrl || !open) {
+      setBlobUrl(null);
+      setFetchError(false);
+      return;
+    }
+
+    let cancelled = false;
+    setFetching(true);
+    setFetchError(false);
+
     (async () => {
       try {
         const res = await fetch(pdfUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        if (!revoked) setBlobUrl(url);
-        else URL.revokeObjectURL(url);
-      } catch {
-        if (!revoked) setBlobUrl(pdfUrl);
+        if (blob.size === 0) throw new Error("Empty blob");
+        const url = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+        if (!cancelled) {
+          setBlobUrl(url);
+          setFetching(false);
+        } else {
+          URL.revokeObjectURL(url);
+        }
+      } catch (err) {
+        console.error("PDF fetch error:", err);
+        if (!cancelled) {
+          setFetchError(true);
+          setFetching(false);
+          // Fallback: try using the URL directly
+          setBlobUrl(pdfUrl);
+        }
       }
     })();
+
     return () => {
-      revoked = true;
-      if (blobUrl?.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
+      cancelled = true;
+      setBlobUrl(prev => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfUrl, open]);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.print();
+      try {
+        iframeRef.current.contentWindow.print();
+      } catch {
+        // Cross-origin fallback: open in new window to print
+        if (blobUrl) window.open(blobUrl, "_blank");
+      }
     }
-  };
+  }, [blobUrl]);
 
-  const handleDownload = () => {
-    if (!pdfUrl) return;
+  const handleDownload = useCallback(() => {
+    if (!pdfUrl && !blobUrl) return;
     const a = document.createElement("a");
-    a.href = blobUrl || pdfUrl;
+    a.href = blobUrl || pdfUrl!;
     a.download = "orcamento.pdf";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  };
+  }, [pdfUrl, blobUrl]);
 
-  const handleOpenChat = () => {
+  const handleOpenChat = useCallback(() => {
     if (!clientId) {
       toast.error("Nenhum cliente vinculado à simulação");
       return;
     }
-    // Close modal first
     onOpenChange(false);
-    // Navigate to Chat de Vendas with client selected and PDF URL
     window.dispatchEvent(
       new CustomEvent("open-vendazap-chat-client", {
         detail: { clientId, attachmentUrl: pdfUrl },
       })
     );
     toast.success("Abrindo Chat de Vendas com o cliente...");
-  };
+  }, [clientId, onOpenChange, pdfUrl]);
+
+  const isLoading = loading || fetching;
+  const showPdf = blobUrl && !isLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -83,21 +115,35 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
         </DialogHeader>
 
         <div className="flex-1 min-h-0 px-6">
-          {loading && !blobUrl ? (
+          {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="ml-3 text-muted-foreground">Gerando PDF...</span>
             </div>
-          ) : blobUrl ? (
-            <iframe
-              ref={iframeRef}
-              src={blobUrl}
+          ) : showPdf ? (
+            <object
+              data={blobUrl + "#toolbar=1&navpanes=0&view=FitH"}
+              type="application/pdf"
               className="w-full h-full rounded-md border"
               title="PDF Preview"
-            />
+            >
+              {/* Fallback: iframe for browsers that don't support object for PDF */}
+              <iframe
+                ref={iframeRef}
+                src={blobUrl + "#toolbar=1&navpanes=0"}
+                className="w-full h-full rounded-md border"
+                title="PDF Preview"
+              />
+            </object>
           ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              Erro ao carregar PDF.
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+              <AlertTriangle className="h-8 w-8 text-yellow-500" />
+              <p>Não foi possível carregar o PDF no visualizador.</p>
+              {pdfUrl && (
+                <Button variant="outline" size="sm" onClick={() => window.open(pdfUrl, "_blank")}>
+                  Abrir em nova aba
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -110,15 +156,15 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
             <Button
               variant="outline"
               onClick={handleOpenChat}
-              disabled={!blobUrl || loading || !clientId}
+              disabled={isLoading || !clientId}
               className="gap-2 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
             >
               <MessageCircle className="h-4 w-4" /> WhatsApp
             </Button>
-            <Button variant="outline" onClick={handleDownload} disabled={!blobUrl || loading} className="gap-2">
+            <Button variant="outline" onClick={handleDownload} disabled={!showPdf && !pdfUrl} className="gap-2">
               <Download className="h-4 w-4" /> Baixar
             </Button>
-            <Button onClick={handlePrint} disabled={!blobUrl || loading} className="gap-2">
+            <Button onClick={handlePrint} disabled={!showPdf} className="gap-2">
               <Printer className="h-4 w-4" /> Imprimir
             </Button>
           </div>

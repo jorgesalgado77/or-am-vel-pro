@@ -1,4 +1,4 @@
-import mammoth from "mammoth";
+// mammoth is dynamically imported to reduce initial bundle size
 
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -291,6 +291,7 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
 
 const importDocx = async (file: File): Promise<ImportedContractContent> => {
   const arrayBuffer = await file.arrayBuffer();
+  const mammoth = (await import("mammoth")).default;
   const result = await mammoth.convertToHtml({ arrayBuffer });
 
   return {
