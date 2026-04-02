@@ -49,6 +49,7 @@ import { useApiKeyHealthCheck } from "@/hooks/useApiKeyHealthCheck";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAIConversionAlerts } from "@/hooks/useAIConversionAlerts";
 import type { Database } from "@/integrations/supabase/types";
+import { parseArquivoNome } from "@/lib/parseArquivoNome";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
