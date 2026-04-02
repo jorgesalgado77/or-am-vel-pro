@@ -62,7 +62,7 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
   switch (formaPagamento) {
     case 'A vista':
     case 'Pix': {
-      valorFinal = saldo * (1 - plusPercentual / 100);
+      valorFinal = saldo;
       valorParcela = valorFinal;
       break;
     }
