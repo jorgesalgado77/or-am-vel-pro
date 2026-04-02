@@ -205,6 +205,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
               </Table>
             </div>
           )}
+        </div>
 
         {/* Indicador */}
         <div>
