@@ -17,6 +17,7 @@ import type {
 import { buildContext } from "./ContextBuilder";
 import { getMIAMemoryEngine, type MIAMemoryEngine } from "./MIAMemoryEngine";
 import { getMIAActionEngine } from "./MIAActionEngine";
+import { getMIAActionExecutionEngine, type MIAActionExecutionEngine } from "./ActionExecutionEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
 import { OnboardingEngine } from "./engines/OnboardingEngine";
@@ -28,6 +29,7 @@ class MIAOrchestrator {
   private engines: Map<MIAContextType, MIAEngineInterface> = new Map();
   private memory: MIAMemoryEngine = getMIAMemoryEngine();
   private actions = getMIAActionEngine();
+  private actionExecution: MIAActionExecutionEngine = getMIAActionExecutionEngine();
 
   constructor() {
     // Auto-register all engines
@@ -110,10 +112,14 @@ class MIAOrchestrator {
         }
       }
 
-      // Execute actions if any
+      // Execute actions via ActionExecutionEngine (with audit + permissions)
       if (response.actions && response.actions.length > 0) {
         try {
-          await this.actions.executeActions(response.actions);
+          await this.actionExecution.executeActions(
+            response.actions,
+            context.tenant_id,
+            context.user_id
+          );
         } catch (e) {
           console.warn("[MIAOrchestrator] Action execution failed:", e);
         }
@@ -150,9 +156,14 @@ class MIAOrchestrator {
     return this.memory;
   }
 
-  /** Get the action engine for registering handlers */
+  /** Get the legacy action engine */
   getActions() {
     return this.actions;
+  }
+
+  /** Get the action execution engine (with permissions + audit) */
+  getActionExecution() {
+    return this.actionExecution;
   }
 }
 

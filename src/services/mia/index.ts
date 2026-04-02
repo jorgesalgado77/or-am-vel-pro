@@ -1,8 +1,7 @@
 /**
  * MIA Core — Unified AI Intelligence Module
  *
- * Phase 2: Real engine integration with edge functions.
- * Includes adapter for progressive integration with fallback.
+ * Phase 4: ActionExecutionEngine with permissions, confirmation, and audit.
  */
 
 // Core
@@ -11,6 +10,8 @@ export { buildContext } from "./ContextBuilder";
 export { MIAMemoryEngine, getMIAMemoryEngine } from "./MIAMemoryEngine";
 export type { MIAMemoryType, MIAMemoryEntry as MIAMemoryRecord } from "./MIAMemoryEngine";
 export { MIAActionEngine, getMIAActionEngine } from "./MIAActionEngine";
+export { MIAActionExecutionEngine, getMIAActionExecutionEngine } from "./ActionExecutionEngine";
+export type { MIAActionExecutionRequest, MIAActionExecutionResult, MIAActionStatus } from "./ActionExecutionEngine";
 export { miaGenerateResponse } from "./MIAAdapter";
 
 // Engines
@@ -25,6 +26,7 @@ export { ArgumentEngine } from "./engines/ArgumentEngine";
 export type {
   MIAOrigin,
   MIAContextType,
+  MIAActionType,
   MIAMessage,
   MIARequest,
   MIAResponseType,

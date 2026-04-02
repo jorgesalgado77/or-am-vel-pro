@@ -53,13 +53,27 @@ export interface MIARequest {
 
 // ── Response ────────────────────────────────────────────────────
 
-export type MIAResponseType = "text" | "action" | "navigation";
+export type MIAResponseType = "text" | "action" | "navigation" | "action_confirmation";
+
+export type MIAActionType =
+  | "navigate"
+  | "create_task"
+  | "save_config"
+  | "send_message"
+  | "open_modal"
+  | "create_client"
+  | "open_simulator"
+  | "generate_budget"
+  | "update_config"
+  | "custom";
 
 export interface MIAAction {
-  type: "navigate" | "create_task" | "save_config" | "send_message" | "open_modal" | "custom";
+  type: MIAActionType;
   target: string;
   payload?: Record<string, unknown>;
   label?: string;
+  /** If true, requires user confirmation before execution */
+  requiresConfirmation?: boolean;
 }
 
 export interface MIAResponse {
