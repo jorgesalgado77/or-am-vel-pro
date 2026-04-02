@@ -212,9 +212,9 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
 
       if (resolvedTenantId) {
         const totalDiscount = 100 - (100 * (1 - desconto1/100) * (1 - desconto2/100) * (1 - desconto3/100));
-        const learnTable = supabase.from("ai_learning_events" as unknown as "clients");
-        void (learnTable as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
-          .insert([{ tenant_id: resolvedTenantId, user_id: currentUser?.id || null, client_id: clientId, event_type: "proposal_sent", price_offered: result.valorFinal, discount_percentage: Math.round(totalDiscount * 100) / 100, strategy_used: "consultiva", metadata: { valor_tela: valorTela, forma_pagamento: formaPagamento, parcelas } }]).catch((err: unknown) => console.warn("[Simulator] learning event error:", err));
+        void supabase.from("ai_learning_events" as unknown as "clients")
+          .insert([{ tenant_id: resolvedTenantId, user_id: currentUser?.id || null, client_id: clientId, event_type: "proposal_sent", price_offered: result.valorFinal, discount_percentage: Math.round(totalDiscount * 100) / 100, strategy_used: "consultiva", metadata: { valor_tela: valorTela, forma_pagamento: formaPagamento, parcelas } } as any])
+          .then(({ error: learnErr }) => { if (learnErr) console.warn("[Simulator] learning event error:", learnErr); });
       }
       if (!client) {
         setShowClientForm(false);
