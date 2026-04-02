@@ -11,6 +11,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { getMIAMemoryEngine } from "./MIAMemoryEngine";
+import { getMIALearningEngine } from "./MIALearningEngine";
 import type { MIAContextType, MIAOrigin } from "./types";
 
 interface MIAInvokeOptions {
