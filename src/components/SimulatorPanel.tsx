@@ -567,7 +567,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           resolvedTenantId={resolvedTenantId}
         />
       </Suspense>
-      <PdfPreviewModal open={pdfModalOpen} onOpenChange={setPdfModalOpen} pdfUrl={pdfUrl} loading={pdfLoading} />
+      <PdfPreviewModal open={pdfModalOpen} onOpenChange={setPdfModalOpen} pdfUrl={pdfUrl} loading={pdfLoading} clientId={effectiveClient?.id} />
     </div>
   );
 }

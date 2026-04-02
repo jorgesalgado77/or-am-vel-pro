@@ -143,13 +143,25 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
     if (dateFilter !== "all") {
       const now = new Date();
       let cutoff: Date;
+      let cutoffEnd: Date | null = null;
       switch (dateFilter) {
         case "7d": cutoff = new Date(now.getTime() - 7 * 86400000); break;
         case "30d": cutoff = new Date(now.getTime() - 30 * 86400000); break;
         case "90d": cutoff = new Date(now.getTime() - 90 * 86400000); break;
+        case "prev_month": {
+          const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const firstOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          cutoff = firstOfPrevMonth;
+          cutoffEnd = firstOfThisMonth;
+          break;
+        }
         default: cutoff = new Date(0);
       }
-      list = list.filter(s => new Date(s.created_at) >= cutoff);
+      list = list.filter(s => {
+        const d = new Date(s.created_at);
+        if (cutoffEnd) return d >= cutoff && d < cutoffEnd;
+        return d >= cutoff;
+      });
     }
 
     return list;

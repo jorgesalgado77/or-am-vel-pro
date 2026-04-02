@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Download, X, Loader2, Share2 } from "lucide-react";
+import { Printer, Download, X, Loader2, MessageCircle } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,9 +9,10 @@ interface PdfPreviewModalProps {
   onOpenChange: (open: boolean) => void;
   pdfUrl: string | null;
   loading?: boolean;
+  clientId?: string | null;
 }
 
-export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading }: PdfPreviewModalProps) {
+export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId }: PdfPreviewModalProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
@@ -27,7 +28,6 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading }: PdfPrev
         if (!revoked) setBlobUrl(url);
         else URL.revokeObjectURL(url);
       } catch {
-        // fallback: use the raw URL
         if (!revoked) setBlobUrl(pdfUrl);
       }
     })();
@@ -54,28 +54,20 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading }: PdfPrev
     document.body.removeChild(a);
   };
 
-  const handleWhatsApp = async () => {
-    if (!pdfUrl) return;
-    if (navigator.share) {
-      try {
-        const response = await fetch(pdfUrl);
-        const blob = await response.blob();
-        const file = new File([blob], "orcamento.pdf", { type: "application/pdf" });
-        if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({
-            title: "Orçamento",
-            text: "Segue o orçamento em PDF",
-            files: [file],
-          });
-          return;
-        }
-      } catch {
-        // fallback below
-      }
+  const handleOpenChat = () => {
+    if (!clientId) {
+      toast.error("Nenhum cliente vinculado à simulação");
+      return;
     }
-    const text = encodeURIComponent(`Segue o orçamento em PDF:\n${pdfUrl}`);
-    window.open(`https://wa.me/?text=${text}`, "_blank");
-    toast.success("Link copiado para envio via WhatsApp");
+    // Close modal first
+    onOpenChange(false);
+    // Navigate to Chat de Vendas with client selected and PDF URL
+    window.dispatchEvent(
+      new CustomEvent("openClientChat", {
+        detail: { clientId, attachmentUrl: pdfUrl },
+      })
+    );
+    toast.success("Abrindo Chat de Vendas com o cliente...");
   };
 
   return (
@@ -117,11 +109,11 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading }: PdfPrev
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={handleWhatsApp}
-              disabled={!blobUrl || loading}
+              onClick={handleOpenChat}
+              disabled={!blobUrl || loading || !clientId}
               className="gap-2 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
             >
-              <Share2 className="h-4 w-4" /> WhatsApp
+              <MessageCircle className="h-4 w-4" /> WhatsApp
             </Button>
             <Button variant="outline" onClick={handleDownload} disabled={!blobUrl || loading} className="gap-2">
               <Download className="h-4 w-4" /> Baixar
