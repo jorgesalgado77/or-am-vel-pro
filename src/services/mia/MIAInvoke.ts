@@ -41,8 +41,7 @@ export async function miaInvoke(
   functionName: string,
   body: Record<string, unknown>,
   options: MIAInvokeOptions
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ data: any; error: { message: string } | null }> {
+): Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }> {
   // Call the edge function exactly as before
   const result = await supabase.functions.invoke(functionName, { body });
 
