@@ -161,6 +161,9 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [playingVideo, setPlayingVideo] = useState(false);
   const [selectedMediaIdx, setSelectedMediaIdx] = useState(0);
+  const autoSlideRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const videoRef2 = useRef<HTMLVideoElement>(null);
+  const thumbContainerRef = useRef<HTMLDivElement>(null);
 
   const [showAddFlow, setShowAddFlow] = useState(false);
   const [clients, setClients] = useState<ClientOption[]>([]);
