@@ -196,6 +196,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       forma_pagamento: formaPagamento, parcelas, valor_entrada: valorEntrada, plus_percentual: plusPercentual,
       valor_final: result.valorFinal, valor_parcela: result.valorParcela,
       arquivo_url: arquivoUrl, arquivo_nome: arquivoNome, tenant_id: resolvedTenantId,
+      estrategia_ia: activeStrategy || null,
     } as any);
     setSaving(false);
 
