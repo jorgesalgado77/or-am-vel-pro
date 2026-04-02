@@ -105,7 +105,14 @@ export function AppSidebar({
     id?: string; label: string; icon: any; badge?: any; destructive?: boolean; onClick?: () => void;
   }) => {
     const isActive = id ? activeView === id : false;
-    const handleClick = onClick ?? (() => id && onViewChange(id));
+    // Hide NOVO badge if user has already visited this item
+    const effectiveBadge = (itemBadge === "NOVO" && id && visitedItems.has(id)) ? null : itemBadge;
+    const handleClick = onClick ?? (() => {
+      if (id) {
+        if (itemBadge === "NOVO") markVisited(id);
+        onViewChange(id);
+      }
+    });
 
     const content = (
       <button
