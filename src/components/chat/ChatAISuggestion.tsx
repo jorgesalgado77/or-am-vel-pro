@@ -1,13 +1,16 @@
-import {memo} from "react";
+import {memo, useId} from "react";
 import {Button} from "@/components/ui/button";
 import {Tooltip, TooltipContent, TooltipTrigger} from "@/components/ui/tooltip";
 import {Lightbulb, Copy, Loader2} from "lucide-react";
+import {MIAFeedback} from "@/components/mia/MIAFeedback";
 
 interface Props {
   suggestion: string;
   loading: boolean;
   tipoCopy: string;
   discProfile?: string;
+  tenantId?: string | null;
+  userId?: string;
   onUse: () => void;
 }
 
@@ -28,7 +31,9 @@ const DISC_LABELS: Record<string, { label: string; emoji: string; desc: string }
   C: { label: "Conforme", emoji: "🔵", desc: "Analítico, detalhista, precisa de dados" },
 };
 
-export const ChatAISuggestion = memo(function ChatAISuggestion({ suggestion, loading, tipoCopy, discProfile, onUse }: Props) {
+export const ChatAISuggestion = memo(function ChatAISuggestion({ suggestion, loading, tipoCopy, discProfile, tenantId, userId, onUse }: Props) {
+  const responseId = useId();
+
   if (!loading && !suggestion) return null;
 
   const disc = discProfile ? DISC_LABELS[discProfile] : null;
@@ -69,15 +74,27 @@ export const ChatAISuggestion = memo(function ChatAISuggestion({ suggestion, loa
           <p className="text-xs text-foreground leading-relaxed mb-2 whitespace-pre-wrap">
             {suggestion}
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-            onClick={onUse}
-          >
-            <Copy className="h-3 w-3" />
-            Usar resposta
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+              onClick={onUse}
+            >
+              <Copy className="h-3 w-3" />
+              Usar resposta
+            </Button>
+            {tenantId && userId && (
+              <MIAFeedback
+                tenantId={tenantId}
+                userId={userId}
+                context="vendazap"
+                responseId={`suggestion-${responseId}-${suggestion.slice(0, 20)}`}
+                actionTaken={tipoCopy || "vendazap-suggestion"}
+                compact
+              />
+            )}
+          </div>
         </>
       )}
     </div>

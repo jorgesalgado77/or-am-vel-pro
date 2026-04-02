@@ -820,6 +820,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
               <ChatRightPanel
                 conversation={selected}
                 tenantId={tenantId}
+                userId={userId}
                 messageCount={messageCount}
                 aiSuggestion={suggestion}
                 aiLoading={aiLoading}

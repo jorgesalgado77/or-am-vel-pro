@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bot, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { format } from "date-fns";
-
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 interface Interaction {
   id: string;
   mensagem_cliente: string | null;
@@ -30,9 +30,10 @@ const INTENT_BADGES: Record<string, { label: string; color: string }> = {
 interface Props {
   trackingId: string;
   tenantId: string | null;
+  userId?: string;
 }
 
-export const AutoPilotHistory = memo(function AutoPilotHistory({ trackingId, tenantId }: Props) {
+export const AutoPilotHistory = memo(function AutoPilotHistory({ trackingId, tenantId, userId }: Props) {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -131,7 +132,19 @@ export const AutoPilotHistory = memo(function AutoPilotHistory({ trackingId, ten
                     </p>
                   )}
 
-                  <span className="text-muted-foreground">{item.tokens_usados} tokens</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{item.tokens_usados} tokens</span>
+                    {tenantId && userId && item.resposta_ia && (
+                      <MIAFeedback
+                        tenantId={tenantId}
+                        userId={userId}
+                        context="vendazap"
+                        responseId={`autopilot-${item.id}`}
+                        actionTaken="autopilot"
+                        compact
+                      />
+                    )}
+                  </div>
                 </div>
               );
             })}

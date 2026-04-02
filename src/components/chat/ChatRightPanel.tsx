@@ -20,6 +20,7 @@ const DISC_PROFILES: Record<string, { label: string; emoji: string; tips: string
 interface Props {
   conversation: ChatConversation;
   tenantId: string | null;
+  userId?: string;
   messageCount: number;
   aiSuggestion: string;
   aiLoading: boolean;
@@ -35,6 +36,7 @@ interface Props {
 export function ChatRightPanel({
   conversation,
   tenantId,
+  userId,
   messageCount,
   aiSuggestion,
   aiLoading,
@@ -73,6 +75,8 @@ export function ChatRightPanel({
         loading={aiLoading}
         tipoCopy={aiTipoCopy}
         discProfile={aiDiscProfile}
+        tenantId={tenantId}
+        userId={userId}
         onUse={onUseSuggestion}
       />
 
@@ -82,7 +86,7 @@ export function ChatRightPanel({
         messageCount={messageCount}
       />
 
-      <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId} />
+      <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId} userId={userId} />
     </div>
   );
 
