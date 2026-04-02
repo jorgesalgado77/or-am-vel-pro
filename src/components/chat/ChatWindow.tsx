@@ -30,6 +30,8 @@ interface Props {
   detectedDiscProfile?: string;
   vendazapActive?: boolean;
   onCloseSale?: (data: CloseSaleData) => void;
+  initialAttachmentUrl?: string | null;
+  onAttachmentHandled?: () => void;
 }
 
 const PAGE_SIZE = 40;
