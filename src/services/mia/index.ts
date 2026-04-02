@@ -30,7 +30,6 @@ export type {
   MIAResponseType,
   MIAResponse,
   MIAAction,
-  MIAMemoryEntry,
   MIAEngineInterface,
   MIAContext,
 } from "./types";
