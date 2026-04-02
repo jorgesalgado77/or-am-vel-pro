@@ -46,10 +46,11 @@ export async function miaInvoke(
   // Call the edge function exactly as before
   const result = await supabase.functions.invoke(functionName, { body });
 
-  // Non-blocking: record interaction in MIA memory
+  // Non-blocking: record interaction in MIA memory + learning
   if (!options.skipMemory && options.tenantId && options.userId) {
     const context = options.context || FUNCTION_TO_CONTEXT[functionName] || "vendazap";
     const memory = getMIAMemoryEngine();
+    const learning = getMIALearningEngine();
 
     void memory.remember(
       options.tenantId,
@@ -64,6 +65,17 @@ export async function miaInvoke(
         timestamp: new Date().toISOString(),
       }
     );
+
+    // Register learning event
+    learning.registerEventAsync({
+      tenant_id: options.tenantId,
+      user_id: options.userId,
+      event_type: "conversation",
+      context: { function: functionName, origin: options.origin },
+      action_taken: functionName,
+      result: result.error ? "error" : "success",
+      score: result.error ? -1 : result.data ? 1 : 0,
+    });
   }
 
   return result;

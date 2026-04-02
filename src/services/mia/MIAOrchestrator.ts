@@ -184,6 +184,11 @@ class MIAOrchestrator {
   getActionExecution() {
     return this.actionExecution;
   }
+
+  /** Get the learning engine */
+  getLearning() {
+    return this.learning;
+  }
 }
 
 // Singleton

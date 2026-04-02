@@ -11,6 +11,8 @@ export { MIAMemoryEngine, getMIAMemoryEngine } from "./MIAMemoryEngine";
 export type { MIAMemoryType, MIAMemoryEntry as MIAMemoryRecord } from "./MIAMemoryEngine";
 export { MIAActionEngine, getMIAActionEngine } from "./MIAActionEngine";
 export { MIAActionExecutionEngine, getMIAActionExecutionEngine } from "./ActionExecutionEngine";
+export { MIALearningEngine, getMIALearningEngine } from "./MIALearningEngine";
+export type { MIALearningEvent, MIALearningEventType, MIALearningScore, MIAPatternInsight } from "./MIALearningEngine";
 export type { MIAActionExecutionRequest, MIAActionExecutionResult, MIAActionStatus } from "./ActionExecutionEngine";
 export { miaGenerateResponse } from "./MIAAdapter";
 export { miaInvoke } from "./MIAInvoke";
