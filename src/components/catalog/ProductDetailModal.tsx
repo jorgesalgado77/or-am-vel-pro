@@ -285,29 +285,35 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               {/* Featured media */}
               {media.length > 0 && featured && (
                 <div className="space-y-2">
-                  <div
-                    className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted cursor-pointer group"
-                    onClick={() => {
-                      if (featured.type === "video") setViewerVideo(featured.url);
-                      else setViewerImage(featured.url);
-                    }}
-                  >
+                  <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted">
                     {featured.type === "video" ? (
-                      <>
-                        <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <div className="h-12 w-12 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
-                            <Play className="h-6 w-6 text-primary-foreground ml-0.5" />
+                      playingVideo ? (
+                        (() => {
+                          const isEmbed = featured.url.includes("youtube") || featured.url.includes("youtu.be") || featured.url.includes("vimeo");
+                          const embed = getVideoEmbedUrl(featured.url);
+                          return isEmbed && embed ? (
+                            <iframe src={embed} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; fullscreen" />
+                          ) : (
+                            <video src={featured.url} controls autoPlay className="w-full h-full object-contain bg-black" />
+                          );
+                        })()
+                      ) : (
+                        <div className="w-full h-full cursor-pointer group" onClick={() => setPlayingVideo(true)}>
+                          <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
+                            </div>
                           </div>
                         </div>
-                      </>
+                      )
                     ) : (
-                      <>
+                      <div className="w-full h-full cursor-pointer group" onClick={() => setViewerImage(featured.url)}>
                         <img src={featured.url} alt={product.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
                           <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
 
