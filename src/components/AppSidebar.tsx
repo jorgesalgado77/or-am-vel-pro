@@ -95,10 +95,30 @@ export function AppSidebar({
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150",
           collapsed && "justify-center px-2",
-          destructive && "text-destructive hover:bg-destructive/10",
-          !destructive && isActive && "bg-primary/10 text-primary",
-          !destructive && !isActive && "text-muted-foreground hover:bg-secondary hover:text-foreground",
         )}
+        style={{
+          color: destructive
+            ? "hsl(0 72% 60%)"
+            : isActive
+              ? "hsl(var(--sidebar-primary))"
+              : "hsl(var(--sidebar-foreground))",
+          backgroundColor: isActive
+            ? "hsl(var(--sidebar-accent))"
+            : undefined,
+          opacity: !destructive && !isActive ? 0.75 : 1,
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive) {
+            e.currentTarget.style.backgroundColor = "hsl(var(--sidebar-accent))";
+            e.currentTarget.style.opacity = "1";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) {
+            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.opacity = "0.75";
+          }
+        }}
       >
         <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-300", collapsed && "scale-110")} />
         {!collapsed && <span className="truncate">{label}</span>}
@@ -108,7 +128,7 @@ export function AppSidebar({
           </span>
         )}
         {!collapsed && itemBadge && typeof itemBadge === "string" && (
-          <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 h-4 font-bold bg-primary/10 text-primary border-primary/20">
+          <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 h-4 font-bold" style={{ backgroundColor: "hsl(var(--sidebar-accent))", color: "hsl(var(--sidebar-primary))" }}>
             {itemBadge}
           </Badge>
         )}
@@ -129,31 +149,36 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "border-r border-border bg-card flex flex-col h-screen fixed left-0 top-0 overflow-hidden transition-all duration-300",
+        "border-r flex flex-col h-screen fixed left-0 top-0 overflow-hidden transition-all duration-300",
         "max-md:z-40 max-md:shadow-2xl md:z-30",
         collapsed
           ? "max-md:-translate-x-full max-md:w-64 md:w-[60px]"
           : "max-md:w-64 max-md:translate-x-0 md:w-60",
       )}
+      style={{
+        backgroundColor: "hsl(var(--sidebar-background))",
+        color: "hsl(var(--sidebar-foreground))",
+        borderColor: "hsl(var(--sidebar-border))",
+      }}
     >
       {/* Header */}
-      <div className={cn("p-3 border-b border-border flex items-center gap-3", collapsed && "justify-center")}>
+      <div className={cn("p-3 border-b flex items-center gap-3", collapsed && "justify-center")} style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         {settings.logo_url && (
           <img src={settings.logo_url} alt="Logo" className="h-8 w-auto object-contain shrink-0" />
         )}
         {!collapsed && (
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-foreground tracking-tight truncate">{companyName}</h1>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">{companySubtitle}</p>
+            <h1 className="text-lg font-semibold tracking-tight truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>{companyName}</h1>
+            <p className="text-xs mt-0.5 truncate" style={{ color: "hsl(var(--sidebar-foreground) / 0.6)" }}>{companySubtitle}</p>
           </div>
         )}
       </div>
 
       {/* Toggle + Theme row */}
-      <div className={cn("flex items-center border-b border-border", collapsed ? "flex-col gap-1 py-2" : "justify-between px-2 py-1.5")}>
+      <div className={cn("flex items-center", collapsed ? "flex-col gap-1 py-2" : "justify-between px-2 py-1.5")} style={{ borderBottom: "1px solid hsl(var(--sidebar-border))" }}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" style={{ color: "hsl(var(--sidebar-foreground) / 0.7)" }} onClick={onToggleCollapse}>
               {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
@@ -174,7 +199,7 @@ export function AppSidebar({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={cycleTheme}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" style={{ color: "hsl(var(--sidebar-foreground) / 0.7)" }} onClick={cycleTheme}>
                 <ThemeIcon className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -191,7 +216,7 @@ export function AppSidebar({
             <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} badge={item.badge} />
           ))}
 
-        <div className="pt-2 border-t border-border mx-1 space-y-0.5 mt-4">
+        <div className="pt-2 mx-1 space-y-0.5 mt-4" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
           {hasPermission("divulgue_ganhe") && <NavButton label="Divulgue e Ganhe" icon={Gift} badge="NOVO" onClick={() => navigate("/afiliado")} />}
           {bottomItems.filter(i => i.show).map((item) => (
             <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} badge={item.badge} />
@@ -203,7 +228,7 @@ export function AppSidebar({
       </nav>
 
       {/* User profile section */}
-      <div className={cn("border-t border-border", collapsed ? "p-2" : "p-3")}>
+      <div className={cn(collapsed ? "p-2" : "p-3")} style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
         <SidebarUserProfile
           currentUser={currentUser}
           onlineUsers={onlineUsers}

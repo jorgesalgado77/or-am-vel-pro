@@ -16,7 +16,7 @@ import {format} from "date-fns";
 import {supabase} from "@/lib/supabaseClient";
 import {useAuth} from "@/contexts/AuthContext";
 import {toast} from "sonner";
-import {COLOR_THEMES, getStoredThemeId, applyTheme, type ColorTheme} from "@/lib/colorThemes";
+import {COLOR_THEMES, getStoredThemeId, applyTheme, resetToDefaultTheme} from "@/lib/colorThemes";
 
 // TikTok icon
 function TikTokIcon({ className }: { className?: string }) {
@@ -574,7 +574,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                   className="gap-1.5 text-xs text-muted-foreground"
                   onClick={() => {
                     setSelectedTheme("default");
-                    applyTheme("default");
+                    resetToDefaultTheme();
                     toast.success("Tema padrão restaurado!");
                   }}
                 >
