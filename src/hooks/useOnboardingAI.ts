@@ -1225,12 +1225,16 @@ export function useOnboardingAI(tenantId: string | null) {
           let aiContent = "";
           let citations: string[] = [];
           try {
-            const { data, error } = await supabase.functions.invoke("perplexity-search", {
-              body: { query: `${searchQuery} - mostre referências visuais, tendências e inspirações`, tenant_id: tenantId },
+            const { getResearchEngine } = await import("@/services/mia/ResearchEngine");
+            const research = getResearchEngine();
+            const researchResult = await research.search({
+              query: `${searchQuery} - mostre referências visuais, tendências e inspirações`,
+              tenantId: tenantId || "",
+              userId: "system",
             });
-            if (!error && data?.content) {
-              aiContent = data.content;
-              citations = data.citations || [];
+            if (researchResult.summary) {
+              aiContent = researchResult.summary;
+              citations = researchResult.sources.map((s) => s.url);
             }
           } catch {}
 
