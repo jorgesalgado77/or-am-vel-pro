@@ -20,6 +20,7 @@ import { getMIAActionEngine } from "./MIAActionEngine";
 import { getMIAActionExecutionEngine, type MIAActionExecutionEngine } from "./ActionExecutionEngine";
 import { getMIALearningEngine, type MIALearningEngine, type MIALearningScore } from "./MIALearningEngine";
 import { getResearchEngine, type ResearchEngine } from "./ResearchEngine";
+import { getPersonalizationEngine, type PersonalizationEngine } from "./PersonalizationEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
 import { OnboardingEngine } from "./engines/OnboardingEngine";
