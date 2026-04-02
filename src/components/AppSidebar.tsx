@@ -57,6 +57,24 @@ export function AppSidebar({
   const companySubtitle = settings.company_subtitle || "Orce. Venda. Simplifique";
   const pendingMeasurements = usePendingMeasurements(currentUser?.id, currentUser?.cargo_nome || undefined);
 
+  // Track which NOVO items have been clicked
+  const VISITED_KEY = "sidebar_visited_items";
+  const [visitedItems, setVisitedItems] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(VISITED_KEY);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const markVisited = useCallback((id: string) => {
+    setVisitedItems(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      localStorage.setItem(VISITED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
     { id: "commercial-ai", label: "IA Gerente", icon: BrainCircuit, perm: "ia_gerente" as const, show: hasPermission("ia_gerente"), badge: "NOVO" },
