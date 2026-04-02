@@ -16,7 +16,48 @@ import {format} from "date-fns";
 import {supabase} from "@/lib/supabaseClient";
 import {useAuth} from "@/contexts/AuthContext";
 import {toast} from "sonner";
-import {COLOR_THEMES, getStoredThemeId, applyTheme, resetToDefaultTheme} from "@/lib/colorThemes";
+import {COLOR_THEMES, getStoredThemeId, getThemeById, applyTheme, resetToDefaultTheme} from "@/lib/colorThemes";
+
+function SidebarPreview({ themeId }: { themeId: string }) {
+  const theme = getThemeById(themeId);
+  return (
+    <div
+      className="w-36 shrink-0 rounded-lg border overflow-hidden shadow-sm"
+      style={{ backgroundColor: `hsl(${theme.sidebar_bg})`, borderColor: `hsl(${theme.sidebar_border})` }}
+    >
+      {/* Header */}
+      <div className="px-3 py-2 border-b" style={{ borderColor: `hsl(${theme.sidebar_border})` }}>
+        <div className="h-2.5 w-16 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.8 }} />
+        <div className="h-1.5 w-10 rounded mt-1" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.4 }} />
+      </div>
+      {/* Nav items */}
+      <div className="px-2 py-2 space-y-1">
+        {/* Active item */}
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_accent})` }}>
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `hsl(${theme.sidebar_primary})` }} />
+          <div className="h-1.5 w-12 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_primary})` }} />
+        </div>
+        {/* Inactive items */}
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.5 }} />
+            <div className="h-1.5 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.35, width: `${40 + i * 8}%` }} />
+          </div>
+        ))}
+      </div>
+      {/* Footer */}
+      <div className="px-3 py-2 border-t mt-1" style={{ borderColor: `hsl(${theme.sidebar_border})` }}>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `hsl(${theme.sidebar_primary})`, opacity: 0.6 }} />
+          <div className="h-1.5 w-10 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.4 }} />
+        </div>
+      </div>
+      <p className="text-[8px] text-center py-1 font-medium" style={{ color: `hsl(${theme.sidebar_fg})`, opacity: 0.6 }}>
+        {theme.name}
+      </p>
+    </div>
+  );
+}
 
 // TikTok icon
 function TikTokIcon({ className }: { className?: string }) {
