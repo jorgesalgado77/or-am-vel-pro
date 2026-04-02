@@ -1,184 +1,315 @@
 /**
  * MIA Memory Engine — Structured memory per tenant + user
- * Uses IndexedDB for persistence, with in-memory fallback.
+ * 
+ * Phase 3: Supabase-backed persistence with in-memory cache.
+ * Requires table `mia_memory` in external Supabase.
+ * 
+ * NOTE: Uses raw PostgREST calls since `mia_memory` is not yet
+ * in the auto-generated Supabase types. Once the table is created
+ * and types regenerated, the casts can be removed.
  */
 
-import type { MIAContextType, MIAMemoryEntry } from "./types";
+import { supabase } from "@/lib/supabaseClient";
+import { EXTERNAL_SUPABASE_URL } from "@/lib/supabaseClient";
+import type { MIAContextType } from "./types";
 
-const DB_NAME = "mia_memory";
-const DB_VERSION = 1;
-const STORE_NAME = "entries";
-const MAX_ENTRIES_PER_CONTEXT = 100;
-const MEMORY_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+// ── Types ───────────────────────────────────────────────────────
+
+export type MIAMemoryType =
+  | "user_preference"
+  | "conversation_context"
+  | "business_context"
+  | "system_learning";
+
+export interface MIAMemoryEntry {
+  id?: string;
+  tenant_id: string;
+  user_id: string;
+  memory_type: MIAMemoryType;
+  key: string;
+  value: Record<string, unknown>;
+  relevance_score: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ── Constants ───────────────────────────────────────────────────
+
+const TABLE = "mia_memory";
+const MAX_ENTRIES_PER_QUERY = 20;
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+// ── Helpers for untyped table access ────────────────────────────
+
+/**
+ * Get a PostgREST-compatible query builder for mia_memory.
+ * Uses schema cast to bypass typed client restrictions.
+ */
+function memoryTable() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (supabase as any).from(TABLE);
+}
+
+// ── Cache ───────────────────────────────────────────────────────
+
+interface CacheEntry {
+  data: MIAMemoryEntry[];
+  timestamp: number;
+}
 
 class MIAMemoryEngine {
-  private cache = new Map<string, MIAMemoryEntry[]>();
-  private db: IDBDatabase | null = null;
-  private dbReady: Promise<void>;
+  private cache = new Map<string, CacheEntry>();
+  private tableAvailable: boolean | null = null;
 
-  constructor() {
-    this.dbReady = this.initDB();
+  private cacheKey(tenantId: string, userId: string, memoryType?: MIAMemoryType): string {
+    return `${tenantId}:${userId}:${memoryType || "all"}`;
   }
 
-  private async initDB(): Promise<void> {
-    if (typeof indexedDB === "undefined") return;
-    return new Promise((resolve) => {
-      try {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = () => {
-          const db = request.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            const store = db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
-            store.createIndex("tenant_user_context", ["tenantId", "userId", "context"]);
-            store.createIndex("timestamp", "timestamp");
-          }
-        };
-        request.onsuccess = () => {
-          this.db = request.result;
-          resolve();
-        };
-        request.onerror = () => {
-          console.warn("[MIAMemory] IndexedDB unavailable, using in-memory only");
-          resolve();
-        };
-      } catch {
-        resolve();
-      }
-    });
-  }
-
-  private cacheKey(tenantId: string, userId: string, context: MIAContextType): string {
-    return `${tenantId}:${userId}:${context}`;
-  }
-
-  /** Store a memory entry */
-  async remember(
-    tenantId: string,
-    userId: string,
-    context: MIAContextType,
-    key: string,
-    value: unknown
-  ): Promise<void> {
-    const entry: MIAMemoryEntry = {
-      tenantId,
-      userId,
-      context,
-      key,
-      value,
-      timestamp: Date.now(),
-    };
-
-    // In-memory cache
-    const ck = this.cacheKey(tenantId, userId, context);
-    const existing = this.cache.get(ck) || [];
-    // Replace if same key exists
-    const idx = existing.findIndex((e) => e.key === key);
-    if (idx >= 0) {
-      existing[idx] = entry;
-    } else {
-      existing.push(entry);
-      // Trim oldest
-      if (existing.length > MAX_ENTRIES_PER_CONTEXT) {
-        existing.shift();
-      }
+  private getCached(key: string): MIAMemoryEntry[] | null {
+    const entry = this.cache.get(key);
+    if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+      return entry.data;
     }
-    this.cache.set(ck, existing);
-
-    // Persist to IndexedDB
-    await this.dbReady;
-    if (this.db) {
-      try {
-        const tx = this.db.transaction(STORE_NAME, "readwrite");
-        tx.objectStore(STORE_NAME).add(entry);
-      } catch (e) {
-        console.warn("[MIAMemory] Persist error:", e);
-      }
-    }
+    this.cache.delete(key);
+    return null;
   }
 
-  /** Recall memories for a specific context */
-  async recall(
-    tenantId: string,
-    userId: string,
-    context: MIAContextType
-  ): Promise<MIAMemoryEntry[]> {
-    const ck = this.cacheKey(tenantId, userId, context);
-    const cached = this.cache.get(ck);
-    if (cached && cached.length > 0) {
-      return cached.filter((e) => Date.now() - e.timestamp < MEMORY_TTL);
-    }
-
-    // Try IndexedDB
-    await this.dbReady;
-    if (!this.db) return [];
-
-    return new Promise((resolve) => {
-      try {
-        const tx = this.db!.transaction(STORE_NAME, "readonly");
-        const index = tx.objectStore(STORE_NAME).index("tenant_user_context");
-        const request = index.getAll([tenantId, userId, context]);
-        request.onsuccess = () => {
-          const results = (request.result || []).filter(
-            (e: MIAMemoryEntry) => Date.now() - e.timestamp < MEMORY_TTL
-          );
-          this.cache.set(ck, results);
-          resolve(results);
-        };
-        request.onerror = () => resolve([]);
-      } catch {
-        resolve([]);
-      }
-    });
+  private setCache(key: string, data: MIAMemoryEntry[]): void {
+    this.cache.set(key, { data, timestamp: Date.now() });
   }
 
-  /** Build a context string from memories for prompt injection */
-  async buildContextString(
-    tenantId: string,
-    userId: string,
-    context: MIAContextType
-  ): Promise<string> {
-    const memories = await this.recall(tenantId, userId, context);
-    if (memories.length === 0) return "";
-
-    const parts = ["\n=== MEMÓRIA MIA (contexto persistente) ==="];
-    for (const m of memories.slice(-20)) {
-      const val = typeof m.value === "string" ? m.value : JSON.stringify(m.value);
-      parts.push(`• ${m.key}: ${val}`);
-    }
-    return parts.join("\n");
-  }
-
-  /** Clear all memories for a tenant+user */
-  async forget(tenantId: string, userId: string): Promise<void> {
-    // Clear cache
+  private invalidateCache(tenantId: string, userId: string): void {
     for (const key of this.cache.keys()) {
       if (key.startsWith(`${tenantId}:${userId}:`)) {
         this.cache.delete(key);
       }
     }
+  }
 
-    // Clear IndexedDB
-    await this.dbReady;
-    if (!this.db) return;
-
-    // We'd need a cursor-based delete; for simplicity, clear matching entries
+  private async checkTable(): Promise<boolean> {
+    if (this.tableAvailable !== null) return this.tableAvailable;
     try {
-      const tx = this.db.transaction(STORE_NAME, "readwrite");
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.openCursor();
-      request.onsuccess = () => {
-        const cursor = request.result;
-        if (cursor) {
-          const entry = cursor.value as MIAMemoryEntry;
-          if (entry.tenantId === tenantId && entry.userId === userId) {
-            cursor.delete();
-          }
-          cursor.continue();
-        }
-      };
-    } catch (e) {
-      console.warn("[MIAMemory] Clear error:", e);
+      const { error } = await memoryTable().select("id").limit(1);
+      this.tableAvailable = !error;
+      if (error) {
+        console.warn("[MIAMemory] Table not available:", error.message);
+      }
+    } catch {
+      this.tableAvailable = false;
     }
+    return this.tableAvailable;
+  }
+
+  // ── Public API ────────────────────────────────────────────────
+
+  async saveMemory(entry: Omit<MIAMemoryEntry, "id" | "created_at" | "updated_at">): Promise<boolean> {
+    if (!entry.tenant_id || !entry.user_id) {
+      console.error("[MIAMemory] tenant_id and user_id are required");
+      return false;
+    }
+    if (!(await this.checkTable())) return false;
+
+    try {
+      const { error } = await memoryTable()
+        .upsert(
+          {
+            tenant_id: entry.tenant_id,
+            user_id: entry.user_id,
+            memory_type: entry.memory_type,
+            key: entry.key,
+            value: entry.value,
+            relevance_score: entry.relevance_score,
+          },
+          { onConflict: "tenant_id,user_id,key" }
+        );
+
+      if (error) {
+        console.warn("[MIAMemory] Save error:", error.message);
+        return false;
+      }
+
+      this.invalidateCache(entry.tenant_id, entry.user_id);
+      return true;
+    } catch (e) {
+      console.warn("[MIAMemory] Save exception:", e);
+      return false;
+    }
+  }
+
+  async getMemory(params: {
+    tenant_id: string;
+    user_id: string;
+    memory_type?: MIAMemoryType;
+    limit?: number;
+  }): Promise<MIAMemoryEntry[]> {
+    if (!params.tenant_id || !params.user_id) return [];
+
+    const ck = this.cacheKey(params.tenant_id, params.user_id, params.memory_type);
+    const cached = this.getCached(ck);
+    if (cached) return cached;
+
+    if (!(await this.checkTable())) return [];
+
+    try {
+      let query = memoryTable()
+        .select("*")
+        .eq("tenant_id", params.tenant_id)
+        .eq("user_id", params.user_id)
+        .order("relevance_score", { ascending: false })
+        .limit(params.limit || MAX_ENTRIES_PER_QUERY);
+
+      if (params.memory_type) {
+        query = query.eq("memory_type", params.memory_type);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.warn("[MIAMemory] Get error:", error.message);
+        return [];
+      }
+
+      const entries = (data || []) as MIAMemoryEntry[];
+      this.setCache(ck, entries);
+      return entries;
+    } catch {
+      return [];
+    }
+  }
+
+  async updateMemory(params: {
+    tenant_id: string;
+    user_id: string;
+    key: string;
+    value?: Record<string, unknown>;
+    relevance_score?: number;
+  }): Promise<boolean> {
+    if (!params.tenant_id || !params.user_id || !params.key) return false;
+    if (!(await this.checkTable())) return false;
+
+    try {
+      const updates: Record<string, unknown> = {};
+      if (params.value !== undefined) updates.value = params.value;
+      if (params.relevance_score !== undefined) updates.relevance_score = params.relevance_score;
+      if (Object.keys(updates).length === 0) return false;
+
+      const { error } = await memoryTable()
+        .update(updates)
+        .eq("tenant_id", params.tenant_id)
+        .eq("user_id", params.user_id)
+        .eq("key", params.key);
+
+      if (error) {
+        console.warn("[MIAMemory] Update error:", error.message);
+        return false;
+      }
+
+      this.invalidateCache(params.tenant_id, params.user_id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async deleteMemory(params: {
+    tenant_id: string;
+    user_id: string;
+    key: string;
+  }): Promise<boolean> {
+    if (!params.tenant_id || !params.user_id || !params.key) return false;
+    if (!(await this.checkTable())) return false;
+
+    try {
+      const { error } = await memoryTable()
+        .delete()
+        .eq("tenant_id", params.tenant_id)
+        .eq("user_id", params.user_id)
+        .eq("key", params.key);
+
+      if (error) {
+        console.warn("[MIAMemory] Delete error:", error.message);
+        return false;
+      }
+
+      this.invalidateCache(params.tenant_id, params.user_id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async clearMemory(tenantId: string, userId: string): Promise<boolean> {
+    if (!tenantId || !userId) return false;
+    if (!(await this.checkTable())) return false;
+
+    try {
+      const { error } = await memoryTable()
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId);
+
+      if (error) {
+        console.warn("[MIAMemory] Clear error:", error.message);
+        return false;
+      }
+
+      this.invalidateCache(tenantId, userId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Build a context string from memories for prompt injection.
+   */
+  async buildContextString(
+    tenantId: string,
+    userId: string,
+    _context: MIAContextType
+  ): Promise<string> {
+    const memories = await this.getMemory({
+      tenant_id: tenantId,
+      user_id: userId,
+      limit: 15,
+    });
+
+    if (memories.length === 0) return "";
+
+    const sections: Record<string, string[]> = {};
+    for (const m of memories) {
+      const section = m.memory_type || "general";
+      if (!sections[section]) sections[section] = [];
+      const val = typeof m.value === "string" ? m.value : JSON.stringify(m.value);
+      sections[section].push(`• ${m.key}: ${val}`);
+    }
+
+    const parts = ["\n=== MEMÓRIA MIA (contexto persistente) ==="];
+    for (const [section, items] of Object.entries(sections)) {
+      parts.push(`\n[${section}]`);
+      parts.push(...items);
+    }
+    return parts.join("\n");
+  }
+
+  /**
+   * Convenience: remember an interaction.
+   */
+  async remember(
+    tenantId: string,
+    userId: string,
+    _context: MIAContextType,
+    key: string,
+    value: Record<string, unknown>
+  ): Promise<void> {
+    await this.saveMemory({
+      tenant_id: tenantId,
+      user_id: userId,
+      memory_type: "conversation_context",
+      key,
+      value,
+      relevance_score: 0.5,
+    });
   }
 }
 

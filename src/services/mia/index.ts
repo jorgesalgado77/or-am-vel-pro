@@ -9,6 +9,7 @@
 export { MIAOrchestrator, getMIAOrchestrator } from "./MIAOrchestrator";
 export { buildContext } from "./ContextBuilder";
 export { MIAMemoryEngine, getMIAMemoryEngine } from "./MIAMemoryEngine";
+export type { MIAMemoryType, MIAMemoryEntry as MIAMemoryRecord } from "./MIAMemoryEngine";
 export { MIAActionEngine, getMIAActionEngine } from "./MIAActionEngine";
 export { miaGenerateResponse } from "./MIAAdapter";
 
@@ -29,7 +30,6 @@ export type {
   MIAResponseType,
   MIAResponse,
   MIAAction,
-  MIAMemoryEntry,
   MIAEngineInterface,
   MIAContext,
 } from "./types";

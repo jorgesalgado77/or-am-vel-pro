@@ -15,7 +15,7 @@ import type {
   MIAEngineInterface,
 } from "./types";
 import { buildContext } from "./ContextBuilder";
-import { getMIAMemoryEngine } from "./MIAMemoryEngine";
+import { getMIAMemoryEngine, type MIAMemoryEngine } from "./MIAMemoryEngine";
 import { getMIAActionEngine } from "./MIAActionEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
@@ -26,7 +26,7 @@ import { ArgumentEngine } from "./engines/ArgumentEngine";
 
 class MIAOrchestrator {
   private engines: Map<MIAContextType, MIAEngineInterface> = new Map();
-  private memory = getMIAMemoryEngine();
+  private memory: MIAMemoryEngine = getMIAMemoryEngine();
   private actions = getMIAActionEngine();
 
   constructor() {
@@ -90,8 +90,8 @@ class MIAOrchestrator {
       // Process through engine
       const response = await engine.process(enrichedRequest);
 
-      // Store interaction in memory
-      if (request.message) {
+      // Store relevant interaction in memory (non-critical)
+      if (request.message && request.message.length > 5) {
         try {
           await this.memory.remember(
             context.tenant_id,
@@ -106,7 +106,7 @@ class MIAOrchestrator {
             }
           );
         } catch {
-          // Non-critical
+          // Non-critical — memory save failure doesn't affect response
         }
       }
 

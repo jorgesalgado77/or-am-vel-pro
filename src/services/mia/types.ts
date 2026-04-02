@@ -81,16 +81,7 @@ export interface MIAResponse {
   provider?: string;
 }
 
-// ── Memory ──────────────────────────────────────────────────────
-
-export interface MIAMemoryEntry {
-  tenantId: string;
-  userId: string;
-  context: MIAContextType;
-  key: string;
-  value: unknown;
-  timestamp: number;
-}
+// Memory types are now in MIAMemoryEngine.ts
 
 // ── Engine Interface ────────────────────────────────────────────
 
