@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
+import { getMIAOrchestrator } from "@/services/mia";
 
 interface DealRoomAIAssistantProps {
   tenantId: string;
