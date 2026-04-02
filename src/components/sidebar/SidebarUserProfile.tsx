@@ -88,7 +88,7 @@ export const SidebarUserProfile = React.memo(function SidebarUserProfile({
             {currentUser.apelido || currentUser.nome_completo}
           </p>
           {currentUser.cargo_nome && (
-            <p className="text-xs text-muted-foreground truncate">{currentUser.cargo_nome}</p>
+            <p className="text-xs truncate" style={{ color: "hsl(var(--sidebar-foreground) / 0.6)" }}>{currentUser.cargo_nome}</p>
           )}
           <Popover>
             <PopoverTrigger asChild>
