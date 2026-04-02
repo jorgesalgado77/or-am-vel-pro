@@ -374,6 +374,24 @@ export function ChatWindow({
     }
   };
 
+  // Auto-send PDF attachment when opened from simulator
+  const attachmentSentRef = useRef(false);
+  useEffect(() => {
+    if (!initialAttachmentUrl || attachmentSentRef.current || loading) return;
+    attachmentSentRef.current = true;
+    const sendPdf = async () => {
+      try {
+        await handleAttachmentSent(initialAttachmentUrl, "orcamento.pdf", "application/pdf");
+        toast.success("📄 PDF do orçamento enviado na conversa!");
+      } catch (err) {
+        console.error("Error auto-sending PDF:", err);
+      } finally {
+        onAttachmentHandled?.();
+      }
+    };
+    sendPdf();
+  }, [initialAttachmentUrl, loading]);
+
   const handleLoadMore = () => {
     if (messages.length > 0) {
       fetchMessages(messages[0].created_at);
