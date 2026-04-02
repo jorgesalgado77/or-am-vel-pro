@@ -1,6 +1,6 @@
 import { memo, useMemo, useState, useEffect } from "react";
 import { format } from "date-fns";
-import { FileIcon, Monitor, Smartphone, Check, CheckCheck, FileText, X } from "lucide-react";
+import { FileIcon, Monitor, Smartphone, Check, CheckCheck, FileText, X, Download, ExternalLink } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "./types";
