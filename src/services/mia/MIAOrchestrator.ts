@@ -15,7 +15,7 @@ import type {
   MIAEngineInterface,
 } from "./types";
 import { buildContext } from "./ContextBuilder";
-import { getMIAMemoryEngine } from "./MIAMemoryEngine";
+import { getMIAMemoryEngine, type MIAMemoryEngine } from "./MIAMemoryEngine";
 import { getMIAActionEngine } from "./MIAActionEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
