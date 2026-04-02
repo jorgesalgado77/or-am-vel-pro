@@ -31,6 +31,8 @@ interface UseSimulatorRatesParams {
   setCarenciaDias: (v: 30 | 60 | 90) => void;
   storedParcelas?: number;
   storedCarencia?: number;
+  storedBoletoProvider?: string;
+  storedCreditoProvider?: string;
 }
 
 export function useSimulatorRates({
