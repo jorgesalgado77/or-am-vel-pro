@@ -109,7 +109,11 @@ export function AIStrategyPanel({
   onStrategyChange,
 }: AIStrategyPanelProps) {
   const [enabled, setEnabled] = useState(!!initialStrategy);
-  const [selectedStrategy, setSelectedStrategy] = useState<string | null>(initialStrategy || null);
+  const [selectedStrategy, setSelectedStrategyInternal] = useState<string | null>(initialStrategy || null);
+  const setSelectedStrategy = (s: string | null) => {
+    setSelectedStrategyInternal(s);
+    onStrategyChange?.(s);
+  };
 
   const scenarios = useMemo((): StrategyScenario[] => {
     if (!enabled || valorTela <= 0) return [];
