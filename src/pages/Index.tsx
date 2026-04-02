@@ -106,6 +106,7 @@ export default function Index() {
   const [showProfile, setShowProfile] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [pendingChatClientId, setPendingChatClientId] = useState<string | null>(null);
+  const [pendingChatAttachment, setPendingChatAttachment] = useState<string | null>(null);
   const { unreadCount: unreadMessages } = useRealtimeMessages(activeView);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== "undefined" && window.innerWidth < 768) return true;
