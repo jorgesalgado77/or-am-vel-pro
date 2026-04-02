@@ -159,6 +159,7 @@ export function AppSidebar({
         backgroundColor: "hsl(var(--sidebar-background))",
         color: "hsl(var(--sidebar-foreground))",
         borderColor: "hsl(var(--sidebar-border))",
+        transition: "background-color 0.4s ease, color 0.3s ease, border-color 0.3s ease",
       }}
     >
       {/* Header */}

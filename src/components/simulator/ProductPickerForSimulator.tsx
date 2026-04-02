@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Search, Check, ShoppingCart, Ruler } from "lucide-react";
+import { Package, Search, Check, ShoppingCart, Ruler, Eye } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
+import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
+import type { Product } from "@/hooks/useProductCatalog";
 
 export interface CatalogProduct {
   id: string;
@@ -55,6 +57,8 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
   const [filterStock, setFilterStock] = useState("_all");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Map<string, SelectedProduct>>(new Map());
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const loadProducts = useCallback(async () => {
     if (!tenantId) return;
@@ -121,6 +125,7 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[85dvh] flex flex-col">
         <DialogHeader>
@@ -196,13 +201,21 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
                       </Badge>
                     </div>
 
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
                       <p className="text-sm font-bold text-primary">{formatCurrency(p.sale_price)}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-primary"
+                        onClick={e => { e.stopPropagation(); setDetailProduct(p as unknown as Product); setDetailOpen(true); }}
+                      >
+                        <Eye className="h-3 w-3" /> Detalhes
+                      </Button>
                       {isSelected && (
                         <Input type="number" min={1} value={qty}
                           onClick={e => e.stopPropagation()}
                           onChange={e => { e.stopPropagation(); updateQty(p.id, Number(e.target.value)); }}
-                          className="w-16 h-7 text-xs text-center p-0.5 mt-1" />
+                          className="w-16 h-7 text-xs text-center p-0.5" />
                       )}
                     </div>
                   </div>
@@ -228,5 +241,7 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ProductDetailModal product={detailProduct} open={detailOpen} onOpenChange={setDetailOpen} />
+    </>
   );
 }
