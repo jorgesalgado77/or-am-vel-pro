@@ -36,6 +36,7 @@ interface Props {
 export function ChatRightPanel({
   conversation,
   tenantId,
+  userId,
   messageCount,
   aiSuggestion,
   aiLoading,
