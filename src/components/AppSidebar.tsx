@@ -155,7 +155,7 @@ export function AppSidebar({
       </div>
 
       {/* Toggle + Theme row */}
-      <div className={cn("flex items-center border-b border-border", collapsed ? "flex-col gap-1 py-2" : "justify-between px-2 py-1.5")}>
+      <div className={cn("flex items-center", collapsed ? "flex-col gap-1 py-2" : "justify-between px-2 py-1.5")} style={{ borderBottom: "1px solid hsl(var(--sidebar-border))" }}>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
