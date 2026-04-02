@@ -215,7 +215,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
           {showTotals && (
             <div className="mt-3 rounded-md border bg-muted/30 px-3 py-3 space-y-2">
               <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>Subtotal Importados</span>
+                <span>Subtotal Planejados</span>
                 <span className="tabular-nums font-medium">
                   {formatCurrency(importedSubtotal)}
                 </span>
