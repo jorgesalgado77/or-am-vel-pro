@@ -619,6 +619,17 @@ export function CommercialAIPanel() {
                           {msg.content}
                         </ReactMarkdown>
                       </div>
+                      {msg.role === "assistant" && (
+                        <MIAFeedback
+                          tenantId={tenantId}
+                          userId={user?.id || "system"}
+                          context="commercial"
+                          responseId={`commercial-ai-${i}`}
+                          actionTaken="commercial-ai"
+                          compact
+                          className="mt-1"
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
