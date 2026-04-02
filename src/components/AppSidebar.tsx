@@ -178,7 +178,7 @@ export function AppSidebar({
       <div className={cn("flex items-center", collapsed ? "flex-col gap-1 py-2" : "justify-between px-2 py-1.5")} style={{ borderBottom: "1px solid hsl(var(--sidebar-border))" }}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={onToggleCollapse}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" style={{ color: "hsl(var(--sidebar-foreground) / 0.7)" }} onClick={onToggleCollapse}>
               {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
