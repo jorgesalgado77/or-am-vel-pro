@@ -63,7 +63,7 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
     onOpenChange(false);
     // Navigate to Chat de Vendas with client selected and PDF URL
     window.dispatchEvent(
-      new CustomEvent("openClientChat", {
+      new CustomEvent("open-vendazap-chat-client", {
         detail: { clientId, attachmentUrl: pdfUrl },
       })
     );
