@@ -224,8 +224,9 @@ export default function Index() {
 
   useEffect(() => {
     const handleOpenClientChat = (event: Event) => {
-      const customEvent = event as CustomEvent<{ clientId?: string | null }>;
+      const customEvent = event as CustomEvent<{ clientId?: string | null; attachmentUrl?: string | null }>;
       setPendingChatClientId(customEvent.detail?.clientId || null);
+      setPendingChatAttachment(customEvent.detail?.attachmentUrl || null);
       setActiveView("vendazap-chat");
     };
 
