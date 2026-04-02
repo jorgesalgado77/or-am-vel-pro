@@ -303,11 +303,11 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     setContractEditorOpen(false); setPendingSimId(null); setPendingTemplateId(null); setClosingSale(false);
   }, [client, pendingSimId, pendingTemplateId, resolvedTenantId, valorTela, valorTelaComComissao, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, closeSaleFormData, currentUser, recordSale]);
 
-  const handlePdf = useCallback(async () => {
-    if (!effectiveClient || !resolvedTenantId) { toast.error("Tenant não identificado"); return; }
+  const handlePdf = useCallback(async (): Promise<string | null> => {
+    if (!effectiveClient || !resolvedTenantId) { toast.error("Tenant não identificado"); return null; }
     setGeneratingPdf(true);
     try {
-      await generateAndOpenBudgetPdf(resolvedTenantId, {
+      const pdfResult = await generateBudgetPdfServerSide(resolvedTenantId, {
         clientName: effectiveClient.nome, clientCpf: effectiveClient.cpf || undefined,
         clientEmail: effectiveClient.email || undefined, clientPhone: effectiveClient.telefone1 || undefined,
         vendedor: effectiveClient.vendedor || undefined, companyName: settings.company_name,
@@ -318,6 +318,12 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         ambientes: environments.map(e => ({ environmentName: e.environmentName, pieceCount: e.pieceCount, totalValue: e.totalValue })),
         catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: cp.product.sale_price })),
       });
+      if (!pdfResult.success || !pdfResult.download_url) {
+        toast.error(pdfResult.error || "Erro ao gerar PDF");
+        return null;
+      }
+      toast.success("PDF gerado com sucesso!");
+      return pdfResult.download_url;
     } finally { setGeneratingPdf(false); }
   }, [effectiveClient, resolvedTenantId, settings, valorTela, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, plusPercentual, environments, catalogProducts]);
 
