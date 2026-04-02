@@ -27,20 +27,50 @@ export function CampaignAIGenerator() {
     setLoading(true);
     setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
-          mensagem_cliente: `Crie uma campanha de anúncio para ${plataforma} sobre ${ambiente}. Objetivo: ${objetivo}. Tom: ${tom}. ${diferencial ? `Diferencial: ${diferencial}` : ""}`,
-          nome_cliente: "Lojista",
-          tipo_copy: "campanha_trafego",
-          tom,
-          status_negociacao: "novo",
-          prompt_sistema: `Você é um especialista em marketing digital para lojas de móveis planejados. Crie uma campanha completa no formato JSON com os campos: headline, copy, cta, hashtags (array). A campanha deve ser para ${plataforma}, focada em ${ambiente}, com objetivo de ${objetivo}. Tom ${tom}. Retorne APENAS o JSON válido, sem markdown.`,
-        },
-      });
+      const campaignPrompt = `Crie uma campanha de anúncio para ${plataforma} sobre ${ambiente}. Objetivo: ${objetivo}. Tom: ${tom}. ${diferencial ? `Diferencial: ${diferencial}` : ""}`;
+      const systemPrompt = `Você é um especialista em marketing digital para lojas de móveis planejados. Crie uma campanha completa no formato JSON com os campos: headline, copy, cta, hashtags (array). A campanha deve ser para ${plataforma}, focada em ${ambiente}, com objetivo de ${objetivo}. Tom ${tom}. Retorne APENAS o JSON válido, sem markdown.`;
 
-      if (error) throw error;
+      let resposta = "";
 
-      const resposta = data?.resposta || "";
+      // Route through MIA Core with fallback
+      try {
+        const miaResult = await miaGenerateResponse({
+          tenant_id: tenantId || "",
+          user_id: tenantId || "",
+          message: campaignPrompt,
+          origin: "chat",
+          context: "campaign",
+          metadata: {
+            mensagem_cliente: campaignPrompt,
+            nome_cliente: "Lojista",
+            tipo_copy: "campanha_trafego",
+            tom,
+            status_negociacao: "novo",
+            prompt_sistema: systemPrompt,
+          },
+        });
+        if (miaResult.message) {
+          resposta = miaResult.message;
+        }
+      } catch {
+        // MIA fallback
+      }
+
+      // Fallback: direct edge function call
+      if (!resposta) {
+        const { data, error } = await supabase.functions.invoke("vendazap-ai", {
+          body: {
+            mensagem_cliente: campaignPrompt,
+            nome_cliente: "Lojista",
+            tipo_copy: "campanha_trafego",
+            tom,
+            status_negociacao: "novo",
+            prompt_sistema: systemPrompt,
+          },
+        });
+        if (error) throw error;
+        resposta = data?.resposta || "";
+      }
       try {
         // Try to parse JSON from the response
         const jsonMatch = resposta.match(/\{[\s\S]*\}/);
