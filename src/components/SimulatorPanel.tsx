@@ -57,6 +57,7 @@ interface SimulatorStoredState {
   plusPercentual: number; carenciaDias: 30 | 60 | 90; selectedIndicadorId: string;
   desconto3Unlocked: boolean; plusUnlocked: boolean;
   environments: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string }>;
+  catalogProducts?: Array<{ product: { id: string; internal_code: string; name: string; description: string; category: string; sale_price: number; stock_status: string; image_url?: string }; quantity: number }>;
 }
 
 function loadStoredState(): Partial<SimulatorStoredState> {
@@ -97,7 +98,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
-  const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>(() => {
+    const stored = loadStoredState();
+    return (stored.catalogProducts as SelectedProduct[]) || [];
+  });
 
   // ─── Client State ───
   const [linkedClient, setLinkedClient] = useState<Client | null>(null);
@@ -199,9 +203,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada,
       plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked,
       environments: environments.map(({ file, importedAt, ...rest }) => ({ ...rest, importedAt: importedAt.toISOString() })),
+      catalogProducts,
     };
     sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, environments]);
+  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, environments, catalogProducts]);
 
   // Update valorTela from environments (excluding catalog-products fake entry) + catalog total
   useEffect(() => {
