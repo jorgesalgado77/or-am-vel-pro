@@ -156,9 +156,14 @@ class MIAOrchestrator {
     return this.memory;
   }
 
-  /** Get the action engine for registering handlers */
+  /** Get the legacy action engine */
   getActions() {
     return this.actions;
+  }
+
+  /** Get the action execution engine (with permissions + audit) */
+  getActionExecution() {
+    return this.actionExecution;
   }
 }
 
