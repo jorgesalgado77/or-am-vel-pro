@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { miaGenerateResponse } from "@/services/mia";
-import { miaGenerateResponse } from "@/services/mia";
 import { useTenant } from "@/contexts/TenantContext";
 
 export function CampaignAIGenerator() {

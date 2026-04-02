@@ -12,7 +12,6 @@ import {
   Brain, Send, Lightbulb, RefreshCw, Mic, FileText,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/financing";
-import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { miaGenerateResponse } from "@/services/mia";
 
