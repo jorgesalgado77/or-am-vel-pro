@@ -739,6 +739,15 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
             <div className="space-y-2">
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
                 <p className="text-xs text-foreground whitespace-pre-wrap">{generatedResponse}</p>
+                <MIAFeedback
+                  tenantId={tenantId || ""}
+                  userId="system"
+                  context="vendazap"
+                  responseId={`dealroom-vendazap-response-${Date.now()}`}
+                  actionTaken="vendazap-ai-response"
+                  compact
+                  className="mt-1.5"
+                />
               </div>
               <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => {
                 navigator.clipboard.writeText(generatedResponse);
