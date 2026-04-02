@@ -19,6 +19,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { formatCurrency } from "@/lib/financing";
+import { parseArquivoNome } from "@/lib/parseArquivoNome";
 import { maskCep, maskCodigoLoja, maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
