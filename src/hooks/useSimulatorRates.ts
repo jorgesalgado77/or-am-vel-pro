@@ -31,11 +31,13 @@ interface UseSimulatorRatesParams {
   setCarenciaDias: (v: 30 | 60 | 90) => void;
   storedParcelas?: number;
   storedCarencia?: number;
+  storedBoletoProvider?: string;
+  storedCreditoProvider?: string;
 }
 
 export function useSimulatorRates({
   formaPagamento, parcelas, setParcelas, carenciaDias, setCarenciaDias,
-  storedParcelas, storedCarencia,
+  storedParcelas, storedCarencia, storedBoletoProvider, storedCreditoProvider,
 }: UseSimulatorRatesParams) {
   const { settings } = useCompanySettings();
   const { rates: boletoRates, activeProviders: boletoProviders } = useFinancingRates("boleto");
@@ -43,8 +45,8 @@ export function useSimulatorRates({
   const boletoDefaults = ((settings as any)?.boleto_defaults || {}) as Record<string, { parcelas: number; carencia: number }>;
   const creditoDefaults = ((settings as any)?.credito_defaults || {}) as Record<string, { parcelas: number }>;
 
-  const [selectedBoletoProvider, setSelectedBoletoProvider] = useState("");
-  const [selectedCreditoProvider, setSelectedCreditoProvider] = useState("");
+  const [selectedBoletoProvider, setSelectedBoletoProvider] = useState(storedBoletoProvider || "");
+  const [selectedCreditoProvider, setSelectedCreditoProvider] = useState(storedCreditoProvider || "");
 
   const currentBoletoRates = useMemo(() => boletoRates.filter((r) => r.provider_name === selectedBoletoProvider), [boletoRates, selectedBoletoProvider]);
   const currentCreditoRates = useMemo(() => creditoRates.filter((r) => r.provider_name === selectedCreditoProvider), [creditoRates, selectedCreditoProvider]);

@@ -63,6 +63,9 @@ interface SimulatorStoredState {
   formaPagamento: FormaPagamento; parcelas: number; valorEntrada: number;
   plusPercentual: number; carenciaDias: 30 | 60 | 90; selectedIndicadorId: string;
   desconto3Unlocked: boolean; plusUnlocked: boolean;
+  hideIndicador: boolean; extremaLocked: boolean;
+  selectedBoletoProvider: string; selectedCreditoProvider: string;
+  linkedClientId: string;
   environments: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string }>;
   catalogProducts?: Array<{ product: { id: string; internal_code: string; name: string; description: string; category: string; sale_price: number; stock_status: string; image_url?: string }; quantity: number }>;
 }
@@ -101,7 +104,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | null>(null);
-  const [extremaLocked, setExtremaLocked] = useState(false);
+  const [extremaLocked, setExtremaLocked] = useState(stored.extremaLocked ?? false);
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
@@ -131,6 +134,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [searchingClients, setSearchingClients] = useState(false);
   const effectiveClient = client || linkedClient;
 
+  // Restore linked client from stored ID
+  useEffect(() => {
+    if (client || linkedClient || !stored.linkedClientId) return;
+    supabase.from("clients").select("*").eq("id", stored.linkedClientId).single()
+      .then(({ data }) => { if (data) setLinkedClient(data as Client); });
+  }, []);
+
   const searchClients = useCallback(async (term: string) => {
     if (!term || term.length < 2) { setClientResults([]); return; }
     const tid = await getResolvedTenantId();
@@ -149,7 +159,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   // ─── File / Environment State ───
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? client?.indicador_id ?? "");
-  const [hideIndicador, setHideIndicador] = useState(false);
+  const [hideIndicador, setHideIndicador] = useState(stored.hideIndicador ?? false);
   const [detectedSoftware, setDetectedSoftware] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
     if (init?.ambientes && init.ambientes.length > 0) {
@@ -194,6 +204,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const rates = useSimulatorRates({
     formaPagamento, parcelas, setParcelas, carenciaDias, setCarenciaDias,
     storedParcelas: stored.parcelas, storedCarencia: stored.carenciaDias,
+    storedBoletoProvider: stored.selectedBoletoProvider,
+    storedCreditoProvider: stored.selectedCreditoProvider,
   });
 
   useEffect(() => { if (client?.indicador_id) setSelectedIndicadorId(client.indicador_id); }, [client?.id, client?.indicador_id]);
@@ -223,11 +235,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     const state: SimulatorStoredState = {
       valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada,
       plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked,
+      hideIndicador, extremaLocked,
+      selectedBoletoProvider: rates.selectedBoletoProvider,
+      selectedCreditoProvider: rates.selectedCreditoProvider,
+      linkedClientId: linkedClient?.id || "",
       environments: environments.map(({ file, importedAt, ...rest }) => ({ ...rest, importedAt: importedAt.toISOString() })),
       catalogProducts,
     };
     sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, environments, catalogProducts]);
+  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, hideIndicador, extremaLocked, rates.selectedBoletoProvider, rates.selectedCreditoProvider, linkedClient, environments, catalogProducts]);
 
   // Update valorTela from environments (excluding catalog-products fake entry) + catalog total
   useEffect(() => {
