@@ -1,112 +1,61 @@
+## MIA Core — Plano de Implementação Seguro
 
+### Princípio: As edge functions existentes NÃO serão alteradas. O MIA Core é uma camada de orquestração no frontend que centraliza chamadas, contexto e memória.
 
-## Plan: Contratos por Cargo, Catálogo, Funil Restrito e Automações Kanban
+### FASE 1 — MIAOrchestrator (Serviço Central)
+- Criar `/services/mia/MIAOrchestrator.ts`
+- Método central `handleRequest(context)` que roteia para a edge function correta
+- Contextos suportados: `vendazap`, `dealroom`, `onboarding`, `commercial`, `cashflow`, `campaign`, `argument`
+- Resolução automática de tenant_id e user_id
 
-### 1. Contratos Fechados — Filtro por Cargo (ContractTrackingList.tsx)
+### FASE 2 — Engines Internas  
+- Criar engines especializados que encapsulam a lógica de chamada:
+  - `VendaZapEngine` → invoca `vendazap-ai`
+  - `DealRoomEngine` → invoca `vendazap-ai` (com contexto DealRoom)
+  - `OnboardingEngine` → invoca `onboarding-ai`
+  - `CommercialEngine` → invoca `commercial-ai`
+  - `CashflowEngine` → invoca `cashflow-ai`
+  - `ArgumentEngine` → invoca `improve-argument`
 
-Currently the projetista filter shows all sellers. For vendedor/projetista roles, auto-filter to only show their own contracts and hide the filter dropdown.
+### FASE 3 — Memory Engine
+- Criar `/services/mia/MIAMemoryEngine.ts`
+- Memória por tenant + user (IndexedDB para persistência local)
+- Armazena: contexto da conversa, preferências detectadas, histórico de decisões
+- Injeta contexto automaticamente nas chamadas
 
-**Changes:**
-- Import `useCurrentUser` hook
-- Get `currentUser` and `cargoNome`
-- If cargo is vendedor/projetista: set `filterProjetista` to the logged user's name, hide the projetista Select dropdown, and filter `trackings` server-side or client-side to only show rows where `projetista` or `vendedor` matches current user
-- If cargo is administrador/gerente: keep existing behavior with "Todos" option and individual names
+### FASE 4 — Transformar Assistentes Existentes
+- `DealRoomAIAssistant` → manter UI, trocar chamada direta por `MIAOrchestrator.handleRequest()`
+- `OnboardingAIAssistant` → manter UI, trocar hook por chamada via orchestrator
+- `CampaignAIGenerator` → manter UI, usar orchestrator
 
-**File:** `src/components/dashboard/ContractTrackingList.tsx`
+### FASE 5 — Action Engine
+- Criar `/services/mia/MIAActionEngine.ts`
+- Executar ações reais: criar tarefa, navegar, salvar configuração
+- Integrado ao orchestrator via `action` no response
 
----
+### FASE 6 — Isolamento & Validação
+- Garantir que cada chamada inclui tenant_id e user_id
+- Zero cruzamento de dados entre tenants
+- Memória isolada por tenant+user
 
-### 2. Catálogo de Produtos — Produtos não Aparecendo
+### Arquivos criados:
+- `src/services/mia/MIAOrchestrator.ts`
+- `src/services/mia/MIAMemoryEngine.ts`  
+- `src/services/mia/MIAActionEngine.ts`
+- `src/services/mia/engines/VendaZapEngine.ts`
+- `src/services/mia/engines/DealRoomEngine.ts`
+- `src/services/mia/engines/OnboardingEngine.ts`
+- `src/services/mia/engines/CommercialEngine.ts`
+- `src/services/mia/engines/CashflowEngine.ts`
+- `src/services/mia/engines/ArgumentEngine.ts`
+- `src/services/mia/types.ts`
+- `src/services/mia/index.ts`
 
-The `useProductCatalog` hook uses `getTenantId()` from `tenantState.ts` (in-memory). If this is null at mount time, the query never runs. The product "Sofá 3 Lugares" exists in the database but won't load if `tenantId` is null.
+### Arquivos modificados (apenas chamadas):
+- `src/components/dealroom/DealRoomAIAssistant.tsx`
+- `src/components/campaigns/CampaignAIGenerator.tsx`
+- `src/hooks/useOnboardingAI.ts` (ou equivalente)
 
-**Fix:**
-- In `useProductCatalog.ts`, fall back to `getResolvedTenantId()` (async) if `getTenantId()` returns null, similar to how other hooks work
-- Ensure `loadProducts` and `loadSuppliers` re-run when tenantId becomes available
-- Add `useEffect` with proper dependency on resolved tenant
-
-**File:** `src/hooks/useProductCatalog.ts`
-
----
-
-### 3. Funil de Captação — Restrições por Cargo (FunnelPanel.tsx)
-
-For roles vendedor, projetista, gerente, liberador, conferente, técnico: make the following sections **read-only** (no edit/add/delete):
-- Vídeo Promocional
-- Carrossel de Imagens
-- Textos da Página
-- Cor Principal
-- Benefícios Listados
-- Faixas de Investimento
-- Redes Sociais
-
-Only administrador can modify these sections.
-
-**Changes:**
-- Import `useCurrentUser`
-- Compute `isAdmin` from `cargoNome`
-- Conditionally disable all inputs, hide add/remove buttons, hide Save button for non-admin roles
-- Show a read-only info banner for non-admin users
-- Keep Link Público and Métricas visible and functional for all roles
-
-**File:** `src/components/FunnelPanel.tsx`
-
----
-
-### 4. Kanban — Notificações de Cards Parados na Coluna "Novo"
-
-Cards in "novo" column should emit notifications about how long they've been idle.
-
-**Changes in `ClientsKanban.tsx`:**
-- After computing `columnData`, check cards in `novo` column
-- For each card, compute `daysInColumn = differenceInDays(now, client.updated_at)`
-- If `daysInColumn >= 1`, trigger a toast notification on mount (throttled, once per session using a ref)
-- Show the idle time on the KanbanCard for "novo" status cards
-
-**File:** `src/components/ClientsKanban.tsx`
-
----
-
-### 5. Kanban — Cards em "Em Negociação" sem Orçamento
-
-Cards in "em_negociacao" without a simulation (`lastSims[client.id]` is undefined) should emit notification that they have no budget and are stalled.
-
-Cards with a simulation: check `budgetValidityDays` expiration — if expired, auto-move to "expirado" column (this already works via line 211-212).
-
-Cards without simulation AND no budget validity date: notify that they are without budgets.
-
-**Changes:**
-- Add notification logic in `useEffect` after `columnData` is computed
-- For cards in `em_negociacao` without simulation: emit grouped notification
-- Use a ref to avoid repeated notifications in the same session
-
-**File:** `src/components/ClientsKanban.tsx`
-
----
-
-### 6. Kanban — Auto-move Expirados → Perdidos após 3 dias
-
-Cards in "expirado" column for more than 3 days should be automatically moved to "perdido" with a notification.
-
-**Changes:**
-- In the `columnData` computation or a separate `useEffect`, check cards in "expirado"
-- For each, compute days since they became expired (using `updated_at` or `sim.created_at + budgetValidityDays`)
-- If > 3 days in expirado, auto-update status to "perdido" via supabase and emit notification
-- Update local state optimistically
-
-**File:** `src/components/ClientsKanban.tsx`
-
----
-
-### Technical Details
-
-**Files to modify:**
-- `src/components/dashboard/ContractTrackingList.tsx` — Role-based contract filtering
-- `src/hooks/useProductCatalog.ts` — Fix tenant resolution for product loading
-- `src/components/FunnelPanel.tsx` — Read-only mode for non-admin roles
-- `src/components/ClientsKanban.tsx` — Notifications for idle cards + auto-move expirado→perdido
-
-**No new files needed.**
-
-**Dependencies:** `useCurrentUser` hook (already exists), `differenceInDays` from date-fns (already imported).
-
+### NÃO modificados:
+- Nenhuma edge function
+- Nenhuma lógica de negócio existente
