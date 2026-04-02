@@ -66,28 +66,29 @@ class MIAOrchestrator {
         };
       }
 
-      // Inject memory context if requested
+      // Inject memory context + learning insights if requested
       let enrichedRequest = request;
       if (request.useMemory && request.messages && request.messages.length > 0) {
         try {
-          const memoryContext = await this.memory.buildContextString(
-            context.tenant_id,
-            context.user_id,
-            request.context
-          );
-          if (memoryContext) {
+          const [memoryContext, insightsContext] = await Promise.all([
+            this.memory.buildContextString(context.tenant_id, context.user_id, request.context),
+            this.learning.buildInsightsContext(context.tenant_id, context.user_id),
+          ]);
+
+          const extraContext = (memoryContext || "") + (insightsContext || "");
+          if (extraContext) {
             const systemIdx = request.messages.findIndex((m) => m.role === "system");
             if (systemIdx >= 0) {
               const updatedMessages = [...request.messages];
               updatedMessages[systemIdx] = {
                 ...updatedMessages[systemIdx],
-                content: updatedMessages[systemIdx].content + memoryContext,
+                content: updatedMessages[systemIdx].content + extraContext,
               };
               enrichedRequest = { ...request, messages: updatedMessages };
             }
           }
         } catch {
-          // Memory injection is non-critical
+          // Memory/insights injection is non-critical
         }
       }
 
