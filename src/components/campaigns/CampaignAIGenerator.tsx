@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabaseClient";
 import { miaGenerateResponse } from "@/services/mia";
 import { useTenant } from "@/contexts/TenantContext";
 
@@ -52,24 +51,14 @@ export function CampaignAIGenerator() {
         if (miaResult.message) {
           resposta = miaResult.message;
         }
-      } catch {
-        // MIA fallback
+      } catch (miaErr) {
+        console.warn("[CampaignAI] MIA error, campaign generation failed:", miaErr);
       }
 
-      // Fallback: direct edge function call
       if (!resposta) {
-        const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-          body: {
-            mensagem_cliente: campaignPrompt,
-            nome_cliente: "Lojista",
-            tipo_copy: "campanha_trafego",
-            tom,
-            status_negociacao: "novo",
-            prompt_sistema: systemPrompt,
-          },
-        });
-        if (error) throw error;
-        resposta = data?.resposta || "";
+        toast.error("Não foi possível gerar a campanha. Tente novamente.");
+        setLoading(false);
+        return;
       }
       try {
         // Try to parse JSON from the response
