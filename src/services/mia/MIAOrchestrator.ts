@@ -251,6 +251,11 @@ class MIAOrchestrator {
   getResearch() {
     return this.research;
   }
+
+  /** Get the personalization engine */
+  getPersonalization() {
+    return this.personalization;
+  }
 }
 
 // Singleton

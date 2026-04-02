@@ -15,6 +15,8 @@ export { MIALearningEngine, getMIALearningEngine } from "./MIALearningEngine";
 export type { MIALearningEvent, MIALearningEventType, MIALearningScore, MIAPatternInsight } from "./MIALearningEngine";
 export { ResearchEngine, getResearchEngine } from "./ResearchEngine";
 export type { ResearchResult, ResearchSource } from "./ResearchEngine";
+export { PersonalizationEngine, getPersonalizationEngine } from "./PersonalizationEngine";
+export type { PersonalizationConfig, DISCProfile } from "./PersonalizationEngine";
 export type { MIAActionExecutionRequest, MIAActionExecutionResult, MIAActionStatus } from "./ActionExecutionEngine";
 export { miaGenerateResponse } from "./MIAAdapter";
 export { miaInvoke } from "./MIAInvoke";
