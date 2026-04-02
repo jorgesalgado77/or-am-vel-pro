@@ -105,9 +105,11 @@ export function AIStrategyPanel({
   historicalConversionRate = 0,
   onRequestExtremaUnlock,
   extremaUnlocked,
+  initialStrategy,
+  onStrategyChange,
 }: AIStrategyPanelProps) {
-  const [enabled, setEnabled] = useState(false);
-  const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
+  const [enabled, setEnabled] = useState(!!initialStrategy);
+  const [selectedStrategy, setSelectedStrategy] = useState<string | null>(initialStrategy || null);
 
   const scenarios = useMemo((): StrategyScenario[] => {
     if (!enabled || valorTela <= 0) return [];
