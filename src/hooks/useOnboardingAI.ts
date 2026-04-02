@@ -1619,9 +1619,9 @@ export function useOnboardingAI(tenantId: string | null) {
     if (!tenantId) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
-        body: { action: "configure_vendazap", tenant_id: tenantId },
-      });
+      const { data, error } = await miaInvoke("onboarding-ai", {
+          action: "configure_vendazap", tenant_id: tenantId,
+        }, { tenantId, userId: "system", origin: "onboarding", context: "onboarding" });
       if (error) throw error;
       setMessages((prev) => [...prev, createMessage("assistant", `✅ **VendaZap AI configurado com sucesso!**\n\n🎯 **Tom:** ${data?.tom || "profissional"}\n📝 Prompt salvo automaticamente.\n\nPreview: _${data?.prompt_preview || ""}_`)]);
       await refreshContext();
