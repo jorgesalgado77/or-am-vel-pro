@@ -206,36 +206,41 @@ export function ProductCatalog() {
     setDialogOpen(true);
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSaveProduct = async () => {
+    if (isSaving) return;
     if (!form.name.trim()) { toast.error("Informe o nome do produto"); return; }
     if (!form.internal_code.trim()) { toast.error("Informe o código interno"); return; }
     if (form.cost_price <= 0) { toast.error("Informe o preço de custo"); return; }
     if (!form.supplier_id) { toast.error("Selecione um fornecedor"); return; }
 
-    // If there's a video file, upload first and set URL
-    let finalVideoUrl = form.video_url;
-    if (videoFile && form.id) {
-      const uploaded = await uploadProductVideo(form.id, videoFile);
-      if (uploaded) finalVideoUrl = uploaded;
-    }
-
-    const result = await saveProduct({
-      ...form,
-      video_url: finalVideoUrl,
-      id: form.id || undefined,
-      supplier_id: form.supplier_id || null,
-    } as any);
-    if (result) {
-      // If new product and has video file, upload after creation
-      if (!form.id && videoFile && result.id) {
-        const uploaded = await uploadProductVideo(result.id, videoFile);
-        if (uploaded) {
-          await saveProduct({ ...result, video_url: uploaded } as any);
-        }
+    setIsSaving(true);
+    try {
+      let finalVideoUrl = form.video_url;
+      if (videoFile && form.id) {
+        const uploaded = await uploadProductVideo(form.id, videoFile);
+        if (uploaded) finalVideoUrl = uploaded;
       }
-      setVideoFile(null);
-      setVideoPreview("");
-      setDialogOpen(false);
+
+      const result = await saveProduct({
+        ...form,
+        video_url: finalVideoUrl,
+        id: form.id || undefined,
+        supplier_id: form.supplier_id || null,
+      } as any);
+
+      if (result) {
+        if (!form.id && videoFile && result.id) {
+          const uploaded = await uploadProductVideo(result.id, videoFile);
+          if (uploaded) await saveProduct({ ...result, video_url: uploaded } as any);
+        }
+        setVideoFile(null);
+        setVideoPreview("");
+        setDialogOpen(false);
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
