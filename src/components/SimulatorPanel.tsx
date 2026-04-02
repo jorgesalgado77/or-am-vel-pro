@@ -431,6 +431,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               historicalConversionRate={conversionStats.conversionRate}
               onRequestExtremaUnlock={requestExtremaUnlock}
               extremaUnlocked={!isVendedorOrProjetista || extremaLocked}
+              initialStrategy={activeStrategy || undefined}
+              onStrategyChange={(s) => setActiveStrategy(s || "")}
             />
           </Suspense>
 
