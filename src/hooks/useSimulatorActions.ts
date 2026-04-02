@@ -35,6 +35,7 @@ interface UseSimulatorActionsParams {
   result: any;
   environments: ImportedEnvironment[];
   setEnvironments: React.Dispatch<React.SetStateAction<ImportedEnvironment[]>>;
+  catalogProducts: Array<{ product: { id: string; internal_code: string; name: string; sale_price: number }; quantity: number }>;
   setValorTela: (v: number) => void;
   setImportedFile: (f: File | null) => void;
   setDetectedSoftware: (s: string | null) => void;
