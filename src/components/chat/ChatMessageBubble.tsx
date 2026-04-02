@@ -78,26 +78,9 @@ function AttachmentPreview({ msg }: { msg: ChatMessage }) {
     );
   }
 
-  // PDF preview
+  // PDF preview with thumbnail
   if (tipo === "application/pdf" || msg.anexo_nome?.toLowerCase().endsWith(".pdf")) {
-    return (
-      <div className="mt-1 space-y-1">
-        <a
-          href={msg.anexo_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-2 py-1.5 rounded bg-black/5 hover:bg-black/10 transition-colors text-xs"
-        >
-          <FileText className="h-4 w-4 shrink-0 text-red-500" />
-          <span className="truncate">{msg.anexo_nome || "documento.pdf"}</span>
-        </a>
-        <iframe
-          src={`${msg.anexo_url}#toolbar=0&navpanes=0`}
-          className="w-full h-48 rounded border border-border/50"
-          title={msg.anexo_nome || "PDF"}
-        />
-      </div>
-    );
+    return <PdfAttachmentPreview url={msg.anexo_url} name={msg.anexo_nome || "documento.pdf"} />;
   }
 
   return (
