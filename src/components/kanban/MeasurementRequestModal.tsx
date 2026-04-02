@@ -787,9 +787,10 @@ export function MeasurementRequestModal({
       if (sims && sims.length > 0) {
         const sim = sims[0];
         try {
-          if (sim.arquivo_nome && sim.arquivo_nome.startsWith("[")) {
-            const parsed = JSON.parse(sim.arquivo_nome) as any[];
-            nextEnvironments = parsed.map((e: any, i: number) => {
+          if (sim.arquivo_nome) {
+            const parsedData = parseArquivoNome(sim.arquivo_nome);
+            const envArray = parsedData.environments;
+            nextEnvironments = envArray.map((e: any, i: number) => {
               const vt = Number(e.totalValue) || 0;
               const d1 = Number(sim.desconto1) || 0;
               const d2 = Number(sim.desconto2) || 0;

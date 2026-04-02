@@ -389,9 +389,8 @@ export default function Index() {
                     // Parse environments from arquivo_nome if it's JSON
                     let ambientes: any[] | undefined;
                     try {
-                      if ((sim as any).arquivo_nome && (sim as any).arquivo_nome.startsWith('[')) {
-                        ambientes = JSON.parse((sim as any).arquivo_nome);
-                      }
+                      const parsed = parseArquivoNome((sim as any).arquivo_nome);
+                      ambientes = parsed.environments.length > 0 ? parsed.environments : undefined;
                     } catch {}
                     setLoadedSimulation({
                       valor_tela: Number(sim.valor_tela),

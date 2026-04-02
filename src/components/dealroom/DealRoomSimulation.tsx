@@ -384,25 +384,37 @@ export function DealRoomSimulation({ tenantId, clientId, clientName, onSendAsPro
 
             {/* Ambientes importados */}
             {selectedSim.arquivo_nome && (() => {
-              try {
-                const envs = JSON.parse(selectedSim.arquivo_nome as string);
-                if (Array.isArray(envs) && envs.length > 0) {
-                  return (
+              const { environments: envs, catalogProducts: catProds } = parseArquivoNome(selectedSim.arquivo_nome as string);
+              return (
+                <>
+                  {envs.length > 0 && (
                     <Card>
                       <CardContent className="p-2 space-y-1">
                         <p className="text-[10px] font-semibold text-muted-foreground">Ambientes Planejados</p>
                         {envs.map((env: any, i: number) => (
                           <div key={i} className="flex justify-between text-xs">
                             <span className="truncate max-w-[180px]">{env.environmentName || env.name || env.fileName || "Ambiente"}</span>
-                            {env.value != null && <span className="font-mono">{formatCurrency(Number(env.value))}</span>}
+                            {(env.totalValue || env.value) != null && <span className="font-mono">{formatCurrency(Number(env.totalValue || env.value))}</span>}
                           </div>
                         ))}
                       </CardContent>
                     </Card>
-                  );
-                }
-              } catch { /* not JSON */ }
-              return null;
+                  )}
+                  {catProds.length > 0 && (
+                    <Card>
+                      <CardContent className="p-2 space-y-1">
+                        <p className="text-[10px] font-semibold text-muted-foreground">Produtos do Catálogo</p>
+                        {catProds.map((cp: any, i: number) => (
+                          <div key={i} className="flex justify-between text-xs">
+                            <span className="truncate max-w-[180px]">{cp.name}</span>
+                            <span className="font-mono">{cp.quantity}x {formatCurrency(cp.sale_price * cp.quantity)}</span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              );
             })()}
 
             {/* Actions */}
