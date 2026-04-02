@@ -14,6 +14,7 @@ import {
   Fingerprint, CheckCircle2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import { ClosingThermometer, analyzeClientMessage } from "@/components/vendazap/ClosingThermometer";

@@ -10,7 +10,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Line, Area, AreaChart, ReferenceLine, Legend,
 } from "recharts";
-import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import type { useFinancialData } from "@/hooks/useFinancialData";
 
