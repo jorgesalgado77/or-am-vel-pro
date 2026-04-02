@@ -125,6 +125,7 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[85dvh] flex flex-col">
         <DialogHeader>
