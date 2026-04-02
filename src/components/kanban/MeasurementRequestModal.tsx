@@ -19,6 +19,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { formatCurrency } from "@/lib/financing";
+import { parseArquivoNome } from "@/lib/parseArquivoNome";
 import { maskCep, maskCodigoLoja, maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -787,9 +788,10 @@ export function MeasurementRequestModal({
       if (sims && sims.length > 0) {
         const sim = sims[0];
         try {
-          if (sim.arquivo_nome && sim.arquivo_nome.startsWith("[")) {
-            const parsed = JSON.parse(sim.arquivo_nome) as any[];
-            nextEnvironments = parsed.map((e: any, i: number) => {
+          if (sim.arquivo_nome) {
+            const parsedData = parseArquivoNome(sim.arquivo_nome);
+            const envArray = parsedData.environments;
+            nextEnvironments = envArray.map((e: any, i: number) => {
               const vt = Number(e.totalValue) || 0;
               const d1 = Number(sim.desconto1) || 0;
               const d2 = Number(sim.desconto2) || 0;
@@ -806,7 +808,7 @@ export function MeasurementRequestModal({
               };
             });
 
-            nextImportedFiles = parsed
+            nextImportedFiles = envArray
               .filter((e: any) => e.fileUrl && e.fileName)
               .map((e: any) => ({
                 name: e.fileName,

@@ -35,6 +35,7 @@ interface UseSimulatorActionsParams {
   result: any;
   environments: ImportedEnvironment[];
   setEnvironments: React.Dispatch<React.SetStateAction<ImportedEnvironment[]>>;
+  catalogProducts: Array<{ product: { id: string; internal_code: string; name: string; sale_price: number }; quantity: number }>;
   setValorTela: (v: number) => void;
   setImportedFile: (f: File | null) => void;
   setDetectedSoftware: (s: string | null) => void;
@@ -56,7 +57,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     client, linkedClient, resolvedTenantId, currentUser, settings,
     valorTela, valorTelaComComissao, desconto1, desconto2, desconto3,
     formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias,
-    result, environments, setEnvironments, setValorTela, setImportedFile, setDetectedSoftware,
+    result, environments, setEnvironments, catalogProducts, setValorTela, setImportedFile, setDetectedSoftware,
     selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
@@ -173,8 +174,17 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       uploadedEnvironments.push({ id: env.id, fileName: env.fileName, environmentName: env.environmentName, pieceCount: env.pieceCount, totalValue: env.totalValue, importedAt: env.importedAt.toISOString(), fileUrl });
     }
 
-    const arquivoNome = uploadedEnvironments.length > 0 ? JSON.stringify(uploadedEnvironments) : null;
-    const arquivoUrl = uploadedEnvironments.length > 0 ? uploadedEnvironments.map((e: any) => e.fileUrl).filter(Boolean).join(',') : null;
+    // Serialize both environments and catalog products into arquivo_nome
+    const catalogSerialized = catalogProducts.map(item => ({
+      product_id: item.product.id, internal_code: item.product.internal_code,
+      name: item.product.name, sale_price: item.product.sale_price, quantity: item.quantity,
+    }));
+    const hasEnvs = uploadedEnvironments.length > 0;
+    const hasCatalog = catalogSerialized.length > 0;
+    const arquivoNome = (hasEnvs || hasCatalog)
+      ? JSON.stringify({ environments: uploadedEnvironments, catalogProducts: catalogSerialized })
+      : null;
+    const arquivoUrl = hasEnvs ? uploadedEnvironments.map((e: any) => e.fileUrl).filter(Boolean).join(',') : null;
 
     const { data: existingSims } = await supabase.from("simulations").select("id, created_at").eq("client_id", clientId).order("created_at", { ascending: false });
     if (existingSims && existingSims.length >= 3) {

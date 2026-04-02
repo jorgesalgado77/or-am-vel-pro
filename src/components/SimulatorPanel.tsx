@@ -10,6 +10,7 @@ import { useConversionHistory } from "@/hooks/useConversionHistory";
 
 import { calculateSimulation, formatCurrency, type FormaPagamento, type SimulationInput } from "@/lib/financing";
 import { supabase } from "@/lib/supabaseClient";
+import { parseArquivoNome } from "@/lib/parseArquivoNome";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useDiscountOptions } from "@/hooks/useDiscountOptions";
@@ -224,7 +225,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     client, linkedClient, resolvedTenantId, currentUser, settings: rates.settings,
     valorTela, valorTelaComComissao, desconto1, desconto2, desconto3,
     formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias,
-    result, environments, setEnvironments, setValorTela,
+    result, environments, setEnvironments, catalogProducts, setValorTela,
     setImportedFile, setDetectedSoftware, selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
@@ -435,17 +436,27 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             if (sim.desconto3 > 0) setDesconto3Unlocked(true);
             if (sim.plus_percentual > 0) setPlusUnlocked(true);
             if (sim.arquivo_nome) {
-              try {
-                const envs = JSON.parse(sim.arquivo_nome);
-                if (Array.isArray(envs) && envs.length > 0) {
-                  setEnvironments(envs.map((e: any) => ({
-                    id: e.id || crypto.randomUUID(), fileName: e.fileName || e.name || "",
-                    environmentName: e.environmentName || e.name || "", pieceCount: e.pieceCount || 0,
-                    totalValue: e.totalValue || Number(e.value) || 0, importedAt: new Date(e.importedAt || Date.now()),
-                    file: new File([], e.fileName || ""),
-                  })));
-                }
-              } catch {}
+              const { environments: envs, catalogProducts: catProds } = parseArquivoNome(sim.arquivo_nome);
+              if (envs.length > 0) {
+                setEnvironments(envs.map((e: any) => ({
+                  id: e.id || crypto.randomUUID(), fileName: e.fileName || e.name || "",
+                  environmentName: e.environmentName || e.name || "", pieceCount: e.pieceCount || 0,
+                  totalValue: e.totalValue || Number(e.value) || 0, importedAt: new Date(e.importedAt || Date.now()),
+                  file: new File([], e.fileName || ""),
+                })));
+              }
+              if (catProds.length > 0) {
+                setCatalogProducts(catProds.map((cp: any) => ({
+                  product: {
+                    id: cp.product_id, internal_code: cp.internal_code || "", name: cp.name || "",
+                    sale_price: cp.sale_price || 0, category: cp.category || "", stock_status: cp.stock_status || "in_stock",
+                    stock_quantity: cp.stock_quantity ?? 0, description: cp.description || "",
+                    width: cp.width ?? 0, height: cp.height ?? 0, depth: cp.depth ?? 0,
+                    environment: cp.environment || "", manufacturer_code: cp.manufacturer_code || "",
+                  },
+                  quantity: cp.quantity,
+                })));
+              }
             }
             toast.success(`Simulação de ${sim.client_name} carregada!`);
           }}
