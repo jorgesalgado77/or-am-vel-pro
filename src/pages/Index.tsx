@@ -387,11 +387,12 @@ export default function Index() {
                   client={historyClient}
                   onBack={() => { setActiveView("clients"); setHistoryClient(null); }}
                   onLoadSimulation={(sim, c) => {
-                    // Parse environments from arquivo_nome if it's JSON
                     let ambientes: any[] | undefined;
+                    let catalogProducts: any[] | undefined;
                     try {
                       const parsed = parseArquivoNome((sim as any).arquivo_nome);
                       ambientes = parsed.environments.length > 0 ? parsed.environments : undefined;
+                      catalogProducts = parsed.catalogProducts.length > 0 ? parsed.catalogProducts : undefined;
                     } catch {}
                     setLoadedSimulation({
                       valor_tela: Number(sim.valor_tela),
@@ -403,6 +404,7 @@ export default function Index() {
                       valor_entrada: Number(sim.valor_entrada) || 0,
                       plus_percentual: Number(sim.plus_percentual) || 0,
                       ambientes,
+                      catalogProducts,
                     });
                     setSimulatingClient(c);
                     setHistoryClient(null);

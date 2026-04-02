@@ -36,10 +36,16 @@ export interface SavedEnvironmentData {
   pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string;
 }
 
+export interface SavedCatalogProduct {
+  product_id: string; internal_code: string; name: string; sale_price: number; quantity: number;
+  category?: string; stock_status?: string; description?: string;
+}
+
 export interface SavedSimulationData {
   valor_tela: number; desconto1: number; desconto2: number; desconto3: number;
   forma_pagamento: string; parcelas: number; valor_entrada: number;
   plus_percentual: number; ambientes?: SavedEnvironmentData[];
+  catalogProducts?: SavedCatalogProduct[];
 }
 
 interface SimulatorPanelProps {
