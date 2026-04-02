@@ -186,9 +186,9 @@ export function CommercialAIPanel() {
 
     (async () => {
       try {
-        const { data } = await supabase.functions.invoke("commercial-ai", {
-          body: { action: "check_alerts", tenant_id: tenantId },
-        });
+        const { data } = await miaInvoke("commercial-ai", {
+            action: "check_alerts", tenant_id: tenantId,
+          }, { tenantId, userId: user?.id || "system", origin: "commercial", context: "commercial", skipMemory: true });
         if (data?.alerts) {
           for (const alert of data.alerts) {
             sendPushIfEnabled("leads", user.id, alert.title, alert.body, `commercial-ai-${alert.type}`);

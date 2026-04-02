@@ -339,8 +339,7 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
         `${t.speaker === "vendedor" ? "Vendedor" : "Cliente"}: ${t.text}`
       ).join("\n");
 
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           messages: [
             {
               role: "system",
@@ -357,8 +356,7 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
             { role: "user", content: text },
           ],
           tenant_id: tenantId,
-        },
-      });
+        }, { tenantId: tenantId || "", userId: "system", origin: "dealroom", context: "dealroom" });
 
       if (error) throw error;
       const reply = data?.reply || "Erro ao obter resposta.";
