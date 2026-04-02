@@ -168,10 +168,10 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
 
           {/* Produtos do Catálogo */}
           {catalogProducts.length > 0 && (
-            <div className="mt-2 border rounded-md overflow-hidden">
-              <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
-                <span className="text-xs font-medium text-muted-foreground">Produtos do Catálogo</span>
-                <span className="text-xs text-muted-foreground">{catalogProducts.length} produto(s)</span>
+            <div className="mt-2 border border-emerald-200 dark:border-emerald-800 rounded-md overflow-hidden">
+              <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5">
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Produtos do Catálogo</span>
+                <span className="text-xs text-emerald-600/70 dark:text-emerald-400/70">{catalogProducts.length} produto(s)</span>
               </div>
               <Table>
                 <TableHeader>
