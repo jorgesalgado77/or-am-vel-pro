@@ -11,7 +11,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import type { Product } from "@/hooks/useProductCatalog";
 import { formatCurrency } from "@/lib/financing";
-import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX } from "lucide-react";
+import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductImage {
