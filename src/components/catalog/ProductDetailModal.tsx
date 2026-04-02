@@ -334,27 +334,36 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               {media.length > 0 && featured && (
                 <div className="space-y-2">
                   <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted">
-                    {featured.type === "video" ? (
-                      playingVideo ? (
-                        (() => {
-                          const isEmbed = featured.url.includes("youtube") || featured.url.includes("youtu.be") || featured.url.includes("vimeo");
-                          const embed = getVideoEmbedUrl(featured.url);
-                          return isEmbed && embed ? (
-                            <iframe src={embed} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; fullscreen" />
-                          ) : (
-                            <video src={featured.url} controls autoPlay className="w-full h-full object-contain bg-black" />
-                          );
-                        })()
-                      ) : (
-                        <div className="w-full h-full cursor-pointer group" onClick={() => setPlayingVideo(true)}>
-                          <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
-                            </div>
+                    {featured.type === "video" && playingVideo ? (
+                      (() => {
+                        const isEmbed = featured.url.includes("youtube") || featured.url.includes("youtu.be") || featured.url.includes("vimeo");
+                        const embed = getVideoEmbedUrl(featured.url);
+                        return isEmbed && embed ? (
+                          <iframe src={embed} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; fullscreen" />
+                        ) : (
+                          <video
+                            ref={videoRef2}
+                            src={featured.url}
+                            controls
+                            autoPlay
+                            className="w-full h-full object-contain bg-black"
+                            onEnded={() => {
+                              // Video ended → advance to next slide
+                              setPlayingVideo(false);
+                              setSelectedMediaIdx(i => (i + 1) % media.length);
+                            }}
+                          />
+                        );
+                      })()
+                    ) : featured.type === "video" ? (
+                      <div className="w-full h-full cursor-pointer group" onClick={() => setPlayingVideo(true)}>
+                        <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
                           </div>
                         </div>
-                      )
+                      </div>
                     ) : (
                       <div className="w-full h-full cursor-pointer group" onClick={() => setViewerImage(featured.url)}>
                         <img src={featured.url} alt={product.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
@@ -363,11 +372,42 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                         </div>
                       </div>
                     )}
+
+                    {/* Navigation arrows */}
+                    {media.length > 1 && (
+                      <>
+                        <button
+                          className="absolute left-1.5 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 rounded-full p-1 text-white transition-colors z-10"
+                          onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <button
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 rounded-full p-1 text-white transition-colors z-10"
+                          onClick={(e) => { e.stopPropagation(); goNext(); }}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                      </>
+                    )}
+
+                    {/* Slide indicator dots */}
+                    {media.length > 1 && (
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                        {media.map((_, idx) => (
+                          <button
+                            key={idx}
+                            className={`w-2 h-2 rounded-full transition-colors ${idx === selectedMediaIdx ? "bg-white" : "bg-white/40"}`}
+                            onClick={(e) => { e.stopPropagation(); setSelectedMediaIdx(idx); setPlayingVideo(false); }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Thumbnail carousel */}
+                  {/* Thumbnail carousel with horizontal scroll */}
                   {media.length > 1 && (
-                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                    <div ref={thumbContainerRef} className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
                       {media.map((item, idx) => (
                         <button
                           key={item.id}
@@ -397,36 +437,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                   <span className="text-muted-foreground text-sm">Sem imagens</span>
                 </div>
               )}
-
-              {/* Product details */}
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-muted-foreground text-xs block">Código Interno</span><p className="font-mono text-xs">{product.internal_code}</p></div>
-                {product.manufacturer_code && <div><span className="text-muted-foreground text-xs block">Cód. Fabricante</span><p className="font-mono text-xs">{product.manufacturer_code}</p></div>}
-                <div><span className="text-muted-foreground text-xs block">Categoria</span><p className="capitalize text-xs">{product.category}</p></div>
-                {product.environment && <div><span className="text-muted-foreground text-xs block">Ambiente</span><p className="capitalize text-xs">{product.environment}</p></div>}
-              </div>
-
-              {product.description && (
-                <div><span className="text-xs text-muted-foreground block">Descrição</span><p className="text-xs mt-1">{product.description}</p></div>
-              )}
-
-              {(product.width > 0 || product.height > 0 || product.depth > 0) && (
-                <div><span className="text-xs text-muted-foreground block">Dimensões (L × A × P)</span>
-                  <p className="text-sm font-medium">{product.width} × {product.height} × {product.depth} cm</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-xs text-muted-foreground block">Preço de Venda</span>
-                  <p className="font-bold text-primary text-base sm:text-lg">{formatCurrency(product.sale_price)}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground block">Estoque</span>
-                  <p className="font-medium text-xs">{product.stock_quantity} un</p>
-                  <Badge variant="outline" className="text-[10px] mt-1">
-                    {STOCK_LABELS[product.stock_status] || product.stock_status}
-                  </Badge>
                 </div>
               </div>
 
