@@ -132,7 +132,19 @@ export const AutoPilotHistory = memo(function AutoPilotHistory({ trackingId, ten
                     </p>
                   )}
 
-                  <span className="text-muted-foreground">{item.tokens_usados} tokens</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{item.tokens_usados} tokens</span>
+                    {tenantId && userId && item.resposta_ia && (
+                      <MIAFeedback
+                        tenantId={tenantId}
+                        userId={userId}
+                        context="vendazap"
+                        responseId={`autopilot-${item.id}`}
+                        actionTaken="autopilot"
+                        compact
+                      />
+                    )}
+                  </div>
                 </div>
               );
             })}
