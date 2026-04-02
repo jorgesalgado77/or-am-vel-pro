@@ -469,6 +469,8 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                   </Badge>
                 </div>
               </div>
+
+              {product.supplier && (
                 <div><span className="text-xs text-muted-foreground block">Fornecedor</span><p className="text-sm font-medium">{product.supplier.name}</p></div>
               )}
 
