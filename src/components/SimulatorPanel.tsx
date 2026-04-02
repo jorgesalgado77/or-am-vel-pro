@@ -228,11 +228,15 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     const state: SimulatorStoredState = {
       valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada,
       plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked,
+      hideIndicador, extremaLocked,
+      selectedBoletoProvider: rates.selectedBoletoProvider,
+      selectedCreditoProvider: rates.selectedCreditoProvider,
+      linkedClientId: linkedClient?.id || "",
       environments: environments.map(({ file, importedAt, ...rest }) => ({ ...rest, importedAt: importedAt.toISOString() })),
       catalogProducts,
     };
     sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, environments, catalogProducts]);
+  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, hideIndicador, extremaLocked, rates.selectedBoletoProvider, rates.selectedCreditoProvider, linkedClient, environments, catalogProducts]);
 
   // Update valorTela from environments (excluding catalog-products fake entry) + catalog total
   useEffect(() => {
