@@ -62,6 +62,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
+    activeStrategy,
   } = params;
 
   const effectiveClient = client || linkedClient;
