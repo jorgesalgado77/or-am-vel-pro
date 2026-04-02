@@ -101,6 +101,8 @@ export function AIStrategyPanel({
   calculateResult,
   canAccess,
   historicalConversionRate = 0,
+  onRequestExtremaUnlock,
+  extremaUnlocked,
 }: AIStrategyPanelProps) {
   const [enabled, setEnabled] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
