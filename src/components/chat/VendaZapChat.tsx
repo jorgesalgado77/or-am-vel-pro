@@ -52,6 +52,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
   const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
   const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<string | null>(null);
   const [interventionMode, setInterventionMode] = useState<"automatico" | "assistido" | "manual">("assistido");
   const [closeSaleOpen, setCloseSaleOpen] = useState(false);
   const [closeSaleClient, setCloseSaleClient] = useState<ComponentProps<typeof CloseSaleModal>["client"] | null>(null);
