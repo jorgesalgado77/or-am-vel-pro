@@ -13,6 +13,7 @@ import {
   Sparkles, Copy, BookOpen, Loader2, ChevronLeft, ChevronRight, Wand2, Trash2, Pencil, Save, User,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 
 const COPY_TYPE_LABELS: Record<string, { label: string; color: string }> = {
