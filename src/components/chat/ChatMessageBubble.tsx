@@ -33,6 +33,70 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
   );
 }
 
+function PdfAttachmentPreview({ url, name }: { url: string; name: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("fetch failed");
+        const blob = await res.blob();
+        const localUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+        if (!cancelled) setBlobUrl(localUrl);
+        else URL.revokeObjectURL(localUrl);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [url]);
+
+  return (
+    <div className="mt-1 space-y-1.5 max-w-[280px]">
+      {/* Thumbnail preview */}
+      {blobUrl && !failed ? (
+        <div className="relative rounded-md overflow-hidden border border-border/50 bg-muted/30">
+          <iframe
+            src={blobUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
+            className="w-full h-44 pointer-events-none"
+            title={name}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+        </div>
+      ) : (
+        <div className="flex items-center justify-center h-28 rounded-md border border-border/50 bg-muted/30">
+          <FileText className="h-10 w-10 text-red-400/60" />
+        </div>
+      )}
+      {/* Actions bar */}
+      <div className="flex items-center gap-1.5">
+        <FileText className="h-3.5 w-3.5 shrink-0 text-red-500" />
+        <span className="text-[11px] truncate flex-1 font-medium">{name}</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1 rounded hover:bg-foreground/10 transition-colors"
+          title="Abrir"
+        >
+          <ExternalLink className="h-3 w-3" />
+        </a>
+        <a
+          href={blobUrl || url}
+          download={name}
+          className="p-1 rounded hover:bg-foreground/10 transition-colors"
+          title="Baixar"
+        >
+          <Download className="h-3 w-3" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function AttachmentPreview({ msg }: { msg: ChatMessage }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
