@@ -324,12 +324,17 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                         <button
                           key={item.id}
                           className={`relative shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-md overflow-hidden border-2 transition-colors ${idx === selectedMediaIdx ? "border-primary" : "border-transparent hover:border-muted-foreground/30"}`}
-                          onClick={() => setSelectedMediaIdx(idx)}
+                          onClick={() => { setSelectedMediaIdx(idx); setPlayingVideo(false); }}
                         >
-                          <img src={item.thumbUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
+                          {item.type === "video" && !item.thumbUrl.includes("youtube") ? (
+                            <video src={item.url} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                          ) : (
+                            <img src={item.thumbUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
+                          )}
                           {item.type === "video" && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
                               <Play className="h-3.5 w-3.5 text-white" />
+                              <span className="text-[8px] font-bold text-white mt-0.5 tracking-wide">VÍDEO</span>
                             </div>
                           )}
                         </button>
