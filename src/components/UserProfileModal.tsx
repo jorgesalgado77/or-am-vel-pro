@@ -574,7 +574,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                   className="gap-1.5 text-xs text-muted-foreground"
                   onClick={() => {
                     setSelectedTheme("default");
-                    applyTheme("default");
+                    resetToDefaultTheme();
                     toast.success("Tema padrão restaurado!");
                   }}
                 >
