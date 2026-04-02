@@ -159,7 +159,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const { currentUser } = useCurrentUser();
   const [images, setImages] = useState<ProductImage[]>([]);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
-  const [viewerVideo, setViewerVideo] = useState<string | null>(null);
+  const [playingVideo, setPlayingVideo] = useState(false);
   const [selectedMediaIdx, setSelectedMediaIdx] = useState(0);
 
   const [showAddFlow, setShowAddFlow] = useState(false);
