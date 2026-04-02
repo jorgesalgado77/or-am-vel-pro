@@ -119,7 +119,7 @@ export default function Index() {
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [contractsClient, setContractsClient] = useState<Client | null>(null);
-  const [loadedSimulation, setLoadedSimulation] = useState<{ valor_tela: number; desconto1: number; desconto2: number; desconto3: number; forma_pagamento: string; parcelas: number; valor_entrada: number; plus_percentual: number; ambientes?: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string }> } | null>(null);
+  const [loadedSimulation, setLoadedSimulation] = useState<{ valor_tela: number; desconto1: number; desconto2: number; desconto3: number; forma_pagamento: string; parcelas: number; valor_entrada: number; plus_percentual: number; ambientes?: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string }>; catalogProducts?: Array<{ product_id: string; internal_code: string; name: string; sale_price: number; quantity: number }> } | null>(null);
 
   const {
     clients, loading, lastSims, allSimulations, saving,
