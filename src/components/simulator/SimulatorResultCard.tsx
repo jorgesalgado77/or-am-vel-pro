@@ -25,6 +25,7 @@ interface SimulatorResultCardProps {
   valorTelaComComissao: number;
   comissaoPercentual: number;
   hideIndicador: boolean;
+  plusPercentual: number;
   result: {
     valorComDesconto: number;
     valorFinal: number;
@@ -50,11 +51,13 @@ interface SimulatorResultCardProps {
 }
 
 export function SimulatorResultCard({
-  valorTela, valorTelaComComissao, comissaoPercentual, hideIndicador,
+  valorTela, valorTelaComComissao, comissaoPercentual, hideIndicador, plusPercentual,
   result, valorEntrada, parcelas, showParcelas, showCarencia, carenciaDias,
   saving, closingSale, hasClient, generatingPdf,
   onSave, onPdf, onCloseSale, onClear,
 }: SimulatorResultCardProps) {
+  const plusValue = plusPercentual > 0 ? result.valorComDesconto * (plusPercentual / 100) : 0;
+  const descontoTotalComPlus = (valorTelaComComissao - result.valorComDesconto) + plusValue;
   return (
     <Card>
       <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
@@ -66,8 +69,14 @@ export function SimulatorResultCard({
         {!hideIndicador && comissaoPercentual > 0 && (
           <ResultRow label="Valor com Indicador" value={formatCurrency(valorTelaComComissao)} />
         )}
-        <ResultRow label="Desconto Total" value={formatCurrency(valorTelaComComissao - result.valorComDesconto)} muted />
+        <ResultRow label="Desconto Total" value={formatCurrency(descontoTotalComPlus)} muted />
         <ResultRow label="Valor com Desconto" value={formatCurrency(result.valorComDesconto)} />
+        {plusPercentual > 0 && (
+          <>
+            <ResultRow label={`Desconto Plus (${plusPercentual}%)`} value={`- ${formatCurrency(plusValue)}`} muted />
+            <ResultRow label="Valor após Plus" value={formatCurrency(result.valorComDesconto - plusValue)} />
+          </>
+        )}
         <Separator />
         <ResultRow label="Entrada" value={formatCurrency(valorEntrada)} />
         <ResultRow label="Saldo" value={formatCurrency(result.saldo)} />
