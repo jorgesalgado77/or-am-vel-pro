@@ -8,9 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabaseClient";
+import { getMIAOrchestrator } from "@/services/mia";
+import { useTenant } from "@/contexts/TenantContext";
 
 export function CampaignAIGenerator() {
+  const { tenantId } = useTenant();
   const [ambiente, setAmbiente] = useState("cozinha");
   const [plataforma, setPlataforma] = useState("instagram");
   const [objetivo, setObjetivo] = useState("captar leads");
@@ -24,8 +26,12 @@ export function CampaignAIGenerator() {
     setLoading(true);
     setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const mia = getMIAOrchestrator();
+      const response = await mia.handleRequest({
+        context: "campaign",
+        tenantId: tenantId || "",
+        input: `Crie uma campanha de anúncio para ${plataforma} sobre ${ambiente}. Objetivo: ${objetivo}. Tom: ${tom}. ${diferencial ? `Diferencial: ${diferencial}` : ""}`,
+        payload: {
           mensagem_cliente: `Crie uma campanha de anúncio para ${plataforma} sobre ${ambiente}. Objetivo: ${objetivo}. Tom: ${tom}. ${diferencial ? `Diferencial: ${diferencial}` : ""}`,
           nome_cliente: "Lojista",
           tipo_copy: "campanha_trafego",
@@ -35,9 +41,9 @@ export function CampaignAIGenerator() {
         },
       });
 
-      if (error) throw error;
+      if (response.error) throw new Error(response.error);
 
-      const resposta = data?.resposta || "";
+      const resposta = response.content || "";
       try {
         // Try to parse JSON from the response
         const jsonMatch = resposta.match(/\{[\s\S]*\}/);

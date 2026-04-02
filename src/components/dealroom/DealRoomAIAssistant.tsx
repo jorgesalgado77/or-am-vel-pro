@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
+import { getMIAOrchestrator } from "@/services/mia";
 
 interface DealRoomAIAssistantProps {
   tenantId: string;
@@ -124,22 +125,23 @@ Cliente: ${clientName || "não informado"}.
 Valor da proposta: ${proposalValue ? formatCurrency(proposalValue) : "não definido"}.
 Sou um projetista/vendedor de móveis planejados.${chatContext}${simContext}${transcriptionCtx}`;
 
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
-          messages: [
-            {
-              role: "system",
-              content: `Você é um assistente de vendas inteligente na Deal Room. Você tem acesso a TODO o histórico de conversa do WhatsApp, todas as simulações de orçamento e a transcrição da reunião por vídeo em tempo real. Use TODAS essas informações para dar conselhos precisos, identificar objeções, sinais de fechamento e sugerir ações. Seja direto e prático. ${fullContext}`,
-            },
-            ...messages.map(m => ({ role: m.role, content: m.content })),
-            { role: "user", content: text },
-          ],
-          tenant_id: tenantId,
-        },
+      const mia = getMIAOrchestrator();
+      const response = await mia.handleRequest({
+        context: "dealroom",
+        tenantId,
+        useMemory: true,
+        messages: [
+          {
+            role: "system",
+            content: `Você é um assistente de vendas inteligente na Deal Room. Você tem acesso a TODO o histórico de conversa do WhatsApp, todas as simulações de orçamento e a transcrição da reunião por vídeo em tempo real. Use TODAS essas informações para dar conselhos precisos, identificar objeções, sinais de fechamento e sugerir ações. Seja direto e prático. ${fullContext}`,
+          },
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+          { role: "user", content: text },
+        ],
       });
 
-      if (error) throw error;
-      const aiResponse = data?.reply || data?.choices?.[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.";
+      if (response.error) throw new Error(response.error);
+      const aiResponse = response.content || "Desculpe, não consegui gerar uma resposta.";
       setMessages(prev => [...prev, { role: "assistant", content: aiResponse }]);
     } catch {
       toast.error("Erro ao consultar IA");
