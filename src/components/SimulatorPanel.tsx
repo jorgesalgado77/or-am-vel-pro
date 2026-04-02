@@ -92,7 +92,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [plusUnlocked, setPlusUnlocked] = useState((init?.plus_percentual ?? 0) > 0 || (stored.plusUnlocked ?? false));
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
-  const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | null>(null);
+  const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | null>(null);
+  const [extremaLocked, setExtremaLocked] = useState(false);
+  const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>([]);
@@ -239,6 +241,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   }, [currentUser]);
 
   // ─── Unlock Handlers ───
+  const isVendedorOrProjetista = useMemo(() => {
+    const cargo = currentUser?.cargo_nome?.toUpperCase() || "";
+    return cargo.includes("VENDEDOR") || cargo.includes("PROJETISTA");
+  }, [currentUser]);
+
   const requestUnlock = (field: "desconto3" | "plus") => {
     if (field === "desconto3" && hasPermission("desconto3")) { setDesconto3Unlocked(true); return; }
     if (field === "plus" && hasPermission("plus")) { setPlusUnlocked(true); return; }
@@ -247,7 +254,35 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setPendingUnlock(field); setPasswordInput(""); setPasswordDialogOpen(true);
   };
 
+  const requestExtremaUnlock = useCallback((_params: any, callback: () => void) => {
+    // Admin/gerente can apply directly
+    if (!isVendedorOrProjetista) {
+      callback();
+      return;
+    }
+    const requiredPassword = rates.settings.admin_password || rates.settings.manager_password;
+    if (!requiredPassword) { callback(); return; }
+    setPendingUnlock("extrema");
+    setPendingExtremaCallback(() => callback);
+    setPasswordInput("");
+    setPasswordDialogOpen(true);
+  }, [isVendedorOrProjetista, rates.settings.admin_password, rates.settings.manager_password]);
+
   const handlePasswordConfirm = () => {
+    if (pendingUnlock === "extrema") {
+      const pw = rates.settings.admin_password || rates.settings.manager_password;
+      if (passwordInput === pw) {
+        setPasswordDialogOpen(false);
+        setExtremaLocked(true);
+        setDesconto3Unlocked(true);
+        setPlusUnlocked(true);
+        if (pendingExtremaCallback) pendingExtremaCallback();
+        setPendingExtremaCallback(null);
+        toast.success("Estratégia Extrema liberada pelo gestor!");
+      } else { toast.error("Senha incorreta"); }
+      setPasswordInput("");
+      return;
+    }
     const requiredPassword = pendingUnlock === "desconto3" ? rates.settings.manager_password : rates.settings.admin_password;
     if (passwordInput === requiredPassword) {
       if (pendingUnlock === "desconto3") setDesconto3Unlocked(true);
@@ -258,7 +293,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setPasswordInput("");
   };
 
-  const passwordDialogTitle = pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
+  const passwordDialogTitle = pendingUnlock === "extrema" ? "Senha do Gerente / Administrador" : pendingUnlock === "desconto3" ? "Senha do Gerente" : "Senha do Administrador";
 
   // ─── Render ───
   return (
@@ -285,6 +320,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           valorEntrada={valorEntrada} setValorEntrada={setValorEntrada}
           plusPercentual={plusPercentual} setPlusPercentual={setPlusPercentual}
           plusUnlocked={plusUnlocked}
+          extremaLocked={extremaLocked && isVendedorOrProjetista}
           carenciaDias={carenciaDias} setCarenciaDias={setCarenciaDias}
           selectedIndicadorId={selectedIndicadorId} setSelectedIndicadorId={setSelectedIndicadorId}
           hideIndicador={hideIndicador} setHideIndicador={setHideIndicador}
@@ -348,8 +384,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                 const r = calculateSimulation(input);
                 return { valorComDesconto: r.valorComDesconto, valorFinal: r.valorFinal, valorParcela: r.valorParcela, saldo: r.saldo };
               }}
-              canAccess={(() => { const cargo = currentUser?.cargo_nome?.toUpperCase() || ""; return cargo.includes("ADMIN") || cargo.includes("GERENTE") || cargo.includes("PROJETISTA"); })()}
+              canAccess={(() => { const cargo = currentUser?.cargo_nome?.toUpperCase() || ""; return cargo.includes("ADMIN") || cargo.includes("GERENTE") || cargo.includes("PROJETISTA") || cargo.includes("VENDEDOR"); })()}
               historicalConversionRate={conversionStats.conversionRate}
+              onRequestExtremaUnlock={requestExtremaUnlock}
+              extremaUnlocked={!isVendedorOrProjetista || extremaLocked}
             />
           </Suspense>
 
@@ -367,7 +405,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
               setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
-              setDesconto3Unlocked(false); setPlusUnlocked(false);
+              setDesconto3Unlocked(false); setPlusUnlocked(false); setExtremaLocked(false);
               setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
               setCatalogProducts([]);
               setLinkedClient(null); setClientSearch("");

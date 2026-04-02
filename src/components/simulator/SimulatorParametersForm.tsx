@@ -35,6 +35,7 @@ interface SimulatorParametersFormProps {
   valorEntrada: number; setValorEntrada: (v: number) => void;
   plusPercentual: number; setPlusPercentual: (v: number) => void;
   plusUnlocked: boolean;
+  extremaLocked?: boolean;
   carenciaDias: 30 | 60 | 90;
   setCarenciaDias: (v: 30 | 60 | 90) => void;
   selectedIndicadorId: string;
@@ -80,7 +81,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   formaPagamento, setFormaPagamento,
   parcelas, setParcelas,
   valorEntrada, setValorEntrada,
-  plusPercentual, setPlusPercentual, plusUnlocked,
+  plusPercentual, setPlusPercentual, plusUnlocked, extremaLocked,
   carenciaDias, setCarenciaDias,
   selectedIndicadorId, setSelectedIndicadorId,
   hideIndicador, setHideIndicador,
@@ -313,11 +314,12 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
             <Label className="mb-1 flex items-center gap-1">
               Desconto 3 (%)
               {!desconto3Unlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
-              {desconto3Unlocked && <LockOpen className="h-3 w-3 text-success" />}
+              {desconto3Unlocked && !extremaLocked && <LockOpen className="h-3 w-3 text-success" />}
+              {extremaLocked && <Lock className="h-3 w-3 text-amber-500" />}
             </Label>
             {desconto3Unlocked ? (
-              <Select value={String(desconto3)} onValueChange={(v) => setDesconto3(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={String(desconto3)} onValueChange={(v) => setDesconto3(Number(v))} disabled={!!extremaLocked}>
+                <SelectTrigger className={extremaLocked ? "opacity-70" : ""}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {getOptionsForField("desconto3").map((v) => (
                     <SelectItem key={v} value={String(v)}>{v}%</SelectItem>
@@ -435,11 +437,12 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
             <Label className="flex items-center gap-1">
               Desconto Plus (%)
               {!plusUnlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
-              {plusUnlocked && <LockOpen className="h-3 w-3 text-success" />}
+              {plusUnlocked && !extremaLocked && <LockOpen className="h-3 w-3 text-success" />}
+              {extremaLocked && <Lock className="h-3 w-3 text-amber-500" />}
             </Label>
             {plusUnlocked ? (
-              <Select value={String(plusPercentual)} onValueChange={(v) => setPlusPercentual(Number(v))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <Select value={String(plusPercentual)} onValueChange={(v) => setPlusPercentual(Number(v))} disabled={!!extremaLocked}>
+                <SelectTrigger className={`mt-1 ${extremaLocked ? "opacity-70" : ""}`}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {getOptionsForField("plus").map((v) => (
                     <SelectItem key={v} value={String(v)}>{v}%</SelectItem>
