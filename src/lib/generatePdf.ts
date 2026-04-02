@@ -38,6 +38,8 @@ interface SimulationPdfData {
   valorFinal: number;
   valorParcela: number;
   date?: string;
+  ambientes?: Array<{ environmentName: string; pieceCount: number; totalValue: number }>;
+  catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
 }
 
 function buildHtml(data: SimulationPdfData): string {

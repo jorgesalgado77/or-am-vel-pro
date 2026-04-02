@@ -28,6 +28,7 @@ export interface BudgetPdfPayload {
   valorFinal: number;
   valorParcela: number;
   ambientes?: Array<{ environmentName: string; pieceCount: number; totalValue: number }>;
+  catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
   date?: string;
 }
 
