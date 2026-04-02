@@ -168,8 +168,8 @@ export function AppSidebar({
         )}
         {!collapsed && (
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-foreground tracking-tight truncate">{companyName}</h1>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">{companySubtitle}</p>
+            <h1 className="text-lg font-semibold tracking-tight truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>{companyName}</h1>
+            <p className="text-xs mt-0.5 truncate" style={{ color: "hsl(var(--sidebar-foreground) / 0.6)" }}>{companySubtitle}</p>
           </div>
         )}
       </div>
