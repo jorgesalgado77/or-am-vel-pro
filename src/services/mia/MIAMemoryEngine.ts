@@ -4,14 +4,13 @@
  * Phase 3: Supabase-backed persistence with in-memory cache.
  * Requires table `mia_memory` in external Supabase.
  * 
- * RULES:
- * - tenant_id + user_id isolation ALWAYS enforced
- * - Limited payload (max 20 entries per context query)
- * - Relevance-ordered retrieval
- * - Graceful fallback if table doesn't exist yet
+ * NOTE: Uses raw PostgREST calls since `mia_memory` is not yet
+ * in the auto-generated Supabase types. Once the table is created
+ * and types regenerated, the casts can be removed.
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { EXTERNAL_SUPABASE_URL } from "@/lib/supabaseClient";
 import type { MIAContextType } from "./types";
 
 // ── Types ───────────────────────────────────────────────────────
@@ -38,7 +37,18 @@ export interface MIAMemoryEntry {
 
 const TABLE = "mia_memory";
 const MAX_ENTRIES_PER_QUERY = 20;
-const CACHE_TTL = 5 * 60 * 1000; // 5 min cache
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+// ── Helpers for untyped table access ────────────────────────────
+
+/**
+ * Get a PostgREST-compatible query builder for mia_memory.
+ * Uses schema cast to bypass typed client restrictions.
+ */
+function memoryTable() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (supabase as any).from(TABLE);
+}
 
 // ── Cache ───────────────────────────────────────────────────────
 
@@ -50,8 +60,6 @@ interface CacheEntry {
 class MIAMemoryEngine {
   private cache = new Map<string, CacheEntry>();
   private tableAvailable: boolean | null = null;
-
-  // ── Cache helpers ─────────────────────────────────────────────
 
   private cacheKey(tenantId: string, userId: string, memoryType?: MIAMemoryType): string {
     return `${tenantId}:${userId}:${memoryType || "all"}`;
@@ -78,18 +86,13 @@ class MIAMemoryEngine {
     }
   }
 
-  // ── Table check ───────────────────────────────────────────────
-
   private async checkTable(): Promise<boolean> {
     if (this.tableAvailable !== null) return this.tableAvailable;
     try {
-      const { error } = await supabase
-        .from(TABLE)
-        .select("id")
-        .limit(1);
+      const { error } = await memoryTable().select("id").limit(1);
       this.tableAvailable = !error;
       if (error) {
-        console.warn("[MIAMemory] Table not available yet:", error.message);
+        console.warn("[MIAMemory] Table not available:", error.message);
       }
     } catch {
       this.tableAvailable = false;
@@ -99,20 +102,15 @@ class MIAMemoryEngine {
 
   // ── Public API ────────────────────────────────────────────────
 
-  /**
-   * Save or update a memory entry (upsert on tenant+user+key).
-   */
   async saveMemory(entry: Omit<MIAMemoryEntry, "id" | "created_at" | "updated_at">): Promise<boolean> {
     if (!entry.tenant_id || !entry.user_id) {
       console.error("[MIAMemory] tenant_id and user_id are required");
       return false;
     }
-
     if (!(await this.checkTable())) return false;
 
     try {
-      const { error } = await supabase
-        .from(TABLE)
+      const { error } = await memoryTable()
         .upsert(
           {
             tenant_id: entry.tenant_id,
@@ -138,10 +136,6 @@ class MIAMemoryEngine {
     }
   }
 
-  /**
-   * Retrieve memories for a tenant+user, optionally filtered by type.
-   * Returns up to MAX_ENTRIES_PER_QUERY, ordered by relevance.
-   */
   async getMemory(params: {
     tenant_id: string;
     user_id: string;
@@ -157,8 +151,7 @@ class MIAMemoryEngine {
     if (!(await this.checkTable())) return [];
 
     try {
-      let query = supabase
-        .from(TABLE)
+      let query = memoryTable()
         .select("*")
         .eq("tenant_id", params.tenant_id)
         .eq("user_id", params.user_id)
@@ -184,9 +177,6 @@ class MIAMemoryEngine {
     }
   }
 
-  /**
-   * Update relevance score or value of an existing memory.
-   */
   async updateMemory(params: {
     tenant_id: string;
     user_id: string;
@@ -201,11 +191,9 @@ class MIAMemoryEngine {
       const updates: Record<string, unknown> = {};
       if (params.value !== undefined) updates.value = params.value;
       if (params.relevance_score !== undefined) updates.relevance_score = params.relevance_score;
-
       if (Object.keys(updates).length === 0) return false;
 
-      const { error } = await supabase
-        .from(TABLE)
+      const { error } = await memoryTable()
         .update(updates)
         .eq("tenant_id", params.tenant_id)
         .eq("user_id", params.user_id)
@@ -223,9 +211,6 @@ class MIAMemoryEngine {
     }
   }
 
-  /**
-   * Delete a specific memory entry.
-   */
   async deleteMemory(params: {
     tenant_id: string;
     user_id: string;
@@ -235,8 +220,7 @@ class MIAMemoryEngine {
     if (!(await this.checkTable())) return false;
 
     try {
-      const { error } = await supabase
-        .from(TABLE)
+      const { error } = await memoryTable()
         .delete()
         .eq("tenant_id", params.tenant_id)
         .eq("user_id", params.user_id)
@@ -254,16 +238,12 @@ class MIAMemoryEngine {
     }
   }
 
-  /**
-   * Clear all memories for a tenant+user.
-   */
   async clearMemory(tenantId: string, userId: string): Promise<boolean> {
     if (!tenantId || !userId) return false;
     if (!(await this.checkTable())) return false;
 
     try {
-      const { error } = await supabase
-        .from(TABLE)
+      const { error } = await memoryTable()
         .delete()
         .eq("tenant_id", tenantId)
         .eq("user_id", userId);
@@ -282,7 +262,6 @@ class MIAMemoryEngine {
 
   /**
    * Build a context string from memories for prompt injection.
-   * Used by ContextBuilder and Orchestrator to enrich AI prompts.
    */
   async buildContextString(
     tenantId: string,
@@ -298,7 +277,6 @@ class MIAMemoryEngine {
     if (memories.length === 0) return "";
 
     const sections: Record<string, string[]> = {};
-
     for (const m of memories) {
       const section = m.memory_type || "general";
       if (!sections[section]) sections[section] = [];
@@ -311,12 +289,11 @@ class MIAMemoryEngine {
       parts.push(`\n[${section}]`);
       parts.push(...items);
     }
-
     return parts.join("\n");
   }
 
   /**
-   * Convenience: remember an interaction (auto-categorized).
+   * Convenience: remember an interaction.
    */
   async remember(
     tenantId: string,
