@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { miaGenerateResponse } from "@/services/mia";
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 
 interface DealRoomAIAssistantProps {
   tenantId: string;
@@ -219,6 +220,17 @@ Sou um projetista/vendedor de móveis planejados.${chatContext}${simContext}${tr
                   </div>
                 )}
                 <p className="whitespace-pre-wrap text-xs">{msg.content}</p>
+                {msg.role === "assistant" && (
+                  <MIAFeedback
+                    tenantId={tenantId}
+                    userId={tenantId}
+                    context="dealroom"
+                    responseId={`dealroom-ai-${i}`}
+                    actionTaken="dealroom-assistant"
+                    compact
+                    className="mt-1"
+                  />
+                )}
               </div>
             </div>
           ))}

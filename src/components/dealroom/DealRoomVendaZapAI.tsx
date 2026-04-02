@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 import jsPDF from "jspdf";
 import { ClosingThermometer, analyzeClientMessage } from "@/components/vendazap/ClosingThermometer";
 import { NegotiationEvolutionPanel, learnFromMessage, buildLearningContext } from "@/components/vendazap/NegotiationLearning";
@@ -738,6 +739,15 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
             <div className="space-y-2">
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
                 <p className="text-xs text-foreground whitespace-pre-wrap">{generatedResponse}</p>
+                <MIAFeedback
+                  tenantId={tenantId || ""}
+                  userId="system"
+                  context="vendazap"
+                  responseId={`dealroom-vendazap-response-${Date.now()}`}
+                  actionTaken="vendazap-ai-response"
+                  compact
+                  className="mt-1.5"
+                />
               </div>
               <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={() => {
                 navigator.clipboard.writeText(generatedResponse);
@@ -802,6 +812,17 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
                       msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                     }`}>
                       <p className="whitespace-pre-wrap">{msg.content}</p>
+                      {msg.role === "assistant" && (
+                        <MIAFeedback
+                          tenantId={tenantId || ""}
+                          userId="system"
+                          context="dealroom"
+                          responseId={`coach-${i}`}
+                          actionTaken="dealroom-coach"
+                          compact
+                          className="mt-0.5"
+                        />
+                      )}
                     </div>
                   </div>
                 ))

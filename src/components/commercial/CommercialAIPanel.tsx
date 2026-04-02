@@ -23,6 +23,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
 import { toast } from "sonner";
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 
 function formatCurrency(val: number) {
   return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -619,6 +620,17 @@ export function CommercialAIPanel() {
                           {msg.content}
                         </ReactMarkdown>
                       </div>
+                      {msg.role === "assistant" && (
+                        <MIAFeedback
+                          tenantId={tenantId}
+                          userId={user?.id || "system"}
+                          context="commercial"
+                          responseId={`commercial-ai-${i}`}
+                          actionTaken="commercial-ai"
+                          compact
+                          className="mt-1"
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
