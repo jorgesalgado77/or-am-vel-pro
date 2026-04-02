@@ -20,6 +20,7 @@ interface ContractData {
   comissaoPercentual: number;
   items: any[];
   itemDetails: any[];
+  catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
 }
 
 export function buildContractHtml(templateHtml: string, data: ContractData): string {
