@@ -6,6 +6,7 @@ import type { ImportedEnvironment } from "@/components/simulator/SimulatorEnviro
 import type { SelectedProduct } from "@/components/simulator/ProductPickerForSimulator";
 import { SimulatorResultCard } from "@/components/simulator/SimulatorResultCard";
 import { SimulatorClientForm } from "@/components/simulator/SimulatorClientForm";
+import { PdfPreviewModal } from "@/components/simulator/PdfPreviewModal";
 import { useConversionHistory } from "@/hooks/useConversionHistory";
 
 import { calculateSimulation, formatCurrency, type FormaPagamento, type SimulationInput } from "@/lib/financing";
