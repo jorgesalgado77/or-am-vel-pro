@@ -26,7 +26,7 @@ import { ArgumentEngine } from "./engines/ArgumentEngine";
 
 class MIAOrchestrator {
   private engines: Map<MIAContextType, MIAEngineInterface> = new Map();
-  private memory = getMIAMemoryEngine();
+  private memory: MIAMemoryEngine = getMIAMemoryEngine();
   private actions = getMIAActionEngine();
 
   constructor() {
