@@ -159,7 +159,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const { currentUser } = useCurrentUser();
   const [images, setImages] = useState<ProductImage[]>([]);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
-  const [viewerVideo, setViewerVideo] = useState<string | null>(null);
+  const [playingVideo, setPlayingVideo] = useState(false);
   const [selectedMediaIdx, setSelectedMediaIdx] = useState(0);
 
   const [showAddFlow, setShowAddFlow] = useState(false);
@@ -208,16 +208,16 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               .select("id, image_url")
               .eq("product_id", product.id)
               .then(({ data: d2 }) => {
-                setImages((d2 || []) as any);
+            setImages((d2 || []) as any);
                 setSelectedMediaIdx(0);
+                setPlayingVideo(false);
               });
-          } else {
             setImages((data || []) as any);
             const defaultIdx = (data || []).findIndex((i: any) => i.is_default);
             setSelectedMediaIdx(defaultIdx >= 0 ? defaultIdx : 0);
           }
           setViewerImage(null);
-          setViewerVideo(null);
+          setPlayingVideo(false);
           setShowAddFlow(false);
         });
     }
@@ -274,7 +274,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
 
   return (
     <>
-      <Dialog open={open && !viewerImage && !viewerVideo} onOpenChange={onOpenChange}>
+      <Dialog open={open && !viewerImage} onOpenChange={onOpenChange}>
         <DialogContent className="w-[calc(100vw-16px)] sm:w-[calc(100vw-24px)] max-w-lg max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-24px)] p-0 overflow-hidden flex flex-col gap-0">
           <DialogHeader className="shrink-0 px-3 sm:px-4 pt-3 pb-2 border-b">
             <DialogTitle className="text-sm sm:text-base leading-tight pr-6">{product.name}</DialogTitle>
@@ -285,29 +285,35 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               {/* Featured media */}
               {media.length > 0 && featured && (
                 <div className="space-y-2">
-                  <div
-                    className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted cursor-pointer group"
-                    onClick={() => {
-                      if (featured.type === "video") setViewerVideo(featured.url);
-                      else setViewerImage(featured.url);
-                    }}
-                  >
+                  <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted">
                     {featured.type === "video" ? (
-                      <>
-                        <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <div className="h-12 w-12 rounded-full bg-primary/90 flex items-center justify-center shadow-lg">
-                            <Play className="h-6 w-6 text-primary-foreground ml-0.5" />
+                      playingVideo ? (
+                        (() => {
+                          const isEmbed = featured.url.includes("youtube") || featured.url.includes("youtu.be") || featured.url.includes("vimeo");
+                          const embed = getVideoEmbedUrl(featured.url);
+                          return isEmbed && embed ? (
+                            <iframe src={embed} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; fullscreen" />
+                          ) : (
+                            <video src={featured.url} controls autoPlay className="w-full h-full object-contain bg-black" />
+                          );
+                        })()
+                      ) : (
+                        <div className="w-full h-full cursor-pointer group" onClick={() => setPlayingVideo(true)}>
+                          <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
+                            </div>
                           </div>
                         </div>
-                      </>
+                      )
                     ) : (
-                      <>
+                      <div className="w-full h-full cursor-pointer group" onClick={() => setViewerImage(featured.url)}>
                         <img src={featured.url} alt={product.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
                           <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
 
@@ -318,12 +324,17 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                         <button
                           key={item.id}
                           className={`relative shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-md overflow-hidden border-2 transition-colors ${idx === selectedMediaIdx ? "border-primary" : "border-transparent hover:border-muted-foreground/30"}`}
-                          onClick={() => setSelectedMediaIdx(idx)}
+                          onClick={() => { setSelectedMediaIdx(idx); setPlayingVideo(false); }}
                         >
-                          <img src={item.thumbUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
+                          {item.type === "video" && !item.thumbUrl.includes("youtube") ? (
+                            <video src={item.url} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                          ) : (
+                            <img src={item.thumbUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
+                          )}
                           {item.type === "video" && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
                               <Play className="h-3.5 w-3.5 text-white" />
+                              <span className="text-[8px] font-bold text-white mt-0.5 tracking-wide">VÍDEO</span>
                             </div>
                           )}
                         </button>
@@ -438,8 +449,6 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
       {/* Fullscreen Image Viewer */}
       {viewerImage && <ImageViewer src={viewerImage} onClose={() => setViewerImage(null)} />}
 
-      {/* Fullscreen Video Player */}
-      {viewerVideo && <VideoPlayer url={viewerVideo} onClose={() => setViewerVideo(null)} />}
     </>
   );
 }
