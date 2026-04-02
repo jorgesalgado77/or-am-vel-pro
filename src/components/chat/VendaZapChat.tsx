@@ -38,11 +38,12 @@ interface Props {
   tenantId: string | null;
   userId?: string;
   initialClientId?: string | null;
+  initialAttachmentUrl?: string | null;
   onInitialClientHandled?: () => void;
   onDealRoom?: (clientName: string, contractId: string) => void;
 }
 
-export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClientHandled, onDealRoom }: Props) {
+export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachmentUrl, onInitialClientHandled, onDealRoom }: Props) {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selected, setSelected] = useState<ChatConversation | null>(null);
   const [loading, setLoading] = useState(true);
