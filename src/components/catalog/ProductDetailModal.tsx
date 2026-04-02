@@ -186,10 +186,11 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
       id: img.id,
     }));
     if (videoUrl) {
+      const ytThumb = getYouTubeThumb(videoUrl);
       items.push({
         type: "video",
         url: videoUrl,
-        thumbUrl: getYouTubeThumb(videoUrl) || "/placeholder.svg",
+        thumbUrl: ytThumb || videoUrl,
         id: "video-0",
       });
     }
@@ -480,10 +481,10 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               {/* Admin-only: custo, markup, preço mínimo */}
               {isAdmin && (
                 <div className="grid grid-cols-3 gap-2 text-sm bg-muted/30 rounded-lg p-3 border">
-                  <div><span className="text-xs text-muted-foreground block">Custo</span><p className="font-medium text-xs">{formatCurrency(product.cost_price)}</p></div>
-                  <div><span className="text-xs text-muted-foreground block">Markup</span><p className="font-medium text-xs">{product.markup_percentage}%</p></div>
-                  {product.min_sale_price > 0 && (
-                    <div><span className="text-xs text-muted-foreground block">Preço Mín.</span><p className="font-medium text-xs">{formatCurrency(product.min_sale_price)}</p></div>
+                  <div><span className="text-xs text-muted-foreground block">Custo</span><p className="font-medium text-xs">{formatCurrency(product.cost_price ?? 0)}</p></div>
+                  <div><span className="text-xs text-muted-foreground block">Markup</span><p className="font-medium text-xs">{product.markup_percentage ?? 0}%</p></div>
+                  {(product.min_sale_price ?? 0) > 0 && (
+                    <div><span className="text-xs text-muted-foreground block">Preço Mín.</span><p className="font-medium text-xs">{formatCurrency(product.min_sale_price ?? 0)}</p></div>
                   )}
                 </div>
               )}

@@ -65,7 +65,7 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
     setLoading(true);
     let query = supabase
       .from("products" as any)
-      .select("id, internal_code, name, category, sale_price, stock_status, stock_quantity, description, width, height, depth, environment, manufacturer_code")
+      .select("id, internal_code, name, category, sale_price, cost_price, markup_percentage, min_sale_price, stock_status, stock_quantity, description, width, height, depth, environment, manufacturer_code, video_url, supplier_id")
       .eq("tenant_id", tenantId)
       .neq("stock_status", "indisponivel")
       .order("name")
