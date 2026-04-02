@@ -38,11 +38,12 @@ interface Props {
   tenantId: string | null;
   userId?: string;
   initialClientId?: string | null;
+  initialAttachmentUrl?: string | null;
   onInitialClientHandled?: () => void;
   onDealRoom?: (clientName: string, contractId: string) => void;
 }
 
-export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClientHandled, onDealRoom }: Props) {
+export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachmentUrl, onInitialClientHandled, onDealRoom }: Props) {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selected, setSelected] = useState<ChatConversation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
   const [mobileAiOpen, setMobileAiOpen] = useState(false);
   const [showWhatsAppContacts, setShowWhatsAppContacts] = useState(false);
   const [pendingLeadConv, setPendingLeadConv] = useState<ChatConversation | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<string | null>(null);
   const [interventionMode, setInterventionMode] = useState<"automatico" | "assistido" | "manual">("assistido");
   const [closeSaleOpen, setCloseSaleOpen] = useState(false);
   const [closeSaleClient, setCloseSaleClient] = useState<ComponentProps<typeof CloseSaleModal>["client"] | null>(null);
@@ -317,9 +319,10 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
     const match = conversations.find((conversation) => conversation.client_id === initialClientId);
     if (match) {
       setSelected(match);
+      if (initialAttachmentUrl) setPendingAttachment(initialAttachmentUrl);
       onInitialClientHandled?.();
     }
-  }, [initialClientId, conversations, onInitialClientHandled]);
+  }, [initialClientId, initialAttachmentUrl, conversations, onInitialClientHandled]);
 
   const triggerAI = useCallback(async (conv: ChatConversation, forceRefresh = false) => {
     if (!addon?.ativo) return;
@@ -810,6 +813,8 @@ export function VendaZapChat({ tenantId, userId, initialClientId, onInitialClien
                 detectedDiscProfile={discProfile}
                 vendazapActive={!!addon?.ativo}
                 onCloseSale={handleCloseSaleFromAI}
+                initialAttachmentUrl={pendingAttachment}
+                onAttachmentHandled={() => setPendingAttachment(null)}
               />
             </div>
               <ChatRightPanel

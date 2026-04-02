@@ -30,6 +30,8 @@ interface Props {
   detectedDiscProfile?: string;
   vendazapActive?: boolean;
   onCloseSale?: (data: CloseSaleData) => void;
+  initialAttachmentUrl?: string | null;
+  onAttachmentHandled?: () => void;
 }
 
 const PAGE_SIZE = 40;
@@ -67,7 +69,7 @@ function getConversationPhone(conversation: ChatConversation | null | undefined)
 export function ChatWindow({
   conversation, onBack, onStartDealRoom, onCreateLead,
   inputValue, onInputChange, userId, tenantId, onMessageSent, onMessagesLoaded, detectedDiscProfile,
-  vendazapActive = false, onCloseSale,
+  vendazapActive = false, onCloseSale, initialAttachmentUrl, onAttachmentHandled,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [trackingIds, setTrackingIds] = useState<string[]>([conversation.id]);
@@ -371,6 +373,24 @@ export function ChatWindow({
       await sendWhatsAppMedia(conversation.phone, url, name, tipo);
     }
   };
+
+  // Auto-send PDF attachment when opened from simulator
+  const attachmentSentRef = useRef(false);
+  useEffect(() => {
+    if (!initialAttachmentUrl || attachmentSentRef.current || loading) return;
+    attachmentSentRef.current = true;
+    const sendPdf = async () => {
+      try {
+        await handleAttachmentSent(initialAttachmentUrl, "orcamento.pdf", "application/pdf");
+        toast.success("📄 PDF do orçamento enviado na conversa!");
+      } catch (err) {
+        console.error("Error auto-sending PDF:", err);
+      } finally {
+        onAttachmentHandled?.();
+      }
+    };
+    sendPdf();
+  }, [initialAttachmentUrl, loading]);
 
   const handleLoadMore = () => {
     if (messages.length > 0) {

@@ -106,6 +106,7 @@ export default function Index() {
   const [showProfile, setShowProfile] = useState(false);
   const [activeView, setActiveView] = useState("dashboard");
   const [pendingChatClientId, setPendingChatClientId] = useState<string | null>(null);
+  const [pendingChatAttachment, setPendingChatAttachment] = useState<string | null>(null);
   const { unreadCount: unreadMessages } = useRealtimeMessages(activeView);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window !== "undefined" && window.innerWidth < 768) return true;
@@ -223,8 +224,9 @@ export default function Index() {
 
   useEffect(() => {
     const handleOpenClientChat = (event: Event) => {
-      const customEvent = event as CustomEvent<{ clientId?: string | null }>;
+      const customEvent = event as CustomEvent<{ clientId?: string | null; attachmentUrl?: string | null }>;
       setPendingChatClientId(customEvent.detail?.clientId || null);
+      setPendingChatAttachment(customEvent.detail?.attachmentUrl || null);
       setActiveView("vendazap-chat");
     };
 
@@ -434,7 +436,8 @@ export default function Index() {
                   tenantId={authUser?.tenant_id || null}
                   userId={authUser?.id}
                   initialClientId={pendingChatClientId}
-                  onInitialClientHandled={() => setPendingChatClientId(null)}
+                  initialAttachmentUrl={pendingChatAttachment}
+                  onInitialClientHandled={() => { setPendingChatClientId(null); setPendingChatAttachment(null); }}
                   onDealRoom={(clientName, contractId) => {
                     setActiveView("dealroom");
                   }}
