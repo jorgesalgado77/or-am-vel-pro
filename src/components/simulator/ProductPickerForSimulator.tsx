@@ -57,6 +57,8 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
   const [filterStock, setFilterStock] = useState("_all");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Map<string, SelectedProduct>>(new Map());
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const loadProducts = useCallback(async () => {
     if (!tenantId) return;
