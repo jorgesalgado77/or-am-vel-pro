@@ -244,7 +244,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       catalogProducts,
     };
     sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, hideIndicador, extremaLocked, rates.selectedBoletoProvider, rates.selectedCreditoProvider, linkedClient, environments, catalogProducts]);
+  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, hideIndicador, extremaLocked, activeStrategy, rates.selectedBoletoProvider, rates.selectedCreditoProvider, linkedClient, environments, catalogProducts]);
 
   // Update valorTela from environments (excluding catalog-products fake entry) + catalog total
   useEffect(() => {
