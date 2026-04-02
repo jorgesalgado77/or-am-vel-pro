@@ -1,4 +1,4 @@
-import mammoth from "mammoth";
+// mammoth is dynamically imported to reduce initial bundle size
 
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
