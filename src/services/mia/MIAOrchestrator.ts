@@ -112,10 +112,14 @@ class MIAOrchestrator {
         }
       }
 
-      // Execute actions if any
+      // Execute actions via ActionExecutionEngine (with audit + permissions)
       if (response.actions && response.actions.length > 0) {
         try {
-          await this.actions.executeActions(response.actions);
+          await this.actionExecution.executeActions(
+            response.actions,
+            context.tenant_id,
+            context.user_id
+          );
         } catch (e) {
           console.warn("[MIAOrchestrator] Action execution failed:", e);
         }
