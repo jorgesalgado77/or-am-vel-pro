@@ -274,7 +274,7 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
 
   return (
     <>
-      <Dialog open={open && !viewerImage && !viewerVideo} onOpenChange={onOpenChange}>
+      <Dialog open={open && !viewerImage} onOpenChange={onOpenChange}>
         <DialogContent className="w-[calc(100vw-16px)] sm:w-[calc(100vw-24px)] max-w-lg max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-24px)] p-0 overflow-hidden flex flex-col gap-0">
           <DialogHeader className="shrink-0 px-3 sm:px-4 pt-3 pb-2 border-b">
             <DialogTitle className="text-sm sm:text-base leading-tight pr-6">{product.name}</DialogTitle>
