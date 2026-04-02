@@ -425,7 +425,14 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             saving={actions.saving} closingSale={actions.closingSale} hasClient={!!effectiveClient}
             generatingPdf={actions.generatingPdf}
             onSave={actions.handleSave}
-            onPdf={effectiveClient ? actions.handlePdf : null}
+            onPdf={effectiveClient ? async () => {
+              setPdfLoading(true);
+              setPdfModalOpen(true);
+              setPdfUrl(null);
+              const url = await actions.handlePdf();
+              setPdfUrl(url);
+              setPdfLoading(false);
+            } : null}
             onCloseSale={actions.handleCloseSale}
             onClear={() => {
               setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
