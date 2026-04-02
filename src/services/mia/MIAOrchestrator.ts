@@ -127,6 +127,23 @@ class MIAOrchestrator {
         }
       }
 
+      // Register learning event (non-blocking)
+      const score: MIALearningScore = response.error ? -1 : response.message ? 1 : 0;
+      this.learning.registerEventAsync({
+        tenant_id: context.tenant_id,
+        user_id: context.user_id,
+        event_type: "conversation",
+        context: {
+          engine: request.context,
+          origin: context.origin,
+          hasActions: Boolean(response.actions?.length),
+          messageLength: request.message?.length || 0,
+        },
+        action_taken: request.context,
+        result: response.error ? "error" : "success",
+        score,
+      });
+
       return response;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
