@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil, Lightbulb, Search, Globe, Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { getTenantId } from "@/lib/tenantState";
 import { toast } from "sonner";
 
@@ -172,15 +173,18 @@ export function ArgumentBankTab() {
     if (!form.titulo.trim()) { toast.error("Digite um título primeiro"); return; }
     setImprovingTitle(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           messages: [
             { role: "system", content: "Você é um especialista em copywriting para vendas de móveis planejados. Melhore o título do argumento de venda para ser mais persuasivo, profissional e impactante. Retorne APENAS o título melhorado, sem explicações, aspas ou prefixos." },
             { role: "user", content: form.titulo },
           ],
           max_tokens: 100,
-        },
-      });
+        }, {
+          tenantId: getTenantId() || "",
+          userId: "system",
+          origin: "chat",
+          context: "argument",
+        });
       if (error) throw error;
       const improved = (data?.reply || "").trim();
       if (improved) { setForm(f => ({ ...f, titulo: improved })); toast.success("Título melhorado!"); }
@@ -196,15 +200,18 @@ export function ArgumentBankTab() {
     if (!form.argumento.trim()) { toast.error("Digite um argumento primeiro"); return; }
     setImprovingArg(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           messages: [
             { role: "system", content: "Você é um especialista em vendas de móveis planejados. Melhore o argumento de venda para ser mais convincente, com linguagem persuasiva e técnica. Retorne APENAS o argumento melhorado, sem explicações, aspas ou prefixos. Máximo 500 caracteres." },
             { role: "user", content: form.argumento },
           ],
           max_tokens: 300,
-        },
-      });
+        }, {
+          tenantId: getTenantId() || "",
+          userId: "system",
+          origin: "chat",
+          context: "argument",
+        });
       if (error) throw error;
       const improved = (data?.reply || "").trim();
       if (improved) { setForm(f => ({ ...f, argumento: improved })); toast.success("Argumento melhorado!"); }
@@ -221,15 +228,18 @@ export function ArgumentBankTab() {
     if (!topic) { toast.error("Preencha o título ou argumento para buscar dados reais"); return; }
     setSearchingData(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           messages: [
             { role: "system", content: "Você é um pesquisador especialista no mercado de móveis planejados no Brasil. Forneça dados reais, estatísticas, pesquisas e tendências sobre o tema solicitado. Inclua números, percentuais e fontes quando possível. Responda em português brasileiro. Máximo 500 caracteres." },
             { role: "user", content: `Dados reais, estatísticas e pesquisas sobre: ${topic} - mercado de móveis planejados Brasil` },
           ],
           max_tokens: 400,
-        },
-      });
+        }, {
+          tenantId: getTenantId() || "",
+          userId: "system",
+          origin: "chat",
+          context: "argument",
+        });
       if (error) throw error;
       const content = (data?.reply || "").trim();
       if (content) {

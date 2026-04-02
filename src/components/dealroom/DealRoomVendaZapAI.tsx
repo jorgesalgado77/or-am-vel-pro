@@ -14,6 +14,7 @@ import {
   Fingerprint, CheckCircle2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import { ClosingThermometer, analyzeClientMessage } from "@/components/vendazap/ClosingThermometer";
@@ -306,8 +307,7 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
     }));
 
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           nome_cliente: clientName || "Cliente",
           valor_orcamento: proposalValue,
           status_negociacao: "em_negociacao",
@@ -316,8 +316,7 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
           tom: "persuasivo",
           historico,
           learning_context: learningContext || undefined,
-        },
-      });
+        }, { tenantId: tenantId || "", userId: "system", origin: "dealroom", context: "vendazap" });
 
       if (error) throw error;
       setGeneratedResponse(data?.mensagem || "");
@@ -340,8 +339,7 @@ export function DealRoomVendaZapAI({ tenantId, clientName, proposalValue, sessio
         `${t.speaker === "vendedor" ? "Vendedor" : "Cliente"}: ${t.text}`
       ).join("\n");
 
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           messages: [
             {
               role: "system",
@@ -358,8 +356,7 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
             { role: "user", content: text },
           ],
           tenant_id: tenantId,
-        },
-      });
+        }, { tenantId: tenantId || "", userId: "system", origin: "dealroom", context: "dealroom" });
 
       if (error) throw error;
       const reply = data?.reply || "Erro ao obter resposta.";

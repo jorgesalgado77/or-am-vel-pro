@@ -13,6 +13,7 @@ export { MIAActionEngine, getMIAActionEngine } from "./MIAActionEngine";
 export { MIAActionExecutionEngine, getMIAActionExecutionEngine } from "./ActionExecutionEngine";
 export type { MIAActionExecutionRequest, MIAActionExecutionResult, MIAActionStatus } from "./ActionExecutionEngine";
 export { miaGenerateResponse } from "./MIAAdapter";
+export { miaInvoke } from "./MIAInvoke";
 
 // Engines
 export { VendaZapEngine } from "./engines/VendaZapEngine";

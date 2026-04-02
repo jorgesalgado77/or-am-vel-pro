@@ -10,7 +10,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Line, Area, AreaChart, ReferenceLine, Legend,
 } from "recharts";
-import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import type { useFinancialData } from "@/hooks/useFinancialData";
 
@@ -28,7 +28,7 @@ export const FinancialForecastTab = React.memo(function FinancialForecastTab({ f
     setAiLoading(true);
     try {
       const resumo = `Faturamento: ${formatCurrency(fin.faturamento)}\nCustos fixos: ${formatCurrency(fin.contasFixas)}\nFolha: ${formatCurrency(fin.totalFolha)}\nPonto equilíbrio: ${formatCurrency(fin.breakEven)}\nResultado: ${formatCurrency(fin.lucroEstimado)}\nVencidas: ${fin.contasVencidas.length}\nA vencer 7d: ${fin.contasAVencer7d.length}\nSaldo 30d: ${formatCurrency(fin.saldoFinal30d)}\nDias negativo: ${fin.diasNegativo}`;
-      const { data, error } = await supabase.functions.invoke("cashflow-ai", { body: { resumo_financeiro: resumo } });
+      const { data, error } = await miaInvoke("cashflow-ai", { resumo_financeiro: resumo }, { tenantId: "system", userId: "system", origin: "system", context: "cashflow" });
       if (error) throw error;
       setAiAnalysis(data.analise || "Sem análise disponível.");
     } catch { toast.error("Erro ao gerar análise de IA"); } finally { setAiLoading(false); }

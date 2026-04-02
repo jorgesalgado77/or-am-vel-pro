@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
 
@@ -1488,9 +1489,9 @@ export function useOnboardingAI(tenantId: string | null) {
 
   const chatWithAI = useCallback(async (tid: string, chatMessages: { role: string; content: string }[]) => {
     try {
-      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
-        body: { action: "chat", tenant_id: tid, messages: chatMessages },
-      });
+      const { data, error } = await miaInvoke("onboarding-ai", {
+          action: "chat", tenant_id: tid, messages: chatMessages,
+        }, { tenantId: tid, userId: "system", origin: "onboarding", context: "onboarding" });
 
       if (error) throw error;
 
@@ -1525,15 +1526,13 @@ export function useOnboardingAI(tenantId: string | null) {
     try {
       const apiKeyAction = detectApiKeyInMessage(content);
       if (apiKeyAction) {
-        const { data: validationResult } = await supabase.functions.invoke("onboarding-ai", {
-          body: {
+        const { data: validationResult } = await miaInvoke("onboarding-ai", {
             action: "validate_api_key",
             tenant_id: tenantId,
             provider: apiKeyAction.provider,
             api_key: apiKeyAction.key,
             api_url: apiKeyAction.url,
-          },
-        });
+          }, { tenantId, userId: "system", origin: "onboarding", context: "onboarding" });
 
         if (validationResult?.valid) {
           appendAssistant(`✅ **${apiKeyAction.provider.toUpperCase()} configurada com sucesso!**\n\nSua chave foi validada e salva automaticamente.`);
@@ -1610,9 +1609,9 @@ export function useOnboardingAI(tenantId: string | null) {
 
   const savePreferences = useCallback(async (preferences: Record<string, string>) => {
     if (!tenantId) return;
-    await supabase.functions.invoke("onboarding-ai", {
-      body: { action: "save_preferences", tenant_id: tenantId, preferences },
-    });
+    await miaInvoke("onboarding-ai", {
+      action: "save_preferences", tenant_id: tenantId, preferences,
+    }, { tenantId, userId: "system", origin: "onboarding", context: "onboarding" });
     await refreshContext();
   }, [tenantId, refreshContext]);
 
@@ -1620,9 +1619,9 @@ export function useOnboardingAI(tenantId: string | null) {
     if (!tenantId) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
-        body: { action: "configure_vendazap", tenant_id: tenantId },
-      });
+      const { data, error } = await miaInvoke("onboarding-ai", {
+          action: "configure_vendazap", tenant_id: tenantId,
+        }, { tenantId, userId: "system", origin: "onboarding", context: "onboarding" });
       if (error) throw error;
       setMessages((prev) => [...prev, createMessage("assistant", `✅ **VendaZap AI configurado com sucesso!**\n\n🎯 **Tom:** ${data?.tom || "profissional"}\n📝 Prompt salvo automaticamente.\n\nPreview: _${data?.prompt_preview || ""}_`)]);
       await refreshContext();
@@ -1753,9 +1752,9 @@ export function useOnboardingAI(tenantId: string | null) {
     if (!tenantId) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
-        body: { action: "suggest_first_project", tenant_id: tenantId },
-      });
+      const { data, error } = await miaInvoke("onboarding-ai", {
+          action: "suggest_first_project", tenant_id: tenantId,
+        }, { tenantId, userId: "system", origin: "onboarding", context: "onboarding" });
       if (error) throw error;
       const suggestion = data?.suggestion;
       setMessages((prev) => [...prev, createMessage("assistant", `🏗️ **Sugestão de Primeiro Projeto — ${data?.storeType || "Loja"}**\n\n📐 **Ambientes sugeridos:**\n${(suggestion?.environments || []).map((item: string) => `• ${item}`).join("\n")}\n\n🧩 **Módulos recomendados:**\n${(suggestion?.modules || []).map((item: string) => `• ${item}`).join("\n")}\n\n💰 **Faixa de preço:** ${suggestion?.priceRange || "consulte"}`)]);

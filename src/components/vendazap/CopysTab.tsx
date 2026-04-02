@@ -13,6 +13,7 @@ import {
   Sparkles, Copy, BookOpen, Loader2, ChevronLeft, ChevronRight, Wand2, Trash2, Pencil, Save, User,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 
 const COPY_TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -140,14 +141,17 @@ export function CopysTab({ tenantId, readyCopies, onCopy, addon }: Props) {
     if (!tenantId) return;
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           action: "generate_copys",
           tenant_id: tenantId,
           count: 4,
           disc_profile: selectedDiscGen || undefined,
-        },
-      });
+        }, {
+          tenantId,
+          userId: "system",
+          origin: "chat",
+          context: "vendazap",
+        });
 
       if (error) throw error;
 

@@ -7,6 +7,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { logAudit } from "@/services/auditService";
 import { calcLeadTemperature } from "@/lib/leadTemperature";
 import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
@@ -149,8 +150,7 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
 
     try {
       const result = await Promise.race([
-        supabase.functions.invoke("vendazap-ai", {
-          body: {
+        miaInvoke("vendazap-ai", {
             nome_cliente: client.nome,
             valor_orcamento: lastSim?.valor_final || lastSim?.valor_tela,
             status_negociacao: client.status || "novo",
@@ -166,8 +166,13 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
             max_tokens: Math.min(addon.max_tokens_mensagem, 400),
             disc_profile: detectedDisc,
             learning_context: learningContextStr,
-          },
-        }),
+          }, {
+            tenantId: tenantId,
+            userId: userId || "system",
+            origin: "chat",
+            context: "vendazap",
+            skipMemory: true, // High-frequency call
+          }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), TIMEOUT_MS)),
       ]);
 

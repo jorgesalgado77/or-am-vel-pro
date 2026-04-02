@@ -20,6 +20,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
 import { toast } from "sonner";
 
@@ -144,9 +145,9 @@ export function CommercialAIPanel() {
     if (saved === "openai" || saved === "perplexity") setPreferredProvider(saved);
 
     (async () => {
-      const { data, error } = await supabase.functions.invoke("commercial-ai", {
-        body: { action: "get_available_providers", tenant_id: tenantId },
-      });
+      const { data, error } = await miaInvoke("commercial-ai", {
+          action: "get_available_providers", tenant_id: tenantId,
+        }, { tenantId, userId: user?.id || "system", origin: "commercial", context: "commercial", skipMemory: true });
       if (!error && data?.providers) {
         setAvailableProviders(data.providers);
         setAiConnected(data.providers.length > 0);
@@ -185,9 +186,9 @@ export function CommercialAIPanel() {
 
     (async () => {
       try {
-        const { data } = await supabase.functions.invoke("commercial-ai", {
-          body: { action: "check_alerts", tenant_id: tenantId },
-        });
+        const { data } = await miaInvoke("commercial-ai", {
+            action: "check_alerts", tenant_id: tenantId,
+          }, { tenantId, userId: user?.id || "system", origin: "commercial", context: "commercial", skipMemory: true });
         if (data?.alerts) {
           for (const alert of data.alerts) {
             sendPushIfEnabled("leads", user.id, alert.title, alert.body, `commercial-ai-${alert.type}`);
