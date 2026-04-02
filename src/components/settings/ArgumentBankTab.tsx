@@ -228,15 +228,18 @@ export function ArgumentBankTab() {
     if (!topic) { toast.error("Preencha o título ou argumento para buscar dados reais"); return; }
     setSearchingData(true);
     try {
-      const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-        body: {
+      const { data, error } = await miaInvoke("vendazap-ai", {
           messages: [
             { role: "system", content: "Você é um pesquisador especialista no mercado de móveis planejados no Brasil. Forneça dados reais, estatísticas, pesquisas e tendências sobre o tema solicitado. Inclua números, percentuais e fontes quando possível. Responda em português brasileiro. Máximo 500 caracteres." },
             { role: "user", content: `Dados reais, estatísticas e pesquisas sobre: ${topic} - mercado de móveis planejados Brasil` },
           ],
           max_tokens: 400,
-        },
-      });
+        }, {
+          tenantId: getTenantId() || "",
+          userId: "system",
+          origin: "chat",
+          context: "argument",
+        });
       if (error) throw error;
       const content = (data?.reply || "").trim();
       if (content) {
