@@ -5,7 +5,7 @@ import { parsePlanLimitError } from "@/components/shared/UpgradePlanDialog";
 import { generateOrcamentoNumber, applyDiscounts } from "@/services/financialService";
 import { buildContractHtml } from "@/services/contractService";
 import { generateSaleCommissions } from "@/services/commissionService";
-import { generateAndOpenBudgetPdf } from "@/lib/pdfService";
+import { generateBudgetPdfServerSide } from "@/lib/pdfService";
 import { openContractPrintWindow } from "@/lib/contractDocument";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { validateFileUpload } from "@/lib/validation";
