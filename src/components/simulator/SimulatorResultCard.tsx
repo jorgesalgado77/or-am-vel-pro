@@ -69,8 +69,14 @@ export function SimulatorResultCard({
         {!hideIndicador && comissaoPercentual > 0 && (
           <ResultRow label="Valor com Indicador" value={formatCurrency(valorTelaComComissao)} />
         )}
-        <ResultRow label="Desconto Total" value={formatCurrency(valorTelaComComissao - result.valorComDesconto)} muted />
+        <ResultRow label="Desconto Total" value={formatCurrency(descontoTotalComPlus)} muted />
         <ResultRow label="Valor com Desconto" value={formatCurrency(result.valorComDesconto)} />
+        {plusPercentual > 0 && (
+          <>
+            <ResultRow label={`Desconto Plus (${plusPercentual}%)`} value={`- ${formatCurrency(plusValue)}`} muted />
+            <ResultRow label="Valor após Plus" value={formatCurrency(result.valorComDesconto - plusValue)} />
+          </>
+        )}
         <Separator />
         <ResultRow label="Entrada" value={formatCurrency(valorEntrada)} />
         <ResultRow label="Saldo" value={formatCurrency(result.saldo)} />
