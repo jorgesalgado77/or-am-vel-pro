@@ -18,6 +18,7 @@ import { buildContext } from "./ContextBuilder";
 import { getMIAMemoryEngine, type MIAMemoryEngine } from "./MIAMemoryEngine";
 import { getMIAActionEngine } from "./MIAActionEngine";
 import { getMIAActionExecutionEngine, type MIAActionExecutionEngine } from "./ActionExecutionEngine";
+import { getMIALearningEngine, type MIALearningEngine, type MIALearningScore } from "./MIALearningEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
 import { OnboardingEngine } from "./engines/OnboardingEngine";
@@ -30,6 +31,7 @@ class MIAOrchestrator {
   private memory: MIAMemoryEngine = getMIAMemoryEngine();
   private actions = getMIAActionEngine();
   private actionExecution: MIAActionExecutionEngine = getMIAActionExecutionEngine();
+  private learning: MIALearningEngine = getMIALearningEngine();
 
   constructor() {
     // Auto-register all engines
@@ -64,28 +66,29 @@ class MIAOrchestrator {
         };
       }
 
-      // Inject memory context if requested
+      // Inject memory context + learning insights if requested
       let enrichedRequest = request;
       if (request.useMemory && request.messages && request.messages.length > 0) {
         try {
-          const memoryContext = await this.memory.buildContextString(
-            context.tenant_id,
-            context.user_id,
-            request.context
-          );
-          if (memoryContext) {
+          const [memoryContext, insightsContext] = await Promise.all([
+            this.memory.buildContextString(context.tenant_id, context.user_id, request.context),
+            this.learning.buildInsightsContext(context.tenant_id, context.user_id),
+          ]);
+
+          const extraContext = (memoryContext || "") + (insightsContext || "");
+          if (extraContext) {
             const systemIdx = request.messages.findIndex((m) => m.role === "system");
             if (systemIdx >= 0) {
               const updatedMessages = [...request.messages];
               updatedMessages[systemIdx] = {
                 ...updatedMessages[systemIdx],
-                content: updatedMessages[systemIdx].content + memoryContext,
+                content: updatedMessages[systemIdx].content + extraContext,
               };
               enrichedRequest = { ...request, messages: updatedMessages };
             }
           }
         } catch {
-          // Memory injection is non-critical
+          // Memory/insights injection is non-critical
         }
       }
 
@@ -124,6 +127,23 @@ class MIAOrchestrator {
           console.warn("[MIAOrchestrator] Action execution failed:", e);
         }
       }
+
+      // Register learning event (non-blocking)
+      const score: MIALearningScore = response.error ? -1 : response.message ? 1 : 0;
+      this.learning.registerEventAsync({
+        tenant_id: context.tenant_id,
+        user_id: context.user_id,
+        event_type: "conversation",
+        context: {
+          engine: request.context,
+          origin: context.origin,
+          hasActions: Boolean(response.actions?.length),
+          messageLength: request.message?.length || 0,
+        },
+        action_taken: request.context,
+        result: response.error ? "error" : "success",
+        score,
+      });
 
       return response;
     } catch (error: unknown) {
@@ -164,6 +184,11 @@ class MIAOrchestrator {
   /** Get the action execution engine (with permissions + audit) */
   getActionExecution() {
     return this.actionExecution;
+  }
+
+  /** Get the learning engine */
+  getLearning() {
+    return this.learning;
   }
 }
 
