@@ -75,6 +75,8 @@ export function ChatRightPanel({
         loading={aiLoading}
         tipoCopy={aiTipoCopy}
         discProfile={aiDiscProfile}
+        tenantId={tenantId}
+        userId={userId}
         onUse={onUseSuggestion}
       />
 
@@ -84,7 +86,7 @@ export function ChatRightPanel({
         messageCount={messageCount}
       />
 
-      <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId} />
+      <AutoPilotHistory trackingId={conversation.id} tenantId={tenantId} userId={userId} />
     </div>
   );
 
