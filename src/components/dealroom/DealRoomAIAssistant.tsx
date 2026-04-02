@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Brain, Send, Lightbulb, RefreshCw, Mic, FileText,
 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { toast } from "sonner";
 import { miaGenerateResponse } from "@/services/mia";
