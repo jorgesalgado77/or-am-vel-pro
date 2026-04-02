@@ -95,9 +95,9 @@ export function AppSidebar({
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150",
           collapsed && "justify-center px-2",
-          destructive && "text-destructive hover:bg-destructive/10",
-          !destructive && isActive && "bg-primary/10 text-primary",
-          !destructive && !isActive && "text-muted-foreground hover:bg-secondary hover:text-foreground",
+          destructive && "opacity-80 hover:opacity-100",
+          !destructive && isActive && "font-semibold",
+          !destructive && !isActive && "opacity-70 hover:opacity-100",
         )}
       >
         <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-300", collapsed && "scale-110")} />
