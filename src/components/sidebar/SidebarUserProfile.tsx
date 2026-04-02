@@ -133,9 +133,6 @@ export const SidebarUserProfile = React.memo(function SidebarUserProfile({
           )}
         </div>
       </div>
-      <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onProfile}>
-        <UserCircle className="h-3.5 w-3.5" />Meu Perfil
-      </Button>
     </>
   );
 });
