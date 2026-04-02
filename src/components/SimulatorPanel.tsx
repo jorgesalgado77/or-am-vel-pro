@@ -236,7 +236,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     const state: SimulatorStoredState = {
       valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada,
       plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked,
-      hideIndicador, extremaLocked,
+      hideIndicador, extremaLocked, activeStrategy,
       selectedBoletoProvider: rates.selectedBoletoProvider,
       selectedCreditoProvider: rates.selectedCreditoProvider,
       linkedClientId: linkedClient?.id || "",
