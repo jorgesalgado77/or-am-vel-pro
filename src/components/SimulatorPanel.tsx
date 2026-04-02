@@ -6,6 +6,7 @@ import type { ImportedEnvironment } from "@/components/simulator/SimulatorEnviro
 import type { SelectedProduct } from "@/components/simulator/ProductPickerForSimulator";
 import { SimulatorResultCard } from "@/components/simulator/SimulatorResultCard";
 import { SimulatorClientForm } from "@/components/simulator/SimulatorClientForm";
+import { PdfPreviewModal } from "@/components/simulator/PdfPreviewModal";
 import { useConversionHistory } from "@/hooks/useConversionHistory";
 
 import { calculateSimulation, formatCurrency, type FormaPagamento, type SimulationInput } from "@/lib/financing";
@@ -36,10 +37,16 @@ export interface SavedEnvironmentData {
   pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string;
 }
 
+export interface SavedCatalogProduct {
+  product_id: string; internal_code: string; name: string; sale_price: number; quantity: number;
+  category?: string; stock_status?: string; description?: string;
+}
+
 export interface SavedSimulationData {
   valor_tela: number; desconto1: number; desconto2: number; desconto3: number;
   forma_pagamento: string; parcelas: number; valor_entrada: number;
   plus_percentual: number; ambientes?: SavedEnvironmentData[];
+  catalogProducts?: SavedCatalogProduct[];
 }
 
 interface SimulatorPanelProps {
@@ -98,7 +105,21 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>(() => {
+    if (init?.catalogProducts && init.catalogProducts.length > 0) {
+      return init.catalogProducts.map((cp) => ({
+        product: {
+          id: cp.product_id, internal_code: cp.internal_code || "", name: cp.name || "",
+          sale_price: cp.sale_price || 0, category: cp.category || "", stock_status: cp.stock_status || "in_stock",
+          stock_quantity: 0, description: cp.description || "",
+          width: 0, height: 0, depth: 0, environment: "", manufacturer_code: "",
+        },
+        quantity: cp.quantity,
+      }));
+    }
     const stored = loadStoredState();
     return (stored.catalogProducts as SelectedProduct[]) || [];
   });
@@ -404,7 +425,14 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             saving={actions.saving} closingSale={actions.closingSale} hasClient={!!effectiveClient}
             generatingPdf={actions.generatingPdf}
             onSave={actions.handleSave}
-            onPdf={effectiveClient ? actions.handlePdf : null}
+            onPdf={effectiveClient ? async () => {
+              setPdfLoading(true);
+              setPdfModalOpen(true);
+              setPdfUrl(null);
+              const url = await actions.handlePdf();
+              setPdfUrl(url);
+              setPdfLoading(false);
+            } : null}
             onCloseSale={actions.handleCloseSale}
             onClear={() => {
               setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
@@ -519,6 +547,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           resolvedTenantId={resolvedTenantId}
         />
       </Suspense>
+      <PdfPreviewModal open={pdfModalOpen} onOpenChange={setPdfModalOpen} pdfUrl={pdfUrl} loading={pdfLoading} />
     </div>
   );
 }

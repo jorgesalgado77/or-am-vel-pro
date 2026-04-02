@@ -45,7 +45,7 @@ interface SimulatorResultCardProps {
   hasClient: boolean;
   generatingPdf?: boolean;
   onSave: () => void;
-  onPdf: (() => void) | null;
+  onPdf: (() => void | Promise<void>) | null;
   onCloseSale: () => void;
   onClear: () => void;
 }
