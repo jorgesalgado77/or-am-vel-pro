@@ -224,7 +224,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     client, linkedClient, resolvedTenantId, currentUser, settings: rates.settings,
     valorTela, valorTelaComComissao, desconto1, desconto2, desconto3,
     formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias,
-    result, environments, setEnvironments, setValorTela,
+    result, environments, setEnvironments, catalogProducts, setValorTela,
     setImportedFile, setDetectedSoftware, selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
