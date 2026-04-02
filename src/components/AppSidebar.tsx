@@ -199,7 +199,7 @@ export function AppSidebar({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={cycleTheme}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" style={{ color: "hsl(var(--sidebar-foreground) / 0.7)" }} onClick={cycleTheme}>
                 <ThemeIcon className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
