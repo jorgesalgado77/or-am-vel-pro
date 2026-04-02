@@ -134,6 +134,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [searchingClients, setSearchingClients] = useState(false);
   const effectiveClient = client || linkedClient;
 
+  // Restore linked client from stored ID
+  useEffect(() => {
+    if (client || linkedClient || !stored.linkedClientId) return;
+    supabase.from("clients").select("*").eq("id", stored.linkedClientId).single()
+      .then(({ data }) => { if (data) setLinkedClient(data as Client); });
+  }, []);
+
   const searchClients = useCallback(async (term: string) => {
     if (!term || term.length < 2) { setClientResults([]); return; }
     const tid = await getResolvedTenantId();
