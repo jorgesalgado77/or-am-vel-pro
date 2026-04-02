@@ -30,6 +30,7 @@ const INTENT_BADGES: Record<string, { label: string; color: string }> = {
 interface Props {
   trackingId: string;
   tenantId: string | null;
+  userId?: string;
 }
 
 export const AutoPilotHistory = memo(function AutoPilotHistory({ trackingId, tenantId }: Props) {
