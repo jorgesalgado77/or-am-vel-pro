@@ -147,7 +147,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
           <div className="mt-2 border rounded-md overflow-hidden">
             <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Ambientes Importados</span>
+                <span className="text-xs font-medium text-muted-foreground">Ambientes Planejados</span>
                 {detectedSoftware && (
                   <Badge variant="secondary" className="text-[9px] h-5 gap-1 px-1.5 font-semibold">
                     <Cpu className="h-2.5 w-2.5" />
