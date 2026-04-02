@@ -32,6 +32,7 @@ interface SimulationWithClient {
   valor_parcela: number;
   plus_percentual: number;
   arquivo_nome: string | null;
+  estrategia_ia: string | null;
   created_at: string;
 }
 
