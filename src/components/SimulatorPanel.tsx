@@ -104,7 +104,21 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>(() => {
+    if (init?.catalogProducts && init.catalogProducts.length > 0) {
+      return init.catalogProducts.map((cp) => ({
+        product: {
+          id: cp.product_id, internal_code: cp.internal_code || "", name: cp.name || "",
+          sale_price: cp.sale_price || 0, category: cp.category || "", stock_status: cp.stock_status || "in_stock",
+          stock_quantity: 0, description: cp.description || "",
+          width: 0, height: 0, depth: 0, environment: "", manufacturer_code: "",
+        },
+        quantity: cp.quantity,
+      }));
+    }
     const stored = loadStoredState();
     return (stored.catalogProducts as SelectedProduct[]) || [];
   });
