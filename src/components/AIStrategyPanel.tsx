@@ -233,6 +233,35 @@ export function AIStrategyPanel({
   }, [enabled, valorTela, valorTelaComComissao, discountOptions, maxParcelas, availableParcelas, historicalConversionRate, calculateResult]);
 
   const handleApply = useCallback((scenario: StrategyScenario) => {
+    // Extrema requires password unlock for vendedor/projetista
+    if (scenario.type === "extrema" && !extremaUnlocked && onRequestExtremaUnlock) {
+      onRequestExtremaUnlock(
+        {
+          desconto1: scenario.desconto1,
+          desconto2: scenario.desconto2,
+          desconto3: scenario.desconto3,
+          plusPercentual: scenario.plusPercentual,
+          formaPagamento: scenario.formaPagamento,
+          parcelas: scenario.parcelas,
+          valorEntrada: scenario.valorEntrada,
+        },
+        () => {
+          onApplyStrategy({
+            desconto1: scenario.desconto1,
+            desconto2: scenario.desconto2,
+            desconto3: scenario.desconto3,
+            plusPercentual: scenario.plusPercentual,
+            formaPagamento: scenario.formaPagamento,
+            parcelas: scenario.parcelas,
+            valorEntrada: scenario.valorEntrada,
+          });
+          setSelectedStrategy(scenario.type);
+          toast.success(`Estratégia ${scenario.label} aplicada!`);
+        }
+      );
+      return;
+    }
+
     onApplyStrategy({
       desconto1: scenario.desconto1,
       desconto2: scenario.desconto2,
@@ -244,7 +273,7 @@ export function AIStrategyPanel({
     });
     setSelectedStrategy(scenario.type);
     toast.success(`Estratégia ${scenario.label} aplicada!`);
-  }, [onApplyStrategy]);
+  }, [onApplyStrategy, extremaUnlocked, onRequestExtremaUnlock]);
 
   if (!canAccess) return null;
 
