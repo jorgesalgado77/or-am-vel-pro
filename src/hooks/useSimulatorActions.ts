@@ -315,9 +315,10 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         formaPagamento, parcelas, valorEntrada, plusPercentual, taxaCredito: result.taxaCredito,
         saldo: result.saldo, valorFinal: result.valorFinal, valorParcela: result.valorParcela,
         ambientes: environments.map(e => ({ environmentName: e.environmentName, pieceCount: e.pieceCount, totalValue: e.totalValue })),
+        catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: cp.product.sale_price })),
       });
     } finally { setGeneratingPdf(false); }
-  }, [effectiveClient, resolvedTenantId, settings, valorTela, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, plusPercentual, environments]);
+  }, [effectiveClient, resolvedTenantId, settings, valorTela, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, plusPercentual, environments, catalogProducts]);
 
   return {
     saving, generatingPdf, closingSale, savedRef,
