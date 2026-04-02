@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { buildContext } from "../ContextBuilder";
 import { getMIAOrchestrator } from "../MIAOrchestrator";
+import { miaGenerateResponse } from "../MIAAdapter";
 
-describe("MIA Core — Phase 1", () => {
+describe("MIA Core — Phase 2", () => {
   describe("ContextBuilder", () => {
     it("throws when tenant_id is empty", () => {
       expect(() =>
@@ -28,13 +29,14 @@ describe("MIA Core — Phase 1", () => {
       ).toThrow("user_id é obrigatório");
     });
 
-    it("builds valid context", () => {
+    it("builds valid context with all fields", () => {
       const ctx = buildContext({
         tenantId: "tenant-abc",
         userId: "user-xyz",
         origin: "dealroom",
         context: "vendazap",
         message: "Olá",
+        metadata: { custom: "value" },
       });
 
       expect(ctx.tenant_id).toBe("tenant-abc");
@@ -42,24 +44,28 @@ describe("MIA Core — Phase 1", () => {
       expect(ctx.origin).toBe("dealroom");
       expect(ctx.message).toBe("Olá");
       expect(ctx.timestamp).toBeTruthy();
+      expect(ctx.metadata).toEqual({ custom: "value" });
     });
   });
 
   describe("MIAOrchestrator", () => {
-    it("returns placeholder response for valid request", async () => {
+    it("routes to registered engines", async () => {
       const mia = getMIAOrchestrator();
-      const response = await mia.handleRequest({
-        tenantId: "test-tenant",
-        userId: "test-user",
-        message: "teste",
-        origin: "chat",
-        context: "vendazap",
-      });
+      const contexts = ["vendazap", "dealroom", "onboarding", "commercial", "cashflow", "argument", "campaign"] as const;
 
-      expect(response.type).toBe("text");
-      expect(response.message).toContain("teste");
-      expect(response.engine).toBe("vendazap");
-      expect(response.error).toBeUndefined();
+      for (const ctx of contexts) {
+        const response = await mia.handleRequest({
+          tenantId: "t1",
+          userId: "u1",
+          message: "test",
+          origin: "chat",
+          context: ctx,
+        });
+
+        // All engines are registered, so should get engine type back
+        expect(response.engine).toBe(ctx === "campaign" ? "vendazap" : ctx);
+        expect(response.type).toBeTruthy();
+      }
     });
 
     it("returns error when tenant_id is missing", async () => {
@@ -71,7 +77,6 @@ describe("MIA Core — Phase 1", () => {
         origin: "chat",
         context: "vendazap",
       });
-
       expect(response.error).toContain("tenant_id");
     });
 
@@ -84,26 +89,74 @@ describe("MIA Core — Phase 1", () => {
         origin: "chat",
         context: "vendazap",
       });
-
       expect(response.error).toContain("user_id");
     });
 
-    it("routes to correct engine per context", async () => {
+    it("generateResponse is an alias for handleRequest", async () => {
       const mia = getMIAOrchestrator();
-      const contexts = ["vendazap", "dealroom", "onboarding", "commercial", "cashflow", "argument"] as const;
+      const request = {
+        tenantId: "t1",
+        userId: "u1",
+        message: "test",
+        origin: "chat" as const,
+        context: "vendazap" as const,
+      };
 
-      for (const ctx of contexts) {
-        const response = await mia.handleRequest({
-          tenantId: "t1",
-          userId: "u1",
-          message: "test",
-          origin: "chat",
-          context: ctx,
-        });
+      const r1 = await mia.handleRequest(request);
+      const r2 = await mia.generateResponse(request);
 
-        expect(response.engine).toBe(ctx);
-        expect(response.type).toBe("text");
-      }
+      // Both should succeed (same engine)
+      expect(r1.engine).toBe(r2.engine);
+      expect(r1.type).toBe(r2.type);
+    });
+  });
+
+  describe("MIAAdapter", () => {
+    it("auto-maps origin to context", async () => {
+      // Should not throw, even though the edge function will fail in tests
+      const response = await miaGenerateResponse({
+        tenant_id: "t1",
+        user_id: "u1",
+        message: "test",
+        origin: "dealroom",
+      });
+
+      // Engine should be mapped to "dealroom" from origin
+      expect(response.engine).toBe("dealroom");
+    });
+
+    it("uses explicit context over origin mapping", async () => {
+      const response = await miaGenerateResponse({
+        tenant_id: "t1",
+        user_id: "u1",
+        message: "test",
+        origin: "chat",
+        context: "cashflow",
+      });
+
+      expect(response.engine).toBe("cashflow");
+    });
+
+    it("rejects empty tenant_id", async () => {
+      const response = await miaGenerateResponse({
+        tenant_id: "",
+        user_id: "u1",
+        message: "test",
+        origin: "chat",
+      });
+
+      expect(response.error).toContain("tenant_id");
+    });
+
+    it("rejects empty user_id", async () => {
+      const response = await miaGenerateResponse({
+        tenant_id: "t1",
+        user_id: "",
+        message: "test",
+        origin: "chat",
+      });
+
+      expect(response.error).toContain("user_id");
     });
   });
 });
