@@ -50,6 +50,7 @@ interface UseSimulatorActionsParams {
   showClientForm: boolean;
   setShowClientForm: (v: boolean) => void;
   setNewClient: (v: any) => void;
+  activeStrategy?: string;
 }
 
 export function useSimulatorActions(params: UseSimulatorActionsParams) {
