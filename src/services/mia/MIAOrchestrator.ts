@@ -20,6 +20,7 @@ import { getMIAActionEngine } from "./MIAActionEngine";
 import { getMIAActionExecutionEngine, type MIAActionExecutionEngine } from "./ActionExecutionEngine";
 import { getMIALearningEngine, type MIALearningEngine, type MIALearningScore } from "./MIALearningEngine";
 import { getResearchEngine, type ResearchEngine } from "./ResearchEngine";
+import { getPersonalizationEngine, type PersonalizationEngine } from "./PersonalizationEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
 import { OnboardingEngine } from "./engines/OnboardingEngine";
@@ -34,6 +35,7 @@ class MIAOrchestrator {
   private actionExecution: MIAActionExecutionEngine = getMIAActionExecutionEngine();
   private learning: MIALearningEngine = getMIALearningEngine();
   private research: ResearchEngine = getResearchEngine();
+  private personalization: PersonalizationEngine = getPersonalizationEngine();
 
   constructor() {
     // Auto-register all engines
@@ -68,16 +70,35 @@ class MIAOrchestrator {
         };
       }
 
-      // Inject memory context + learning insights if requested
+      // Inject memory, learning insights, and personalization context
       let enrichedRequest = request;
-      if (request.useMemory && request.messages && request.messages.length > 0) {
+      if (request.messages && request.messages.length > 0) {
         try {
-          const [memoryContext, insightsContext] = await Promise.all([
-            this.memory.buildContextString(context.tenant_id, context.user_id, request.context),
-            this.learning.buildInsightsContext(context.tenant_id, context.user_id),
-          ]);
+          const promises: Promise<string>[] = [];
 
-          const extraContext = (memoryContext || "") + (insightsContext || "");
+          if (request.useMemory) {
+            promises.push(
+              this.memory.buildContextString(context.tenant_id, context.user_id, request.context),
+              this.learning.buildInsightsContext(context.tenant_id, context.user_id),
+            );
+          } else {
+            promises.push(Promise.resolve(""), Promise.resolve(""));
+          }
+
+          // Always inject personalization
+          promises.push(
+            this.personalization.buildPersonalizationContext({
+              tenantId: context.tenant_id,
+              userId: context.user_id,
+              context: request.context,
+              clientDiscProfile: (request.metadata?.disc_profile as string) || null,
+              clientTemperature: (request.metadata?.lead_temperature as string) || null,
+            })
+          );
+
+          const [memoryCtx, insightsCtx, personalizationCtx] = await Promise.all(promises);
+
+          const extraContext = (memoryCtx || "") + (insightsCtx || "") + (personalizationCtx || "");
           if (extraContext) {
             const systemIdx = request.messages.findIndex((m) => m.role === "system");
             if (systemIdx >= 0) {
@@ -90,7 +111,7 @@ class MIAOrchestrator {
             }
           }
         } catch {
-          // Memory/insights injection is non-critical
+          // Context injection is non-critical
         }
       }
 
@@ -229,6 +250,11 @@ class MIAOrchestrator {
   /** Get the research engine */
   getResearch() {
     return this.research;
+  }
+
+  /** Get the personalization engine */
+  getPersonalization() {
+    return this.personalization;
   }
 }
 
