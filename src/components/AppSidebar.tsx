@@ -135,9 +135,14 @@ export function AppSidebar({
           ? "max-md:-translate-x-full max-md:w-64 md:w-[60px]"
           : "max-md:w-64 max-md:translate-x-0 md:w-60",
       )}
+      style={{
+        backgroundColor: "hsl(var(--sidebar-background))",
+        color: "hsl(var(--sidebar-foreground))",
+        borderColor: "hsl(var(--sidebar-border))",
+      }}
     >
       {/* Header */}
-      <div className={cn("p-3 border-b border-border flex items-center gap-3", collapsed && "justify-center")}>
+      <div className={cn("p-3 border-b flex items-center gap-3", collapsed && "justify-center")} style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         {settings.logo_url && (
           <img src={settings.logo_url} alt="Logo" className="h-8 w-auto object-contain shrink-0" />
         )}
