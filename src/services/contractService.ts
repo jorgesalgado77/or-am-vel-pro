@@ -93,6 +93,13 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
     "{{itens_tabela}}": itensHtml,
     "{{itens_detalhes}}": detalhesHtml,
     "{{total_ambientes}}": formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0)),
+    "{{produtos_catalogo}}": catalogProducts && catalogProducts.length > 0
+      ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
+          <tr style="background:#f0f0f0;"><th>Código</th><th>Produto</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th></tr>
+          ${catalogProducts.map(p => `<tr><td style="font-family:monospace;">${p.internal_code}</td><td>${p.name}</td><td style="text-align:center;">${p.quantity}</td><td style="text-align:right;">${formatCurrency(p.sale_price)}</td><td style="text-align:right;">${formatCurrency(p.sale_price * p.quantity)}</td></tr>`).join("")}
+          <tr style="font-weight:bold;"><td colspan="4" style="text-align:right;">Subtotal Catálogo:</td><td style="text-align:right;">${formatCurrency(catalogProducts.reduce((s, p) => s + p.sale_price * p.quantity, 0))}</td></tr>
+        </table>`
+      : "",
   };
 
   let html = templateHtml;
