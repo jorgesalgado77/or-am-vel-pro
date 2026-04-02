@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Download, X, Loader2 } from "lucide-react";
-import { useState, useRef } from "react";
+import { Printer, Download, X, Loader2, Share2 } from "lucide-react";
+import { useRef } from "react";
+import { toast } from "sonner";
 
 interface PdfPreviewModalProps {
   open: boolean;
@@ -26,6 +27,32 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading }: PdfPrev
     a.download = "orcamento.pdf";
     a.target = "_blank";
     a.click();
+  };
+
+  const handleWhatsApp = async () => {
+    if (!pdfUrl) return;
+    // Try Web Share API first (mobile)
+    if (navigator.share) {
+      try {
+        const response = await fetch(pdfUrl);
+        const blob = await response.blob();
+        const file = new File([blob], "orcamento.pdf", { type: "application/pdf" });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            title: "Orçamento",
+            text: "Segue o orçamento em PDF",
+            files: [file],
+          });
+          return;
+        }
+      } catch {
+        // fallback below
+      }
+    }
+    // Fallback: open WhatsApp with URL
+    const text = encodeURIComponent(`Segue o orçamento em PDF:\n${pdfUrl}`);
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+    toast.success("Link copiado para envio via WhatsApp");
   };
 
   return (
@@ -62,6 +89,14 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading }: PdfPrev
             <X className="h-4 w-4" /> Fechar
           </Button>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleWhatsApp}
+              disabled={!pdfUrl || loading}
+              className="gap-2 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
+            >
+              <Share2 className="h-4 w-4" /> WhatsApp
+            </Button>
             <Button variant="outline" onClick={handleDownload} disabled={!pdfUrl || loading} className="gap-2">
               <Download className="h-4 w-4" /> Baixar
             </Button>

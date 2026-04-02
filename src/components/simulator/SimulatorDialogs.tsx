@@ -80,6 +80,10 @@ export const SimulatorDialogs = React.memo(function SimulatorDialogs(props: Simu
               placeholder="Senha"
               onKeyDown={(e) => { if (e.key === "Enter") props.onPasswordConfirm(); }}
               autoFocus
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
+              data-form-type="other"
             />
           </div>
           <DialogFooter>
