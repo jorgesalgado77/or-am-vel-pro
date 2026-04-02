@@ -106,6 +106,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | null>(null);
   const [extremaLocked, setExtremaLocked] = useState(stored.extremaLocked ?? false);
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
+  const [activeStrategy, setActiveStrategy] = useState<string>(stored.activeStrategy ?? "");
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
