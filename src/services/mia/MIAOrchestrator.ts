@@ -35,6 +35,7 @@ class MIAOrchestrator {
   private actionExecution: MIAActionExecutionEngine = getMIAActionExecutionEngine();
   private learning: MIALearningEngine = getMIALearningEngine();
   private research: ResearchEngine = getResearchEngine();
+  private personalization: PersonalizationEngine = getPersonalizationEngine();
 
   constructor() {
     // Auto-register all engines
