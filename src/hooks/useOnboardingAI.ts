@@ -1526,15 +1526,13 @@ export function useOnboardingAI(tenantId: string | null) {
     try {
       const apiKeyAction = detectApiKeyInMessage(content);
       if (apiKeyAction) {
-        const { data: validationResult } = await supabase.functions.invoke("onboarding-ai", {
-          body: {
+        const { data: validationResult } = await miaInvoke("onboarding-ai", {
             action: "validate_api_key",
             tenant_id: tenantId,
             provider: apiKeyAction.provider,
             api_key: apiKeyAction.key,
             api_url: apiKeyAction.url,
-          },
-        });
+          }, { tenantId, userId: "system", origin: "onboarding", context: "onboarding" });
 
         if (validationResult?.valid) {
           appendAssistant(`✅ **${apiKeyAction.provider.toUpperCase()} configurada com sucesso!**\n\nSua chave foi validada e salva automaticamente.`);
