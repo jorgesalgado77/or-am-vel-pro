@@ -274,6 +274,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setImportedFile, setDetectedSoftware, selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
+    activeStrategy,
   });
 
   useEffect(() => { return () => { if (!actions.savedRef.current) sessionStorage.removeItem(SIM_STORAGE_KEY); }; }, []);
