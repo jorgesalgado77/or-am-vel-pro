@@ -90,8 +90,8 @@ class MIAOrchestrator {
       // Process through engine
       const response = await engine.process(enrichedRequest);
 
-      // Store interaction in memory
-      if (request.message) {
+      // Store relevant interaction in memory (non-critical)
+      if (request.message && request.message.length > 5) {
         try {
           await this.memory.remember(
             context.tenant_id,
@@ -106,7 +106,7 @@ class MIAOrchestrator {
             }
           );
         } catch {
-          // Non-critical
+          // Non-critical — memory save failure doesn't affect response
         }
       }
 
