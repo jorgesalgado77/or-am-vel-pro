@@ -186,10 +186,11 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
       id: img.id,
     }));
     if (videoUrl) {
+      const ytThumb = getYouTubeThumb(videoUrl);
       items.push({
         type: "video",
         url: videoUrl,
-        thumbUrl: getYouTubeThumb(videoUrl) || "/placeholder.svg",
+        thumbUrl: ytThumb || videoUrl,
         id: "video-0",
       });
     }
