@@ -208,10 +208,10 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               .select("id, image_url")
               .eq("product_id", product.id)
               .then(({ data: d2 }) => {
-                setImages((d2 || []) as any);
+            setImages((d2 || []) as any);
                 setSelectedMediaIdx(0);
+                setPlayingVideo(false);
               });
-          } else {
             setImages((data || []) as any);
             const defaultIdx = (data || []).findIndex((i: any) => i.is_default);
             setSelectedMediaIdx(defaultIdx >= 0 ? defaultIdx : 0);
