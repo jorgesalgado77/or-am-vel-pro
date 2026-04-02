@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
+import { miaGenerateResponse } from "@/services/mia";
+import { useTenant } from "@/contexts/TenantContext";
 
 export function CampaignAIGenerator() {
   const [ambiente, setAmbiente] = useState("cozinha");
