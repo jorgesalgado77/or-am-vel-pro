@@ -81,7 +81,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   formaPagamento, setFormaPagamento,
   parcelas, setParcelas,
   valorEntrada, setValorEntrada,
-  plusPercentual, setPlusPercentual, plusUnlocked,
+  plusPercentual, setPlusPercentual, plusUnlocked, extremaLocked,
   carenciaDias, setCarenciaDias,
   selectedIndicadorId, setSelectedIndicadorId,
   hideIndicador, setHideIndicador,
