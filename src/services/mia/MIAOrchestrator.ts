@@ -1,7 +1,14 @@
 /**
- * MIA Orchestrator — Central intelligence router
- * Routes requests to the correct engine, manages memory injection,
- * and handles action execution.
+ * MIA Orchestrator — Central intelligence router (v2)
+ *
+ * PHASE 1: Placeholder-only responses. No AI calls, no external APIs.
+ * Routes requests through ContextBuilder for validation and structuring.
+ *
+ * RULES:
+ * - tenant_id and user_id are ALWAYS validated
+ * - No `any` usage
+ * - No external API calls in Phase 1
+ * - Fully isolated — does not impact existing system
  */
 
 import type {
@@ -10,110 +17,84 @@ import type {
   MIAContextType,
   MIAEngineInterface,
 } from "./types";
+import { buildContext } from "./ContextBuilder";
 import { getMIAMemoryEngine } from "./MIAMemoryEngine";
 import { getMIAActionEngine } from "./MIAActionEngine";
-import { VendaZapEngine } from "./engines/VendaZapEngine";
-import { DealRoomEngine } from "./engines/DealRoomEngine";
-import { OnboardingEngine } from "./engines/OnboardingEngine";
-import { CommercialEngine } from "./engines/CommercialEngine";
-import { CashflowEngine } from "./engines/CashflowEngine";
-import { ArgumentEngine } from "./engines/ArgumentEngine";
 
 class MIAOrchestrator {
-  private engines: Map<MIAContextType, MIAEngineInterface>;
+  private engines: Map<MIAContextType, MIAEngineInterface> = new Map();
   private memory = getMIAMemoryEngine();
   private actions = getMIAActionEngine();
 
-  constructor() {
-    this.engines = new Map();
-    this.engines.set("vendazap", new VendaZapEngine());
-    this.engines.set("dealroom", new DealRoomEngine());
-    this.engines.set("onboarding", new OnboardingEngine());
-    this.engines.set("commercial", new CommercialEngine());
-    this.engines.set("cashflow", new CashflowEngine());
-    this.engines.set("argument", new ArgumentEngine());
-    // Campaign uses VendaZapEngine with different payload
-    this.engines.set("campaign", new VendaZapEngine());
-  }
-
   /**
-   * Central request handler — routes to the correct engine
-   * with memory injection and action execution.
+   * Central request handler.
+   * Phase 1: validates input, builds context, returns placeholder.
+   * Future phases will route to registered engines.
    */
   async handleRequest(request: MIARequest): Promise<MIAResponse> {
-    const engine = this.engines.get(request.context);
-    if (!engine) {
-      return {
-        content: "",
-        error: `Engine não encontrado para contexto: ${request.context}`,
-        engine: request.context,
-      };
-    }
+    try {
+      // Validate and build context (throws on missing tenant_id / user_id)
+      const context = buildContext(request);
 
-    if (!request.tenantId) {
-      return {
-        content: "",
-        error: "tenant_id é obrigatório",
-        engine: request.context,
-      };
-    }
+      // Check if a specialized engine is registered for this context
+      const engine = this.engines.get(request.context);
+      if (engine) {
+        const response = await engine.process(request);
 
-    // Inject memory context if requested
-    let enrichedRequest = { ...request };
-    if (request.useMemory && request.userId) {
-      try {
-        const memoryContext = await this.memory.buildContextString(
-          request.tenantId,
-          request.userId,
-          request.context
-        );
-        if (memoryContext && enrichedRequest.messages && enrichedRequest.messages.length > 0) {
-          // Inject memory into the system message
-          const systemIdx = enrichedRequest.messages.findIndex((m) => m.role === "system");
-          if (systemIdx >= 0) {
-            enrichedRequest.messages = [...enrichedRequest.messages];
-            enrichedRequest.messages[systemIdx] = {
-              ...enrichedRequest.messages[systemIdx],
-              content: enrichedRequest.messages[systemIdx].content + memoryContext,
-            };
+        // Store interaction in memory if available
+        if (request.message) {
+          try {
+            await this.memory.remember(
+              context.tenant_id,
+              context.user_id,
+              request.context,
+              `last_interaction_${Date.now()}`,
+              {
+                input: request.message.substring(0, 200),
+                origin: context.origin,
+                timestamp: context.timestamp,
+              }
+            );
+          } catch {
+            // Non-critical
           }
         }
-      } catch (e) {
-        console.warn("[MIAOrchestrator] Memory injection failed:", e);
-      }
-    }
 
-    // Process through engine
-    const response = await engine.process(enrichedRequest);
-
-    // Store interaction in memory if userId is available
-    if (request.userId && request.input) {
-      try {
-        await this.memory.remember(
-          request.tenantId,
-          request.userId,
-          request.context,
-          `last_interaction_${Date.now()}`,
-          {
-            input: request.input.substring(0, 200),
-            timestamp: Date.now(),
+        // Execute actions if any
+        if (response.actions && response.actions.length > 0) {
+          try {
+            await this.actions.executeActions(response.actions);
+          } catch (e) {
+            console.warn("[MIAOrchestrator] Action execution failed:", e);
           }
-        );
-      } catch {
-        // Non-critical, ignore
-      }
-    }
+        }
 
-    // Execute actions if any
-    if (response.actions && response.actions.length > 0) {
-      try {
-        await this.actions.executeActions(response.actions);
-      } catch (e) {
-        console.warn("[MIAOrchestrator] Action execution failed:", e);
+        return response;
       }
-    }
 
-    return response;
+      // Phase 1 fallback: placeholder response (no AI calls)
+      return {
+        type: "text",
+        message: `[MIA Core] Recebi sua mensagem de "${context.origin}": "${context.message}"`,
+        actions: [],
+        engine: request.context,
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      console.error("[MIAOrchestrator] Error:", errorMessage);
+
+      return {
+        type: "text",
+        message: "Ocorreu um erro ao processar sua solicitação.",
+        error: errorMessage,
+        engine: request.context,
+      };
+    }
+  }
+
+  /** Register a specialized engine for a context type */
+  registerEngine(engine: MIAEngineInterface): void {
+    this.engines.set(engine.engineType, engine);
   }
 
   /** Get the memory engine for direct memory operations */
@@ -124,11 +105,6 @@ class MIAOrchestrator {
   /** Get the action engine for registering handlers */
   getActions() {
     return this.actions;
-  }
-
-  /** Register a custom engine */
-  registerEngine(engine: MIAEngineInterface): void {
-    this.engines.set(engine.engineType, engine);
   }
 }
 
