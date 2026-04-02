@@ -16,7 +16,48 @@ import {format} from "date-fns";
 import {supabase} from "@/lib/supabaseClient";
 import {useAuth} from "@/contexts/AuthContext";
 import {toast} from "sonner";
-import {COLOR_THEMES, getStoredThemeId, applyTheme, resetToDefaultTheme} from "@/lib/colorThemes";
+import {COLOR_THEMES, getStoredThemeId, getThemeById, applyTheme, resetToDefaultTheme} from "@/lib/colorThemes";
+
+function SidebarPreview({ themeId }: { themeId: string }) {
+  const theme = getThemeById(themeId);
+  return (
+    <div
+      className="w-36 shrink-0 rounded-lg border overflow-hidden shadow-sm"
+      style={{ backgroundColor: `hsl(${theme.sidebar_bg})`, borderColor: `hsl(${theme.sidebar_border})` }}
+    >
+      {/* Header */}
+      <div className="px-3 py-2 border-b" style={{ borderColor: `hsl(${theme.sidebar_border})` }}>
+        <div className="h-2.5 w-16 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.8 }} />
+        <div className="h-1.5 w-10 rounded mt-1" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.4 }} />
+      </div>
+      {/* Nav items */}
+      <div className="px-2 py-2 space-y-1">
+        {/* Active item */}
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_accent})` }}>
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `hsl(${theme.sidebar_primary})` }} />
+          <div className="h-1.5 w-12 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_primary})` }} />
+        </div>
+        {/* Inactive items */}
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.5 }} />
+            <div className="h-1.5 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.35, width: `${40 + i * 8}%` }} />
+          </div>
+        ))}
+      </div>
+      {/* Footer */}
+      <div className="px-3 py-2 border-t mt-1" style={{ borderColor: `hsl(${theme.sidebar_border})` }}>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `hsl(${theme.sidebar_primary})`, opacity: 0.6 }} />
+          <div className="h-1.5 w-10 rounded" style={{ backgroundColor: `hsl(${theme.sidebar_fg})`, opacity: 0.4 }} />
+        </div>
+      </div>
+      <p className="text-[8px] text-center py-1 font-medium" style={{ color: `hsl(${theme.sidebar_fg})`, opacity: 0.6 }}>
+        {theme.name}
+      </p>
+    </div>
+  );
+}
 
 // TikTok icon
 function TikTokIcon({ className }: { className?: string }) {
@@ -79,6 +120,7 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
   const [birthDate, setBirthDate] = useState<Date | undefined>();
   const [triedSave, setTriedSave] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState(getStoredThemeId);
+  const [previewTheme, setPreviewTheme] = useState<string | null>(null);
 
   const [form, setForm] = useState<ProfileData>({
     nome_completo: "", apelido: "", email: "", telefone: "", telefone_whatsapp: "",
@@ -537,50 +579,65 @@ export function UserProfileModal({ open, onClose }: UserProfileModalProps) {
                 <Palette className="h-4 w-4 text-primary" />
                 Tema de Cores
               </h3>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                {COLOR_THEMES.map((theme) => (
-                  <button
-                    key={theme.id}
-                    onClick={() => {
-                      setSelectedTheme(theme.id);
-                      applyTheme(theme.id);
-                      toast.success(`Tema "${theme.name}" aplicado!`);
-                    }}
-                    className={cn(
-                      "relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all hover:scale-105",
-                      selectedTheme === theme.id
-                        ? "border-primary ring-2 ring-primary/30 bg-primary/5"
-                        : "border-border hover:border-muted-foreground/40"
-                    )}
-                    title={theme.name}
-                  >
-                    <div
-                      className="w-8 h-8 rounded-full shadow-sm border border-black/10"
-                      style={{ backgroundColor: theme.preview }}
-                    />
-                    {selectedTheme === theme.id && (
-                      <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                        <Check className="h-2.5 w-2.5 text-primary-foreground" />
-                      </div>
-                    )}
-                    <span className="text-[9px] text-muted-foreground leading-tight text-center truncate w-full">{theme.name}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2 flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-xs text-muted-foreground"
-                  onClick={() => {
-                    setSelectedTheme("default");
-                    resetToDefaultTheme();
-                    toast.success("Tema padrão restaurado!");
-                  }}
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  Restaurar Padrão
-                </Button>
+              <div className="flex gap-4">
+                {/* Theme grid */}
+                <div className="flex-1">
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {COLOR_THEMES.map((theme) => (
+                      <button
+                        key={theme.id}
+                        onMouseEnter={() => setPreviewTheme(theme.id)}
+                        onMouseLeave={() => setPreviewTheme(null)}
+                        onClick={() => {
+                          setSelectedTheme(theme.id);
+                          setPreviewTheme(null);
+                          if (theme.id === "default") {
+                            resetToDefaultTheme();
+                          } else {
+                            applyTheme(theme.id);
+                          }
+                          toast.success(`Tema "${theme.name}" aplicado!`);
+                        }}
+                        className={cn(
+                          "relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all hover:scale-105",
+                          selectedTheme === theme.id
+                            ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                            : "border-border hover:border-muted-foreground/40"
+                        )}
+                        title={theme.name}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-full shadow-sm border border-black/10"
+                          style={{ backgroundColor: theme.preview }}
+                        />
+                        {selectedTheme === theme.id && (
+                          <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                          </div>
+                        )}
+                        <span className="text-[9px] text-muted-foreground leading-tight text-center truncate w-full">{theme.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-xs text-muted-foreground"
+                      onClick={() => {
+                        setSelectedTheme("default");
+                        setPreviewTheme(null);
+                        resetToDefaultTheme();
+                        toast.success("Tema padrão restaurado!");
+                      }}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Restaurar Padrão
+                    </Button>
+                  </div>
+                </div>
+                {/* Mini sidebar preview */}
+                <SidebarPreview themeId={previewTheme || selectedTheme} />
               </div>
             </div>
 
