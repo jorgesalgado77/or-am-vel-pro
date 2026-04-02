@@ -11,7 +11,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import type { Product } from "@/hooks/useProductCatalog";
 import { formatCurrency } from "@/lib/financing";
-import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX } from "lucide-react";
+import { X, ZoomIn, ZoomOut, Play, Pause, UserPlus, ShoppingCart, Maximize, Volume2, VolumeX, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductImage {
@@ -161,6 +161,9 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [playingVideo, setPlayingVideo] = useState(false);
   const [selectedMediaIdx, setSelectedMediaIdx] = useState(0);
+  const autoSlideRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const videoRef2 = useRef<HTMLVideoElement>(null);
+  const thumbContainerRef = useRef<HTMLDivElement>(null);
 
   const [showAddFlow, setShowAddFlow] = useState(false);
   const [clients, setClients] = useState<ClientOption[]>([]);
@@ -194,6 +197,51 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
   }, [images, videoUrl]);
 
   const featured = media[selectedMediaIdx] || media[0] || null;
+  const isCurrentVideo = featured?.type === "video";
+
+  // Navigate to next/prev
+  const goNext = useCallback(() => {
+    setSelectedMediaIdx(i => (i + 1) % media.length);
+    setPlayingVideo(false);
+  }, [media.length]);
+
+  const goPrev = useCallback(() => {
+    setSelectedMediaIdx(i => (i - 1 + media.length) % media.length);
+    setPlayingVideo(false);
+  }, [media.length]);
+
+  // Auto-slide: 3s for images, skip for video (waits for video end)
+  useEffect(() => {
+    if (!open || media.length <= 1) return;
+    if (isCurrentVideo && playingVideo) {
+      // Don't auto-advance while video is playing
+      if (autoSlideRef.current) clearInterval(autoSlideRef.current);
+      return;
+    }
+    autoSlideRef.current = setInterval(() => {
+      setSelectedMediaIdx(i => {
+        const next = (i + 1) % media.length;
+        setPlayingVideo(false);
+        return next;
+      });
+    }, 3000);
+    return () => { if (autoSlideRef.current) clearInterval(autoSlideRef.current); };
+  }, [open, media.length, isCurrentVideo, playingVideo]);
+
+  // Auto-play video when video slide is selected
+  useEffect(() => {
+    if (isCurrentVideo) {
+      setPlayingVideo(true);
+    }
+  }, [selectedMediaIdx, isCurrentVideo]);
+
+  // Scroll thumbnail into view
+  useEffect(() => {
+    if (thumbContainerRef.current) {
+      const btn = thumbContainerRef.current.children[selectedMediaIdx] as HTMLElement;
+      if (btn) btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [selectedMediaIdx]);
 
   // Load images — query WITHOUT is_default since column doesn't exist
   useEffect(() => {
@@ -286,27 +334,36 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
               {media.length > 0 && featured && (
                 <div className="space-y-2">
                   <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border bg-muted">
-                    {featured.type === "video" ? (
-                      playingVideo ? (
-                        (() => {
-                          const isEmbed = featured.url.includes("youtube") || featured.url.includes("youtu.be") || featured.url.includes("vimeo");
-                          const embed = getVideoEmbedUrl(featured.url);
-                          return isEmbed && embed ? (
-                            <iframe src={embed} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; fullscreen" />
-                          ) : (
-                            <video src={featured.url} controls autoPlay className="w-full h-full object-contain bg-black" />
-                          );
-                        })()
-                      ) : (
-                        <div className="w-full h-full cursor-pointer group" onClick={() => setPlayingVideo(true)}>
-                          <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
-                            </div>
+                    {featured.type === "video" && playingVideo ? (
+                      (() => {
+                        const isEmbed = featured.url.includes("youtube") || featured.url.includes("youtu.be") || featured.url.includes("vimeo");
+                        const embed = getVideoEmbedUrl(featured.url);
+                        return isEmbed && embed ? (
+                          <iframe src={embed} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media; fullscreen" />
+                        ) : (
+                          <video
+                            ref={videoRef2}
+                            src={featured.url}
+                            controls
+                            autoPlay
+                            className="w-full h-full object-contain bg-black"
+                            onEnded={() => {
+                              // Video ended → advance to next slide
+                              setPlayingVideo(false);
+                              setSelectedMediaIdx(i => (i + 1) % media.length);
+                            }}
+                          />
+                        );
+                      })()
+                    ) : featured.type === "video" ? (
+                      <div className="w-full h-full cursor-pointer group" onClick={() => setPlayingVideo(true)}>
+                        <img src={featured.thumbUrl} alt="Vídeo" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <div className="h-14 w-14 rounded-full bg-primary/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <Play className="h-7 w-7 text-primary-foreground ml-0.5" />
                           </div>
                         </div>
-                      )
+                      </div>
                     ) : (
                       <div className="w-full h-full cursor-pointer group" onClick={() => setViewerImage(featured.url)}>
                         <img src={featured.url} alt={product.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/placeholder.svg"; }} />
@@ -315,11 +372,42 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                         </div>
                       </div>
                     )}
+
+                    {/* Navigation arrows */}
+                    {media.length > 1 && (
+                      <>
+                        <button
+                          className="absolute left-1.5 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 rounded-full p-1 text-white transition-colors z-10"
+                          onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        <button
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 rounded-full p-1 text-white transition-colors z-10"
+                          onClick={(e) => { e.stopPropagation(); goNext(); }}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                      </>
+                    )}
+
+                    {/* Slide indicator dots */}
+                    {media.length > 1 && (
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                        {media.map((_, idx) => (
+                          <button
+                            key={idx}
+                            className={`w-2 h-2 rounded-full transition-colors ${idx === selectedMediaIdx ? "bg-white" : "bg-white/40"}`}
+                            onClick={(e) => { e.stopPropagation(); setSelectedMediaIdx(idx); setPlayingVideo(false); }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Thumbnail carousel */}
+                  {/* Thumbnail carousel with horizontal scroll */}
                   {media.length > 1 && (
-                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                    <div ref={thumbContainerRef} className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
                       {media.map((item, idx) => (
                         <button
                           key={item.id}
