@@ -1255,33 +1255,50 @@ export function useOnboardingAI(tenantId: string | null) {
             return updated;
           });
         } else {
-          // Text/data search via Perplexity
-          const { data, error } = await supabase.functions.invoke("perplexity-search", {
-            body: { query: searchQuery, tenant_id: tenantId },
-          });
-
-          if (error || !data?.content) {
-            setMessages(prev => {
-              const updated = [...prev];
-              if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  content: `❌ Não consegui buscar informações no momento. Verifique se a API Perplexity está configurada em **Configurações > APIs**.`,
-                };
-              }
-              return updated;
+          // Text/data search via MIA ResearchEngine
+          try {
+            const { getResearchEngine } = await import("@/services/mia/ResearchEngine");
+            const research = getResearchEngine();
+            const researchResult = await research.search({
+              query: searchQuery,
+              tenantId: tenantId || "",
+              userId: "system",
             });
-          } else {
-            const citations = (data.citations || []) as string[];
+
+            if (!researchResult.summary || researchResult.sources.length === 0) {
+              setMessages(prev => {
+                const updated = [...prev];
+                if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+                  updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    content: `❌ Não consegui buscar informações no momento. Verifique se a API Perplexity está configurada em **Configurações > APIs**.`,
+                  };
+                }
+                return updated;
+              });
+            } else {
+              const citations = researchResult.sources.map((s) => s.url);
+              setMessages(prev => {
+                const updated = [...prev];
+                if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+                  updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    content:
+                      `🌐 **Resultados para "${searchQuery}"**\n\n` +
+                      `${researchResult.summary}\n\n` +
+                      (citations.length > 0 ? `### 🔗 Fontes\n${citations.map((c: string, i: number) => `${i + 1}. [${c}](${c})`).join("\n")}\n` : ""),
+                  };
+                }
+                return updated;
+              });
+            }
+          } catch {
             setMessages(prev => {
               const updated = [...prev];
               if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
                 updated[updated.length - 1] = {
                   ...updated[updated.length - 1],
-                  content:
-                    `🌐 **Resultados para "${searchQuery}"**\n\n` +
-                    `${data.content}\n\n` +
-                    (citations.length > 0 ? `### 🔗 Fontes\n${citations.map((c: string, i: number) => `${i + 1}. [${c}](${c})`).join("\n")}\n` : ""),
+                  content: `❌ Erro ao pesquisar. Tente novamente mais tarde.`,
                 };
               }
               return updated;

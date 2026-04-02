@@ -145,24 +145,12 @@ Sou um projetista/vendedor de móveis planejados.${chatContext}${simContext}${tr
         if (miaResult.message) {
           aiResponse = miaResult.message;
         }
-      } catch {
-        // MIA fallback — use direct edge function call
+      } catch (miaErr) {
+        console.warn("[DealRoomAI] MIA error:", miaErr);
       }
 
-      // Fallback: direct supabase call if MIA returned empty
       if (!aiResponse) {
-        const { data, error } = await supabase.functions.invoke("vendazap-ai", {
-          body: {
-            messages: [
-              { role: "system", content: systemContent },
-              ...messages.map(m => ({ role: m.role, content: m.content })),
-              { role: "user", content: text },
-            ],
-            tenant_id: tenantId,
-          },
-        });
-        if (error) throw error;
-        aiResponse = data?.reply || data?.choices?.[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.";
+        aiResponse = "Desculpe, não consegui gerar uma resposta. Tente novamente.";
       }
 
       setMessages(prev => [...prev, { role: "assistant", content: aiResponse }]);

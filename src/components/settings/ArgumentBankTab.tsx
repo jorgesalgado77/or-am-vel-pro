@@ -151,17 +151,26 @@ export function ArgumentBankTab() {
     }
   };
 
-  // Perplexity real-time search (top card)
+  // Perplexity real-time search (top card) — routed through MIA ResearchEngine
   const handlePerplexitySearch = async (query: string) => {
     if (!query.trim()) return;
     setSearching(true);
     setSearchResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("perplexity-search", {
-        body: { query, context: "Busca para banco de argumentos de vendas de móveis planejados" },
+      const { getResearchEngine } = await import("@/services/mia/ResearchEngine");
+      const research = getResearchEngine();
+      const result = await research.search({
+        query,
+        tenantId: getTenantId() || "",
+        userId: "system",
+        context: "Busca para banco de argumentos de vendas de móveis planejados",
       });
-      if (error) throw error;
-      setSearchResult({ content: data.content, citations: data.citations || [] });
+      if (result.summary) {
+        setSearchResult({
+          content: result.summary,
+          citations: result.sources.map((s) => s.url),
+        });
+      }
     } catch {
       toast.error("Erro ao pesquisar. Verifique a conexão com Perplexity.");
     }
