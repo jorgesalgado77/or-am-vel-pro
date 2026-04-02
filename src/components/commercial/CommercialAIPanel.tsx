@@ -145,9 +145,9 @@ export function CommercialAIPanel() {
     if (saved === "openai" || saved === "perplexity") setPreferredProvider(saved);
 
     (async () => {
-      const { data, error } = await supabase.functions.invoke("commercial-ai", {
-        body: { action: "get_available_providers", tenant_id: tenantId },
-      });
+      const { data, error } = await miaInvoke("commercial-ai", {
+          action: "get_available_providers", tenant_id: tenantId,
+        }, { tenantId, userId: user?.id || "system", origin: "commercial", context: "commercial", skipMemory: true });
       if (!error && data?.providers) {
         setAvailableProviders(data.providers);
         setAiConnected(data.providers.length > 0);
