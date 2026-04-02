@@ -252,6 +252,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       const html = buildContractHtml((template as any).conteudo_html, {
         formData, client: client!, valorTela, result, formaPagamento, parcelas, valorEntrada,
         settings, selectedIndicador, comissaoPercentual, items, itemDetails,
+        catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: cp.product.sale_price })),
       });
       setPendingSimId(simData.id); setPendingTemplateId((template as any).id);
       setContractHtml(html); setContractEditorOpen(true);
