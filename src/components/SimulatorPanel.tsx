@@ -104,7 +104,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | null>(null);
-  const [extremaLocked, setExtremaLocked] = useState(false);
+  const [extremaLocked, setExtremaLocked] = useState(stored.extremaLocked ?? false);
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
