@@ -48,7 +48,10 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
   const afterDiscount2 = afterDiscount1 * (1 - desconto2 / 100);
   const valorComDesconto = afterDiscount2 * (1 - desconto3 / 100);
 
-  const saldo = valorComDesconto - valorEntrada;
+  // Apply Plus discount to reduce the base value before financing
+  const valorComPlus = plusPercentual > 0 ? valorComDesconto * (1 - plusPercentual / 100) : valorComDesconto;
+
+  const saldo = valorComPlus - valorEntrada;
 
   let valorFinal = saldo;
   let valorParcela = 0;
@@ -59,7 +62,7 @@ export function calculateSimulation(input: SimulationInput): SimulationResult {
   switch (formaPagamento) {
     case 'A vista':
     case 'Pix': {
-      valorFinal = saldo * (1 - plusPercentual / 100);
+      valorFinal = saldo;
       valorParcela = valorFinal;
       break;
     }

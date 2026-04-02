@@ -147,7 +147,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
           <div className="mt-2 border rounded-md overflow-hidden">
             <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Ambientes Importados</span>
+                <span className="text-xs font-medium text-muted-foreground">Ambientes Planejados</span>
                 {detectedSoftware && (
                   <Badge variant="secondary" className="text-[9px] h-5 gap-1 px-1.5 font-semibold">
                     <Cpu className="h-2.5 w-2.5" />
@@ -215,7 +215,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
           {showTotals && (
             <div className="mt-3 rounded-md border bg-muted/30 px-3 py-3 space-y-2">
               <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>Subtotal Importados</span>
+                <span>Subtotal Planejados</span>
                 <span className="tabular-nums font-medium">
                   {formatCurrency(importedSubtotal)}
                 </span>
@@ -242,7 +242,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   {formatCurrency(importedSubtotal)} + {formatCurrency(catalogSubtotal)}
                 </p>
                 <span className="sr-only">
-                  Subtotal Importados mais Subtotal Catálogo igual ao Valor de Tela
+                  Subtotal Planejados mais Subtotal Catálogo igual ao Valor de Tela
                 </span>
               </div>
             </div>

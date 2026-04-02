@@ -4,7 +4,7 @@ import {Badge} from "@/components/ui/badge";
 import {Switch} from "@/components/ui/switch";
 import {Label} from "@/components/ui/label";
 import {Separator} from "@/components/ui/separator";
-import {Brain, Shield, TrendingUp, Zap, Check, Target, Building2} from "lucide-react";
+import {Brain, Shield, TrendingUp, Zap, Check, Target, Building2, Flame} from "lucide-react";
 import {formatCurrency} from "@/lib/financing";
 import {toast} from "sonner";
 import {
@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 interface StrategyScenario {
-  type: "conservadora" | "comercial" | "agressiva";
+  type: "conservadora" | "comercial" | "agressiva" | "extrema";
   label: string;
   icon: React.ReactNode;
   color: string;
@@ -126,6 +126,9 @@ export function AIStrategyPanel({
     const agrD3 = d3Options.length > 0 ? Math.max(...d3Options) : 0;
     const agrParcelas = availableParcelas.length > 0 ? availableParcelas[availableParcelas.length - 1] : maxParcelas;
 
+    // Extrema = Agressiva + Plus
+    const extPlus = plusOptions.length > 0 ? Math.max(...plusOptions) : 0;
+
     // Define strategy params
     const conservParams: StrategyParams = {
       desconto1: conservD1, desconto2: 0, desconto3: 0,
@@ -139,23 +142,31 @@ export function AIStrategyPanel({
       desconto1: agrD1, desconto2: agrD2, desconto3: agrD3,
       plusPercentual: 0, formaPagamento: "Boleto", parcelas: agrParcelas, valorEntrada: 0,
     };
+    const extParams: StrategyParams = {
+      desconto1: agrD1, desconto2: agrD2, desconto3: agrD3,
+      plusPercentual: extPlus, formaPagamento: "Boleto", parcelas: agrParcelas, valorEntrada: 0,
+    };
 
     // Use the real calculation engine for accurate values
     const conservResult = calculateResult(conservParams);
     const comResult = calculateResult(comParams);
     const agrResult = calculateResult(agrParams);
+    const extResult = calculateResult(extParams);
 
     const totalDiscountConserv = ((valorTelaComComissao - conservResult.valorComDesconto) / valorTelaComComissao) * 100;
     const totalDiscountCom = ((valorTelaComComissao - comResult.valorComDesconto) / valorTelaComComissao) * 100;
     const totalDiscountAgr = ((valorTelaComComissao - agrResult.valorComDesconto) / valorTelaComComissao) * 100;
+    const totalDiscountExt = ((valorTelaComComissao - extResult.valorComDesconto) / valorTelaComComissao) * 100;
 
     const conservMargem = 100 - totalDiscountConserv + conservPlus;
     const comMargem = 100 - totalDiscountCom;
     const agrMargem = 100 - totalDiscountAgr;
+    const extMargem = 100 - totalDiscountExt;
 
     const conservProb = calculateClosingProbability(totalDiscountConserv, false, historicalConversionRate, conservResult.valorFinal);
     const comProb = calculateClosingProbability(totalDiscountCom, true, historicalConversionRate, comResult.valorFinal);
     const agrProb = calculateClosingProbability(totalDiscountAgr, true, historicalConversionRate, agrResult.valorFinal);
+    const extProb = Math.min(calculateClosingProbability(totalDiscountExt, true, historicalConversionRate, extResult.valorFinal) + 5, 95);
 
     return [
       {
@@ -200,6 +211,20 @@ export function AIStrategyPanel({
         probabilidadeFechamento: agrProb,
         descricao: "Máximo desconto + parcelamento. Para fechar negócios difíceis.",
       },
+      ...(extPlus > 0 ? [{
+        type: "extrema" as const,
+        label: "Extrema",
+        icon: <Flame className="h-5 w-5" />,
+        color: "text-purple-700",
+        bgColor: "bg-purple-50",
+        borderColor: "border-purple-200 hover:border-purple-400",
+        ...extParams,
+        valorFinal: extResult.valorFinal,
+        valorParcela: extResult.valorParcela,
+        margemEstimada: extMargem,
+        probabilidadeFechamento: extProb,
+        descricao: `Máximo desconto + Plus ${extPlus}% + parcelamento máximo. Última cartada para fechar a qualquer custo.`,
+      }] : []),
     ];
   }, [enabled, valorTela, valorTelaComComissao, discountOptions, maxParcelas, availableParcelas, historicalConversionRate, calculateResult]);
 
@@ -393,7 +418,7 @@ export function AIStrategyPanel({
                       {scenarios.map((s) => (
                         <Cell
                           key={s.type}
-                          fill={s.type === "conservadora" ? "hsl(152, 60%, 40%)" : s.type === "comercial" ? "hsl(40, 90%, 50%)" : "hsl(0, 70%, 50%)"}
+                          fill={s.type === "conservadora" ? "hsl(152, 60%, 40%)" : s.type === "comercial" ? "hsl(40, 90%, 50%)" : s.type === "extrema" ? "hsl(270, 60%, 50%)" : "hsl(0, 70%, 50%)"}
                         />
                       ))}
                     </Bar>
@@ -401,7 +426,7 @@ export function AIStrategyPanel({
                       {scenarios.map((s) => (
                         <Cell
                           key={s.type}
-                          fill={s.type === "conservadora" ? "hsl(152, 60%, 60%)" : s.type === "comercial" ? "hsl(40, 90%, 70%)" : "hsl(0, 70%, 70%)"}
+                          fill={s.type === "conservadora" ? "hsl(152, 60%, 60%)" : s.type === "comercial" ? "hsl(40, 90%, 70%)" : s.type === "extrema" ? "hsl(270, 60%, 70%)" : "hsl(0, 70%, 70%)"}
                           opacity={0.7}
                         />
                       ))}
