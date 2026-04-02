@@ -200,13 +200,21 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
                       </Badge>
                     </div>
 
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
                       <p className="text-sm font-bold text-primary">{formatCurrency(p.sale_price)}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-primary"
+                        onClick={e => { e.stopPropagation(); setDetailProduct(p as unknown as Product); setDetailOpen(true); }}
+                      >
+                        <Eye className="h-3 w-3" /> Detalhes
+                      </Button>
                       {isSelected && (
                         <Input type="number" min={1} value={qty}
                           onClick={e => e.stopPropagation()}
                           onChange={e => { e.stopPropagation(); updateQty(p.id, Number(e.target.value)); }}
-                          className="w-16 h-7 text-xs text-center p-0.5 mt-1" />
+                          className="w-16 h-7 text-xs text-center p-0.5" />
                       )}
                     </div>
                   </div>
