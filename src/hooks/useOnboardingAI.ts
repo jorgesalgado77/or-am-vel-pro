@@ -1752,9 +1752,9 @@ export function useOnboardingAI(tenantId: string | null) {
     if (!tenantId) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("onboarding-ai", {
-        body: { action: "suggest_first_project", tenant_id: tenantId },
-      });
+      const { data, error } = await miaInvoke("onboarding-ai", {
+          action: "suggest_first_project", tenant_id: tenantId,
+        }, { tenantId, userId: "system", origin: "onboarding", context: "onboarding" });
       if (error) throw error;
       const suggestion = data?.suggestion;
       setMessages((prev) => [...prev, createMessage("assistant", `🏗️ **Sugestão de Primeiro Projeto — ${data?.storeType || "Loja"}**\n\n📐 **Ambientes sugeridos:**\n${(suggestion?.environments || []).map((item: string) => `• ${item}`).join("\n")}\n\n🧩 **Módulos recomendados:**\n${(suggestion?.modules || []).map((item: string) => `• ${item}`).join("\n")}\n\n💰 **Faixa de preço:** ${suggestion?.priceRange || "consulte"}`)]);
