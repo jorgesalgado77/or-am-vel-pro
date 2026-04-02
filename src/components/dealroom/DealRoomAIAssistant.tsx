@@ -220,6 +220,17 @@ Sou um projetista/vendedor de móveis planejados.${chatContext}${simContext}${tr
                   </div>
                 )}
                 <p className="whitespace-pre-wrap text-xs">{msg.content}</p>
+                {msg.role === "assistant" && (
+                  <MIAFeedback
+                    tenantId={tenantId}
+                    userId={tenantId}
+                    context="dealroom"
+                    responseId={`dealroom-ai-${i}`}
+                    actionTaken="dealroom-assistant"
+                    compact
+                    className="mt-1"
+                  />
+                )}
               </div>
             </div>
           ))}
