@@ -110,6 +110,7 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
         valor_parcela: Number(s.valor_parcela) || 0,
         plus_percentual: Number(s.plus_percentual) || 0,
         arquivo_nome: s.arquivo_nome,
+        estrategia_ia: s.estrategia_ia || null,
         created_at: s.created_at,
       }));
       setSimulations(mapped);
