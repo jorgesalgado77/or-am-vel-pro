@@ -812,6 +812,17 @@ Ajude o vendedor com estratégias, argumentos e técnicas de fechamento em tempo
                       msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                     }`}>
                       <p className="whitespace-pre-wrap">{msg.content}</p>
+                      {msg.role === "assistant" && (
+                        <MIAFeedback
+                          tenantId={tenantId || ""}
+                          userId="system"
+                          context="dealroom"
+                          responseId={`coach-${i}`}
+                          actionTaken="dealroom-coach"
+                          compact
+                          className="mt-0.5"
+                        />
+                      )}
                     </div>
                   </div>
                 ))
