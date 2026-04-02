@@ -152,7 +152,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   // ─── File / Environment State ───
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [selectedIndicadorId, setSelectedIndicadorId] = useState(stored.selectedIndicadorId ?? client?.indicador_id ?? "");
-  const [hideIndicador, setHideIndicador] = useState(false);
+  const [hideIndicador, setHideIndicador] = useState(stored.hideIndicador ?? false);
   const [detectedSoftware, setDetectedSoftware] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
     if (init?.ambientes && init.ambientes.length > 0) {
