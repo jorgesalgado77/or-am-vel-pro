@@ -84,7 +84,7 @@ export const SidebarUserProfile = React.memo(function SidebarUserProfile({
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground truncate">
+          <p className="text-sm font-medium truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>
             {currentUser.apelido || currentUser.nome_completo}
           </p>
           {currentUser.cargo_nome && (
