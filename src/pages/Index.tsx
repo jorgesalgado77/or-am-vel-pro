@@ -436,7 +436,8 @@ export default function Index() {
                   tenantId={authUser?.tenant_id || null}
                   userId={authUser?.id}
                   initialClientId={pendingChatClientId}
-                  onInitialClientHandled={() => setPendingChatClientId(null)}
+                  initialAttachmentUrl={pendingChatAttachment}
+                  onInitialClientHandled={() => { setPendingChatClientId(null); setPendingChatAttachment(null); }}
                   onDealRoom={(clientName, contractId) => {
                     setActiveView("dealroom");
                   }}
