@@ -73,7 +73,7 @@ export const SimulatorDialogs = React.memo(function SimulatorDialogs(props: Simu
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" />{props.passwordDialogTitle}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); props.onPasswordConfirm(); }} autoComplete="off">
+          <form onSubmit={(e) => { e.preventDefault(); props.onPasswordConfirm(); }} autoComplete="off" data-form-type="other" data-lpignore="true">
             <div>
               <Label>Informe a senha para desbloquear</Label>
               <Input
@@ -83,12 +83,15 @@ export const SimulatorDialogs = React.memo(function SimulatorDialogs(props: Simu
                 className="mt-1"
                 placeholder="Senha"
                 autoFocus
-                autoComplete="new-password"
+                autoComplete="off"
                 data-1p-ignore
                 data-lpignore="true"
+                data-protonpass-ignore="true"
                 data-form-type="other"
-                name="unlock-pwd"
-                id="unlock-pwd"
+                name={`unlock-${Date.now()}`}
+                id={`unlock-${Date.now()}`}
+                readOnly
+                onFocus={(e) => e.currentTarget.removeAttribute("readonly")}
               />
             </div>
             <DialogFooter className="mt-4">

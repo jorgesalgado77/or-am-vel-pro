@@ -50,6 +50,7 @@ interface UseSimulatorActionsParams {
   showClientForm: boolean;
   setShowClientForm: (v: boolean) => void;
   setNewClient: (v: any) => void;
+  activeStrategy?: string;
 }
 
 export function useSimulatorActions(params: UseSimulatorActionsParams) {
@@ -61,6 +62,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
+    activeStrategy,
   } = params;
 
   const effectiveClient = client || linkedClient;
@@ -196,6 +198,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       forma_pagamento: formaPagamento, parcelas, valor_entrada: valorEntrada, plus_percentual: plusPercentual,
       valor_final: result.valorFinal, valor_parcela: result.valorParcela,
       arquivo_url: arquivoUrl, arquivo_nome: arquivoNome, tenant_id: resolvedTenantId,
+      estrategia_ia: activeStrategy || null,
     } as any);
     setSaving(false);
 

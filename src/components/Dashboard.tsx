@@ -208,8 +208,15 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    const faturamentoContratos = Array.from(contractClientIds).reduce((sum, clientId) => {
-      const s = lastSims[clientId] || filteredLastSims[clientId];
+    const filteredContractClientIds = new Set(
+      Array.from(contractClientIds).filter(cid => {
+        // Only count contracts whose clients are in the filtered set
+        return filteredClients.some(c => c.id === cid);
+      })
+    );
+
+    const faturamentoContratos = Array.from(filteredContractClientIds).reduce((sum, clientId) => {
+      const s = filteredLastSims[clientId] || lastSims[clientId];
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 

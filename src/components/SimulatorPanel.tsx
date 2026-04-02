@@ -274,6 +274,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setImportedFile, setDetectedSoftware, selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
+    activeStrategy,
   });
 
   useEffect(() => { return () => { if (!actions.savedRef.current) sessionStorage.removeItem(SIM_STORAGE_KEY); }; }, []);
@@ -526,6 +527,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             setCatalogProducts([]);
             if (sim.desconto3 > 0) setDesconto3Unlocked(true);
             if (sim.plus_percentual > 0) setPlusUnlocked(true);
+            // Restore AI strategy
+            setActiveStrategy(sim.estrategia_ia || "");
             if (sim.arquivo_nome) {
               const { environments: envs, catalogProducts: catProds } = parseArquivoNome(sim.arquivo_nome);
               if (envs.length > 0) {
