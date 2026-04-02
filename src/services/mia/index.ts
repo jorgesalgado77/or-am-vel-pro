@@ -1,19 +1,17 @@
 /**
  * MIA Core — Unified AI Intelligence Module
  *
- * Central export for all MIA services:
- * - MIAOrchestrator: Routes AI requests to the correct engine
- * - MIAMemoryEngine: Persistent memory per tenant+user
- * - MIAActionEngine: Execute real actions from AI responses
- * - Individual engines for each AI domain
+ * Phase 1: Base architecture only. No external AI calls.
+ * Fully isolated — does NOT impact any existing system functionality.
  */
 
 // Core
 export { MIAOrchestrator, getMIAOrchestrator } from "./MIAOrchestrator";
+export { buildContext } from "./ContextBuilder";
 export { MIAMemoryEngine, getMIAMemoryEngine } from "./MIAMemoryEngine";
 export { MIAActionEngine, getMIAActionEngine } from "./MIAActionEngine";
 
-// Engines
+// Engines (Phase 1: placeholders)
 export { VendaZapEngine } from "./engines/VendaZapEngine";
 export { DealRoomEngine } from "./engines/DealRoomEngine";
 export { OnboardingEngine } from "./engines/OnboardingEngine";
@@ -23,11 +21,14 @@ export { ArgumentEngine } from "./engines/ArgumentEngine";
 
 // Types
 export type {
+  MIAOrigin,
   MIAContextType,
   MIAMessage,
   MIARequest,
+  MIAResponseType,
   MIAResponse,
   MIAAction,
   MIAMemoryEntry,
   MIAEngineInterface,
+  MIAContext,
 } from "./types";
