@@ -314,11 +314,12 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
             <Label className="mb-1 flex items-center gap-1">
               Desconto 3 (%)
               {!desconto3Unlocked && <Lock className="h-3 w-3 text-muted-foreground" />}
-              {desconto3Unlocked && <LockOpen className="h-3 w-3 text-success" />}
+              {desconto3Unlocked && !extremaLocked && <LockOpen className="h-3 w-3 text-success" />}
+              {extremaLocked && <Lock className="h-3 w-3 text-amber-500" />}
             </Label>
             {desconto3Unlocked ? (
-              <Select value={String(desconto3)} onValueChange={(v) => setDesconto3(Number(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={String(desconto3)} onValueChange={(v) => setDesconto3(Number(v))} disabled={!!extremaLocked}>
+                <SelectTrigger className={extremaLocked ? "opacity-70" : ""}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {getOptionsForField("desconto3").map((v) => (
                     <SelectItem key={v} value={String(v)}>{v}%</SelectItem>
