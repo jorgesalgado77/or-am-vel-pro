@@ -98,7 +98,10 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
-  const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<SelectedProduct[]>(() => {
+    const stored = loadStoredState();
+    return (stored.catalogProducts as SelectedProduct[]) || [];
+  });
 
   // ─── Client State ───
   const [linkedClient, setLinkedClient] = useState<Client | null>(null);
