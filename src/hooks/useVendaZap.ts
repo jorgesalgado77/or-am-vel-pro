@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
 import type { DealContext, MessageContext } from "@/services/commercial/types";
