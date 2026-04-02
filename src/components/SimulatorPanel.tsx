@@ -405,7 +405,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setValorTela(0); setDesconto1(0); setDesconto2(0); setDesconto3(0);
               setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
-              setDesconto3Unlocked(false); setPlusUnlocked(false);
+              setDesconto3Unlocked(false); setPlusUnlocked(false); setExtremaLocked(false);
               setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
               setCatalogProducts([]);
               setLinkedClient(null); setClientSearch("");
