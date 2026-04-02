@@ -197,6 +197,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const rates = useSimulatorRates({
     formaPagamento, parcelas, setParcelas, carenciaDias, setCarenciaDias,
     storedParcelas: stored.parcelas, storedCarencia: stored.carenciaDias,
+    storedBoletoProvider: stored.selectedBoletoProvider,
+    storedCreditoProvider: stored.selectedCreditoProvider,
   });
 
   useEffect(() => { if (client?.indicador_id) setSelectedIndicadorId(client.indicador_id); }, [client?.id, client?.indicador_id]);
