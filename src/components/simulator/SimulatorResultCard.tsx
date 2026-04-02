@@ -51,11 +51,13 @@ interface SimulatorResultCardProps {
 }
 
 export function SimulatorResultCard({
-  valorTela, valorTelaComComissao, comissaoPercentual, hideIndicador,
+  valorTela, valorTelaComComissao, comissaoPercentual, hideIndicador, plusPercentual,
   result, valorEntrada, parcelas, showParcelas, showCarencia, carenciaDias,
   saving, closingSale, hasClient, generatingPdf,
   onSave, onPdf, onCloseSale, onClear,
 }: SimulatorResultCardProps) {
+  const plusValue = plusPercentual > 0 ? result.valorComDesconto * (plusPercentual / 100) : 0;
+  const descontoTotalComPlus = (valorTelaComComissao - result.valorComDesconto) + plusValue;
   return (
     <Card>
       <CardHeader className="pb-4"><CardTitle className="text-base">Resultado</CardTitle></CardHeader>
