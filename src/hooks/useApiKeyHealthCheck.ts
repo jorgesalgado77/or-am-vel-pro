@@ -27,15 +27,19 @@ export function useApiKeyHealthCheck(
     // Validate each active key in the background
     activeKeys.forEach(async (key) => {
       try {
-        const { data } = await supabase.functions.invoke("onboarding-ai", {
-          body: {
+        const { data } = await miaInvoke("onboarding-ai", {
             action: "validate_api_key",
             tenant_id: tenantId,
             provider: key.provider,
             api_key: key.api_key,
             api_url: key.api_url || undefined,
-          },
-        });
+          }, {
+            tenantId,
+            userId: userId || "system",
+            origin: "system",
+            context: "onboarding",
+            skipMemory: true,
+          });
 
         if (data && !data.valid) {
           const providerLabel = key.provider.toUpperCase();
