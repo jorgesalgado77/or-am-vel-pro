@@ -240,5 +240,7 @@ export function ProductPickerForSimulator({ tenantId, open, onOpenChange, onConf
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ProductDetailModal product={detailProduct} open={detailOpen} onOpenChange={setDetailOpen} />
+    </>
   );
 }
