@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 interface StrategyScenario {
-  type: "conservadora" | "comercial" | "agressiva";
+  type: "conservadora" | "comercial" | "agressiva" | "extrema";
   label: string;
   icon: React.ReactNode;
   color: string;
