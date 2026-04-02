@@ -57,7 +57,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     client, linkedClient, resolvedTenantId, currentUser, settings,
     valorTela, valorTelaComComissao, desconto1, desconto2, desconto3,
     formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias,
-    result, environments, setEnvironments, setValorTela, setImportedFile, setDetectedSoftware,
+    result, environments, setEnvironments, catalogProducts, setValorTela, setImportedFile, setDetectedSoftware,
     selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
