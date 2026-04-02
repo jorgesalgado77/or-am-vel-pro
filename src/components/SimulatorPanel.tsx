@@ -195,10 +195,11 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
   }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, environments]);
 
-  // Update valorTela from environments
+  // Update valorTela from environments (excluding catalog-products fake entry) + catalog total
   useEffect(() => {
-    if (environments.length > 0 || catalogProductsTotal > 0) {
-      setValorTela(environments.reduce((acc, env) => acc + env.totalValue, 0) + catalogProductsTotal);
+    const envTotal = environments.filter(e => e.id !== "catalog-products").reduce((acc, env) => acc + env.totalValue, 0);
+    if (envTotal > 0 || catalogProductsTotal > 0) {
+      setValorTela(envTotal + catalogProductsTotal);
     }
   }, [environments, catalogProductsTotal]);
 
@@ -436,13 +437,6 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           productPickerOpen={productPickerOpen} setProductPickerOpen={setProductPickerOpen}
           onProductPickerConfirm={(items, total) => {
             setCatalogProductsTotal(total);
-            const productEnv: ImportedEnvironment = {
-              id: "catalog-products", fileName: "Catálogo",
-              environmentName: `Produtos Avulsos (${items.length})`,
-              pieceCount: items.reduce((s: any, i: any) => s + i.quantity, 0),
-              totalValue: total, importedAt: new Date(), file: new File([], "catalogo.json"),
-            };
-            setEnvironments(prev => [...prev.filter(e => e.id !== "catalog-products"), productEnv]);
           }}
           resolvedTenantId={resolvedTenantId}
         />

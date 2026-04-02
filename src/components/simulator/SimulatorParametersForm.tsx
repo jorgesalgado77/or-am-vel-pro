@@ -138,6 +138,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
               <Package className="h-4 w-4" />
             </Button>
           </div>
+          {/* Ambientes Importados */}
           <div className="mt-2 border rounded-md overflow-hidden">
             <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
               <div className="flex items-center gap-2">
@@ -149,60 +150,62 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   </Badge>
                 )}
               </div>
-              <span className="text-xs text-muted-foreground">{environments.length} arquivo(s)</span>
+              <span className="text-xs text-muted-foreground">{environments.filter(e => e.id !== "catalog-products").length} arquivo(s)</span>
             </div>
             <SimulatorEnvironmentsTable
-              environments={environments}
+              environments={environments.filter(e => e.id !== "catalog-products")}
               onUpdateName={(id, name) => setEnvironments((prev) => prev.map((item) => item.id === id ? { ...item, environmentName: name } : item))}
               onRemove={onRemoveEnvironment}
               canDelete={canDeleteEnvironment}
             />
-            </div>
-            {catalogProducts.length > 0 && (
-              <div className="mt-2 border rounded-md overflow-hidden">
-                <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Produtos do Catálogo</span>
-                  <span className="text-xs text-muted-foreground">{catalogProducts.length} produto(s)</span>
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-[10px]">Código</TableHead>
-                      <TableHead className="text-[10px]">Produto</TableHead>
-                      <TableHead className="text-[10px] text-center w-16">Qtd</TableHead>
-                      <TableHead className="text-[10px] text-right">Valor</TableHead>
-                      <TableHead className="w-8"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {catalogProducts.map(item => (
-                      <TableRow key={item.product.id}>
-                        <TableCell className="text-[10px] font-mono py-1">{item.product.internal_code}</TableCell>
-                        <TableCell className="text-[10px] py-1 max-w-[120px] truncate">{item.product.name}</TableCell>
-                        <TableCell className="text-center py-1">
-                          <Input type="number" min={1} value={item.quantity} className="w-14 h-6 text-xs text-center p-0.5"
-                            onChange={e => onUpdateCatalogProductQty(item.product.id, Number(e.target.value))} />
-                        </TableCell>
-                        <TableCell className="text-[10px] text-right font-semibold py-1">{formatCurrency(item.product.sale_price * item.quantity)}</TableCell>
-                        <TableCell className="py-1">
-                          <button onClick={() => onRemoveCatalogProduct(item.product.id)} className="text-destructive hover:text-destructive/80">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-[10px] font-semibold text-right py-1">Subtotal Catálogo:</TableCell>
-                      <TableCell className="text-[10px] text-right font-bold text-primary py-1">
-                        {formatCurrency(catalogProducts.reduce((s, i) => s + i.product.sale_price * i.quantity, 0))}
-                      </TableCell>
-                      <TableCell />
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            )}
           </div>
+
+          {/* Produtos do Catálogo */}
+          {catalogProducts.length > 0 && (
+            <div className="mt-2 border rounded-md overflow-hidden">
+              <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Produtos do Catálogo</span>
+                <span className="text-xs text-muted-foreground">{catalogProducts.length} produto(s)</span>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-[10px]">Código</TableHead>
+                    <TableHead className="text-[10px]">Produto</TableHead>
+                    <TableHead className="text-[10px] text-center w-16">Qtd</TableHead>
+                    <TableHead className="text-[10px] text-right">Valor</TableHead>
+                    <TableHead className="w-8"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {catalogProducts.map(item => (
+                    <TableRow key={item.product.id}>
+                      <TableCell className="text-[10px] font-mono py-1">{item.product.internal_code}</TableCell>
+                      <TableCell className="text-[10px] py-1 max-w-[120px] truncate">{item.product.name}</TableCell>
+                      <TableCell className="text-center py-1">
+                        <Input type="number" min={1} value={item.quantity} className="w-14 h-6 text-xs text-center p-0.5"
+                          onChange={e => onUpdateCatalogProductQty(item.product.id, Number(e.target.value))} />
+                      </TableCell>
+                      <TableCell className="text-[10px] text-right font-semibold py-1">{formatCurrency(item.product.sale_price * item.quantity)}</TableCell>
+                      <TableCell className="py-1">
+                        <button onClick={() => onRemoveCatalogProduct(item.product.id)} className="text-destructive hover:text-destructive/80">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-[10px] font-semibold text-right py-1">Subtotal Catálogo:</TableCell>
+                    <TableCell className="text-[10px] text-right font-bold text-primary py-1">
+                      {formatCurrency(catalogProducts.reduce((s, i) => s + i.product.sale_price * i.quantity, 0))}
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
 
         {/* Indicador */}
         <div>
