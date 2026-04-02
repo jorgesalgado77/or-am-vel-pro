@@ -35,6 +35,7 @@ interface SimulatorParametersFormProps {
   valorEntrada: number; setValorEntrada: (v: number) => void;
   plusPercentual: number; setPlusPercentual: (v: number) => void;
   plusUnlocked: boolean;
+  extremaLocked?: boolean;
   carenciaDias: 30 | 60 | 90;
   setCarenciaDias: (v: 30 | 60 | 90) => void;
   selectedIndicadorId: string;

@@ -320,6 +320,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           valorEntrada={valorEntrada} setValorEntrada={setValorEntrada}
           plusPercentual={plusPercentual} setPlusPercentual={setPlusPercentual}
           plusUnlocked={plusUnlocked}
+          extremaLocked={extremaLocked && isVendedorOrProjetista}
           carenciaDias={carenciaDias} setCarenciaDias={setCarenciaDias}
           selectedIndicadorId={selectedIndicadorId} setSelectedIndicadorId={setSelectedIndicadorId}
           hideIndicador={hideIndicador} setHideIndicador={setHideIndicador}
