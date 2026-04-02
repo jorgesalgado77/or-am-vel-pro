@@ -33,7 +33,7 @@ interface Props {
   userId?: string;
 }
 
-export const AutoPilotHistory = memo(function AutoPilotHistory({ trackingId, tenantId }: Props) {
+export const AutoPilotHistory = memo(function AutoPilotHistory({ trackingId, tenantId, userId }: Props) {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
