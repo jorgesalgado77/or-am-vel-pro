@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Calculator, Settings, LogOut, Phone, Mail, LayoutDashboard, LifeBuoy,
@@ -57,6 +57,24 @@ export function AppSidebar({
   const companySubtitle = settings.company_subtitle || "Orce. Venda. Simplifique";
   const pendingMeasurements = usePendingMeasurements(currentUser?.id, currentUser?.cargo_nome || undefined);
 
+  // Track which NOVO items have been clicked
+  const VISITED_KEY = "sidebar_visited_items";
+  const [visitedItems, setVisitedItems] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(VISITED_KEY);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const markVisited = useCallback((id: string) => {
+    setVisitedItems(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      localStorage.setItem(VISITED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "clientes" as const, show: true, badge: null },
     { id: "commercial-ai", label: "IA Gerente", icon: BrainCircuit, perm: "ia_gerente" as const, show: hasPermission("ia_gerente"), badge: "NOVO" },
@@ -87,7 +105,14 @@ export function AppSidebar({
     id?: string; label: string; icon: any; badge?: any; destructive?: boolean; onClick?: () => void;
   }) => {
     const isActive = id ? activeView === id : false;
-    const handleClick = onClick ?? (() => id && onViewChange(id));
+    // Hide NOVO badge if user has already visited this item
+    const effectiveBadge = (itemBadge === "NOVO" && id && visitedItems.has(id)) ? null : itemBadge;
+    const handleClick = onClick ?? (() => {
+      if (id) {
+        if (itemBadge === "NOVO") markVisited(id);
+        onViewChange(id);
+      }
+    });
 
     const content = (
       <button
@@ -122,14 +147,14 @@ export function AppSidebar({
       >
         <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-300", collapsed && "scale-110")} />
         {!collapsed && <span className="truncate">{label}</span>}
-        {!collapsed && itemBadge && typeof itemBadge === "number" && (
+        {!collapsed && effectiveBadge && typeof effectiveBadge === "number" && (
           <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
-            {itemBadge}
+            {effectiveBadge}
           </span>
         )}
-        {!collapsed && itemBadge && typeof itemBadge === "string" && (
+        {!collapsed && effectiveBadge && typeof effectiveBadge === "string" && (
           <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 h-4 font-bold" style={{ backgroundColor: "hsl(var(--sidebar-accent))", color: "hsl(var(--sidebar-primary))" }}>
-            {itemBadge}
+            {effectiveBadge}
           </Badge>
         )}
       </button>
@@ -218,7 +243,7 @@ export function AppSidebar({
           ))}
 
         <div className="pt-2 mx-1 space-y-0.5 mt-4" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
-          {hasPermission("divulgue_ganhe") && <NavButton label="Divulgue e Ganhe" icon={Gift} badge="NOVO" onClick={() => navigate("/afiliado")} />}
+          {hasPermission("divulgue_ganhe") && <NavButton id="divulgue_ganhe" label="Divulgue e Ganhe" icon={Gift} badge="NOVO" onClick={() => { markVisited("divulgue_ganhe"); navigate("/afiliado"); }} />}
           {bottomItems.filter(i => i.show).map((item) => (
             <NavButton key={item.id} id={item.id} label={item.label} icon={item.icon} badge={item.badge} />
           ))}

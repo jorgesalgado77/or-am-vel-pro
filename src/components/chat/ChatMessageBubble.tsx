@@ -1,6 +1,6 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, useEffect } from "react";
 import { format } from "date-fns";
-import { FileIcon, Monitor, Smartphone, Check, CheckCheck, FileText, X } from "lucide-react";
+import { FileIcon, Monitor, Smartphone, Check, CheckCheck, FileText, X, Download, ExternalLink } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "./types";
@@ -29,6 +29,70 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
         className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       />
+    </div>
+  );
+}
+
+function PdfAttachmentPreview({ url, name }: { url: string; name: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("fetch failed");
+        const blob = await res.blob();
+        const localUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+        if (!cancelled) setBlobUrl(localUrl);
+        else URL.revokeObjectURL(localUrl);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [url]);
+
+  return (
+    <div className="mt-1 space-y-1.5 max-w-[280px]">
+      {/* Thumbnail preview */}
+      {blobUrl && !failed ? (
+        <div className="relative rounded-md overflow-hidden border border-border/50 bg-muted/30">
+          <iframe
+            src={blobUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
+            className="w-full h-44 pointer-events-none"
+            title={name}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+        </div>
+      ) : (
+        <div className="flex items-center justify-center h-28 rounded-md border border-border/50 bg-muted/30">
+          <FileText className="h-10 w-10 text-red-400/60" />
+        </div>
+      )}
+      {/* Actions bar */}
+      <div className="flex items-center gap-1.5">
+        <FileText className="h-3.5 w-3.5 shrink-0 text-red-500" />
+        <span className="text-[11px] truncate flex-1 font-medium">{name}</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1 rounded hover:bg-foreground/10 transition-colors"
+          title="Abrir"
+        >
+          <ExternalLink className="h-3 w-3" />
+        </a>
+        <a
+          href={blobUrl || url}
+          download={name}
+          className="p-1 rounded hover:bg-foreground/10 transition-colors"
+          title="Baixar"
+        >
+          <Download className="h-3 w-3" />
+        </a>
+      </div>
     </div>
   );
 }
@@ -78,26 +142,9 @@ function AttachmentPreview({ msg }: { msg: ChatMessage }) {
     );
   }
 
-  // PDF preview
+  // PDF preview with thumbnail
   if (tipo === "application/pdf" || msg.anexo_nome?.toLowerCase().endsWith(".pdf")) {
-    return (
-      <div className="mt-1 space-y-1">
-        <a
-          href={msg.anexo_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-2 py-1.5 rounded bg-black/5 hover:bg-black/10 transition-colors text-xs"
-        >
-          <FileText className="h-4 w-4 shrink-0 text-red-500" />
-          <span className="truncate">{msg.anexo_nome || "documento.pdf"}</span>
-        </a>
-        <iframe
-          src={`${msg.anexo_url}#toolbar=0&navpanes=0`}
-          className="w-full h-48 rounded border border-border/50"
-          title={msg.anexo_nome || "PDF"}
-        />
-      </div>
-    );
+    return <PdfAttachmentPreview url={msg.anexo_url} name={msg.anexo_nome || "documento.pdf"} />;
   }
 
   return (

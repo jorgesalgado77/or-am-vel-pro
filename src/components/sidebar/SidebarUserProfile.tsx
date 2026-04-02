@@ -84,11 +84,11 @@ export const SidebarUserProfile = React.memo(function SidebarUserProfile({
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground truncate">
+          <p className="text-sm font-medium truncate" style={{ color: "hsl(var(--sidebar-foreground))" }}>
             {currentUser.apelido || currentUser.nome_completo}
           </p>
           {currentUser.cargo_nome && (
-            <p className="text-xs text-muted-foreground truncate">{currentUser.cargo_nome}</p>
+            <p className="text-xs truncate" style={{ color: "hsl(var(--sidebar-foreground) / 0.6)" }}>{currentUser.cargo_nome}</p>
           )}
           <Popover>
             <PopoverTrigger asChild>
@@ -126,16 +126,13 @@ export const SidebarUserProfile = React.memo(function SidebarUserProfile({
             </PopoverContent>
           </Popover>
           {currentUser.email && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+            <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: "hsl(var(--sidebar-foreground) / 0.5)" }}>
               <Mail className="h-3 w-3 shrink-0" />
               <span className="truncate">{currentUser.email}</span>
             </p>
           )}
         </div>
       </div>
-      <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={onProfile}>
-        <UserCircle className="h-3.5 w-3.5" />Meu Perfil
-      </Button>
     </>
   );
 });

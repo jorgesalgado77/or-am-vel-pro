@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, Download, X, Loader2, MessageCircle, AlertTriangle } from "lucide-react";
+import { Printer, Download, X, Loader2, MessageCircle, AlertTriangle, ExternalLink } from "lucide-react";
 import { useRef, useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 
@@ -17,18 +17,23 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [renderFailed, setRenderFailed] = useState(false);
 
-  // Convert signed URL to blob URL for iframe compatibility
   useEffect(() => {
     if (!pdfUrl || !open) {
       setBlobUrl(null);
       setFetchError(false);
+      setIframeLoaded(false);
+      setRenderFailed(false);
       return;
     }
 
     let cancelled = false;
     setFetching(true);
     setFetchError(false);
+    setIframeLoaded(false);
+    setRenderFailed(false);
 
     (async () => {
       try {
@@ -40,6 +45,10 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
         if (!cancelled) {
           setBlobUrl(url);
           setFetching(false);
+          // Give iframe time to render, if it doesn't load in 3s show fallback
+          setTimeout(() => {
+            if (!cancelled) setRenderFailed(prev => !iframeLoaded ? true : prev);
+          }, 4000);
         } else {
           URL.revokeObjectURL(url);
         }
@@ -48,8 +57,6 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
         if (!cancelled) {
           setFetchError(true);
           setFetching(false);
-          // Fallback: try using the URL directly
-          setBlobUrl(pdfUrl);
         }
       }
     })();
@@ -61,24 +68,30 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
         return null;
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfUrl, open]);
 
+  const handleIframeLoad = useCallback(() => {
+    setIframeLoaded(true);
+    setRenderFailed(false);
+  }, []);
+
   const handlePrint = useCallback(() => {
-    if (iframeRef.current?.contentWindow) {
-      try {
-        iframeRef.current.contentWindow.print();
-      } catch {
-        // Cross-origin fallback: open in new window to print
-        if (blobUrl) window.open(blobUrl, "_blank");
+    if (blobUrl) {
+      // Open blob in new window for printing
+      const printWindow = window.open(blobUrl, "_blank");
+      if (printWindow) {
+        printWindow.addEventListener("load", () => {
+          setTimeout(() => printWindow.print(), 500);
+        });
       }
     }
   }, [blobUrl]);
 
   const handleDownload = useCallback(() => {
-    if (!pdfUrl && !blobUrl) return;
+    const url = blobUrl || pdfUrl;
+    if (!url) return;
     const a = document.createElement("a");
-    a.href = blobUrl || pdfUrl!;
+    a.href = url;
     a.download = "orcamento.pdf";
     document.body.appendChild(a);
     a.click();
@@ -100,7 +113,7 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
   }, [clientId, onOpenChange, pdfUrl]);
 
   const isLoading = loading || fetching;
-  const showPdf = blobUrl && !isLoading;
+  const showPdf = blobUrl && !isLoading && !fetchError;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -121,28 +134,43 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
               <span className="ml-3 text-muted-foreground">Gerando PDF...</span>
             </div>
           ) : showPdf ? (
-            <object
-              data={blobUrl + "#toolbar=1&navpanes=0&view=FitH"}
-              type="application/pdf"
-              className="w-full h-full rounded-md border"
-              title="PDF Preview"
-            >
-              {/* Fallback: iframe for browsers that don't support object for PDF */}
+            <div className="w-full h-full relative">
               <iframe
                 ref={iframeRef}
-                src={blobUrl + "#toolbar=1&navpanes=0"}
+                src={blobUrl}
                 className="w-full h-full rounded-md border"
                 title="PDF Preview"
+                onLoad={handleIframeLoad}
               />
-            </object>
+              {/* If iframe fails to render PDF (shows blank), offer alternatives */}
+              {renderFailed && !iframeLoaded && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/90 rounded-md">
+                  <AlertTriangle className="h-8 w-8 text-yellow-500" />
+                  <p className="text-sm text-muted-foreground">O navegador não suporta visualização inline de PDF.</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(blobUrl!, "_blank")}>
+                      <ExternalLink className="h-3.5 w-3.5" /> Abrir em nova aba
+                    </Button>
+                    <Button size="sm" className="gap-1.5" onClick={handleDownload}>
+                      <Download className="h-3.5 w-3.5" /> Baixar PDF
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
               <AlertTriangle className="h-8 w-8 text-yellow-500" />
-              <p>Não foi possível carregar o PDF no visualizador.</p>
+              <p>Não foi possível carregar o PDF.</p>
               {pdfUrl && (
-                <Button variant="outline" size="sm" onClick={() => window.open(pdfUrl, "_blank")}>
-                  Abrir em nova aba
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => window.open(pdfUrl, "_blank")}>
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir em nova aba
+                  </Button>
+                  <Button size="sm" onClick={handleDownload}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" /> Baixar PDF
+                  </Button>
+                </div>
               )}
             </div>
           )}
