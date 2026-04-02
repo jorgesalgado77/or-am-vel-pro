@@ -7,6 +7,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { logAudit } from "@/services/auditService";
 import { calcLeadTemperature } from "@/lib/leadTemperature";
 import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
