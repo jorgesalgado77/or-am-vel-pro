@@ -68,8 +68,9 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         const todayWithTime = allTasks.filter(t => t.data_tarefa === today && t.horario);
         setTasks(todayWithTime);
         
-        // All incomplete tasks -> for overdue alert
-        setOverdueTasks(allTasks);
+        // Only truly overdue tasks (date < today) or due today for the alert
+        const overdueOnly = allTasks.filter(t => t.data_tarefa && t.data_tarefa <= today);
+        setOverdueTasks(overdueOnly);
       }
     };
 
