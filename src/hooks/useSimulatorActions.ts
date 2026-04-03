@@ -566,169 +566,165 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     }
   }, [handleSave, effectiveClient, resolvedTenantId, valorTela, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, catalogProducts]);
 
-  const handleContractConfirm = useCallback(async (finalHtml: string) => {
+  const handleContractSave = useCallback(async (finalHtml: string): Promise<string | null> => {
     if (!effectiveClient) {
       reportCloseSaleIssue("O contrato não pôde ser salvo porque o cliente vinculado não foi encontrado.", { step: "save_contract" });
-      return;
+      return null;
     }
     if (!pendingSimId) {
       reportCloseSaleIssue("O contrato não pôde ser salvo porque a simulação vinculada não foi encontrada.", { step: "save_contract", reason: "missing_simulation_id" });
-      return;
+      return null;
     }
     setClosingSale(true);
-    const { error: contractError } = await supabase.from("client_contracts").insert({
-      client_id: effectiveClient.id, simulation_id: pendingSimId, template_id: pendingTemplateId,
-      conteudo_html: finalHtml, ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
-    } as any);
-    if (contractError) {
-      const message = contractError.message
-        ? `Não foi possível salvar o contrato: ${contractError.message}`
-        : "Não foi possível salvar o contrato.";
-      toast.error(message, { duration: 7000 });
-      logError({
-        source: "close_sale_flow",
-        message: contractError.message || "Erro ao salvar contrato",
-        context: {
-          step: "insert_client_contract",
-          client_id: effectiveClient.id,
-          simulation_id: pendingSimId,
-          tenant_id: resolvedTenantId,
-        },
-      });
-      setClosingSale(false);
-      return;
-    }
-    await supabase.from("clients").update({ status: "fechado" } as any).eq("id", effectiveClient.id);
     try {
-      const valorAVista = applyDiscounts(valorTelaComComissao, desconto1, desconto2, desconto3);
-      const commResult = await generateSaleCommissions({
-        clientId: effectiveClient.id, clientName: effectiveClient.nome, valorAVista,
-        contratoNumero: closeSaleFormData?.numero_contrato || effectiveClient.numero_orcamento || "",
-        responsavelVenda: closeSaleFormData?.responsavel_venda || effectiveClient.vendedor || "",
-        selectedIndicador, comissaoPercentual,
-      });
-      if (commResult.error) toast.error(commResult.error);
-      else if (commResult.count > 0) toast.success(`${commResult.count} comissão(ões) gerada(s) automaticamente`);
-    } catch {}
-    try {
-      if (resolvedTenantId) {
-        await recordSale(resolvedTenantId, {
-          valor_venda: result.valorFinal, client_id: effectiveClient.id, usuario_id: currentUser?.id,
-          simulation_id: pendingSimId, forma_pagamento: formaPagamento,
-          numero_contrato: closeSaleFormData?.numero_contrato || "",
-          nome_cliente: effectiveClient.nome, nome_vendedor: currentUser?.nome_completo || currentUser?.apelido || "",
+      const { data: insertedData, error: contractError } = await supabase.from("client_contracts").insert({
+        client_id: effectiveClient.id, simulation_id: pendingSimId, template_id: pendingTemplateId,
+        conteudo_html: finalHtml, ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
+      } as any).select("id").single();
+
+      if (contractError || !insertedData) {
+        const message = contractError?.message
+          ? `Não foi possível salvar o contrato: ${contractError.message}`
+          : "Não foi possível salvar o contrato.";
+        toast.error(message, { duration: 7000 });
+        logError({
+          source: "close_sale_flow",
+          message: contractError?.message || "Erro ao salvar contrato",
+          context: { step: "insert_client_contract", client_id: effectiveClient.id, simulation_id: pendingSimId, tenant_id: resolvedTenantId },
         });
+        return null;
       }
-    } catch {}
-    openContractPrintWindow(finalHtml, `Contrato - ${effectiveClient.nome}`);
-    const userInfo = getAuditUserInfo();
-    logAudit({ acao: "venda_fechada", entidade: "contract", entidade_id: pendingSimId, detalhes: { cliente: effectiveClient.nome, cliente_id: effectiveClient.id, valor_final: result.valorFinal, forma_pagamento: formaPagamento }, ...userInfo });
-    try {
-      const totalDiscPct = 100 - (result.valorFinal / (valorTela || 1)) * 100;
-      const table = supabase.from("ai_learning_events" as unknown as "clients");
-      void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
-        .insert([{ tenant_id: resolvedTenantId, user_id: currentUser?.id || null, client_id: effectiveClient.id, event_type: "deal_closed", strategy_used: "outro", price_offered: result.valorFinal, discount_percentage: Math.max(0, totalDiscPct), deal_result: "ganho", lead_temperature: effectiveClient.status || "novo" }]);
-    } catch {}
 
-    // Smart Catalog: subtract stock or create purchase task for admin
-    if (catalogProducts.length > 0 && resolvedTenantId) {
+      const contractId = (insertedData as any).id as string;
+
+      await supabase.from("clients").update({ status: "fechado" } as any).eq("id", effectiveClient.id);
+
       try {
-        for (const cp of catalogProducts) {
-          const { data: productData } = await (supabase as any)
-            .from("products")
-            .select("id, stock_quantity, supplier_id")
-            .eq("id", cp.product.id)
-            .single();
-          if (!productData) continue;
+        const valorAVista = applyDiscounts(valorTelaComComissao, desconto1, desconto2, desconto3);
+        const commResult = await generateSaleCommissions({
+          clientId: effectiveClient.id, clientName: effectiveClient.nome, valorAVista,
+          contratoNumero: closeSaleFormData?.numero_contrato || effectiveClient.numero_orcamento || "",
+          responsavelVenda: closeSaleFormData?.responsavel_venda || effectiveClient.vendedor || "",
+          selectedIndicador, comissaoPercentual,
+        });
+        if (commResult.error) toast.error(commResult.error);
+        else if (commResult.count > 0) toast.success(`${commResult.count} comissão(ões) gerada(s) automaticamente`);
+      } catch {}
 
-          const currentStock = Number(productData.stock_quantity) || 0;
-          if (currentStock >= cp.quantity) {
-            // Subtract sold quantity from stock
-            const newStock = currentStock - cp.quantity;
-            await (supabase as any).from("products").update({
-              stock_quantity: newStock,
-              stock_status: newStock === 0 ? "indisponivel" : newStock <= 3 ? "sob_encomenda" : "em_estoque",
-            }).eq("id", cp.product.id);
-          } else {
-            // No sufficient stock: create purchase task for admin
-            // Find admin users
-            const { data: adminUsers } = await supabase
-              .from("usuarios" as any)
-              .select("id, nome_completo, cargos:cargo_id(nome)")
-              .eq("tenant_id", resolvedTenantId);
+      try {
+        if (resolvedTenantId) {
+          await recordSale(resolvedTenantId, {
+            valor_venda: result.valorFinal, client_id: effectiveClient.id, usuario_id: currentUser?.id,
+            simulation_id: pendingSimId, forma_pagamento: formaPagamento,
+            numero_contrato: closeSaleFormData?.numero_contrato || "",
+            nome_cliente: effectiveClient.nome, nome_vendedor: currentUser?.nome_completo || currentUser?.apelido || "",
+          });
+        }
+      } catch {}
 
-            const admins = (adminUsers || []).filter((u: any) => {
-              const cargoName = u.cargos?.nome?.toLowerCase() || "";
-              return cargoName.includes("administrador");
-            });
+      const userInfo = getAuditUserInfo();
+      logAudit({ acao: "venda_fechada", entidade: "contract", entidade_id: pendingSimId, detalhes: { cliente: effectiveClient.nome, cliente_id: effectiveClient.id, valor_final: result.valorFinal, forma_pagamento: formaPagamento }, ...userInfo });
 
-            // Get supplier name
-            let supplierName = "Não informado";
-            if (productData.supplier_id) {
-              const { data: supplierData } = await supabase
-                .from("suppliers" as any)
-                .select("nome")
-                .eq("id", productData.supplier_id)
-                .single();
-              if (supplierData) supplierName = (supplierData as any).nome;
-            }
+      try {
+        const totalDiscPct = 100 - (result.valorFinal / (valorTela || 1)) * 100;
+        const table = supabase.from("ai_learning_events" as unknown as "clients");
+        void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
+          .insert([{ tenant_id: resolvedTenantId, user_id: currentUser?.id || null, client_id: effectiveClient.id, event_type: "deal_closed", strategy_used: "outro", price_offered: result.valorFinal, discount_percentage: Math.max(0, totalDiscPct), deal_result: "ganho", lead_temperature: effectiveClient.status || "novo" }]);
+      } catch {}
 
-            const qtdFaltante = cp.quantity - currentStock;
-            const dataVenda = new Date().toLocaleDateString("pt-BR");
-            const taskDesc = [
-              `🛒 **Compra necessária**`,
-              `• Cliente: ${effectiveClient.nome}`,
-              `• Contrato: ${closeSaleFormData?.numero_contrato || "N/A"}`,
-              `• Data da Venda: ${dataVenda}`,
-              `• Produto: ${cp.product.name} (${cp.product.internal_code})`,
-              `• Qtd vendida: ${cp.quantity} | Em estoque: ${currentStock} | Faltam: ${qtdFaltante}`,
-              `• Valor unitário: ${formatCurrency(cp.product.sale_price)}`,
-              `• Valor total: ${formatCurrency(cp.product.sale_price * cp.quantity)}`,
-              `• Fornecedor: ${supplierName}`,
-              `[product_id:${cp.product.id}]`,
-            ].join("\n");
+      // Smart Catalog: subtract stock or create purchase task for admin
+      if (catalogProducts.length > 0 && resolvedTenantId) {
+        try {
+          for (const cp of catalogProducts) {
+            const { data: productData } = await (supabase as any)
+              .from("products")
+              .select("id, stock_quantity, supplier_id")
+              .eq("id", cp.product.id)
+              .single();
+            if (!productData) continue;
 
-            // If stock was partial, subtract what existed
-            if (currentStock > 0) {
+            const currentStock = Number(productData.stock_quantity) || 0;
+            if (currentStock >= cp.quantity) {
+              const newStock = currentStock - cp.quantity;
               await (supabase as any).from("products").update({
-                stock_quantity: 0,
-                stock_status: "indisponivel",
+                stock_quantity: newStock,
+                stock_status: newStock === 0 ? "indisponivel" : newStock <= 3 ? "sob_encomenda" : "em_estoque",
               }).eq("id", cp.product.id);
-            }
+            } else {
+              const { data: adminUsers } = await supabase
+                .from("usuarios" as any)
+                .select("id, nome_completo, cargos:cargo_id(nome)")
+                .eq("tenant_id", resolvedTenantId);
 
-            for (const admin of admins) {
-              await (supabase as any).from("tasks").insert({
-                tenant_id: resolvedTenantId,
-                titulo: `Compra: ${cp.product.name} (${cp.product.internal_code})`,
-                descricao: taskDesc,
-                data_tarefa: new Date().toISOString().slice(0, 10),
-                tipo: "geral",
-                status: "nova",
-                responsavel_id: (admin as any).id,
-                responsavel_nome: (admin as any).nome_completo,
-                criado_por: currentUser?.id || null,
+              const admins = (adminUsers || []).filter((u: any) => {
+                const cargoName = u.cargos?.nome?.toLowerCase() || "";
+                return cargoName.includes("administrador");
               });
+
+              let supplierName = "Não informado";
+              if (productData.supplier_id) {
+                const { data: supplierData } = await supabase
+                  .from("suppliers" as any)
+                  .select("nome")
+                  .eq("id", productData.supplier_id)
+                  .single();
+                if (supplierData) supplierName = (supplierData as any).nome;
+              }
+
+              const qtdFaltante = cp.quantity - currentStock;
+              const dataVenda = new Date().toLocaleDateString("pt-BR");
+              const taskDesc = [
+                `🛒 **Compra necessária**`,
+                `• Cliente: ${effectiveClient.nome}`,
+                `• Contrato: ${closeSaleFormData?.numero_contrato || "N/A"}`,
+                `• Data da Venda: ${dataVenda}`,
+                `• Produto: ${cp.product.name} (${cp.product.internal_code})`,
+                `• Qtd vendida: ${cp.quantity} | Em estoque: ${currentStock} | Faltam: ${qtdFaltante}`,
+                `• Valor unitário: ${formatCurrency(cp.product.sale_price)}`,
+                `• Valor total: ${formatCurrency(cp.product.sale_price * cp.quantity)}`,
+                `• Fornecedor: ${supplierName}`,
+                `[product_id:${cp.product.id}]`,
+              ].join("\n");
+
+              if (currentStock > 0) {
+                await (supabase as any).from("products").update({
+                  stock_quantity: 0,
+                  stock_status: "indisponivel",
+                }).eq("id", cp.product.id);
+              }
+
+              for (const admin of admins) {
+                await (supabase as any).from("tasks").insert({
+                  tenant_id: resolvedTenantId,
+                  titulo: `Compra: ${cp.product.name} (${cp.product.internal_code})`,
+                  descricao: taskDesc,
+                  data_tarefa: new Date().toISOString().slice(0, 10),
+                  tipo: "geral",
+                  status: "nova",
+                  responsavel_id: (admin as any).id,
+                  responsavel_nome: (admin as any).nome_completo,
+                  criado_por: currentUser?.id || null,
+                });
+              }
             }
           }
+        } catch (err) {
+          console.error("[SmartCatalog] Erro ao processar estoque:", err);
         }
-      } catch (err) {
-        console.error("[SmartCatalog] Erro ao processar estoque:", err);
       }
-    }
 
-    toast.success("Venda fechada com sucesso! Contrato salvo, editor concluído e impressão aberta.");
-    logEvent({
-      event_type: "integration",
-      source: "close_sale_flow",
-      message: "Contrato salvo e fluxo de fechamento concluído",
-      metadata: {
-        client_id: effectiveClient.id,
-        simulation_id: pendingSimId,
-        tenant_id: resolvedTenantId,
-      },
-    });
-    setContractEditorOpen(false); setPendingSimId(null); setPendingTemplateId(null); setClosingSale(false);
-  }, [effectiveClient, pendingSimId, pendingTemplateId, resolvedTenantId, valorTela, valorTelaComComissao, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, closeSaleFormData, currentUser, recordSale]);
+      logEvent({
+        event_type: "integration",
+        source: "close_sale_flow",
+        message: "Contrato salvo e fluxo de fechamento concluído",
+        metadata: { client_id: effectiveClient.id, simulation_id: pendingSimId, tenant_id: resolvedTenantId },
+      });
+
+      return contractId;
+    } finally {
+      setClosingSale(false);
+    }
+  }, [effectiveClient, pendingSimId, pendingTemplateId, resolvedTenantId, valorTela, valorTelaComComissao, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, closeSaleFormData, currentUser, recordSale, catalogProducts]);
 
   const handlePdf = useCallback(async (): Promise<string | null> => {
     if (!effectiveClient || !resolvedTenantId) { toast.error("Tenant não identificado"); return null; }
