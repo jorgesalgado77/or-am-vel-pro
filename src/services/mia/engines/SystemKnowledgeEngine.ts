@@ -489,8 +489,28 @@ export class SystemKnowledgeEngine {
     if (/negocia|deal|reunião/i.test(lower)) {
       return this.formatSteps([SALES_FLOW[5]]);
     }
-    if (/contrato|fechar|fechamento/i.test(lower)) {
+    if (/contrato/i.test(lower)) {
       return this.formatSteps([SALES_FLOW[6]]);
+    }
+    if (/fechar|fechamento|venda/i.test(lower)) {
+      return this.formatSteps([SALES_FLOW[5], SALES_FLOW[6]]) +
+        "\n\n💡 **Ação rápida:** Diga **\"status\"** para ver leads prontos para fechar, ou abra o **Simulador** para gerar um contrato.";
+    }
+    if (/tarefa|agenda|lembrete/i.test(lower)) {
+      return `### 📋 Como Criar uma Tarefa\n\n` +
+        `**Opção 1 — Pelo Chat da MIA (mais rápido):**\n` +
+        `1. Digite **"criar tarefa"** aqui no chat\n` +
+        `2. Informe o título da tarefa\n` +
+        `3. Informe a data (ex: hoje, amanhã, 15/04/2026)\n` +
+        `4. Informe o horário (ou diga "sem horário")\n` +
+        `5. Adicione uma descrição (ou diga "pular")\n` +
+        `6. Defina a notificação (ex: 15 minutos antes)\n\n` +
+        `**Opção 2 — Pelo módulo de Tarefas:**\n` +
+        `1. Acesse **Menu lateral > Tarefas**\n` +
+        `2. Clique em **"+ Nova Tarefa"**\n` +
+        `3. Preencha: Título, Data, Horário, Responsável, Descrição\n` +
+        `4. A tarefa aparecerá no Kanban e no Calendário\n\n` +
+        `💡 **Dica:** Tarefas vencidas ficam destacadas em vermelho. Gerentes e Admins podem delegar tarefas para outros membros.`;
     }
     if (/pós-venda|acompanhamento|entrega/i.test(lower)) {
       return this.formatSteps([SALES_FLOW[7]]);
