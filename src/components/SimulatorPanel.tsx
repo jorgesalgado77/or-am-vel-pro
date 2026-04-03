@@ -36,6 +36,7 @@ export interface SavedEnvironmentData {
   id: string; fileName: string; environmentName: string;
   pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string;
   corpo?: string; porta?: string; puxador?: string; complemento?: string; modelo?: string; fornecedor?: string;
+  modules?: any[];
 }
 
 export interface SavedCatalogProduct {
