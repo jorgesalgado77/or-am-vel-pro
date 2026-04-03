@@ -139,27 +139,27 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
   }, [setEnvironments, setValorTela, setImportedFile]);
 
   const handleSave = useCallback(async () => {
-    if (valorTela <= 0) { toast.error("Informe um Valor de Tela maior que zero"); return; }
-    if (valorTela > VALOR_TELA_MAX) { toast.error(`Valor de Tela não pode exceder ${formatCurrency(VALOR_TELA_MAX)}`); return; }
-    if (valorEntrada < 0) { toast.error("Valor de Entrada não pode ser negativo"); return; }
-    if (valorEntrada > result.valorComDesconto) { toast.error("Valor de Entrada não pode ser maior que o valor com desconto"); return; }
+    if (valorTela <= 0) { toast.error("Informe um Valor de Tela maior que zero"); return null; }
+    if (valorTela > VALOR_TELA_MAX) { toast.error(`Valor de Tela não pode exceder ${formatCurrency(VALOR_TELA_MAX)}`); return null; }
+    if (valorEntrada < 0) { toast.error("Valor de Entrada não pode ser negativo"); return null; }
+    if (valorEntrada > result.valorComDesconto) { toast.error("Valor de Entrada não pode ser maior que o valor com desconto"); return null; }
 
     const discountCheck = checkDiscount(valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual);
     if (!discountCheck.allowed) {
-      const valorDesc = valorTelaComComissao * (1 - desconto1/100) * (1 - desconto2/100) * (1 - desconto3/100);
+      const valorDesc = valorTelaComComissao * (1 - desconto1 / 100) * (1 - desconto2 / 100) * (1 - desconto3 / 100);
       const discPct = valorTelaComComissao > 0 ? ((valorTelaComComissao - valorDesc) / valorTelaComComissao) * 100 : 0;
       await requestApproval({
         clientName: client?.nome || newClient.nome || "Novo cliente",
         vendedorName: currentUser?.nome_completo || currentUser?.apelido || "Vendedor",
         valorFinal: result.valorFinal, discountPercent: discPct, violations: discountCheck.violations,
       });
-      return;
+      return null;
     }
 
     let clientId = client?.id;
     if (!clientId) {
-      if (!showClientForm) { setShowClientForm(true); return; }
-      if (!newClient.nome.trim()) { toast.error("Nome do cliente é obrigatório"); return; }
+      if (!showClientForm) { setShowClientForm(true); return null; }
+      if (!newClient.nome.trim()) { toast.error("Nome do cliente é obrigatório"); return null; }
       setSaving(true);
       const { numero_orcamento: numeroOrcamento, numero_orcamento_seq: nextSeq } = await generateOrcamentoNumber(resolvedTenantId);
       const { data: created, error: clientError } = await supabase.from("clients").insert({
@@ -169,22 +169,43 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         indicador_id: newClient.indicador_id || null, numero_orcamento: numeroOrcamento, numero_orcamento_seq: nextSeq,
         ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
       } as any).select("id").single();
-      if (clientError || !created) { toast.error("Erro ao cadastrar cliente"); setSaving(false); return; }
+      if (clientError || !created) { toast.error("Erro ao cadastrar cliente"); setSaving(false); return null; }
       clientId = created.id;
       onClientCreated?.();
-    } else { setSaving(true); }
+    } else {
+      setSaving(true);
+    }
 
     const uploadedEnvironments: any[] = [];
     for (const env of environments) {
       let fileUrl: string | undefined;
-      if (env.file && env.file.size > 0) { const uploaded = await uploadFile(env.file, clientId); if (uploaded) fileUrl = uploaded.url; }
-      uploadedEnvironments.push({ id: env.id, fileName: env.fileName, environmentName: env.environmentName, pieceCount: env.pieceCount, totalValue: env.totalValue, importedAt: env.importedAt.toISOString(), fileUrl, fornecedor: env.fornecedor || "", corpo: env.corpo || "", porta: env.porta || "", puxador: env.puxador || "", complemento: env.complemento || "", modelo: env.modelo || "" });
+      if (env.file && env.file.size > 0) {
+        const uploaded = await uploadFile(env.file, clientId);
+        if (uploaded) fileUrl = uploaded.url;
+      }
+      uploadedEnvironments.push({
+        id: env.id,
+        fileName: env.fileName,
+        environmentName: env.environmentName,
+        pieceCount: env.pieceCount,
+        totalValue: env.totalValue,
+        importedAt: env.importedAt.toISOString(),
+        fileUrl,
+        fornecedor: env.fornecedor || "",
+        corpo: env.corpo || "",
+        porta: env.porta || "",
+        puxador: env.puxador || "",
+        complemento: env.complemento || "",
+        modelo: env.modelo || "",
+      });
     }
 
-    // Serialize environments, catalog products and IA metadata into arquivo_nome
     const catalogSerialized = catalogProducts.map(item => ({
-      product_id: item.product.id, internal_code: item.product.internal_code,
-      name: item.product.name, sale_price: item.product.sale_price, quantity: item.quantity,
+      product_id: item.product.id,
+      internal_code: item.product.internal_code,
+      name: item.product.name,
+      sale_price: item.product.sale_price,
+      quantity: item.quantity,
     }));
     const iaMetadata = {
       iaStrategyEnabled: !!aiStrategyEnabled,
@@ -196,44 +217,57 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     const arquivoNome = (hasEnvs || hasCatalog || hasAiMetadata)
       ? JSON.stringify({ environments: uploadedEnvironments, catalogProducts: catalogSerialized, metadata: iaMetadata })
       : null;
-    const arquivoUrl = hasEnvs ? uploadedEnvironments.map((e: any) => e.fileUrl).filter(Boolean).join(',') : null;
+    const arquivoUrl = hasEnvs ? uploadedEnvironments.map((e: any) => e.fileUrl).filter(Boolean).join(",") : null;
 
     const { data: existingSims } = await supabase.from("simulations").select("id, created_at").eq("client_id", clientId).order("created_at", { ascending: false });
     if (existingSims && existingSims.length >= 3) {
       await supabase.from("simulations").delete().in("id", existingSims.slice(2).map((s) => s.id));
     }
 
-    const { error } = await supabase.from("simulations").insert({
-      client_id: clientId, valor_tela: valorTela, desconto1, desconto2, desconto3,
-      forma_pagamento: formaPagamento, parcelas, valor_entrada: valorEntrada, plus_percentual: plusPercentual,
-      valor_final: result.valorFinal, valor_parcela: result.valorParcela,
-      arquivo_url: arquivoUrl, arquivo_nome: arquivoNome, tenant_id: resolvedTenantId,
+    const { data: createdSimulation, error } = await supabase.from("simulations").insert({
+      client_id: clientId,
+      valor_tela: valorTela,
+      desconto1,
+      desconto2,
+      desconto3,
+      forma_pagamento: formaPagamento,
+      parcelas,
+      valor_entrada: valorEntrada,
+      plus_percentual: plusPercentual,
+      valor_final: result.valorFinal,
+      valor_parcela: result.valorParcela,
+      arquivo_url: arquivoUrl,
+      arquivo_nome: arquivoNome,
+      tenant_id: resolvedTenantId,
       estrategia_ia: aiStrategyEnabled ? (activeStrategy || null) : null,
-    } as any);
+    } as any).select("id").single();
     setSaving(false);
 
-    if (error) {
-      const limitMsg = parsePlanLimitError(error.message || "");
+    if (error || !createdSimulation) {
+      const limitMsg = parsePlanLimitError(error?.message || "");
       if (limitMsg) { setUpgradeMsg(limitMsg); setUpgradeOpen(true); }
       else toast.error("Erro ao salvar simulação");
-    } else {
-      savedRef.current = true;
-      sessionStorage.removeItem(SIM_STORAGE_KEY);
-      toast.success("Simulação salva com sucesso!");
-      const userInfo = getAuditUserInfo();
-      logAudit({ acao: "simulacao_salva", entidade: "simulation", entidade_id: clientId, detalhes: { valor_tela: valorTela, valor_final: result.valorFinal, forma_pagamento: formaPagamento, desconto1, desconto2, desconto3, valor_entrada: valorEntrada, ia_ativa: !!aiStrategyEnabled, estrategia_ia: aiStrategyEnabled ? (activeStrategy || null) : null }, ...userInfo });
-
-      if (resolvedTenantId) {
-        const totalDiscount = 100 - (100 * (1 - desconto1/100) * (1 - desconto2/100) * (1 - desconto3/100));
-        void supabase.from("ai_learning_events" as unknown as "clients")
-          .insert([{ tenant_id: resolvedTenantId, user_id: currentUser?.id || null, client_id: clientId, event_type: "proposal_sent", price_offered: result.valorFinal, discount_percentage: Math.round(totalDiscount * 100) / 100, strategy_used: aiStrategyEnabled ? (activeStrategy || "consultiva") : "consultiva", metadata: { valor_tela: valorTela, forma_pagamento: formaPagamento, parcelas, valor_entrada: valorEntrada } } as any])
-          .then(({ error: learnErr }) => { if (learnErr) console.warn("[Simulator] learning event error:", learnErr); });
-      }
-      if (!client) {
-        setShowClientForm(false);
-        setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "" });
-      }
+      return null;
     }
+
+    savedRef.current = true;
+    sessionStorage.removeItem(SIM_STORAGE_KEY);
+    toast.success("Simulação salva com sucesso!");
+    const userInfo = getAuditUserInfo();
+    logAudit({ acao: "simulacao_salva", entidade: "simulation", entidade_id: clientId, detalhes: { valor_tela: valorTela, valor_final: result.valorFinal, forma_pagamento: formaPagamento, desconto1, desconto2, desconto3, valor_entrada: valorEntrada, ia_ativa: !!aiStrategyEnabled, estrategia_ia: aiStrategyEnabled ? (activeStrategy || null) : null }, ...userInfo });
+
+    if (resolvedTenantId) {
+      const totalDiscount = 100 - (100 * (1 - desconto1 / 100) * (1 - desconto2 / 100) * (1 - desconto3 / 100));
+      void supabase.from("ai_learning_events" as unknown as "clients")
+        .insert([{ tenant_id: resolvedTenantId, user_id: currentUser?.id || null, client_id: clientId, event_type: "proposal_sent", price_offered: result.valorFinal, discount_percentage: Math.round(totalDiscount * 100) / 100, strategy_used: aiStrategyEnabled ? (activeStrategy || "consultiva") : "consultiva", metadata: { valor_tela: valorTela, forma_pagamento: formaPagamento, parcelas, valor_entrada: valorEntrada } } as any])
+        .then(({ error: learnErr }) => { if (learnErr) console.warn("[Simulator] learning event error:", learnErr); });
+    }
+    if (!client) {
+      setShowClientForm(false);
+      setNewClient({ nome: "", cpf: "", telefone1: "", telefone2: "", email: "", vendedor: "", quantidade_ambientes: 0, descricao_ambientes: "", indicador_id: "" });
+    }
+
+    return createdSimulation.id;
   }, [valorTela, valorEntrada, valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual, formaPagamento, parcelas, result, client, newClient, showClientForm, environments, catalogProducts, resolvedTenantId, currentUser, checkDiscount, requestApproval, onClientCreated, setShowClientForm, setNewClient, activeStrategy, aiStrategyEnabled]);
 
   const REQUIRED_TECH_KEYS: (keyof ImportedEnvironment)[] = ["corpo", "porta", "puxador", "fornecedor"];
@@ -241,7 +275,6 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
 
   const handleCloseSale = useCallback(async () => {
     if (!client) { toast.error("Selecione um cliente para fechar a venda"); return; }
-    // Validate technical fields on environments
     if (environments.length > 0) {
       const incompleteEnvs = environments.filter(env =>
         REQUIRED_TECH_KEYS.some(k => !String(env[k] || "").trim())
@@ -249,7 +282,6 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       if (incompleteEnvs.length > 0) {
         setTechFieldsHighlight(true);
         setTimeout(() => setTechFieldsHighlight(false), 4000);
-        // Auto-scroll to environments table
         setTimeout(() => {
           document.getElementById("simulator-environments-table")?.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 100);
@@ -273,27 +305,55 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
   }, [client, resolvedTenantId, validateAccess, environments]);
 
   const handleCloseSaleConfirm = useCallback(async (formData: any, items: any[], itemDetails: any[]) => {
-    setCloseSaleFormData(formData); setCloseSaleItems(items); setCloseSaleItemDetails(itemDetails);
+    setCloseSaleFormData(formData);
+    setCloseSaleItems(items);
+    setCloseSaleItemDetails(itemDetails);
     setClosingSale(true);
     try {
-      await handleSave();
-      // Check if save actually succeeded by looking for the simulation
-      const { data: simData } = await supabase.from("simulations").select("id").eq("client_id", client!.id).order("created_at", { ascending: false }).limit(1).single();
-      if (!simData) { toast.error("Simulação não encontrada. Verifique os dados e tente novamente."); setClosingSale(false); return; }
-      // Only close the modal after save succeeds
-      setCloseSaleModalOpen(false);
-      const { data: template } = await supabase.from("contract_templates" as any).select("*").eq("ativo", true).order("created_at", { ascending: false }).limit(1).single();
-      if (!template) { toast.error("Nenhum modelo de contrato ativo encontrado."); setClosingSale(false); return; }
+      const simulationId = await handleSave();
+      if (!simulationId) return;
+
+      const { data: template, error: templateError } = await supabase
+        .from("contract_templates" as any)
+        .select("*")
+        .eq("ativo", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (templateError || !template) {
+        toast.error("Nenhum modelo de contrato ativo encontrado.");
+        return;
+      }
+
       const html = buildContractHtml((template as any).conteudo_html, {
-        formData, client: client!, valorTela, result, formaPagamento, parcelas, valorEntrada,
-        settings, selectedIndicador, comissaoPercentual, items, itemDetails,
+        formData,
+        client: client!,
+        valorTela,
+        result,
+        formaPagamento,
+        parcelas,
+        valorEntrada,
+        settings,
+        selectedIndicador,
+        comissaoPercentual,
+        items,
+        itemDetails,
         catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: cp.product.sale_price })),
       });
-      setPendingSimId(simData.id); setPendingTemplateId((template as any).id);
-      setContractHtml(html); setContractEditorOpen(true);
-    } catch (err) { console.error(err); toast.error("Erro ao fechar venda"); }
-    setClosingSale(false);
-  }, [handleSave, client, valorTela, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual]);
+
+      setPendingSimId(simulationId);
+      setPendingTemplateId((template as any).id);
+      setContractHtml(html);
+      setCloseSaleModalOpen(false);
+      setContractEditorOpen(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao fechar venda");
+    } finally {
+      setClosingSale(false);
+    }
+  }, [handleSave, client, valorTela, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, catalogProducts]);
 
   const handleContractConfirm = useCallback(async (finalHtml: string) => {
     if (!client || !pendingSimId) return;
