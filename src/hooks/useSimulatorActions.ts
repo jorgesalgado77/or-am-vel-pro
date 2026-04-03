@@ -349,7 +349,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
 
     savedRef.current = true;
     sessionStorage.removeItem(SIM_STORAGE_KEY);
-    toast.success("Simulação salva com sucesso!");
+    if (!silent) toast.success("Simulação salva com sucesso!");
     const userInfo = getAuditUserInfo();
     logAudit({ acao: "simulacao_salva", entidade: "simulation", entidade_id: clientId, detalhes: { valor_tela: valorTela, valor_final: result.valorFinal, forma_pagamento: formaPagamento, desconto1, desconto2, desconto3, valor_entrada: valorEntrada, ia_ativa: !!aiStrategyEnabled, estrategia_ia: aiStrategyEnabled ? (activeStrategy || null) : null }, ...userInfo });
 
