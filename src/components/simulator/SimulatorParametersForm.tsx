@@ -47,6 +47,7 @@ interface SimulatorParametersFormProps {
   canHideIndicador: boolean;
   environments: ImportedEnvironment[];
   setEnvironments: React.Dispatch<React.SetStateAction<ImportedEnvironment[]>>;
+  techFieldsHighlight?: boolean;
   detectedSoftware: string | null;
   canDeleteEnvironment: boolean;
   activeIndicadores: Array<{ id: string; nome: string; comissao_percentual: number }>;
