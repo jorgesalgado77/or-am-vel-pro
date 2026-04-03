@@ -111,11 +111,17 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         }
         
         if (["nova", "pendente", "em_execucao"].includes(updated.status)) {
-          setOverdueTasks(prev => {
-            const exists = prev.find(t => t.id === updated.id);
-            if (exists) return prev.map(t => t.id === updated.id ? updated : t);
-            return [...prev, updated];
-          });
+          // Only add to overdue list if task is due today or earlier
+          if (isOverdueOrToday) {
+            setOverdueTasks(prev => {
+              const exists = prev.find(t => t.id === updated.id);
+              if (exists) return prev.map(t => t.id === updated.id ? updated : t);
+              return [...prev, updated];
+            });
+          } else {
+            // Future task - remove from overdue if it was there
+            setOverdueTasks(prev => prev.filter(t => t.id !== updated.id));
+          }
           if (updated.data_tarefa === today && updated.horario) {
             setTasks(prev => {
               const exists = prev.find(t => t.id === updated.id);
@@ -131,7 +137,7 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId]);
+  }, [tenantId, userId]);
 
   // Show overdue alert on login and every 30 minutes
   useEffect(() => {
