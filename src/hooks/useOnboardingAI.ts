@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 export interface AIMessageAction {
   type: string;
