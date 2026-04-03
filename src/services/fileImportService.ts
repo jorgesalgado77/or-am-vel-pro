@@ -508,7 +508,11 @@ export function parseProjectFile(content: string, fileName: string): ParsedFileR
     return parseXmlFile(content, fileName);
   }
   if (lower.endsWith(".promob")) {
-    // .promob files are Promob exports — parse as Promob TXT
+    // Detect if .promob file is actually XML
+    const trimmed = content.trimStart();
+    if (trimmed.startsWith("<?xml") || trimmed.startsWith("<")) {
+      return parseXmlFile(content, fileName);
+    }
     return parsePromobTxt(content, fileName);
   }
   return parseTxtFile(content, fileName);
