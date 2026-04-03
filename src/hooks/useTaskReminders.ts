@@ -68,8 +68,9 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         const todayWithTime = allTasks.filter(t => t.data_tarefa === today && t.horario);
         setTasks(todayWithTime);
         
-        // All incomplete tasks -> for overdue alert
-        setOverdueTasks(allTasks);
+        // Only truly overdue tasks (date < today) or due today for the alert
+        const overdueOnly = allTasks.filter(t => t.data_tarefa && t.data_tarefa <= today);
+        setOverdueTasks(overdueOnly);
       }
     };
 
@@ -98,6 +99,7 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         }
         const updated = payload.new as unknown as Task;
         const today = new Date().toISOString().slice(0, 10);
+        const isOverdueOrToday = updated.data_tarefa && updated.data_tarefa <= today;
         
         // Only process tasks assigned to current user
         if (updated.responsavel_id !== userId) {
@@ -109,11 +111,17 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         }
         
         if (["nova", "pendente", "em_execucao"].includes(updated.status)) {
-          setOverdueTasks(prev => {
-            const exists = prev.find(t => t.id === updated.id);
-            if (exists) return prev.map(t => t.id === updated.id ? updated : t);
-            return [...prev, updated];
-          });
+          // Only add to overdue list if task is due today or earlier
+          if (isOverdueOrToday) {
+            setOverdueTasks(prev => {
+              const exists = prev.find(t => t.id === updated.id);
+              if (exists) return prev.map(t => t.id === updated.id ? updated : t);
+              return [...prev, updated];
+            });
+          } else {
+            // Future task - remove from overdue if it was there
+            setOverdueTasks(prev => prev.filter(t => t.id !== updated.id));
+          }
           if (updated.data_tarefa === today && updated.horario) {
             setTasks(prev => {
               const exists = prev.find(t => t.id === updated.id);
@@ -129,7 +137,7 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId]);
+  }, [tenantId, userId]);
 
   // Show overdue alert on login and every 30 minutes
   useEffect(() => {
