@@ -43,6 +43,7 @@ interface Props {
   onRemove: (id: string) => void;
   canDelete: boolean;
   highlightIncomplete?: boolean;
+  fornecedoresList?: FornecedorOption[];
 }
 
 const TECH_FIELDS: { key: TechField; label: string; placeholder: string }[] = [
