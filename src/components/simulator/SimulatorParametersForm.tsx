@@ -88,7 +88,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   selectedIndicadorId, setSelectedIndicadorId,
   hideIndicador, setHideIndicador,
   comissaoPercentual, valorTelaComComissao, canHideIndicador,
-  environments, setEnvironments, detectedSoftware, canDeleteEnvironment,
+  environments, setEnvironments, techFieldsHighlight, detectedSoftware, canDeleteEnvironment,
   activeIndicadores, getOptionsForField,
   showParcelas, showPlus, showCarencia,
   availableParcelas, availableCarenciaOptions,
