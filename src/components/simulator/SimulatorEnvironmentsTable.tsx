@@ -655,12 +655,13 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                     </div>
                   </TableCell>
                   <TableCell className="py-1.5 text-center">{env.pieceCount || "—"}</TableCell>
-                  <TableCell className="py-1.5">
-                    <Input
+                  <TableCell className="py-1.5 min-w-[140px]">
+                    <FornecedorAutocomplete
                       value={env.fornecedor || ""}
-                      onChange={(e) => onUpdateTechnical?.(env.id, "fornecedor", e.target.value)}
-                      className="h-6 text-[11px] bg-transparent border-none p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      onChange={(v) => onUpdateTechnical?.(env.id, "fornecedor", v)}
+                      fornecedores={fornecedoresList}
                       placeholder="Selecionar..."
+                      compact
                       readOnly={!onUpdateTechnical}
                     />
                   </TableCell>
