@@ -163,8 +163,9 @@ const MODULES: ModuleKnowledge[] = [
     allowedCargos: ["todos"],
     quickActions: ["Cadastrar novo cliente", "Mover cliente para negociação", "Ver detalhes do cliente"],
     commonQuestions: [
-      { q: "Como cadastrar um cliente?", a: "Clique no botão '+ Novo Cliente' no topo do Kanban. Preencha: Nome, Telefone, Email, Vendedor responsável." },
-      { q: "Como mover um cliente de etapa?", a: "Arraste o card do cliente para a coluna desejada, ou abra o card e altere o status." },
+      { q: "Como cadastrar um cliente?", a: "1. Acesse **Menu lateral > Clientes**\n2. Clique no botão **\"+ Novo Cliente\"** no topo do Kanban\n3. Preencha os campos obrigatórios:\n   • **Nome completo**\n   • **Telefone** (com DDD)\n   • **Email**\n   • **Vendedor responsável**\n4. Campos opcionais: CPF/CNPJ, endereço, origem do lead, descrição dos ambientes\n5. Clique **\"Salvar\"**\n\nO cliente aparecerá automaticamente na coluna **\"Novo\"** do Kanban. 🎯" },
+      { q: "Como mover um cliente de etapa?", a: "Arraste o card do cliente para a coluna desejada no Kanban, ou abra o card e altere o status manualmente." },
+      { q: "Como preencher briefing?", a: "1. Acesse **Menu lateral > Clientes**\n2. Clique no card do cliente desejado\n3. Acesse a aba **\"Briefing\"** na ficha do cliente\n4. Preencha:\n   • Ambientes desejados (cozinha, quarto, sala, etc.)\n   • Medidas de cada ambiente\n   • Estilo preferido\n   • Orçamento estimado do cliente\n   • Preferências de cores e materiais\n5. Salve o briefing\n\n💡 Dica: Quanto mais detalhado o briefing, melhor será a simulação!" },
     ],
   },
   {
