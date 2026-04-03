@@ -26,7 +26,7 @@ const itemDetails = [
 ];
 
 const data = {
-  formData: { nome_completo: "João Silva", cpf_cnpj: "123.456.789-00" },
+  formData: { nome_completo: "João Silva", cpf_cnpj: "123.456.789-00", numero_contrato: "CT-999" },
   client: { nome: "João Silva", cpf: "123.456.789-00", telefone1: null, email: null, numero_orcamento: "ORC-001", vendedor: "Carlos" },
   valorTela: 10000,
   result: { valorFinal: 8000, valorParcela: 800, valorComDesconto: 7500 },
@@ -90,5 +90,30 @@ describe("buildContractHtml", () => {
   it("generates combined supplier deadlines in {{prazo_entrega_fornecedor}}", () => {
     const html = buildContractHtml(template, data);
     expect(html).toContain("Fornecedor geral: 30 dias úteis, 45 dias úteis");
+  });
+
+  it("overrides static imported template values with the current saved data", () => {
+    const importedTemplate = `
+      <p><strong>Cliente:</strong> Maria Antiga</p>
+      <p><strong>CPF:</strong> 999.999.999-99</p>
+      <p><strong>Nº do Contrato:</strong> CT-OLD</p>
+      <p><strong>Forma de Pagamento:</strong> Boleto antigo</p>
+      <p><strong>Valor Final:</strong> R$ 1.000,00</p>
+      <p><strong>Entrada:</strong> R$ 100,00</p>
+      <p><strong>Parcelas:</strong> 2x de R$ 450,00</p>
+    `;
+
+    const html = buildContractHtml(importedTemplate, data);
+
+    const normalizedHtml = html.replace(/\u00a0|&nbsp;/g, " ");
+
+    expect(normalizedHtml).toContain("João Silva");
+    expect(normalizedHtml).toContain("123.456.789-00");
+    expect(normalizedHtml).toContain("CT-999");
+    expect(normalizedHtml).toContain("R$ 8.000,00");
+    expect(normalizedHtml).toContain("R$ 1.000,00");
+    expect(normalizedHtml).toContain("10x de R$ 800,00");
+    expect(normalizedHtml).not.toContain("Maria Antiga");
+    expect(normalizedHtml).not.toContain("CT-OLD");
   });
 });
