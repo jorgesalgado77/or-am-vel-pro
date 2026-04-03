@@ -164,13 +164,67 @@ export function OnboardingAIAssistant() {
     requestAnimationFrame(() => scrollToBottom());
   }, [messages.length, loading, scrollToBottom]);
 
-  // Focus input & clear FAB unread when opened
+  // Focus input & clear FAB unread when opened + proactive alerts
   useEffect(() => {
     if (open) {
       setFabUnread(0);
       setTimeout(() => inputRef.current?.focus(), 200);
+
+      // Proactive alerts: check once per chat open session
+      if (!proactiveCheckedRef.current) {
+        proactiveCheckedRef.current = true;
+        checkAlerts().then(alerts => {
+          if (alerts.length > 0) {
+            const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alerts.map(a => `${a.icon} **${a.title}** — ${a.detail}`).join("\n\n")}`;
+            sendMessage("status", true); // triggers a lightweight status-like injection
+            // Inject directly as assistant message
+            const msg: AIMessage = {
+              id: `proactive-${Date.now()}`,
+              role: "assistant",
+              content: alertMsg,
+              timestamp: new Date(),
+            };
+            // We need to use a workaround since we can't setMessages directly here
+            // Instead, we dispatch a custom event that the hook can listen to
+            window.dispatchEvent(new CustomEvent("mia-inject-message", { detail: { content: alertMsg } }));
+          }
+        });
+      }
     }
-  }, [open]);
+  }, [open, checkAlerts, sendMessage]);
+
+  // Listen for contextual tips when modules change
+  useEffect(() => {
+    const navEvents = [
+      "navigate-to-simulator", "navigate-to-clients", "navigate-to-vendazap-chat",
+      "navigate-to-dealroom", "navigate-to-products", "navigate-to-financial",
+      "navigate-to-tasks", "navigate-to-funnel",
+    ];
+    const moduleMap: Record<string, string> = {
+      "navigate-to-simulator": "simulator",
+      "navigate-to-clients": "clients",
+      "navigate-to-vendazap-chat": "vendazap-chat",
+      "navigate-to-dealroom": "dealroom",
+      "navigate-to-products": "catalog",
+      "navigate-to-financial": "financial",
+      "navigate-to-tasks": "tasks",
+      "navigate-to-funnel": "funnel",
+    };
+
+    const handler = (e: Event) => {
+      const moduleKey = moduleMap[(e as CustomEvent).type] || moduleMap[e.type];
+      if (!moduleKey) return;
+      const tip = getContextualTip(moduleKey);
+      if (tip) {
+        window.dispatchEvent(new CustomEvent("mia-inject-message", {
+          detail: { content: `${tip.icon} ${tip.message}` },
+        }));
+      }
+    };
+
+    navEvents.forEach(evt => window.addEventListener(evt, handler));
+    return () => navEvents.forEach(evt => window.removeEventListener(evt, handler));
+  }, []);
 
   // Auto-open on first visit
   useEffect(() => {
