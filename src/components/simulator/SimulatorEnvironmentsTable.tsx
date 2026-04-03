@@ -34,6 +34,7 @@ interface Props {
   onUpdateTechnical?: (id: string, field: TechField, value: string) => void;
   onRemove: (id: string) => void;
   canDelete: boolean;
+  highlightIncomplete?: boolean;
 }
 
 const TECH_FIELDS: { key: TechField; label: string; placeholder: string }[] = [
@@ -143,10 +144,26 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
 
 /* ── Main Table ────────────────────────────────────────────────── */
 
-export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete }: Props) {
+export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete, highlightIncomplete }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [autoExpandedIds] = useState<Set<string>>(new Set());
   const [batchOpen, setBatchOpen] = useState(false);
+
+  // Auto-expand incomplete environments when highlight is triggered
+  useEffect(() => {
+    if (!highlightIncomplete) return;
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const env of environments) {
+        if (isIncomplete(env) && !next.has(env.id)) {
+          next.add(env.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [highlightIncomplete, environments]);
 
   useEffect(() => {
     setExpandedIds(prev => {
@@ -247,7 +264,11 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
             const missing = missingCount(env);
             return (
               <>
-                <TableRow key={env.id} className={cn("text-xs", incomplete && "border-l-2 border-l-amber-500")}>
+                <TableRow key={env.id} className={cn(
+                  "text-xs",
+                  incomplete && "border-l-2 border-l-amber-500",
+                  incomplete && highlightIncomplete && "animate-pulse bg-amber-50/50 dark:bg-amber-950/20"
+                )}>
                   <TableCell className="py-1.5 px-1">
                     <Button
                       variant="ghost"
@@ -324,7 +345,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                               <Input
                                 value={env[key] || ""}
                                 onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
-                                className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30")}
+                                className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30", isEmpty && isRequired && highlightIncomplete && "ring-2 ring-amber-500/60 animate-pulse")}
                                 placeholder={placeholder}
                                 readOnly={!onUpdateTechnical}
                               />

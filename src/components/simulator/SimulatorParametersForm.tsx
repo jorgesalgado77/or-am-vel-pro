@@ -47,6 +47,7 @@ interface SimulatorParametersFormProps {
   canHideIndicador: boolean;
   environments: ImportedEnvironment[];
   setEnvironments: React.Dispatch<React.SetStateAction<ImportedEnvironment[]>>;
+  techFieldsHighlight?: boolean;
   detectedSoftware: string | null;
   canDeleteEnvironment: boolean;
   activeIndicadores: Array<{ id: string; nome: string; comissao_percentual: number }>;
@@ -87,7 +88,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   selectedIndicadorId, setSelectedIndicadorId,
   hideIndicador, setHideIndicador,
   comissaoPercentual, valorTelaComComissao, canHideIndicador,
-  environments, setEnvironments, detectedSoftware, canDeleteEnvironment,
+  environments, setEnvironments, techFieldsHighlight, detectedSoftware, canDeleteEnvironment,
   activeIndicadores, getOptionsForField,
   showParcelas, showPlus, showCarencia,
   availableParcelas, availableCarenciaOptions,
@@ -165,6 +166,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
               onUpdateTechnical={(id, field, value) => setEnvironments((prev) => prev.map((item) => item.id === id ? { ...item, [field]: value } : item))}
               onRemove={onRemoveEnvironment}
               canDelete={canDeleteEnvironment}
+              highlightIncomplete={techFieldsHighlight}
             />
           </div>
 

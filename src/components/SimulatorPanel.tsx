@@ -389,6 +389,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           valorTelaComComissao={valorTelaComComissao}
           canHideIndicador={canHideIndicador}
           environments={environments} setEnvironments={setEnvironments}
+          techFieldsHighlight={actions.techFieldsHighlight}
           detectedSoftware={detectedSoftware}
           canDeleteEnvironment={canDeleteEnvironment}
           activeIndicadores={activeIndicadores}
