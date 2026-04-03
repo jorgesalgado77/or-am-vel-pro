@@ -311,22 +311,22 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     setClosingSale(true);
     try {
       const simulationId = await handleSave();
-      if (!simulationId) return;
+      if (!simulationId) return false;
 
       const { data: template, error: templateError } = await supabase
         .from("contract_templates" as any)
-        .select("*")
+        .select("id, conteudo_html")
         .eq("ativo", true)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (templateError || !template) {
-        toast.error("Nenhum modelo de contrato ativo encontrado.");
-        return;
+      if (templateError) {
+        console.warn("[CloseSale] contract template fallback:", templateError);
       }
 
-      const html = buildContractHtml((template as any).conteudo_html, {
+      const templateHtml = (template as any)?.conteudo_html || "<p>Contrato gerado automaticamente</p>";
+      const html = buildContractHtml(templateHtml, {
         formData,
         client: client!,
         valorTela,
@@ -343,13 +343,15 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       });
 
       setPendingSimId(simulationId);
-      setPendingTemplateId((template as any).id);
+      setPendingTemplateId((template as any)?.id ?? null);
       setContractHtml(html);
-      setCloseSaleModalOpen(false);
       setContractEditorOpen(true);
+      setCloseSaleModalOpen(false);
+      return true;
     } catch (err) {
       console.error(err);
       toast.error("Erro ao fechar venda");
+      return false;
     } finally {
       setClosingSale(false);
     }

@@ -428,7 +428,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
   }, [selected]);
 
   const handleCloseSaleConfirm = useCallback(async (formData: Record<string, unknown>, items: unknown[], itemDetails: unknown[]) => {
-    if (!tenantId || !selected) return;
+    if (!tenantId || !selected) return false;
     setCloseSaleSaving(true);
     try {
       const { data: templateRow } = await supabase.from("contract_templates").select("conteudo_html").limit(1).maybeSingle();
@@ -454,9 +454,11 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
       if (selected.client_id) await supabase.from("clients").update({ etapa_funil: "contrato" } as Record<string, unknown>).eq("id", selected.client_id);
       toast.success("🎉 Contrato gerado com sucesso!");
       setCloseSaleOpen(false);
+      return true;
     } catch (err) {
       console.error("[CloseSale] Error:", err);
       toast.error("Erro ao gerar contrato");
+      return false;
     } finally {
       setCloseSaleSaving(false);
     }
