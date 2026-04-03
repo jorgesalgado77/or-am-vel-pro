@@ -37,6 +37,8 @@ import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
+import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,6 +76,8 @@ export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject, navigateTo, pendingItems } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
+  const currentUserId = typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null;
+  const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [compactMode, setCompactMode] = useState(false);
@@ -82,6 +86,7 @@ export function OnboardingAIAssistant() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const proactiveCheckedRef = useRef(false);
 
   // Drag state
   const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(loadSavedPosition);
@@ -159,13 +164,57 @@ export function OnboardingAIAssistant() {
     requestAnimationFrame(() => scrollToBottom());
   }, [messages.length, loading, scrollToBottom]);
 
-  // Focus input & clear FAB unread when opened
+  // Focus input & clear FAB unread when opened + proactive alerts
   useEffect(() => {
     if (open) {
       setFabUnread(0);
       setTimeout(() => inputRef.current?.focus(), 200);
+
+      // Proactive alerts: check once per chat open session
+      if (!proactiveCheckedRef.current) {
+        proactiveCheckedRef.current = true;
+        checkAlerts().then(alerts => {
+          if (alerts.length > 0) {
+            const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alerts.map(a => `${a.icon} **${a.title}** — ${a.detail}`).join("\n\n")}\n\n💡 _Posso ajudar com qualquer um desses itens. É só pedir!_`;
+            window.dispatchEvent(new CustomEvent("mia-inject-message", { detail: { content: alertMsg } }));
+          }
+        });
+      }
     }
-  }, [open]);
+  }, [open, checkAlerts]);
+
+  // Listen for contextual tips when modules change
+  useEffect(() => {
+    const navEvents = [
+      "navigate-to-simulator", "navigate-to-clients", "navigate-to-vendazap-chat",
+      "navigate-to-dealroom", "navigate-to-products", "navigate-to-financial",
+      "navigate-to-tasks", "navigate-to-funnel",
+    ];
+    const moduleMap: Record<string, string> = {
+      "navigate-to-simulator": "simulator",
+      "navigate-to-clients": "clients",
+      "navigate-to-vendazap-chat": "vendazap-chat",
+      "navigate-to-dealroom": "dealroom",
+      "navigate-to-products": "catalog",
+      "navigate-to-financial": "financial",
+      "navigate-to-tasks": "tasks",
+      "navigate-to-funnel": "funnel",
+    };
+
+    const handler = (e: Event) => {
+      const moduleKey = moduleMap[(e as CustomEvent).type] || moduleMap[e.type];
+      if (!moduleKey) return;
+      const tip = getContextualTip(moduleKey);
+      if (tip) {
+        window.dispatchEvent(new CustomEvent("mia-inject-message", {
+          detail: { content: `${tip.icon} ${tip.message}` },
+        }));
+      }
+    };
+
+    navEvents.forEach(evt => window.addEventListener(evt, handler));
+    return () => navEvents.forEach(evt => window.removeEventListener(evt, handler));
+  }, []);
 
   // Auto-open on first visit
   useEffect(() => {

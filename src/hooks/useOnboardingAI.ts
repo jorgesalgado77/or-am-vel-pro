@@ -490,6 +490,18 @@ export function useOnboardingAI(tenantId: string | null) {
     setMessages((prev) => [...prev, createMessage("assistant", content)]);
   }, []);
 
+  // Listen for injected messages (proactive alerts, contextual tips)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const content = (e as CustomEvent).detail?.content;
+      if (content) {
+        setMessages((prev) => [...prev, createMessage("assistant", content)]);
+      }
+    };
+    window.addEventListener("mia-inject-message", handler);
+    return () => window.removeEventListener("mia-inject-message", handler);
+  }, []);
+
   const refreshContext = useCallback(async () => {
     if (!tenantId) return;
     const next = await buildRuntimeContext(tenantId).catch(() => null);
