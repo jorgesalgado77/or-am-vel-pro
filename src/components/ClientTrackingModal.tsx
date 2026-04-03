@@ -12,6 +12,8 @@ import {toast} from "sonner";
 import {format} from "date-fns";
 import {playNotificationSound} from "@/lib/notificationSound";
 
+const FUNCTION_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/public-contract`;
+
 const TRACKING_STEPS = [
   { key: "medicao", label: "Medição", icon: Ruler, color: "text-blue-500", bgActive: "bg-blue-500", bgInactive: "bg-muted" },
   { key: "liberacao", label: "Liberação Técnica", icon: ShieldCheck, color: "text-yellow-500", bgActive: "bg-yellow-500", bgInactive: "bg-muted" },
