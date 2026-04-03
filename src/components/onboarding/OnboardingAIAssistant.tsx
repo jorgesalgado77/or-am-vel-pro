@@ -745,10 +745,20 @@ export function OnboardingAIAssistant() {
   );
 }
 
-const MessageBubble = memo(function MessageBubble({ message }: { message: AIMessage }) {
+const MessageBubble = memo(function MessageBubble({ message, onCloseChat }: { message: AIMessage; onCloseChat?: () => void }) {
   const isUser = message.role === "user";
 
   const handleResolveAction = (target: string) => {
+    const labelMap: Record<string, string> = {
+      clients: "Abrindo leads…",
+      tasks: "Abrindo tarefas…",
+      "vendazap-chat": "Abrindo chat de vendas…",
+      dashboard: "Abrindo dashboard…",
+      simulator: "Abrindo simulador…",
+      contracts: "Abrindo contratos…",
+      campaigns: "Abrindo campanhas…",
+      financial: "Abrindo financeiro…",
+    };
     const eventMap: Record<string, string> = {
       clients: "navigate-to-clients",
       tasks: "navigate-to-tasks",
@@ -761,7 +771,10 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: AIMess
     };
     const evt = eventMap[target];
     if (evt) {
+      const { toast } = await import("sonner");
+      toast.success(labelMap[target] || "Navegando…", { duration: 2000 });
       window.dispatchEvent(new CustomEvent(evt));
+      onCloseChat?.();
     }
   };
 
