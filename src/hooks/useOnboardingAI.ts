@@ -1461,8 +1461,7 @@ export function useOnboardingAI(tenantId: string | null) {
 
         // Check for daily routine
         if (/rotina|(?:o\s+que\s+)?(?:devo\s+fazer\s+)?hoje|minha\s+agenda/i.test(lower)) {
-          const cargoNome = localStorage.getItem("current_cargo_nome") || undefined;
-          const routine = knowledge.getDailyRoutine(cargoNome);
+          const routine = knowledge.getDailyRoutine(cargoNome || undefined);
           appendAssistant(routine);
           return true;
         }
