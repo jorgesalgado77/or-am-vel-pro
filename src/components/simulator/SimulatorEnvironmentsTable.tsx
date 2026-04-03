@@ -131,6 +131,8 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
         {environments.map((env) => {
           const isExpanded = expandedIds.has(env.id);
           const hasTech = hasTechData(env);
+          const incomplete = isIncomplete(env);
+          const missing = missingCount(env);
           return (
             <>
               <TableRow key={env.id} className={cn("text-xs", incomplete && "border-l-2 border-l-amber-500")}>
