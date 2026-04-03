@@ -148,9 +148,10 @@ export function ClientContracts({ client, onBack }: ClientContractsProps) {
           onClose={() => setViewingContract(null)}
           initialHtml={viewingContract.conteudo_html}
           clientName={client.nome}
-          onConfirm={(html) => {
+         onSave={async (html) => {
             openContractPrintWindow(html, `Contrato - ${client.nome}`);
             setViewingContract(null);
+            return null;
           }}
         />
       )}
@@ -161,7 +162,7 @@ export function ClientContracts({ client, onBack }: ClientContractsProps) {
           onClose={() => setEditingContract(null)}
           initialHtml={editingContract.conteudo_html}
           clientName={client.nome}
-          onConfirm={handleSaveEdit}
+          onSave={async (html) => { await handleSaveEdit(html); return editingContract?.id || null; }}
           saving={saving}
         />
       )}

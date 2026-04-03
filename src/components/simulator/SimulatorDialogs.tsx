@@ -43,7 +43,7 @@ interface SimulatorDialogsProps {
   contractEditorOpen: boolean;
   setContractEditorOpen: (v: boolean) => void;
   contractHtml: string;
-  onContractConfirm: (html: string) => Promise<void>;
+  onContractSave: (html: string) => Promise<string | null>;
   pendingSimId: string | null;
   setPendingSimId: (v: string | null) => void;
   pendingTemplateId: string | null;
@@ -118,7 +118,9 @@ export const SimulatorDialogs = React.memo(function SimulatorDialogs(props: Simu
           onClose={() => { props.setContractEditorOpen(false); props.setPendingSimId(null); props.setPendingTemplateId(null); }}
           initialHtml={props.contractHtml}
           clientName={props.client.nome}
-          onConfirm={props.onContractConfirm}
+          onSave={props.onContractSave}
+          contractId={props.pendingSimId}
+          tenantId={null}
           saving={props.closingSale}
         />
       )}

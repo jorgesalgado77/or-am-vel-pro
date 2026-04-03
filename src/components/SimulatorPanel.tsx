@@ -557,7 +557,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             })),
           }}
           contractEditorOpen={actions.contractEditorOpen} setContractEditorOpen={actions.setContractEditorOpen}
-          contractHtml={actions.contractHtml} onContractConfirm={actions.handleContractConfirm}
+          contractHtml={actions.contractHtml} onContractSave={actions.handleContractSave}
           pendingSimId={actions.pendingSimId} setPendingSimId={actions.setPendingSimId}
           pendingTemplateId={actions.pendingTemplateId} setPendingTemplateId={actions.setPendingTemplateId}
           upgradeOpen={actions.upgradeOpen} setUpgradeOpen={actions.setUpgradeOpen} upgradeMsg={actions.upgradeMsg}

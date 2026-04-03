@@ -20,6 +20,7 @@ const TenantLanding = lazy(() => import("./pages/TenantLanding.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const AffiliatePage = lazy(() => import("./pages/AffiliatePage.tsx"));
 const ClientSala = lazy(() => import("./pages/ClientSala.tsx"));
+const ClientContractPortal = lazy(() => import("./pages/ClientContractPortal.tsx"));
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
                 <Route path="/afiliado" element={<AffiliatePage />} />
                 <Route path="/ref/:code" element={<AffiliatePage />} />
                 <Route path="/sala/:sessionId" element={<ClientSala />} />
+                <Route path="/contrato/:token" element={<ClientContractPortal />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
