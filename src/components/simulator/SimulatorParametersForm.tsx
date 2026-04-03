@@ -185,13 +185,19 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {catalogProducts.map(item => (
+                  {catalogProducts.map(item => {
+                    const warning = stockWarnings?.[item.product.id];
+                    const stockQty = (item.product as any).stock_quantity ?? 0;
+                    return (
                     <TableRow key={item.product.id}>
                       <TableCell className="text-[10px] font-mono py-1">{item.product.internal_code}</TableCell>
                       <TableCell className="text-[10px] py-1 max-w-[120px] truncate">{item.product.name}</TableCell>
                       <TableCell className="text-center py-1">
-                        <Input type="number" min={1} value={item.quantity} className="w-14 h-6 text-xs text-center p-0.5"
-                          onChange={e => onUpdateCatalogProductQty(item.product.id, Number(e.target.value))} />
+                        <div className="flex flex-col items-center gap-0.5">
+                          <Input type="number" min={1} value={item.quantity} className={`w-14 h-6 text-xs text-center p-0.5 ${warning ? "border-amber-500 ring-1 ring-amber-300" : ""}`}
+                            onChange={e => onUpdateCatalogProductQty(item.product.id, Number(e.target.value))} />
+                          <span className="text-[8px] text-muted-foreground">Est: {stockQty}</span>
+                        </div>
                       </TableCell>
                       <TableCell className="text-[10px] text-right font-semibold py-1">{formatCurrency(item.product.sale_price * item.quantity)}</TableCell>
                       <TableCell className="py-1">
@@ -199,8 +205,14 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                           <X className="h-3 w-3" />
                         </button>
                       </TableCell>
+                      {warning && (
+                        <TableCell colSpan={5} className="py-0 px-2">
+                          <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">⚠️ {warning}</span>
+                        </TableCell>
+                      )}
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   <TableRow>
                     <TableCell colSpan={3} className="text-[10px] font-semibold text-right py-1">Subtotal Catálogo:</TableCell>
                     <TableCell className="text-[10px] text-right font-bold text-primary py-1">
