@@ -11,10 +11,52 @@ import { FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
 function toNumber(val: string | number | undefined | null): number {
   if (val == null) return 0;
   if (typeof val === "number") return val;
-  // Remove currency symbol, dots (thousands), spaces, then replace comma with dot
   const cleaned = val.replace(/[R$\s.]/g, "").replace(",", ".");
   const n = parseFloat(cleaned);
   return isNaN(n) ? 0 : n;
+}
+
+/** Convert a number to Brazilian Portuguese words (simplified) */
+function numberToWords(value: number): string {
+  if (value === 0) return "zero reais";
+  const units = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const teens = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const tens = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const hundreds = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+
+  const parts: string[] = [];
+  const intPart = Math.floor(Math.abs(value));
+  const centsPart = Math.round((Math.abs(value) - intPart) * 100);
+
+  function groupToWords(n: number): string {
+    if (n === 0) return "";
+    if (n === 100) return "cem";
+    const h = Math.floor(n / 100);
+    const t = Math.floor((n % 100) / 10);
+    const u = n % 10;
+    const words: string[] = [];
+    if (h > 0) words.push(hundreds[h]);
+    if (t === 1) { words.push(teens[u]); }
+    else { if (t > 1) words.push(tens[t]); if (u > 0) words.push(units[u]); }
+    return words.join(" e ");
+  }
+
+  if (intPart > 0) {
+    const millions = Math.floor(intPart / 1000000);
+    const thousands = Math.floor((intPart % 1000000) / 1000);
+    const remainder = intPart % 1000;
+    if (millions > 0) parts.push(`${groupToWords(millions)} ${millions === 1 ? "milhão" : "milhões"}`);
+    if (thousands > 0) parts.push(`${groupToWords(thousands)} mil`);
+    if (remainder > 0) parts.push(groupToWords(remainder));
+    parts.push(intPart === 1 ? "real" : "reais");
+  }
+
+  if (centsPart > 0) {
+    if (intPart > 0) parts.push("e");
+    parts.push(`${groupToWords(centsPart)} ${centsPart === 1 ? "centavo" : "centavos"}`);
+  }
+
+  return parts.join(" ");
 }
 
 interface ContractData {
