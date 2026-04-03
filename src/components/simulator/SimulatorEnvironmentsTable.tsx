@@ -720,13 +720,14 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
               </>
             );
           })}
-          {environments.length > 1 && (
+          {environments.length > 0 && (
             <TableRow className="bg-primary/5 font-semibold text-xs">
               <TableCell className="py-1.5"></TableCell>
-              <TableCell className="py-1.5">Total ({environments.length} ambientes)</TableCell>
+              <TableCell className="py-1.5">Total Ambientes</TableCell>
               <TableCell className="py-1.5 text-center">{environments.reduce((s, e) => s + e.pieceCount, 0) || "—"}</TableCell>
-              <TableCell className="py-1.5 text-right tabular-nums text-primary">{formatCurrency(environments.reduce((s, e) => s + e.totalValue, 0))}</TableCell>
               <TableCell className="py-1.5"></TableCell>
+              <TableCell className="py-1.5"></TableCell>
+              <TableCell className="py-1.5 text-right tabular-nums text-primary">{formatCurrency(environments.reduce((s, e) => s + e.totalValue, 0))}</TableCell>
               <TableCell className="py-1.5"></TableCell>
             </TableRow>
           )}
