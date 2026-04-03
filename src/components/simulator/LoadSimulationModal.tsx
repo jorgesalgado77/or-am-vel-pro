@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Calculator, Clock, RefreshCw, Filter, X, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Calculator, Clock, RefreshCw, Filter, X, Trash2, ChevronLeft, ChevronRight, BrainCircuit } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
