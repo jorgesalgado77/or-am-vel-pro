@@ -154,13 +154,49 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     }
   }
 
-  // Fallback: generic regex extraction
+  // Fallback: generic regex extraction for all fields
   if (!envName || envName === fileName.replace(/\.(txt|csv|xml)$/i, "")) {
     envName = firstMatch(content, [/Ambiente\s*[=:;]\s*(.+)/i], envName);
   }
   if (totalValue === 0) {
     const m = content.match(/(?:Total|Valor\s*Total|TOTAL)\s*[=:;]\s*([\d.,]+)/i);
     if (m) totalValue = parseBRL(m[1]);
+  }
+  if (!fornecedor) {
+    fornecedor = firstMatch(content, [
+      /(?:Fornecedor|Fabricante|Marca|Industria)\s*[=:;]\s*(.+)/i,
+    ]);
+  }
+  if (!corpo) {
+    corpo = firstMatch(content, [
+      /(?:Corpo|Caixa|Lateral|Estrutura)\s*[=:;]\s*(.+)/i,
+      /(?:caixa|corpo|lateral|estrutura)\s*(\d+\s*mm\s*[\w\s]*)/i,
+      /(?:Chapa\s*(?:do\s*)?Corpo|Chapa\s*Caixa)\s*[=:;]\s*(.+)/i,
+    ]);
+  }
+  if (!porta) {
+    porta = firstMatch(content, [
+      /(?:Porta|Frente|Fachada)\s*[=:;]\s*(.+)/i,
+      /(?:porta|frente|fachada)\s*(\d+\s*mm\s*[\w\s]*)/i,
+      /(?:Chapa\s*(?:da\s*)?Porta|Chapa\s*Frente)\s*[=:;]\s*(.+)/i,
+    ]);
+  }
+  if (!puxador) {
+    puxador = firstMatch(content, [
+      /(?:Puxador|Puxadores|Tipo\s*(?:de\s*)?Puxador)\s*[=:;]\s*(.+)/i,
+      /(?:puxador|handle)\s*[-–]\s*(.+)/i,
+    ]);
+  }
+  if (!modelo) {
+    modelo = firstMatch(content, [
+      /(?:Modelo|Linha|Coleção|Colecao)\s*[=:;]\s*(.+)/i,
+    ]);
+  }
+  if (compParts.length === 0) {
+    const mDob = content.match(/(?:Dobradica|Dobradiça|Dobradiças)\s*[=:;]\s*(.+)/i);
+    if (mDob) compParts.push(`Dobradiças: ${mDob[1].trim()}`);
+    const mCorr = content.match(/(?:Corrediça|Corrediças|Corredica)\s*[=:;]\s*(.+)/i);
+    if (mCorr) compParts.push(`Corrediças: ${mCorr[1].trim()}`);
   }
 
   return {
