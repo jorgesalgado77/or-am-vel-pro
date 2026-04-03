@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,23 @@ function TechBadge({ value, label }: { value?: string; label: string }) {
 
 export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [autoExpandedIds] = useState<Set<string>>(new Set());
+
+  // Auto-expand environments that have technical data detected
+  useEffect(() => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const env of environments) {
+        if (hasTechData(env) && !autoExpandedIds.has(env.id) && !next.has(env.id)) {
+          next.add(env.id);
+          autoExpandedIds.add(env.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [environments]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
