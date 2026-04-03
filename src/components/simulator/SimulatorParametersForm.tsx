@@ -219,6 +219,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
               onRemove={onRemoveEnvironment}
               canDelete={canDeleteEnvironment}
               highlightIncomplete={techFieldsHighlight}
+              fornecedoresList={fornecedoresList}
             />
           </div>
 
