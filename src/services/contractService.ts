@@ -7,6 +7,16 @@ import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/financing";
 import { FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
 
+/** Convert masked currency string (e.g. "R$ 5.000,00") or number to a numeric value */
+function toNumber(val: string | number | undefined | null): number {
+  if (val == null) return 0;
+  if (typeof val === "number") return val;
+  // Remove currency symbol, dots (thousands), spaces, then replace comma with dot
+  const cleaned = val.replace(/[R$\s.]/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
 interface ContractData {
   formData: any;
   client: { nome: string; cpf?: string | null; telefone1?: string | null; email?: string | null; numero_orcamento?: string | null; vendedor?: string | null };
