@@ -542,7 +542,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             setActiveStrategy(sim.estrategia_ia || parsed?.metadata?.estrategiaIa || "");
             setAiStrategyEnabled(iaEnabled);
             if (sim.arquivo_nome) {
-              const { environments: envs, catalogProducts: catProds } = parseArquivoNome(sim.arquivo_nome);
+              const { environments: envs, catalogProducts: catProds } = parsed!;
               if (envs.length > 0) {
                 setEnvironments(envs.map((e: any) => ({
                   id: e.id || crypto.randomUUID(), fileName: e.fileName || e.name || "",
