@@ -47,6 +47,8 @@ export interface SavedSimulationData {
   forma_pagamento: string; parcelas: number; valor_entrada: number;
   plus_percentual: number; ambientes?: SavedEnvironmentData[];
   catalogProducts?: SavedCatalogProduct[];
+  estrategia_ia?: string | null;
+  ia_strategy_enabled?: boolean;
 }
 
 interface SimulatorPanelProps {
