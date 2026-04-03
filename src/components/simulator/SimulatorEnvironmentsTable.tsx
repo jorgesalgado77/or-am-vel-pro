@@ -22,6 +22,7 @@ export interface ImportedEnvironment {
   puxador?: string;
   complemento?: string;
   modelo?: string;
+  fileFormat?: "XML" | "TXT" | "PROMOB";
 }
 
 interface Props {
@@ -164,11 +165,26 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                 </TableCell>
                 <TableCell className="py-1.5 font-medium">
                   <div className="flex flex-col gap-0.5">
-                    <Input
-                      value={env.environmentName}
-                      onChange={(e) => onUpdateName(env.id, e.target.value)}
-                      className="h-6 text-xs border-none bg-transparent p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        value={env.environmentName}
+                        onChange={(e) => onUpdateName(env.id, e.target.value)}
+                        className="h-6 text-xs border-none bg-transparent p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      />
+                      {env.fileFormat && (
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "text-[8px] font-semibold px-1.5 py-0 h-4 shrink-0",
+                            env.fileFormat === "XML" && "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+                            env.fileFormat === "TXT" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+                            env.fileFormat === "PROMOB" && "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+                          )}
+                        >
+                          {env.fileFormat}
+                        </Badge>
+                      )}
+                    </div>
                     {!isExpanded && hasTech && (
                       <div className="flex flex-wrap gap-0.5">
                         <TechBadge value={env.corpo} label="C" />

@@ -15,6 +15,7 @@ export interface ParsedFileResult {
   complemento?: string;
   modelo?: string;
   software?: "promob" | "focco" | "gabster" | "generico";
+  fileFormat?: "XML" | "TXT" | "PROMOB";
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -505,15 +506,19 @@ export function parseXmlFile(content: string, fileName: string): ParsedFileResul
 export function parseProjectFile(content: string, fileName: string): ParsedFileResult {
   const lower = fileName.toLowerCase();
   if (lower.endsWith(".xml")) {
-    return parseXmlFile(content, fileName);
+    const result = parseXmlFile(content, fileName);
+    return { ...result, fileFormat: "XML" };
   }
   if (lower.endsWith(".promob")) {
     // Detect if .promob file is actually XML
     const trimmed = content.trimStart();
     if (trimmed.startsWith("<?xml") || trimmed.startsWith("<")) {
-      return parseXmlFile(content, fileName);
+      const result = parseXmlFile(content, fileName);
+      return { ...result, fileFormat: "PROMOB" };
     }
-    return parsePromobTxt(content, fileName);
+    const result = parsePromobTxt(content, fileName);
+    return { ...result, fileFormat: "PROMOB" };
   }
-  return parseTxtFile(content, fileName);
+  const result = parseTxtFile(content, fileName);
+  return { ...result, fileFormat: "TXT" };
 }
