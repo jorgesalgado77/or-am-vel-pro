@@ -737,7 +737,23 @@ export function ProductCatalog() {
                 </div>
               </div>
 
-              {/* Video: URL or Upload */}
+              {/* Link do produto na internet */}
+              <div>
+                <Label className="text-xs flex items-center gap-1">🔗 Link do Produto (para compra/reposição)</Label>
+                <Input
+                  value={form.link_url}
+                  onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))}
+                  className="mt-1 h-9 text-sm"
+                  placeholder="https://www.loja.com.br/produto..."
+                  type="url"
+                />
+                {form.link_url && (
+                  <a href={form.link_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline mt-1 inline-block">
+                    Abrir link ↗
+                  </a>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-xs flex items-center gap-1"><Video className="h-3.5 w-3.5" /> Vídeo do Produto</Label>
                 <Input
