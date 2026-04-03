@@ -605,6 +605,11 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                           );
                         })}
                       </div>
+
+                      {/* Modules list */}
+                      {env.modules && env.modules.length > 0 && (
+                        <ModulesPanel modules={env.modules} />
+                      )}
                     </TableCell>
                   </TableRow>
                 )}
