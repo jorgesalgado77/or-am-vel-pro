@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
