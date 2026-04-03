@@ -1,7 +1,7 @@
 /**
  * Utility to parse the arquivo_nome field from simulations.
  * Supports both legacy format (plain array of environments) and new format
- * ({ environments: [...], catalogProducts: [...] }).
+ * ({ environments: [...], catalogProducts: [...], metadata: {...} }).
  */
 
 export interface ParsedArquivoNome {
@@ -13,26 +13,34 @@ export interface ParsedArquivoNome {
     sale_price: number;
     quantity: number;
   }>;
+  metadata?: {
+    iaStrategyEnabled?: boolean;
+    estrategiaIa?: string | null;
+  };
 }
 
 export function parseArquivoNome(arquivoNome: string | null | undefined): ParsedArquivoNome {
-  const empty: ParsedArquivoNome = { environments: [], catalogProducts: [] };
+  const empty: ParsedArquivoNome = { environments: [], catalogProducts: [], metadata: {} };
   if (!arquivoNome) return empty;
 
   try {
     const parsed = JSON.parse(arquivoNome);
 
-    // New format: { environments: [...], catalogProducts: [...] }
-    if (parsed && !Array.isArray(parsed) && parsed.environments) {
+    if (parsed && !Array.isArray(parsed) && typeof parsed === "object") {
       return {
         environments: Array.isArray(parsed.environments) ? parsed.environments : [],
         catalogProducts: Array.isArray(parsed.catalogProducts) ? parsed.catalogProducts : [],
+        metadata: parsed.metadata && typeof parsed.metadata === "object"
+          ? {
+              iaStrategyEnabled: Boolean(parsed.metadata.iaStrategyEnabled),
+              estrategiaIa: parsed.metadata.estrategiaIa || null,
+            }
+          : {},
       };
     }
 
-    // Legacy format: plain array of environments
     if (Array.isArray(parsed)) {
-      return { environments: parsed, catalogProducts: [] };
+      return { environments: parsed, catalogProducts: [], metadata: {} };
     }
   } catch {
     // Not valid JSON

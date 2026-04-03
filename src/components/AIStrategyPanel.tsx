@@ -1,4 +1,4 @@
-import {useState, useMemo, useCallback} from "react";
+import {useState, useMemo, useCallback, useEffect} from "react";
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Badge} from "@/components/ui/badge";
 import {Switch} from "@/components/ui/switch";
@@ -69,7 +69,9 @@ interface AIStrategyPanelProps {
   onRequestExtremaUnlock?: (scenario: StrategyParams, callback: () => void) => void;
   extremaUnlocked?: boolean;
   initialStrategy?: string;
+  initialEnabled?: boolean;
   onStrategyChange?: (strategy: string | null) => void;
+  onEnabledChange?: (enabled: boolean) => void;
 }
 
 // calculateClosingProbability now delegated to CommercialDecisionEngine
@@ -106,10 +108,26 @@ export function AIStrategyPanel({
   onRequestExtremaUnlock,
   extremaUnlocked,
   initialStrategy,
+  initialEnabled,
   onStrategyChange,
+  onEnabledChange,
 }: AIStrategyPanelProps) {
-  const [enabled, setEnabled] = useState(!!initialStrategy);
+  const [enabled, setEnabled] = useState(initialEnabled ?? !!initialStrategy);
   const [selectedStrategy, setSelectedStrategyInternal] = useState<string | null>(initialStrategy || null);
+
+  useEffect(() => {
+    setEnabled(initialEnabled ?? !!initialStrategy);
+    setSelectedStrategyInternal(initialStrategy || null);
+  }, [initialEnabled, initialStrategy]);
+
+  useEffect(() => {
+    onEnabledChange?.(enabled);
+    if (!enabled && selectedStrategy) {
+      setSelectedStrategyInternal(null);
+      onStrategyChange?.(null);
+    }
+  }, [enabled, selectedStrategy, onEnabledChange, onStrategyChange]);
+
   const setSelectedStrategy = (s: string | null) => {
     setSelectedStrategyInternal(s);
     onStrategyChange?.(s);
