@@ -279,6 +279,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         puxador: env.puxador || "",
         complemento: env.complemento || "",
         modelo: env.modelo || "",
+        modules: env.modules || [],
       });
     }
 
