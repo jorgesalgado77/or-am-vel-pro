@@ -191,7 +191,7 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
               variant="outline"
               onClick={handleOpenChat}
               disabled={isLoading || !clientId}
-              className="gap-2 text-green-600 border-green-300 hover:bg-green-50 hover:text-green-700"
+              className="gap-2 text-emerald-600 border-emerald-300 hover:bg-accent hover:text-emerald-700"
             >
               <MessageCircle className="h-4 w-4" /> WhatsApp
             </Button>
