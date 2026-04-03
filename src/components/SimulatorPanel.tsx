@@ -35,6 +35,7 @@ type Client = Database["public"]["Tables"]["clients"]["Row"];
 export interface SavedEnvironmentData {
   id: string; fileName: string; environmentName: string;
   pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string;
+  corpo?: string; porta?: string; puxador?: string; complemento?: string; modelo?: string; fornecedor?: string;
 }
 
 export interface SavedCatalogProduct {
