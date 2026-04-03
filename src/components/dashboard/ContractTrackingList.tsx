@@ -151,6 +151,47 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
     const clientMap = new Map<string, Client>(clients.map((client) => [client.id, client]));
     const POST_CLOSE_STATUSES = new Set(["medicao", "liberacao", "entrega", "montagem", "assistencia", "finalizado"]);
 
+    // --- Retroactive sync: create client_tracking for contracts without one ---
+    const syncPromises: Promise<unknown>[] = [];
+    for (const [clientId, contract] of latestContractByClient) {
+      if (latestTrackingByClient.has(clientId)) continue; // already has tracking
+      const client = clientMap.get(clientId);
+      const transaction = (contract.simulation_id ? latestTransactionBySimulation.get(contract.simulation_id) : undefined) || latestTransactionByClient.get(clientId);
+      const sim = lastSims[clientId];
+      const resolvedValor = sim?.valor_com_desconto || sim?.valor_final || Number(transaction?.valor_venda) || 0;
+      const numeroContrato = transaction?.numero_contrato || (client as Record<string, unknown>)?.numero_orcamento as string || "";
+      if (!numeroContrato || numeroContrato === "—") continue;
+
+      const payload = {
+        contract_id: contract.id,
+        client_id: clientId,
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+        numero_contrato: numeroContrato,
+        nome_cliente: client?.nome || transaction?.nome_cliente || "Cliente",
+        cpf_cnpj: client?.cpf || null,
+        quantidade_ambientes: Number(client?.quantidade_ambientes) || 0,
+        valor_contrato: resolvedValor,
+        data_fechamento: transaction?.created_at || contract.created_at,
+        projetista: transaction?.nome_vendedor || client?.vendedor || null,
+        status: "medicao",
+      } as any;
+
+      syncPromises.push(
+        supabase.from("client_tracking").insert(payload).then(({ data: inserted }) => {
+          if (inserted && (inserted as any)[0]?.id) {
+            latestTrackingByClient.set(clientId, { ...payload, id: (inserted as any)[0].id, created_at: new Date().toISOString() });
+          }
+        }).catch(() => {})
+      );
+    }
+    if (syncPromises.length > 0) {
+      await Promise.allSettled(syncPromises);
+      console.log(`[RetroSync] Synced ${syncPromises.length} tracking records`);
+    }
+    // --- End retroactive sync ---
+
+    const POST_CLOSE_STATUSES = new Set(["medicao", "liberacao", "entrega", "montagem", "assistencia", "finalizado"]);
+
     const rows: TrackingRow[] = Array.from(latestContractByClient.values())
       .map((contract) => {
         const client = clientMap.get(contract.client_id);
