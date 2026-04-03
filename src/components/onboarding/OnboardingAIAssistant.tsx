@@ -175,8 +175,26 @@ export function OnboardingAIAssistant() {
         proactiveCheckedRef.current = true;
         checkAlerts().then(alerts => {
           if (alerts.length > 0) {
-            const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alerts.map(a => `${a.icon} **${a.title}** — ${a.detail}`).join("\n\n")}\n\n💡 _Posso ajudar com qualquer um desses itens. É só pedir!_`;
-            window.dispatchEvent(new CustomEvent("mia-inject-message", { detail: { content: alertMsg } }));
+            const actionMap: Record<string, { label: string; target: string }> = {
+              leads_parados: { label: "Ver Leads", target: "clients" },
+              tarefas_atrasadas: { label: "Ver Tarefas", target: "tasks" },
+              mensagens_pendentes: { label: "Ver Mensagens", target: "vendazap-chat" },
+            };
+            const alertLines = alerts.map(a => {
+              const action = actionMap[a.type];
+              return `${a.icon} **${a.title}** — ${a.detail}`;
+            }).join("\n\n");
+            const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alertLines}`;
+            window.dispatchEvent(new CustomEvent("mia-inject-message", {
+              detail: {
+                content: alertMsg,
+                actions: alerts.map(a => ({
+                  type: a.type,
+                  label: actionMap[a.type]?.label || "Resolver",
+                  target: actionMap[a.type]?.target || "",
+                })),
+              },
+            }));
           }
         });
       }

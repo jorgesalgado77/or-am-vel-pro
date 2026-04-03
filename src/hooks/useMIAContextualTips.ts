@@ -67,6 +67,21 @@ const MODULE_TIPS: Record<string, ContextualTip> = {
     icon: "🎯",
     message: `**💡 Dica do Funil:**\n\n• Monitore a taxa de conversão entre cada etapa do funil\n• Leads no topo do funil precisam de atenção rápida\n• Use campanhas para alimentar o funil com novos leads\n• Analise os motivos de perda para melhorar o processo`,
   },
+  contracts: {
+    module: "Contratos",
+    icon: "📝",
+    message: `**💡 Dica de Contratos:**\n\n• Configure seus **modelos de contrato** com variáveis automáticas (nome, valor, prazo)\n• Contratos podem ser gerados diretamente a partir de uma **simulação aprovada**\n• Use a **assinatura digital** para agilizar o fechamento\n• Acompanhe o status: rascunho → enviado → assinado → concluído`,
+  },
+  campaigns: {
+    module: "Campanhas",
+    icon: "📢",
+    message: `**💡 Dica de Campanhas:**\n\n• Crie campanhas segmentadas por **perfil de cliente** e **região**\n• Acompanhe métricas de abertura, clique e conversão em tempo real\n• Use **templates prontos** para WhatsApp e email marketing\n• Campanhas ativas alimentam automaticamente o **Funil de Captação**`,
+  },
+  dashboard: {
+    module: "Dashboard",
+    icon: "📊",
+    message: `**💡 Dica do Dashboard:**\n\n• O painel mostra seus **KPIs principais**: vendas, conversão e ticket médio\n• Use os filtros de período para comparar desempenho mensal\n• Clique nos gráficos para ver detalhes por vendedor ou produto\n• O ranking da equipe atualiza automaticamente com base nas vendas fechadas`,
+  },
 };
 
 export function getContextualTip(activeView: string): ContextualTip | null {
