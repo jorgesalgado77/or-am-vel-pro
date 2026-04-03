@@ -70,13 +70,13 @@ export function useMIAProactiveAlerts(tenantId: string | null, userId: string | 
         });
       }
 
-      // 3. Mensagens não respondidas (chat messages where last is from client)
-      const { data: unreadChats, count: unreadCount } = await supabase
-        .from("chat_messages" as any)
+      // 3. Mensagens não respondidas (tracking_messages from clients, unread)
+      const { count: unreadCount } = await supabase
+        .from("tracking_messages" as any)
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
-        .eq("is_from_client", true)
-        .eq("read", false);
+        .eq("remetente_tipo", "cliente")
+        .eq("lida", false);
 
       if ((unreadCount || 0) > 0) {
         alerts.push({

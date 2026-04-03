@@ -202,7 +202,8 @@ export function OnboardingAIAssistant() {
     };
 
     const handler = (e: Event) => {
-      const moduleKey = moduleMap[(e as CustomEvent).type] || moduleMap[e.type];
+      const evtType = e.type;
+      const moduleKey = moduleMap[evtType];
       if (!moduleKey) return;
       const tip = getContextualTip(moduleKey);
       if (tip) {
