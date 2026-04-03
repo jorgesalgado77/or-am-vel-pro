@@ -360,10 +360,10 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
 
             // If stock was partial, subtract what existed
             if (currentStock > 0) {
-              await supabase.from("products").update({
+              await (supabase as any).from("products").update({
                 stock_quantity: 0,
                 stock_status: "indisponivel",
-              } as any).eq("id", cp.product.id);
+              }).eq("id", cp.product.id);
             }
 
             for (const admin of admins) {
