@@ -113,6 +113,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
             pieceCount: parsed.pieces, totalValue: hasTotal ? parsed.total : 0, importedAt: new Date(), file,
             fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
             puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
+            fileFormat: parsed.fileFormat,
           }]);
           setImportedFile(file);
           if (parsed.software && parsed.software !== "generico") setDetectedSoftware(parsed.software);
