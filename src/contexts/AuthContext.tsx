@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { supabase } from "@/lib/supabaseClient";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import { logLoginDiagnostic } from "@/services/system/SystemDiagnosticsService";
+import { initializeTheme, resetToDefaultTheme } from "@/lib/colorThemes";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 
