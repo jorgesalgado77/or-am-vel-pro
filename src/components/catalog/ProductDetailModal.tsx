@@ -478,6 +478,21 @@ export function ProductDetailModal({ product, open, onOpenChange }: Props) {
                 <div><span className="text-xs text-muted-foreground block">Fornecedor</span><p className="text-sm font-medium">{product.supplier.name}</p></div>
               )}
 
+              {/* Link do produto para compra/reposição */}
+              {(product as any).link_url && (
+                <div>
+                  <a
+                    href={(product as any).link_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 w-full justify-center rounded-md bg-primary/10 hover:bg-primary/20 text-primary font-medium text-xs px-3 py-2.5 transition-colors border border-primary/20"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    Comprar / Repor Estoque ↗
+                  </a>
+                </div>
+              )}
+
               {/* Admin-only: custo, markup, preço mínimo */}
               {isAdmin && (
                 <div className="grid grid-cols-3 gap-2 text-sm bg-muted/30 rounded-lg p-3 border">
