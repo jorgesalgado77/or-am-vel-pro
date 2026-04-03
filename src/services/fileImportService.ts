@@ -99,6 +99,7 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
   const iVal = colIdx(["valor", "total", "preco", "preço", "vlr"]);
   const iPux = colIdx(["puxador", "pux"]);
   const iModelo = colIdx(["modelo", "linha", "colecao", "coleção"]);
+  const iTipo = colIdx(["tipo", "descricao", "desc", "componente", "modulo"]);
 
   let envName = fileName.replace(/\.(txt|csv|xml)$/i, "");
   let totalValue = 0;
@@ -121,14 +122,28 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     if (iPux >= 0 && cols[iPux] && !puxador) puxador = cols[iPux];
     if (iModelo >= 0 && cols[iModelo] && !modelo) modelo = cols[iModelo];
 
+    // Determine piece type from material column, tipo column, or full line
+    const mat = iMat >= 0 ? (cols[iMat] || "") : "";
+    const tipo = iTipo >= 0 ? (cols[iTipo] || "") : "";
+    const fullLine = line.toLowerCase();
+    const isCorpo = /caixa|corpo|lateral|estrutura|base|tampo|fundo|prateleira/i.test(mat) ||
+                    /caixa|corpo|lateral|estrutura/i.test(tipo) ||
+                    (!mat && !tipo && /\bcaixa\b|\bcorpo\b|\blateral\b|\bestrutura\b/i.test(fullLine));
+    const isPorta = /porta|frente|fachada|gaveta/i.test(mat) ||
+                    /porta|frente|fachada/i.test(tipo) ||
+                    (!mat && !tipo && /\bporta\b|\bfrente\b|\bfachada\b/i.test(fullLine));
+
     // Body/door from material + thickness + color columns
-    if (iMat >= 0 && iEsp >= 0) {
-      const mat = cols[iMat] || "";
+    if (iEsp >= 0) {
       const esp = cols[iEsp] || "";
       const cor = iCor >= 0 ? cols[iCor] || "" : "";
-      const desc = `${esp}mm ${cor || mat}`.trim();
-      if (!corpo && /caixa|corpo|lateral|estrutura/i.test(mat)) corpo = desc;
-      if (!porta && /porta|frente|fachada/i.test(mat)) porta = desc;
+      const desc = cor ? `${esp}mm ${cor}`.trim() : (mat ? `${esp}mm ${mat}`.trim() : `${esp}mm`);
+      if (!corpo && isCorpo && esp) corpo = desc;
+      if (!porta && isPorta && esp) porta = desc;
+    } else if (iMat >= 0) {
+      // No thickness column — use material description directly
+      if (!corpo && isCorpo && mat) corpo = mat;
+      if (!porta && isPorta && mat) porta = mat;
     }
 
     // Quantity
