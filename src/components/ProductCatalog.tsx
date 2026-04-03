@@ -98,11 +98,12 @@ interface SupplierFormData {
   uf: string;
   cep: string;
   observacoes: string;
+  prazo_entrega: string;
 }
 
 const emptySupplierForm: SupplierFormData = {
   id: "", name: "", razao_social: "", cnpj: "", contact_name: "", contact_phone: "",
-  contact_email: "", whatsapp: "", endereco: "", bairro: "", cidade: "", uf: "", cep: "", observacoes: "",
+  contact_email: "", whatsapp: "", endereco: "", bairro: "", cidade: "", uf: "", cep: "", observacoes: "", prazo_entrega: "",
 };
 
 export function ProductCatalog() {
