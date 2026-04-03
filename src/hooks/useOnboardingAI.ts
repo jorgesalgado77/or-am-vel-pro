@@ -1402,6 +1402,116 @@ export function useOnboardingAI(tenantId: string | null) {
       return true;
     }
 
+    // === System flow guide queries ===
+    const flowPatterns = [
+      /como\s+(?:fazer|funciona|faço|criar|cadastrar|usar|abrir|acessar|gerar|preencher)/i,
+      /(?:me\s+)?(?:ensina|explica|mostra|guia|ajuda)\s+(?:a\s+)?(?:fazer|criar|usar|abrir|cadastrar)/i,
+      /(?:passo\s+a\s+passo|tutorial|guia)\s+(?:para|de|do|da)/i,
+      /(?:qual|como)\s+(?:é|e)\s+o\s+(?:fluxo|processo|procedimento)/i,
+      /(?:o\s+que|onde)\s+(?:eu\s+)?(?:devo|preciso|tenho\s+que)\s+(?:fazer|clicar|preencher)/i,
+      /(?:onde\s+fica|como\s+chego|como\s+acesso)\s+/i,
+      /(?:minha\s+)?rotina|(?:o\s+que\s+)?(?:devo\s+fazer\s+)?hoje/i,
+    ];
+
+    if (flowPatterns.some(p => p.test(lower))) {
+      try {
+        const { getSystemKnowledgeEngine } = await import("@/services/mia/engines/SystemKnowledgeEngine");
+        const knowledge = getSystemKnowledgeEngine();
+
+        // Check for FAQ match first
+        const faqAnswer = knowledge.answerModuleFAQ(content);
+        if (faqAnswer) {
+          appendAssistant(faqAnswer);
+          return true;
+        }
+
+        // Check for flow guide
+        const flowGuide = knowledge.getFlowGuide(content);
+        if (flowGuide) {
+          appendAssistant(flowGuide);
+          return true;
+        }
+
+        // Check for daily routine
+        if (/rotina|(?:o\s+que\s+)?(?:devo\s+fazer\s+)?hoje|minha\s+agenda/i.test(lower)) {
+          const cargoNome = localStorage.getItem("current_cargo_nome") || undefined;
+          const routine = knowledge.getDailyRoutine(cargoNome);
+          appendAssistant(routine);
+          return true;
+        }
+      } catch {
+        // Fallback - don't block
+      }
+    }
+
+    // === Proactive status check ===
+    if (/(?:status|resumo|como\s+est[áa])\s+(?:da\s+)?(?:loja|minha|meu|sistema|geral)/i.test(lower) || /(?:o\s+que\s+)?(?:preciso\s+)?(?:fazer|resolver|atender)/i.test(lower)) {
+      const currentUserId2 = localStorage.getItem("current_user_id");
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      const [pendingTasksRes, staleLeadsRes, unreadMsgsRes] = await Promise.all([
+        (supabase as any).from("tasks").select("id, titulo, status, data_tarefa, horario").eq("tenant_id", tenantId).eq("responsavel_id", currentUserId2).in("status", ["nova", "pendente", "em_execucao"]).order("data_tarefa", { ascending: true }).limit(10),
+        (supabase as any).from("clients").select("id, nome, status, updated_at").eq("tenant_id", tenantId).in("status", ["novo", "em_negociacao"]).order("updated_at", { ascending: true }).limit(10),
+        (supabase as any).from("tracking_messages").select("id").eq("tenant_id", tenantId).eq("lida", false).eq("remetente_tipo", "cliente").limit(20),
+      ]);
+
+      const tasks = (pendingTasksRes.data || []) as any[];
+      const overdueTasks = tasks.filter((t: any) => t.data_tarefa && t.data_tarefa < todayStr);
+      const todayTasks = tasks.filter((t: any) => t.data_tarefa === todayStr);
+
+      const staleLeads = (staleLeadsRes.data || []) as any[];
+      const now = Date.now();
+      const staleDays = 2;
+      const reallyStale = staleLeads.filter((l: any) => {
+        const updated = new Date(l.updated_at).getTime();
+        return (now - updated) > staleDays * 86400000;
+      });
+
+      const unreadCount = (unreadMsgsRes.data || []).length;
+
+      let response = `📊 **Status do Sistema — ${new Date().toLocaleDateString("pt-BR")}**\n\n`;
+
+      if (overdueTasks.length > 0) {
+        response += `🔴 **${overdueTasks.length} tarefa(s) atrasada(s):**\n`;
+        for (const t of overdueTasks.slice(0, 5)) {
+          response += `  • ${t.titulo} (${t.data_tarefa.split("-").reverse().join("/")})\n`;
+        }
+        response += `\n`;
+      }
+
+      if (todayTasks.length > 0) {
+        response += `📋 **${todayTasks.length} tarefa(s) para hoje:**\n`;
+        for (const t of todayTasks.slice(0, 5)) {
+          response += `  • ${t.titulo}${t.horario ? ` às ${t.horario}` : ""}\n`;
+        }
+        response += `\n`;
+      }
+
+      if (reallyStale.length > 0) {
+        response += `⚠️ **${reallyStale.length} lead(s) parado(s) há +${staleDays} dias:**\n`;
+        for (const l of reallyStale.slice(0, 5)) {
+          response += `  • ${l.nome} (${l.status})\n`;
+        }
+        response += `\n`;
+      }
+
+      if (unreadCount > 0) {
+        response += `💬 **${unreadCount} mensagem(ns) não lida(s) de clientes**\n\n`;
+      }
+
+      if (overdueTasks.length === 0 && todayTasks.length === 0 && reallyStale.length === 0 && unreadCount === 0) {
+        response += `✅ **Tudo em dia!** Nenhuma pendência urgente encontrada.\n`;
+      } else {
+        response += `---\n💡 **Sugestão:** `;
+        if (unreadCount > 0) response += `Responda as mensagens pendentes primeiro. `;
+        if (overdueTasks.length > 0) response += `Resolva as tarefas atrasadas. `;
+        if (reallyStale.length > 0) response += `Faça follow-up nos leads parados. `;
+      }
+
+      appendAssistant(response.trim());
+      return true;
+    }
+
     // === Legacy local actions ===
     if (/pend[eê]ncias|o que falta|progresso/.test(lower)) {
       const liveContext = context || await buildRuntimeContext(tenantId).catch(() => null);
