@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Upload, Trash2, ChevronDown, ChevronRight, ChevronsUpDown, Wrench } from "lucide-react";
+import { Upload, Trash2, ChevronDown, ChevronRight, ChevronsUpDown, Wrench, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
@@ -91,6 +91,12 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
   const hasTechData = (env: ImportedEnvironment) =>
     !!(env.corpo || env.porta || env.puxador || env.complemento || env.modelo || env.fornecedor);
 
+  const REQUIRED_TECH_KEYS: (keyof Pick<ImportedEnvironment, "corpo" | "porta" | "puxador" | "fornecedor">)[] = ["corpo", "porta", "puxador", "fornecedor"];
+  const isIncomplete = (env: ImportedEnvironment) =>
+    REQUIRED_TECH_KEYS.some(k => !env[k]?.trim());
+  const missingCount = (env: ImportedEnvironment) =>
+    REQUIRED_TECH_KEYS.filter(k => !env[k]?.trim()).length;
+
   const allExpanded = environments.length > 0 && environments.every(env => expandedIds.has(env.id));
   const toggleAll = () => {
     if (allExpanded) {
@@ -125,18 +131,20 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
         {environments.map((env) => {
           const isExpanded = expandedIds.has(env.id);
           const hasTech = hasTechData(env);
+          const incomplete = isIncomplete(env);
+          const missing = missingCount(env);
           return (
             <>
-              <TableRow key={env.id} className="text-xs">
+              <TableRow key={env.id} className={cn("text-xs", incomplete && "border-l-2 border-l-amber-500")}>
                 <TableCell className="py-1.5 px-1">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={cn("h-5 w-5", hasTech ? "text-primary" : "text-muted-foreground/50")}
+                    className={cn("h-5 w-5", incomplete ? "text-amber-500" : hasTech ? "text-primary" : "text-muted-foreground/50")}
                     onClick={() => toggleExpand(env.id)}
-                    title={hasTech ? "Ver dados técnicos extraídos" : "Sem dados técnicos"}
+                    title={incomplete ? `${missing} campo(s) técnico(s) pendente(s)` : hasTech ? "Ver dados técnicos extraídos" : "Sem dados técnicos"}
                   >
-                    {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    {incomplete && !isExpanded ? <AlertCircle className="h-3 w-3" /> : isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   </Button>
                 </TableCell>
                 <TableCell className="py-1.5 font-medium">
@@ -179,18 +187,24 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                       )}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-1.5">
-                      {TECH_FIELDS.map(({ key, label, placeholder }) => (
-                        <div key={key} className="flex flex-col gap-0.5">
-                          <label className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">{label}</label>
-                          <Input
-                            value={env[key] || ""}
-                            onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
-                            className="h-6 text-[11px] bg-background"
-                            placeholder={placeholder}
-                            readOnly={!onUpdateTechnical}
-                          />
-                        </div>
-                      ))}
+                      {TECH_FIELDS.map(({ key, label, placeholder }) => {
+                        const isEmpty = !env[key]?.trim();
+                        const isRequired = (REQUIRED_TECH_KEYS as readonly string[]).includes(key);
+                        return (
+                          <div key={key} className="flex flex-col gap-0.5">
+                            <label className={cn("text-[9px] font-medium uppercase tracking-wider", isEmpty && isRequired ? "text-amber-500" : "text-muted-foreground")}>
+                              {label}{isEmpty && isRequired && " •"}
+                            </label>
+                            <Input
+                              value={env[key] || ""}
+                              onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
+                              className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30")}
+                              placeholder={placeholder}
+                              readOnly={!onUpdateTechnical}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   </TableCell>
                 </TableRow>
