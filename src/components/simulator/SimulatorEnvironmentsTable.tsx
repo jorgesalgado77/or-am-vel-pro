@@ -22,6 +22,7 @@ export interface ImportedEnvironment {
   puxador?: string;
   complemento?: string;
   modelo?: string;
+  fileFormat?: "XML" | "TXT" | "PROMOB";
 }
 
 interface Props {
