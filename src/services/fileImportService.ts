@@ -1,8 +1,27 @@
 /**
  * Service for importing TXT/XML project files in the simulator.
  * Supports: Promob, Focco, Gabster, and generic formats.
- * Extracts environment name, piece count, total value, and material details.
+ * Extracts environment name, piece count, total value, material details, and individual modules.
  */
+
+/** Module type classification */
+export type ModuleType = "modulo" | "porta" | "frente" | "gaveta" | "painel" | "acessorio";
+
+/** Individual parsed module from a Promob file */
+export interface ParsedModule {
+  id: string;
+  code: string;
+  description: string;
+  type: ModuleType;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  dimensions: string;
+  finish: string;
+  supplier: string;
+  category: string;
+  group: string;
+}
 
 export interface ParsedFileResult {
   envName: string;
@@ -16,6 +35,47 @@ export interface ParsedFileResult {
   modelo?: string;
   software?: "promob" | "focco" | "gabster" | "generico";
   fileFormat?: "XML" | "TXT" | "PROMOB";
+  modules?: ParsedModule[];
+}
+
+// ── Color / Material Normalization ───────────────────────────────────
+
+const NORMALIZATION_MAP: Array<[RegExp, string]> = [
+  [/^\s*BRISA\s*$/i, "Brisa"],
+  [/^\s*NOG(?:UEIRA)?\s*AVE(?:NA)?\s*$/i, "Nogueira Avena"],
+  [/^\s*BRANCO?\s*AUR(?:A)?\s*$/i, "Branco Aura"],
+  [/^\s*BRANCO?\s*(?:TX|TEXTURIZADO)?\s*$/i, "Branco"],
+  [/^\s*PRE(?:TO)?\s*FOS(?:CO)?\s*$/i, "Preto Fosco"],
+  [/^\s*CINZA\s*LISO\s*FOSCO\s*$/i, "Cinza Liso Fosco"],
+  [/^\s*GRAFITE\s*$/i, "Grafite"],
+  [/^\s*CARVALHO\s*$/i, "Carvalho"],
+  [/^\s*AMENDOA\s*$/i, "Amêndoa"],
+  [/^\s*FREIJO\s*$/i, "Freijó"],
+];
+
+export function normalizeFinish(raw: string): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  for (const [pattern, normalized] of NORMALIZATION_MAP) {
+    if (pattern.test(trimmed)) return normalized;
+  }
+  // Title case fallback
+  return trimmed
+    .toLowerCase()
+    .replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
+}
+
+/** Classify a module description into a type */
+function classifyModuleType(description: string, code?: string): ModuleType {
+  const d = description.toUpperCase();
+  if (/^ARMARIO\b|^BALCAO\b/.test(d)) return "modulo";
+  if (/^PORTA\b/.test(d)) return "porta";
+  if (/^FRENTE\b/.test(d)) return "frente";
+  if (/^GAVETA\b/.test(d)) return "gaveta";
+  if (/^PAINEL\b|^MARCO\b/.test(d)) return "painel";
+  // Accessories: codes starting with 850, or typical hardware items
+  if (/^85\d/.test(code || "") || /DOBRADICA|PARAFUSO|PUXADOR|SELANTE|TAPA\s*FURO|SUPORTE|FECHO|ATENUADOR|ARAMADO|KIT\s|FITA\s*BORDA|CANTONEIRA|BUCHA|ETIQUETA|FORRACAO|DIVISOR|ROLO|BATENTE|PRATELEIRA/i.test(d)) return "acessorio";
+  return "modulo";
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -34,28 +94,20 @@ function parseBRL(raw: string): number {
     return parseFloat(cleaned.replace(/\./g, "").replace(",", "."));
   } else if (lastDot > lastComma) {
     // Could be US format (1,234.56) or BR without decimals (636.175)
-    // Check: if there are exactly 3 digits after the last dot AND no comma, it's ambiguous
     const afterDot = cleaned.slice(lastDot + 1);
     if (afterDot.length === 3 && lastComma === -1 && cleaned.indexOf(".") === lastDot) {
-      // Ambiguous: 636.175 — could be BR thousands or US 636.175
-      // In furniture context, values like 636.175 (636 thousand) are unlikely for a single item
-      // Heuristic: if value > 100k when treated as BR thousands, treat as US decimal instead
       const asBR = parseFloat(cleaned.replace(/\./g, ""));
       const asUS = parseFloat(cleaned);
-      // If the number before dot is <= 999 and treating as BR gives > 100k, use US format
       const beforeDot = cleaned.slice(0, lastDot).replace(/,/g, "");
       if (parseInt(beforeDot) <= 999 && asBR > 50000) {
-        return asUS; // 636.175 → 636.175 (US decimal)
+        return asUS;
       }
-      return asBR; // Treat as BR thousands: 1.234 → 1234
+      return asBR;
     }
-    // Standard US/international format: 1,234.56 or 1234.56
     return parseFloat(cleaned.replace(/,/g, ""));
   } else if (lastComma >= 0) {
-    // Only comma, no dot: 1234,56
     return parseFloat(cleaned.replace(",", "."));
   }
-  // No separators: plain integer
   return parseFloat(cleaned);
 }
 
@@ -72,14 +124,22 @@ function firstMatch(content: string, patterns: RegExp[], fallback = ""): string 
 function detectSoftware(content: string, fileName: string): ParsedFileResult["software"] {
   const lower = content.toLowerCase();
   if (lower.includes("promob") || lower.includes("plugin builder") || /catalog|listexport/i.test(fileName)) return "promob";
+  // Promob fixed-width TXT: has "ID do Projeto" header + item lines with 5+ digit codes
+  if (/ID do Projeto/i.test(content) && /^\s*\d+\s+[\d.]+\s+\d{5,}\s+\S/m.test(content)) return "promob";
   if (lower.includes("focco") || lower.includes("foccolojas") || lower.includes("foccosystem")) return "focco";
   if (lower.includes("gabster") || lower.includes("powerarq") || lower.includes("sketchup")) return "gabster";
   return "generico";
 }
 
+/** Extract an XML attribute value */
+function extractAttr(tag: string, attr: string, src: string): string {
+  const re = new RegExp(`<${tag}[^>]*\\s${attr}="([^"]*)"`, "i");
+  const m = src.match(re);
+  return m?.[1]?.trim() || "";
+}
+
 // ── Promob TXT ───────────────────────────────────────────────────────
-// Promob exports CSV/TXT lists with delimiters (tab or semicolon).
-// Common columns: Ambiente;Módulo;Peça;Qtd;Material;Espessura;Cor;Fornecedor;Valor
+// Promob exports fixed-width TXT or CSV/TXT lists with delimiters (tab or semicolon).
 
 function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
   const lines = content.split(/\r?\n/).filter(l => l.trim());
@@ -88,8 +148,94 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
   // Detect separator
   const sep = content.includes("\t") ? "\t" : ";";
   const headerLine = lines.find(l => /ambiente|modulo|módulo|peca|peça/i.test(l));
-  const headers = headerLine?.split(sep).map(h => h.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")) || [];
 
+  let envName = fileName.replace(/\.(txt|csv|xml|promob)$/i, "");
+  let totalValue = 0;
+  let pieceCount = 0;
+  let fornecedor = "";
+  let corpo = "";
+  let porta = "";
+  let puxador = "";
+  let modelo = "";
+  const compParts: string[] = [];
+  const modules: ParsedModule[] = [];
+
+  // Promob TXT fixed-width format detection:
+  // Lines like: "1     3       820227748    ARMARIO L1000 H700 P530 BRISA     349.48   1048.43  1000 x 700 x 530"
+  const isFixedWidth = !headerLine && lines.some(l => /^\s*\d+\s+[\d.]+\s+\d{5,}\s+\S/.test(l));
+
+  if (isFixedWidth) {
+    // Extract environment name from header
+    const clienteMatch = content.match(/Cliente\s*=\s*(.+)/i);
+    if (clienteMatch && clienteMatch[1].trim()) envName = clienteMatch[1].trim();
+
+    // Extract total
+    const totalMatch = content.match(/Total\s*=\s*([\d.,]+)/i);
+    if (totalMatch) totalValue = parseBRL(totalMatch[1]);
+
+    // Parse each item line
+    const itemRegex = /^\s*(\d+)\s+([\d.]+)\s+(\d{5,}\w*)\s+(.+?)\s{2,}([\d.,]+)\s+([\d.,]+)\s+([\d\s]+x[\d\s,]+x[\d\s,]+)/;
+
+    for (const line of lines) {
+      const m = line.match(itemRegex);
+      if (!m) continue;
+
+      const qty = parseFloat(m[2]);
+      const code = m[3].trim();
+      const desc = m[4].trim();
+      const unitPrice = parseBRL(m[5]);
+      const totalPrice = parseBRL(m[6]);
+      const dimensions = m[7].trim();
+
+      // Extract finish from description (last word(s))
+      const finishMatch = desc.match(/\b(BRISA|NOGUEIRA\s*AVENA?|NOG(?:UEIRA)?\s*\w*|BRANCO?\s*\w*|PRETO\s*FOSCO|CINZA\s*\w*)\s*(?:\[\[.*)?$/i);
+      const finish = finishMatch ? normalizeFinish(finishMatch[1]) : "";
+
+      const moduleType = classifyModuleType(desc, code);
+
+      modules.push({
+        id: crypto.randomUUID(),
+        code,
+        description: desc,
+        type: moduleType,
+        quantity: Math.max(1, Math.round(qty)),
+        unitPrice: isNaN(unitPrice) ? 0 : unitPrice,
+        totalPrice: isNaN(totalPrice) ? 0 : totalPrice,
+        dimensions,
+        finish,
+        supplier: "",
+        category: "",
+        group: "",
+      });
+
+      pieceCount += Math.max(1, Math.round(qty));
+    }
+
+    // Derive tech fields from modules
+    const corpoModule = modules.find(m => m.type === "modulo");
+    if (corpoModule) corpo = corpoModule.finish || "";
+
+    const portaModule = modules.find(m => m.type === "porta" || m.type === "frente");
+    if (portaModule) porta = portaModule.finish || "";
+
+    const puxadorModule = modules.find(m => /PUXADOR/i.test(m.description));
+    if (puxadorModule) puxador = puxadorModule.description;
+
+    const dobradicaModule = modules.find(m => /DOBRADICA/i.test(m.description));
+    if (dobradicaModule) compParts.push(`Dobradiças: ${dobradicaModule.description}`);
+    const corredicaModule = modules.find(m => /TRILHO\s*TELESCOP|CORREDIC/i.test(m.description));
+    if (corredicaModule) compParts.push(`Corrediças: ${corredicaModule.description}`);
+
+    return {
+      envName, pieces: pieceCount, total: totalValue || null, software,
+      fornecedor, corpo, porta, puxador, modelo,
+      complemento: compParts.join(", "),
+      modules,
+    };
+  }
+
+  // CSV/delimited format (original logic)
+  const headers = headerLine?.split(sep).map(h => h.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")) || [];
   const colIdx = (names: string[]) => headers.findIndex(h => names.some(n => h.includes(n)));
   const iAmb = colIdx(["ambiente", "amb"]);
   const iForn = colIdx(["fornecedor", "fabricante", "marca"]);
@@ -102,16 +248,6 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
   const iModelo = colIdx(["modelo", "linha", "colecao", "coleção"]);
   const iTipo = colIdx(["tipo", "descricao", "desc", "componente", "modulo"]);
 
-  let envName = fileName.replace(/\.(txt|csv|xml)$/i, "");
-  let totalValue = 0;
-  let pieceCount = 0;
-  let fornecedor = "";
-  let corpo = "";
-  let porta = "";
-  let puxador = "";
-  let modelo = "";
-  const compParts: string[] = [];
-
   const dataLines = headerLine ? lines.slice(lines.indexOf(headerLine) + 1) : lines;
 
   for (const line of dataLines) {
@@ -123,7 +259,6 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     if (iPux >= 0 && cols[iPux] && !puxador) puxador = cols[iPux];
     if (iModelo >= 0 && cols[iModelo] && !modelo) modelo = cols[iModelo];
 
-    // Determine piece type from material column, tipo column, or full line
     const mat = iMat >= 0 ? (cols[iMat] || "") : "";
     const tipo = iTipo >= 0 ? (cols[iTipo] || "") : "";
     const fullLine = line.toLowerCase();
@@ -134,7 +269,6 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
                     /porta|frente|fachada/i.test(tipo) ||
                     (!mat && !tipo && /\bporta\b|\bfrente\b|\bfachada\b/i.test(fullLine));
 
-    // Body/door from material + thickness + color columns
     if (iEsp >= 0) {
       const esp = cols[iEsp] || "";
       const cor = iCor >= 0 ? cols[iCor] || "" : "";
@@ -142,23 +276,19 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
       if (!corpo && isCorpo && esp) corpo = desc;
       if (!porta && isPorta && esp) porta = desc;
     } else if (iMat >= 0) {
-      // No thickness column — use material description directly
       if (!corpo && isCorpo && mat) corpo = mat;
       if (!porta && isPorta && mat) porta = mat;
     }
 
-    // Quantity
     if (iQtd >= 0) {
       const qty = parseInt(cols[iQtd]);
       if (!isNaN(qty) && qty > 0) pieceCount += qty;
     }
-    // Value
     if (iVal >= 0 && cols[iVal]) {
       const val = parseBRL(cols[iVal]);
       if (!isNaN(val)) totalValue += val;
     }
 
-    // Accessories
     if (/dobradica|dobradiça/i.test(fullLine)) {
       const accDesc = cols[iMat >= 0 ? iMat : 1] || "";
       if (accDesc) compParts.push(`Dobradiças: ${accDesc}`);
@@ -169,7 +299,7 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     }
   }
 
-  // Fallback: generic regex extraction for all fields
+  // Fallback: generic regex extraction
   if (!envName || envName === fileName.replace(/\.(txt|csv|xml)$/i, "")) {
     envName = firstMatch(content, [/Ambiente\s*[=:;]\s*(.+)/i], envName);
   }
@@ -178,9 +308,7 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     if (m) totalValue = parseBRL(m[1]);
   }
   if (!fornecedor) {
-    fornecedor = firstMatch(content, [
-      /(?:Fornecedor|Fabricante|Marca|Industria)\s*[=:;]\s*(.+)/i,
-    ]);
+    fornecedor = firstMatch(content, [/(?:Fornecedor|Fabricante|Marca|Industria)\s*[=:;]\s*(.+)/i]);
   }
   if (!corpo) {
     corpo = firstMatch(content, [
@@ -203,9 +331,7 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     ]);
   }
   if (!modelo) {
-    modelo = firstMatch(content, [
-      /(?:Modelo|Linha|Coleção|Colecao)\s*[=:;]\s*(.+)/i,
-    ]);
+    modelo = firstMatch(content, [/(?:Modelo|Linha|Coleção|Colecao)\s*[=:;]\s*(.+)/i]);
   }
   if (compParts.length === 0) {
     const mDob = content.match(/(?:Dobradica|Dobradiça|Dobradiças)\s*[=:;]\s*(.+)/i);
@@ -214,10 +340,165 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     if (mCorr) compParts.push(`Corrediças: ${mCorr[1].trim()}`);
   }
 
+  // Apply normalization
+  corpo = normalizeFinish(corpo);
+  porta = normalizeFinish(porta);
+
   return {
     envName, pieces: pieceCount, total: totalValue || null, software,
     fornecedor, corpo, porta, puxador, modelo,
     complemento: compParts.join(", "),
+    modules: modules.length > 0 ? modules : undefined,
+  };
+}
+
+// ── Promob XML ───────────────────────────────────────────────────────
+// Promob Criare exports rich XML with <AMBIENTS> > <AMBIENT> > <CATEGORIES> > <ITEM>
+
+function parsePromobXml(content: string, fileName: string): ParsedFileResult {
+  const software: ParsedFileResult["software"] = "promob";
+  const modules: ParsedModule[] = [];
+
+  // Extract environment name
+  let envName = "";
+  const ambientMatch = content.match(/<AMBIENT[^>]*\sDESCRIPTION="([^"]+)"/i);
+  if (ambientMatch) envName = ambientMatch[1].trim();
+  if (!envName) {
+    const envDataMatch = content.match(/<DATA\s+ID="Environment"\s+VALUE="([^"]+)"/i);
+    if (envDataMatch) envName = envDataMatch[1].trim();
+  }
+  if (!envName) envName = fileName.replace(/\.(xml|promob)$/i, "");
+
+  // Extract total price — ORDER value = net cost price
+  let total: number | null = null;
+  const totalPricesMatch = content.match(/<TOTALPRICES\s+TABLE="([\d.]+)">/);
+  if (totalPricesMatch) {
+    // Get the ORDER value (net price after discounts)
+    const orderMatch = content.match(/<ORDER\s+VALUE="([\d.]+)">/);
+    if (orderMatch) total = parseBRL(orderMatch[1]);
+    else total = parseBRL(totalPricesMatch[1]);
+  }
+
+  // Extract supplier from MODELINFORMATIONS or first ITEM references
+  let fornecedor = "";
+  const fornecedorMatch = content.match(/<FORNECEDOR\s+REFERENCE="([^"]+)"/i);
+  if (fornecedorMatch) fornecedor = fornecedorMatch[1].trim();
+
+  // Extract all ITEM elements
+  const itemRegex = /<ITEM\s([^>]+)>/g;
+  let itemMatch;
+  let pieceCount = 0;
+
+  // Collect unique acabamentos for corpo/porta detection
+  const acabamentos = new Set<string>();
+
+  while ((itemMatch = itemRegex.exec(content)) !== null) {
+    const attrs = itemMatch[1];
+
+    const getAttr = (name: string): string => {
+      const m = attrs.match(new RegExp(`${name}="([^"]*)"`));
+      return m?.[1]?.trim() || "";
+    };
+
+    const description = getAttr("DESCRIPTION");
+    const reference = getAttr("REFERENCE");
+    const quantity = parseInt(getAttr("QUANTITY")) || 1;
+    const dimensions = getAttr("TEXTDIMENSION");
+    const family = getAttr("FAMILY");
+    const group = getAttr("GROUP");
+    const isComponent = getAttr("COMPONENT") === "Y";
+
+    // Skip component/structural sub-items
+    if (isComponent) continue;
+
+    // Find the PRICE for this item (look ahead in content from current position)
+    const itemEndIdx = content.indexOf("</ITEM>", itemMatch.index);
+    const itemContent = content.slice(itemMatch.index, itemEndIdx > 0 ? itemEndIdx : itemMatch.index + 5000);
+
+    let unitPrice = 0;
+    let totalPrice = 0;
+    const priceMatch = itemContent.match(/<PRICE\s+TABLE="([\d.]+)"\s+UNIT="([\d.]+)"\s+TOTAL="([\d.]+)"/);
+    if (priceMatch) {
+      unitPrice = parseBRL(priceMatch[2]);
+      totalPrice = parseBRL(priceMatch[3]);
+    }
+
+    // Get ORDER (net) prices if available
+    const orderUnitMatch = itemContent.match(/<ORDER\s+UNIT="([\d.]+)"\s+TOTAL="([\d.]+)"/);
+    if (orderUnitMatch) {
+      unitPrice = parseBRL(orderUnitMatch[1]);
+      totalPrice = parseBRL(orderUnitMatch[2]);
+    }
+
+    // Extract acabamento from REFERENCES > ACAB
+    let acab = "";
+    const acabMatch = itemContent.match(/<ACAB\s+REFERENCE="([^"]+)"/);
+    if (acabMatch) {
+      acab = acabMatch[1].trim();
+      acabamentos.add(acab);
+    }
+
+    // Extract supplier per item
+    let itemSupplier = "";
+    const itemFornMatch = itemContent.match(/<FORNECEDOR\s+REFERENCE="([^"]+)"/);
+    if (itemFornMatch) itemSupplier = itemFornMatch[1].trim();
+    if (!fornecedor && itemSupplier) fornecedor = itemSupplier;
+
+    const moduleType = classifyModuleType(description, reference);
+
+    modules.push({
+      id: crypto.randomUUID(),
+      code: reference,
+      description,
+      type: moduleType,
+      quantity,
+      unitPrice: isNaN(unitPrice) ? 0 : unitPrice,
+      totalPrice: isNaN(totalPrice) ? 0 : totalPrice,
+      dimensions,
+      finish: normalizeFinish(acab),
+      supplier: itemSupplier || fornecedor,
+      category: family,
+      group,
+    });
+
+    pieceCount += quantity;
+  }
+
+  // Derive corpo/porta from acabamentos and modules
+  let corpo = "";
+  let porta = "";
+  let puxador = "";
+  let complemento = "";
+  let modelo = "";
+
+  // Corpo = acabamento of first "modulo" type
+  const firstModulo = modules.find(m => m.type === "modulo");
+  if (firstModulo) corpo = firstModulo.finish;
+
+  // Porta = acabamento of first "porta" or "frente" type
+  const firstPorta = modules.find(m => m.type === "porta" || m.type === "frente");
+  if (firstPorta) porta = firstPorta.finish;
+
+  // Puxador from MODELINFORMATIONS
+  const puxadorMatch = content.match(/<MODELINFORMATION\s+DESCRIPTION="Puxadores"[^>]*>[\s\S]*?<MODELTYPEINFORMATION\s+DESCRIPTION="([^"]+)"/);
+  if (puxadorMatch) puxador = puxadorMatch[1].split("\\")[0].trim();
+  if (!puxador) {
+    const puxModule = modules.find(m => /PUXADOR/i.test(m.description));
+    if (puxModule) puxador = puxModule.description;
+  }
+
+  // Dobradiças from MODELINFORMATIONS
+  const dobMatch = content.match(/<MODELINFORMATION\s+DESCRIPTION="Dobradiças"[^>]*>[\s\S]*?<MODELTYPEINFORMATION\s+DESCRIPTION="([^"]+)"/);
+  if (dobMatch) complemento = `Dobradiças: ${dobMatch[1].trim()}`;
+
+  // Modelo from system info
+  const sistemaMatch = content.match(/<ABOUTPROMOB[^>]*\sSYSTEM="([^"]+)"/);
+  if (sistemaMatch) modelo = sistemaMatch[1].trim();
+
+  return {
+    envName, pieces: pieceCount, total, software,
+    fornecedor, corpo, porta, puxador, complemento, modelo,
+    modules,
   };
 }
 
@@ -256,10 +537,7 @@ function parseFoccoXml(content: string, fileName: string): ParsedFileResult {
     "totalItens", "numPecas",
   ])) || 0;
 
-  // Focco material tags
   const fornecedor = extractTag(["Fornecedor", "Fabricante", "Marca", "fornecedor", "NomeFornecedor"]);
-
-  // Material descriptions — Focco uses <MaterialCorpo>, <MaterialPorta> etc.
   const corpo = extractTag([
     "MaterialCorpo", "Corpo", "Caixa", "Lateral", "EspCorpo",
     "corpo", "materialCaixa", "chapaCaixa",
@@ -286,8 +564,6 @@ function parseFoccoXml(content: string, fileName: string): ParsedFileResult {
 }
 
 // ── Gabster TXT/XML ──────────────────────────────────────────────────
-// Gabster (via SketchUp) exports structured TXT or XML with
-// module descriptions, BOM (bill of materials) with detailed specs.
 
 function parseGabsterFile(content: string, fileName: string): ParsedFileResult {
   const software: ParsedFileResult["software"] = "gabster";
@@ -295,7 +571,6 @@ function parseGabsterFile(content: string, fileName: string): ParsedFileResult {
 
   if (isXml) {
     const base = parseFoccoXml(content, fileName);
-    // Gabster-specific XML tags
     const extractTag = (tags: string[]) => {
       for (const tag of tags) {
         const m = content.match(new RegExp(`<${tag}[^>]*>\\s*([^<]+)\\s*<`, "i"));
@@ -315,8 +590,6 @@ function parseGabsterFile(content: string, fileName: string): ParsedFileResult {
     };
   }
 
-  // Gabster TXT — typically has sections with "---" separators
-  // and key: value or key = value pairs
   const envName = firstMatch(content, [
     /(?:Projeto|Ambiente|Nome\s*do\s*Projeto|Room)\s*[=:]\s*(.+)/i,
   ], fileName.replace(/\.(txt|csv)$/i, ""));
@@ -350,7 +623,6 @@ function parseGabsterFile(content: string, fileName: string): ParsedFileResult {
     /(?:Modelo|Linha|Coleção|Collection|Product\s*Line)\s*[=:]\s*(.+)/i,
   ]);
 
-  // Count pieces
   let pieces = 0;
   const mPieces = content.match(/(?:Pecas|Peças|Qtd\s*Pecas|Total\s*Pecas|Pieces|Qty)\s*[=:]\s*(\d+)/i);
   if (mPieces) pieces = parseInt(mPieces[1]);
@@ -371,7 +643,6 @@ function parseGenericTxt(content: string, fileName: string): ParsedFileResult {
   let complemento = "";
   let modelo = "";
 
-  // Total value — multiple patterns
   const totalPatterns = [
     /Total\s*(?:Geral|do\s*Ambiente|do\s*Projeto)?\s*[=:]\s*R?\$?\s*([\d.,]+)/i,
     /(?:Valor|Preço)\s*Total\s*[=:]\s*R?\$?\s*([\d.,]+)/i,
@@ -387,9 +658,7 @@ function parseGenericTxt(content: string, fileName: string): ParsedFileResult {
     /Nome\s*(?:do\s*)?Ambiente\s*[=:]\s*(.+)/i,
   ], envName);
 
-  fornecedor = firstMatch(content, [
-    /(?:Fornecedor|Fabricante|Marca|Industria)\s*[=:]\s*(.+)/i,
-  ]);
+  fornecedor = firstMatch(content, [/(?:Fornecedor|Fabricante|Marca|Industria)\s*[=:]\s*(.+)/i]);
   corpo = firstMatch(content, [
     /(?:Corpo|Caixa|Lateral|Estrutura)\s*[=:]\s*(.+)/i,
     /(?:caixa|corpo|lateral)\s*(\d+)\s*mm\s*(\w+)/i,
@@ -408,7 +677,6 @@ function parseGenericTxt(content: string, fileName: string): ParsedFileResult {
   if (mCorr) compParts.push(`Corrediças: ${mCorr[1].trim()}`);
   complemento = compParts.join(", ");
 
-  // Inline patterns for body/door
   if (!corpo) {
     const m = content.match(/(?:caixa|corpo|lateral)\s*(\d+)\s*mm\s*(\w+)/i);
     if (m) corpo = `${m[1]}mm ${m[2]}`;
@@ -418,7 +686,6 @@ function parseGenericTxt(content: string, fileName: string): ParsedFileResult {
     if (m) porta = `${m[1]}mm ${m[2]}`;
   }
 
-  // Count pieces
   const lines = content.split(/\r?\n/).filter(l => l.trim());
   let itemCount = 0;
   let foundExplicit = false;
@@ -498,6 +765,7 @@ export function parseTxtFile(content: string, fileName: string): ParsedFileResul
 
 export function parseXmlFile(content: string, fileName: string): ParsedFileResult {
   const sw = detectSoftware(content, fileName);
+  if (sw === "promob") return parsePromobXml(content, fileName);
   if (sw === "focco") return parseFoccoXml(content, fileName);
   if (sw === "gabster") return parseGabsterFile(content, fileName);
   return parseGenericXml(content, fileName);
@@ -510,7 +778,6 @@ export function parseProjectFile(content: string, fileName: string): ParsedFileR
     return { ...result, fileFormat: "XML" };
   }
   if (lower.endsWith(".promob")) {
-    // Detect if .promob file is actually XML
     const trimmed = content.trimStart();
     if (trimmed.startsWith("<?xml") || trimmed.startsWith("<")) {
       const result = parseXmlFile(content, fileName);
