@@ -359,6 +359,7 @@ export function ProductCatalog() {
             uf: supplierForm.uf,
             cep: supplierForm.cep,
             observacoes: supplierForm.observacoes,
+            prazo_entrega: supplierForm.prazo_entrega,
             ativo: true,
           } as any
     );
