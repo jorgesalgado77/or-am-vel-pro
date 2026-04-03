@@ -92,6 +92,9 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
     "{{indicador_comissao}}": String(comissaoPercentual),
     "{{itens_tabela}}": itensHtml,
     "{{itens_detalhes}}": detalhesHtml,
+    "{{prazo_entrega_fornecedor}}": items.length > 0
+      ? [...new Set(items.map((it: any) => it.prazo).filter(Boolean))].join(", ")
+      : formData.prazo_entrega || "",
     "{{total_ambientes}}": formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0)),
     "{{produtos_catalogo}}": catalogProducts && catalogProducts.length > 0
       ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">

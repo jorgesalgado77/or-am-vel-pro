@@ -46,6 +46,7 @@ const AVAILABLE_VARIABLES = [
   { var: "{{uf_entrega}}", desc: "UF de entrega" },
   { var: "{{cep_entrega}}", desc: "CEP de entrega" },
   { var: "{{prazo_entrega}}", desc: "Prazo de entrega" },
+  { var: "{{prazo_entrega_fornecedor}}", desc: "Prazo de entrega do fornecedor" },
   { var: "{{projetista}}", desc: "Projetista responsável" },
   { var: "{{valor_tela}}", desc: "Valor de tela" },
   { var: "{{valor_final}}", desc: "Valor final" },
