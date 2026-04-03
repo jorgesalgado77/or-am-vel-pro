@@ -259,7 +259,7 @@ export function ClientTrackingModal({ open, onClose }: Props) {
           <>
             <DialogHeader>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { setStep("lookup"); setTracking(null); setMessages([]); setNewMessage(""); }}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { setStep("lookup"); setTracking(null); setMessages([]); setNewMessage(""); setCpfCnpj(""); setContractNumber(""); }}>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <DialogTitle>Acompanhamento do Projeto</DialogTitle>
