@@ -133,16 +133,16 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
           const hasTech = hasTechData(env);
           return (
             <>
-              <TableRow key={env.id} className="text-xs">
+              <TableRow key={env.id} className={cn("text-xs", incomplete && "border-l-2 border-l-amber-500")}>
                 <TableCell className="py-1.5 px-1">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={cn("h-5 w-5", hasTech ? "text-primary" : "text-muted-foreground/50")}
+                    className={cn("h-5 w-5", incomplete ? "text-amber-500" : hasTech ? "text-primary" : "text-muted-foreground/50")}
                     onClick={() => toggleExpand(env.id)}
-                    title={hasTech ? "Ver dados técnicos extraídos" : "Sem dados técnicos"}
+                    title={incomplete ? `${missing} campo(s) técnico(s) pendente(s)` : hasTech ? "Ver dados técnicos extraídos" : "Sem dados técnicos"}
                   >
-                    {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    {incomplete && !isExpanded ? <AlertCircle className="h-3 w-3" /> : isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   </Button>
                 </TableCell>
                 <TableCell className="py-1.5 font-medium">
