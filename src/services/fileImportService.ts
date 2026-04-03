@@ -15,6 +15,7 @@ export interface ParsedFileResult {
   complemento?: string;
   modelo?: string;
   software?: "promob" | "focco" | "gabster" | "generico";
+  fileFormat?: "XML" | "TXT" | "PROMOB";
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
