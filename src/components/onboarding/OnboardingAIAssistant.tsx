@@ -79,9 +79,20 @@ export function OnboardingAIAssistant() {
   const currentUserId = typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null;
   const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId);
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [input, setInput] = useState("");
   const [compactMode, setCompactMode] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+
+  // Smooth close with animation
+  const closeChat = useCallback(() => {
+    setClosing(true);
+    setTimeout(() => {
+      closeChat();
+      setFullscreen(false);
+      setClosing(false);
+    }, 250);
+  }, []);
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -413,7 +424,7 @@ export function OnboardingAIAssistant() {
       )}
 
       {/* Chat panel — responsive: full-screen on mobile, floating on desktop */}
-      {open && (
+      {(open || closing) && (
         <div
           className={cn(
             "fixed z-50 flex flex-col overflow-hidden border border-border bg-background shadow-2xl transition-all duration-300",
@@ -423,7 +434,9 @@ export function OnboardingAIAssistant() {
                   "inset-0 rounded-none",
                   "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:h-[min(85dvh,680px)] sm:rounded-2xl"
                 ),
-            !prefersReducedMotion && "animate-in slide-in-from-bottom-4 duration-300"
+            !prefersReducedMotion && (closing
+              ? "animate-fade-out opacity-0 scale-95 translate-y-4"
+              : "animate-in slide-in-from-bottom-4 duration-300")
           )}
         >
           {/* Header */}
@@ -499,7 +512,7 @@ export function OnboardingAIAssistant() {
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
-              onClick={() => { setOpen(false); setFullscreen(false); }}
+              onClick={closeChat}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -563,7 +576,7 @@ export function OnboardingAIAssistant() {
                       variant="outline"
                       className="h-6 text-[10px] gap-1 px-2"
                       onClick={() => {
-                        setOpen(false);
+                        closeChat();
                         window.dispatchEvent(new CustomEvent("navigate-to-settings", { detail: { subtab: "apis" } }));
                       }}
                     >
@@ -594,7 +607,7 @@ export function OnboardingAIAssistant() {
             >
               <div className="p-3 space-y-3">
                 {messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} onCloseChat={() => { setOpen(false); setFullscreen(false); }} />
+                  <MessageBubble key={msg.id} message={msg} onCloseChat={closeChat} />
                 ))}
                 {loading && (
                   <div className="flex items-start gap-2 px-1 py-2">
@@ -688,19 +701,19 @@ export function OnboardingAIAssistant() {
               <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("criar tarefa")}>
                 <ListTodo className="h-3 w-3" /> Criar Tarefa
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("tarefas"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("tarefas"); }}>
                 <ListTodo className="h-3 w-3" /> Tarefas
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("suporte"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("suporte"); }}>
                 <Headset className="h-3 w-3" /> Suporte
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("tutoriais"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("tutoriais"); }}>
                 <GraduationCap className="h-3 w-3" /> Tutoriais
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("financeiro"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("financeiro"); }}>
                 <DollarSign className="h-3 w-3" /> Financeiro
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("configuracoes"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("configuracoes"); }}>
                 <Settings className="h-3 w-3" /> Config
               </Button>
               <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("criar lembrete: ")}>
