@@ -70,26 +70,65 @@ const isIncomplete = (env: ImportedEnvironment) =>
 const missingCount = (env: ImportedEnvironment) =>
   REQUIRED_TECH_KEYS.filter(k => !env[k]?.trim()).length;
 
-/* ── Tech Templates (localStorage) ─────────────────────────────── */
-
-const TEMPLATES_STORAGE_KEY = "tech-field-templates";
+/* ── Tech Templates (Supabase) ──────────────────────────────────── */
 
 interface TechTemplate {
   id: string;
   name: string;
   values: Record<TechField, string>;
-  createdAt: string;
 }
 
-function loadTemplates(): TechTemplate[] {
-  try {
-    const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
+function useTechTemplates() {
+  const [templates, setTemplates] = useState<TechTemplate[]>([]);
+  const [loading, setLoading] = useState(false);
 
-function saveTemplates(templates: TechTemplate[]) {
-  localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+  const fetchTemplates = useCallback(async () => {
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("tech_field_templates" as any)
+      .select("id, name, corpo, porta, puxador, complemento, modelo, fornecedor")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (!error && data) {
+      setTemplates((data as any[]).map(r => ({
+        id: r.id,
+        name: r.name,
+        values: { corpo: r.corpo || "", porta: r.porta || "", puxador: r.puxador || "", complemento: r.complemento || "", modelo: r.modelo || "", fornecedor: r.fornecedor || "" },
+      })));
+    }
+    setLoading(false);
+  }, []);
+
+  const saveTemplate = useCallback(async (name: string, values: Record<TechField, string>) => {
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await supabase.from("tech_field_templates" as any).insert({
+      tenant_id: tenantId,
+      name,
+      corpo: values.corpo,
+      porta: values.porta,
+      puxador: values.puxador,
+      complemento: values.complemento,
+      modelo: values.modelo,
+      fornecedor: values.fornecedor,
+      created_by: userData?.user?.id || null,
+    } as any);
+    if (error) { toast.error("Erro ao salvar template"); return; }
+    toast.success(`Template "${name}" salvo`);
+    await fetchTemplates();
+  }, [fetchTemplates]);
+
+  const deleteTemplate = useCallback(async (id: string) => {
+    const { error } = await supabase.from("tech_field_templates" as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir template"); return; }
+    setTemplates(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  return { templates, loading, fetchTemplates, saveTemplate, deleteTemplate };
 }
 
 /* ── Batch Fill Panel ──────────────────────────────────────────── */
@@ -105,10 +144,16 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
   });
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [applied, setApplied] = useState(false);
-  const [templates, setTemplates] = useState<TechTemplate[]>(loadTemplates);
+  const { templates, loading: templatesLoading, fetchTemplates, saveTemplate, deleteTemplate } = useTechTemplates();
   const [templateName, setTemplateName] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+
+  // Fetch templates on first open of popover
+  const handleOpenTemplateMenu = useCallback((open: boolean) => {
+    setTemplateMenuOpen(open);
+    if (open) fetchTemplates();
+  }, [fetchTemplates]);
 
   const hasAnyValue = Object.values(batchValues).some(v => v.trim());
 
@@ -127,22 +172,13 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
     setTimeout(() => setApplied(false), 2000);
   }, [batchValues, environments, onUpdateTechnical, overwriteExisting, hasAnyValue]);
 
-  const handleSaveTemplate = useCallback(() => {
+  const handleSaveTemplate = useCallback(async () => {
     const name = templateName.trim();
     if (!name || !hasAnyValue) return;
-    const newTemplate: TechTemplate = {
-      id: crypto.randomUUID(),
-      name,
-      values: { ...batchValues },
-      createdAt: new Date().toISOString(),
-    };
-    const updated = [newTemplate, ...templates].slice(0, 10);
-    setTemplates(updated);
-    saveTemplates(updated);
+    await saveTemplate(name, batchValues);
     setTemplateName("");
     setShowSaveInput(false);
-    toast.success(`Template "${name}" salvo`);
-  }, [templateName, batchValues, templates, hasAnyValue]);
+  }, [templateName, batchValues, hasAnyValue, saveTemplate]);
 
   const handleLoadTemplate = useCallback((template: TechTemplate) => {
     setBatchValues({ ...template.values });
@@ -150,12 +186,10 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
     toast.success(`Template "${template.name}" carregado`);
   }, []);
 
-  const handleDeleteTemplate = useCallback((id: string, e: React.MouseEvent) => {
+  const handleDeleteTemplate = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = templates.filter(t => t.id !== id);
-    setTemplates(updated);
-    saveTemplates(updated);
-  }, [templates]);
+    await deleteTemplate(id);
+  }, [deleteTemplate]);
 
   return (
     <div className="border border-dashed border-primary/30 rounded-md p-3 bg-primary/5">
