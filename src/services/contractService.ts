@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/financing";
 import { FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
+import { normalizeImportedTemplateBindings } from "@/services/contractTemplateNormalizer";
 
 /** Convert masked currency string (e.g. "R$ 5.000,00") or number to a numeric value */
 function toNumber(val: string | number | undefined | null): number {
@@ -239,6 +240,36 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
   let html = templateHtml;
   Object.entries(replacements).forEach(([key, val]) => {
     html = html.split(key).join(val);
+  });
+
+  html = normalizeImportedTemplateBindings(html, {
+    nomeCliente: replacements["{{nome_cliente}}"],
+    cpfCliente: replacements["{{cpf_cliente}}"],
+    rgInscricaoEstadual: replacements["{{rg_insc_estadual}}"],
+    telefoneCliente: replacements["{{telefone_cliente}}"],
+    emailCliente: replacements["{{email_cliente}}"],
+    numeroOrcamento: replacements["{{numero_orcamento}}"],
+    numeroContrato: replacements["{{numero_contrato}}"],
+    dataFechamento: replacements["{{data_fechamento}}"],
+    responsavelVenda: replacements["{{responsavel_venda}}"],
+    dataNascimento: replacements["{{data_nascimento}}"],
+    profissao: replacements["{{profissao}}"],
+    endereco: replacements["{{endereco}}"],
+    bairro: replacements["{{bairro}}"],
+    cidade: replacements["{{cidade}}"],
+    uf: replacements["{{uf}}"],
+    cep: replacements["{{cep}}"],
+    prazoEntrega: replacements["{{prazo_entrega}}"],
+    formaPagamento: replacements["{{forma_pagamento}}"],
+    valorTela: replacements["{{valor_tela}}"],
+    valorFinal: replacements["{{valor_final}}"],
+    valorEntrada: replacements["{{valor_entrada}}"],
+    valorParcela: replacements["{{valor_parcela}}"],
+    parcelasResumo: `${replacements["{{parcelas}}"]}x de ${replacements["{{valor_parcela}}"]}`,
+    garantia: replacements["{{garantia}}"],
+    prazoGarantia: replacements["{{prazo_garantia}}"],
+    validadeProposta: replacements["{{validade_proposta}}"],
+    condicoesPagamento: replacements["{{condicoes_pagamento}}"],
   });
 
   return html;

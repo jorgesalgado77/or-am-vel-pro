@@ -91,4 +91,27 @@ describe("buildContractHtml", () => {
     const html = buildContractHtml(template, data);
     expect(html).toContain("Fornecedor geral: 30 dias úteis, 45 dias úteis");
   });
+
+  it("overrides static imported template values with the current saved data", () => {
+    const importedTemplate = `
+      <p><strong>Cliente:</strong> Maria Antiga</p>
+      <p><strong>CPF:</strong> 999.999.999-99</p>
+      <p><strong>Nº do Contrato:</strong> CT-OLD</p>
+      <p><strong>Forma de Pagamento:</strong> Boleto antigo</p>
+      <p><strong>Valor Final:</strong> R$ 1.000,00</p>
+      <p><strong>Entrada:</strong> R$ 100,00</p>
+      <p><strong>Parcelas:</strong> 2x de R$ 450,00</p>
+    `;
+
+    const html = buildContractHtml(importedTemplate, data);
+
+    expect(html).toContain("<strong>Cliente:</strong> João Silva");
+    expect(html).toContain("<strong>CPF:</strong> 123.456.789-00");
+    expect(html).toContain("<strong>Nº do Contrato:</strong> ORC-001");
+    expect(html).toContain("<strong>Valor Final:</strong> R$ 8.000,00");
+    expect(html).toContain("<strong>Entrada:</strong> R$ 1.000,00");
+    expect(html).toContain("<strong>Parcelas:</strong> 10x de R$ 800,00");
+    expect(html).not.toContain("Maria Antiga");
+    expect(html).not.toContain("CT-OLD");
+  });
 });
