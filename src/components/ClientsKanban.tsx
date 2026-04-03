@@ -141,13 +141,16 @@ export function ClientsKanban({
       }
       const { start, end } = effectiveDates;
       if (start || end) {
-        const clientDate = new Date(c.created_at);
-        if (start && isBefore(clientDate, startOfDay(start))) return false;
-        if (end && isAfter(clientDate, endOfDay(end))) return false;
+        // Use the most recent date between created_at and last simulation date
+        const clientCreated = new Date(c.created_at);
+        const lastSimDate = lastSims[c.id]?.created_at ? new Date(lastSims[c.id].created_at) : null;
+        const relevantDate = lastSimDate && lastSimDate > clientCreated ? lastSimDate : clientCreated;
+        if (start && isBefore(relevantDate, startOfDay(start))) return false;
+        if (end && isAfter(relevantDate, endOfDay(end))) return false;
       }
       return true;
     });
-  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus]);
+  }, [localClients, search, filterProjetista, filterIndicador, filterTemperature, filterTipoCliente, effectiveDates, currentUser, cargoNome, liberadorMonth, measurementStatus, lastSims]);
 
   const isGerente = cargoNome.includes("gerente") && !isGerenteTecnico;
   const activeColumns = isTechnicalRole ? KANBAN_COLUMNS_TECNICO : (isAdmin || isGerente) ? KANBAN_ALL_COLUMNS : KANBAN_COLUMNS;

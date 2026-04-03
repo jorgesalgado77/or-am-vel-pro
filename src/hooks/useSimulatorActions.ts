@@ -302,6 +302,90 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
         .insert([{ tenant_id: resolvedTenantId, user_id: currentUser?.id || null, client_id: client.id, event_type: "deal_closed", strategy_used: "outro", price_offered: result.valorFinal, discount_percentage: Math.max(0, totalDiscPct), deal_result: "ganho", lead_temperature: client.status || "novo" }]);
     } catch {}
+
+    // Smart Catalog: subtract stock or create purchase task for admin
+    if (catalogProducts.length > 0 && resolvedTenantId) {
+      try {
+        for (const cp of catalogProducts) {
+          const { data: productData } = await (supabase as any)
+            .from("products")
+            .select("id, stock_quantity, supplier_id")
+            .eq("id", cp.product.id)
+            .single();
+          if (!productData) continue;
+
+          const currentStock = Number(productData.stock_quantity) || 0;
+          if (currentStock >= cp.quantity) {
+            // Subtract sold quantity from stock
+            const newStock = currentStock - cp.quantity;
+            await (supabase as any).from("products").update({
+              stock_quantity: newStock,
+              stock_status: newStock === 0 ? "indisponivel" : newStock <= 3 ? "sob_encomenda" : "em_estoque",
+            }).eq("id", cp.product.id);
+          } else {
+            // No sufficient stock: create purchase task for admin
+            // Find admin users
+            const { data: adminUsers } = await supabase
+              .from("usuarios" as any)
+              .select("id, nome_completo, cargos:cargo_id(nome)")
+              .eq("tenant_id", resolvedTenantId);
+
+            const admins = (adminUsers || []).filter((u: any) => {
+              const cargoName = u.cargos?.nome?.toLowerCase() || "";
+              return cargoName.includes("administrador");
+            });
+
+            // Get supplier name
+            let supplierName = "Não informado";
+            if (productData.supplier_id) {
+              const { data: supplierData } = await supabase
+                .from("suppliers" as any)
+                .select("nome")
+                .eq("id", productData.supplier_id)
+                .single();
+              if (supplierData) supplierName = (supplierData as any).nome;
+            }
+
+            const qtdFaltante = cp.quantity - currentStock;
+            const taskDesc = [
+              `🛒 **Compra necessária**`,
+              `• Cliente: ${client.nome}`,
+              `• Contrato: ${closeSaleFormData?.numero_contrato || "N/A"}`,
+              `• Produto: ${cp.product.name} (${cp.product.internal_code})`,
+              `• Qtd vendida: ${cp.quantity} | Em estoque: ${currentStock} | Faltam: ${qtdFaltante}`,
+              `• Valor unitário: ${formatCurrency(cp.product.sale_price)}`,
+              `• Valor total: ${formatCurrency(cp.product.sale_price * cp.quantity)}`,
+              `• Fornecedor: ${supplierName}`,
+            ].join("\n");
+
+            // If stock was partial, subtract what existed
+            if (currentStock > 0) {
+              await (supabase as any).from("products").update({
+                stock_quantity: 0,
+                stock_status: "indisponivel",
+              }).eq("id", cp.product.id);
+            }
+
+            for (const admin of admins) {
+              await (supabase as any).from("tasks").insert({
+                tenant_id: resolvedTenantId,
+                titulo: `Compra: ${cp.product.name} (${cp.product.internal_code})`,
+                descricao: taskDesc,
+                data_tarefa: new Date().toISOString().slice(0, 10),
+                tipo: "geral",
+                status: "nova",
+                responsavel_id: (admin as any).id,
+                responsavel_nome: (admin as any).nome_completo,
+                criado_por: currentUser?.id || null,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[SmartCatalog] Erro ao processar estoque:", err);
+      }
+    }
+
     toast.success("Venda fechada! Contrato gerado, comissões criadas e salvo.");
     setContractEditorOpen(false); setPendingSimId(null); setPendingTemplateId(null); setClosingSale(false);
   }, [client, pendingSimId, pendingTemplateId, resolvedTenantId, valorTela, valorTelaComComissao, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, closeSaleFormData, currentUser, recordSale]);
