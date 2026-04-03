@@ -2,6 +2,7 @@
  * ProductCatalog — Full product catalog management UI
  */
 import { useState, useRef, useCallback } from "react";
+import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
