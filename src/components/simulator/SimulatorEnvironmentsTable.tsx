@@ -207,7 +207,12 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-56 p-1" align="end">
-              {templates.length === 0 ? (
+              {templatesLoading ? (
+                <div className="flex items-center justify-center py-3 gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">Carregando...</span>
+                </div>
+              ) : templates.length === 0 ? (
                 <p className="text-[10px] text-muted-foreground text-center py-3">Nenhum template salvo</p>
               ) : (
                 <div className="max-h-48 overflow-y-auto">
