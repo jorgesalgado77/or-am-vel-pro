@@ -345,7 +345,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                               <Input
                                 value={env[key] || ""}
                                 onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
-                                className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30")}
+                                className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30", isEmpty && isRequired && highlightIncomplete && "ring-2 ring-amber-500/60 animate-pulse")}
                                 placeholder={placeholder}
                                 readOnly={!onUpdateTechnical}
                               />
