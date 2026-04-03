@@ -264,7 +264,11 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
             const missing = missingCount(env);
             return (
               <>
-                <TableRow key={env.id} className={cn("text-xs", incomplete && "border-l-2 border-l-amber-500")}>
+                <TableRow key={env.id} className={cn(
+                  "text-xs",
+                  incomplete && "border-l-2 border-l-amber-500",
+                  incomplete && highlightIncomplete && "animate-pulse bg-amber-50/50 dark:bg-amber-950/20"
+                )}>
                   <TableCell className="py-1.5 px-1">
                     <Button
                       variant="ghost"
