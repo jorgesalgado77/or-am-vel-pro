@@ -103,9 +103,9 @@ class MIAOrchestrator {
           const systemKnowledgeCtx = this.systemKnowledge.buildSystemKnowledge(cargoNome);
           promises.push(Promise.resolve(systemKnowledgeCtx));
 
-          const [memoryCtx, insightsCtx, personalizationCtx] = await Promise.all(promises);
+          const [memoryCtx, insightsCtx, personalizationCtx, systemCtx] = await Promise.all(promises);
 
-          const extraContext = (memoryCtx || "") + (insightsCtx || "") + (personalizationCtx || "");
+          const extraContext = (systemCtx || "") + (memoryCtx || "") + (insightsCtx || "") + (personalizationCtx || "");
           if (extraContext) {
             const systemIdx = request.messages.findIndex((m) => m.role === "system");
             if (systemIdx >= 0) {
