@@ -175,44 +175,59 @@ function createParams(overrides: Partial<any> = {}) {
 describe("useSimulatorActions — Close Sale Flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Setup supabase chains for simulations
-    const simChain = (supabase.from as any)("simulations");
-    simChain.select.mockReturnValue(simChain);
-    simChain.insert.mockReturnValue(simChain);
-    simChain.delete.mockReturnValue(simChain);
-    simChain.eq.mockReturnValue(simChain);
-    simChain.in.mockReturnValue(simChain);
-    simChain.order.mockReturnValue(simChain);
-    simChain.single.mockResolvedValue({ data: { id: "sim-001" }, error: null });
-    // existing sims query
-    simChain.select.mockImplementation(() => {
-      const q: any = {};
-      q.eq = vi.fn(() => q);
-      q.order = vi.fn(() => Promise.resolve({ data: [], error: null }));
-      return q;
-    });
-    // insert chain
-    simChain.insert.mockImplementation(() => {
-      const q: any = {};
-      q.select = vi.fn(() => q);
-      q.single = vi.fn(() => Promise.resolve({ data: { id: "sim-001" }, error: null }));
-      return q;
-    });
 
-    // Setup template chain
-    const templateChain = (supabase.from as any)("contract_templates");
-    templateChain.select.mockReturnValue(templateChain);
-    templateChain.eq.mockReturnValue(templateChain);
-    templateChain.order.mockReturnValue(templateChain);
-    templateChain.limit.mockReturnValue(templateChain);
-    templateChain.maybeSingle.mockResolvedValue({
-      data: { id: "tpl-001", nome: "Template", conteudo_html: "<h1>Contract</h1>" },
-      error: null,
-    });
+    // Generic fallback chain for any table (ai_learning_events etc.)
+    const fallbackChain = () => {
+      const c: any = {};
+      const thenable = Object.assign(Promise.resolve({ data: null, error: null }), c);
+      c.select = vi.fn(() => thenable);
+      c.insert = vi.fn(() => thenable);
+      c.delete = vi.fn(() => thenable);
+      c.update = vi.fn(() => thenable);
+      c.eq = vi.fn(() => thenable);
+      c.in = vi.fn(() => thenable);
+      c.order = vi.fn(() => thenable);
+      c.limit = vi.fn(() => thenable);
+      c.single = vi.fn(() => Promise.resolve({ data: null, error: null }));
+      c.maybeSingle = vi.fn(() => Promise.resolve({ data: null, error: null }));
+      c.then = (fn: any) => Promise.resolve({ data: null, error: null }).then(fn);
+      return c;
+    };
 
-    // Setup contract chain
-    const contractChain = (supabase.from as any)("client_contracts");
-    contractChain.insert.mockResolvedValue({ error: null });
+    (supabase.from as any).mockImplementation((table: string) => {
+      if (table === "simulations") {
+        const c = fallbackChain();
+        c.select.mockImplementation(() => {
+          const q: any = {};
+          q.eq = vi.fn(() => q);
+          q.order = vi.fn(() => Promise.resolve({ data: [], error: null }));
+          return q;
+        });
+        c.insert.mockImplementation(() => {
+          const q: any = {};
+          q.select = vi.fn(() => q);
+          q.single = vi.fn(() => Promise.resolve({ data: { id: "sim-001" }, error: null }));
+          return q;
+        });
+        return c;
+      }
+      if (table === "contract_templates") {
+        const c = fallbackChain();
+        c.select.mockImplementation(() => {
+          const q: any = {};
+          q.eq = vi.fn(() => q);
+          q.order = vi.fn(() => q);
+          q.limit = vi.fn(() => q);
+          q.maybeSingle = vi.fn(() => Promise.resolve({
+            data: { id: "tpl-001", nome: "Template", conteudo_html: "<h1>Contract</h1>" },
+            error: null,
+          }));
+          return q;
+        });
+        return c;
+      }
+      return fallbackChain();
+    });
   });
 
   it("handleCloseSale shows error toast when no client is selected", async () => {
