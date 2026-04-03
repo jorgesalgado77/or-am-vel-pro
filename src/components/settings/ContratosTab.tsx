@@ -71,6 +71,15 @@ const AVAILABLE_VARIABLES = [
   { var: "{{itens_detalhes}}", desc: "Detalhes dos itens (materiais)" },
   { var: "{{total_ambientes}}", desc: "Total dos ambientes" },
   { var: "{{produtos_catalogo}}", desc: "Tabela de produtos do catálogo" },
+  { var: "{{prazo_entrega_ambiente_N}}", desc: "Prazo de entrega do ambiente N (ex: _1, _2...)" },
+  { var: "{{nome_ambiente_N}}", desc: "Nome/descrição do ambiente N" },
+  { var: "{{fornecedor_ambiente_N}}", desc: "Fornecedor do ambiente N" },
+  { var: "{{valor_ambiente_N}}", desc: "Valor do ambiente N" },
+  { var: "{{corpo_ambiente_N}}", desc: "Corpo do ambiente N" },
+  { var: "{{porta_ambiente_N}}", desc: "Porta do ambiente N" },
+  { var: "{{puxador_ambiente_N}}", desc: "Puxador do ambiente N" },
+  { var: "{{complemento_ambiente_N}}", desc: "Complemento do ambiente N" },
+  { var: "{{modelo_ambiente_N}}", desc: "Modelo do ambiente N" },
 ];
 
 export function ContratosTab() {
