@@ -105,6 +105,24 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
       : "",
   };
 
+  // Dynamic per-environment variables: {{prazo_entrega_ambiente_1}}, {{nome_ambiente_1}}, etc.
+  items.forEach((it: any, i: number) => {
+    const n = i + 1;
+    replacements[`{{prazo_entrega_ambiente_${n}}}`] = it.prazo || "";
+    replacements[`{{nome_ambiente_${n}}}`] = it.descricao_ambiente || "";
+    replacements[`{{fornecedor_ambiente_${n}}}`] = it.fornecedor || "";
+    replacements[`{{valor_ambiente_${n}}}`] = formatCurrency(it.valor_ambiente || 0);
+  });
+  // Also add detail fields per environment
+  itemDetails.forEach((d: any) => {
+    const n = d.item_num;
+    replacements[`{{corpo_ambiente_${n}}}`] = d.corpo || "";
+    replacements[`{{porta_ambiente_${n}}}`] = d.porta || "";
+    replacements[`{{puxador_ambiente_${n}}}`] = d.puxador || "";
+    replacements[`{{complemento_ambiente_${n}}}`] = d.complemento || "";
+    replacements[`{{modelo_ambiente_${n}}}`] = d.modelo || "";
+  });
+
   let html = templateHtml;
   Object.entries(replacements).forEach(([key, val]) => {
     html = html.split(key).join(val);
