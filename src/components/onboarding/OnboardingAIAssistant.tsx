@@ -82,6 +82,7 @@ export function OnboardingAIAssistant() {
   const { currentUser } = useCurrentUser();
   const currentUserId = currentUser?.id || (typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null);
   const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId, currentUser?.cargo_nome);
+  useMIACriticalToasts(tenantId, currentUserId, currentUser?.cargo_nome || null);
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [input, setInput] = useState("");
@@ -92,7 +93,7 @@ export function OnboardingAIAssistant() {
   const closeChat = useCallback(() => {
     setClosing(true);
     setTimeout(() => {
-      closeChat();
+      setOpen(false);
       setFullscreen(false);
       setClosing(false);
     }, 250);
