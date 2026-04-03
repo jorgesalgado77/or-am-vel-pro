@@ -698,6 +698,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                   </div>
                 </CardContent>
               </Card>
+            )}
 
             {/* Observações */}
             <Card>
