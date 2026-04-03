@@ -28,11 +28,12 @@ export interface ImportedEnvironment {
   puxador?: string;
   complemento?: string;
   modelo?: string;
+  prazo?: string;
   fileFormat?: "XML" | "TXT" | "PROMOB";
   modules?: ParsedModule[];
 }
 
-type TechField = keyof Pick<ImportedEnvironment, "corpo" | "porta" | "puxador" | "complemento" | "modelo" | "fornecedor">;
+type TechField = keyof Pick<ImportedEnvironment, "corpo" | "porta" | "puxador" | "complemento" | "modelo" | "fornecedor" | "prazo">;
 
 interface Props {
   environments: ImportedEnvironment[];
@@ -44,12 +45,13 @@ interface Props {
 }
 
 const TECH_FIELDS: { key: TechField; label: string; placeholder: string }[] = [
-  { key: "corpo", label: "Corpo", placeholder: "15mm Branco" },
-  { key: "porta", label: "Porta", placeholder: "18mm Grafite" },
+  { key: "corpo", label: "Corpo (esp./cor)", placeholder: "15mm Branco" },
+  { key: "porta", label: "Porta (esp./cor)", placeholder: "18mm Grafite" },
   { key: "puxador", label: "Puxador", placeholder: "Modelo / Cor" },
   { key: "complemento", label: "Complemento", placeholder: "Dobradiças, corrediças..." },
   { key: "modelo", label: "Modelo", placeholder: "Linha / Coleção" },
   { key: "fornecedor", label: "Fornecedor", placeholder: "Fabricante" },
+  { key: "prazo", label: "Prazo", placeholder: "30 dias / Sob consulta" },
 ];
 
 const REQUIRED_TECH_KEYS: TechField[] = ["corpo", "porta", "puxador", "fornecedor"];
