@@ -108,14 +108,29 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
 
   return (
     <div>
-      {environments.some(hasTechData) && (
-        <div className="flex justify-end mb-1">
-          <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground gap-1" onClick={toggleAll}>
-            {allExpanded ? <ChevronsUpDown className="h-3 w-3" /> : <ChevronsUpDown className="h-3 w-3" />}
-            {allExpanded ? "Recolher Todos" : "Expandir Todos"}
-          </Button>
-        </div>
-      )}
+      {(() => {
+        const incompleteCount = environments.filter(isIncomplete).length;
+        return (
+          <div className="flex items-center justify-between mb-1">
+            {incompleteCount > 0 ? (
+              <div className="flex items-center gap-1.5 text-amber-500">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span className="text-[11px] font-medium">
+                  {incompleteCount} {incompleteCount === 1 ? "ambiente" : "ambientes"} com campos pendentes
+                </span>
+              </div>
+            ) : environments.length > 0 ? (
+              <span className="text-[11px] text-muted-foreground">✓ Todos os campos técnicos preenchidos</span>
+            ) : <span />}
+            {environments.some(hasTechData) && (
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground gap-1" onClick={toggleAll}>
+                <ChevronsUpDown className="h-3 w-3" />
+                {allExpanded ? "Recolher Todos" : "Expandir Todos"}
+              </Button>
+            )}
+          </div>
+        );
+      })()}
     <Table>
       <TableHeader>
         <TableRow className="bg-muted/30">
