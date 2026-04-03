@@ -155,24 +155,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   useEffect(() => {
     const tenantId = getTenantId();
     if (!tenantId) return;
-    // Load prazos
-    supabase.from("tenant_settings" as any)
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("chave", "prazos_entrega")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data && (data as any).valor) {
-          try { setDeliveryDeadlines(JSON.parse((data as any).valor)); } catch {}
-        } else {
-          setDeliveryDeadlines([
-            { id: "1", label: "30 dias úteis", dias: 30 },
-            { id: "2", label: "45 dias úteis", dias: 45 },
-            { id: "3", label: "60 dias úteis", dias: 60 },
-            { id: "4", label: "90 dias úteis", dias: 90 },
-          ]);
-        }
-      });
+    // Delivery deadlines now handled by PrazoEntregaSelect component
     // Load fornecedores
     supabase.from("tenant_settings" as any)
       .select("*")
