@@ -199,7 +199,7 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
         <span className="text-[10px] text-muted-foreground ml-1">— preencha e aplique a todos os ambientes</span>
         <div className="ml-auto flex items-center gap-1">
           {/* Load template */}
-          <Popover open={templateMenuOpen} onOpenChange={setTemplateMenuOpen}>
+          <Popover open={templateMenuOpen} onOpenChange={handleOpenTemplateMenu}>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="sm" className="h-5 text-[9px] gap-1 text-muted-foreground">
                 <FolderOpen className="h-3 w-3" />
