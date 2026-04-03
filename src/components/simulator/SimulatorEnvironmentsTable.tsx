@@ -225,7 +225,7 @@ interface BatchFillProps {
 
 function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
   const [batchValues, setBatchValues] = useState<Record<TechField, string>>({
-    corpo: "", porta: "", puxador: "", complemento: "", modelo: "", fornecedor: "",
+    corpo: "", porta: "", puxador: "", complemento: "", modelo: "", fornecedor: "", prazo: "",
   });
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [applied, setApplied] = useState(false);
