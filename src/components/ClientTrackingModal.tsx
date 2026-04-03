@@ -92,13 +92,44 @@ export function ClientTrackingModal({ open, onClose }: Props) {
         .limit(1)
         .maybeSingle();
 
-      if (error || !data) {
+      if (data && !error) {
+        setTracking(data as any);
+        await fetchMessages((data as any).id);
+        setStep("tracking");
+        return;
+      }
+
+      const { data: transaction } = await supabase
+        .from("dealroom_transactions")
+        .select("client_id, numero_contrato, nome_cliente, valor_venda, created_at, nome_vendedor")
+        .eq("numero_contrato", contractNumber.trim())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!transaction?.client_id) {
         toast.error("Contrato não encontrado");
         return;
       }
 
-      setTracking(data as any);
-      await fetchMessages((data as any).id);
+      const { data: client } = await supabase
+        .from("clients")
+        .select("cpf, quantidade_ambientes")
+        .eq("id", transaction.client_id)
+        .maybeSingle();
+
+      setTracking({
+        id: `fallback-${transaction.client_id}`,
+        numero_contrato: transaction.numero_contrato || contractNumber.trim(),
+        nome_cliente: transaction.nome_cliente || "Cliente",
+        cpf_cnpj: client?.cpf || null,
+        quantidade_ambientes: Number(client?.quantidade_ambientes) || 0,
+        valor_contrato: Number(transaction.valor_venda) || 0,
+        data_fechamento: transaction.created_at,
+        projetista: transaction.nome_vendedor || null,
+        status: "medicao",
+      });
+      setMessages([]);
       setStep("tracking");
     } catch {
       toast.error("Erro ao buscar contrato");
