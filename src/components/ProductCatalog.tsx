@@ -73,13 +73,14 @@ interface ProductFormData {
   stock_quantity: number;
   stock_status: string;
   video_url: string;
+  link_url: string;
 }
 
 const emptyForm: ProductFormData = {
   name: "", internal_code: "", description: "", category: "geral",
   width: 0, height: 0, depth: 0, cost_price: 0, markup_percentage: 50,
   min_sale_price: 0, manufacturer_code: "", environment: "", environment_custom: "",
-  supplier_id: "", stock_quantity: 0, stock_status: "em_estoque", video_url: "",
+  supplier_id: "", stock_quantity: 0, stock_status: "em_estoque", video_url: "", link_url: "",
 };
 
 interface SupplierFormData {
