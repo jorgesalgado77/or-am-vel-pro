@@ -212,7 +212,9 @@ export function ClientTrackingModal({ open, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => {
         if (!o) {
           setStep("lookup");
+          setSearchMode("contrato");
           setContractNumber("");
+          setCpfCnpj("");
           setTracking(null);
           setMessages([]);
           setNewMessage("");
