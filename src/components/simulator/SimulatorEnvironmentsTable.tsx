@@ -653,10 +653,25 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                     </div>
                   </TableCell>
                   <TableCell className="py-1.5 text-center">{env.pieceCount || "—"}</TableCell>
-                  <TableCell className="py-1.5 text-right tabular-nums">{formatCurrency(env.totalValue)}</TableCell>
-                  <TableCell className="py-1.5 text-center text-muted-foreground">
-                    {format(env.importedAt, "dd/MM HH:mm")}
+                  <TableCell className="py-1.5">
+                    <Input
+                      value={env.fornecedor || ""}
+                      onChange={(e) => onUpdateTechnical?.(env.id, "fornecedor", e.target.value)}
+                      className="h-6 text-[11px] bg-transparent border-none p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      placeholder="Selecionar..."
+                      readOnly={!onUpdateTechnical}
+                    />
                   </TableCell>
+                  <TableCell className="py-1.5">
+                    <Input
+                      value={env.prazo || ""}
+                      onChange={(e) => onUpdateTechnical?.(env.id, "prazo", e.target.value)}
+                      className="h-6 text-[11px] bg-transparent border-none p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      placeholder="Selecionar..."
+                      readOnly={!onUpdateTechnical}
+                    />
+                  </TableCell>
+                  <TableCell className="py-1.5 text-right tabular-nums">{formatCurrency(env.totalValue)}</TableCell>
                   <TableCell className="py-1.5 text-center">
                     <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => onRemove(env.id)}>
                       <Trash2 className="h-3 w-3" />
