@@ -52,11 +52,21 @@ const TECH_FIELDS: { key: TechField; label: string; placeholder: string }[] = [
 
 const REQUIRED_TECH_KEYS: TechField[] = ["corpo", "porta", "puxador", "fornecedor"];
 
-function TechBadge({ value, label }: { value?: string; label: string }) {
-  if (!value) return null;
+function TechBadge({ value, label, required }: { value?: string; label: string; required?: boolean }) {
+  if (!value && !required) return null;
+  const filled = !!value?.trim();
   return (
-    <Badge variant="outline" className="text-[9px] font-normal gap-0.5 py-0 h-4">
-      <span className="text-muted-foreground">{label}:</span> {value}
+    <Badge
+      variant="outline"
+      className={cn(
+        "text-[9px] font-normal gap-0.5 py-0 h-4",
+        filled
+          ? "border-emerald-500/50 bg-emerald-50/50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400"
+          : "border-amber-500/50 bg-amber-50/50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400"
+      )}
+    >
+      {filled ? <Check className="h-2.5 w-2.5" /> : <AlertCircle className="h-2.5 w-2.5" />}
+      <span className="text-muted-foreground">{label}</span>{filled ? `: ${value}` : ""}
     </Badge>
   );
 }
