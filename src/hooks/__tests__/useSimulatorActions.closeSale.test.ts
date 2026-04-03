@@ -303,7 +303,7 @@ describe("useSimulatorActions — Close Sale Flow", () => {
 
     expect(returnValue).toBe(false);
     expect(toast.error).toHaveBeenCalledWith(
-      expect.stringContaining("nenhum cliente está vinculado"),
+      expect.stringContaining("vincule um cliente"),
       expect.any(Object)
     );
   });
