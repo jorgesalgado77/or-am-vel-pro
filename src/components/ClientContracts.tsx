@@ -162,7 +162,7 @@ export function ClientContracts({ client, onBack }: ClientContractsProps) {
           onClose={() => setEditingContract(null)}
           initialHtml={editingContract.conteudo_html}
           clientName={client.nome}
-          onConfirm={handleSaveEdit}
+          onSave={async (html) => { await handleSaveEdit(html); return editingContract?.id || null; }}
           saving={saving}
         />
       )}

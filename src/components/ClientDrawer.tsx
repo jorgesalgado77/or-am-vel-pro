@@ -463,7 +463,7 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
             onClose={() => setEditingContract(null)}
             initialHtml={editingContract.conteudo_html}
             clientName={client?.nome || "Cliente"}
-            onConfirm={handleSaveContractEdit}
+            onSave={async (html) => { await handleSaveContractEdit(html); return editingContract?.id || null; }}
             saving={savingContract}
           />
         )}
