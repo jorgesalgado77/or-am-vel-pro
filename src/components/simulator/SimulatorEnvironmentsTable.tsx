@@ -91,6 +91,12 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
   const hasTechData = (env: ImportedEnvironment) =>
     !!(env.corpo || env.porta || env.puxador || env.complemento || env.modelo || env.fornecedor);
 
+  const REQUIRED_TECH_KEYS: (keyof Pick<ImportedEnvironment, "corpo" | "porta" | "puxador" | "fornecedor">)[] = ["corpo", "porta", "puxador", "fornecedor"];
+  const isIncomplete = (env: ImportedEnvironment) =>
+    REQUIRED_TECH_KEYS.some(k => !env[k]?.trim());
+  const missingCount = (env: ImportedEnvironment) =>
+    REQUIRED_TECH_KEYS.filter(k => !env[k]?.trim()).length;
+
   const allExpanded = environments.length > 0 && environments.every(env => expandedIds.has(env.id));
   const toggleAll = () => {
     if (allExpanded) {
