@@ -206,7 +206,7 @@ export function useNotificationCenter(userId: string | undefined, userName: stri
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId, userName]);
+  }, [tenantId, userName, userId]);
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.lido).length, [notifications]);
 
