@@ -264,7 +264,7 @@ export function resetToDefaultTheme() {
   props.forEach(p => root.style.removeProperty(p));
 
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, "default");
+    localStorage.setItem(getThemeStorageKey(), "default");
   } catch {}
 }
 

@@ -58,6 +58,7 @@ const DEFAULT_PERMISSOES: CargoPermissoes = {
   ia_gerente: true,
   catalogo: true,
   medicao: false,
+  liberacao: false,
   tutoriais: true,
   email: true,
   cadastrar_produtos: false,
