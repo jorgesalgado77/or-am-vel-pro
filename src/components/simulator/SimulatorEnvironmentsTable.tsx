@@ -76,7 +76,7 @@ function TechBadge({ value, label, required }: { value?: string; label: string; 
 }
 
 const hasTechData = (env: ImportedEnvironment) =>
-  !!(env.corpo || env.porta || env.puxador || env.complemento || env.modelo || env.fornecedor);
+  !!(env.corpo || env.porta || env.puxador || env.complemento || env.modelo || env.fornecedor || env.prazo);
 
 const isIncomplete = (env: ImportedEnvironment) =>
   REQUIRED_TECH_KEYS.some(k => !env[k]?.trim());
