@@ -130,28 +130,17 @@ export function ClientTrackingModal({ open, onClose }: Props) {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !tracking) return;
     setSending(true);
-    try {
-      const res = await fetch(FUNCTION_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "track-message",
-          tracking_id: tracking.id,
-          mensagem: newMessage.trim(),
-          remetente_nome: tracking.nome_cliente,
-        }),
-      });
-      const result = await res.json();
-      if (result.error) toast.error("Erro ao enviar mensagem");
-      else {
-        setNewMessage("");
-        // Re-fetch messages via edge function
-        const msgRes = await fetch(`${FUNCTION_URL}?action=track&numero=${encodeURIComponent(tracking.numero_contrato)}`);
-        const msgData = await msgRes.json();
-        if (msgData.messages) setMessages(msgData.messages);
-      }
-    } catch {
-      toast.error("Erro ao enviar mensagem");
+    const { error } = await supabase.from("tracking_messages").insert({
+      tracking_id: tracking.id,
+      mensagem: newMessage.trim(),
+      remetente_tipo: "cliente",
+      remetente_nome: tracking.nome_cliente,
+      lida: false,
+    } as any);
+    if (error) toast.error("Erro ao enviar mensagem");
+    else {
+      setNewMessage("");
+      await fetchMessages(tracking.id);
     }
     setSending(false);
   };
