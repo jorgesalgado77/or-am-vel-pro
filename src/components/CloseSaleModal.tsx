@@ -71,7 +71,7 @@ interface CloseSaleFormData {
 interface CloseSaleModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (data: CloseSaleFormData, items: SaleItem[], itemDetails: SaleItemDetail[]) => void;
+  onConfirm: (data: CloseSaleFormData, items: SaleItem[], itemDetails: SaleItemDetail[]) => Promise<boolean>;
   client?: Client | null;
   simulationData?: {
     valorFinal: number;
