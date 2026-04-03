@@ -424,7 +424,7 @@ export function OnboardingAIAssistant() {
       )}
 
       {/* Chat panel — responsive: full-screen on mobile, floating on desktop */}
-      {open && (
+      {(open || closing) && (
         <div
           className={cn(
             "fixed z-50 flex flex-col overflow-hidden border border-border bg-background shadow-2xl transition-all duration-300",
@@ -434,7 +434,9 @@ export function OnboardingAIAssistant() {
                   "inset-0 rounded-none",
                   "sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[400px] sm:h-[min(85dvh,680px)] sm:rounded-2xl"
                 ),
-            !prefersReducedMotion && "animate-in slide-in-from-bottom-4 duration-300"
+            !prefersReducedMotion && (closing
+              ? "animate-fade-out opacity-0 scale-95 translate-y-4"
+              : "animate-in slide-in-from-bottom-4 duration-300")
           )}
         >
           {/* Header */}
