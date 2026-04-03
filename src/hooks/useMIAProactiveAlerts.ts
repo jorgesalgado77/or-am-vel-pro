@@ -1,29 +1,47 @@
 /**
- * useMIAProactiveAlerts — Checks for stagnant leads, overdue tasks,
- * unanswered messages and injects proactive alerts into MIA chat.
- * Runs once when the MIA chat opens (debounced per session).
+ * useMIAProactiveAlerts — Cargo-aware proactive alerts for MIA chat.
+ * Vendedor → leads parados, mensagens pendentes
+ * Projetista → medições pendentes, clientes aguardando projeto
+ * Gerente/Admin → KPIs, equipe, visão global
  */
 import { useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 export interface ProactiveAlert {
-  type: "leads_parados" | "tarefas_atrasadas" | "mensagens_pendentes";
+  type: string;
   icon: string;
   title: string;
   detail: string;
   count: number;
+  action?: { label: string; target: string };
 }
 
 const COOLDOWN_KEY = "mia_proactive_last_check";
-const COOLDOWN_MS = 5 * 60 * 1000; // 5 min between checks
+const COOLDOWN_MS = 5 * 60 * 1000;
 
-export function useMIAProactiveAlerts(tenantId: string | null, userId: string | null) {
+type CargoCategory = "gerente" | "vendedor" | "projetista" | "admin" | "outro";
+
+function classifyCargo(cargoNome: string | null): CargoCategory {
+  if (!cargoNome) return "outro";
+  const c = cargoNome.toLowerCase().trim();
+  if (c.includes("gerente")) return "gerente";
+  if (c.includes("administrador") || c.includes("admin")) return "admin";
+  if (c.includes("vendedor") || c.includes("consultor") || c.includes("comercial")) return "vendedor";
+  if (c.includes("projetista") || c.includes("designer") || c.includes("projeto")) return "projetista";
+  return "outro";
+}
+
+export function useMIAProactiveAlerts(
+  tenantId: string | null,
+  userId: string | null,
+  cargoNome?: string | null
+) {
   const runningRef = useRef(false);
+  const cargo = classifyCargo(cargoNome ?? null);
 
   const checkAlerts = useCallback(async (): Promise<ProactiveAlert[]> => {
     if (!tenantId || !userId || runningRef.current) return [];
 
-    // Cooldown: don't spam DB
     const lastCheck = sessionStorage.getItem(COOLDOWN_KEY);
     if (lastCheck && Date.now() - Number(lastCheck) < COOLDOWN_MS) return [];
 
@@ -33,59 +51,165 @@ export function useMIAProactiveAlerts(tenantId: string | null, userId: string | 
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
 
     try {
-      // 1. Leads parados (clients without activity for 2+ days)
-      const { data: stagnantLeads, count: leadsCount } = await supabase
-        .from("clients" as any)
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .in("status", ["novo", "em_atendimento"])
-        .lt("updated_at", twoDaysAgo);
-
-      if ((leadsCount || 0) > 0) {
-        alerts.push({
-          type: "leads_parados",
-          icon: "🚨",
-          title: "Leads parados",
-          detail: `Você tem **${leadsCount}** lead(s) sem movimentação há mais de 2 dias. Recomendo fazer follow-up para não perder a venda!`,
-          count: leadsCount || 0,
-        });
-      }
-
-      // 2. Tarefas atrasadas
-      const { count: overdueCount } = await supabase
+      // === TAREFAS (all cargos — gerente/admin see team, others see own) ===
+      const tasksQuery = supabase
         .from("tasks" as any)
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId)
-        .eq("assigned_to", userId)
         .in("status", ["nova", "pendente", "em_execucao"])
         .lte("data_tarefa", today);
 
+      if (cargo !== "gerente" && cargo !== "admin") {
+        tasksQuery.eq("assigned_to", userId);
+      }
+
+      const { count: overdueCount } = await tasksQuery;
       if ((overdueCount || 0) > 0) {
+        const isTeam = cargo === "gerente" || cargo === "admin";
         alerts.push({
           type: "tarefas_atrasadas",
           icon: "⏰",
-          title: "Tarefas atrasadas",
-          detail: `Existem **${overdueCount}** tarefa(s) vencida(s) ou para hoje. Priorize-as para manter a produtividade!`,
+          title: isTeam ? "Tarefas da equipe atrasadas" : "Tarefas atrasadas",
+          detail: isTeam
+            ? `A equipe tem **${overdueCount}** tarefa(s) vencida(s). Acompanhe e redistribua!`
+            : `Você tem **${overdueCount}** tarefa(s) vencida(s) ou para hoje. Priorize-as!`,
           count: overdueCount || 0,
+          action: { label: "Ver Tarefas", target: "tasks" },
         });
       }
 
-      // 3. Mensagens não respondidas (tracking_messages from clients, unread)
-      const { count: unreadCount } = await supabase
-        .from("tracking_messages" as any)
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("remetente_tipo", "cliente")
-        .eq("lida", false);
+      // === VENDEDOR / OUTRO / ADMIN: Leads & mensagens ===
+      if (cargo === "vendedor" || cargo === "outro" || cargo === "admin") {
+        const { count: leadsCount } = await supabase
+          .from("clients" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .in("status", ["novo", "em_atendimento"])
+          .lt("updated_at", twoDaysAgo);
 
-      if ((unreadCount || 0) > 0) {
+        if ((leadsCount || 0) > 0) {
+          alerts.push({
+            type: "leads_parados",
+            icon: "🚨",
+            title: "Leads parados",
+            detail: `Você tem **${leadsCount}** lead(s) sem movimentação há mais de 2 dias. Faça follow-up!`,
+            count: leadsCount || 0,
+            action: { label: "Ver Leads", target: "clients" },
+          });
+        }
+
+        const { count: unreadCount } = await supabase
+          .from("tracking_messages" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("remetente_tipo", "cliente")
+          .eq("lida", false);
+
+        if ((unreadCount || 0) > 0) {
+          alerts.push({
+            type: "mensagens_pendentes",
+            icon: "💬",
+            title: "Mensagens não respondidas",
+            detail: `Há **${unreadCount}** mensagem(ns) aguardando resposta. Responda rápido!`,
+            count: unreadCount || 0,
+            action: { label: "Ver Mensagens", target: "vendazap-chat" },
+          });
+        }
+      }
+
+      // === GERENTE / ADMIN: KPIs, equipe, visão global ===
+      if (cargo === "gerente" || cargo === "admin") {
+        const { count: allStaleLeads } = await supabase
+          .from("clients" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .in("status", ["novo", "em_atendimento"])
+          .lt("updated_at", twoDaysAgo);
+
+        if ((allStaleLeads || 0) > 0) {
+          alerts.push({
+            type: "leads_equipe",
+            icon: "📊",
+            title: "Leads parados na loja",
+            detail: `A loja tem **${allStaleLeads}** lead(s) estagnado(s). Cobre follow-up da equipe!`,
+            count: allStaleLeads || 0,
+            action: { label: "Ver Dashboard", target: "dashboard" },
+          });
+        }
+
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        const { count: contractsThisMonth } = await supabase
+          .from("client_contracts" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("created_at", monthStart.toISOString());
+
         alerts.push({
-          type: "mensagens_pendentes",
-          icon: "💬",
-          title: "Mensagens não respondidas",
-          detail: `Há **${unreadCount}** mensagem(ns) de clientes aguardando resposta. Responda rápido para aumentar a conversão!`,
-          count: unreadCount || 0,
+          type: "kpi_contratos",
+          icon: "📈",
+          title: "KPI — Contratos do mês",
+          detail: `**${contractsThisMonth || 0}** contrato(s) fechado(s) este mês. Acompanhe as metas!`,
+          count: contractsThisMonth || 0,
+          action: { label: "Ver KPIs", target: "dashboard" },
         });
+
+        const { count: teamUnread } = await supabase
+          .from("tracking_messages" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("remetente_tipo", "cliente")
+          .eq("lida", false);
+
+        if ((teamUnread || 0) > 0) {
+          alerts.push({
+            type: "mensagens_equipe",
+            icon: "💬",
+            title: "Mensagens pendentes da equipe",
+            detail: `Há **${teamUnread}** mensagem(ns) sem resposta na loja. Monitore!`,
+            count: teamUnread || 0,
+            action: { label: "Ver Chat", target: "vendazap-chat" },
+          });
+        }
+      }
+
+      // === PROJETISTA: Medições & projetos ===
+      if (cargo === "projetista") {
+        const { count: pendingMeasurements } = await supabase
+          .from("measurement_requests" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .in("status", ["pendente", "agendada"]);
+
+        if ((pendingMeasurements || 0) > 0) {
+          alerts.push({
+            type: "medicoes_pendentes",
+            icon: "📐",
+            title: "Medições pendentes",
+            detail: `Há **${pendingMeasurements}** medição(ões) aguardando execução!`,
+            count: pendingMeasurements || 0,
+            action: { label: "Ver Medições", target: "medicao" },
+          });
+        }
+
+        const { count: leadsNoSim } = await supabase
+          .from("clients" as any)
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .in("status", ["novo", "em_atendimento"])
+          .lt("updated_at", twoDaysAgo);
+
+        if ((leadsNoSim || 0) > 0) {
+          alerts.push({
+            type: "leads_sem_projeto",
+            icon: "🏗️",
+            title: "Clientes aguardando projeto",
+            detail: `**${leadsNoSim}** cliente(s) sem movimentação. Verifique briefings pendentes!`,
+            count: leadsNoSim || 0,
+            action: { label: "Ver Clientes", target: "clients" },
+          });
+        }
       }
 
       sessionStorage.setItem(COOLDOWN_KEY, String(Date.now()));
@@ -96,7 +220,7 @@ export function useMIAProactiveAlerts(tenantId: string | null, userId: string | 
     }
 
     return alerts;
-  }, [tenantId, userId]);
+  }, [tenantId, userId, cargo]);
 
   return { checkAlerts };
 }
