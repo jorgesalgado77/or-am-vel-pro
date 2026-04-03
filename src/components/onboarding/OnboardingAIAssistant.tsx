@@ -41,6 +41,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
 import { useMIACriticalToasts } from "@/hooks/useMIACriticalToasts";
 import { MIAKpiSummary } from "@/components/onboarding/MIAKpiSummary";
+import { MIAWeeklyInsights } from "@/components/onboarding/MIAWeeklyInsights";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
   DropdownMenu,
