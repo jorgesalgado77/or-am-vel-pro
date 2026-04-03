@@ -201,6 +201,21 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
           <tr style="font-weight:bold;"><td colspan="4" style="text-align:right;">Subtotal Catálogo:</td><td style="text-align:right;">${formatCurrency(catalogProducts.reduce((s, p) => s + p.sale_price * p.quantity, 0))}</td></tr>
         </table>`
       : "",
+    // New financial & guarantee variables
+    "{{valor_com_desconto}}": formatCurrency(result.valorComDesconto),
+    "{{percentual_desconto}}": percentualDesconto > 0.01 ? `${percentualDesconto.toFixed(1)}%` : "0%",
+    "{{valor_desconto}}": formatCurrency(valorDesconto > 0 ? valorDesconto : 0),
+    "{{valor_restante}}": formatCurrency(valorRestante > 0 ? valorRestante : 0),
+    "{{condicoes_pagamento}}": condicoesPagamento,
+    "{{garantia}}": formData.garantia || settings.garantia_padrao || "Conforme termos do fabricante",
+    "{{prazo_garantia}}": formData.prazo_garantia || settings.prazo_garantia_padrao || "12 meses",
+    "{{validade_proposta}}": formData.validade_proposta || settings.validade_proposta_padrao || "15 dias",
+    "{{data_entrega_prevista}}": formData.data_entrega_prevista
+      ? format(new Date(formData.data_entrega_prevista + "T12:00:00"), "dd/MM/yyyy")
+      : "",
+    "{{valor_total_produtos}}": formatCurrency(totalCatalogo),
+    "{{valor_total_ambientes}}": formatCurrency(totalAmbientes),
+    "{{valor_por_extenso}}": valorPorExtenso,
   };
 
   // Dynamic per-environment variables: {{prazo_entrega_ambiente_1}}, {{nome_ambiente_1}}, etc.
