@@ -563,18 +563,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                                 )}
                               </TableCell>
                               <TableCell>
-                                {deliveryDeadlines.length > 0 ? (
-                                  <Select value={item.prazo} onValueChange={v => updateItem(idx, "prazo", v)}>
-                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Prazo..." /></SelectTrigger>
-                                    <SelectContent>
-                                      {deliveryDeadlines.map(d => (
-                                        <SelectItem key={d.id} value={d.label}>{d.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input value={item.prazo} onChange={e => updateItem(idx, "prazo", e.target.value)} className="h-8 text-xs" />
-                                )}
+                                <PrazoEntregaSelect value={item.prazo} onChange={v => updateItem(idx, "prazo", v)} compact />
                               </TableCell>
                               <TableCell><Input value={item.valor_ambiente ? maskCurrency(String(Math.round(item.valor_ambiente * 100))) : ""} onChange={e => updateItem(idx, "valor_ambiente", unmaskCurrency(e.target.value))} className="h-8 text-xs" placeholder="R$ 0,00" /></TableCell>
                               <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
