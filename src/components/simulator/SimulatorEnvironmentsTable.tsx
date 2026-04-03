@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Upload, Trash2, ChevronDown, ChevronRight, ChevronsUpDown, Wrench, AlertCircle, Layers, Check, Save, FolderOpen, X, Loader2 } from "lucide-react";
+import { Upload, Trash2, ChevronDown, ChevronRight, ChevronsUpDown, Wrench, AlertCircle, Layers, Check, Save, FolderOpen, X, Loader2, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
+import type { ParsedModule, ModuleType } from "@/services/fileImportService";
 
 export interface ImportedEnvironment {
   id: string;
