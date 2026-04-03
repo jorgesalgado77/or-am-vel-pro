@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseProjectFile, normalizeFinish } from "./fileImportService";
+import { parseProjectFile, parseProjectFileMulti, normalizeFinish } from "./fileImportService";
 
 // ── Inline sample data (based on real Promob exports) ──────────────
 
