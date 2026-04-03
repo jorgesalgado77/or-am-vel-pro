@@ -39,7 +39,6 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
-import { useApiKeys } from "@/hooks/useApiKeys";
 import {
   DropdownMenu,
   DropdownMenuContent,
