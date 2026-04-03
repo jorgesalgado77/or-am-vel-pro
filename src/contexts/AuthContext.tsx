@@ -204,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userRef.current = stableUser;
         setUser(stableUser);
         syncGlobalState(stableUser);
+        initializeTheme();
         void hydrateUserFromDatabase(sess.user, "fallback_recovery");
       } else {
         currentAuthIdRef.current = null;
