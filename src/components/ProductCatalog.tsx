@@ -785,6 +785,19 @@ export function ProductCatalog() {
                     </Button>
                     <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handleImageUpload(e.target.files)} />
                   </div>
+                  {uploading && uploadProgress.total > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">
+                          Enviando {uploadProgress.current} de {uploadProgress.total} imagem(ns)...
+                        </span>
+                        <span className="text-[10px] font-medium text-primary">
+                          {Math.round((uploadProgress.current / uploadProgress.total) * 100)}%
+                        </span>
+                      </div>
+                      <Progress value={(uploadProgress.current / uploadProgress.total) * 100} className="h-1.5" />
+                    </div>
+                  )}
                   {images.length === 0 ? (
                     <p className="text-xs text-muted-foreground text-center py-3">Nenhuma imagem adicionada</p>
                   ) : (
