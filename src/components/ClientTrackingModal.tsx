@@ -88,18 +88,20 @@ export function ClientTrackingModal({ open, onClose }: Props) {
     if (!contractNumber.trim()) { toast.error("Informe o número do contrato"); return; }
     setSearching(true);
     try {
-      const res = await fetch(
-        `${FUNCTION_URL}?action=track&numero=${encodeURIComponent(contractNumber.trim())}`
-      );
-      const result = await res.json();
+      const { data, error } = await supabase
+        .from("client_tracking")
+        .select("*")
+        .eq("numero_contrato", contractNumber.trim())
+        .limit(1)
+        .maybeSingle();
 
-      if (result.error || !result.tracking) {
-        toast.error(result.error || "Contrato não encontrado");
+      if (error || !data) {
+        toast.error("Contrato não encontrado");
         return;
       }
 
-      setTracking(result.tracking as any);
-      setMessages(result.messages || []);
+      setTracking(data as any);
+      await fetchMessages((data as any).id);
       setStep("tracking");
     } catch {
       toast.error("Erro ao buscar contrato");
