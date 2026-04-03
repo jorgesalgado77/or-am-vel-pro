@@ -107,17 +107,20 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
           const content = ev.target?.result as string;
           if (!content) return;
           const parsed = parseProjectFile(content, file.name);
-          if (parsed.total && !isNaN(parsed.total)) {
-            setEnvironments((prev) => [...prev, {
-              id: crypto.randomUUID(), fileName: file.name, environmentName: parsed.envName,
-              pieceCount: parsed.pieces, totalValue: parsed.total, importedAt: new Date(), file,
-              fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
-              puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
-            }]);
-            setImportedFile(file);
-            if (parsed.software && parsed.software !== "generico") setDetectedSoftware(parsed.software);
+          const hasTotal = parsed.total !== null && !isNaN(parsed.total) && parsed.total > 0;
+          setEnvironments((prev) => [...prev, {
+            id: crypto.randomUUID(), fileName: file.name, environmentName: parsed.envName,
+            pieceCount: parsed.pieces, totalValue: hasTotal ? parsed.total : 0, importedAt: new Date(), file,
+            fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
+            puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
+          }]);
+          setImportedFile(file);
+          if (parsed.software && parsed.software !== "generico") setDetectedSoftware(parsed.software);
+          if (hasTotal) {
             toast.success(`Ambiente "${parsed.envName}" importado: ${formatCurrency(parsed.total)}`);
-          } else { toast.error(`Não foi possível encontrar o valor total em ${file.name}`); }
+          } else {
+            toast.warning(`Ambiente "${parsed.envName}" importado sem valor total. Preencha manualmente.`);
+          }
         };
         reader.readAsText(file);
       });
