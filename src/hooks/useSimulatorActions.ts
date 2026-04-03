@@ -173,7 +173,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     for (const env of environments) {
       let fileUrl: string | undefined;
       if (env.file && env.file.size > 0) { const uploaded = await uploadFile(env.file, clientId); if (uploaded) fileUrl = uploaded.url; }
-      uploadedEnvironments.push({ id: env.id, fileName: env.fileName, environmentName: env.environmentName, pieceCount: env.pieceCount, totalValue: env.totalValue, importedAt: env.importedAt.toISOString(), fileUrl, fornecedor: (env as any).fornecedor || "", corpo: (env as any).corpo || "", porta: (env as any).porta || "", puxador: (env as any).puxador || "", complemento: (env as any).complemento || "", modelo: (env as any).modelo || "" });
+      uploadedEnvironments.push({ id: env.id, fileName: env.fileName, environmentName: env.environmentName, pieceCount: env.pieceCount, totalValue: env.totalValue, importedAt: env.importedAt.toISOString(), fileUrl, fornecedor: env.fornecedor || "", corpo: env.corpo || "", porta: env.porta || "", puxador: env.puxador || "", complemento: env.complemento || "", modelo: env.modelo || "" });
     }
 
     // Serialize both environments and catalog products into arquivo_nome
