@@ -68,6 +68,28 @@ const isIncomplete = (env: ImportedEnvironment) =>
 const missingCount = (env: ImportedEnvironment) =>
   REQUIRED_TECH_KEYS.filter(k => !env[k]?.trim()).length;
 
+/* ── Tech Templates (localStorage) ─────────────────────────────── */
+
+const TEMPLATES_STORAGE_KEY = "tech-field-templates";
+
+interface TechTemplate {
+  id: string;
+  name: string;
+  values: Record<TechField, string>;
+  createdAt: string;
+}
+
+function loadTemplates(): TechTemplate[] {
+  try {
+    const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveTemplates(templates: TechTemplate[]) {
+  localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+}
+
 /* ── Batch Fill Panel ──────────────────────────────────────────── */
 
 interface BatchFillProps {
@@ -81,6 +103,10 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
   });
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [templates, setTemplates] = useState<TechTemplate[]>(loadTemplates);
+  const [templateName, setTemplateName] = useState("");
+  const [showSaveInput, setShowSaveInput] = useState(false);
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
 
   const hasAnyValue = Object.values(batchValues).some(v => v.trim());
 
@@ -99,13 +125,111 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
     setTimeout(() => setApplied(false), 2000);
   }, [batchValues, environments, onUpdateTechnical, overwriteExisting, hasAnyValue]);
 
+  const handleSaveTemplate = useCallback(() => {
+    const name = templateName.trim();
+    if (!name || !hasAnyValue) return;
+    const newTemplate: TechTemplate = {
+      id: crypto.randomUUID(),
+      name,
+      values: { ...batchValues },
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [newTemplate, ...templates].slice(0, 10);
+    setTemplates(updated);
+    saveTemplates(updated);
+    setTemplateName("");
+    setShowSaveInput(false);
+    toast.success(`Template "${name}" salvo`);
+  }, [templateName, batchValues, templates, hasAnyValue]);
+
+  const handleLoadTemplate = useCallback((template: TechTemplate) => {
+    setBatchValues({ ...template.values });
+    setTemplateMenuOpen(false);
+    toast.success(`Template "${template.name}" carregado`);
+  }, []);
+
+  const handleDeleteTemplate = useCallback((id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = templates.filter(t => t.id !== id);
+    setTemplates(updated);
+    saveTemplates(updated);
+  }, [templates]);
+
   return (
     <div className="border border-dashed border-primary/30 rounded-md p-3 bg-primary/5">
       <div className="flex items-center gap-1.5 mb-2">
         <Layers className="h-3.5 w-3.5 text-primary" />
         <span className="text-[11px] font-semibold text-foreground">Preenchimento em Lote</span>
         <span className="text-[10px] text-muted-foreground ml-1">— preencha e aplique a todos os ambientes</span>
+        <div className="ml-auto flex items-center gap-1">
+          {/* Load template */}
+          <Popover open={templateMenuOpen} onOpenChange={setTemplateMenuOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-5 text-[9px] gap-1 text-muted-foreground">
+                <FolderOpen className="h-3 w-3" />
+                Templates{templates.length > 0 && ` (${templates.length})`}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-1" align="end">
+              {templates.length === 0 ? (
+                <p className="text-[10px] text-muted-foreground text-center py-3">Nenhum template salvo</p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto">
+                  {templates.map(t => (
+                    <button
+                      key={t.id}
+                      className="flex items-center justify-between w-full text-left px-2 py-1.5 rounded hover:bg-muted/50 group"
+                      onClick={() => handleLoadTemplate(t)}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[11px] font-medium truncate">{t.name}</span>
+                        <span className="text-[9px] text-muted-foreground truncate">
+                          {TECH_FIELDS.filter(f => t.values[f.key]?.trim()).map(f => f.label).join(", ") || "Vazio"}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 opacity-0 group-hover:opacity-100 text-destructive shrink-0"
+                        onClick={(e) => handleDeleteTemplate(t.id, e)}
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </Button>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+          {/* Save template */}
+          {hasAnyValue && !showSaveInput && (
+            <Button variant="ghost" size="sm" className="h-5 text-[9px] gap-1 text-muted-foreground" onClick={() => setShowSaveInput(true)}>
+              <Save className="h-3 w-3" />
+              Salvar
+            </Button>
+          )}
+        </div>
       </div>
+
+      {showSaveInput && (
+        <div className="flex items-center gap-1.5 mb-2 bg-background/60 rounded px-2 py-1">
+          <Input
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            className="h-5 text-[10px] flex-1"
+            placeholder="Nome do template (ex: Cozinha Padrão)"
+            autoFocus
+            onKeyDown={(e) => e.key === "Enter" && handleSaveTemplate()}
+          />
+          <Button size="sm" className="h-5 text-[9px] gap-0.5" disabled={!templateName.trim()} onClick={handleSaveTemplate}>
+            <Check className="h-2.5 w-2.5" /> Salvar
+          </Button>
+          <Button variant="ghost" size="sm" className="h-5 text-[9px]" onClick={() => { setShowSaveInput(false); setTemplateName(""); }}>
+            <X className="h-2.5 w-2.5" />
+          </Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-1.5 mb-2">
         {TECH_FIELDS.map(({ key, label, placeholder }) => (
           <div key={key} className="flex flex-col gap-0.5">
