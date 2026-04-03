@@ -243,9 +243,30 @@ export function ClientTrackingModal({ open, onClose }: Props) {
                 <Label>{searchMode === "contrato" ? "Número do Contrato" : "CPF ou CNPJ"}</Label>
                 <Input
                   value={searchMode === "contrato" ? contractNumber : cpfCnpj}
-                  onChange={(e) => searchMode === "contrato" ? setContractNumber(e.target.value) : setCpfCnpj(e.target.value)}
-                  placeholder={searchMode === "contrato" ? "Informe o número do contrato" : "Informe o CPF ou CNPJ"}
+                  onChange={(e) => {
+                    if (searchMode === "contrato") {
+                      setContractNumber(e.target.value);
+                    } else {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 14);
+                      let masked = digits;
+                      if (digits.length <= 11) {
+                        masked = digits
+                          .replace(/(\d{3})(\d)/, "$1.$2")
+                          .replace(/(\d{3})(\d)/, "$1.$2")
+                          .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+                      } else {
+                        masked = digits
+                          .replace(/(\d{2})(\d)/, "$1.$2")
+                          .replace(/(\d{3})(\d)/, "$1.$2")
+                          .replace(/(\d{3})(\d)/, "$1/$2")
+                          .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+                      }
+                      setCpfCnpj(masked);
+                    }
+                  }}
+                  placeholder={searchMode === "contrato" ? "Informe o número do contrato" : "000.000.000-00 ou 00.000.000/0001-00"}
                   className="mt-1"
+                  maxLength={searchMode === "cpf" ? 18 : undefined}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 />
               </div>
