@@ -88,7 +88,7 @@ export function OnboardingAIAssistant() {
   const closeChat = useCallback(() => {
     setClosing(true);
     setTimeout(() => {
-      setOpen(false);
+      closeChat();
       setFullscreen(false);
       setClosing(false);
     }, 250);
@@ -510,7 +510,7 @@ export function OnboardingAIAssistant() {
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
-              onClick={() => { setOpen(false); setFullscreen(false); }}
+              onClick={closeChat}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -574,7 +574,7 @@ export function OnboardingAIAssistant() {
                       variant="outline"
                       className="h-6 text-[10px] gap-1 px-2"
                       onClick={() => {
-                        setOpen(false);
+                        closeChat();
                         window.dispatchEvent(new CustomEvent("navigate-to-settings", { detail: { subtab: "apis" } }));
                       }}
                     >
@@ -605,7 +605,7 @@ export function OnboardingAIAssistant() {
             >
               <div className="p-3 space-y-3">
                 {messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} onCloseChat={() => { setOpen(false); setFullscreen(false); }} />
+                  <MessageBubble key={msg.id} message={msg} onCloseChat={closeChat} />
                 ))}
                 {loading && (
                   <div className="flex items-start gap-2 px-1 py-2">
@@ -699,19 +699,19 @@ export function OnboardingAIAssistant() {
               <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("criar tarefa")}>
                 <ListTodo className="h-3 w-3" /> Criar Tarefa
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("tarefas"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("tarefas"); }}>
                 <ListTodo className="h-3 w-3" /> Tarefas
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("suporte"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("suporte"); }}>
                 <Headset className="h-3 w-3" /> Suporte
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("tutoriais"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("tutoriais"); }}>
                 <GraduationCap className="h-3 w-3" /> Tutoriais
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("financeiro"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("financeiro"); }}>
                 <DollarSign className="h-3 w-3" /> Financeiro
               </Button>
-              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setOpen(false); navigateTo("configuracoes"); }}>
+              <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => { closeChat(); navigateTo("configuracoes"); }}>
                 <Settings className="h-3 w-3" /> Config
               </Button>
               <Button variant="ghost" size="sm" className="text-[10px] h-6 gap-1 px-2 text-muted-foreground hover:text-foreground" onClick={() => sendMessage("criar lembrete: ")}>
