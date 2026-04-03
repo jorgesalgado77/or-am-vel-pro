@@ -349,6 +349,8 @@ interface EmailWizardState {
 const INITIAL_EMAIL_WIZARD: EmailWizardState = { active: false, step: "destinatario" };
 
 export function useOnboardingAI(tenantId: string | null) {
+  const { currentUser } = useCurrentUser();
+  const cargoNome = currentUser?.cargo_nome || null;
   const [messages, setMessages] = useState<AIMessage[]>(() => {
     if (!tenantId) return [];
     return parseStored<AIMessage[]>(localStorage.getItem(getMessagesKey(tenantId)), []).map((m) => ({
