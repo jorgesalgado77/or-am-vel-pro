@@ -247,7 +247,7 @@ export function applyTheme(themeId: string) {
   root.style.setProperty("--accent", theme.accent);
 
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, themeId);
+    localStorage.setItem(getThemeStorageKey(), themeId);
   } catch {
     // localStorage unavailable
   }
