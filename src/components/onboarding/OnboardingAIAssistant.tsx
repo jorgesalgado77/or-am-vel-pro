@@ -79,9 +79,20 @@ export function OnboardingAIAssistant() {
   const currentUserId = typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null;
   const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId);
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [input, setInput] = useState("");
   const [compactMode, setCompactMode] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+
+  // Smooth close with animation
+  const closeChat = useCallback(() => {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setFullscreen(false);
+      setClosing(false);
+    }, 250);
+  }, []);
   const [missingKeysDismissed, setMissingKeysDismissed] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
