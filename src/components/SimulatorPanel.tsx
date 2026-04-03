@@ -537,6 +537,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
                   environmentName: e.environmentName || e.name || "", pieceCount: e.pieceCount || 0,
                   totalValue: e.totalValue || Number(e.value) || 0, importedAt: new Date(e.importedAt || Date.now()),
                   file: new File([], e.fileName || ""),
+                  fornecedor: e.fornecedor || "", corpo: e.corpo || "", porta: e.porta || "",
+                  puxador: e.puxador || "", complemento: e.complemento || "", modelo: e.modelo || "",
                 })));
               }
               if (catProds.length > 0) {
