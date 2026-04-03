@@ -57,10 +57,17 @@ export function PrazoEntregaSelect({ value, onChange, isAdmin = false, compact =
     if (data && (data as any).valor) {
       try {
         const parsed = JSON.parse((data as any).valor) as DeadlineOption[];
-        // Merge defaults with any custom ones, ensuring defaults are always present
-        const defaultIds = new Set(DEFAULT_DEADLINES.map(d => d.id));
-        const customOnes = parsed.filter(d => !defaultIds.has(d.id));
-        setDeadlines([...DEFAULT_DEADLINES, ...customOnes]);
+        // Merge defaults with custom ones, deduplicating by label
+        const seen = new Set<string>();
+        const merged: DeadlineOption[] = [];
+        for (const d of [...DEFAULT_DEADLINES, ...parsed]) {
+          const key = d.label.toLowerCase().trim();
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(d);
+          }
+        }
+        setDeadlines(merged);
       } catch {
         setDeadlines(DEFAULT_DEADLINES);
       }

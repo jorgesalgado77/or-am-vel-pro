@@ -203,14 +203,15 @@ export function FornecedoresTab() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Nome Fantasia</TableHead>
-                    <TableHead className="text-xs hidden sm:table-cell">CNPJ</TableHead>
-                    <TableHead className="text-xs">Telefone</TableHead>
-                    <TableHead className="text-xs hidden md:table-cell">Cidade/UF</TableHead>
-                    <TableHead className="text-xs hidden lg:table-cell">Contato</TableHead>
-                    <TableHead className="w-20"></TableHead>
-                  </TableRow>
+                   <TableRow>
+                     <TableHead className="text-xs">Nome Fantasia</TableHead>
+                     <TableHead className="text-xs hidden sm:table-cell">CNPJ</TableHead>
+                     <TableHead className="text-xs">Telefone</TableHead>
+                     <TableHead className="text-xs hidden md:table-cell">Cidade/UF</TableHead>
+                     <TableHead className="text-xs hidden lg:table-cell">Contato</TableHead>
+                     <TableHead className="text-xs">Prazo Entrega</TableHead>
+                     <TableHead className="w-20"></TableHead>
+                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map(f => (
@@ -220,6 +221,7 @@ export function FornecedoresTab() {
                       <TableCell className="text-xs">{f.telefone || "—"}</TableCell>
                       <TableCell className="text-xs hidden md:table-cell">{f.cidade ? `${f.cidade}/${f.uf}` : "—"}</TableCell>
                       <TableCell className="text-xs hidden lg:table-cell">{f.contato || "—"}</TableCell>
+                      <TableCell className="text-xs">{f.prazo_entrega || "—"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(f)}>

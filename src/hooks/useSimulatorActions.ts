@@ -153,17 +153,46 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         const fileValidation = validateFileUpload(file);
         if (!fileValidation.valid) { toast.error(fileValidation.message || "Arquivo inválido"); return; }
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = async (ev) => {
           const content = ev.target?.result as string;
           if (!content) return;
           const parsedResults = parseProjectFileMulti(content, file.name);
+
+          // Look up registered fornecedores to auto-fill prazo
+          let fornecedoresMap: Record<string, string> = {};
+          if (resolvedTenantId) {
+            try {
+              const { data: settingsData } = await supabase
+                .from("tenant_settings" as any)
+                .select("valor")
+                .eq("tenant_id", resolvedTenantId)
+                .eq("chave", "fornecedores")
+                .maybeSingle();
+              if (settingsData && (settingsData as any).valor) {
+                const fornecedores = JSON.parse((settingsData as any).valor) as Array<{ nome: string; prazo_entrega?: string }>;
+                for (const f of fornecedores) {
+                  if (f.nome && f.prazo_entrega) {
+                    fornecedoresMap[f.nome.toLowerCase().trim()] = f.prazo_entrega;
+                  }
+                }
+              }
+            } catch { /* ignore */ }
+          }
+
           const newEnvs: ImportedEnvironment[] = parsedResults.map((parsed) => {
             const hasTotal = parsed.total !== null && !isNaN(parsed.total) && parsed.total > 0;
+            // Auto-fill prazo from registered fornecedor
+            let prazo = "";
+            if (parsed.fornecedor) {
+              const key = parsed.fornecedor.toLowerCase().trim();
+              prazo = fornecedoresMap[key] || "";
+            }
             return {
               id: crypto.randomUUID(), fileName: file.name, environmentName: parsed.envName,
               pieceCount: parsed.pieces, totalValue: hasTotal ? (parsed.total as number) : 0, importedAt: new Date(), file,
               fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
               puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
+              prazo,
               fileFormat: parsed.fileFormat,
               modules: parsed.modules,
             };
