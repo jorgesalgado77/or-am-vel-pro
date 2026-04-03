@@ -71,7 +71,7 @@ interface CloseSaleFormData {
 interface CloseSaleModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (data: CloseSaleFormData, items: SaleItem[], itemDetails: SaleItemDetail[]) => void;
+  onConfirm: (data: CloseSaleFormData, items: SaleItem[], itemDetails: SaleItemDetail[]) => Promise<boolean>;
   client?: Client | null;
   simulationData?: {
     valorFinal: number;
@@ -309,7 +309,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const totalAmbientes = useMemo(() => items.reduce((acc, item) => acc + item.valor_ambiente, 0), [items]);
   const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const errors = new Set<string>();
     for (const { key } of REQUIRED_FIELDS) {
       const val = form[key];
@@ -327,7 +327,6 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       toast.error(cpfErr || `Preencha: ${missing.join(", ")}`);
       return;
     }
-    // Record deal_closed learning event (fire-and-forget)
     const localTenantId = getTenantId();
     if (localTenantId && client) {
       const totalValue = simulationData?.valorFinal || totalAmbientes;
@@ -350,8 +349,8 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
         }]).catch((err: unknown) => console.warn("[CloseSale] learning event error:", err));
     }
 
-    onConfirm(form, items, itemDetails);
-    clearForm();
+    const success = await onConfirm(form, items, itemDetails);
+    if (success) clearForm();
   };
 
   return (
