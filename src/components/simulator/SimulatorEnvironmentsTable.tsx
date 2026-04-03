@@ -549,11 +549,14 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                           </Badge>
                         )}
                       </div>
-                      {!isExpanded && hasTech && (
+                      {!isExpanded && (
                         <div className="flex flex-wrap gap-0.5">
-                          <TechBadge value={env.corpo} label="C" />
-                          <TechBadge value={env.porta} label="P" />
-                          <TechBadge value={env.puxador} label="Pux" />
+                          <TechBadge value={env.corpo} label="C" required />
+                          <TechBadge value={env.porta} label="P" required />
+                          <TechBadge value={env.puxador} label="Pux" required />
+                          <TechBadge value={env.fornecedor} label="Forn" required />
+                          {env.complemento && <TechBadge value={env.complemento} label="Comp" />}
+                          {env.modelo && <TechBadge value={env.modelo} label="Mod" />}
                         </div>
                       )}
                     </div>
