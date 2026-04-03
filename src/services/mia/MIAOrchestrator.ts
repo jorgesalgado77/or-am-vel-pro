@@ -21,6 +21,7 @@ import { getMIAActionExecutionEngine, type MIAActionExecutionEngine } from "./Ac
 import { getMIALearningEngine, type MIALearningEngine, type MIALearningScore } from "./MIALearningEngine";
 import { getResearchEngine, type ResearchEngine } from "./ResearchEngine";
 import { getPersonalizationEngine, type PersonalizationEngine } from "./PersonalizationEngine";
+import { getSystemKnowledgeEngine, type SystemKnowledgeEngine } from "./engines/SystemKnowledgeEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
 import { OnboardingEngine } from "./engines/OnboardingEngine";
@@ -36,6 +37,7 @@ class MIAOrchestrator {
   private learning: MIALearningEngine = getMIALearningEngine();
   private research: ResearchEngine = getResearchEngine();
   private personalization: PersonalizationEngine = getPersonalizationEngine();
+  private systemKnowledge: SystemKnowledgeEngine = getSystemKnowledgeEngine();
 
   constructor() {
     // Auto-register all engines
