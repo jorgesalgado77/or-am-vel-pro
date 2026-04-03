@@ -407,12 +407,25 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           onProductPicker={() => setProductPickerOpen(true)}
           VALOR_TELA_MAX={actions.VALOR_TELA_MAX} VALOR_ENTRADA_MAX={VALOR_ENTRADA_MAX}
           catalogProducts={catalogProducts}
+          stockWarnings={stockWarnings}
           onUpdateCatalogProductQty={(productId, qty) => {
+            const newQty = Math.max(1, Number.isFinite(qty) ? qty : 1);
             setCatalogProducts((prev) => prev.map((item) => (
               item.product.id === productId
-                ? { ...item, quantity: Math.max(1, Number.isFinite(qty) ? qty : 1) }
+                ? { ...item, quantity: newQty }
                 : item
             )));
+            // Fetch real-time stock from DB to update stock_quantity
+            (supabase as any).from("products").select("stock_quantity").eq("id", productId).single()
+              .then(({ data }: any) => {
+                if (data) {
+                  setCatalogProducts((prev) => prev.map((item) => (
+                    item.product.id === productId
+                      ? { ...item, product: { ...item.product, stock_quantity: Number(data.stock_quantity) || 0 } }
+                      : item
+                  )));
+                }
+              });
           }}
           onRemoveCatalogProduct={(productId) => {
             setCatalogProducts((prev) => prev.filter((item) => item.product.id !== productId));
