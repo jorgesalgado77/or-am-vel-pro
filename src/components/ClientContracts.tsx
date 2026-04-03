@@ -148,9 +148,10 @@ export function ClientContracts({ client, onBack }: ClientContractsProps) {
           onClose={() => setViewingContract(null)}
           initialHtml={viewingContract.conteudo_html}
           clientName={client.nome}
-          onConfirm={(html) => {
+         onSave={async (html) => {
             openContractPrintWindow(html, `Contrato - ${client.nome}`);
             setViewingContract(null);
+            return null;
           }}
         />
       )}
