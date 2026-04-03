@@ -25,7 +25,7 @@ interface SimulatorDialogsProps {
   // Close sale modal
   closeSaleModalOpen: boolean;
   setCloseSaleModalOpen: (v: boolean) => void;
-  onCloseSaleConfirm: (formData: any, items: any[], itemDetails: any[]) => void;
+  onCloseSaleConfirm: (formData: any, items: any[], itemDetails: any[]) => Promise<boolean>;
   client: Client | null;
   closingSale: boolean;
   simulationData: {

@@ -29,7 +29,7 @@ interface VendaZapChatDialogsProps {
   closeSaleClient: ComponentProps<typeof CloseSaleModal>["client"];
   closeSaleSimData: CloseSaleData | undefined;
   closeSaleSaving: boolean;
-  onCloseSaleConfirm: (formData: any, items: any[], itemDetails: any[]) => void;
+  onCloseSaleConfirm: (formData: any, items: any[], itemDetails: any[]) => Promise<boolean>;
 }
 
 export const VendaZapChatDialogs = React.memo(function VendaZapChatDialogs(props: VendaZapChatDialogsProps) {
