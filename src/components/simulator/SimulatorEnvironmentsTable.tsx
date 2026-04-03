@@ -205,7 +205,6 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                           </div>
                         );
                       })}
-                      ))}
                     </div>
                   </TableCell>
                 </TableRow>
