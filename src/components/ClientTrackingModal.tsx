@@ -7,6 +7,7 @@ import {Label} from "@/components/ui/label";
 import {Separator} from "@/components/ui/separator";
 import {Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircle2} from "lucide-react";
 import {supabase} from "@/lib/supabaseClient";
+import {EXTERNAL_SUPABASE_URL} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {format} from "date-fns";
 import {playNotificationSound} from "@/lib/notificationSound";
