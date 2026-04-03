@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,7 @@ const QUICK_PROMPTS = [
 ];
 
 export function DealRoomAIAssistant({ tenantId, clientName, clientId, proposalValue, sessionId, transcription }: DealRoomAIAssistantProps) {
+  const { currentUser } = useCurrentUser();
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -120,23 +122,26 @@ export function DealRoomAIAssistant({ tenantId, clientName, clientId, proposalVa
     setLoading(true);
 
     try {
+      const cargoLabel = currentUser?.cargo_nome || "vendedor";
       const transcriptionCtx = getTranscriptionContext();
       const fullContext = `Contexto: Estou em uma reunião de vendas na Deal Room.
 Cliente: ${clientName || "não informado"}.
 Valor da proposta: ${proposalValue ? formatCurrency(proposalValue) : "não definido"}.
-Sou um projetista/vendedor de móveis planejados.${chatContext}${simContext}${transcriptionCtx}`;
+Meu cargo: ${cargoLabel}.
+Sou um profissional de móveis planejados.${chatContext}${simContext}${transcriptionCtx}`;
 
-      const systemContent = `Você é um assistente de vendas inteligente na Deal Room. Você tem acesso a TODO o histórico de conversa do WhatsApp, todas as simulações de orçamento e a transcrição da reunião por vídeo em tempo real. Use TODAS essas informações para dar conselhos precisos, identificar objeções, sinais de fechamento e sugerir ações. Seja direto e prático. ${fullContext}`;
+      const systemContent = `Você é um assistente de vendas inteligente na Deal Room. Adapte suas respostas ao cargo do usuário (${cargoLabel}). Você tem acesso a TODO o histórico de conversa do WhatsApp, todas as simulações de orçamento e a transcrição da reunião por vídeo em tempo real. Use TODAS essas informações para dar conselhos precisos, identificar objeções, sinais de fechamento e sugerir ações. Seja direto e prático. ${fullContext}`;
 
       // Route through MIA Core with fallback to direct call
       let aiResponse = "";
       try {
         const miaResult = await miaGenerateResponse({
           tenant_id: tenantId,
-          user_id: tenantId, // DealRoom uses tenantId as user context
+          user_id: currentUser?.id || tenantId,
           message: text,
           origin: "dealroom",
           context: "dealroom",
+          metadata: { cargo_nome: currentUser?.cargo_nome || null },
           messages: [
             { role: "system", content: systemContent },
             ...messages.map(m => ({ role: m.role, content: m.content })),

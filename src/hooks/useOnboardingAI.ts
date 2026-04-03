@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 export interface AIMessageAction {
   type: string;
@@ -348,6 +349,8 @@ interface EmailWizardState {
 const INITIAL_EMAIL_WIZARD: EmailWizardState = { active: false, step: "destinatario" };
 
 export function useOnboardingAI(tenantId: string | null) {
+  const { currentUser } = useCurrentUser();
+  const cargoNome = currentUser?.cargo_nome || null;
   const [messages, setMessages] = useState<AIMessage[]>(() => {
     if (!tenantId) return [];
     return parseStored<AIMessage[]>(localStorage.getItem(getMessagesKey(tenantId)), []).map((m) => ({
@@ -1458,8 +1461,7 @@ export function useOnboardingAI(tenantId: string | null) {
 
         // Check for daily routine
         if (/rotina|(?:o\s+que\s+)?(?:devo\s+fazer\s+)?hoje|minha\s+agenda/i.test(lower)) {
-          const cargoNome = localStorage.getItem("current_cargo_nome") || undefined;
-          const routine = knowledge.getDailyRoutine(cargoNome);
+          const routine = knowledge.getDailyRoutine(cargoNome || undefined);
           appendAssistant(routine);
           return true;
         }
@@ -1644,9 +1646,27 @@ export function useOnboardingAI(tenantId: string | null) {
 
   const chatWithAI = useCallback(async (tid: string, chatMessages: { role: string; content: string }[]) => {
     try {
+      // Inject cargo context into the system message so the AI adapts responses
+      const cargoContext = cargoNome
+        ? `\n\n[CARGO DO USUÁRIO: ${cargoNome}. Adapte o tom, nível de detalhamento e prioridades das respostas ao cargo. Vendedor → foco em vendas/clientes. Projetista → foco em projetos/briefing/medição. Gerente → foco em KPIs/equipe/resultados. Admin → visão geral do sistema.]`
+        : "";
+      const enrichedMessages = cargoContext
+        ? chatMessages.map((m, i) =>
+            i === 0 && m.role === "system"
+              ? { ...m, content: m.content + cargoContext }
+              : m.role === "user" && i === chatMessages.length - 1 && !chatMessages.some(cm => cm.role === "system")
+                ? { role: "system" as const, content: `Você é a MIA, assistente inteligente.${cargoContext}` }
+                : m
+          )
+        : chatMessages;
+      // Add system message if none exists and we have cargo context
+      const finalMessages = cargoContext && !enrichedMessages.some(m => m.role === "system")
+        ? [{ role: "system", content: `Você é a MIA, assistente inteligente do sistema.${cargoContext}` }, ...enrichedMessages]
+        : enrichedMessages;
+
       const { data, error } = await miaInvoke("onboarding-ai", {
-          action: "chat", tenant_id: tid, messages: chatMessages,
-        }, { tenantId: tid, userId: "system", origin: "onboarding", context: "onboarding" });
+          action: "chat", tenant_id: tid, messages: finalMessages, metadata: { cargo_nome: cargoNome },
+        }, { tenantId: tid, userId: currentUser?.id || "system", origin: "onboarding", context: "onboarding" });
 
       if (error) throw error;
 
@@ -1669,7 +1689,7 @@ export function useOnboardingAI(tenantId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [refreshContext]);
+  }, [refreshContext, cargoNome, currentUser?.id]);
 
   const sendMessage = useCallback(async (content: string, isInitial = false) => {
     if (!tenantId) return;
