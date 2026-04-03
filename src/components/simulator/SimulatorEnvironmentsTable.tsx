@@ -662,13 +662,12 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                       readOnly={!onUpdateTechnical}
                     />
                   </TableCell>
-                  <TableCell className="py-1.5">
-                    <Input
+                  <TableCell className="py-1.5 min-w-[130px]">
+                    <PrazoEntregaSelect
                       value={env.prazo || ""}
-                      onChange={(e) => onUpdateTechnical?.(env.id, "prazo", e.target.value)}
-                      className="h-6 text-[11px] bg-transparent border-none p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      onChange={(v) => onUpdateTechnical?.(env.id, "prazo", v)}
+                      compact
                       placeholder="Selecionar..."
-                      readOnly={!onUpdateTechnical}
                     />
                   </TableCell>
                   <TableCell className="py-1.5 text-right tabular-nums">{formatCurrency(env.totalValue)}</TableCell>
