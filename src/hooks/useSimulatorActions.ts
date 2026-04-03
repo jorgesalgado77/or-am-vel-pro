@@ -367,14 +367,14 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
             }
 
             for (const admin of admins) {
-              await supabase.from("tasks" as any).insert({
+              await (supabase as any).from("tasks").insert({
                 tenant_id: resolvedTenantId,
                 titulo: `Compra: ${cp.product.name} (${cp.product.internal_code})`,
                 descricao: taskDesc,
                 data_tarefa: new Date().toISOString().slice(0, 10),
                 tipo: "geral",
                 status: "nova",
-                responsavel_id: admin.id,
+                responsavel_id: (admin as any).id,
                 responsavel_nome: (admin as any).nome_completo,
                 criado_por: currentUser?.id || null,
               });
