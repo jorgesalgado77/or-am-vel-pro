@@ -249,6 +249,10 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       if (incompleteEnvs.length > 0) {
         setTechFieldsHighlight(true);
         setTimeout(() => setTechFieldsHighlight(false), 4000);
+        // Auto-scroll to environments table
+        setTimeout(() => {
+          document.getElementById("simulator-environments-table")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 100);
         toast.error(`${incompleteEnvs.length} ambiente(s) com campos técnicos obrigatórios pendentes (Corpo, Porta, Puxador, Fornecedor). Preencha antes de fechar a venda.`, { duration: 6000 });
         return;
       }
