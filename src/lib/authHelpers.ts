@@ -45,6 +45,7 @@ export const DEFAULT_PERMS: CargoPermissoes = {
   ia_gerente: true,
   catalogo: true,
   medicao: true,
+  liberacao: true,
   tutoriais: true,
   email: true,
   cadastrar_produtos: true,
