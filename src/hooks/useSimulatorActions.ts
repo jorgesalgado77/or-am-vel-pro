@@ -758,7 +758,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     closeSaleModalOpen, setCloseSaleModalOpen,
     closeSaleFormData,
     upgradeOpen, setUpgradeOpen, upgradeMsg,
-    handleSave, handleCloseSale, handleCloseSaleConfirm, handleContractConfirm,
+    handleSave, handleCloseSale, handleCloseSaleConfirm, handleContractSave,
     handleFileImport, handleRemoveEnvironment, handlePdf,
     VALOR_TELA_MAX,
   };
