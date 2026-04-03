@@ -84,6 +84,18 @@ const AVAILABLE_VARIABLES = [
   { var: "{{puxador_ambiente_N}}", desc: "Puxador do ambiente N" },
   { var: "{{complemento_ambiente_N}}", desc: "Complemento do ambiente N" },
   { var: "{{modelo_ambiente_N}}", desc: "Modelo do ambiente N" },
+  { var: "{{valor_com_desconto}}", desc: "Valor com desconto aplicado" },
+  { var: "{{percentual_desconto}}", desc: "Percentual de desconto (%)" },
+  { var: "{{valor_desconto}}", desc: "Valor do desconto em R$" },
+  { var: "{{valor_restante}}", desc: "Valor restante (total − entrada)" },
+  { var: "{{condicoes_pagamento}}", desc: "Resumo completo das condições de pagamento" },
+  { var: "{{garantia}}", desc: "Texto de garantia (do formulário)" },
+  { var: "{{prazo_garantia}}", desc: "Prazo de garantia (do formulário)" },
+  { var: "{{validade_proposta}}", desc: "Validade da proposta comercial" },
+  { var: "{{data_entrega_prevista}}", desc: "Data prevista de entrega (calculada)" },
+  { var: "{{valor_total_produtos}}", desc: "Valor total dos produtos do catálogo" },
+  { var: "{{valor_total_ambientes}}", desc: "Valor total dos ambientes" },
+  { var: "{{valor_por_extenso}}", desc: "Valor final por extenso" },
 ];
 
 export function ContratosTab() {

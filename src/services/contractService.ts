@@ -11,10 +11,52 @@ import { FORMAS_PAGAMENTO_LABELS } from "@/services/financialService";
 function toNumber(val: string | number | undefined | null): number {
   if (val == null) return 0;
   if (typeof val === "number") return val;
-  // Remove currency symbol, dots (thousands), spaces, then replace comma with dot
   const cleaned = val.replace(/[R$\s.]/g, "").replace(",", ".");
   const n = parseFloat(cleaned);
   return isNaN(n) ? 0 : n;
+}
+
+/** Convert a number to Brazilian Portuguese words (simplified) */
+function numberToWords(value: number): string {
+  if (value === 0) return "zero reais";
+  const units = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+  const teens = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+  const tens = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+  const hundreds = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+
+  const parts: string[] = [];
+  const intPart = Math.floor(Math.abs(value));
+  const centsPart = Math.round((Math.abs(value) - intPart) * 100);
+
+  function groupToWords(n: number): string {
+    if (n === 0) return "";
+    if (n === 100) return "cem";
+    const h = Math.floor(n / 100);
+    const t = Math.floor((n % 100) / 10);
+    const u = n % 10;
+    const words: string[] = [];
+    if (h > 0) words.push(hundreds[h]);
+    if (t === 1) { words.push(teens[u]); }
+    else { if (t > 1) words.push(tens[t]); if (u > 0) words.push(units[u]); }
+    return words.join(" e ");
+  }
+
+  if (intPart > 0) {
+    const millions = Math.floor(intPart / 1000000);
+    const thousands = Math.floor((intPart % 1000000) / 1000);
+    const remainder = intPart % 1000;
+    if (millions > 0) parts.push(`${groupToWords(millions)} ${millions === 1 ? "milhão" : "milhões"}`);
+    if (thousands > 0) parts.push(`${groupToWords(thousands)} mil`);
+    if (remainder > 0) parts.push(groupToWords(remainder));
+    parts.push(intPart === 1 ? "real" : "reais");
+  }
+
+  if (centsPart > 0) {
+    if (intPart > 0) parts.push("e");
+    parts.push(`${groupToWords(centsPart)} ${centsPart === 1 ? "centavo" : "centavos"}`);
+  }
+
+  return parts.join(" ");
 }
 
 interface ContractData {
@@ -37,6 +79,28 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
   const { formData, client, valorTela, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, items, itemDetails, catalogProducts } = data;
 
   const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+  // Computed financial values
+  const entradaNum = toNumber(formData.valor_entrada) || valorEntrada;
+  const parcelasNum = formData.qtd_parcelas || parcelas;
+  const parcelaVal = toNumber(formData.valor_parcelas) || result.valorParcela;
+  const totalAmbientes = items.reduce((a: number, b: any) => a + b.valor_ambiente, 0);
+  const totalCatalogo = catalogProducts ? catalogProducts.reduce((s, p) => s + p.sale_price * p.quantity, 0) : 0;
+  const valorRestante = result.valorFinal - entradaNum;
+  const percentualDesconto = valorTela > 0 ? ((valorTela - result.valorComDesconto) / valorTela) * 100 : 0;
+  const valorDesconto = valorTela - result.valorComDesconto;
+
+  // Build payment conditions summary
+  const condicoesPagamento = [
+    `Valor total: ${formatCurrency(result.valorFinal)}`,
+    entradaNum > 0 ? `Entrada: ${formatCurrency(entradaNum)}` : null,
+    valorRestante > 0 && parcelasNum > 0 ? `${parcelasNum}x de ${formatCurrency(parcelaVal)}` : null,
+    `Forma: ${FORMAS_PAGAMENTO_LABELS[formaPagamento] || formaPagamento}`,
+    percentualDesconto > 0.5 ? `Desconto: ${percentualDesconto.toFixed(1)}% (${formatCurrency(valorDesconto)})` : null,
+  ].filter(Boolean).join(" | ");
+
+  // Value in words (Brazilian Portuguese)
+  const valorPorExtenso = numberToWords(result.valorFinal);
 
   // Build items HTML table
   let itensHtml = "";
@@ -137,6 +201,21 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
           <tr style="font-weight:bold;"><td colspan="4" style="text-align:right;">Subtotal Catálogo:</td><td style="text-align:right;">${formatCurrency(catalogProducts.reduce((s, p) => s + p.sale_price * p.quantity, 0))}</td></tr>
         </table>`
       : "",
+    // New financial & guarantee variables
+    "{{valor_com_desconto}}": formatCurrency(result.valorComDesconto),
+    "{{percentual_desconto}}": percentualDesconto > 0.01 ? `${percentualDesconto.toFixed(1)}%` : "0%",
+    "{{valor_desconto}}": formatCurrency(valorDesconto > 0 ? valorDesconto : 0),
+    "{{valor_restante}}": formatCurrency(valorRestante > 0 ? valorRestante : 0),
+    "{{condicoes_pagamento}}": condicoesPagamento,
+    "{{garantia}}": formData.garantia || settings.garantia_padrao || "Conforme termos do fabricante",
+    "{{prazo_garantia}}": formData.prazo_garantia || settings.prazo_garantia_padrao || "12 meses",
+    "{{validade_proposta}}": formData.validade_proposta || settings.validade_proposta_padrao || "15 dias",
+    "{{data_entrega_prevista}}": formData.data_entrega_prevista
+      ? format(new Date(formData.data_entrega_prevista + "T12:00:00"), "dd/MM/yyyy")
+      : "",
+    "{{valor_total_produtos}}": formatCurrency(totalCatalogo),
+    "{{valor_total_ambientes}}": formatCurrency(totalAmbientes),
+    "{{valor_por_extenso}}": valorPorExtenso,
   };
 
   // Dynamic per-environment variables: {{prazo_entrega_ambiente_1}}, {{nome_ambiente_1}}, etc.
