@@ -156,7 +156,10 @@ export function ClientTrackingModal({ open, onClose }: Props) {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !tracking) return;
+    if (!newMessage.trim() || !tracking || String(tracking.id).startsWith("fallback-")) {
+      toast.error("As mensagens estarão disponíveis após o acompanhamento ser sincronizado.");
+      return;
+    }
     setSending(true);
     const { error } = await supabase.from("tracking_messages").insert({
       tracking_id: tracking.id,
