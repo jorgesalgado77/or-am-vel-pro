@@ -184,6 +184,20 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     () => catalogProducts.reduce((sum, item) => sum + item.product.sale_price * item.quantity, 0),
     [catalogProducts],
   );
+  const stockWarnings = useMemo(() => {
+    const warnings: Record<string, string> = {};
+    catalogProducts.forEach(item => {
+      const stockQty = item.product.stock_quantity ?? 0;
+      if (item.quantity > stockQty) {
+        if (stockQty <= 0) {
+          warnings[item.product.id] = `Sem estoque. ${item.quantity} un. sob encomenda.`;
+        } else {
+          warnings[item.product.id] = `Estoque: ${stockQty} un. Faltam ${item.quantity - stockQty} un. para pronta entrega.`;
+        }
+      }
+    });
+    return warnings;
+  }, [catalogProducts]);
 
   // ─── Hooks ───
   const { hasPermission, currentUser } = useCurrentUser();
