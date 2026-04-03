@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useState as useReactState, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -102,8 +102,9 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   VALOR_TELA_MAX, VALOR_ENTRADA_MAX,
   catalogProducts, onUpdateCatalogProductQty, onRemoveCatalogProduct, stockWarnings,
 }: SimulatorParametersFormProps) {
-  // Cache of registered fornecedores { nome_lower: prazo_entrega }
+  // Cache of registered fornecedores
   const fornecedoresMapRef = useRef<Record<string, string> | null>(null);
+  const [fornecedoresList, setFornecedoresList] = useReactState<Array<{ nome: string; prazo_entrega?: string }>>([]);
 
   const loadFornecedoresMap = useCallback(async () => {
     if (fornecedoresMapRef.current) return fornecedoresMapRef.current;
@@ -119,6 +120,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
       const map: Record<string, string> = {};
       if (data && (data as any).valor) {
         const list = JSON.parse((data as any).valor) as Array<{ nome: string; prazo_entrega?: string }>;
+        setFornecedoresList(list.filter(f => f.nome));
         for (const f of list) {
           if (f.nome && f.prazo_entrega) {
             map[f.nome.toLowerCase().trim()] = f.prazo_entrega;
@@ -217,6 +219,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
               onRemove={onRemoveEnvironment}
               canDelete={canDeleteEnvironment}
               highlightIncomplete={techFieldsHighlight}
+              fornecedoresList={fornecedoresList}
             />
           </div>
 

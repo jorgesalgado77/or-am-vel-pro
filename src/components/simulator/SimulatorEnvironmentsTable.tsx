@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
+import { FornecedorAutocomplete, type FornecedorOption } from "@/components/shared/FornecedorAutocomplete";
 import { getTenantId } from "@/lib/tenantState";
 import type { ParsedModule, ModuleType } from "@/services/fileImportService";
 
@@ -42,6 +43,7 @@ interface Props {
   onRemove: (id: string) => void;
   canDelete: boolean;
   highlightIncomplete?: boolean;
+  fornecedoresList?: FornecedorOption[];
 }
 
 const TECH_FIELDS: { key: TechField; label: string; placeholder: string }[] = [
@@ -481,7 +483,7 @@ function ModulesPanel({ modules }: { modules: ParsedModule[] }) {
 
 /* ── Main Table ────────────────────────────────────────────────── */
 
-export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete, highlightIncomplete }: Props) {
+export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete, highlightIncomplete, fornecedoresList = [] }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [autoExpandedIds] = useState<Set<string>>(new Set());
   const [batchOpen, setBatchOpen] = useState(false);
@@ -653,12 +655,13 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                     </div>
                   </TableCell>
                   <TableCell className="py-1.5 text-center">{env.pieceCount || "—"}</TableCell>
-                  <TableCell className="py-1.5">
-                    <Input
+                  <TableCell className="py-1.5 min-w-[140px]">
+                    <FornecedorAutocomplete
                       value={env.fornecedor || ""}
-                      onChange={(e) => onUpdateTechnical?.(env.id, "fornecedor", e.target.value)}
-                      className="h-6 text-[11px] bg-transparent border-none p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      onChange={(v) => onUpdateTechnical?.(env.id, "fornecedor", v)}
+                      fornecedores={fornecedoresList}
                       placeholder="Selecionar..."
+                      compact
                       readOnly={!onUpdateTechnical}
                     />
                   </TableCell>
@@ -697,13 +700,24 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                               <label className={cn("text-[9px] font-medium uppercase tracking-wider", isEmpty && isRequired ? "text-amber-500" : "text-muted-foreground")}>
                                 {label}{isEmpty && isRequired && " •"}
                               </label>
-                              <Input
-                                value={env[key] || ""}
-                                onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
-                                className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30", isEmpty && isRequired && highlightIncomplete && "ring-2 ring-amber-500/60 animate-pulse")}
-                                placeholder={placeholder}
-                                readOnly={!onUpdateTechnical}
-                              />
+                              {key === "fornecedor" ? (
+                                <FornecedorAutocomplete
+                                  value={env[key] || ""}
+                                  onChange={(v) => onUpdateTechnical?.(env.id, key, v)}
+                                  fornecedores={fornecedoresList}
+                                  placeholder={placeholder}
+                                  className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30", isEmpty && isRequired && highlightIncomplete && "ring-2 ring-amber-500/60 animate-pulse")}
+                                  readOnly={!onUpdateTechnical}
+                                />
+                              ) : (
+                                <Input
+                                  value={env[key] || ""}
+                                  onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
+                                  className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30", isEmpty && isRequired && highlightIncomplete && "ring-2 ring-amber-500/60 animate-pulse")}
+                                  placeholder={placeholder}
+                                  readOnly={!onUpdateTechnical}
+                                />
+                              )}
                             </div>
                           );
                         })}
