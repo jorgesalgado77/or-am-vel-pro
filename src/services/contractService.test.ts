@@ -105,7 +105,7 @@ describe("buildContractHtml", () => {
 
     const html = buildContractHtml(importedTemplate, data);
 
-    const normalizedHtml = html.replace(/\u00a0/g, " ");
+    const normalizedHtml = html.replace(/\u00a0|&nbsp;/g, " ");
 
     expect(normalizedHtml).toContain("João Silva");
     expect(normalizedHtml).toContain("123.456.789-00");
