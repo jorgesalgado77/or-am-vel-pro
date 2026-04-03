@@ -37,6 +37,9 @@ import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
+import { getContextualTip } from "@/hooks/useMIAContextualTips";
+import { useApiKeys } from "@/hooks/useApiKeys";
 import {
   DropdownMenu,
   DropdownMenuContent,
