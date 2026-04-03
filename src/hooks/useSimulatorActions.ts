@@ -208,16 +208,18 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     if (valorEntrada < 0) { toast.error("Valor de Entrada não pode ser negativo"); return null; }
     if (valorEntrada > result.valorComDesconto) { toast.error("Valor de Entrada não pode ser maior que o valor com desconto"); return null; }
 
-    const discountCheck = checkDiscount(valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual);
-    if (!discountCheck.allowed) {
-      const valorDesc = valorTelaComComissao * (1 - desconto1 / 100) * (1 - desconto2 / 100) * (1 - desconto3 / 100);
-      const discPct = valorTelaComComissao > 0 ? ((valorTelaComComissao - valorDesc) / valorTelaComComissao) * 100 : 0;
-      await requestApproval({
-        clientName: effectiveClient?.nome || newClient.nome || "Novo cliente",
-        vendedorName: currentUser?.nome_completo || currentUser?.apelido || "Vendedor",
-        valorFinal: result.valorFinal, discountPercent: discPct, violations: discountCheck.violations,
-      });
-      return null;
+    if (!silent) {
+      const discountCheck = checkDiscount(valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual);
+      if (!discountCheck.allowed) {
+        const valorDesc = valorTelaComComissao * (1 - desconto1 / 100) * (1 - desconto2 / 100) * (1 - desconto3 / 100);
+        const discPct = valorTelaComComissao > 0 ? ((valorTelaComComissao - valorDesc) / valorTelaComComissao) * 100 : 0;
+        await requestApproval({
+          clientName: effectiveClient?.nome || newClient.nome || "Novo cliente",
+          vendedorName: currentUser?.nome_completo || currentUser?.apelido || "Vendedor",
+          valorFinal: result.valorFinal, discountPercent: discPct, violations: discountCheck.violations,
+        });
+        return null;
+      }
     }
 
     let clientId = effectiveClient?.id;
