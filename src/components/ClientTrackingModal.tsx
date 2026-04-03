@@ -229,12 +229,20 @@ export function ClientTrackingModal({ open, onClose }: Props) {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              <div className="flex gap-2">
+                <Button variant={searchMode === "contrato" ? "default" : "outline"} size="sm" onClick={() => setSearchMode("contrato")} className="flex-1">
+                  Nº Contrato
+                </Button>
+                <Button variant={searchMode === "cpf" ? "default" : "outline"} size="sm" onClick={() => setSearchMode("cpf")} className="flex-1">
+                  CPF / CNPJ
+                </Button>
+              </div>
               <div>
-                <Label>Número do Contrato</Label>
+                <Label>{searchMode === "contrato" ? "Número do Contrato" : "CPF ou CNPJ"}</Label>
                 <Input
-                  value={contractNumber}
-                  onChange={(e) => setContractNumber(e.target.value)}
-                  placeholder="Informe o número do contrato"
+                  value={searchMode === "contrato" ? contractNumber : cpfCnpj}
+                  onChange={(e) => searchMode === "contrato" ? setContractNumber(e.target.value) : setCpfCnpj(e.target.value)}
+                  placeholder={searchMode === "contrato" ? "Informe o número do contrato" : "Informe o CPF ou CNPJ"}
                   className="mt-1"
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 />
