@@ -267,11 +267,14 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
 
   const handleCloseSaleConfirm = useCallback(async (formData: any, items: any[], itemDetails: any[]) => {
     setCloseSaleFormData(formData); setCloseSaleItems(items); setCloseSaleItemDetails(itemDetails);
-    setCloseSaleModalOpen(false); setClosingSale(true);
+    setClosingSale(true);
     try {
       await handleSave();
+      // Check if save actually succeeded by looking for the simulation
       const { data: simData } = await supabase.from("simulations").select("id").eq("client_id", client!.id).order("created_at", { ascending: false }).limit(1).single();
-      if (!simData) { toast.error("Simulação não encontrada"); setClosingSale(false); return; }
+      if (!simData) { toast.error("Simulação não encontrada. Verifique os dados e tente novamente."); setClosingSale(false); return; }
+      // Only close the modal after save succeeds
+      setCloseSaleModalOpen(false);
       const { data: template } = await supabase.from("contract_templates" as any).select("*").eq("ativo", true).order("created_at", { ascending: false }).limit(1).single();
       if (!template) { toast.error("Nenhum modelo de contrato ativo encontrado."); setClosingSale(false); return; }
       const html = buildContractHtml((template as any).conteudo_html, {
