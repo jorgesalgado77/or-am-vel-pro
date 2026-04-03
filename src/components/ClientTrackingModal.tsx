@@ -48,7 +48,9 @@ interface Props {
 
 export function ClientTrackingModal({ open, onClose }: Props) {
   const [step, setStep] = useState<"lookup" | "tracking">("lookup");
+  const [searchMode, setSearchMode] = useState<"contrato" | "cpf">("contrato");
   const [contractNumber, setContractNumber] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [searching, setSearching] = useState(false);
   const [tracking, setTracking] = useState<TrackingData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -82,15 +84,18 @@ export function ClientTrackingModal({ open, onClose }: Props) {
   }, [messages]);
 
   const handleSearch = async () => {
-    if (!contractNumber.trim()) { toast.error("Informe o número do contrato"); return; }
+    const searchValue = searchMode === "contrato" ? contractNumber.trim() : cpfCnpj.trim().replace(/\D/g, "");
+    if (!searchValue) { toast.error(searchMode === "contrato" ? "Informe o número do contrato" : "Informe o CPF ou CNPJ"); return; }
     setSearching(true);
     try {
-      const { data, error } = await supabase
-        .from("client_tracking")
-        .select("*")
-        .eq("numero_contrato", contractNumber.trim())
-        .limit(1)
-        .maybeSingle();
+      // Search in client_tracking
+      let trackingQuery = supabase.from("client_tracking").select("*");
+      if (searchMode === "contrato") {
+        trackingQuery = trackingQuery.eq("numero_contrato", searchValue);
+      } else {
+        trackingQuery = trackingQuery.eq("cpf_cnpj", searchValue);
+      }
+      const { data, error } = await trackingQuery.limit(1).maybeSingle();
 
       if (data && !error) {
         setTracking(data as any);
@@ -99,40 +104,64 @@ export function ClientTrackingModal({ open, onClose }: Props) {
         return;
       }
 
-      const { data: transaction } = await supabase
-        .from("dealroom_transactions")
-        .select("client_id, numero_contrato, nome_cliente, valor_venda, created_at, nome_vendedor")
-        .eq("numero_contrato", contractNumber.trim())
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Fallback: search in dealroom_transactions / clients
+      if (searchMode === "contrato") {
+        const { data: transaction } = await supabase
+          .from("dealroom_transactions")
+          .select("client_id, numero_contrato, nome_cliente, valor_venda, created_at, nome_vendedor")
+          .eq("numero_contrato", searchValue)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (!transaction?.client_id) {
-        toast.error("Contrato não encontrado");
-        return;
+        if (!transaction?.client_id) { toast.error("Contrato não encontrado"); return; }
+
+        const { data: client } = await supabase
+          .from("clients").select("cpf, quantidade_ambientes").eq("id", transaction.client_id).maybeSingle();
+
+        setTracking({
+          id: `fallback-${transaction.client_id}`,
+          numero_contrato: transaction.numero_contrato || searchValue,
+          nome_cliente: transaction.nome_cliente || "Cliente",
+          cpf_cnpj: client?.cpf || null,
+          quantidade_ambientes: Number(client?.quantidade_ambientes) || 0,
+          valor_contrato: Number(transaction.valor_venda) || 0,
+          data_fechamento: transaction.created_at,
+          projetista: transaction.nome_vendedor || null,
+          status: "medicao",
+        });
+      } else {
+        // Search client by CPF
+        const { data: client } = await supabase
+          .from("clients").select("id, cpf, quantidade_ambientes").eq("cpf", searchValue).limit(1).maybeSingle() as any;
+
+        if (!client?.id) { toast.error("CPF/CNPJ não encontrado"); return; }
+
+        const { data: transaction } = await supabase
+          .from("dealroom_transactions")
+          .select("numero_contrato, nome_cliente, valor_venda, created_at, nome_vendedor")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        setTracking({
+          id: `fallback-${client.id}`,
+          numero_contrato: transaction?.numero_contrato || "—",
+          nome_cliente: transaction?.nome_cliente || "Cliente",
+          cpf_cnpj: client.cpf || searchValue,
+          quantidade_ambientes: Number(client.quantidade_ambientes) || 0,
+          valor_contrato: Number(transaction?.valor_venda) || 0,
+          data_fechamento: transaction?.created_at || null,
+          projetista: transaction?.nome_vendedor || null,
+          status: "medicao",
+        });
       }
 
-      const { data: client } = await supabase
-        .from("clients")
-        .select("cpf, quantidade_ambientes")
-        .eq("id", transaction.client_id)
-        .maybeSingle();
-
-      setTracking({
-        id: `fallback-${transaction.client_id}`,
-        numero_contrato: transaction.numero_contrato || contractNumber.trim(),
-        nome_cliente: transaction.nome_cliente || "Cliente",
-        cpf_cnpj: client?.cpf || null,
-        quantidade_ambientes: Number(client?.quantidade_ambientes) || 0,
-        valor_contrato: Number(transaction.valor_venda) || 0,
-        data_fechamento: transaction.created_at,
-        projetista: transaction.nome_vendedor || null,
-        status: "medicao",
-      });
       setMessages([]);
       setStep("tracking");
     } catch {
-      toast.error("Erro ao buscar contrato");
+      toast.error("Erro ao buscar");
     } finally {
       setSearching(false);
     }
@@ -183,7 +212,9 @@ export function ClientTrackingModal({ open, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => {
         if (!o) {
           setStep("lookup");
+          setSearchMode("contrato");
           setContractNumber("");
+          setCpfCnpj("");
           setTracking(null);
           setMessages([]);
           setNewMessage("");
@@ -200,12 +231,20 @@ export function ClientTrackingModal({ open, onClose }: Props) {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              <div className="flex gap-2">
+                <Button variant={searchMode === "contrato" ? "default" : "outline"} size="sm" onClick={() => setSearchMode("contrato")} className="flex-1">
+                  Nº Contrato
+                </Button>
+                <Button variant={searchMode === "cpf" ? "default" : "outline"} size="sm" onClick={() => setSearchMode("cpf")} className="flex-1">
+                  CPF / CNPJ
+                </Button>
+              </div>
               <div>
-                <Label>Número do Contrato</Label>
+                <Label>{searchMode === "contrato" ? "Número do Contrato" : "CPF ou CNPJ"}</Label>
                 <Input
-                  value={contractNumber}
-                  onChange={(e) => setContractNumber(e.target.value)}
-                  placeholder="Informe o número do contrato"
+                  value={searchMode === "contrato" ? contractNumber : cpfCnpj}
+                  onChange={(e) => searchMode === "contrato" ? setContractNumber(e.target.value) : setCpfCnpj(e.target.value)}
+                  placeholder={searchMode === "contrato" ? "Informe o número do contrato" : "Informe o CPF ou CNPJ"}
                   className="mt-1"
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 />
@@ -220,7 +259,7 @@ export function ClientTrackingModal({ open, onClose }: Props) {
           <>
             <DialogHeader>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { setStep("lookup"); setTracking(null); setMessages([]); setNewMessage(""); }}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { setStep("lookup"); setTracking(null); setMessages([]); setNewMessage(""); setCpfCnpj(""); setContractNumber(""); }}>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <DialogTitle>Acompanhamento do Projeto</DialogTitle>
