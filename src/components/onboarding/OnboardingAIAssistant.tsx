@@ -175,8 +175,26 @@ export function OnboardingAIAssistant() {
         proactiveCheckedRef.current = true;
         checkAlerts().then(alerts => {
           if (alerts.length > 0) {
-            const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alerts.map(a => `${a.icon} **${a.title}** — ${a.detail}`).join("\n\n")}\n\n💡 _Posso ajudar com qualquer um desses itens. É só pedir!_`;
-            window.dispatchEvent(new CustomEvent("mia-inject-message", { detail: { content: alertMsg } }));
+            const actionMap: Record<string, { label: string; target: string }> = {
+              leads_parados: { label: "Ver Leads", target: "clients" },
+              tarefas_atrasadas: { label: "Ver Tarefas", target: "tasks" },
+              mensagens_pendentes: { label: "Ver Mensagens", target: "vendazap-chat" },
+            };
+            const alertLines = alerts.map(a => {
+              const action = actionMap[a.type];
+              return `${a.icon} **${a.title}** — ${a.detail}`;
+            }).join("\n\n");
+            const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alertLines}`;
+            window.dispatchEvent(new CustomEvent("mia-inject-message", {
+              detail: {
+                content: alertMsg,
+                actions: alerts.map(a => ({
+                  type: a.type,
+                  label: actionMap[a.type]?.label || "Resolver",
+                  target: actionMap[a.type]?.target || "",
+                })),
+              },
+            }));
           }
         });
       }
@@ -188,7 +206,8 @@ export function OnboardingAIAssistant() {
     const navEvents = [
       "navigate-to-simulator", "navigate-to-clients", "navigate-to-vendazap-chat",
       "navigate-to-dealroom", "navigate-to-products", "navigate-to-financial",
-      "navigate-to-tasks", "navigate-to-funnel",
+      "navigate-to-tasks", "navigate-to-funnel", "navigate-to-contracts",
+      "navigate-to-campaigns", "navigate-to-dashboard",
     ];
     const moduleMap: Record<string, string> = {
       "navigate-to-simulator": "simulator",
@@ -199,6 +218,9 @@ export function OnboardingAIAssistant() {
       "navigate-to-financial": "financial",
       "navigate-to-tasks": "tasks",
       "navigate-to-funnel": "funnel",
+      "navigate-to-contracts": "contracts",
+      "navigate-to-campaigns": "campaigns",
+      "navigate-to-dashboard": "dashboard",
     };
 
     const handler = (e: Event) => {
@@ -726,6 +748,23 @@ export function OnboardingAIAssistant() {
 const MessageBubble = memo(function MessageBubble({ message }: { message: AIMessage }) {
   const isUser = message.role === "user";
 
+  const handleResolveAction = (target: string) => {
+    const eventMap: Record<string, string> = {
+      clients: "navigate-to-clients",
+      tasks: "navigate-to-tasks",
+      "vendazap-chat": "navigate-to-vendazap-chat",
+      dashboard: "navigate-to-dashboard",
+      simulator: "navigate-to-simulator",
+      contracts: "navigate-to-contracts",
+      campaigns: "navigate-to-campaigns",
+      financial: "navigate-to-financial",
+    };
+    const evt = eventMap[target];
+    if (evt) {
+      window.dispatchEvent(new CustomEvent(evt));
+    }
+  };
+
   return (
     <div className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
       {!isUser && (
@@ -742,6 +781,22 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: AIMess
         )}
       >
         <RenderMarkdown content={message.content} />
+        {message.actions && message.actions.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border/50">
+            {message.actions.map((action, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                className="text-[10px] h-6 gap-1 px-2 bg-primary/5 hover:bg-primary/15 border-primary/20 text-primary"
+                onClick={() => handleResolveAction(action.target)}
+              >
+                <Zap className="h-3 w-3" />
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

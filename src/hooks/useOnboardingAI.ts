@@ -4,11 +4,18 @@ import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
 
+export interface AIMessageAction {
+  type: string;
+  label: string;
+  target: string;
+}
+
 export interface AIMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  actions?: AIMessageAction[];
 }
 
 export interface OnboardingAIContext {
@@ -493,9 +500,14 @@ export function useOnboardingAI(tenantId: string | null) {
   // Listen for injected messages (proactive alerts, contextual tips)
   useEffect(() => {
     const handler = (e: Event) => {
-      const content = (e as CustomEvent).detail?.content;
+      const detail = (e as CustomEvent).detail;
+      const content = detail?.content;
       if (content) {
-        setMessages((prev) => [...prev, createMessage("assistant", content)]);
+        const msg = createMessage("assistant", content);
+        if (detail?.actions) {
+          (msg as any).actions = detail.actions;
+        }
+        setMessages((prev) => [...prev, msg]);
       }
     };
     window.addEventListener("mia-inject-message", handler);
