@@ -13,6 +13,12 @@ export interface ImportedEnvironment {
   totalValue: number;
   importedAt: Date;
   file: File;
+  fornecedor?: string;
+  corpo?: string;
+  porta?: string;
+  puxador?: string;
+  complemento?: string;
+  modelo?: string;
 }
 
 interface Props {

@@ -112,7 +112,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
               pieceCount: parsed.pieces, totalValue: parsed.total, importedAt: new Date(), file,
               fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
               puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
-            } as any]);
+            }]);
             setImportedFile(file);
             if (parsed.software && parsed.software !== "generico") setDetectedSoftware(parsed.software);
             toast.success(`Ambiente "${parsed.envName}" importado: ${formatCurrency(parsed.total)}`);
@@ -173,7 +173,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     for (const env of environments) {
       let fileUrl: string | undefined;
       if (env.file && env.file.size > 0) { const uploaded = await uploadFile(env.file, clientId); if (uploaded) fileUrl = uploaded.url; }
-      uploadedEnvironments.push({ id: env.id, fileName: env.fileName, environmentName: env.environmentName, pieceCount: env.pieceCount, totalValue: env.totalValue, importedAt: env.importedAt.toISOString(), fileUrl });
+      uploadedEnvironments.push({ id: env.id, fileName: env.fileName, environmentName: env.environmentName, pieceCount: env.pieceCount, totalValue: env.totalValue, importedAt: env.importedAt.toISOString(), fileUrl, fornecedor: env.fornecedor || "", corpo: env.corpo || "", porta: env.porta || "", puxador: env.puxador || "", complemento: env.complemento || "", modelo: env.modelo || "" });
     }
 
     // Serialize both environments and catalog products into arquivo_nome
