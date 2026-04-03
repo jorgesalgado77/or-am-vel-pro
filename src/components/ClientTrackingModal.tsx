@@ -48,7 +48,9 @@ interface Props {
 
 export function ClientTrackingModal({ open, onClose }: Props) {
   const [step, setStep] = useState<"lookup" | "tracking">("lookup");
+  const [searchMode, setSearchMode] = useState<"contrato" | "cpf">("contrato");
   const [contractNumber, setContractNumber] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [searching, setSearching] = useState(false);
   const [tracking, setTracking] = useState<TrackingData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
