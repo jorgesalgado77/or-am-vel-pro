@@ -124,6 +124,8 @@ function firstMatch(content: string, patterns: RegExp[], fallback = ""): string 
 function detectSoftware(content: string, fileName: string): ParsedFileResult["software"] {
   const lower = content.toLowerCase();
   if (lower.includes("promob") || lower.includes("plugin builder") || /catalog|listexport/i.test(fileName)) return "promob";
+  // Promob fixed-width TXT: has "ID do Projeto" header + item lines with 5+ digit codes
+  if (/ID do Projeto/i.test(content) && /^\s*\d+\s+[\d.]+\s+\d{5,}\s+\S/m.test(content)) return "promob";
   if (lower.includes("focco") || lower.includes("foccolojas") || lower.includes("foccosystem")) return "focco";
   if (lower.includes("gabster") || lower.includes("powerarq") || lower.includes("sketchup")) return "gabster";
   return "generico";
