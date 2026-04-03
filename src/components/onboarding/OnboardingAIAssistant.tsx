@@ -77,8 +77,9 @@ export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject, navigateTo, pendingItems } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
-  const currentUserId = typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null;
-  const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId);
+  const { currentUser } = useCurrentUser();
+  const currentUserId = currentUser?.id || (typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null);
+  const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId, currentUser?.cargo_nome);
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [input, setInput] = useState("");
