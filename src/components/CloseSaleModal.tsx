@@ -751,8 +751,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
             <div className="flex flex-col sm:flex-row gap-3 pb-4">
               <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
               <Button onClick={handleSubmit} disabled={saving} className="flex-1 gap-2">
-                <Save className="h-4 w-4" />
-                {saving ? "Salvando..." : "Salvar Contrato e Continuar"}
+                {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Salvando simulação e preparando contrato...</> : <><Save className="h-4 w-4" /> Salvar Contrato e Continuar</>}
               </Button>
             </div>
           </div>
