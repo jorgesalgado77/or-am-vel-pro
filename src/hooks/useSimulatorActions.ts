@@ -10,7 +10,7 @@ import { openContractPrintWindow } from "@/lib/contractDocument";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { logError, logEvent } from "@/services/system/SystemDiagnosticsService";
 import { validateFileUpload } from "@/lib/validation";
-import { parseProjectFile } from "@/services/fileImportService";
+import { parseProjectFileMulti } from "@/services/fileImportService";
 import { formatCurrency, type FormaPagamento, type SimulationInput, calculateSimulation } from "@/lib/financing";
 import type { ImportedEnvironment } from "@/components/simulator/SimulatorEnvironmentsTable";
 import type { Database } from "@/integrations/supabase/types";
