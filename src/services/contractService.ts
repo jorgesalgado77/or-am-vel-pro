@@ -119,6 +119,7 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
           <tr style="font-weight:bold;"><td colspan="8" style="text-align:right">Total:</td><td style="text-align:right">${formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0))}</td></tr>
         </table>`
       : "",
+    "{{quantidade_ambientes}}": String(items.length),
     "{{produtos_catalogo}}": catalogProducts && catalogProducts.length > 0
       ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
           <tr style="background:#f0f0f0;"><th>Código</th><th>Produto</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th></tr>
