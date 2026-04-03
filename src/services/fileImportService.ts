@@ -99,6 +99,7 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
   const iVal = colIdx(["valor", "total", "preco", "preço", "vlr"]);
   const iPux = colIdx(["puxador", "pux"]);
   const iModelo = colIdx(["modelo", "linha", "colecao", "coleção"]);
+  const iTipo = colIdx(["tipo", "descricao", "desc", "componente", "modulo"]);
 
   let envName = fileName.replace(/\.(txt|csv|xml)$/i, "");
   let totalValue = 0;
@@ -121,14 +122,28 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     if (iPux >= 0 && cols[iPux] && !puxador) puxador = cols[iPux];
     if (iModelo >= 0 && cols[iModelo] && !modelo) modelo = cols[iModelo];
 
+    // Determine piece type from material column, tipo column, or full line
+    const mat = iMat >= 0 ? (cols[iMat] || "") : "";
+    const tipo = iTipo >= 0 ? (cols[iTipo] || "") : "";
+    const fullLine = line.toLowerCase();
+    const isCorpo = /caixa|corpo|lateral|estrutura|base|tampo|fundo|prateleira/i.test(mat) ||
+                    /caixa|corpo|lateral|estrutura/i.test(tipo) ||
+                    (!mat && !tipo && /\bcaixa\b|\bcorpo\b|\blateral\b|\bestrutura\b/i.test(fullLine));
+    const isPorta = /porta|frente|fachada|gaveta/i.test(mat) ||
+                    /porta|frente|fachada/i.test(tipo) ||
+                    (!mat && !tipo && /\bporta\b|\bfrente\b|\bfachada\b/i.test(fullLine));
+
     // Body/door from material + thickness + color columns
-    if (iMat >= 0 && iEsp >= 0) {
-      const mat = cols[iMat] || "";
+    if (iEsp >= 0) {
       const esp = cols[iEsp] || "";
       const cor = iCor >= 0 ? cols[iCor] || "" : "";
-      const desc = `${esp}mm ${cor || mat}`.trim();
-      if (!corpo && /caixa|corpo|lateral|estrutura/i.test(mat)) corpo = desc;
-      if (!porta && /porta|frente|fachada/i.test(mat)) porta = desc;
+      const desc = cor ? `${esp}mm ${cor}`.trim() : (mat ? `${esp}mm ${mat}`.trim() : `${esp}mm`);
+      if (!corpo && isCorpo && esp) corpo = desc;
+      if (!porta && isPorta && esp) porta = desc;
+    } else if (iMat >= 0) {
+      // No thickness column — use material description directly
+      if (!corpo && isCorpo && mat) corpo = mat;
+      if (!porta && isPorta && mat) porta = mat;
     }
 
     // Quantity
@@ -143,7 +158,6 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     }
 
     // Accessories
-    const fullLine = line.toLowerCase();
     if (/dobradica|dobradiça/i.test(fullLine)) {
       const accDesc = cols[iMat >= 0 ? iMat : 1] || "";
       if (accDesc) compParts.push(`Dobradiças: ${accDesc}`);
@@ -154,13 +168,49 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     }
   }
 
-  // Fallback: generic regex extraction
+  // Fallback: generic regex extraction for all fields
   if (!envName || envName === fileName.replace(/\.(txt|csv|xml)$/i, "")) {
     envName = firstMatch(content, [/Ambiente\s*[=:;]\s*(.+)/i], envName);
   }
   if (totalValue === 0) {
     const m = content.match(/(?:Total|Valor\s*Total|TOTAL)\s*[=:;]\s*([\d.,]+)/i);
     if (m) totalValue = parseBRL(m[1]);
+  }
+  if (!fornecedor) {
+    fornecedor = firstMatch(content, [
+      /(?:Fornecedor|Fabricante|Marca|Industria)\s*[=:;]\s*(.+)/i,
+    ]);
+  }
+  if (!corpo) {
+    corpo = firstMatch(content, [
+      /(?:Corpo|Caixa|Lateral|Estrutura)\s*[=:;]\s*(.+)/i,
+      /(?:caixa|corpo|lateral|estrutura)\s*(\d+\s*mm\s*[\w\s]*)/i,
+      /(?:Chapa\s*(?:do\s*)?Corpo|Chapa\s*Caixa)\s*[=:;]\s*(.+)/i,
+    ]);
+  }
+  if (!porta) {
+    porta = firstMatch(content, [
+      /(?:Porta|Frente|Fachada)\s*[=:;]\s*(.+)/i,
+      /(?:porta|frente|fachada)\s*(\d+\s*mm\s*[\w\s]*)/i,
+      /(?:Chapa\s*(?:da\s*)?Porta|Chapa\s*Frente)\s*[=:;]\s*(.+)/i,
+    ]);
+  }
+  if (!puxador) {
+    puxador = firstMatch(content, [
+      /(?:Puxador|Puxadores|Tipo\s*(?:de\s*)?Puxador)\s*[=:;]\s*(.+)/i,
+      /(?:puxador|handle)\s*[-–]\s*(.+)/i,
+    ]);
+  }
+  if (!modelo) {
+    modelo = firstMatch(content, [
+      /(?:Modelo|Linha|Coleção|Colecao)\s*[=:;]\s*(.+)/i,
+    ]);
+  }
+  if (compParts.length === 0) {
+    const mDob = content.match(/(?:Dobradica|Dobradiça|Dobradiças)\s*[=:;]\s*(.+)/i);
+    if (mDob) compParts.push(`Dobradiças: ${mDob[1].trim()}`);
+    const mCorr = content.match(/(?:Corrediça|Corrediças|Corredica)\s*[=:;]\s*(.+)/i);
+    if (mCorr) compParts.push(`Corrediças: ${mCorr[1].trim()}`);
   }
 
   return {
