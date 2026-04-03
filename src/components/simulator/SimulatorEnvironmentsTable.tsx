@@ -586,10 +586,11 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
         <TableHeader>
           <TableRow className="bg-muted/30">
             <TableHead className="text-xs py-1.5 h-auto w-6"></TableHead>
-            <TableHead className="text-xs py-1.5 h-auto">Ambiente</TableHead>
-            <TableHead className="text-xs py-1.5 h-auto text-center">Peças</TableHead>
-            <TableHead className="text-xs py-1.5 h-auto text-right">Valor</TableHead>
-            <TableHead className="text-xs py-1.5 h-auto text-center">Data</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto">Descrição / Ambiente</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto text-center">Qtd</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto">Fornecedor</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto">Prazo</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto text-right">Valor Ambiente</TableHead>
             <TableHead className="text-xs py-1.5 h-auto w-8"></TableHead>
           </TableRow>
         </TableHeader>
