@@ -147,7 +147,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
             </Button>
           </div>
           {/* Ambientes Importados */}
-          <div className="mt-2 border border-blue-200 dark:border-blue-800 rounded-md overflow-hidden">
+          <div id="simulator-environments-table" className="mt-2 border border-blue-200 dark:border-blue-800 rounded-md overflow-hidden">
             <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">Ambientes Planejados</span>
