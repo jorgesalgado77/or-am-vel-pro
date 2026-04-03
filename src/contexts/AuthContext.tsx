@@ -785,6 +785,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     syncGlobalState(null);
+    resetToDefaultTheme();
   }, []);
 
   const [showInactivityWarning, setShowInactivityWarning] = useState(false);
