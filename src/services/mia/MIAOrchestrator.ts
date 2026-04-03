@@ -21,6 +21,7 @@ import { getMIAActionExecutionEngine, type MIAActionExecutionEngine } from "./Ac
 import { getMIALearningEngine, type MIALearningEngine, type MIALearningScore } from "./MIALearningEngine";
 import { getResearchEngine, type ResearchEngine } from "./ResearchEngine";
 import { getPersonalizationEngine, type PersonalizationEngine } from "./PersonalizationEngine";
+import { getSystemKnowledgeEngine, type SystemKnowledgeEngine } from "./engines/SystemKnowledgeEngine";
 import { VendaZapEngine } from "./engines/VendaZapEngine";
 import { DealRoomEngine } from "./engines/DealRoomEngine";
 import { OnboardingEngine } from "./engines/OnboardingEngine";
@@ -36,6 +37,7 @@ class MIAOrchestrator {
   private learning: MIALearningEngine = getMIALearningEngine();
   private research: ResearchEngine = getResearchEngine();
   private personalization: PersonalizationEngine = getPersonalizationEngine();
+  private systemKnowledge: SystemKnowledgeEngine = getSystemKnowledgeEngine();
 
   constructor() {
     // Auto-register all engines
@@ -96,9 +98,14 @@ class MIAOrchestrator {
             })
           );
 
-          const [memoryCtx, insightsCtx, personalizationCtx] = await Promise.all(promises);
+          // Always inject system knowledge (cargo-aware)
+          const cargoNome = (request.metadata?.cargo_nome as string) || undefined;
+          const systemKnowledgeCtx = this.systemKnowledge.buildSystemKnowledge(cargoNome);
+          promises.push(Promise.resolve(systemKnowledgeCtx));
 
-          const extraContext = (memoryCtx || "") + (insightsCtx || "") + (personalizationCtx || "");
+          const [memoryCtx, insightsCtx, personalizationCtx, systemCtx] = await Promise.all(promises);
+
+          const extraContext = (systemCtx || "") + (memoryCtx || "") + (insightsCtx || "") + (personalizationCtx || "");
           if (extraContext) {
             const systemIdx = request.messages.findIndex((m) => m.role === "system");
             if (systemIdx >= 0) {
@@ -255,6 +262,11 @@ class MIAOrchestrator {
   /** Get the personalization engine */
   getPersonalization() {
     return this.personalization;
+  }
+
+  /** Get the system knowledge engine */
+  getSystemKnowledge() {
+    return this.systemKnowledge;
   }
 }
 
