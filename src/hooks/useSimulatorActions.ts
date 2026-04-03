@@ -188,7 +188,8 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     toast.success("Ambiente removido");
   }, [setEnvironments, setValorTela, setImportedFile]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (options?: { silent?: boolean }): Promise<string | null> => {
+    const silent = options?.silent ?? false;
     if (!resolvedTenantId) {
       const message = "Não foi possível identificar a loja atual; recarregue a página e tente novamente.";
       toast.error(message, { duration: 7000 });
@@ -207,16 +208,18 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     if (valorEntrada < 0) { toast.error("Valor de Entrada não pode ser negativo"); return null; }
     if (valorEntrada > result.valorComDesconto) { toast.error("Valor de Entrada não pode ser maior que o valor com desconto"); return null; }
 
-    const discountCheck = checkDiscount(valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual);
-    if (!discountCheck.allowed) {
-      const valorDesc = valorTelaComComissao * (1 - desconto1 / 100) * (1 - desconto2 / 100) * (1 - desconto3 / 100);
-      const discPct = valorTelaComComissao > 0 ? ((valorTelaComComissao - valorDesc) / valorTelaComComissao) * 100 : 0;
-      await requestApproval({
-        clientName: effectiveClient?.nome || newClient.nome || "Novo cliente",
-        vendedorName: currentUser?.nome_completo || currentUser?.apelido || "Vendedor",
-        valorFinal: result.valorFinal, discountPercent: discPct, violations: discountCheck.violations,
-      });
-      return null;
+    if (!silent) {
+      const discountCheck = checkDiscount(valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual);
+      if (!discountCheck.allowed) {
+        const valorDesc = valorTelaComComissao * (1 - desconto1 / 100) * (1 - desconto2 / 100) * (1 - desconto3 / 100);
+        const discPct = valorTelaComComissao > 0 ? ((valorTelaComComissao - valorDesc) / valorTelaComComissao) * 100 : 0;
+        await requestApproval({
+          clientName: effectiveClient?.nome || newClient.nome || "Novo cliente",
+          vendedorName: currentUser?.nome_completo || currentUser?.apelido || "Vendedor",
+          valorFinal: result.valorFinal, discountPercent: discPct, violations: discountCheck.violations,
+        });
+        return null;
+      }
     }
 
     let clientId = effectiveClient?.id;
@@ -346,7 +349,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
 
     savedRef.current = true;
     sessionStorage.removeItem(SIM_STORAGE_KEY);
-    toast.success("Simulação salva com sucesso!");
+    if (!silent) toast.success("Simulação salva com sucesso!");
     const userInfo = getAuditUserInfo();
     logAudit({ acao: "simulacao_salva", entidade: "simulation", entidade_id: clientId, detalhes: { valor_tela: valorTela, valor_final: result.valorFinal, forma_pagamento: formaPagamento, desconto1, desconto2, desconto3, valor_entrada: valorEntrada, ia_ativa: !!aiStrategyEnabled, estrategia_ia: aiStrategyEnabled ? (activeStrategy || null) : null }, ...userInfo });
 
@@ -425,7 +428,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     setCloseSaleItemDetails(itemDetails);
     setClosingSale(true);
     try {
-      const simulationId = await handleSave();
+      const simulationId = await handleSave({ silent: true });
       if (!simulationId) {
         reportCloseSaleIssue("A simulação não foi salva, então o contrato não pôde avançar para o editor.", { step: "save_before_contract" });
         return false;
@@ -487,8 +490,10 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       setPendingTemplateId((template as any)?.id ?? null);
       setContractHtml(html);
       setCloseSaleModalOpen(false);
-      window.setTimeout(() => setContractEditorOpen(true), 0);
-      toast.success("Simulação salva com sucesso; abrindo o editor do contrato.");
+      setClosingSale(false);
+      // Use requestAnimationFrame to ensure modal unmounts before editor opens
+      requestAnimationFrame(() => setContractEditorOpen(true));
+      toast.success("Simulação salva! Abrindo editor do contrato...");
       logEvent({
         event_type: "integration",
         source: "close_sale_flow",
@@ -503,7 +508,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro inesperado ao preparar o contrato.";
-      console.error(err);
+      console.error("[CloseSaleFlow] Error:", err);
       toast.error(`O contrato não pôde continuar: ${message}`, { duration: 7000 });
       logError({
         source: "close_sale_flow",
