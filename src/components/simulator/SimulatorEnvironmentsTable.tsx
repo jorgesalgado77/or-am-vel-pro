@@ -144,10 +144,26 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
 
 /* ── Main Table ────────────────────────────────────────────────── */
 
-export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete }: Props) {
+export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete, highlightIncomplete }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [autoExpandedIds] = useState<Set<string>>(new Set());
   const [batchOpen, setBatchOpen] = useState(false);
+
+  // Auto-expand incomplete environments when highlight is triggered
+  useEffect(() => {
+    if (!highlightIncomplete) return;
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const env of environments) {
+        if (isIncomplete(env) && !next.has(env.id)) {
+          next.add(env.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [highlightIncomplete, environments]);
 
   useEffect(() => {
     setExpandedIds(prev => {
