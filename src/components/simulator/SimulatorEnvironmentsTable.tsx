@@ -72,6 +72,9 @@ const missingCount = (env: ImportedEnvironment) =>
 
 /* ── Tech Templates (Supabase) ──────────────────────────────────── */
 
+const LEGACY_TEMPLATES_STORAGE_KEY = "tech-field-templates";
+const LEGACY_TEMPLATES_MIGRATED_KEY = "tech-field-templates-migrated-v1";
+
 interface TechTemplate {
   id: string;
   name: string;
@@ -82,29 +85,95 @@ function useTechTemplates() {
   const [templates, setTemplates] = useState<TechTemplate[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const mapRowsToTemplates = useCallback((rows: any[]) => rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    values: {
+      corpo: r.corpo || "",
+      porta: r.porta || "",
+      puxador: r.puxador || "",
+      complemento: r.complemento || "",
+      modelo: r.modelo || "",
+      fornecedor: r.fornecedor || "",
+    },
+  })), []);
+
+  const migrateLegacyTemplates = useCallback(async () => {
+    const tenantId = getTenantId();
+    const alreadyMigrated = localStorage.getItem(LEGACY_TEMPLATES_MIGRATED_KEY);
+    const raw = localStorage.getItem(LEGACY_TEMPLATES_STORAGE_KEY);
+    if (!tenantId || alreadyMigrated || !raw) return false;
+
+    try {
+      const parsed = JSON.parse(raw) as Array<{ name?: string; values?: Partial<Record<TechField, string>> }>;
+      const validTemplates = parsed.filter(t => t?.name && t?.values);
+      if (validTemplates.length === 0) {
+        localStorage.setItem(LEGACY_TEMPLATES_MIGRATED_KEY, "1");
+        return false;
+      }
+
+      const { data: userData } = await supabase.auth.getUser();
+      const payload = validTemplates.map((template) => ({
+        tenant_id: tenantId,
+        name: String(template.name).trim(),
+        corpo: template.values?.corpo || "",
+        porta: template.values?.porta || "",
+        puxador: template.values?.puxador || "",
+        complemento: template.values?.complemento || "",
+        modelo: template.values?.modelo || "",
+        fornecedor: template.values?.fornecedor || "",
+        created_by: userData?.user?.id || null,
+      }));
+
+      const { error } = await supabase.from("tech_field_templates" as any).insert(payload as any);
+      if (error) {
+        console.warn("[TechTemplates] legacy migration error:", error);
+        return false;
+      }
+
+      localStorage.setItem(LEGACY_TEMPLATES_MIGRATED_KEY, "1");
+      localStorage.removeItem(LEGACY_TEMPLATES_STORAGE_KEY);
+      toast.success(`${payload.length} template(s) legado(s) migrado(s)`);
+      return true;
+    } catch (error) {
+      console.warn("[TechTemplates] legacy migration parse error:", error);
+      return false;
+    }
+  }, []);
+
   const fetchTemplates = useCallback(async () => {
     const tenantId = getTenantId();
     if (!tenantId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("tech_field_templates" as any)
-      .select("id, name, corpo, porta, puxador, complemento, modelo, fornecedor")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    if (!error && data) {
-      setTemplates((data as any[]).map(r => ({
-        id: r.id,
-        name: r.name,
-        values: { corpo: r.corpo || "", porta: r.porta || "", puxador: r.puxador || "", complemento: r.complemento || "", modelo: r.modelo || "", fornecedor: r.fornecedor || "" },
-      })));
+
+    const runFetch = async () => {
+      const { data, error } = await supabase
+        .from("tech_field_templates" as any)
+        .select("id, name, corpo, porta, puxador, complemento, modelo, fornecedor")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return { data, error };
+    };
+
+    let { data, error } = await runFetch();
+    if (!error && (!data || data.length === 0)) {
+      const migrated = await migrateLegacyTemplates();
+      if (migrated) ({ data, error } = await runFetch());
     }
+
+    if (!error && data) {
+      setTemplates(mapRowsToTemplates(data as any[]));
+    } else if (error) {
+      console.warn("[TechTemplates] fetch error:", error);
+    }
+
     setLoading(false);
-  }, []);
+  }, [mapRowsToTemplates, migrateLegacyTemplates]);
 
   const saveTemplate = useCallback(async (name: string, values: Record<TechField, string>) => {
     const tenantId = getTenantId();
-    if (!tenantId) return;
+    if (!tenantId) return false;
     const { data: userData } = await supabase.auth.getUser();
     const { error } = await supabase.from("tech_field_templates" as any).insert({
       tenant_id: tenantId,
@@ -117,9 +186,10 @@ function useTechTemplates() {
       fornecedor: values.fornecedor,
       created_by: userData?.user?.id || null,
     } as any);
-    if (error) { toast.error("Erro ao salvar template"); return; }
+    if (error) { toast.error("Erro ao salvar template"); return false; }
     toast.success(`Template "${name}" salvo`);
     await fetchTemplates();
+    return true;
   }, [fetchTemplates]);
 
   const deleteTemplate = useCallback(async (id: string) => {
