@@ -99,6 +99,7 @@ export function useTaskReminders(tenantId: string | null, userId: string | undef
         }
         const updated = payload.new as unknown as Task;
         const today = new Date().toISOString().slice(0, 10);
+        const isOverdueOrToday = updated.data_tarefa && updated.data_tarefa <= today;
         
         // Only process tasks assigned to current user
         if (updated.responsavel_id !== userId) {
