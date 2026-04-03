@@ -491,18 +491,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                   </div>
                   <div>
                     <Label className="text-xs">Prazo de Entrega</Label>
-                    {deliveryDeadlines.length > 0 ? (
-                      <Select value={form.prazo_entrega} onValueChange={v => updateField("prazo_entrega", v)}>
-                        <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>
-                          {deliveryDeadlines.map(d => (
-                            <SelectItem key={d.id} value={d.label}>{d.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input value={form.prazo_entrega} onChange={e => updateField("prazo_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="Ex: 45 dias" />
-                    )}
+                    <PrazoEntregaSelect value={form.prazo_entrega} onChange={v => updateField("prazo_entrega", v)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
