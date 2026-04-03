@@ -175,17 +175,7 @@ export function OnboardingAIAssistant() {
         proactiveCheckedRef.current = true;
         checkAlerts().then(alerts => {
           if (alerts.length > 0) {
-            const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alerts.map(a => `${a.icon} **${a.title}** — ${a.detail}`).join("\n\n")}`;
-            sendMessage("status", true); // triggers a lightweight status-like injection
-            // Inject directly as assistant message
-            const msg: AIMessage = {
-              id: `proactive-${Date.now()}`,
-              role: "assistant",
-              content: alertMsg,
-              timestamp: new Date(),
-            };
-            // We need to use a workaround since we can't setMessages directly here
-            // Instead, we dispatch a custom event that the hook can listen to
+            const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alerts.map(a => `${a.icon} **${a.title}** — ${a.detail}`).join("\n\n")}\n\n💡 _Posso ajudar com qualquer um desses itens. É só pedir!_`;
             window.dispatchEvent(new CustomEvent("mia-inject-message", { detail: { content: alertMsg } }));
           }
         });
