@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { useOnboardingAI, type AIMessage } from "@/hooks/useOnboardingAI";
 import { useTenant } from "@/contexts/TenantContext";
 import { useApiKeys } from "@/hooks/useApiKeys";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
@@ -76,8 +77,9 @@ export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject, navigateTo, pendingItems } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
-  const currentUserId = typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null;
-  const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId);
+  const { currentUser } = useCurrentUser();
+  const currentUserId = currentUser?.id || (typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null);
+  const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId, currentUser?.cargo_nome);
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [input, setInput] = useState("");
@@ -186,24 +188,20 @@ export function OnboardingAIAssistant() {
         proactiveCheckedRef.current = true;
         checkAlerts().then(alerts => {
           if (alerts.length > 0) {
-            const actionMap: Record<string, { label: string; target: string }> = {
-              leads_parados: { label: "Ver Leads", target: "clients" },
-              tarefas_atrasadas: { label: "Ver Tarefas", target: "tasks" },
-              mensagens_pendentes: { label: "Ver Mensagens", target: "vendazap-chat" },
-            };
-            const alertLines = alerts.map(a => {
-              const action = actionMap[a.type];
-              return `${a.icon} **${a.title}** — ${a.detail}`;
-            }).join("\n\n");
+            const alertLines = alerts.map(a =>
+              `${a.icon} **${a.title}** — ${a.detail}`
+            ).join("\n\n");
             const alertMsg = `🔔 **Alertas Proativos da MIA:**\n\n${alertLines}`;
             window.dispatchEvent(new CustomEvent("mia-inject-message", {
               detail: {
                 content: alertMsg,
-                actions: alerts.map(a => ({
-                  type: a.type,
-                  label: actionMap[a.type]?.label || "Resolver",
-                  target: actionMap[a.type]?.target || "",
-                })),
+                actions: alerts
+                  .filter(a => a.action)
+                  .map(a => ({
+                    type: a.type,
+                    label: a.action!.label,
+                    target: a.action!.target,
+                  })),
               },
             }));
           }
