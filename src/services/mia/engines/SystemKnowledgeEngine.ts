@@ -222,8 +222,10 @@ const MODULES: ModuleKnowledge[] = [
     allowedCargos: ["todos"],
     quickActions: ["Criar tarefa", "Ver tarefas de hoje", "Delegar tarefa"],
     commonQuestions: [
-      { q: "Como criar uma tarefa?", a: "Diga 'criar tarefa' para mim ou clique '+ Nova Tarefa' no módulo de Tarefas." },
+      { q: "Como criar uma tarefa?", a: "Você pode criar tarefas de duas formas:\n\n**1. Pelo Chat da MIA:** Digite **\"criar tarefa\"** e siga o passo a passo guiado.\n\n**2. Pelo módulo de Tarefas:** Acesse **Menu lateral > Tarefas**, clique **\"+ Nova Tarefa\"** e preencha Título, Data, Horário e Responsável.\n\nA tarefa aparecerá no Kanban e no Calendário automaticamente." },
       { q: "Como delegar uma tarefa?", a: "Ao criar a tarefa, selecione outro responsável. Apenas Gerentes e Admins podem delegar." },
+      { q: "Como ver minhas tarefas?", a: "Diga **\"minhas tarefas de hoje\"** aqui no chat, ou acesse **Menu lateral > Tarefas** para ver o Kanban completo." },
+      { q: "Como marcar tarefa como concluída?", a: "Diga **\"marcar tarefa [nome] como concluída\"** aqui no chat, ou arraste o card para a coluna \"Concluída\" no Kanban de Tarefas." },
     ],
   },
   {
