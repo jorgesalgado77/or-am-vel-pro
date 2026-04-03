@@ -23,8 +23,57 @@ Deno.serve(async (req) => {
   try {
     const action = url.searchParams.get("action") || (req.method === "POST" ? (await req.clone().json()).action : null);
 
+    // TRACK: search client_tracking by numero_contrato
+    if (action === "track") {
+      const numero = url.searchParams.get("numero") || (req.method === "POST" ? (await req.clone().json()).numero : null);
+      if (!numero || numero.trim().length < 3) return json({ error: "Informe o número do contrato" }, 400);
+
+      const { data, error } = await supabase
+        .from("client_tracking")
+        .select("*")
+        .eq("numero_contrato", numero.trim())
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) return json({ error: "Contrato não encontrado" }, 404);
+
+      // Also fetch messages
+      const { data: messages } = await supabase
+        .from("tracking_messages")
+        .select("*")
+        .eq("tracking_id", data.id)
+        .order("created_at", { ascending: true });
+
+      // Mark loja messages as read for client
+      await supabase
+        .from("tracking_messages")
+        .update({ lida: true })
+        .eq("tracking_id", data.id)
+        .eq("remetente_tipo", "loja")
+        .eq("lida", false);
+
+      return json({ tracking: data, messages: messages || [] });
+    }
+
+    // TRACK MESSAGE: send a message from client
+    if (action === "track-message") {
+      const body = await req.json();
+      const { tracking_id, mensagem, remetente_nome } = body;
+      if (!tracking_id || !mensagem?.trim()) return json({ error: "Dados insuficientes" }, 400);
+
+      const { error } = await supabase.from("tracking_messages").insert({
+        tracking_id,
+        mensagem: mensagem.trim(),
+        remetente_tipo: "cliente",
+        remetente_nome: remetente_nome || "Cliente",
+      });
+
+      if (error) return json({ error: "Erro ao enviar mensagem" }, 500);
+      return json({ success: true });
+    }
+
     // GET contract by token
-    if (action === "get" || req.method === "GET") {
+    if (action === "get" || (req.method === "GET" && !url.searchParams.get("numero"))) {
       const token = url.searchParams.get("token");
       if (!token || token.length < 10) return json({ error: "Token inválido" }, 400);
 
