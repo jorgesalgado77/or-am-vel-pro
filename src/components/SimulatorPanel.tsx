@@ -464,7 +464,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
               setDesconto3Unlocked(false); setPlusUnlocked(false); setExtremaLocked(false);
-              setActiveStrategy("");
+              setActiveStrategy(""); setAiStrategyEnabled(false);
               setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
               setCatalogProducts([]);
               setLinkedClient(null); setClientSearch("");
