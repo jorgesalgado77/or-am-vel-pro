@@ -436,8 +436,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               onRequestExtremaUnlock={requestExtremaUnlock}
               extremaUnlocked={!isVendedorOrProjetista || extremaLocked}
               initialStrategy={activeStrategy || undefined}
+              initialEnabled={aiStrategyEnabled}
               onStrategyChange={(s) => setActiveStrategy(s || "")}
-            />
+              onEnabledChange={(v) => setAiStrategyEnabled(v)}
           </Suspense>
 
           <SimulatorResultCard
