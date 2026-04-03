@@ -148,7 +148,7 @@ export function ClientTrackingModal({ open, onClose }: Props) {
         setTracking({
           id: `fallback-${client.id}`,
           numero_contrato: transaction?.numero_contrato || "—",
-          nome_cliente: transaction?.nome_cliente || client.name || "Cliente",
+          nome_cliente: transaction?.nome_cliente || "Cliente",
           cpf_cnpj: client.cpf || searchValue,
           quantidade_ambientes: Number(client.quantidade_ambientes) || 0,
           valor_contrato: Number(transaction?.valor_venda) || 0,
