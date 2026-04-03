@@ -34,6 +34,7 @@ interface Props {
   onUpdateTechnical?: (id: string, field: TechField, value: string) => void;
   onRemove: (id: string) => void;
   canDelete: boolean;
+  highlightIncomplete?: boolean;
 }
 
 const TECH_FIELDS: { key: TechField; label: string; placeholder: string }[] = [
