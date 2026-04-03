@@ -120,7 +120,7 @@ export default function Index() {
   const [simulatingClient, setSimulatingClient] = useState<Client | null>(null);
   const [historyClient, setHistoryClient] = useState<Client | null>(null);
   const [contractsClient, setContractsClient] = useState<Client | null>(null);
-  const [loadedSimulation, setLoadedSimulation] = useState<{ valor_tela: number; desconto1: number; desconto2: number; desconto3: number; forma_pagamento: string; parcelas: number; valor_entrada: number; plus_percentual: number; ambientes?: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string }>; catalogProducts?: Array<{ product_id: string; internal_code: string; name: string; sale_price: number; quantity: number }> } | null>(null);
+  const [loadedSimulation, setLoadedSimulation] = useState<{ valor_tela: number; desconto1: number; desconto2: number; desconto3: number; forma_pagamento: string; parcelas: number; valor_entrada: number; plus_percentual: number; estrategia_ia?: string | null; ia_strategy_enabled?: boolean; ambientes?: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string }>; catalogProducts?: Array<{ product_id: string; internal_code: string; name: string; sale_price: number; quantity: number }> } | null>(null);
 
   const {
     clients, loading, lastSims, allSimulations, saving,
@@ -391,10 +391,14 @@ export default function Index() {
                   onLoadSimulation={(sim, c) => {
                     let ambientes: any[] | undefined;
                     let catalogProducts: any[] | undefined;
+                    let estrategiaIa: string | null = (sim as any).estrategia_ia || null;
+                    let iaStrategyEnabled = !!(sim as any).estrategia_ia;
                     try {
                       const parsed = parseArquivoNome((sim as any).arquivo_nome);
                       ambientes = parsed.environments.length > 0 ? parsed.environments : undefined;
                       catalogProducts = parsed.catalogProducts.length > 0 ? parsed.catalogProducts : undefined;
+                      estrategiaIa = parsed.metadata?.estrategiaIa ?? estrategiaIa;
+                      iaStrategyEnabled = parsed.metadata?.iaStrategyEnabled ?? iaStrategyEnabled;
                     } catch {}
                     setLoadedSimulation({
                       valor_tela: Number(sim.valor_tela),
@@ -405,6 +409,8 @@ export default function Index() {
                       parcelas: sim.parcelas || 1,
                       valor_entrada: Number(sim.valor_entrada) || 0,
                       plus_percentual: Number(sim.plus_percentual) || 0,
+                      estrategia_ia: estrategiaIa,
+                      ia_strategy_enabled: iaStrategyEnabled,
                       ambientes,
                       catalogProducts,
                     });
