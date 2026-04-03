@@ -133,7 +133,7 @@ export function ClientTrackingModal({ open, onClose }: Props) {
       } else {
         // Search client by CPF
         const { data: client } = await supabase
-          .from("clients").select("id, name, cpf, quantidade_ambientes").eq("cpf", searchValue).limit(1).maybeSingle();
+          .from("clients").select("id, cpf, quantidade_ambientes").eq("cpf", searchValue).limit(1).maybeSingle() as any;
 
         if (!client?.id) { toast.error("CPF/CNPJ não encontrado"); return; }
 
