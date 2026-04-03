@@ -307,7 +307,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     if (catalogProducts.length > 0 && resolvedTenantId) {
       try {
         for (const cp of catalogProducts) {
-          const { data: productData } = await supabase
+          const { data: productData } = await (supabase as any)
             .from("products")
             .select("id, stock_quantity, supplier_id")
             .eq("id", cp.product.id)
@@ -318,10 +318,10 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
           if (currentStock >= cp.quantity) {
             // Subtract sold quantity from stock
             const newStock = currentStock - cp.quantity;
-            await supabase.from("products").update({
+            await (supabase as any).from("products").update({
               stock_quantity: newStock,
               stock_status: newStock === 0 ? "indisponivel" : newStock <= 3 ? "sob_encomenda" : "em_estoque",
-            } as any).eq("id", cp.product.id);
+            }).eq("id", cp.product.id);
           } else {
             // No sufficient stock: create purchase task for admin
             // Find admin users
