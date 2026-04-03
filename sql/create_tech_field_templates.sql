@@ -19,19 +19,22 @@ CREATE INDEX IF NOT EXISTS idx_tech_field_templates_tenant ON public.tech_field_
 
 ALTER TABLE public.tech_field_templates ENABLE ROW LEVEL SECURITY;
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.tech_field_templates TO authenticated;
+GRANT SELECT ON public.tech_field_templates TO anon;
+
 CREATE POLICY "Users can view own tenant templates"
   ON public.tech_field_templates FOR SELECT TO authenticated
-  USING (tenant_id = get_my_tenant_id_secure());
+  USING (tenant_id = get_my_tenant_id_secure()::uuid);
 
 CREATE POLICY "Users can create templates"
   ON public.tech_field_templates FOR INSERT TO authenticated
-  WITH CHECK (tenant_id = get_my_tenant_id_secure());
+  WITH CHECK (tenant_id = get_my_tenant_id_secure()::uuid);
 
 CREATE POLICY "Users can delete own tenant templates"
   ON public.tech_field_templates FOR DELETE TO authenticated
-  USING (tenant_id = get_my_tenant_id_secure());
+  USING (tenant_id = get_my_tenant_id_secure()::uuid);
 
 CREATE POLICY "Users can update own tenant templates"
   ON public.tech_field_templates FOR UPDATE TO authenticated
-  USING (tenant_id = get_my_tenant_id_secure())
-  WITH CHECK (tenant_id = get_my_tenant_id_secure());
+  USING (tenant_id = get_my_tenant_id_secure()::uuid)
+  WITH CHECK (tenant_id = get_my_tenant_id_secure()::uuid);
