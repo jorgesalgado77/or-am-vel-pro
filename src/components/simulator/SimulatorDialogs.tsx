@@ -37,6 +37,7 @@ interface SimulatorDialogsProps {
     vendedor: string;
     numeroOrcamento: string;
     ambientes: any[];
+    catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
   };
   // Contract editor
   contractEditorOpen: boolean;

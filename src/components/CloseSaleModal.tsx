@@ -82,6 +82,7 @@ interface CloseSaleModalProps {
     vendedor?: string;
     numeroOrcamento?: string;
     ambientes?: { nome: string; fornecedor?: string; corpo?: string; porta?: string; puxador?: string; complemento?: string; modelo?: string; valor?: number }[];
+    catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
   };
   saving?: boolean;
 }
