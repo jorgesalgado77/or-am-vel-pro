@@ -188,7 +188,8 @@ export function OnboardingAIAssistant() {
     const navEvents = [
       "navigate-to-simulator", "navigate-to-clients", "navigate-to-vendazap-chat",
       "navigate-to-dealroom", "navigate-to-products", "navigate-to-financial",
-      "navigate-to-tasks", "navigate-to-funnel",
+      "navigate-to-tasks", "navigate-to-funnel", "navigate-to-contracts",
+      "navigate-to-campaigns", "navigate-to-dashboard",
     ];
     const moduleMap: Record<string, string> = {
       "navigate-to-simulator": "simulator",
@@ -199,6 +200,9 @@ export function OnboardingAIAssistant() {
       "navigate-to-financial": "financial",
       "navigate-to-tasks": "tasks",
       "navigate-to-funnel": "funnel",
+      "navigate-to-contracts": "contracts",
+      "navigate-to-campaigns": "campaigns",
+      "navigate-to-dashboard": "dashboard",
     };
 
     const handler = (e: Event) => {
