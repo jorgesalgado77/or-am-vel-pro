@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
 import { toast } from "sonner";
+import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
 
 export interface Fornecedor {
   id: string;
