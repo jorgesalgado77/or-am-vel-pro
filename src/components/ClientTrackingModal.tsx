@@ -5,7 +5,7 @@ import {Button} from "@/components/ui/button";
 import {Textarea} from "@/components/ui/textarea";
 import {Label} from "@/components/ui/label";
 import {Separator} from "@/components/ui/separator";
-import {Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircle2} from "lucide-react";
+import {Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircle2, ArrowLeft} from "lucide-react";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {format} from "date-fns";
