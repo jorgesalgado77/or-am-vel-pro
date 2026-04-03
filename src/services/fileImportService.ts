@@ -158,7 +158,6 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     }
 
     // Accessories
-    const fullLine = line.toLowerCase();
     if (/dobradica|dobradiça/i.test(fullLine)) {
       const accDesc = cols[iMat >= 0 ? iMat : 1] || "";
       if (accDesc) compParts.push(`Dobradiças: ${accDesc}`);
