@@ -98,6 +98,11 @@ class MIAOrchestrator {
             })
           );
 
+          // Always inject system knowledge (cargo-aware)
+          const cargoNome = (request.metadata?.cargo_nome as string) || undefined;
+          const systemKnowledgeCtx = this.systemKnowledge.buildSystemKnowledge(cargoNome);
+          promises.push(Promise.resolve(systemKnowledgeCtx));
+
           const [memoryCtx, insightsCtx, personalizationCtx] = await Promise.all(promises);
 
           const extraContext = (memoryCtx || "") + (insightsCtx || "") + (personalizationCtx || "");
