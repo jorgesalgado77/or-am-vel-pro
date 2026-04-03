@@ -180,7 +180,16 @@ export function ClientTrackingModal({ open, onClose }: Props) {
   const currentStepIdx = tracking ? getStepIndex(tracking.status) : -1;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => {
+        if (!o) {
+          setStep("lookup");
+          setContractNumber("");
+          setTracking(null);
+          setMessages([]);
+          setNewMessage("");
+          onClose();
+        }
+      }}>
       <DialogContent className={step === "tracking" ? "max-w-2xl max-h-[90vh] overflow-y-auto" : "max-w-sm"}>
         {step === "lookup" ? (
           <>
