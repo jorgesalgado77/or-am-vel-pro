@@ -149,7 +149,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
     }
 
     const clientMap = new Map<string, Client>(clients.map((client) => [client.id, client]));
-    const POST_CLOSE_STATUSES = new Set(["medicao", "liberacao", "entrega", "montagem", "assistencia", "finalizado"]);
+    // POST_CLOSE_STATUSES defined below after sync
 
     // --- Retroactive sync: create client_tracking for contracts without one ---
     const syncPromises: Promise<unknown>[] = [];
