@@ -1646,9 +1646,27 @@ export function useOnboardingAI(tenantId: string | null) {
 
   const chatWithAI = useCallback(async (tid: string, chatMessages: { role: string; content: string }[]) => {
     try {
+      // Inject cargo context into the system message so the AI adapts responses
+      const cargoContext = cargoNome
+        ? `\n\n[CARGO DO USUÁRIO: ${cargoNome}. Adapte o tom, nível de detalhamento e prioridades das respostas ao cargo. Vendedor → foco em vendas/clientes. Projetista → foco em projetos/briefing/medição. Gerente → foco em KPIs/equipe/resultados. Admin → visão geral do sistema.]`
+        : "";
+      const enrichedMessages = cargoContext
+        ? chatMessages.map((m, i) =>
+            i === 0 && m.role === "system"
+              ? { ...m, content: m.content + cargoContext }
+              : m.role === "user" && i === chatMessages.length - 1 && !chatMessages.some(cm => cm.role === "system")
+                ? { role: "system" as const, content: `Você é a MIA, assistente inteligente.${cargoContext}` }
+                : m
+          )
+        : chatMessages;
+      // Add system message if none exists and we have cargo context
+      const finalMessages = cargoContext && !enrichedMessages.some(m => m.role === "system")
+        ? [{ role: "system", content: `Você é a MIA, assistente inteligente do sistema.${cargoContext}` }, ...enrichedMessages]
+        : enrichedMessages;
+
       const { data, error } = await miaInvoke("onboarding-ai", {
-          action: "chat", tenant_id: tid, messages: chatMessages,
-        }, { tenantId: tid, userId: "system", origin: "onboarding", context: "onboarding" });
+          action: "chat", tenant_id: tid, messages: finalMessages, metadata: { cargo_nome: cargoNome },
+        }, { tenantId: tid, userId: currentUser?.id || "system", origin: "onboarding", context: "onboarding" });
 
       if (error) throw error;
 
