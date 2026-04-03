@@ -203,14 +203,15 @@ export function FornecedoresTab() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Nome Fantasia</TableHead>
-                    <TableHead className="text-xs hidden sm:table-cell">CNPJ</TableHead>
-                    <TableHead className="text-xs">Telefone</TableHead>
-                    <TableHead className="text-xs hidden md:table-cell">Cidade/UF</TableHead>
-                    <TableHead className="text-xs hidden lg:table-cell">Contato</TableHead>
-                    <TableHead className="w-20"></TableHead>
-                  </TableRow>
+                   <TableRow>
+                     <TableHead className="text-xs">Nome Fantasia</TableHead>
+                     <TableHead className="text-xs hidden sm:table-cell">CNPJ</TableHead>
+                     <TableHead className="text-xs">Telefone</TableHead>
+                     <TableHead className="text-xs hidden md:table-cell">Cidade/UF</TableHead>
+                     <TableHead className="text-xs hidden lg:table-cell">Contato</TableHead>
+                     <TableHead className="text-xs">Prazo Entrega</TableHead>
+                     <TableHead className="w-20"></TableHead>
+                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map(f => (
