@@ -70,6 +70,8 @@ const AVAILABLE_VARIABLES = [
   { var: "{{itens_tabela}}", desc: "Tabela de itens/ambientes" },
   { var: "{{itens_detalhes}}", desc: "Detalhes dos itens (materiais)" },
   { var: "{{total_ambientes}}", desc: "Total dos ambientes" },
+  { var: "{{ambientes_prazos}}", desc: "Tabela automática: ambientes + prazos + fornecedores" },
+  { var: "{{ambientes_prazos_lista}}", desc: "Lista automática: ambientes com prazos (formato texto)" },
   { var: "{{produtos_catalogo}}", desc: "Tabela de produtos do catálogo" },
   { var: "{{prazo_entrega_ambiente_N}}", desc: "Prazo de entrega do ambiente N (ex: _1, _2...)" },
   { var: "{{nome_ambiente_N}}", desc: "Nome/descrição do ambiente N" },
