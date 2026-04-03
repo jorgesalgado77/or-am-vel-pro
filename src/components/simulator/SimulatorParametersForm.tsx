@@ -102,6 +102,54 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   VALOR_TELA_MAX, VALOR_ENTRADA_MAX,
   catalogProducts, onUpdateCatalogProductQty, onRemoveCatalogProduct, stockWarnings,
 }: SimulatorParametersFormProps) {
+  // Cache of registered fornecedores { nome_lower: prazo_entrega }
+  const fornecedoresMapRef = useRef<Record<string, string> | null>(null);
+
+  const loadFornecedoresMap = useCallback(async () => {
+    if (fornecedoresMapRef.current) return fornecedoresMapRef.current;
+    const tenantId = getTenantId();
+    if (!tenantId) return {};
+    try {
+      const { data } = await supabase
+        .from("tenant_settings" as any)
+        .select("valor")
+        .eq("tenant_id", tenantId)
+        .eq("chave", "fornecedores")
+        .maybeSingle();
+      const map: Record<string, string> = {};
+      if (data && (data as any).valor) {
+        const list = JSON.parse((data as any).valor) as Array<{ nome: string; prazo_entrega?: string }>;
+        for (const f of list) {
+          if (f.nome && f.prazo_entrega) {
+            map[f.nome.toLowerCase().trim()] = f.prazo_entrega;
+          }
+        }
+      }
+      fornecedoresMapRef.current = map;
+      return map;
+    } catch {
+      return {};
+    }
+  }, []);
+
+  // Pre-load on mount
+  useEffect(() => { loadFornecedoresMap(); }, [loadFornecedoresMap]);
+
+  const handleUpdateTechnical = useCallback(async (id: string, field: string, value: string) => {
+    setEnvironments((prev) => prev.map((item) => item.id === id ? { ...item, [field]: value } : item));
+
+    // Auto-fill prazo when fornecedor changes
+    if (field === "fornecedor" && value.trim()) {
+      const map = await loadFornecedoresMap();
+      const prazo = map[value.toLowerCase().trim()];
+      if (prazo) {
+        setEnvironments((prev) => prev.map((item) =>
+          item.id === id ? { ...item, prazo } : item
+        ));
+      }
+    }
+  }, [setEnvironments, loadFornecedoresMap]);
+
   const importedEnvironments = environments.filter((environment) => environment.id !== "catalog-products");
   const importedSubtotal = importedEnvironments.reduce((sum, environment) => sum + (environment.totalValue || 0), 0);
   const catalogSubtotal = catalogProducts.reduce((sum, item) => sum + item.product.sale_price * item.quantity, 0);
