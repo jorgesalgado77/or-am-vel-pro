@@ -109,6 +109,7 @@ function useTechTemplates() {
       complemento: r.complemento || "",
       modelo: r.modelo || "",
       fornecedor: r.fornecedor || "",
+      prazo: r.prazo || "",
     },
   })), []);
 
