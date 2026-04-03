@@ -83,7 +83,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
       <div className="flex flex-col items-center gap-1 py-4 text-muted-foreground">
         <Upload className="h-5 w-5" />
         <p className="text-xs">Nenhum ambiente importado</p>
-        <p className="text-[10px]">Clique no botão acima para importar arquivos TXT ou XML</p>
+        <p className="text-[10px]">Clique no botão acima para importar arquivos TXT, XML ou Promob</p>
       </div>
     );
   }
