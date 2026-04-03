@@ -236,8 +236,20 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     }
   }, [valorTela, valorEntrada, valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual, formaPagamento, parcelas, result, client, newClient, showClientForm, environments, catalogProducts, resolvedTenantId, currentUser, checkDiscount, requestApproval, onClientCreated, setShowClientForm, setNewClient, activeStrategy, aiStrategyEnabled]);
 
+  const REQUIRED_TECH_KEYS: (keyof ImportedEnvironment)[] = ["corpo", "porta", "puxador", "fornecedor"];
+
   const handleCloseSale = useCallback(async () => {
     if (!client) { toast.error("Selecione um cliente para fechar a venda"); return; }
+    // Validate technical fields on environments
+    if (environments.length > 0) {
+      const incompleteEnvs = environments.filter(env =>
+        REQUIRED_TECH_KEYS.some(k => !String(env[k] || "").trim())
+      );
+      if (incompleteEnvs.length > 0) {
+        toast.error(`${incompleteEnvs.length} ambiente(s) com campos técnicos obrigatórios pendentes (Corpo, Porta, Puxador, Fornecedor). Preencha antes de fechar a venda.`, { duration: 6000 });
+        return;
+      }
+    }
     try {
       if (resolvedTenantId) {
         const accessResult = await validateAccess(resolvedTenantId);
@@ -251,15 +263,18 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       }
     } catch {}
     setCloseSaleModalOpen(true);
-  }, [client, resolvedTenantId, validateAccess]);
+  }, [client, resolvedTenantId, validateAccess, environments]);
 
   const handleCloseSaleConfirm = useCallback(async (formData: any, items: any[], itemDetails: any[]) => {
     setCloseSaleFormData(formData); setCloseSaleItems(items); setCloseSaleItemDetails(itemDetails);
-    setCloseSaleModalOpen(false); setClosingSale(true);
+    setClosingSale(true);
     try {
       await handleSave();
+      // Check if save actually succeeded by looking for the simulation
       const { data: simData } = await supabase.from("simulations").select("id").eq("client_id", client!.id).order("created_at", { ascending: false }).limit(1).single();
-      if (!simData) { toast.error("Simulação não encontrada"); setClosingSale(false); return; }
+      if (!simData) { toast.error("Simulação não encontrada. Verifique os dados e tente novamente."); setClosingSale(false); return; }
+      // Only close the modal after save succeeds
+      setCloseSaleModalOpen(false);
       const { data: template } = await supabase.from("contract_templates" as any).select("*").eq("ativo", true).order("created_at", { ascending: false }).limit(1).single();
       if (!template) { toast.error("Nenhum modelo de contrato ativo encontrado."); setClosingSale(false); return; }
       const html = buildContractHtml((template as any).conteudo_html, {
