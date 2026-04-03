@@ -211,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userRef.current = null;
         setUser(null);
         syncGlobalState(null);
+        resetToDefaultTheme();
         await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
         setSession(null);
       }
