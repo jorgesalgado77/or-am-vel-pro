@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { supabase } from "@/lib/supabaseClient";
 import type { CargoPermissoes } from "@/hooks/useCargos";
 import { logLoginDiagnostic } from "@/services/system/SystemDiagnosticsService";
+import { initializeTheme, resetToDefaultTheme } from "@/lib/colorThemes";
 import type { Session, User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { InactivityWarningDialog } from "@/components/InactivityWarningDialog";
 
@@ -189,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userRef.current = stableUser;
       setUser(stableUser);
       syncGlobalState(stableUser);
+      initializeTheme();
     } else {
       const fallbackUser = await buildFallbackUserFromAuth(sess.user);
 
@@ -202,12 +204,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userRef.current = stableUser;
         setUser(stableUser);
         syncGlobalState(stableUser);
+        initializeTheme();
         void hydrateUserFromDatabase(sess.user, "fallback_recovery");
       } else {
         currentAuthIdRef.current = null;
         userRef.current = null;
         setUser(null);
         syncGlobalState(null);
+        resetToDefaultTheme();
         await withTimeout(supabase.auth.signOut(), 1000, undefined as any);
         setSession(null);
       }
@@ -781,6 +785,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     syncGlobalState(null);
+    resetToDefaultTheme();
   }, []);
 
   const [showInactivityWarning, setShowInactivityWarning] = useState(false);
