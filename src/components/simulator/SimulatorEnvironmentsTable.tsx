@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Upload, Trash2, ChevronDown, ChevronRight, Wrench } from "lucide-react";
+import { Upload, Trash2, ChevronDown, ChevronRight, ChevronsUpDown, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
