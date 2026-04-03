@@ -164,6 +164,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
             fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
             puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
             fileFormat: parsed.fileFormat,
+            modules: parsed.modules,
           }]);
           setImportedFile(file);
           if (parsed.software && parsed.software !== "generico") setDetectedSoftware(parsed.software);
