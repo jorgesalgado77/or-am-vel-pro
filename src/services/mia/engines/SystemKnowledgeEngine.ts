@@ -531,14 +531,21 @@ export class SystemKnowledgeEngine {
    */
   answerModuleFAQ(question: string): string | null {
     const lower = question.toLowerCase();
+    let bestMatch: { answer: string; score: number; icon: string; name: string } | null = null;
+
     for (const mod of MODULES) {
       for (const faq of mod.commonQuestions) {
         const keywords = faq.q.toLowerCase().split(/\s+/).filter(w => w.length > 3);
         const matchCount = keywords.filter(k => lower.includes(k)).length;
-        if (matchCount >= 2) {
-          return `${mod.icon} **${mod.name}**\n\n${faq.a}`;
+        const threshold = keywords.length <= 3 ? 1 : 2;
+        if (matchCount >= threshold && (!bestMatch || matchCount > bestMatch.score)) {
+          bestMatch = { answer: faq.a, score: matchCount, icon: mod.icon, name: mod.name };
         }
       }
+    }
+
+    if (bestMatch) {
+      return `${bestMatch.icon} **${bestMatch.name}**\n\n${bestMatch.answer}`;
     }
     return null;
   }
