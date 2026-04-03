@@ -509,9 +509,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             formaPagamento, vendedor: client?.vendedor || "", numeroOrcamento: client?.numero_orcamento || "",
             ambientes: environments.map(env => ({
               nome: env.environmentName, valor: env.totalValue,
-              fornecedor: (env as any).fornecedor || "", corpo: (env as any).corpo || "",
-              porta: (env as any).porta || "", puxador: (env as any).puxador || "",
-              complemento: (env as any).complemento || "", modelo: (env as any).modelo || "",
+              fornecedor: env.fornecedor || "", corpo: env.corpo || "",
+              porta: env.porta || "", puxador: env.puxador || "",
+              complemento: env.complemento || "", modelo: env.modelo || "",
+            })),
+            catalogProducts: catalogProducts.map(cp => ({
+              name: cp.product.name, internal_code: cp.product.internal_code,
+              quantity: cp.quantity, sale_price: cp.product.sale_price,
             })),
           }}
           contractEditorOpen={actions.contractEditorOpen} setContractEditorOpen={actions.setContractEditorOpen}
