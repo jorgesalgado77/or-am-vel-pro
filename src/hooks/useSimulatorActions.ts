@@ -237,6 +237,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
   }, [valorTela, valorEntrada, valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual, formaPagamento, parcelas, result, client, newClient, showClientForm, environments, catalogProducts, resolvedTenantId, currentUser, checkDiscount, requestApproval, onClientCreated, setShowClientForm, setNewClient, activeStrategy, aiStrategyEnabled]);
 
   const REQUIRED_TECH_KEYS: (keyof ImportedEnvironment)[] = ["corpo", "porta", "puxador", "fornecedor"];
+  const [techFieldsHighlight, setTechFieldsHighlight] = useState(false);
 
   const handleCloseSale = useCallback(async () => {
     if (!client) { toast.error("Selecione um cliente para fechar a venda"); return; }
@@ -246,6 +247,8 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         REQUIRED_TECH_KEYS.some(k => !String(env[k] || "").trim())
       );
       if (incompleteEnvs.length > 0) {
+        setTechFieldsHighlight(true);
+        setTimeout(() => setTechFieldsHighlight(false), 4000);
         toast.error(`${incompleteEnvs.length} ambiente(s) com campos técnicos obrigatórios pendentes (Corpo, Porta, Puxador, Fornecedor). Preencha antes de fechar a venda.`, { duration: 6000 });
         return;
       }
