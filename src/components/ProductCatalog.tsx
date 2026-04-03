@@ -392,6 +392,7 @@ export function ProductCatalog() {
       uf: s.uf || "",
       cep: s.cep || "",
       observacoes: s.observacoes || "",
+      prazo_entrega: (s as any).prazo_entrega || "",
     });
     setSupplierDialogOpen(true);
   };
