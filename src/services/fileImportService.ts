@@ -355,46 +355,30 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
 // ── Promob XML ───────────────────────────────────────────────────────
 // Promob Criare exports rich XML with <AMBIENTS> > <AMBIENT> > <CATEGORIES> > <ITEM>
 
-function parsePromobXml(content: string, fileName: string): ParsedFileResult {
+/** Parse items from a single AMBIENT block (or full content if no AMBIENT tags) */
+function parsePromobXmlBlock(blockContent: string, ambientDescription: string, fileName: string, globalFornecedor: string): ParsedFileResult {
   const software: ParsedFileResult["software"] = "promob";
   const modules: ParsedModule[] = [];
+  let fornecedor = globalFornecedor;
 
-  // Extract environment name
-  let envName = "";
-  const ambientMatch = content.match(/<AMBIENT[^>]*\sDESCRIPTION="([^"]+)"/i);
-  if (ambientMatch) envName = ambientMatch[1].trim();
-  if (!envName) {
-    const envDataMatch = content.match(/<DATA\s+ID="Environment"\s+VALUE="([^"]+)"/i);
-    if (envDataMatch) envName = envDataMatch[1].trim();
-  }
-  if (!envName) envName = fileName.replace(/\.(xml|promob)$/i, "");
+  const envName = ambientDescription || fileName.replace(/\.(xml|promob)$/i, "");
 
-  // Extract total price — ORDER value = net cost price
+  // Extract total price for this block
   let total: number | null = null;
-  const totalPricesMatch = content.match(/<TOTALPRICES\s+TABLE="([\d.]+)">/);
+  const totalPricesMatch = blockContent.match(/<TOTALPRICES\s+TABLE="([\d.]+)">/);
   if (totalPricesMatch) {
-    // Get the ORDER value (net price after discounts)
-    const orderMatch = content.match(/<ORDER\s+VALUE="([\d.]+)">/);
+    const orderMatch = blockContent.match(/<ORDER\s+VALUE="([\d.]+)">/);
     if (orderMatch) total = parseBRL(orderMatch[1]);
     else total = parseBRL(totalPricesMatch[1]);
   }
-
-  // Extract supplier from MODELINFORMATIONS or first ITEM references
-  let fornecedor = "";
-  const fornecedorMatch = content.match(/<FORNECEDOR\s+REFERENCE="([^"]+)"/i);
-  if (fornecedorMatch) fornecedor = fornecedorMatch[1].trim();
 
   // Extract all ITEM elements
   const itemRegex = /<ITEM\s([^>]+)>/g;
   let itemMatch;
   let pieceCount = 0;
 
-  // Collect unique acabamentos for corpo/porta detection
-  const acabamentos = new Set<string>();
-
-  while ((itemMatch = itemRegex.exec(content)) !== null) {
+  while ((itemMatch = itemRegex.exec(blockContent)) !== null) {
     const attrs = itemMatch[1];
-
     const getAttr = (name: string): string => {
       const m = attrs.match(new RegExp(`${name}="([^"]*)"`));
       return m?.[1]?.trim() || "";
@@ -408,12 +392,10 @@ function parsePromobXml(content: string, fileName: string): ParsedFileResult {
     const group = getAttr("GROUP");
     const isComponent = getAttr("COMPONENT") === "Y";
 
-    // Skip component/structural sub-items
     if (isComponent) continue;
 
-    // Find the PRICE for this item (look ahead in content from current position)
-    const itemEndIdx = content.indexOf("</ITEM>", itemMatch.index);
-    const itemContent = content.slice(itemMatch.index, itemEndIdx > 0 ? itemEndIdx : itemMatch.index + 5000);
+    const itemEndIdx = blockContent.indexOf("</ITEM>", itemMatch.index);
+    const itemContent = blockContent.slice(itemMatch.index, itemEndIdx > 0 ? itemEndIdx : itemMatch.index + 5000);
 
     let unitPrice = 0;
     let totalPrice = 0;
@@ -422,35 +404,26 @@ function parsePromobXml(content: string, fileName: string): ParsedFileResult {
       unitPrice = parseBRL(priceMatch[2]);
       totalPrice = parseBRL(priceMatch[3]);
     }
-
-    // Get ORDER (net) prices if available
     const orderUnitMatch = itemContent.match(/<ORDER\s+UNIT="([\d.]+)"\s+TOTAL="([\d.]+)"/);
     if (orderUnitMatch) {
       unitPrice = parseBRL(orderUnitMatch[1]);
       totalPrice = parseBRL(orderUnitMatch[2]);
     }
 
-    // Extract acabamento from REFERENCES > ACAB
     let acab = "";
     const acabMatch = itemContent.match(/<ACAB\s+REFERENCE="([^"]+)"/);
-    if (acabMatch) {
-      acab = acabMatch[1].trim();
-      acabamentos.add(acab);
-    }
+    if (acabMatch) acab = acabMatch[1].trim();
 
-    // Extract supplier per item
     let itemSupplier = "";
     const itemFornMatch = itemContent.match(/<FORNECEDOR\s+REFERENCE="([^"]+)"/);
     if (itemFornMatch) itemSupplier = itemFornMatch[1].trim();
     if (!fornecedor && itemSupplier) fornecedor = itemSupplier;
 
-    const moduleType = classifyModuleType(description, reference);
-
     modules.push({
       id: crypto.randomUUID(),
       code: reference,
       description,
-      type: moduleType,
+      type: classifyModuleType(description, reference),
       quantity,
       unitPrice: isNaN(unitPrice) ? 0 : unitPrice,
       totalPrice: isNaN(totalPrice) ? 0 : totalPrice,
@@ -460,39 +433,38 @@ function parsePromobXml(content: string, fileName: string): ParsedFileResult {
       category: family,
       group,
     });
-
     pieceCount += quantity;
   }
 
-  // Derive corpo/porta from acabamentos and modules
+  // If no per-block total, sum module totals
+  if (total === null && modules.length > 0) {
+    total = modules.reduce((s, m) => s + m.totalPrice, 0);
+  }
+
+  // Derive tech fields
   let corpo = "";
   let porta = "";
   let puxador = "";
   let complemento = "";
   let modelo = "";
 
-  // Corpo = acabamento of first "modulo" type
   const firstModulo = modules.find(m => m.type === "modulo");
   if (firstModulo) corpo = firstModulo.finish;
 
-  // Porta = acabamento of first "porta" or "frente" type
   const firstPorta = modules.find(m => m.type === "porta" || m.type === "frente");
   if (firstPorta) porta = firstPorta.finish;
 
-  // Puxador from MODELINFORMATIONS
-  const puxadorMatch = content.match(/<MODELINFORMATION\s+DESCRIPTION="Puxadores"[^>]*>[\s\S]*?<MODELTYPEINFORMATION\s+DESCRIPTION="([^"]+)"/);
+  const puxadorMatch = blockContent.match(/<MODELINFORMATION\s+DESCRIPTION="Puxadores"[^>]*>[\s\S]*?<MODELTYPEINFORMATION\s+DESCRIPTION="([^"]+)"/);
   if (puxadorMatch) puxador = puxadorMatch[1].split("\\")[0].trim();
   if (!puxador) {
     const puxModule = modules.find(m => /PUXADOR/i.test(m.description));
     if (puxModule) puxador = puxModule.description;
   }
 
-  // Dobradiças from MODELINFORMATIONS
-  const dobMatch = content.match(/<MODELINFORMATION\s+DESCRIPTION="Dobradiças"[^>]*>[\s\S]*?<MODELTYPEINFORMATION\s+DESCRIPTION="([^"]+)"/);
+  const dobMatch = blockContent.match(/<MODELINFORMATION\s+DESCRIPTION="Dobradiças"[^>]*>[\s\S]*?<MODELTYPEINFORMATION\s+DESCRIPTION="([^"]+)"/);
   if (dobMatch) complemento = `Dobradiças: ${dobMatch[1].trim()}`;
 
-  // Modelo from system info
-  const sistemaMatch = content.match(/<ABOUTPROMOB[^>]*\sSYSTEM="([^"]+)"/);
+  const sistemaMatch = blockContent.match(/<ABOUTPROMOB[^>]*\sSYSTEM="([^"]+)"/);
   if (sistemaMatch) modelo = sistemaMatch[1].trim();
 
   return {
@@ -500,6 +472,80 @@ function parsePromobXml(content: string, fileName: string): ParsedFileResult {
     fornecedor, corpo, porta, puxador, complemento, modelo,
     modules,
   };
+}
+
+/** Parse a Promob XML — returns single result (first ambient or merged) */
+function parsePromobXml(content: string, fileName: string): ParsedFileResult {
+  const results = parsePromobXmlMulti(content, fileName);
+  if (results.length === 1) return results[0];
+  // Fallback: return first (for backward compat with single-call API)
+  return results[0] || {
+    envName: fileName.replace(/\.(xml|promob)$/i, ""),
+    pieces: 0, total: null, software: "promob" as const,
+  };
+}
+
+/** Parse a Promob XML — returns one result PER AMBIENT element */
+function parsePromobXmlMulti(content: string, fileName: string): ParsedFileResult[] {
+  // Detect global supplier
+  let globalFornecedor = "";
+  const fornecedorMatch = content.match(/<FORNECEDOR\s+REFERENCE="([^"]+)"/i);
+  if (fornecedorMatch) globalFornecedor = fornecedorMatch[1].trim();
+
+  // Global modelo from ABOUTPROMOB
+  const sistemaMatch = content.match(/<ABOUTPROMOB[^>]*\sSYSTEM="([^"]+)"/);
+  const globalModelo = sistemaMatch ? sistemaMatch[1].trim() : "";
+
+  // Split by AMBIENT blocks
+  const ambientRegex = /<AMBIENT\s([^>]*)>([\s\S]*?)(?=<AMBIENT\s|<\/AMBIENTS>|$)/gi;
+  const blocks: Array<{ description: string; content: string }> = [];
+  let m;
+  while ((m = ambientRegex.exec(content)) !== null) {
+    const descMatch = m[1].match(/DESCRIPTION="([^"]+)"/);
+    blocks.push({
+      description: descMatch ? descMatch[1].trim() : "",
+      content: m[0],
+    });
+  }
+
+  // If no AMBIENT tags found, parse whole content as single block
+  if (blocks.length === 0) {
+    const envName = firstMatch(content, [
+      /DESCRIPTION="([^"]+)"/i,
+      /<DATA\s+ID="Environment"\s+VALUE="([^"]+)"/i,
+    ], fileName.replace(/\.(xml|promob)$/i, ""));
+    const result = parsePromobXmlBlock(content, envName, fileName, globalFornecedor);
+    if (!result.modelo && globalModelo) result.modelo = globalModelo;
+    return [result];
+  }
+
+  // Parse each AMBIENT block separately
+  const results: ParsedFileResult[] = [];
+  for (const block of blocks) {
+    const result = parsePromobXmlBlock(block.content, block.description, fileName, globalFornecedor);
+    if (!result.modelo && globalModelo) result.modelo = globalModelo;
+    // Inherit global fornecedor if not found per block
+    if (!result.fornecedor && globalFornecedor) result.fornecedor = globalFornecedor;
+    results.push(result);
+  }
+
+  // If total wasn't found per-block, try global total and distribute
+  const globalTotalMatch = content.match(/<TOTALPRICES\s+TABLE="([\d.]+)">/);
+  if (globalTotalMatch) {
+    const globalOrderMatch = content.match(/<ORDER\s+VALUE="([\d.]+)">/);
+    const globalTotal = globalOrderMatch ? parseBRL(globalOrderMatch[1]) : parseBRL(globalTotalMatch[1]);
+    const blockSum = results.reduce((s, r) => s + (r.total || 0), 0);
+    // If blocks have no totals but global does, distribute proportionally by module totals
+    if (blockSum === 0 && globalTotal > 0 && results.length > 0) {
+      const moduleTotals = results.map(r => r.modules?.reduce((s2, mod) => s2 + mod.totalPrice, 0) || 0);
+      const moduleSum = moduleTotals.reduce((a, b) => a + b, 0);
+      results.forEach((r, i) => {
+        r.total = moduleSum > 0 ? (moduleTotals[i] / moduleSum) * globalTotal : globalTotal / results.length;
+      });
+    }
+  }
+
+  return results;
 }
 
 // ── Focco XML ────────────────────────────────────────────────────────
