@@ -957,6 +957,10 @@ export function ProductCatalog() {
                 </div>
               </div>
               <div>
+                <Label className="text-xs">Prazo de Entrega do Fornecedor</Label>
+                <PrazoEntregaSelect value={supplierForm.prazo_entrega} onChange={v => setSupplierForm(f => ({ ...f, prazo_entrega: v }))} />
+              </div>
+              <div>
                 <Label className="text-xs">Observações</Label>
                 <Textarea value={supplierForm.observacoes} onChange={e => setSupplierForm(f => ({ ...f, observacoes: e.target.value }))} className="mt-1 text-sm min-h-[60px]" />
               </div>
