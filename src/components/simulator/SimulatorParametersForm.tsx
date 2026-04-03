@@ -12,6 +12,8 @@ import { SimulatorEnvironmentsTable, type ImportedEnvironment } from "@/componen
 import { formatCurrency, type FormaPagamento } from "@/lib/financing";
 import { maskCurrency, unmaskCurrency } from "@/lib/masks";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseClient";
+import { getTenantId } from "@/lib/tenantState";
 
 const FORMAS_PAGAMENTO: { value: FormaPagamento; label: string }[] = [
   { value: "A vista", label: "À Vista" },
