@@ -168,12 +168,13 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [detectedSoftware, setDetectedSoftware] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<ImportedEnvironment[]>(() => {
     if (init?.ambientes && init.ambientes.length > 0) {
-      return init.ambientes.map((e) => ({
+      return init.ambientes.map((e: any) => ({
         id: e.id, fileName: e.fileName, environmentName: e.environmentName,
         pieceCount: e.pieceCount, totalValue: e.totalValue,
         importedAt: new Date(e.importedAt), file: new File([], e.fileName),
         corpo: e.corpo || "", porta: e.porta || "", puxador: e.puxador || "",
         complemento: e.complemento || "", modelo: e.modelo || "", fornecedor: e.fornecedor || "",
+        modules: e.modules || [],
       }));
     }
     return (stored.environments || []).map((e) => ({ ...e, importedAt: new Date(e.importedAt), file: new File([], e.fileName) }));
