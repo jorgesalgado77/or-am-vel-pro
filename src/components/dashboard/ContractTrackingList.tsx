@@ -176,13 +176,15 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
         status: "medicao",
       } as any;
 
-      syncPromises.push(
-        supabase.from("client_tracking").insert(payload).then(({ data: inserted }) => {
+      const insertPromise = (async () => {
+        try {
+          const { data: inserted } = await supabase.from("client_tracking").insert(payload).select("id");
           if (inserted && (inserted as any)[0]?.id) {
             latestTrackingByClient.set(clientId, { ...payload, id: (inserted as any)[0].id, created_at: new Date().toISOString() });
           }
-        }).catch(() => {})
-      );
+        } catch {}
+      })();
+      syncPromises.push(insertPromise);
     }
     if (syncPromises.length > 0) {
       await Promise.allSettled(syncPromises);
