@@ -500,9 +500,14 @@ export function useOnboardingAI(tenantId: string | null) {
   // Listen for injected messages (proactive alerts, contextual tips)
   useEffect(() => {
     const handler = (e: Event) => {
-      const content = (e as CustomEvent).detail?.content;
+      const detail = (e as CustomEvent).detail;
+      const content = detail?.content;
       if (content) {
-        setMessages((prev) => [...prev, createMessage("assistant", content)]);
+        const msg = createMessage("assistant", content);
+        if (detail?.actions) {
+          (msg as any).actions = detail.actions;
+        }
+        setMessages((prev) => [...prev, msg]);
       }
     };
     window.addEventListener("mia-inject-message", handler);

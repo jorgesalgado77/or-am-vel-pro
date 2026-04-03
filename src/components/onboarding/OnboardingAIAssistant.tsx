@@ -748,6 +748,23 @@ export function OnboardingAIAssistant() {
 const MessageBubble = memo(function MessageBubble({ message }: { message: AIMessage }) {
   const isUser = message.role === "user";
 
+  const handleResolveAction = (target: string) => {
+    const eventMap: Record<string, string> = {
+      clients: "navigate-to-clients",
+      tasks: "navigate-to-tasks",
+      "vendazap-chat": "navigate-to-vendazap-chat",
+      dashboard: "navigate-to-dashboard",
+      simulator: "navigate-to-simulator",
+      contracts: "navigate-to-contracts",
+      campaigns: "navigate-to-campaigns",
+      financial: "navigate-to-financial",
+    };
+    const evt = eventMap[target];
+    if (evt) {
+      window.dispatchEvent(new CustomEvent(evt));
+    }
+  };
+
   return (
     <div className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
       {!isUser && (
@@ -764,6 +781,22 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: AIMess
         )}
       >
         <RenderMarkdown content={message.content} />
+        {message.actions && message.actions.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border/50">
+            {message.actions.map((action, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                className="text-[10px] h-6 gap-1 px-2 bg-primary/5 hover:bg-primary/15 border-primary/20 text-primary"
+                onClick={() => handleResolveAction(action.target)}
+              >
+                <Zap className="h-3 w-3" />
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
