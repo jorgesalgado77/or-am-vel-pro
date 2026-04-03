@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import {
   Package, Plus, Trash2, Pencil, Search, Loader2, Upload, Image as ImageIcon,
   Factory, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, X, ShoppingCart, Video, Star,
@@ -123,6 +124,7 @@ export function ProductCatalog() {
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -246,12 +248,16 @@ export function ProductCatalog() {
 
   const handleImageUpload = async (files: FileList | null) => {
     if (!files || !form.id) { toast.error("Salve o produto antes de adicionar imagens"); return; }
+    const fileArr = Array.from(files);
     setUploading(true);
-    for (const file of Array.from(files)) {
-      const result = await uploadProductImage(form.id, file);
+    setUploadProgress({ current: 0, total: fileArr.length });
+    for (let i = 0; i < fileArr.length; i++) {
+      setUploadProgress({ current: i + 1, total: fileArr.length });
+      const result = await uploadProductImage(form.id, fileArr[i]);
       if (result) setImages(prev => [...prev, result as any]);
     }
     setUploading(false);
+    setUploadProgress({ current: 0, total: 0 });
   };
 
   const handleRemoveImage = async (imgId: string) => {
@@ -779,6 +785,19 @@ export function ProductCatalog() {
                     </Button>
                     <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handleImageUpload(e.target.files)} />
                   </div>
+                  {uploading && uploadProgress.total > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">
+                          Enviando {uploadProgress.current} de {uploadProgress.total} imagem(ns)...
+                        </span>
+                        <span className="text-[10px] font-medium text-primary">
+                          {Math.round((uploadProgress.current / uploadProgress.total) * 100)}%
+                        </span>
+                      </div>
+                      <Progress value={(uploadProgress.current / uploadProgress.total) * 100} className="h-1.5" />
+                    </div>
+                  )}
                   {images.length === 0 ? (
                     <p className="text-xs text-muted-foreground text-center py-3">Nenhuma imagem adicionada</p>
                   ) : (
