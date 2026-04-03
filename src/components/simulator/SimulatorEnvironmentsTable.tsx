@@ -391,6 +391,91 @@ function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
   );
 }
 
+/* ── Module Type Labels ─────────────────────────────────────────── */
+
+const MODULE_TYPE_LABELS: Record<ModuleType, { label: string; color: string }> = {
+  modulo: { label: "Módulo", color: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400" },
+  porta: { label: "Porta", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400" },
+  frente: { label: "Frente", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" },
+  gaveta: { label: "Gaveta", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  painel: { label: "Painel", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  acessorio: { label: "Acessório", color: "bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400" },
+};
+
+function ModulesPanel({ modules }: { modules: ParsedModule[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const [showAccessories, setShowAccessories] = useState(false);
+
+  const mainModules = modules.filter(m => m.type !== "acessorio");
+  const accessories = modules.filter(m => m.type === "acessorio");
+  const displayModules = expanded ? mainModules : mainModules.slice(0, 6);
+  const mainTotal = mainModules.reduce((s, m) => s + m.totalPrice, 0);
+  const accTotal = accessories.reduce((s, m) => s + m.totalPrice, 0);
+
+  return (
+    <div className="mt-3 border-t border-border/50 pt-2">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <Package className="h-3 w-3 text-primary" />
+          <span className="text-[10px] font-semibold text-foreground">
+            Módulos Extraídos ({mainModules.length} itens + {accessories.length} acessórios)
+          </span>
+        </div>
+        <span className="text-[10px] font-semibold text-primary tabular-nums">
+          {formatCurrency(mainTotal + accTotal)}
+        </span>
+      </div>
+
+      <div className="space-y-0.5">
+        {displayModules.map((mod) => {
+          const typeInfo = MODULE_TYPE_LABELS[mod.type];
+          return (
+            <div key={mod.id} className="flex items-center gap-2 text-[10px] py-0.5 px-1 rounded hover:bg-muted/40">
+              <Badge variant="secondary" className={cn("text-[8px] px-1 py-0 h-3.5 shrink-0", typeInfo.color)}>
+                {typeInfo.label}
+              </Badge>
+              <span className="truncate flex-1 text-foreground" title={mod.description}>
+                {mod.description}
+              </span>
+              {mod.finish && (
+                <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 shrink-0">{mod.finish}</Badge>
+              )}
+              <span className="text-muted-foreground shrink-0">×{mod.quantity}</span>
+              <span className="tabular-nums text-right shrink-0 w-16 font-medium">{formatCurrency(mod.totalPrice)}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {mainModules.length > 6 && (
+        <Button variant="ghost" size="sm" className="h-5 text-[9px] mt-1 w-full text-muted-foreground" onClick={() => setExpanded(!expanded)}>
+          {expanded ? "Mostrar menos" : `Ver todos (${mainModules.length} itens)`}
+        </Button>
+      )}
+
+      {accessories.length > 0 && (
+        <div className="mt-1">
+          <Button variant="ghost" size="sm" className="h-5 text-[9px] gap-1 text-muted-foreground" onClick={() => setShowAccessories(!showAccessories)}>
+            {showAccessories ? <ChevronDown className="h-2.5 w-2.5" /> : <ChevronRight className="h-2.5 w-2.5" />}
+            Acessórios ({accessories.length}) — {formatCurrency(accTotal)}
+          </Button>
+          {showAccessories && (
+            <div className="space-y-0.5 ml-2">
+              {accessories.map((mod) => (
+                <div key={mod.id} className="flex items-center gap-2 text-[10px] py-0.5 px-1 rounded hover:bg-muted/40">
+                  <span className="truncate flex-1 text-muted-foreground" title={mod.description}>{mod.description}</span>
+                  <span className="text-muted-foreground shrink-0">×{mod.quantity}</span>
+                  <span className="tabular-nums text-right shrink-0 w-16">{formatCurrency(mod.totalPrice)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Main Table ────────────────────────────────────────────────── */
 
 export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete, highlightIncomplete }: Props) {
