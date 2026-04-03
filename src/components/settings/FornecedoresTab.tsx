@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { maskCpfCnpj, maskPhone, maskCep } from "@/lib/masks";
 import { toast } from "sonner";
+import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
 
 export interface Fornecedor {
   id: string;
@@ -32,6 +33,7 @@ export interface Fornecedor {
   cep: string;
   contato: string;
   observacoes: string;
+  prazo_entrega: string;
   ativo: boolean;
 }
 
@@ -42,7 +44,7 @@ const UF_OPTIONS = [
 
 const emptyFornecedor: Omit<Fornecedor, "id"> = {
   nome: "", razao_social: "", cnpj: "", telefone: "", whatsapp: "", email: "",
-  endereco: "", bairro: "", cidade: "", uf: "", cep: "", contato: "", observacoes: "", ativo: true,
+  endereco: "", bairro: "", cidade: "", uf: "", cep: "", contato: "", observacoes: "", prazo_entrega: "", ativo: true,
 };
 
 export function FornecedoresTab() {
@@ -312,6 +314,10 @@ export function FornecedoresTab() {
                     <SelectContent>{UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs">Prazo de Entrega do Fornecedor</Label>
+                <PrazoEntregaSelect value={form.prazo_entrega} onChange={v => setForm({ ...form, prazo_entrega: v })} />
               </div>
               <div>
                 <Label className="text-xs">Observações</Label>

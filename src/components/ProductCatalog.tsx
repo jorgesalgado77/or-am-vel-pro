@@ -2,6 +2,7 @@
  * ProductCatalog — Full product catalog management UI
  */
 import { useState, useRef, useCallback } from "react";
+import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,11 +99,12 @@ interface SupplierFormData {
   uf: string;
   cep: string;
   observacoes: string;
+  prazo_entrega: string;
 }
 
 const emptySupplierForm: SupplierFormData = {
   id: "", name: "", razao_social: "", cnpj: "", contact_name: "", contact_phone: "",
-  contact_email: "", whatsapp: "", endereco: "", bairro: "", cidade: "", uf: "", cep: "", observacoes: "",
+  contact_email: "", whatsapp: "", endereco: "", bairro: "", cidade: "", uf: "", cep: "", observacoes: "", prazo_entrega: "",
 };
 
 export function ProductCatalog() {
@@ -357,6 +359,7 @@ export function ProductCatalog() {
             uf: supplierForm.uf,
             cep: supplierForm.cep,
             observacoes: supplierForm.observacoes,
+            prazo_entrega: supplierForm.prazo_entrega,
             ativo: true,
           } as any
     );
@@ -391,6 +394,7 @@ export function ProductCatalog() {
       uf: s.uf || "",
       cep: s.cep || "",
       observacoes: s.observacoes || "",
+      prazo_entrega: (s as any).prazo_entrega || "",
     });
     setSupplierDialogOpen(true);
   };
@@ -951,6 +955,10 @@ export function ProductCatalog() {
                     <SelectContent>{UF_OPTIONS.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs">Prazo de Entrega do Fornecedor</Label>
+                <PrazoEntregaSelect value={supplierForm.prazo_entrega} onChange={v => setSupplierForm(f => ({ ...f, prazo_entrega: v }))} />
               </div>
               <div>
                 <Label className="text-xs">Observações</Label>

@@ -1,4 +1,5 @@
 import {useState, useEffect, useMemo} from "react";
+import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
 import {usePersistedFormState} from "@/hooks/usePersistedFormState";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
@@ -129,7 +130,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [cpfCnpjError, setCpfCnpjError] = useState<string>("");
   const [sameAddress, setSameAddress] = useState(false);
-  const [deliveryDeadlines, setDeliveryDeadlines] = useState<{id: string; label: string; dias: number}[]>([]);
+  // deliveryDeadlines now handled by PrazoEntregaSelect
   const [fornecedores, setFornecedores] = useState<{id: string; nome: string}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
@@ -155,24 +156,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   useEffect(() => {
     const tenantId = getTenantId();
     if (!tenantId) return;
-    // Load prazos
-    supabase.from("tenant_settings" as any)
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("chave", "prazos_entrega")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data && (data as any).valor) {
-          try { setDeliveryDeadlines(JSON.parse((data as any).valor)); } catch {}
-        } else {
-          setDeliveryDeadlines([
-            { id: "1", label: "30 dias úteis", dias: 30 },
-            { id: "2", label: "45 dias úteis", dias: 45 },
-            { id: "3", label: "60 dias úteis", dias: 60 },
-            { id: "4", label: "90 dias úteis", dias: 90 },
-          ]);
-        }
-      });
+    // Delivery deadlines now handled by PrazoEntregaSelect component
     // Load fornecedores
     supabase.from("tenant_settings" as any)
       .select("*")
@@ -507,18 +491,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                   </div>
                   <div>
                     <Label className="text-xs">Prazo de Entrega</Label>
-                    {deliveryDeadlines.length > 0 ? (
-                      <Select value={form.prazo_entrega} onValueChange={v => updateField("prazo_entrega", v)}>
-                        <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>
-                          {deliveryDeadlines.map(d => (
-                            <SelectItem key={d.id} value={d.label}>{d.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input value={form.prazo_entrega} onChange={e => updateField("prazo_entrega", e.target.value)} className="mt-1 h-9 text-sm" placeholder="Ex: 45 dias" />
-                    )}
+                    <PrazoEntregaSelect value={form.prazo_entrega} onChange={v => updateField("prazo_entrega", v)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -590,18 +563,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
                                 )}
                               </TableCell>
                               <TableCell>
-                                {deliveryDeadlines.length > 0 ? (
-                                  <Select value={item.prazo} onValueChange={v => updateItem(idx, "prazo", v)}>
-                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Prazo..." /></SelectTrigger>
-                                    <SelectContent>
-                                      {deliveryDeadlines.map(d => (
-                                        <SelectItem key={d.id} value={d.label}>{d.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input value={item.prazo} onChange={e => updateItem(idx, "prazo", e.target.value)} className="h-8 text-xs" />
-                                )}
+                                <PrazoEntregaSelect value={item.prazo} onChange={v => updateItem(idx, "prazo", v)} compact />
                               </TableCell>
                               <TableCell><Input value={item.valor_ambiente ? maskCurrency(String(Math.round(item.valor_ambiente * 100))) : ""} onChange={e => updateItem(idx, "valor_ambiente", unmaskCurrency(e.target.value))} className="h-8 text-xs" placeholder="R$ 0,00" /></TableCell>
                               <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(idx)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
