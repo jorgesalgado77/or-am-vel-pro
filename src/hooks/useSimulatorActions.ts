@@ -353,15 +353,18 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
             }
 
             const qtdFaltante = cp.quantity - currentStock;
+            const dataVenda = new Date().toLocaleDateString("pt-BR");
             const taskDesc = [
               `🛒 **Compra necessária**`,
               `• Cliente: ${client.nome}`,
               `• Contrato: ${closeSaleFormData?.numero_contrato || "N/A"}`,
+              `• Data da Venda: ${dataVenda}`,
               `• Produto: ${cp.product.name} (${cp.product.internal_code})`,
               `• Qtd vendida: ${cp.quantity} | Em estoque: ${currentStock} | Faltam: ${qtdFaltante}`,
               `• Valor unitário: ${formatCurrency(cp.product.sale_price)}`,
               `• Valor total: ${formatCurrency(cp.product.sale_price * cp.quantity)}`,
               `• Fornecedor: ${supplierName}`,
+              `[product_id:${cp.product.id}]`,
             ].join("\n");
 
             // If stock was partial, subtract what existed

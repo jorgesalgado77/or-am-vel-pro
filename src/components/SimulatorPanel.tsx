@@ -47,6 +47,8 @@ export interface SavedSimulationData {
   forma_pagamento: string; parcelas: number; valor_entrada: number;
   plus_percentual: number; ambientes?: SavedEnvironmentData[];
   catalogProducts?: SavedCatalogProduct[];
+  estrategia_ia?: string | null;
+  ia_strategy_enabled?: boolean;
 }
 
 interface SimulatorPanelProps {
@@ -65,9 +67,9 @@ interface SimulatorStoredState {
   desconto3Unlocked: boolean; plusUnlocked: boolean;
   hideIndicador: boolean; extremaLocked: boolean;
   selectedBoletoProvider: string; selectedCreditoProvider: string;
-  linkedClientId: string; activeStrategy: string;
+  linkedClientId: string; activeStrategy: string; aiStrategyEnabled: boolean;
   environments: Array<{ id: string; fileName: string; environmentName: string; pieceCount: number; totalValue: number; importedAt: string }>;
-  catalogProducts?: Array<{ product: { id: string; internal_code: string; name: string; description: string; category: string; sale_price: number; stock_status: string; image_url?: string }; quantity: number }>;
+  catalogProducts?: Array<{ product: { id: string; internal_code: string; name: string; description: string; category: string; sale_price: number; stock_status: string; stock_quantity: number; image_url?: string }; quantity: number }>;
 }
 
 function loadStoredState(): Partial<SimulatorStoredState> {
@@ -106,7 +108,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
   const [pendingUnlock, setPendingUnlock] = useState<"desconto3" | "plus" | "extrema" | null>(null);
   const [extremaLocked, setExtremaLocked] = useState(stored.extremaLocked ?? false);
   const [pendingExtremaCallback, setPendingExtremaCallback] = useState<(() => void) | null>(null);
-  const [activeStrategy, setActiveStrategy] = useState<string>(stored.activeStrategy ?? "");
+  const [activeStrategy, setActiveStrategy] = useState<string>((init as any)?.estrategia_ia ?? stored.activeStrategy ?? "");
+  const [aiStrategyEnabled, setAiStrategyEnabled] = useState<boolean>((init as any)?.ia_strategy_enabled ?? stored.aiStrategyEnabled ?? !!((init as any)?.estrategia_ia || stored.activeStrategy));
   const [loadSimModalOpen, setLoadSimModalOpen] = useState(false);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
@@ -181,6 +184,20 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     () => catalogProducts.reduce((sum, item) => sum + item.product.sale_price * item.quantity, 0),
     [catalogProducts],
   );
+  const stockWarnings = useMemo(() => {
+    const warnings: Record<string, string> = {};
+    catalogProducts.forEach(item => {
+      const stockQty = item.product.stock_quantity ?? 0;
+      if (item.quantity > stockQty) {
+        if (stockQty <= 0) {
+          warnings[item.product.id] = `Sem estoque. ${item.quantity} un. sob encomenda.`;
+        } else {
+          warnings[item.product.id] = `Estoque: ${stockQty} un. Faltam ${item.quantity - stockQty} un. para pronta entrega.`;
+        }
+      }
+    });
+    return warnings;
+  }, [catalogProducts]);
 
   // ─── Hooks ───
   const { hasPermission, currentUser } = useCurrentUser();
@@ -236,7 +253,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     const state: SimulatorStoredState = {
       valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada,
       plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked,
-      hideIndicador, extremaLocked, activeStrategy,
+      hideIndicador, extremaLocked, activeStrategy, aiStrategyEnabled,
       selectedBoletoProvider: rates.selectedBoletoProvider,
       selectedCreditoProvider: rates.selectedCreditoProvider,
       linkedClientId: linkedClient?.id || "",
@@ -244,7 +261,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
       catalogProducts,
     };
     sessionStorage.setItem(SIM_STORAGE_KEY, JSON.stringify(state));
-  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, hideIndicador, extremaLocked, activeStrategy, rates.selectedBoletoProvider, rates.selectedCreditoProvider, linkedClient, environments, catalogProducts]);
+  }, [valorTela, desconto1, desconto2, desconto3, formaPagamento, parcelas, valorEntrada, plusPercentual, carenciaDias, selectedIndicadorId, desconto3Unlocked, plusUnlocked, hideIndicador, extremaLocked, activeStrategy, aiStrategyEnabled, rates.selectedBoletoProvider, rates.selectedCreditoProvider, linkedClient, environments, catalogProducts]);
 
   // Update valorTela from environments (excluding catalog-products fake entry) + catalog total
   useEffect(() => {
@@ -274,7 +291,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
     setImportedFile, setDetectedSoftware, selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
-    activeStrategy,
+    activeStrategy, aiStrategyEnabled,
   });
 
   useEffect(() => { return () => { if (!actions.savedRef.current) sessionStorage.removeItem(SIM_STORAGE_KEY); }; }, []);
@@ -390,12 +407,25 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           onProductPicker={() => setProductPickerOpen(true)}
           VALOR_TELA_MAX={actions.VALOR_TELA_MAX} VALOR_ENTRADA_MAX={VALOR_ENTRADA_MAX}
           catalogProducts={catalogProducts}
+          stockWarnings={stockWarnings}
           onUpdateCatalogProductQty={(productId, qty) => {
+            const newQty = Math.max(1, Number.isFinite(qty) ? qty : 1);
             setCatalogProducts((prev) => prev.map((item) => (
               item.product.id === productId
-                ? { ...item, quantity: Math.max(1, Number.isFinite(qty) ? qty : 1) }
+                ? { ...item, quantity: newQty }
                 : item
             )));
+            // Fetch real-time stock from DB to update stock_quantity
+            (supabase as any).from("products").select("stock_quantity").eq("id", productId).single()
+              .then(({ data }: any) => {
+                if (data) {
+                  setCatalogProducts((prev) => prev.map((item) => (
+                    item.product.id === productId
+                      ? { ...item, product: { ...item.product, stock_quantity: Number(data.stock_quantity) || 0 } }
+                      : item
+                  )));
+                }
+              });
           }}
           onRemoveCatalogProduct={(productId) => {
             setCatalogProducts((prev) => prev.filter((item) => item.product.id !== productId));
@@ -433,7 +463,9 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               onRequestExtremaUnlock={requestExtremaUnlock}
               extremaUnlocked={!isVendedorOrProjetista || extremaLocked}
               initialStrategy={activeStrategy || undefined}
+              initialEnabled={aiStrategyEnabled}
               onStrategyChange={(s) => setActiveStrategy(s || "")}
+              onEnabledChange={(v) => setAiStrategyEnabled(v)}
             />
           </Suspense>
 
@@ -459,7 +491,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               setFormaPagamento("A vista"); setParcelas(1); setValorEntrada(0);
               setPlusPercentual(0); setCarenciaDias(30); setSelectedIndicadorId("");
               setDesconto3Unlocked(false); setPlusUnlocked(false); setExtremaLocked(false);
-              setActiveStrategy("");
+              setActiveStrategy(""); setAiStrategyEnabled(false);
               setEnvironments([]); setImportedFile(null); setDetectedSoftware(null);
               setCatalogProducts([]);
               setLinkedClient(null); setClientSearch("");
@@ -532,9 +564,12 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
             if (sim.desconto3 > 0) setDesconto3Unlocked(true);
             if (sim.plus_percentual > 0) setPlusUnlocked(true);
             // Restore AI strategy
-            setActiveStrategy(sim.estrategia_ia || "");
+            const parsed = sim.arquivo_nome ? parseArquivoNome(sim.arquivo_nome) : null;
+            const iaEnabled = parsed?.metadata?.iaStrategyEnabled ?? !!sim.estrategia_ia;
+            setActiveStrategy(sim.estrategia_ia || parsed?.metadata?.estrategiaIa || "");
+            setAiStrategyEnabled(iaEnabled);
             if (sim.arquivo_nome) {
-              const { environments: envs, catalogProducts: catProds } = parseArquivoNome(sim.arquivo_nome);
+              const { environments: envs, catalogProducts: catProds } = parsed!;
               if (envs.length > 0) {
                 setEnvironments(envs.map((e: any) => ({
                   id: e.id || crypto.randomUUID(), fileName: e.fileName || e.name || "",
