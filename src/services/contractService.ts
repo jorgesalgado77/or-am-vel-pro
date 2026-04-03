@@ -96,6 +96,19 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
       ? [...new Set(items.map((it: any) => it.prazo).filter(Boolean))].join(", ")
       : formData.prazo_entrega || "",
     "{{total_ambientes}}": formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0)),
+    "{{ambientes_prazos}}": items.length > 0
+      ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
+          <tr style="background:#f0f0f0;"><th>Ambiente</th><th>Fornecedor</th><th>Prazo de Entrega</th><th>Valor</th></tr>
+          ${items.map((it: any, i: number) => {
+            const detail = itemDetails[i];
+            return `<tr><td>${it.descricao_ambiente || `Ambiente ${i + 1}`}</td><td>${it.fornecedor || "—"}</td><td>${it.prazo || "—"}</td><td style="text-align:right">${formatCurrency(it.valor_ambiente || 0)}</td></tr>`;
+          }).join("")}
+          <tr style="font-weight:bold;"><td colspan="3" style="text-align:right">Total:</td><td style="text-align:right">${formatCurrency(items.reduce((a: number, b: any) => a + b.valor_ambiente, 0))}</td></tr>
+        </table>`
+      : "",
+    "{{ambientes_prazos_lista}}": items.length > 0
+      ? `<ul style="font-size:12px;margin:8px 0;">${items.map((it: any, i: number) => `<li><strong>${it.descricao_ambiente || `Ambiente ${i + 1}`}</strong> — Fornecedor: ${it.fornecedor || "—"} — Prazo: ${it.prazo || "—"} — ${formatCurrency(it.valor_ambiente || 0)}</li>`).join("")}</ul>`
+      : "",
     "{{produtos_catalogo}}": catalogProducts && catalogProducts.length > 0
       ? `<table border="1" cellpadding="6" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;">
           <tr style="background:#f0f0f0;"><th>Código</th><th>Produto</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th></tr>
