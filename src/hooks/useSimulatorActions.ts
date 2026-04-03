@@ -230,8 +230,10 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
 
   const handleSave = useCallback(async (options?: { silent?: boolean }): Promise<string | null> => {
     const silent = options?.silent ?? false;
+    console.log("[SimulatorSave] handleSave called", { silent, resolvedTenantId, valorTela, valorEntrada, hasClient: !!effectiveClient });
     if (!resolvedTenantId) {
       const message = "Não foi possível identificar a loja atual; recarregue a página e tente novamente.";
+      console.error("[SimulatorSave] No tenant ID");
       toast.error(message, { duration: 7000 });
       logError({
         source: "simulator_save",
@@ -243,10 +245,10 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       });
       return null;
     }
-    if (valorTela <= 0) { toast.error("Informe um Valor de Tela maior que zero"); return null; }
-    if (valorTela > VALOR_TELA_MAX) { toast.error(`Valor de Tela não pode exceder ${formatCurrency(VALOR_TELA_MAX)}`); return null; }
-    if (valorEntrada < 0) { toast.error("Valor de Entrada não pode ser negativo"); return null; }
-    if (valorEntrada > result.valorComDesconto) { toast.error("Valor de Entrada não pode ser maior que o valor com desconto"); return null; }
+    if (valorTela <= 0) { console.warn("[SimulatorSave] valorTela <= 0:", valorTela); toast.error("Informe um Valor de Tela maior que zero"); return null; }
+    if (valorTela > VALOR_TELA_MAX) { console.warn("[SimulatorSave] valorTela > MAX"); toast.error(`Valor de Tela não pode exceder ${formatCurrency(VALOR_TELA_MAX)}`); return null; }
+    if (valorEntrada < 0) { console.warn("[SimulatorSave] valorEntrada < 0"); toast.error("Valor de Entrada não pode ser negativo"); return null; }
+    if (valorEntrada > result.valorComDesconto) { console.warn("[SimulatorSave] valorEntrada > valorComDesconto"); toast.error("Valor de Entrada não pode ser maior que o valor com desconto"); return null; }
 
     if (!silent) {
       const discountCheck = checkDiscount(valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual);
