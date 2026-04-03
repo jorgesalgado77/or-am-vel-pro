@@ -319,8 +319,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       if (localTenantId && client) {
         const totalValue = simulationData?.valorFinal || totalAmbientes;
         const discountPct = (simulationData as any)?.desconto1 || 0;
-        const table = supabase.from("ai_learning_events" as unknown as "clients");
-        void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
+        supabase.from("ai_learning_events" as unknown as "clients")
           .insert([{
             tenant_id: localTenantId,
             client_id: client.id,
@@ -334,7 +333,8 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
               parcelas: form.qtd_parcelas,
               vendedor: form.responsavel_venda,
             },
-          }]).catch((err: unknown) => console.warn("[CloseSale] learning event error:", err));
+          }] as any)
+          .then(({ error }) => { if (error) console.warn("[CloseSale] learning event error:", error); });
       }
 
       const success = await onConfirm(form, items, itemDetails);
