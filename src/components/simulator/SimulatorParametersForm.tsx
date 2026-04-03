@@ -97,7 +97,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
   onRequestUnlock, onFileImport, onRemoveEnvironment,
   onLoadSimulation, onProductPicker,
   VALOR_TELA_MAX, VALOR_ENTRADA_MAX,
-  catalogProducts, onUpdateCatalogProductQty, onRemoveCatalogProduct,
+  catalogProducts, onUpdateCatalogProductQty, onRemoveCatalogProduct, stockWarnings,
 }: SimulatorParametersFormProps) {
   const importedEnvironments = environments.filter((environment) => environment.id !== "catalog-products");
   const importedSubtotal = importedEnvironments.reduce((sum, environment) => sum + (environment.totalValue || 0), 0);
