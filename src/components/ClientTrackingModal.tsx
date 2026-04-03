@@ -84,15 +84,18 @@ export function ClientTrackingModal({ open, onClose }: Props) {
   }, [messages]);
 
   const handleSearch = async () => {
-    if (!contractNumber.trim()) { toast.error("Informe o número do contrato"); return; }
+    const searchValue = searchMode === "contrato" ? contractNumber.trim() : cpfCnpj.trim().replace(/\D/g, "");
+    if (!searchValue) { toast.error(searchMode === "contrato" ? "Informe o número do contrato" : "Informe o CPF ou CNPJ"); return; }
     setSearching(true);
     try {
-      const { data, error } = await supabase
-        .from("client_tracking")
-        .select("*")
-        .eq("numero_contrato", contractNumber.trim())
-        .limit(1)
-        .maybeSingle();
+      // Search in client_tracking
+      let trackingQuery = supabase.from("client_tracking").select("*");
+      if (searchMode === "contrato") {
+        trackingQuery = trackingQuery.eq("numero_contrato", searchValue);
+      } else {
+        trackingQuery = trackingQuery.eq("cpf_cnpj", searchValue);
+      }
+      const { data, error } = await trackingQuery.limit(1).maybeSingle();
 
       if (data && !error) {
         setTracking(data as any);
@@ -101,40 +104,64 @@ export function ClientTrackingModal({ open, onClose }: Props) {
         return;
       }
 
-      const { data: transaction } = await supabase
-        .from("dealroom_transactions")
-        .select("client_id, numero_contrato, nome_cliente, valor_venda, created_at, nome_vendedor")
-        .eq("numero_contrato", contractNumber.trim())
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Fallback: search in dealroom_transactions / clients
+      if (searchMode === "contrato") {
+        const { data: transaction } = await supabase
+          .from("dealroom_transactions")
+          .select("client_id, numero_contrato, nome_cliente, valor_venda, created_at, nome_vendedor")
+          .eq("numero_contrato", searchValue)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (!transaction?.client_id) {
-        toast.error("Contrato não encontrado");
-        return;
+        if (!transaction?.client_id) { toast.error("Contrato não encontrado"); return; }
+
+        const { data: client } = await supabase
+          .from("clients").select("cpf, quantidade_ambientes").eq("id", transaction.client_id).maybeSingle();
+
+        setTracking({
+          id: `fallback-${transaction.client_id}`,
+          numero_contrato: transaction.numero_contrato || searchValue,
+          nome_cliente: transaction.nome_cliente || "Cliente",
+          cpf_cnpj: client?.cpf || null,
+          quantidade_ambientes: Number(client?.quantidade_ambientes) || 0,
+          valor_contrato: Number(transaction.valor_venda) || 0,
+          data_fechamento: transaction.created_at,
+          projetista: transaction.nome_vendedor || null,
+          status: "medicao",
+        });
+      } else {
+        // Search client by CPF
+        const { data: client } = await supabase
+          .from("clients").select("id, name, cpf, quantidade_ambientes").eq("cpf", searchValue).limit(1).maybeSingle();
+
+        if (!client?.id) { toast.error("CPF/CNPJ não encontrado"); return; }
+
+        const { data: transaction } = await supabase
+          .from("dealroom_transactions")
+          .select("numero_contrato, nome_cliente, valor_venda, created_at, nome_vendedor")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        setTracking({
+          id: `fallback-${client.id}`,
+          numero_contrato: transaction?.numero_contrato || "—",
+          nome_cliente: transaction?.nome_cliente || client.name || "Cliente",
+          cpf_cnpj: client.cpf || searchValue,
+          quantidade_ambientes: Number(client.quantidade_ambientes) || 0,
+          valor_contrato: Number(transaction?.valor_venda) || 0,
+          data_fechamento: transaction?.created_at || null,
+          projetista: transaction?.nome_vendedor || null,
+          status: "medicao",
+        });
       }
 
-      const { data: client } = await supabase
-        .from("clients")
-        .select("cpf, quantidade_ambientes")
-        .eq("id", transaction.client_id)
-        .maybeSingle();
-
-      setTracking({
-        id: `fallback-${transaction.client_id}`,
-        numero_contrato: transaction.numero_contrato || contractNumber.trim(),
-        nome_cliente: transaction.nome_cliente || "Cliente",
-        cpf_cnpj: client?.cpf || null,
-        quantidade_ambientes: Number(client?.quantidade_ambientes) || 0,
-        valor_contrato: Number(transaction.valor_venda) || 0,
-        data_fechamento: transaction.created_at,
-        projetista: transaction.nome_vendedor || null,
-        status: "medicao",
-      });
       setMessages([]);
       setStep("tracking");
     } catch {
-      toast.error("Erro ao buscar contrato");
+      toast.error("Erro ao buscar");
     } finally {
       setSearching(false);
     }
