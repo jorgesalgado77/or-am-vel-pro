@@ -138,7 +138,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
                 placeholder="R$ 0,00"
               />
             </div>
-            <Button variant="outline" size="icon" className="shrink-0" <Button variant="outline" size="icon" className="shrink-0" title="Importar arquivo TXT, XML ou Promob" onClick={onFileImport}> onClick={onFileImport}>
+            <Button variant="outline" size="icon" className="shrink-0" title="Importar arquivo TXT, XML ou Promob" onClick={onFileImport}>
               <Upload className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="icon" className="shrink-0" title="Adicionar produtos do catálogo" onClick={onProductPicker}>
