@@ -221,6 +221,7 @@ export function FornecedoresTab() {
                       <TableCell className="text-xs">{f.telefone || "—"}</TableCell>
                       <TableCell className="text-xs hidden md:table-cell">{f.cidade ? `${f.cidade}/${f.uf}` : "—"}</TableCell>
                       <TableCell className="text-xs hidden lg:table-cell">{f.contato || "—"}</TableCell>
+                      <TableCell className="text-xs">{f.prazo_entrega || "—"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(f)}>
