@@ -748,7 +748,7 @@ export function OnboardingAIAssistant() {
 const MessageBubble = memo(function MessageBubble({ message, onCloseChat }: { message: AIMessage; onCloseChat?: () => void }) {
   const isUser = message.role === "user";
 
-  const handleResolveAction = (target: string) => {
+  const handleResolveAction = async (target: string) => {
     const labelMap: Record<string, string> = {
       clients: "Abrindo leads…",
       tasks: "Abrindo tarefas…",
