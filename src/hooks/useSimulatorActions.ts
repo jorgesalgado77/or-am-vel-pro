@@ -51,6 +51,7 @@ interface UseSimulatorActionsParams {
   setShowClientForm: (v: boolean) => void;
   setNewClient: (v: any) => void;
   activeStrategy?: string;
+  aiStrategyEnabled?: boolean;
 }
 
 export function useSimulatorActions(params: UseSimulatorActionsParams) {
@@ -62,7 +63,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     selectedIndicador, comissaoPercentual,
     checkDiscount, requestApproval, validateAccess, recordSale,
     onClientCreated, newClient, showClientForm, setShowClientForm, setNewClient,
-    activeStrategy,
+    activeStrategy, aiStrategyEnabled,
   } = params;
 
   const effectiveClient = client || linkedClient;
