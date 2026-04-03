@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseProjectFile, normalizeFinish } from "./fileImportService";
+import { parseProjectFile, parseProjectFileMulti, normalizeFinish } from "./fileImportService";
 
 // ── Inline sample data (based on real Promob exports) ──────────────
 
@@ -291,5 +291,99 @@ describe("parseProjectFile — Fallback", () => {
     expect(result.software).toBe("promob");
     expect(result.fileFormat).toBe("PROMOB");
     expect(result.modules!.length).toBe(6);
+  });
+});
+
+// ── Multi-Ambient XML ──────────────────────────────────────────────
+
+const MULTI_AMBIENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<PROMOBFILE VERSION="5.0">
+  <ABOUTPROMOB SYSTEM="Promob Plus 2024"/>
+  <AMBIENTS>
+    <AMBIENT DESCRIPTION="Cozinha" ID="1">
+      <CATEGORIES>
+        <CATEGORY DESCRIPTION="Cozinha">
+          <ITEM DESCRIPTION="ARMARIO L1000 H700 P530" REFERENCE="820001" QUANTITY="2" TEXTDIMENSION="1000x700x530" FAMILY="Aereo" GROUP="Modular" COMPONENT="N">
+            <PRICE TABLE="700.00" UNIT="350.00" TOTAL="700.00"/>
+            <ORDER UNIT="300.00" TOTAL="600.00"/>
+            <REFERENCES><ACAB REFERENCE="BRISA"/><FORNECEDOR REFERENCE="Criare"/></REFERENCES>
+          </ITEM>
+        </CATEGORY>
+      </CATEGORIES>
+    </AMBIENT>
+    <AMBIENT DESCRIPTION="Dormitório Casal" ID="2">
+      <CATEGORIES>
+        <CATEGORY DESCRIPTION="Dormitório">
+          <ITEM DESCRIPTION="ARMARIO L2000 H2400 P600" REFERENCE="820002" QUANTITY="1" TEXTDIMENSION="2000x2400x600" FAMILY="Torre" GROUP="Modular" COMPONENT="N">
+            <PRICE TABLE="1500.00" UNIT="1500.00" TOTAL="1500.00"/>
+            <ORDER UNIT="1200.00" TOTAL="1200.00"/>
+            <REFERENCES><ACAB REFERENCE="NOGUEIRA AVENA"/><FORNECEDOR REFERENCE="Criare"/></REFERENCES>
+          </ITEM>
+          <ITEM DESCRIPTION="PORTA L998 H2396" REFERENCE="830001" QUANTITY="2" TEXTDIMENSION="998x2396x18" FAMILY="Porta" GROUP="Componente" COMPONENT="N">
+            <PRICE TABLE="400.00" UNIT="200.00" TOTAL="400.00"/>
+            <ORDER UNIT="180.00" TOTAL="360.00"/>
+            <REFERENCES><ACAB REFERENCE="PRETO FOSCO"/><FORNECEDOR REFERENCE="Criare"/></REFERENCES>
+          </ITEM>
+        </CATEGORY>
+      </CATEGORIES>
+    </AMBIENT>
+    <AMBIENT DESCRIPTION="Banheiro Suite" ID="3">
+      <CATEGORIES>
+        <CATEGORY DESCRIPTION="Banheiro">
+          <ITEM DESCRIPTION="BALCAO L800 H900 P450" REFERENCE="820003" QUANTITY="1" TEXTDIMENSION="800x900x450" FAMILY="Balcao" GROUP="Modular" COMPONENT="N">
+            <PRICE TABLE="500.00" UNIT="500.00" TOTAL="500.00"/>
+            <ORDER UNIT="420.00" TOTAL="420.00"/>
+            <REFERENCES><ACAB REFERENCE="BRANCO TX"/><FORNECEDOR REFERENCE="Criare"/></REFERENCES>
+          </ITEM>
+        </CATEGORY>
+      </CATEGORIES>
+    </AMBIENT>
+  </AMBIENTS>
+</PROMOBFILE>`;
+
+describe("parseProjectFileMulti — Multiple Ambients", () => {
+  const results = parseProjectFileMulti(MULTI_AMBIENT_XML, "projeto_completo.xml");
+
+  it("returns one result per AMBIENT", () => {
+    expect(results.length).toBe(3);
+  });
+
+  it("extracts correct environment names", () => {
+    expect(results[0].envName).toBe("Cozinha");
+    expect(results[1].envName).toBe("Dormitório Casal");
+    expect(results[2].envName).toBe("Banheiro Suite");
+  });
+
+  it("extracts correct totals per ambient", () => {
+    expect(results[0].total).toBeCloseTo(600, 0);
+    expect(results[1].total).toBeCloseTo(1560, 0);
+    expect(results[2].total).toBeCloseTo(420, 0);
+  });
+
+  it("extracts modules per ambient independently", () => {
+    expect(results[0].modules!.length).toBe(1);
+    expect(results[1].modules!.length).toBe(2);
+    expect(results[2].modules!.length).toBe(1);
+  });
+
+  it("inherits fornecedor across all ambients", () => {
+    results.forEach(r => expect(r.fornecedor).toBe("Criare"));
+  });
+
+  it("derives correct corpo/porta per ambient", () => {
+    expect(results[0].corpo).toBe("Brisa");
+    expect(results[1].corpo).toBe("Nogueira Avena");
+    expect(results[1].porta).toBe("Preto Fosco");
+    expect(results[2].corpo).toBe("Branco");
+  });
+
+  it("all have XML format", () => {
+    results.forEach(r => expect(r.fileFormat).toBe("XML"));
+  });
+
+  it("single-ambient XML still works with parseProjectFile", () => {
+    const single = parseProjectFile(SAMPLE_PROMOB_XML, "cozinha.xml");
+    expect(single.envName).toContain("SPIAGGIA");
+    expect(single.modules!.length).toBe(6);
   });
 });

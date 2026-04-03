@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Upload, Trash2, ChevronDown, ChevronRight, ChevronsUpDown, Wrench, AlertCircle, Layers, Check, Save, FolderOpen, X, Loader2, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/financing";
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -28,11 +27,12 @@ export interface ImportedEnvironment {
   puxador?: string;
   complemento?: string;
   modelo?: string;
+  prazo?: string;
   fileFormat?: "XML" | "TXT" | "PROMOB";
   modules?: ParsedModule[];
 }
 
-type TechField = keyof Pick<ImportedEnvironment, "corpo" | "porta" | "puxador" | "complemento" | "modelo" | "fornecedor">;
+type TechField = keyof Pick<ImportedEnvironment, "corpo" | "porta" | "puxador" | "complemento" | "modelo" | "fornecedor" | "prazo">;
 
 interface Props {
   environments: ImportedEnvironment[];
@@ -44,12 +44,13 @@ interface Props {
 }
 
 const TECH_FIELDS: { key: TechField; label: string; placeholder: string }[] = [
-  { key: "corpo", label: "Corpo", placeholder: "15mm Branco" },
-  { key: "porta", label: "Porta", placeholder: "18mm Grafite" },
+  { key: "corpo", label: "Corpo (esp./cor)", placeholder: "15mm Branco" },
+  { key: "porta", label: "Porta (esp./cor)", placeholder: "18mm Grafite" },
   { key: "puxador", label: "Puxador", placeholder: "Modelo / Cor" },
   { key: "complemento", label: "Complemento", placeholder: "Dobradiças, corrediças..." },
   { key: "modelo", label: "Modelo", placeholder: "Linha / Coleção" },
   { key: "fornecedor", label: "Fornecedor", placeholder: "Fabricante" },
+  { key: "prazo", label: "Prazo", placeholder: "30 dias / Sob consulta" },
 ];
 
 const REQUIRED_TECH_KEYS: TechField[] = ["corpo", "porta", "puxador", "fornecedor"];
@@ -74,7 +75,7 @@ function TechBadge({ value, label, required }: { value?: string; label: string; 
 }
 
 const hasTechData = (env: ImportedEnvironment) =>
-  !!(env.corpo || env.porta || env.puxador || env.complemento || env.modelo || env.fornecedor);
+  !!(env.corpo || env.porta || env.puxador || env.complemento || env.modelo || env.fornecedor || env.prazo);
 
 const isIncomplete = (env: ImportedEnvironment) =>
   REQUIRED_TECH_KEYS.some(k => !env[k]?.trim());
@@ -107,6 +108,7 @@ function useTechTemplates() {
       complemento: r.complemento || "",
       modelo: r.modelo || "",
       fornecedor: r.fornecedor || "",
+      prazo: r.prazo || "",
     },
   })), []);
 
@@ -222,7 +224,7 @@ interface BatchFillProps {
 
 function BatchFillPanel({ environments, onUpdateTechnical }: BatchFillProps) {
   const [batchValues, setBatchValues] = useState<Record<TechField, string>>({
-    corpo: "", porta: "", puxador: "", complemento: "", modelo: "", fornecedor: "",
+    corpo: "", porta: "", puxador: "", complemento: "", modelo: "", fornecedor: "", prazo: "",
   });
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [applied, setApplied] = useState(false);
@@ -583,10 +585,11 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
         <TableHeader>
           <TableRow className="bg-muted/30">
             <TableHead className="text-xs py-1.5 h-auto w-6"></TableHead>
-            <TableHead className="text-xs py-1.5 h-auto">Ambiente</TableHead>
-            <TableHead className="text-xs py-1.5 h-auto text-center">Peças</TableHead>
-            <TableHead className="text-xs py-1.5 h-auto text-right">Valor</TableHead>
-            <TableHead className="text-xs py-1.5 h-auto text-center">Data</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto">Descrição / Ambiente</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto text-center">Qtd</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto">Fornecedor</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto">Prazo</TableHead>
+            <TableHead className="text-xs py-1.5 h-auto text-right">Valor Ambiente</TableHead>
             <TableHead className="text-xs py-1.5 h-auto w-8"></TableHead>
           </TableRow>
         </TableHeader>
@@ -649,10 +652,25 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                     </div>
                   </TableCell>
                   <TableCell className="py-1.5 text-center">{env.pieceCount || "—"}</TableCell>
-                  <TableCell className="py-1.5 text-right tabular-nums">{formatCurrency(env.totalValue)}</TableCell>
-                  <TableCell className="py-1.5 text-center text-muted-foreground">
-                    {format(env.importedAt, "dd/MM HH:mm")}
+                  <TableCell className="py-1.5">
+                    <Input
+                      value={env.fornecedor || ""}
+                      onChange={(e) => onUpdateTechnical?.(env.id, "fornecedor", e.target.value)}
+                      className="h-6 text-[11px] bg-transparent border-none p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      placeholder="Selecionar..."
+                      readOnly={!onUpdateTechnical}
+                    />
                   </TableCell>
+                  <TableCell className="py-1.5">
+                    <Input
+                      value={env.prazo || ""}
+                      onChange={(e) => onUpdateTechnical?.(env.id, "prazo", e.target.value)}
+                      className="h-6 text-[11px] bg-transparent border-none p-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+                      placeholder="Selecionar..."
+                      readOnly={!onUpdateTechnical}
+                    />
+                  </TableCell>
+                  <TableCell className="py-1.5 text-right tabular-nums">{formatCurrency(env.totalValue)}</TableCell>
                   <TableCell className="py-1.5 text-center">
                     <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive" onClick={() => onRemove(env.id)}>
                       <Trash2 className="h-3 w-3" />
@@ -662,7 +680,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
 
                 {isExpanded && (
                   <TableRow key={`${env.id}-tech`} className="bg-muted/20 hover:bg-muted/30">
-                    <TableCell colSpan={6} className="py-2 px-3">
+                    <TableCell colSpan={7} className="py-2 px-3">
                       <div className="flex items-center gap-1.5 mb-2">
                         <Wrench className="h-3 w-3 text-primary" />
                         <span className="text-[10px] font-semibold text-foreground">Dados Técnicos Extraídos</span>
@@ -701,13 +719,14 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
               </>
             );
           })}
-          {environments.length > 1 && (
+          {environments.length > 0 && (
             <TableRow className="bg-primary/5 font-semibold text-xs">
               <TableCell className="py-1.5"></TableCell>
-              <TableCell className="py-1.5">Total ({environments.length} ambientes)</TableCell>
+              <TableCell className="py-1.5">Total Ambientes</TableCell>
               <TableCell className="py-1.5 text-center">{environments.reduce((s, e) => s + e.pieceCount, 0) || "—"}</TableCell>
-              <TableCell className="py-1.5 text-right tabular-nums text-primary">{formatCurrency(environments.reduce((s, e) => s + e.totalValue, 0))}</TableCell>
               <TableCell className="py-1.5"></TableCell>
+              <TableCell className="py-1.5"></TableCell>
+              <TableCell className="py-1.5 text-right tabular-nums text-primary">{formatCurrency(environments.reduce((s, e) => s + e.totalValue, 0))}</TableCell>
               <TableCell className="py-1.5"></TableCell>
             </TableRow>
           )}
