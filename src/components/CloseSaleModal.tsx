@@ -659,6 +659,46 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
               </Card>
             )}
 
+            {/* Produtos do Catálogo */}
+            {simulationData?.catalogProducts && simulationData.catalogProducts.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-sm">Produtos do Catálogo</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12 text-xs">#</TableHead>
+                          <TableHead className="text-xs">Código</TableHead>
+                          <TableHead className="text-xs">Produto</TableHead>
+                          <TableHead className="text-xs text-center">Qtd</TableHead>
+                          <TableHead className="text-xs text-right">Valor Unit.</TableHead>
+                          <TableHead className="text-xs text-right">Subtotal</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {simulationData.catalogProducts.map((cp, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-xs font-medium text-center">{idx + 1}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{cp.internal_code || "—"}</TableCell>
+                            <TableCell className="text-xs font-medium">{cp.name}</TableCell>
+                            <TableCell className="text-xs text-center">{cp.quantity}</TableCell>
+                            <TableCell className="text-xs text-right">{formatCurrency(cp.sale_price)}</TableCell>
+                            <TableCell className="text-xs text-right font-medium">{formatCurrency(cp.sale_price * cp.quantity)}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-xs font-medium text-right">Total Catálogo</TableCell>
+                          <TableCell className="text-xs font-bold text-right text-primary">
+                            {formatCurrency(simulationData.catalogProducts.reduce((acc, cp) => acc + cp.sale_price * cp.quantity, 0))}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
             {/* Observações */}
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-sm">Observações</CardTitle></CardHeader>
