@@ -835,3 +835,20 @@ export function parseProjectFile(content: string, fileName: string): ParsedFileR
   const result = parseTxtFile(content, fileName);
   return { ...result, fileFormat: "TXT" };
 }
+
+/**
+ * Multi-ambient parser: returns one ParsedFileResult per AMBIENT found in the file.
+ * For non-Promob XML or TXT files, returns a single-element array.
+ */
+export function parseProjectFileMulti(content: string, fileName: string): ParsedFileResult[] {
+  const lower = fileName.toLowerCase();
+  const sw = detectSoftware(content, fileName);
+
+  if ((lower.endsWith(".xml") || (lower.endsWith(".promob") && (content.trimStart().startsWith("<?xml") || content.trimStart().startsWith("<")))) && sw === "promob") {
+    const fmt: ParsedFileResult["fileFormat"] = lower.endsWith(".promob") ? "PROMOB" : "XML";
+    return parsePromobXmlMulti(content, fileName).map(r => ({ ...r, fileFormat: fmt }));
+  }
+
+  // Fallback: single result
+  return [parseProjectFile(content, fileName)];
+}

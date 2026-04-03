@@ -156,22 +156,32 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         reader.onload = (ev) => {
           const content = ev.target?.result as string;
           if (!content) return;
-          const parsed = parseProjectFile(content, file.name);
-          const hasTotal = parsed.total !== null && !isNaN(parsed.total) && parsed.total > 0;
-          setEnvironments((prev) => [...prev, {
-            id: crypto.randomUUID(), fileName: file.name, environmentName: parsed.envName,
-            pieceCount: parsed.pieces, totalValue: hasTotal ? parsed.total : 0, importedAt: new Date(), file,
-            fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
-            puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
-            fileFormat: parsed.fileFormat,
-            modules: parsed.modules,
-          }]);
+          const parsedResults = parseProjectFileMulti(content, file.name);
+          const newEnvs: ImportedEnvironment[] = parsedResults.map((parsed) => {
+            const hasTotal = parsed.total !== null && !isNaN(parsed.total) && parsed.total > 0;
+            return {
+              id: crypto.randomUUID(), fileName: file.name, environmentName: parsed.envName,
+              pieceCount: parsed.pieces, totalValue: hasTotal ? (parsed.total as number) : 0, importedAt: new Date(), file,
+              fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
+              puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
+              fileFormat: parsed.fileFormat,
+              modules: parsed.modules,
+            };
+          });
+          setEnvironments((prev) => [...prev, ...newEnvs]);
           setImportedFile(file);
-          if (parsed.software && parsed.software !== "generico") setDetectedSoftware(parsed.software);
-          if (hasTotal) {
-            toast.success(`Ambiente "${parsed.envName}" importado: ${formatCurrency(parsed.total)}`);
-          } else {
-            toast.warning(`Ambiente "${parsed.envName}" importado sem valor total. Preencha manualmente.`);
+          const sw = parsedResults[0]?.software;
+          if (sw && sw !== "generico") setDetectedSoftware(sw);
+          if (newEnvs.length > 1) {
+            const total = newEnvs.reduce((s, env) => s + env.totalValue, 0);
+            toast.success(`${newEnvs.length} ambientes importados de "${file.name}": ${formatCurrency(total)}`);
+          } else if (newEnvs.length === 1) {
+            const env = newEnvs[0];
+            if (env.totalValue > 0) {
+              toast.success(`Ambiente "${env.environmentName}" importado: ${formatCurrency(env.totalValue)}`);
+            } else {
+              toast.warning(`Ambiente "${env.environmentName}" importado sem valor total. Preencha manualmente.`);
+            }
           }
         };
         reader.readAsText(file);
