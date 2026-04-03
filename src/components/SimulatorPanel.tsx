@@ -536,7 +536,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
           onPasswordConfirm={handlePasswordConfirm}
           closeSaleModalOpen={actions.closeSaleModalOpen} setCloseSaleModalOpen={actions.setCloseSaleModalOpen}
           onCloseSaleConfirm={actions.handleCloseSaleConfirm}
-          client={client || null} closingSale={actions.closingSale}
+          client={effectiveClient || null} closingSale={actions.closingSale}
           simulationData={{
             valorFinal: result.valorFinal, valorEntrada, parcelas, valorParcela: result.valorParcela,
             formaPagamento, vendedor: client?.vendedor || "", numeroOrcamento: client?.numero_orcamento || "",
