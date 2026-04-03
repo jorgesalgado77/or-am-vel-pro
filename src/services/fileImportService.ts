@@ -503,8 +503,13 @@ export function parseXmlFile(content: string, fileName: string): ParsedFileResul
 }
 
 export function parseProjectFile(content: string, fileName: string): ParsedFileResult {
-  if (fileName.toLowerCase().endsWith(".xml")) {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".xml")) {
     return parseXmlFile(content, fileName);
+  }
+  if (lower.endsWith(".promob")) {
+    // .promob files are Promob exports — parse as Promob TXT
+    return parsePromobTxt(content, fileName);
   }
   return parseTxtFile(content, fileName);
 }
