@@ -187,17 +187,24 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                       )}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-1.5">
-                      {TECH_FIELDS.map(({ key, label, placeholder }) => (
-                        <div key={key} className="flex flex-col gap-0.5">
-                          <label className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">{label}</label>
-                          <Input
-                            value={env[key] || ""}
-                            onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
-                            className="h-6 text-[11px] bg-background"
-                            placeholder={placeholder}
-                            readOnly={!onUpdateTechnical}
-                          />
-                        </div>
+                      {TECH_FIELDS.map(({ key, label, placeholder }) => {
+                        const isEmpty = !env[key]?.trim();
+                        const isRequired = (REQUIRED_TECH_KEYS as readonly string[]).includes(key);
+                        return (
+                          <div key={key} className="flex flex-col gap-0.5">
+                            <label className={cn("text-[9px] font-medium uppercase tracking-wider", isEmpty && isRequired ? "text-amber-500" : "text-muted-foreground")}>
+                              {label}{isEmpty && isRequired && " •"}
+                            </label>
+                            <Input
+                              value={env[key] || ""}
+                              onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
+                              className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30")}
+                              placeholder={placeholder}
+                              readOnly={!onUpdateTechnical}
+                            />
+                          </div>
+                        );
+                      })}
                       ))}
                     </div>
                   </TableCell>
