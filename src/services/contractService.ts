@@ -38,6 +38,28 @@ export function buildContractHtml(templateHtml: string, data: ContractData): str
 
   const dataAtual = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
+  // Computed financial values
+  const entradaNum = toNumber(formData.valor_entrada) || valorEntrada;
+  const parcelasNum = formData.qtd_parcelas || parcelas;
+  const parcelaVal = toNumber(formData.valor_parcelas) || result.valorParcela;
+  const totalAmbientes = items.reduce((a: number, b: any) => a + b.valor_ambiente, 0);
+  const totalCatalogo = catalogProducts ? catalogProducts.reduce((s, p) => s + p.sale_price * p.quantity, 0) : 0;
+  const valorRestante = result.valorFinal - entradaNum;
+  const percentualDesconto = valorTela > 0 ? ((valorTela - result.valorComDesconto) / valorTela) * 100 : 0;
+  const valorDesconto = valorTela - result.valorComDesconto;
+
+  // Build payment conditions summary
+  const condicoesPagamento = [
+    `Valor total: ${formatCurrency(result.valorFinal)}`,
+    entradaNum > 0 ? `Entrada: ${formatCurrency(entradaNum)}` : null,
+    valorRestante > 0 && parcelasNum > 0 ? `${parcelasNum}x de ${formatCurrency(parcelaVal)}` : null,
+    `Forma: ${FORMAS_PAGAMENTO_LABELS[formaPagamento] || formaPagamento}`,
+    percentualDesconto > 0.5 ? `Desconto: ${percentualDesconto.toFixed(1)}% (${formatCurrency(valorDesconto)})` : null,
+  ].filter(Boolean).join(" | ");
+
+  // Value in words (Brazilian Portuguese)
+  const valorPorExtenso = numberToWords(result.valorFinal);
+
   // Build items HTML table
   let itensHtml = "";
   if (items.length > 0) {
