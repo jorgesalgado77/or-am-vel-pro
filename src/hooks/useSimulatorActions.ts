@@ -446,7 +446,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
   }, [effectiveClient, resolvedTenantId, settings, valorTela, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, plusPercentual, environments, catalogProducts]);
 
   return {
-    saving, generatingPdf, closingSale, savedRef,
+    saving, generatingPdf, closingSale, savedRef, techFieldsHighlight,
     contractEditorOpen, setContractEditorOpen,
     contractHtml, pendingSimId, setPendingSimId,
     pendingTemplateId, setPendingTemplateId,
