@@ -39,6 +39,8 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useApiKeys } from "@/hooks/useApiKeys";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
+import { useMIACriticalToasts } from "@/hooks/useMIACriticalToasts";
+import { MIAKpiSummary } from "@/components/onboarding/MIAKpiSummary";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
   DropdownMenu,
@@ -80,6 +82,7 @@ export function OnboardingAIAssistant() {
   const { currentUser } = useCurrentUser();
   const currentUserId = currentUser?.id || (typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null);
   const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId, currentUser?.cargo_nome);
+  useMIACriticalToasts(tenantId, currentUserId, currentUser?.cargo_nome || null);
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [input, setInput] = useState("");
@@ -90,7 +93,7 @@ export function OnboardingAIAssistant() {
   const closeChat = useCallback(() => {
     setClosing(true);
     setTimeout(() => {
-      closeChat();
+      setOpen(false);
       setFullscreen(false);
       setClosing(false);
     }, 250);
@@ -401,15 +404,15 @@ export function OnboardingAIAssistant() {
 
   return (
     <>
-      {/* FAB */}
-      {!open && (
+      {/* FAB — animated entrance/exit */}
+      {!open && !closing && (
         <button
           ref={fabRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           style={fabStyle}
-          className="z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center group touch-none select-none cursor-grab active:cursor-grabbing"
+          className="z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group touch-none select-none cursor-grab active:cursor-grabbing animate-scale-in"
         >
           <Bot className="h-6 w-6 group-hover:hidden" />
           <MessageCircle className="h-6 w-6 hidden group-hover:block" />
@@ -550,6 +553,15 @@ export function OnboardingAIAssistant() {
                 })}
               </div>
             </div>
+          )}
+
+          {/* Daily KPI summary — cargo-aware */}
+          {currentUserId && (
+            <MIAKpiSummary
+              tenantId={tenantId}
+              userId={currentUserId}
+              cargoNome={currentUser?.cargo_nome || null}
+            />
           )}
 
           {/* Missing API keys alert */}
