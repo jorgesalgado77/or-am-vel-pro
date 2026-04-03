@@ -226,6 +226,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number; closedTotal: number }> = {};
     filteredClients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
+      // For non-admin users, only count their own clients
+      if (!isAdminOrGerente && currentUser) {
+        const userName = (currentUser.apelido || currentUser.nome_completo || "").toLowerCase().trim();
+        const clientVendedor = (c.vendedor || "").toLowerCase().trim();
+        if (!clientVendedor || !userName || !(clientVendedor.includes(userName) || userName.includes(clientVendedor))) return;
+      }
       if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0, closedTotal: 0 };
       byProjetista[name].count++;
       if (contractClientIds.has(c.id)) {
@@ -243,6 +249,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number; clientes: { nome: string; orcamento: string }[] }> = {};
     filteredClients.forEach(c => {
       if (!c.indicador_id || !contractClientIds.has(c.id)) return;
+      // For non-admin users, only include their own clients' indicadores
+      if (!isAdminOrGerente && currentUser) {
+        const userName = (currentUser.apelido || currentUser.nome_completo || "").toLowerCase().trim();
+        const clientVendedor = (c.vendedor || "").toLowerCase().trim();
+        if (!clientVendedor || !userName || !(clientVendedor.includes(userName) || userName.includes(clientVendedor))) return;
+      }
       const ind = indicadores.find(i => i.id === c.indicador_id);
       if (!ind) return;
       if (!byIndicador[c.indicador_id]) byIndicador[c.indicador_id] = { nome: ind.nome, comissao: ind.comissao_percentual, count: 0, total: 0, comissaoTotal: 0, clientes: [] };
