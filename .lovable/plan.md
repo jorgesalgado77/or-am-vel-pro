@@ -1,61 +1,109 @@
-## MIA Core — Plano de Implementação Seguro
+## Plano de Implementação — Importador Promob Avançado
 
-### Princípio: As edge functions existentes NÃO serão alteradas. O MIA Core é uma camada de orquestração no frontend que centraliza chamadas, contexto e memória.
+### Escopo (baseado na auditoria)
+O parser atual (`fileImportService.ts`) já funciona para importação básica. As 2 evoluções solicitadas:
 
-### FASE 1 — MIAOrchestrator (Serviço Central)
-- Criar `/services/mia/MIAOrchestrator.ts`
-- Método central `handleRequest(context)` que roteia para a edge function correta
-- Contextos suportados: `vendazap`, `dealroom`, `onboarding`, `commercial`, `cashflow`, `campaign`, `argument`
-- Resolução automática de tenant_id e user_id
+---
 
-### FASE 2 — Engines Internas  
-- Criar engines especializados que encapsulam a lógica de chamada:
-  - `VendaZapEngine` → invoca `vendazap-ai`
-  - `DealRoomEngine` → invoca `vendazap-ai` (com contexto DealRoom)
-  - `OnboardingEngine` → invoca `onboarding-ai`
-  - `CommercialEngine` → invoca `commercial-ai`
-  - `CashflowEngine` → invoca `cashflow-ai`
-  - `ArgumentEngine` → invoca `improve-argument`
+### FASE 1 — Tipos e Estrutura de Dados
 
-### FASE 3 — Memory Engine
-- Criar `/services/mia/MIAMemoryEngine.ts`
-- Memória por tenant + user (IndexedDB para persistência local)
-- Armazena: contexto da conversa, preferências detectadas, histórico de decisões
-- Injeta contexto automaticamente nas chamadas
+**Arquivo:** `src/services/fileImportService.ts`
 
-### FASE 4 — Transformar Assistentes Existentes
-- `DealRoomAIAssistant` → manter UI, trocar chamada direta por `MIAOrchestrator.handleRequest()`
-- `OnboardingAIAssistant` → manter UI, trocar hook por chamada via orchestrator
-- `CampaignAIGenerator` → manter UI, usar orchestrator
+Adicionar ao `ParsedFileResult`:
+```typescript
+interface ParsedModule {
+  id: string;
+  code: string;           // código referência (ex: 820227748)
+  description: string;    // ARMARIO L1000 H700 P530 BRISA
+  type: "modulo" | "porta" | "frente" | "gaveta" | "painel" | "acessorio";
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  dimensions: string;     // 1000 x 700 x 530
+  finish: string;         // acabamento normalizado (ex: "Brisa")
+  supplier: string;       // fornecedor (ex: "Criare")
+}
 
-### FASE 5 — Action Engine
-- Criar `/services/mia/MIAActionEngine.ts`
-- Executar ações reais: criar tarefa, navegar, salvar configuração
-- Integrado ao orchestrator via `action` no response
+// Adicionar ao ParsedFileResult:
+modules?: ParsedModule[];
+```
 
-### FASE 6 — Isolamento & Validação
-- Garantir que cada chamada inclui tenant_id e user_id
-- Zero cruzamento de dados entre tenants
-- Memória isolada por tenant+user
+Adicionar ao `ImportedEnvironment`:
+```typescript
+modules?: ParsedModule[];
+```
 
-### Arquivos criados:
-- `src/services/mia/MIAOrchestrator.ts`
-- `src/services/mia/MIAMemoryEngine.ts`  
-- `src/services/mia/MIAActionEngine.ts`
-- `src/services/mia/engines/VendaZapEngine.ts`
-- `src/services/mia/engines/DealRoomEngine.ts`
-- `src/services/mia/engines/OnboardingEngine.ts`
-- `src/services/mia/engines/CommercialEngine.ts`
-- `src/services/mia/engines/CashflowEngine.ts`
-- `src/services/mia/engines/ArgumentEngine.ts`
-- `src/services/mia/types.ts`
-- `src/services/mia/index.ts`
+---
 
-### Arquivos modificados (apenas chamadas):
-- `src/components/dealroom/DealRoomAIAssistant.tsx`
-- `src/components/campaigns/CampaignAIGenerator.tsx`
-- `src/hooks/useOnboardingAI.ts` (ou equivalente)
+### FASE 2 — Normalização de Cores/Materiais
 
-### NÃO modificados:
-- Nenhuma edge function
-- Nenhuma lógica de negócio existente
+**Arquivo:** `src/services/fileImportService.ts` (novo helper interno)
+
+Mapa de normalização:
+- "BRISA" → "Brisa"
+- "NOGUEIRA AVENA" / "NOG AVENA" / "NOG AVE" / "NOGU" → "Nogueira Avena"  
+- "BRANCO TX" / "BRANCO" / "BRA AUR" → "Branco"
+- "PRETO FOSCO" / "PRE FOS" → "Preto Fosco"
+- Extensível via mapa `Record<RegExp, string>`
+
+---
+
+### FASE 3 — Parser TXT Avançado (Promob)
+
+**Arquivo:** `src/services/fileImportService.ts` — evoluir `parsePromobTxt()`
+
+O formato TXT do Promob (real):
+```
+seq  qty  code  DESCRIPTION  unit_price  total_price  dimensions
+1    3    820227748  ARMARIO L1000 H700 P530 BRISA  349.48  1048.43  1000 x 700 x 530
+```
+
+Classificar cada item por tipo (ARMARIO→modulo, PORTA→porta, GAVETA→gaveta, PAINEL→painel, DOBRADICA/PARAFUSO→acessorio).
+
+Extrair: ambiente do header (DATA ID="Environment"), fornecedor das REFERENCES, acabamento da DESCRIPTION.
+
+---
+
+### FASE 4 — Parser XML Avançado (Promob)
+
+**Arquivo:** `src/services/fileImportService.ts` — evoluir parser XML para Promob
+
+O XML tem estrutura `<ITEM>` com atributos:
+- `DESCRIPTION`, `REFERENCE`, `QUANTITY`, `WIDTH/HEIGHT/DEPTH`
+- `<PRICE>` com TABLE, TOTAL
+- `<REFERENCES>` com `<FORNECEDOR>`, `<ACAB>`, `<MODEL>`
+- `<MARGINS>` com ORDER (custo) e BUDGET (venda)
+
+Extrair cada `<ITEM>` como um `ParsedModule`.
+
+---
+
+### FASE 5 — Integração com Simulador
+
+**Arquivo:** `src/hooks/useSimulatorActions.ts`
+
+No `handleFileImport`, mapear `parsed.modules` para o `ImportedEnvironment`.
+
+---
+
+### FASE 6 — UI: ListView com Módulos Expandíveis
+
+**Arquivo:** `src/components/simulator/SimulatorEnvironmentsTable.tsx`
+
+Adicionar seção colapsável dentro de cada ambiente para exibir módulos:
+- Nome do módulo + tipo + qtd + valor
+- Acabamento normalizado como badge
+
+---
+
+### FASE 7 — Testes
+
+Criar testes com os dados reais do TXT e XML fornecidos pelo usuário.
+
+---
+
+### O que NÃO será alterado
+- Lógica de cálculo do simulador
+- Fluxo de fechamento de venda
+- Integração com MIA (fase futura)
+- Estrutura do banco de dados
