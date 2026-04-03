@@ -1,109 +1,97 @@
-## Plano de Implementação — Importador Promob Avançado
 
-### Escopo (baseado na auditoria)
-O parser atual (`fileImportService.ts`) já funciona para importação básica. As 2 evoluções solicitadas:
 
----
+## Plano: Fluxo Completo de Fechamento de Contrato + Portal do Cliente
 
-### FASE 1 — Tipos e Estrutura de Dados
+### Problema Atual
+O botão "Salvar Contrato e Continuar" no `CloseSaleModal` chama `handleCloseSaleConfirm`, que salva a simulação e abre o `ContractEditorDialog`. Porém, o `ContractEditorDialog` atual tem apenas botões "Cancelar" e "Salvar e Imprimir" — faltam opções de PDF, envio ao cliente e o portal público. Além disso, o `handleContractConfirm` salva o contrato e imediatamente abre janela de impressão sem dar controle ao usuário.
 
-**Arquivo:** `src/services/fileImportService.ts`
+### Arquitetura do Fluxo Proposto
 
-Adicionar ao `ParsedFileResult`:
-```typescript
-interface ParsedModule {
-  id: string;
-  code: string;           // código referência (ex: 820227748)
-  description: string;    // ARMARIO L1000 H700 P530 BRISA
-  type: "modulo" | "porta" | "frente" | "gaveta" | "painel" | "acessorio";
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  dimensions: string;     // 1000 x 700 x 530
-  finish: string;         // acabamento normalizado (ex: "Brisa")
-  supplier: string;       // fornecedor (ex: "Criare")
-}
+```text
+CloseSaleModal (dados do contrato)
+  └─► "Salvar Contrato e Continuar"
+        └─► Salva simulação + gera HTML do contrato
+              └─► ContractEditorDialog (REFORMULADO)
+                    ├─ Preview do contrato (iframe)
+                    ├─ Modo edição (contentEditable)
+                    └─ Barra de ações:
+                         ├─ Imprimir
+                         ├─ Salvar como PDF
+                         ├─ Enviar à Área do Cliente (gera link público)
+                         └─ Salvar Contrato (persiste no banco)
 
-// Adicionar ao ParsedFileResult:
-modules?: ParsedModule[];
+Link público → /contrato/:token
+  └─► ClientContractPortal (página pública)
+        ├─ Preview do contrato (iframe)
+        ├─ Botão Imprimir
+        ├─ Botão Baixar PDF
+        ├─ Assinatura Digital (canvas)
+        ├─ Upload de selfie + documento
+        ├─ Assinar via Gov.br (link externo)
+        └─ Botão "Confirmar e Enviar"
 ```
 
-Adicionar ao `ImportedEnvironment`:
-```typescript
-modules?: ParsedModule[];
-```
+### Tarefas de Implementação
 
----
+#### 1. Migração de Schema (nova tabela + coluna)
+- Adicionar colunas à tabela `client_contracts`:
+  - `public_token` (text, unique) — token UUID para acesso público
+  - `status` (text, default 'rascunho') — rascunho | enviado | assinado
+  - `assinatura_url` (text, nullable) — URL da imagem de assinatura
+  - `selfie_url` (text, nullable) — URL da selfie
+  - `documento_url` (text, nullable) — URL da foto do documento
+  - `assinado_em` (timestamptz, nullable)
+  - `assinado_via` (text, nullable) — 'manual' | 'govbr'
+- Criar política RLS para acesso público via token (sem auth)
 
-### FASE 2 — Normalização de Cores/Materiais
+#### 2. Reformular o `ContractEditorDialog`
+- Manter preview e edição como estão
+- Substituir footer com barra de ações completa:
+  - **Salvar Contrato**: persiste no banco (insert/update `client_contracts`)
+  - **Imprimir**: abre janela de impressão via `openContractPrintWindow`
+  - **Baixar PDF**: gera PDF server-side e baixa
+  - **Enviar à Área do Cliente**: gera `public_token`, salva contrato, copia link para clipboard e mostra toast com URL
+- Após salvar, manter dialog aberto (não fechar automaticamente)
 
-**Arquivo:** `src/services/fileImportService.ts` (novo helper interno)
+#### 3. Criar página pública `/contrato/:token` (ClientContractPortal)
+- Rota pública (sem auth) no `App.tsx`
+- Busca contrato pelo `public_token` (RLS bypassed via security definer function)
+- Exibe:
+  - Preview do contrato em iframe
+  - Botões: Imprimir / Baixar PDF
+  - Seção de assinatura digital (canvas de desenho, reutilizando padrão do `DealRoomSignature`)
+  - Upload de selfie (câmera ou arquivo)
+  - Upload de foto do documento (frente)
+  - Opção "Assinar via Gov.br" (link para assinador.iti.br)
+  - Botão "Confirmar e Enviar" que salva tudo e atualiza status para 'assinado'
+- Design responsivo, mobile-first
 
-Mapa de normalização:
-- "BRISA" → "Brisa"
-- "NOGUEIRA AVENA" / "NOG AVENA" / "NOG AVE" / "NOGU" → "Nogueira Avena"  
-- "BRANCO TX" / "BRANCO" / "BRA AUR" → "Branco"
-- "PRETO FOSCO" / "PRE FOS" → "Preto Fosco"
-- Extensível via mapa `Record<RegExp, string>`
+#### 4. Atualizar `handleContractConfirm` no `useSimulatorActions`
+- Remover `openContractPrintWindow` automático
+- Após salvar o contrato, manter o editor aberto com toast de sucesso
+- Separar ações: salvar ≠ imprimir ≠ enviar
 
----
+#### 5. Edge Function para acesso público ao contrato
+- Criar function `public-contract` que busca contrato por token sem exigir JWT
+- Aceita uploads de assinatura/selfie/documento para o bucket `contract-signatures`
 
-### FASE 3 — Parser TXT Avançado (Promob)
+### Detalhes Técnicos
 
-**Arquivo:** `src/services/fileImportService.ts` — evoluir `parsePromobTxt()`
+**Arquivos a criar:**
+- `src/pages/ClientContractPortal.tsx` — página pública do portal
+- `src/components/contract/ContractSignaturePad.tsx` — componente de assinatura
+- `src/components/contract/ContractDocumentUpload.tsx` — upload de selfie/documento
+- `supabase/functions/public-contract/index.ts` — API pública para contratos
+- Migration SQL para novas colunas
 
-O formato TXT do Promob (real):
-```
-seq  qty  code  DESCRIPTION  unit_price  total_price  dimensions
-1    3    820227748  ARMARIO L1000 H700 P530 BRISA  349.48  1048.43  1000 x 700 x 530
-```
+**Arquivos a modificar:**
+- `src/components/ContractEditorDialog.tsx` — nova barra de ações
+- `src/hooks/useSimulatorActions.ts` — separar salvar de imprimir
+- `src/App.tsx` — nova rota `/contrato/:token`
 
-Classificar cada item por tipo (ARMARIO→modulo, PORTA→porta, GAVETA→gaveta, PAINEL→painel, DOBRADICA/PARAFUSO→acessorio).
+**Dependências existentes reutilizadas:**
+- `buildContractDocumentHtml` de `contractDocument.ts`
+- `generateBudgetPdfServerSide` de `pdfService.ts`
+- Padrão de assinatura do `DealRoomSignature.tsx`
+- Padrão Gov.br do `DealRoomContractPdf.tsx`
 
-Extrair: ambiente do header (DATA ID="Environment"), fornecedor das REFERENCES, acabamento da DESCRIPTION.
-
----
-
-### FASE 4 — Parser XML Avançado (Promob)
-
-**Arquivo:** `src/services/fileImportService.ts` — evoluir parser XML para Promob
-
-O XML tem estrutura `<ITEM>` com atributos:
-- `DESCRIPTION`, `REFERENCE`, `QUANTITY`, `WIDTH/HEIGHT/DEPTH`
-- `<PRICE>` com TABLE, TOTAL
-- `<REFERENCES>` com `<FORNECEDOR>`, `<ACAB>`, `<MODEL>`
-- `<MARGINS>` com ORDER (custo) e BUDGET (venda)
-
-Extrair cada `<ITEM>` como um `ParsedModule`.
-
----
-
-### FASE 5 — Integração com Simulador
-
-**Arquivo:** `src/hooks/useSimulatorActions.ts`
-
-No `handleFileImport`, mapear `parsed.modules` para o `ImportedEnvironment`.
-
----
-
-### FASE 6 — UI: ListView com Módulos Expandíveis
-
-**Arquivo:** `src/components/simulator/SimulatorEnvironmentsTable.tsx`
-
-Adicionar seção colapsável dentro de cada ambiente para exibir módulos:
-- Nome do módulo + tipo + qtd + valor
-- Acabamento normalizado como badge
-
----
-
-### FASE 7 — Testes
-
-Criar testes com os dados reais do TXT e XML fornecidos pelo usuário.
-
----
-
-### O que NÃO será alterado
-- Lógica de cálculo do simulador
-- Fluxo de fechamento de venda
-- Integração com MIA (fase futura)
-- Estrutura do banco de dados
