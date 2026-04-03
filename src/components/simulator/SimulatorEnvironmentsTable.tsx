@@ -29,6 +29,7 @@ export interface ImportedEnvironment {
   complemento?: string;
   modelo?: string;
   fileFormat?: "XML" | "TXT" | "PROMOB";
+  modules?: ParsedModule[];
 }
 
 type TechField = keyof Pick<ImportedEnvironment, "corpo" | "porta" | "puxador" | "complemento" | "modelo" | "fornecedor">;
