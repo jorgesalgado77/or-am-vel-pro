@@ -4,11 +4,18 @@ import { miaInvoke } from "@/services/mia/MIAInvoke";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notificationSound";
 
+export interface AIMessageAction {
+  type: string;
+  label: string;
+  target: string;
+}
+
 export interface AIMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  actions?: AIMessageAction[];
 }
 
 export interface OnboardingAIContext {
