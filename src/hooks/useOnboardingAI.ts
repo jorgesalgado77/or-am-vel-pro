@@ -1689,7 +1689,7 @@ export function useOnboardingAI(tenantId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [refreshContext]);
+  }, [refreshContext, cargoNome, currentUser?.id]);
 
   const sendMessage = useCallback(async (content: string, isInitial = false) => {
     if (!tenantId) return;

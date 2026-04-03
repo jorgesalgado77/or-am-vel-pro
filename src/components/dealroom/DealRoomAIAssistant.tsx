@@ -41,6 +41,7 @@ const QUICK_PROMPTS = [
 ];
 
 export function DealRoomAIAssistant({ tenantId, clientName, clientId, proposalValue, sessionId, transcription }: DealRoomAIAssistantProps) {
+  const { currentUser } = useCurrentUser();
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
