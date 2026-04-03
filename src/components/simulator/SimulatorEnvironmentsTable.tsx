@@ -700,13 +700,24 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
                               <label className={cn("text-[9px] font-medium uppercase tracking-wider", isEmpty && isRequired ? "text-amber-500" : "text-muted-foreground")}>
                                 {label}{isEmpty && isRequired && " •"}
                               </label>
-                              <Input
-                                value={env[key] || ""}
-                                onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
-                                className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30", isEmpty && isRequired && highlightIncomplete && "ring-2 ring-amber-500/60 animate-pulse")}
-                                placeholder={placeholder}
-                                readOnly={!onUpdateTechnical}
-                              />
+                              {key === "fornecedor" ? (
+                                <FornecedorAutocomplete
+                                  value={env[key] || ""}
+                                  onChange={(v) => onUpdateTechnical?.(env.id, key, v)}
+                                  fornecedores={fornecedoresList}
+                                  placeholder={placeholder}
+                                  className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30", isEmpty && isRequired && highlightIncomplete && "ring-2 ring-amber-500/60 animate-pulse")}
+                                  readOnly={!onUpdateTechnical}
+                                />
+                              ) : (
+                                <Input
+                                  value={env[key] || ""}
+                                  onChange={(e) => onUpdateTechnical?.(env.id, key, e.target.value)}
+                                  className={cn("h-6 text-[11px] bg-background", isEmpty && isRequired && "border-amber-500/50 focus-visible:ring-amber-500/30", isEmpty && isRequired && highlightIncomplete && "ring-2 ring-amber-500/60 animate-pulse")}
+                                  placeholder={placeholder}
+                                  readOnly={!onUpdateTechnical}
+                                />
+                              )}
                             </div>
                           );
                         })}
