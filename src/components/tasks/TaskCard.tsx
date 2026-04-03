@@ -1,11 +1,21 @@
-import { memo } from "react";
+import { memo, useState, useCallback } from "react";
 import { Draggable } from "@hello-pangea/dnd";
 import { format } from "date-fns";
-import { Clock, GripVertical, User, Paperclip, Trash2, CalendarCheck, CalendarX2 } from "lucide-react";
+import { Clock, GripVertical, User, Paperclip, Trash2, CalendarCheck, CalendarX2, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { TASK_COLUMNS, TASK_TYPES, type Task } from "./taskTypes";
+import { supabase } from "@/lib/supabaseClient";
+import { ProductDetailModal } from "@/components/catalog/ProductDetailModal";
+import type { Product } from "@/hooks/useProductCatalog";
+
+function extractProductId(desc?: string | null): string | null {
+  if (!desc) return null;
+  const match = desc.match(/\[product_id:([a-f0-9-]+)\]/i);
+  return match ? match[1] : null;
+}
 
 interface TaskCardProps {
   task: Task;
@@ -18,8 +28,25 @@ export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete 
   const col = TASK_COLUMNS.find(c => c.id === task.status);
   const typeLabel = TASK_TYPES.find(t => t.value === task.tipo)?.label || task.tipo;
   const isSynced = !!task.google_event_id;
+  const productId = extractProductId(task.descricao);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleProductDetail = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!productId) return;
+    const { data } = await (supabase as any).from("products").select("*").eq("id", productId).single();
+    if (data) {
+      setDetailProduct(data as Product);
+      setDetailOpen(true);
+    }
+  }, [productId]);
+
+  // Clean description: remove [product_id:...] marker for display
+  const cleanDesc = task.descricao?.replace(/\[product_id:[a-f0-9-]+\]/gi, "").trim();
 
   return (
+    <>
     <Draggable draggableId={task.id} index={index}>
       {(provided, snapshot) => (
         <div
@@ -64,8 +91,20 @@ export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete 
               </div>
             </div>
 
-            {task.descricao && (
-              <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{task.descricao}</p>
+            {cleanDesc && (
+              <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 whitespace-pre-line">{cleanDesc}</p>
+            )}
+
+            {productId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 h-6 text-[10px] gap-1 px-2"
+                onClick={handleProductDetail}
+              >
+                <Eye className="h-3 w-3" />
+                Detalhes do Produto
+              </Button>
             )}
 
             <div className="flex items-center justify-between mt-2">
@@ -103,5 +142,16 @@ export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete 
         </div>
       )}
     </Draggable>
+
+    {detailProduct && (
+      <ProductDetailModal
+        product={detailProduct}
+        open={detailOpen}
+        onClose={() => { setDetailOpen(false); setDetailProduct(null); }}
+        tenantId={null}
+        isAdmin={false}
+      />
+    )}
+    </>
   );
 });
