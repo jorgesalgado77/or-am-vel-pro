@@ -187,8 +187,10 @@ const MODULES: ModuleKnowledge[] = [
     allowedCargos: ["vendedor", "projetista", "gerente", "administrador"],
     quickActions: ["Criar nova simulação", "Adicionar ambiente", "Aplicar desconto", "Gerar contrato"],
     commonQuestions: [
-      { q: "Como criar um orçamento?", a: "Abra o Simulador, selecione o cliente, adicione ambientes e produtos. O sistema calcula automaticamente." },
-      { q: "Como aplicar desconto?", a: "Na seção de descontos: Desconto 1 (à vista), Desconto 2 (condicional), Desconto 3 (especial). A IA de Estratégia pode sugerir." },
+      { q: "Como criar um orçamento?", a: "1. Acesse **Menu lateral > Simulador**\n2. Selecione o cliente\n3. Adicione ambientes e produtos do catálogo\n4. Configure descontos e forma de pagamento\n5. O sistema calcula automaticamente o valor final\n6. Clique em **\"Gerar Proposta PDF\"** para enviar ao cliente\n\n💡 Dica: Use a IA de Estratégia para sugerir o melhor desconto." },
+      { q: "Como aplicar desconto?", a: "Na seção de descontos do Simulador:\n• **Desconto 1** (à vista)\n• **Desconto 2** (condicional)\n• **Desconto 3** (especial)\n\nA IA de Estratégia pode sugerir o desconto ideal. Descontos 'Extrema' exigem senha de gerente." },
+      { q: "Como gerar contrato?", a: "1. Abra a simulação aprovada no **Simulador**\n2. Clique no botão **\"Gerar Contrato\"**\n3. O sistema preenche automaticamente: dados do cliente, valores, condições de pagamento\n4. Revise e confirme\n5. O contrato pode ser exportado em **PDF**\n6. O cliente é movido automaticamente para **\"Fechado\"** no Kanban" },
+      { q: "Como fechar venda?", a: "O fluxo de fechamento envolve:\n\n1. **Negociação:** Use o Chat de Vendas ou Deal Room. A IA detecta sinais de compra.\n2. **Proposta:** Gere a simulação com condições finais no Simulador.\n3. **Contrato:** Clique **\"Gerar Contrato\"** na simulação aprovada.\n4. **Registro:** O sistema atualiza o Kanban, subtrai estoque e registra o faturamento.\n\n💡 Diga **\"status\"** para ver leads prontos para fechar." },
     ],
   },
   {
