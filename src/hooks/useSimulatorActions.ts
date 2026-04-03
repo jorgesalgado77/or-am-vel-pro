@@ -766,7 +766,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     } finally {
       setClosingSale(false);
     }
-  }, [effectiveClient, pendingSimId, pendingTemplateId, resolvedTenantId, valorTela, valorTelaComComissao, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, closeSaleFormData, currentUser, recordSale, catalogProducts]);
+  }, [effectiveClient, pendingSimId, pendingTemplateId, resolvedTenantId, valorTela, valorTelaComComissao, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, closeSaleFormData, closeSaleItems, closeSaleItemDetails, currentUser, recordSale, catalogProducts, environments]);
 
   const handlePdf = useCallback(async (): Promise<string | null> => {
     if (!effectiveClient || !resolvedTenantId) { toast.error("Tenant não identificado"); return null; }

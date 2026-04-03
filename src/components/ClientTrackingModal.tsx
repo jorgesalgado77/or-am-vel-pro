@@ -291,7 +291,7 @@ export function ClientTrackingModal({ open, onClose }: Props) {
                   className="min-h-[40px] h-10 resize-none"
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                 />
-                <Button onClick={handleSendMessage} disabled={sending || !newMessage.trim()} size="icon" className="shrink-0">
+                <Button onClick={handleSendMessage} disabled={sending || !newMessage.trim() || String(tracking.id).startsWith("fallback-")} size="icon" className="shrink-0">
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
