@@ -315,6 +315,10 @@ export function FornecedoresTab() {
                 </div>
               </div>
               <div>
+                <Label className="text-xs">Prazo de Entrega do Fornecedor</Label>
+                <PrazoEntregaSelect value={form.prazo_entrega} onChange={v => setForm({ ...form, prazo_entrega: v })} />
+              </div>
+              <div>
                 <Label className="text-xs">Observações</Label>
                 <Textarea value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} className="mt-1 text-sm min-h-[60px]" />
               </div>
