@@ -84,23 +84,25 @@ export function ClientTrackingModal({ open, onClose }: Props) {
   const handleSearch = async () => {
     if (!contractNumber.trim()) { toast.error("Informe o número do contrato"); return; }
     setSearching(true);
-    const { data, error } = await supabase
-      .from("client_tracking")
-      .select("*")
-      .eq("numero_contrato", contractNumber.trim())
-      .limit(1)
-      .single();
+    try {
+      const res = await fetch(
+        `${FUNCTION_URL}?action=track&numero=${encodeURIComponent(contractNumber.trim())}`
+      );
+      const result = await res.json();
 
-    if (error || !data) {
-      toast.error("Contrato não encontrado");
+      if (result.error || !result.tracking) {
+        toast.error(result.error || "Contrato não encontrado");
+        return;
+      }
+
+      setTracking(result.tracking as any);
+      setMessages(result.messages || []);
+      setStep("tracking");
+    } catch {
+      toast.error("Erro ao buscar contrato");
+    } finally {
       setSearching(false);
-      return;
     }
-
-    setTracking(data as any);
-    await fetchMessages((data as any).id);
-    setStep("tracking");
-    setSearching(false);
   };
 
   const fetchMessages = async (trackingId: string) => {
