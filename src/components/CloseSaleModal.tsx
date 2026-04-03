@@ -294,47 +294,56 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
   const handleSubmit = async () => {
-    const errors = new Set<string>();
-    for (const { key } of REQUIRED_FIELDS) {
-      const val = form[key];
-      if (typeof val === "string" && !val.trim()) errors.add(key);
-    }
-    let cpfErr = "";
-    if (form.cpf_cnpj.trim()) {
-      const result = validateCpfCnpj(form.cpf_cnpj);
-      if (!result.valid) { cpfErr = result.message || "CPF/CNPJ inválido"; errors.add("cpf_cnpj"); }
-    }
-    setCpfCnpjError(cpfErr);
-    setFieldErrors(errors);
-    if (errors.size > 0) {
-      const missing = REQUIRED_FIELDS.filter(f => errors.has(f.key)).map(f => f.label);
-      toast.error(cpfErr || `Preencha: ${missing.join(", ")}`);
-      return;
-    }
-    const localTenantId = getTenantId();
-    if (localTenantId && client) {
-      const totalValue = simulationData?.valorFinal || totalAmbientes;
-      const discountPct = (simulationData as any)?.desconto1 || 0;
-      const table = supabase.from("ai_learning_events" as unknown as "clients");
-      void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
-        .insert([{
-          tenant_id: localTenantId,
-          client_id: client.id,
-          event_type: "deal_closed",
-          deal_result: "ganho",
-          price_offered: totalValue,
-          discount_percentage: discountPct,
-          strategy_used: "consultiva",
-          metadata: {
-            forma_pagamento: simulationData?.formaPagamento,
-            parcelas: form.qtd_parcelas,
-            vendedor: form.responsavel_venda,
-          },
-        }]).catch((err: unknown) => console.warn("[CloseSale] learning event error:", err));
-    }
+    console.log("[CloseSaleModal] handleSubmit called");
+    try {
+      const errors = new Set<string>();
+      for (const { key } of REQUIRED_FIELDS) {
+        const val = form[key];
+        if (typeof val === "string" && !val.trim()) errors.add(key);
+      }
+      let cpfErr = "";
+      if (form.cpf_cnpj.trim()) {
+        const result = validateCpfCnpj(form.cpf_cnpj);
+        if (!result.valid) { cpfErr = result.message || "CPF/CNPJ inválido"; errors.add("cpf_cnpj"); }
+      }
+      setCpfCnpjError(cpfErr);
+      setFieldErrors(errors);
+      if (errors.size > 0) {
+        const missing = REQUIRED_FIELDS.filter(f => errors.has(f.key)).map(f => f.label);
+        console.warn("[CloseSaleModal] Validation failed:", missing);
+        toast.error(cpfErr || `Preencha: ${missing.join(", ")}`);
+        return;
+      }
+      console.log("[CloseSaleModal] Validation passed, calling onConfirm...");
+      const localTenantId = getTenantId();
+      if (localTenantId && client) {
+        const totalValue = simulationData?.valorFinal || totalAmbientes;
+        const discountPct = (simulationData as any)?.desconto1 || 0;
+        const table = supabase.from("ai_learning_events" as unknown as "clients");
+        void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
+          .insert([{
+            tenant_id: localTenantId,
+            client_id: client.id,
+            event_type: "deal_closed",
+            deal_result: "ganho",
+            price_offered: totalValue,
+            discount_percentage: discountPct,
+            strategy_used: "consultiva",
+            metadata: {
+              forma_pagamento: simulationData?.formaPagamento,
+              parcelas: form.qtd_parcelas,
+              vendedor: form.responsavel_venda,
+            },
+          }]).catch((err: unknown) => console.warn("[CloseSale] learning event error:", err));
+      }
 
-    const success = await onConfirm(form, items, itemDetails);
-    if (success) clearForm();
+      const success = await onConfirm(form, items, itemDetails);
+      console.log("[CloseSaleModal] onConfirm returned:", success);
+      if (success) clearForm();
+    } catch (err) {
+      console.error("[CloseSaleModal] handleSubmit error:", err);
+      toast.error(`Erro ao processar: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
+    }
   };
 
   return (
