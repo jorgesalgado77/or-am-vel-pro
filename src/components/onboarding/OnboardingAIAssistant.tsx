@@ -76,6 +76,8 @@ export function OnboardingAIAssistant() {
   const { tenantId } = useTenant();
   const { messages, loading, context, sendMessage, configureVendaZap, runTests, suggestFirstProject, navigateTo, pendingItems } = useOnboardingAI(tenantId);
   const { keys } = useApiKeys(tenantId);
+  const currentUserId = typeof window !== "undefined" ? localStorage.getItem("current_user_id") : null;
+  const { checkAlerts } = useMIAProactiveAlerts(tenantId, currentUserId);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [compactMode, setCompactMode] = useState(false);
@@ -84,6 +86,7 @@ export function OnboardingAIAssistant() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const proactiveCheckedRef = useRef(false);
 
   // Drag state
   const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(loadSavedPosition);
