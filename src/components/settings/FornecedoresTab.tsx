@@ -32,6 +32,7 @@ export interface Fornecedor {
   cep: string;
   contato: string;
   observacoes: string;
+  prazo_entrega: string;
   ativo: boolean;
 }
 
