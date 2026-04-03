@@ -260,7 +260,11 @@ export function ClientTrackingModal({ open, onClose }: Props) {
               <h4 className="text-sm font-semibold text-foreground">Mensagens</h4>
               <div className="border rounded-lg p-3 h-48 overflow-y-auto space-y-2 bg-background">
                 {messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">Nenhuma mensagem ainda. Envie sua dúvida!</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {String(tracking.id).startsWith("fallback-")
+                      ? "Contrato localizado. As mensagens ficarão disponíveis após a sincronização automática do acompanhamento."
+                      : "Nenhuma mensagem ainda. Envie sua dúvida!"}
+                  </p>
                 ) : (
                   messages.map((msg) => (
                     <div
