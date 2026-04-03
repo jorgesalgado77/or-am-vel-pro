@@ -247,12 +247,16 @@ export function ProductCatalog() {
 
   const handleImageUpload = async (files: FileList | null) => {
     if (!files || !form.id) { toast.error("Salve o produto antes de adicionar imagens"); return; }
+    const fileArr = Array.from(files);
     setUploading(true);
-    for (const file of Array.from(files)) {
-      const result = await uploadProductImage(form.id, file);
+    setUploadProgress({ current: 0, total: fileArr.length });
+    for (let i = 0; i < fileArr.length; i++) {
+      setUploadProgress({ current: i + 1, total: fileArr.length });
+      const result = await uploadProductImage(form.id, fileArr[i]);
       if (result) setImages(prev => [...prev, result as any]);
     }
     setUploading(false);
+    setUploadProgress({ current: 0, total: 0 });
   };
 
   const handleRemoveImage = async (imgId: string) => {
