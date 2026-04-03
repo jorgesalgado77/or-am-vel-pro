@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { PrazoEntregaSelect } from "@/components/shared/PrazoEntregaSelect";
+import { FornecedorAutocomplete, type FornecedorOption } from "@/components/shared/FornecedorAutocomplete";
 import { getTenantId } from "@/lib/tenantState";
 import type { ParsedModule, ModuleType } from "@/services/fileImportService";
 
