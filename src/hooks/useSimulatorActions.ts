@@ -188,7 +188,8 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     toast.success("Ambiente removido");
   }, [setEnvironments, setValorTela, setImportedFile]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (options?: { silent?: boolean }): Promise<string | null> => {
+    const silent = options?.silent ?? false;
     if (!resolvedTenantId) {
       const message = "Não foi possível identificar a loja atual; recarregue a página e tente novamente.";
       toast.error(message, { duration: 7000 });
