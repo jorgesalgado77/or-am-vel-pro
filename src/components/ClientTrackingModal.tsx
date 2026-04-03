@@ -7,12 +7,9 @@ import {Label} from "@/components/ui/label";
 import {Separator} from "@/components/ui/separator";
 import {Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircle2} from "lucide-react";
 import {supabase} from "@/lib/supabaseClient";
-import {EXTERNAL_SUPABASE_URL} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {format} from "date-fns";
 import {playNotificationSound} from "@/lib/notificationSound";
-
-const FUNCTION_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/public-contract`;
 
 const TRACKING_STEPS = [
   { key: "medicao", label: "Medição", icon: Ruler, color: "text-blue-500", bgActive: "bg-blue-500", bgInactive: "bg-muted" },
