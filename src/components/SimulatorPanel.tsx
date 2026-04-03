@@ -439,6 +439,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               initialEnabled={aiStrategyEnabled}
               onStrategyChange={(s) => setActiveStrategy(s || "")}
               onEnabledChange={(v) => setAiStrategyEnabled(v)}
+            />
           </Suspense>
 
           <SimulatorResultCard
