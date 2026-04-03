@@ -33,48 +33,69 @@ type NormalizationRule = {
   value: string;
 };
 
-const escapeHtml = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+const LINE_CONTAINER_SELECTOR = "p, li, div, span";
+const LABEL_ELEMENT_SELECTOR = "strong, b, label";
 
-const replaceRichLabelValue = (html: string, labelPattern: string, value: string) => {
-  const safeValue = escapeHtml(value);
-  const richLabelRegex = new RegExp(
-    `(<(?:strong|b|span|label)[^>]*>\\s*(?:${labelPattern})\\s*[:\\-–]?\\s*<\\/(?:strong|b|span|label)>\\s*)([^<\\n]*)`,
-    "giu",
-  );
+const normalizeText = (value: string) => value.replace(/\s+/g, " ").trim();
 
-  return html.replace(richLabelRegex, (_, prefix: string) => `${prefix}${safeValue}`);
+const matchesLabel = (value: string, pattern: string) => {
+  const normalized = normalizeText(value);
+  return new RegExp(`^(?:${pattern})\\s*[:\\-–]?$`, "iu").test(normalized);
 };
 
-const replacePlainTextLabelValue = (html: string, labelPattern: string, value: string) => {
-  const safeValue = escapeHtml(value);
-  const plainTextRegex = new RegExp(
-    `(>\\s*(?:${labelPattern})\\s*[:\\-–]\\s*)([^<\\n]*)(<)`,
-    "giu",
-  );
+const replaceTableValues = (root: ParentNode, rule: NormalizationRule) => {
+  root.querySelectorAll("tr").forEach((row) => {
+    const cells = Array.from(row.querySelectorAll(":scope > td, :scope > th"));
+    if (cells.length < 2) return;
 
-  return html.replace(plainTextRegex, (_, prefix: string, __: string, suffix: string) => `${prefix}${safeValue}${suffix}`);
+    if (matchesLabel(cells[0].textContent || "", rule.labelPattern)) {
+      cells[1].textContent = rule.value;
+    }
+  });
 };
 
-const replaceTableLabelValue = (html: string, labelPattern: string, value: string) => {
-  const safeValue = escapeHtml(value);
-  const rowRegex = new RegExp(
-    `(<t[dh][^>]*>\\s*(?:${labelPattern})\\s*<\\/t[dh]>\\s*<t[dh][^>]*>)([\\s\\S]*?)(<\\/t[dh]>)`,
-    "giu",
-  );
+const replaceRichLineValues = (root: ParentNode, rule: NormalizationRule) => {
+  root.querySelectorAll(LINE_CONTAINER_SELECTOR).forEach((element) => {
+    const labelElement = Array.from(element.querySelectorAll(":scope > strong, :scope > b, :scope > label")).find((node) =>
+      matchesLabel(node.textContent || "", rule.labelPattern),
+    );
 
-  return html.replace(rowRegex, `$1${safeValue}$3`);
+    if (!labelElement) return;
+
+    let sibling = labelElement.nextSibling;
+    while (sibling) {
+      const nextSibling = sibling.nextSibling;
+      sibling.parentNode?.removeChild(sibling);
+      sibling = nextSibling;
+    }
+
+    element.appendChild(element.ownerDocument.createTextNode(` ${rule.value}`));
+  });
+};
+
+const replacePlainLineValues = (root: ParentNode, rule: NormalizationRule) => {
+  root.querySelectorAll(LINE_CONTAINER_SELECTOR).forEach((element) => {
+    if (element.querySelector(LABEL_ELEMENT_SELECTOR)) return;
+
+    const text = normalizeText(element.textContent || "");
+    const match = text.match(new RegExp(`^((?:${rule.labelPattern}))\\s*([:\\-–])\\s*[\\s\\S]*$`, "iu"));
+    if (!match) return;
+
+    element.textContent = `${match[1]}${match[2]} ${rule.value}`;
+  });
 };
 
 export const normalizeImportedTemplateBindings = (
   html: string,
   bindings: ContractTemplateTextBindings,
 ) => {
+  if (!html.trim() || typeof DOMParser === "undefined") return html;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
+  const root = doc.body.firstElementChild;
+  if (!root) return html;
+
   const rules: NormalizationRule[] = [
     {
       labelPattern: "(?:nome\\s+completo|nome\\s+do\\s+(?:cliente|contratante|comprador)|cliente|contratante|comprador)",
@@ -108,11 +129,13 @@ export const normalizeImportedTemplateBindings = (
     { labelPattern: "(?:condiç(?:õ|o)es\\s+de\\s+pagamento)", value: bindings.condicoesPagamento },
   ];
 
-  return rules.reduce((normalizedHtml, rule) => {
-    const richNormalized = replaceRichLabelValue(normalizedHtml, rule.labelPattern, rule.value);
-    const tableNormalized = replaceTableLabelValue(richNormalized, rule.labelPattern, rule.value);
-    return replacePlainTextLabelValue(tableNormalized, rule.labelPattern, rule.value);
-  }, html);
+  rules.forEach((rule) => {
+    replaceTableValues(root, rule);
+    replaceRichLineValues(root, rule);
+    replacePlainLineValues(root, rule);
+  });
+
+  return root.innerHTML;
 };
 
 export type { ContractTemplateTextBindings };

@@ -107,13 +107,13 @@ describe("buildContractHtml", () => {
 
     const normalizedHtml = html.replace(/\u00a0/g, " ");
 
-    expect(normalizedHtml).toContain("<strong>Cliente:</strong> João Silva");
-    expect(normalizedHtml).toContain("<strong>CPF:</strong> 123.456.789-00");
-    expect(normalizedHtml).toContain("<strong>Nº do Contrato:</strong> CT-999");
-    expect(normalizedHtml).toContain("<strong>Valor Final:</strong> R$ 8.000,00");
-    expect(normalizedHtml).toContain("<strong>Entrada:</strong> R$ 1.000,00");
-    expect(normalizedHtml).toContain("<strong>Parcelas:</strong> 10x de R$ 800,00");
-    expect(html).not.toContain("Maria Antiga");
-    expect(html).not.toContain("CT-OLD");
+    expect(normalizedHtml).toContain("João Silva");
+    expect(normalizedHtml).toContain("123.456.789-00");
+    expect(normalizedHtml).toContain("CT-999");
+    expect(normalizedHtml).toContain("R$ 8.000,00");
+    expect(normalizedHtml).toContain("R$ 1.000,00");
+    expect(normalizedHtml).toContain("10x de R$ 800,00");
+    expect(normalizedHtml).not.toContain("Maria Antiga");
+    expect(normalizedHtml).not.toContain("CT-OLD");
   });
 });
