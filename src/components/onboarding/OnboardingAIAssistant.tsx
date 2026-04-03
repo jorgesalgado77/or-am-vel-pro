@@ -594,7 +594,7 @@ export function OnboardingAIAssistant() {
             >
               <div className="p-3 space-y-3">
                 {messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} />
+                  <MessageBubble key={msg.id} message={msg} onCloseChat={() => { setOpen(false); setFullscreen(false); }} />
                 ))}
                 {loading && (
                   <div className="flex items-start gap-2 px-1 py-2">
