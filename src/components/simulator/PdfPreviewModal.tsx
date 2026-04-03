@@ -3,6 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Printer, Download, X, Loader2, MessageCircle, AlertTriangle, ExternalLink } from "lucide-react";
 import { useRef, useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface PdfPreviewModalProps {
   open: boolean;
@@ -13,27 +17,24 @@ interface PdfPreviewModalProps {
 }
 
 export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId }: PdfPreviewModalProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const [fetching, setFetching] = useState(false);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [renderFailed, setRenderFailed] = useState(false);
+  const [pageImages, setPageImages] = useState<string[]>([]);
+  const [rendering, setRendering] = useState(false);
 
   useEffect(() => {
     if (!pdfUrl || !open) {
       setBlobUrl(null);
       setFetchError(false);
-      setIframeLoaded(false);
-      setRenderFailed(false);
+      setPageImages([]);
       return;
     }
 
     let cancelled = false;
     setFetching(true);
     setFetchError(false);
-    setIframeLoaded(false);
-    setRenderFailed(false);
+    setPageImages([]);
 
     (async () => {
       try {
@@ -45,10 +46,30 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
         if (!cancelled) {
           setBlobUrl(url);
           setFetching(false);
-          // Give iframe time to render, if it doesn't load in 3s show fallback
-          setTimeout(() => {
-            if (!cancelled) setRenderFailed(prev => !iframeLoaded ? true : prev);
-          }, 4000);
+
+          // Render PDF pages to canvas images
+          setRendering(true);
+          try {
+            const arrayBuffer = await blob.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const images: string[] = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const scale = 2;
+              const viewport = page.getViewport({ scale });
+              const canvas = document.createElement("canvas");
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              const ctx = canvas.getContext("2d")!;
+              await page.render({ canvasContext: ctx, viewport }).promise;
+              images.push(canvas.toDataURL("image/png"));
+            }
+            if (!cancelled) setPageImages(images);
+          } catch (renderErr) {
+            console.error("PDF render error:", renderErr);
+          } finally {
+            if (!cancelled) setRendering(false);
+          }
         } else {
           URL.revokeObjectURL(url);
         }
@@ -70,14 +91,8 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
     };
   }, [pdfUrl, open]);
 
-  const handleIframeLoad = useCallback(() => {
-    setIframeLoaded(true);
-    setRenderFailed(false);
-  }, []);
-
   const handlePrint = useCallback(() => {
     if (blobUrl) {
-      // Open blob in new window for printing
       const printWindow = window.open(blobUrl, "_blank");
       if (printWindow) {
         printWindow.addEventListener("load", () => {
@@ -113,7 +128,6 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
   }, [clientId, onOpenChange, pdfUrl]);
 
   const isLoading = loading || fetching;
-  const showPdf = blobUrl && !isLoading && !fetchError;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,38 +141,26 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 px-6">
-          {isLoading ? (
+        <div className="flex-1 min-h-0 px-6 overflow-y-auto">
+          {isLoading || rendering ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-3 text-muted-foreground">Gerando PDF...</span>
+              <span className="ml-3 text-muted-foreground">
+                {rendering ? "Renderizando páginas..." : "Gerando PDF..."}
+              </span>
             </div>
-          ) : showPdf ? (
-            <div className="w-full h-full relative">
-              <iframe
-                ref={iframeRef}
-                src={blobUrl}
-                className="w-full h-full rounded-md border"
-                title="PDF Preview"
-                onLoad={handleIframeLoad}
-              />
-              {/* If iframe fails to render PDF (shows blank), offer alternatives */}
-              {renderFailed && !iframeLoaded && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/90 rounded-md">
-                  <AlertTriangle className="h-8 w-8 text-yellow-500" />
-                  <p className="text-sm text-muted-foreground">O navegador não suporta visualização inline de PDF.</p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(blobUrl!, "_blank")}>
-                      <ExternalLink className="h-3.5 w-3.5" /> Abrir em nova aba
-                    </Button>
-                    <Button size="sm" className="gap-1.5" onClick={handleDownload}>
-                      <Download className="h-3.5 w-3.5" /> Baixar PDF
-                    </Button>
-                  </div>
-                </div>
-              )}
+          ) : pageImages.length > 0 ? (
+            <div className="space-y-4 pb-2">
+              {pageImages.map((src, index) => (
+                <img
+                  key={index}
+                  src={src}
+                  alt={`Página ${index + 1}`}
+                  className="w-full rounded-md border shadow-sm"
+                />
+              ))}
             </div>
-          ) : (
+          ) : fetchError ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
               <AlertTriangle className="h-8 w-8 text-yellow-500" />
               <p>Não foi possível carregar o PDF.</p>
@@ -172,6 +174,10 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
                   </Button>
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p>Nenhum PDF para exibir.</p>
             </div>
           )}
         </div>
@@ -189,10 +195,10 @@ export function PdfPreviewModal({ open, onOpenChange, pdfUrl, loading, clientId 
             >
               <MessageCircle className="h-4 w-4" /> WhatsApp
             </Button>
-            <Button variant="outline" onClick={handleDownload} disabled={!showPdf && !pdfUrl} className="gap-2">
+            <Button variant="outline" onClick={handleDownload} disabled={!blobUrl && !pdfUrl} className="gap-2">
               <Download className="h-4 w-4" /> Baixar
             </Button>
-            <Button onClick={handlePrint} disabled={!showPdf} className="gap-2">
+            <Button onClick={handlePrint} disabled={!blobUrl} className="gap-2">
               <Printer className="h-4 w-4" /> Imprimir
             </Button>
           </div>
