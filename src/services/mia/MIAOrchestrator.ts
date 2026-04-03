@@ -263,6 +263,11 @@ class MIAOrchestrator {
   getPersonalization() {
     return this.personalization;
   }
+
+  /** Get the system knowledge engine */
+  getSystemKnowledge() {
+    return this.systemKnowledge;
+  }
 }
 
 // Singleton
