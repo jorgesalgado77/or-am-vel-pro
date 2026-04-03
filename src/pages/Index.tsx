@@ -391,10 +391,14 @@ export default function Index() {
                   onLoadSimulation={(sim, c) => {
                     let ambientes: any[] | undefined;
                     let catalogProducts: any[] | undefined;
+                    let estrategiaIa: string | null = (sim as any).estrategia_ia || null;
+                    let iaStrategyEnabled = !!(sim as any).estrategia_ia;
                     try {
                       const parsed = parseArquivoNome((sim as any).arquivo_nome);
                       ambientes = parsed.environments.length > 0 ? parsed.environments : undefined;
                       catalogProducts = parsed.catalogProducts.length > 0 ? parsed.catalogProducts : undefined;
+                      estrategiaIa = parsed.metadata?.estrategiaIa ?? estrategiaIa;
+                      iaStrategyEnabled = parsed.metadata?.iaStrategyEnabled ?? iaStrategyEnabled;
                     } catch {}
                     setLoadedSimulation({
                       valor_tela: Number(sim.valor_tela),
@@ -405,6 +409,8 @@ export default function Index() {
                       parcelas: sim.parcelas || 1,
                       valor_entrada: Number(sim.valor_entrada) || 0,
                       plus_percentual: Number(sim.plus_percentual) || 0,
+                      estrategia_ia: estrategiaIa,
+                      ia_strategy_enabled: iaStrategyEnabled,
                       ambientes,
                       catalogProducts,
                     });
