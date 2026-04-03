@@ -43,7 +43,7 @@ const UF_OPTIONS = [
 
 const emptyFornecedor: Omit<Fornecedor, "id"> = {
   nome: "", razao_social: "", cnpj: "", telefone: "", whatsapp: "", email: "",
-  endereco: "", bairro: "", cidade: "", uf: "", cep: "", contato: "", observacoes: "", ativo: true,
+  endereco: "", bairro: "", cidade: "", uf: "", cep: "", contato: "", observacoes: "", prazo_entrega: "", ativo: true,
 };
 
 export function FornecedoresTab() {
