@@ -41,6 +41,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
 import { useMIACriticalToasts } from "@/hooks/useMIACriticalToasts";
 import { MIAKpiSummary } from "@/components/onboarding/MIAKpiSummary";
+import { MIAWeeklyInsights } from "@/components/onboarding/MIAWeeklyInsights";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
 import {
   DropdownMenu,
@@ -558,6 +559,15 @@ export function OnboardingAIAssistant() {
           {/* Daily KPI summary — cargo-aware */}
           {currentUserId && (
             <MIAKpiSummary
+              tenantId={tenantId}
+              userId={currentUserId}
+              cargoNome={currentUser?.cargo_nome || null}
+            />
+          )}
+
+          {/* Weekly insights — cargo-aware trends */}
+          {currentUserId && (
+            <MIAWeeklyInsights
               tenantId={tenantId}
               userId={currentUserId}
               cargoNome={currentUser?.cargo_nome || null}
