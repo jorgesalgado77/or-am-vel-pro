@@ -112,7 +112,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
               pieceCount: parsed.pieces, totalValue: parsed.total, importedAt: new Date(), file,
               fornecedor: parsed.fornecedor || "", corpo: parsed.corpo || "", porta: parsed.porta || "",
               puxador: parsed.puxador || "", complemento: parsed.complemento || "", modelo: parsed.modelo || "",
-            } as any]);
+            }]);
             setImportedFile(file);
             if (parsed.software && parsed.software !== "generico") setDetectedSoftware(parsed.software);
             toast.success(`Ambiente "${parsed.envName}" importado: ${formatCurrency(parsed.total)}`);
