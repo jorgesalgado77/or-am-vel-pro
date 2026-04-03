@@ -236,8 +236,20 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     }
   }, [valorTela, valorEntrada, valorTelaComComissao, desconto1, desconto2, desconto3, plusPercentual, formaPagamento, parcelas, result, client, newClient, showClientForm, environments, catalogProducts, resolvedTenantId, currentUser, checkDiscount, requestApproval, onClientCreated, setShowClientForm, setNewClient, activeStrategy, aiStrategyEnabled]);
 
+  const REQUIRED_TECH_KEYS: (keyof ImportedEnvironment)[] = ["corpo", "porta", "puxador", "fornecedor"];
+
   const handleCloseSale = useCallback(async () => {
     if (!client) { toast.error("Selecione um cliente para fechar a venda"); return; }
+    // Validate technical fields on environments
+    if (environments.length > 0) {
+      const incompleteEnvs = environments.filter(env =>
+        REQUIRED_TECH_KEYS.some(k => !String(env[k] || "").trim())
+      );
+      if (incompleteEnvs.length > 0) {
+        toast.error(`${incompleteEnvs.length} ambiente(s) com campos técnicos obrigatórios pendentes (Corpo, Porta, Puxador, Fornecedor). Preencha antes de fechar a venda.`, { duration: 6000 });
+        return;
+      }
+    }
     try {
       if (resolvedTenantId) {
         const accessResult = await validateAccess(resolvedTenantId);
@@ -251,7 +263,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       }
     } catch {}
     setCloseSaleModalOpen(true);
-  }, [client, resolvedTenantId, validateAccess]);
+  }, [client, resolvedTenantId, validateAccess, environments]);
 
   const handleCloseSaleConfirm = useCallback(async (formData: any, items: any[], itemDetails: any[]) => {
     setCloseSaleFormData(formData); setCloseSaleItems(items); setCloseSaleItemDetails(itemDetails);
