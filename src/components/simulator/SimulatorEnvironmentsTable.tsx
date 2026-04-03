@@ -91,7 +91,25 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
   const hasTechData = (env: ImportedEnvironment) =>
     !!(env.corpo || env.porta || env.puxador || env.complemento || env.modelo || env.fornecedor);
 
+  const allExpanded = environments.length > 0 && environments.every(env => expandedIds.has(env.id));
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpandedIds(new Set());
+    } else {
+      setExpandedIds(new Set(environments.map(env => env.id)));
+    }
+  };
+
   return (
+    <div>
+      {environments.some(hasTechData) && (
+        <div className="flex justify-end mb-1">
+          <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground gap-1" onClick={toggleAll}>
+            {allExpanded ? <ChevronsUpDown className="h-3 w-3" /> : <ChevronsUpDown className="h-3 w-3" />}
+            {allExpanded ? "Recolher Todos" : "Expandir Todos"}
+          </Button>
+        </div>
+      )}
     <Table>
       <TableHeader>
         <TableRow className="bg-muted/30">
