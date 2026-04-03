@@ -163,8 +163,9 @@ const MODULES: ModuleKnowledge[] = [
     allowedCargos: ["todos"],
     quickActions: ["Cadastrar novo cliente", "Mover cliente para negociação", "Ver detalhes do cliente"],
     commonQuestions: [
-      { q: "Como cadastrar um cliente?", a: "Clique no botão '+ Novo Cliente' no topo do Kanban. Preencha: Nome, Telefone, Email, Vendedor responsável." },
-      { q: "Como mover um cliente de etapa?", a: "Arraste o card do cliente para a coluna desejada, ou abra o card e altere o status." },
+      { q: "Como cadastrar um cliente?", a: "1. Acesse **Menu lateral > Clientes**\n2. Clique no botão **\"+ Novo Cliente\"** no topo do Kanban\n3. Preencha os campos obrigatórios:\n   • **Nome completo**\n   • **Telefone** (com DDD)\n   • **Email**\n   • **Vendedor responsável**\n4. Campos opcionais: CPF/CNPJ, endereço, origem do lead, descrição dos ambientes\n5. Clique **\"Salvar\"**\n\nO cliente aparecerá automaticamente na coluna **\"Novo\"** do Kanban. 🎯" },
+      { q: "Como mover um cliente de etapa?", a: "Arraste o card do cliente para a coluna desejada no Kanban, ou abra o card e altere o status manualmente." },
+      { q: "Como preencher briefing?", a: "1. Acesse **Menu lateral > Clientes**\n2. Clique no card do cliente desejado\n3. Acesse a aba **\"Briefing\"** na ficha do cliente\n4. Preencha:\n   • Ambientes desejados (cozinha, quarto, sala, etc.)\n   • Medidas de cada ambiente\n   • Estilo preferido\n   • Orçamento estimado do cliente\n   • Preferências de cores e materiais\n5. Salve o briefing\n\n💡 Dica: Quanto mais detalhado o briefing, melhor será a simulação!" },
     ],
   },
   {
@@ -187,8 +188,10 @@ const MODULES: ModuleKnowledge[] = [
     allowedCargos: ["vendedor", "projetista", "gerente", "administrador"],
     quickActions: ["Criar nova simulação", "Adicionar ambiente", "Aplicar desconto", "Gerar contrato"],
     commonQuestions: [
-      { q: "Como criar um orçamento?", a: "Abra o Simulador, selecione o cliente, adicione ambientes e produtos. O sistema calcula automaticamente." },
-      { q: "Como aplicar desconto?", a: "Na seção de descontos: Desconto 1 (à vista), Desconto 2 (condicional), Desconto 3 (especial). A IA de Estratégia pode sugerir." },
+      { q: "Como criar um orçamento?", a: "1. Acesse **Menu lateral > Simulador**\n2. Selecione o cliente\n3. Adicione ambientes e produtos do catálogo\n4. Configure descontos e forma de pagamento\n5. O sistema calcula automaticamente o valor final\n6. Clique em **\"Gerar Proposta PDF\"** para enviar ao cliente\n\n💡 Dica: Use a IA de Estratégia para sugerir o melhor desconto." },
+      { q: "Como aplicar desconto?", a: "Na seção de descontos do Simulador:\n• **Desconto 1** (à vista)\n• **Desconto 2** (condicional)\n• **Desconto 3** (especial)\n\nA IA de Estratégia pode sugerir o desconto ideal. Descontos 'Extrema' exigem senha de gerente." },
+      { q: "Como gerar contrato?", a: "1. Abra a simulação aprovada no **Simulador**\n2. Clique no botão **\"Gerar Contrato\"**\n3. O sistema preenche automaticamente: dados do cliente, valores, condições de pagamento\n4. Revise e confirme\n5. O contrato pode ser exportado em **PDF**\n6. O cliente é movido automaticamente para **\"Fechado\"** no Kanban" },
+      { q: "Como fechar venda?", a: "O fluxo de fechamento envolve:\n\n1. **Negociação:** Use o Chat de Vendas ou Deal Room. A IA detecta sinais de compra.\n2. **Proposta:** Gere a simulação com condições finais no Simulador.\n3. **Contrato:** Clique **\"Gerar Contrato\"** na simulação aprovada.\n4. **Registro:** O sistema atualiza o Kanban, subtrai estoque e registra o faturamento.\n\n💡 Diga **\"status\"** para ver leads prontos para fechar." },
     ],
   },
   {
@@ -222,8 +225,10 @@ const MODULES: ModuleKnowledge[] = [
     allowedCargos: ["todos"],
     quickActions: ["Criar tarefa", "Ver tarefas de hoje", "Delegar tarefa"],
     commonQuestions: [
-      { q: "Como criar uma tarefa?", a: "Diga 'criar tarefa' para mim ou clique '+ Nova Tarefa' no módulo de Tarefas." },
+      { q: "Como criar uma tarefa?", a: "Você pode criar tarefas de duas formas:\n\n**1. Pelo Chat da MIA:** Digite **\"criar tarefa\"** e siga o passo a passo guiado.\n\n**2. Pelo módulo de Tarefas:** Acesse **Menu lateral > Tarefas**, clique **\"+ Nova Tarefa\"** e preencha Título, Data, Horário e Responsável.\n\nA tarefa aparecerá no Kanban e no Calendário automaticamente." },
       { q: "Como delegar uma tarefa?", a: "Ao criar a tarefa, selecione outro responsável. Apenas Gerentes e Admins podem delegar." },
+      { q: "Como ver minhas tarefas?", a: "Diga **\"minhas tarefas de hoje\"** aqui no chat, ou acesse **Menu lateral > Tarefas** para ver o Kanban completo." },
+      { q: "Como marcar tarefa como concluída?", a: "Diga **\"marcar tarefa [nome] como concluída\"** aqui no chat, ou arraste o card para a coluna \"Concluída\" no Kanban de Tarefas." },
     ],
   },
   {
@@ -489,8 +494,28 @@ export class SystemKnowledgeEngine {
     if (/negocia|deal|reunião/i.test(lower)) {
       return this.formatSteps([SALES_FLOW[5]]);
     }
-    if (/contrato|fechar|fechamento/i.test(lower)) {
+    if (/contrato/i.test(lower)) {
       return this.formatSteps([SALES_FLOW[6]]);
+    }
+    if (/fechar|fechamento|venda/i.test(lower)) {
+      return this.formatSteps([SALES_FLOW[5], SALES_FLOW[6]]) +
+        "\n\n💡 **Ação rápida:** Diga **\"status\"** para ver leads prontos para fechar, ou abra o **Simulador** para gerar um contrato.";
+    }
+    if (/tarefa|agenda|lembrete/i.test(lower)) {
+      return `### 📋 Como Criar uma Tarefa\n\n` +
+        `**Opção 1 — Pelo Chat da MIA (mais rápido):**\n` +
+        `1. Digite **"criar tarefa"** aqui no chat\n` +
+        `2. Informe o título da tarefa\n` +
+        `3. Informe a data (ex: hoje, amanhã, 15/04/2026)\n` +
+        `4. Informe o horário (ou diga "sem horário")\n` +
+        `5. Adicione uma descrição (ou diga "pular")\n` +
+        `6. Defina a notificação (ex: 15 minutos antes)\n\n` +
+        `**Opção 2 — Pelo módulo de Tarefas:**\n` +
+        `1. Acesse **Menu lateral > Tarefas**\n` +
+        `2. Clique em **"+ Nova Tarefa"**\n` +
+        `3. Preencha: Título, Data, Horário, Responsável, Descrição\n` +
+        `4. A tarefa aparecerá no Kanban e no Calendário\n\n` +
+        `💡 **Dica:** Tarefas vencidas ficam destacadas em vermelho. Gerentes e Admins podem delegar tarefas para outros membros.`;
     }
     if (/pós-venda|acompanhamento|entrega/i.test(lower)) {
       return this.formatSteps([SALES_FLOW[7]]);
@@ -507,14 +532,21 @@ export class SystemKnowledgeEngine {
    */
   answerModuleFAQ(question: string): string | null {
     const lower = question.toLowerCase();
+    let bestMatch: { answer: string; score: number; icon: string; name: string } | null = null;
+
     for (const mod of MODULES) {
       for (const faq of mod.commonQuestions) {
         const keywords = faq.q.toLowerCase().split(/\s+/).filter(w => w.length > 3);
         const matchCount = keywords.filter(k => lower.includes(k)).length;
-        if (matchCount >= 2) {
-          return `${mod.icon} **${mod.name}**\n\n${faq.a}`;
+        const threshold = keywords.length <= 3 ? 1 : 2;
+        if (matchCount >= threshold && (!bestMatch || matchCount > bestMatch.score)) {
+          bestMatch = { answer: faq.a, score: matchCount, icon: mod.icon, name: mod.name };
         }
       }
+    }
+
+    if (bestMatch) {
+      return `${bestMatch.icon} **${bestMatch.name}**\n\n${bestMatch.answer}`;
     }
     return null;
   }
