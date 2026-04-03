@@ -166,6 +166,7 @@ export const SimulatorParametersForm = React.memo(function SimulatorParametersFo
               onUpdateTechnical={(id, field, value) => setEnvironments((prev) => prev.map((item) => item.id === id ? { ...item, [field]: value } : item))}
               onRemove={onRemoveEnvironment}
               canDelete={canDeleteEnvironment}
+              highlightIncomplete={techFieldsHighlight}
             />
           </div>
 
