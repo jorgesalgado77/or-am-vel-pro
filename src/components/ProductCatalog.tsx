@@ -73,13 +73,14 @@ interface ProductFormData {
   stock_quantity: number;
   stock_status: string;
   video_url: string;
+  link_url: string;
 }
 
 const emptyForm: ProductFormData = {
   name: "", internal_code: "", description: "", category: "geral",
   width: 0, height: 0, depth: 0, cost_price: 0, markup_percentage: 50,
   min_sale_price: 0, manufacturer_code: "", environment: "", environment_custom: "",
-  supplier_id: "", stock_quantity: 0, stock_status: "em_estoque", video_url: "",
+  supplier_id: "", stock_quantity: 0, stock_status: "em_estoque", video_url: "", link_url: "",
 };
 
 interface SupplierFormData {
@@ -200,6 +201,7 @@ export function ProductCatalog() {
       stock_quantity: p.stock_quantity,
       stock_status: p.stock_status,
       video_url: p.video_url || "",
+      link_url: (p as any).link_url || "",
     });
     const imgs = await loadProductImages(p.id);
     setImages(imgs);
@@ -735,7 +737,23 @@ export function ProductCatalog() {
                 </div>
               </div>
 
-              {/* Video: URL or Upload */}
+              {/* Link do produto na internet */}
+              <div>
+                <Label className="text-xs flex items-center gap-1">🔗 Link do Produto (para compra/reposição)</Label>
+                <Input
+                  value={form.link_url}
+                  onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))}
+                  className="mt-1 h-9 text-sm"
+                  placeholder="https://www.loja.com.br/produto..."
+                  type="url"
+                />
+                {form.link_url && (
+                  <a href={form.link_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline mt-1 inline-block">
+                    Abrir link ↗
+                  </a>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-xs flex items-center gap-1"><Video className="h-3.5 w-3.5" /> Vídeo do Produto</Label>
                 <Input
