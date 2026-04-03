@@ -35,6 +35,7 @@ type Client = Database["public"]["Tables"]["clients"]["Row"];
 export interface SavedEnvironmentData {
   id: string; fileName: string; environmentName: string;
   pieceCount: number; totalValue: number; importedAt: string; fileUrl?: string;
+  corpo?: string; porta?: string; puxador?: string; complemento?: string; modelo?: string; fornecedor?: string;
 }
 
 export interface SavedCatalogProduct {
@@ -171,6 +172,8 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
         id: e.id, fileName: e.fileName, environmentName: e.environmentName,
         pieceCount: e.pieceCount, totalValue: e.totalValue,
         importedAt: new Date(e.importedAt), file: new File([], e.fileName),
+        corpo: e.corpo || "", porta: e.porta || "", puxador: e.puxador || "",
+        complemento: e.complemento || "", modelo: e.modelo || "", fornecedor: e.fornecedor || "",
       }));
     }
     return (stored.environments || []).map((e) => ({ ...e, importedAt: new Date(e.importedAt), file: new File([], e.fileName) }));
