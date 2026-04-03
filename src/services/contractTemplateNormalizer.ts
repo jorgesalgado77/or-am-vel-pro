@@ -41,20 +41,24 @@ const escapeHtml = (value: string) =>
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const replaceInlineLabelValue = (html: string, labelPattern: string, value: string) => {
+const replaceRichLabelValue = (html: string, labelPattern: string, value: string) => {
   const safeValue = escapeHtml(value);
-  const plainLabelRegex = new RegExp(
-    `((?:${labelPattern})\\s*[:\\-–]\\s*)([^<\\n]*)`,
-    "giu",
-  );
   const richLabelRegex = new RegExp(
     `(<(?:strong|b|span|label)[^>]*>\\s*(?:${labelPattern})\\s*[:\\-–]?\\s*<\\/(?:strong|b|span|label)>\\s*)([^<\\n]*)`,
     "giu",
   );
 
-  return html
-    .replace(plainLabelRegex, (_, prefix: string) => `${prefix}${safeValue}`)
-    .replace(richLabelRegex, (_, prefix: string) => `${prefix}${safeValue}`);
+  return html.replace(richLabelRegex, (_, prefix: string) => `${prefix}${safeValue}`);
+};
+
+const replacePlainTextLabelValue = (html: string, labelPattern: string, value: string) => {
+  const safeValue = escapeHtml(value);
+  const plainTextRegex = new RegExp(
+    `(>\\s*(?:${labelPattern})\\s*[:\\-–]\\s*)([^<\\n]*)(<)`,
+    "giu",
+  );
+
+  return html.replace(plainTextRegex, (_, prefix: string, __: string, suffix: string) => `${prefix}${safeValue}${suffix}`);
 };
 
 const replaceTableLabelValue = (html: string, labelPattern: string, value: string) => {
@@ -105,8 +109,9 @@ export const normalizeImportedTemplateBindings = (
   ];
 
   return rules.reduce((normalizedHtml, rule) => {
-    const inlineNormalized = replaceInlineLabelValue(normalizedHtml, rule.labelPattern, rule.value);
-    return replaceTableLabelValue(inlineNormalized, rule.labelPattern, rule.value);
+    const richNormalized = replaceRichLabelValue(normalizedHtml, rule.labelPattern, rule.value);
+    const tableNormalized = replaceTableLabelValue(richNormalized, rule.labelPattern, rule.value);
+    return replacePlainTextLabelValue(tableNormalized, rule.labelPattern, rule.value);
   }, html);
 };
 

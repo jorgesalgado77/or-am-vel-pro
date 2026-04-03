@@ -26,7 +26,7 @@ const itemDetails = [
 ];
 
 const data = {
-  formData: { nome_completo: "João Silva", cpf_cnpj: "123.456.789-00" },
+  formData: { nome_completo: "João Silva", cpf_cnpj: "123.456.789-00", numero_contrato: "CT-999" },
   client: { nome: "João Silva", cpf: "123.456.789-00", telefone1: null, email: null, numero_orcamento: "ORC-001", vendedor: "Carlos" },
   valorTela: 10000,
   result: { valorFinal: 8000, valorParcela: 800, valorComDesconto: 7500 },
@@ -105,12 +105,14 @@ describe("buildContractHtml", () => {
 
     const html = buildContractHtml(importedTemplate, data);
 
-    expect(html).toContain("<strong>Cliente:</strong> João Silva");
-    expect(html).toContain("<strong>CPF:</strong> 123.456.789-00");
-    expect(html).toContain("<strong>Nº do Contrato:</strong> ORC-001");
-    expect(html).toContain("<strong>Valor Final:</strong> R$ 8.000,00");
-    expect(html).toContain("<strong>Entrada:</strong> R$ 1.000,00");
-    expect(html).toContain("<strong>Parcelas:</strong> 10x de R$ 800,00");
+    const normalizedHtml = html.replace(/\u00a0/g, " ");
+
+    expect(normalizedHtml).toContain("<strong>Cliente:</strong> João Silva");
+    expect(normalizedHtml).toContain("<strong>CPF:</strong> 123.456.789-00");
+    expect(normalizedHtml).toContain("<strong>Nº do Contrato:</strong> CT-999");
+    expect(normalizedHtml).toContain("<strong>Valor Final:</strong> R$ 8.000,00");
+    expect(normalizedHtml).toContain("<strong>Entrada:</strong> R$ 1.000,00");
+    expect(normalizedHtml).toContain("<strong>Parcelas:</strong> 10x de R$ 800,00");
     expect(html).not.toContain("Maria Antiga");
     expect(html).not.toContain("CT-OLD");
   });
