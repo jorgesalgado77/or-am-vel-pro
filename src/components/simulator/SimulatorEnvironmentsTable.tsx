@@ -483,7 +483,7 @@ function ModulesPanel({ modules }: { modules: ParsedModule[] }) {
 
 /* ── Main Table ────────────────────────────────────────────────── */
 
-export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete, highlightIncomplete }: Props) {
+export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdateTechnical, onRemove, canDelete, highlightIncomplete, fornecedoresList = [] }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [autoExpandedIds] = useState<Set<string>>(new Set());
   const [batchOpen, setBatchOpen] = useState(false);
