@@ -681,7 +681,7 @@ export function SimulatorEnvironmentsTable({ environments, onUpdateName, onUpdat
 
                 {isExpanded && (
                   <TableRow key={`${env.id}-tech`} className="bg-muted/20 hover:bg-muted/30">
-                    <TableCell colSpan={6} className="py-2 px-3">
+                    <TableCell colSpan={7} className="py-2 px-3">
                       <div className="flex items-center gap-1.5 mb-2">
                         <Wrench className="h-3 w-3 text-primary" />
                         <span className="text-[10px] font-semibold text-foreground">Dados Técnicos Extraídos</span>
