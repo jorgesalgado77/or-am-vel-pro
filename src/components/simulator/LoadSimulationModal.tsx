@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Calculator, Clock, RefreshCw, Filter, X, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Calculator, Clock, RefreshCw, Filter, X, Trash2, ChevronLeft, ChevronRight, BrainCircuit } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { formatCurrency } from "@/lib/financing";
 import { format } from "date-fns";
@@ -293,13 +293,19 @@ export function LoadSimulationModal({ open, onClose, onSelect }: LoadSimulationM
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className="text-[9px]">
                           {FORMA_LABELS[sim.forma_pagamento] || sim.forma_pagamento}
                         </Badge>
                         {sim.numero_orcamento && (
                           <Badge variant="secondary" className="text-[9px]">
                             #{sim.numero_orcamento}
+                          </Badge>
+                        )}
+                        {sim.estrategia_ia && (
+                          <Badge className="text-[9px] gap-0.5 bg-primary/10 text-primary border-primary/20" variant="outline">
+                            <BrainCircuit className="h-2.5 w-2.5" />
+                            {sim.estrategia_ia}
                           </Badge>
                         )}
                       </div>
