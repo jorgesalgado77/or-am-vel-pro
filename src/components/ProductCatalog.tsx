@@ -201,6 +201,7 @@ export function ProductCatalog() {
       stock_quantity: p.stock_quantity,
       stock_status: p.stock_status,
       video_url: p.video_url || "",
+      link_url: (p as any).link_url || "",
     });
     const imgs = await loadProductImages(p.id);
     setImages(imgs);
