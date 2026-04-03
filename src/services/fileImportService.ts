@@ -1,8 +1,27 @@
 /**
  * Service for importing TXT/XML project files in the simulator.
  * Supports: Promob, Focco, Gabster, and generic formats.
- * Extracts environment name, piece count, total value, and material details.
+ * Extracts environment name, piece count, total value, material details, and individual modules.
  */
+
+/** Module type classification */
+export type ModuleType = "modulo" | "porta" | "frente" | "gaveta" | "painel" | "acessorio";
+
+/** Individual parsed module from a Promob file */
+export interface ParsedModule {
+  id: string;
+  code: string;
+  description: string;
+  type: ModuleType;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  dimensions: string;
+  finish: string;
+  supplier: string;
+  category: string;
+  group: string;
+}
 
 export interface ParsedFileResult {
   envName: string;
@@ -16,6 +35,48 @@ export interface ParsedFileResult {
   modelo?: string;
   software?: "promob" | "focco" | "gabster" | "generico";
   fileFormat?: "XML" | "TXT" | "PROMOB";
+  modules?: ParsedModule[];
+}
+
+// ── Color / Material Normalization ───────────────────────────────────
+
+const NORMALIZATION_MAP: Array<[RegExp, string]> = [
+  [/\bBRISA\b/i, "Brisa"],
+  [/\bNOGU?(?:EIRA)?\s*AVE(?:NA)?\b/i, "Nogueira Avena"],
+  [/\bNOG\s+AVE(?:NA)?\b/i, "Nogueira Avena"],
+  [/\bBRANC?O?\s*(?:TX|TEXTURIZADO)?\b/i, "Branco"],
+  [/\bBRA(?:NCO)?\s*AUR(?:A)?\b/i, "Branco Aura"],
+  [/\bPRE(?:TO)?\s*FOS(?:CO)?\b/i, "Preto Fosco"],
+  [/\bCINZA\s*LISO\s*FOSCO\b/i, "Cinza Liso Fosco"],
+  [/\bGRAFITE\b/i, "Grafite"],
+  [/\bCARVALHO\b/i, "Carvalho"],
+  [/\bAMENDOA\b/i, "Amêndoa"],
+  [/\bFREIJO\b/i, "Freijó"],
+];
+
+export function normalizeFinish(raw: string): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  for (const [pattern, normalized] of NORMALIZATION_MAP) {
+    if (pattern.test(trimmed)) return normalized;
+  }
+  // Title case fallback
+  return trimmed
+    .toLowerCase()
+    .replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
+}
+
+/** Classify a module description into a type */
+function classifyModuleType(description: string, id?: string): ModuleType {
+  const d = description.toUpperCase();
+  if (/^ARMARIO\b|^BALCAO\b/.test(d)) return "modulo";
+  if (/^PORTA\b|^PORTA\s+ESP\b/.test(d)) return "porta";
+  if (/^FRENTE\b/.test(d)) return "frente";
+  if (/^GAVETA\b/.test(d)) return "gaveta";
+  if (/^PAINEL\b/.test(d)) return "painel";
+  // Accessories: codes starting with 850, or typical hardware items
+  if (/^85\d/.test(id || "") || /DOBRADICA|PARAFUSO|PUXADOR|SELANTE|TAPA\s*FURO|SUPORTE|FECHO|ATENUADOR|ARAMADO|KIT\s|FITA\s*BORDA|CANTONEIRA|BUCHA|ETIQUETA|FORRACAO|DIVISOR|ROLO|BATENTE/i.test(d)) return "acessorio";
+  return "modulo";
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
