@@ -404,15 +404,15 @@ export function OnboardingAIAssistant() {
 
   return (
     <>
-      {/* FAB */}
-      {!open && (
+      {/* FAB — animated entrance/exit */}
+      {!open && !closing && (
         <button
           ref={fabRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           style={fabStyle}
-          className="z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center group touch-none select-none cursor-grab active:cursor-grabbing"
+          className="z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group touch-none select-none cursor-grab active:cursor-grabbing animate-scale-in"
         >
           <Bot className="h-6 w-6 group-hover:hidden" />
           <MessageCircle className="h-6 w-6 hidden group-hover:block" />
