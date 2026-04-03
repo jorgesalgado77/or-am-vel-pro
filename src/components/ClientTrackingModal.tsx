@@ -92,13 +92,44 @@ export function ClientTrackingModal({ open, onClose }: Props) {
         .limit(1)
         .maybeSingle();
 
-      if (error || !data) {
+      if (data && !error) {
+        setTracking(data as any);
+        await fetchMessages((data as any).id);
+        setStep("tracking");
+        return;
+      }
+
+      const { data: transaction } = await supabase
+        .from("dealroom_transactions")
+        .select("client_id, numero_contrato, nome_cliente, valor_venda, created_at, nome_vendedor")
+        .eq("numero_contrato", contractNumber.trim())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!transaction?.client_id) {
         toast.error("Contrato não encontrado");
         return;
       }
 
-      setTracking(data as any);
-      await fetchMessages((data as any).id);
+      const { data: client } = await supabase
+        .from("clients")
+        .select("cpf, quantidade_ambientes")
+        .eq("id", transaction.client_id)
+        .maybeSingle();
+
+      setTracking({
+        id: `fallback-${transaction.client_id}`,
+        numero_contrato: transaction.numero_contrato || contractNumber.trim(),
+        nome_cliente: transaction.nome_cliente || "Cliente",
+        cpf_cnpj: client?.cpf || null,
+        quantidade_ambientes: Number(client?.quantidade_ambientes) || 0,
+        valor_contrato: Number(transaction.valor_venda) || 0,
+        data_fechamento: transaction.created_at,
+        projetista: transaction.nome_vendedor || null,
+        status: "medicao",
+      });
+      setMessages([]);
       setStep("tracking");
     } catch {
       toast.error("Erro ao buscar contrato");
@@ -125,7 +156,10 @@ export function ClientTrackingModal({ open, onClose }: Props) {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !tracking) return;
+    if (!newMessage.trim() || !tracking || String(tracking.id).startsWith("fallback-")) {
+      toast.error("As mensagens estarão disponíveis após o acompanhamento ser sincronizado.");
+      return;
+    }
     setSending(true);
     const { error } = await supabase.from("tracking_messages").insert({
       tracking_id: tracking.id,
@@ -226,7 +260,11 @@ export function ClientTrackingModal({ open, onClose }: Props) {
               <h4 className="text-sm font-semibold text-foreground">Mensagens</h4>
               <div className="border rounded-lg p-3 h-48 overflow-y-auto space-y-2 bg-background">
                 {messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">Nenhuma mensagem ainda. Envie sua dúvida!</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {String(tracking.id).startsWith("fallback-")
+                      ? "Contrato localizado. As mensagens ficarão disponíveis após a sincronização automática do acompanhamento."
+                      : "Nenhuma mensagem ainda. Envie sua dúvida!"}
+                  </p>
                 ) : (
                   messages.map((msg) => (
                     <div
@@ -253,7 +291,7 @@ export function ClientTrackingModal({ open, onClose }: Props) {
                   className="min-h-[40px] h-10 resize-none"
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                 />
-                <Button onClick={handleSendMessage} disabled={sending || !newMessage.trim()} size="icon" className="shrink-0">
+                <Button onClick={handleSendMessage} disabled={sending || !newMessage.trim() || String(tracking.id).startsWith("fallback-")} size="icon" className="shrink-0">
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

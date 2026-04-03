@@ -626,6 +626,48 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       logAudit({ acao: "venda_fechada", entidade: "contract", entidade_id: pendingSimId, detalhes: { cliente: effectiveClient.nome, cliente_id: effectiveClient.id, valor_final: result.valorFinal, forma_pagamento: formaPagamento }, ...userInfo });
 
       try {
+        const quantidadeAmbientes = Math.max(
+          closeSaleItems?.length || 0,
+          closeSaleItemDetails?.length || 0,
+          environments?.length || 0,
+          Number(effectiveClient.quantidade_ambientes) || 0,
+        );
+        const numeroContrato = closeSaleFormData?.numero_contrato || effectiveClient.numero_orcamento || "";
+        const projetista = closeSaleFormData?.responsavel_venda || currentUser?.nome_completo || currentUser?.apelido || effectiveClient.vendedor || null;
+
+        if (resolvedTenantId && numeroContrato) {
+          const { data: existingTracking } = await supabase
+            .from("client_tracking")
+            .select("id")
+            .eq("tenant_id", resolvedTenantId)
+            .eq("client_id", effectiveClient.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const trackingPayload = {
+            contract_id: contractId,
+            client_id: effectiveClient.id,
+            tenant_id: resolvedTenantId,
+            numero_contrato: numeroContrato,
+            nome_cliente: effectiveClient.nome || closeSaleFormData?.nome_cliente || "Cliente",
+            cpf_cnpj: effectiveClient.cpf || null,
+            quantidade_ambientes: quantidadeAmbientes,
+            valor_contrato: Number(result.valorFinal) || 0,
+            data_fechamento: new Date().toISOString(),
+            projetista,
+            status: "medicao",
+          } as any;
+
+          if (existingTracking?.id) {
+            await supabase.from("client_tracking").update(trackingPayload).eq("id", existingTracking.id);
+          } else {
+            await supabase.from("client_tracking").insert(trackingPayload);
+          }
+        }
+      } catch {}
+
+      try {
         const totalDiscPct = 100 - (result.valorFinal / (valorTela || 1)) * 100;
         const table = supabase.from("ai_learning_events" as unknown as "clients");
         void (table as unknown as { insert: (rows: unknown[]) => Promise<unknown> })
@@ -724,7 +766,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     } finally {
       setClosingSale(false);
     }
-  }, [effectiveClient, pendingSimId, pendingTemplateId, resolvedTenantId, valorTela, valorTelaComComissao, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, closeSaleFormData, currentUser, recordSale, catalogProducts]);
+  }, [effectiveClient, pendingSimId, pendingTemplateId, resolvedTenantId, valorTela, valorTelaComComissao, desconto1, desconto2, desconto3, result, formaPagamento, parcelas, valorEntrada, settings, selectedIndicador, comissaoPercentual, closeSaleFormData, closeSaleItems, closeSaleItemDetails, currentUser, recordSale, catalogProducts, environments]);
 
   const handlePdf = useCallback(async (): Promise<string | null> => {
     if (!effectiveClient || !resolvedTenantId) { toast.error("Tenant não identificado"); return null; }
