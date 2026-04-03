@@ -5,7 +5,7 @@ import {Button} from "@/components/ui/button";
 import {Textarea} from "@/components/ui/textarea";
 import {Label} from "@/components/ui/label";
 import {Separator} from "@/components/ui/separator";
-import {Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircle2} from "lucide-react";
+import {Search, Send, Ruler, ShieldCheck, Truck, Wrench, Headphones, CheckCircle2, ArrowLeft} from "lucide-react";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {format} from "date-fns";
@@ -219,7 +219,12 @@ export function ClientTrackingModal({ open, onClose }: Props) {
         ) : tracking ? (
           <>
             <DialogHeader>
-              <DialogTitle>Acompanhamento do Projeto</DialogTitle>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { setStep("lookup"); setTracking(null); setMessages([]); setNewMessage(""); }}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <DialogTitle>Acompanhamento do Projeto</DialogTitle>
+              </div>
             </DialogHeader>
 
             {/* Header info */}
