@@ -190,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userRef.current = stableUser;
       setUser(stableUser);
       syncGlobalState(stableUser);
+      initializeTheme();
     } else {
       const fallbackUser = await buildFallbackUserFromAuth(sess.user);
 
