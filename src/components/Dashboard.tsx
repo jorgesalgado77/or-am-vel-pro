@@ -274,7 +274,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
     };
-  }, [filteredClients, filteredLastSims, lastSims, budgetValidityDays, indicadores, contractClientIds]);
+  }, [filteredClients, filteredLastSims, lastSims, budgetValidityDays, indicadores, contractClientIds, isAdminOrGerente, currentUser]);
 
   // Chart data
   const lineData = useMemo(() => {
