@@ -181,7 +181,7 @@ export function OnboardingAIAssistant() {
         });
       }
     }
-  }, [open, checkAlerts, sendMessage]);
+  }, [open, checkAlerts]);
 
   // Listen for contextual tips when modules change
   useEffect(() => {
