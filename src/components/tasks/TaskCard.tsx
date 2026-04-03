@@ -147,9 +147,7 @@ export const TaskCard = memo(function TaskCard({ task, index, onClick, onDelete 
       <ProductDetailModal
         product={detailProduct}
         open={detailOpen}
-        onClose={() => { setDetailOpen(false); setDetailProduct(null); }}
-        tenantId={null}
-        isAdmin={false}
+        onOpenChange={(v) => { if (!v) { setDetailOpen(false); setDetailProduct(null); } }}
       />
     )}
     </>
