@@ -450,9 +450,10 @@ export function ClientDrawer({ open, onClose, onSave, client, saving }: ClientDr
             onClose={() => setViewingContract(null)}
             initialHtml={viewingContract.conteudo_html}
             clientName={client?.nome || "Cliente"}
-            onConfirm={(html) => {
+            onSave={async (html) => {
               handlePrintContract(html);
               setViewingContract(null);
+              return null;
             }}
           />
         )}
