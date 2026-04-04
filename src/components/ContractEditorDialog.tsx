@@ -152,6 +152,28 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             </Button>
           )}
 
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              const currentHtml = getCurrentHtml();
+              const result = replaceDetectedFieldsWithPlaceholders(currentHtml);
+              if (result.replacedCount === 0) {
+                toast.info("Nenhum campo detectado para conversão");
+                return;
+              }
+              setHtml(result.html);
+              if (viewMode === "editor" && editorRef.current) {
+                editorRef.current.innerHTML = result.html;
+              }
+              toast.success(`${result.replacedCount} campo(s) convertido(s) em variáveis {{...}}`);
+            }}
+            disabled={isBusy}
+          >
+            <Wand2 className="h-3.5 w-3.5" /> Auto-variáveis
+          </Button>
+
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {viewMode === "editor"
               ? layoutLocked ? "Apenas textos editáveis" : "Edição livre do HTML"
