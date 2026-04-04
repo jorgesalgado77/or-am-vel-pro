@@ -43,10 +43,11 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   }, [initialHtml, externalContractId]);
 
   useEffect(() => {
-    if (viewMode === "editor" && editorRef.current && layoutLocked) {
-      applyLayoutLock(editorRef.current);
+    if (viewMode === "editor" && editorRef.current) {
+      if (layoutLocked) applyLayoutLock(editorRef.current);
+      highlightPlaceholders(editorRef.current);
     }
-  }, [viewMode, layoutLocked]);
+  }, [viewMode, layoutLocked, html]);
 
   const getCurrentHtml = () => {
     if (viewMode === "editor" && editorRef.current) return editorRef.current.innerHTML;
