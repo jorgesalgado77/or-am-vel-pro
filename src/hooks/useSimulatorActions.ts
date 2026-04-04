@@ -783,6 +783,11 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         metadata: { client_id: effectiveClient.id, simulation_id: pendingSimId, tenant_id: resolvedTenantId },
       });
 
+      // Clear persisted form data for this client after successful contract save
+      try {
+        sessionStorage.removeItem(`form_persist_close-sale-form-${effectiveClient.id}`);
+      } catch {}
+
       return contractId;
     } finally {
       setClosingSale(false);
