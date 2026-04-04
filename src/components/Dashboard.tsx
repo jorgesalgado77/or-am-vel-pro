@@ -139,9 +139,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       if (tracked) {
         // Use tracking data, but fallback to sim value if tracking valor is 0
         const valor = tracked.valor_contrato > 0 ? tracked.valor_contrato : simValor;
-        // Use tracking date, but fallback to contract date if tracking date is invalid
-        const dateRef = tracked.dateRef && !isNaN(new Date(tracked.dateRef).getTime()) ? tracked.dateRef : contractDate;
-        all.push({ valor_contrato: valor, dateRef, clientId });
+        // Always use CONTRACT date as the period reference (not tracking date)
+        all.push({ valor_contrato: valor, dateRef: contractDate, clientId });
       } else {
         // No tracking record — use contract date and sim value
         all.push({ valor_contrato: simValor, dateRef: contractDate, clientId });
