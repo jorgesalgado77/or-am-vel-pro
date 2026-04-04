@@ -237,7 +237,18 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    const closedClients = clients.filter(c => contractClientIds.has(c.id));
+    // Filter closed clients by date range using contract/tracking date
+    const closedClientsInPeriod = clients.filter(c => {
+      if (!contractClientIds.has(c.id)) return false;
+      // Check if this contract's date falls within the selected range
+      const trackingEntry = trackingRaw.find(t => t.clientId === c.id);
+      if (trackingEntry) return true; // Already filtered by dateRange
+      // Fallback: check contract creation date
+      const contractDate = contractDateByClient.get(c.id);
+      if (contractDate) return isInRange(contractDate, dateRange.start, dateRange.end);
+      return false;
+    });
+    const closedClients = closedClientsInPeriod;
     const openClientsWithSim = clients.filter(c => !contractClientIds.has(c.id) && lastSims[c.id]);
     const totalValueOrcamentos = openClientsWithSim.reduce((sum, c) => {
       const s = lastSims[c.id];
@@ -245,10 +256,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     }, 0);
 
     const faturamentoContratos = trackingRaw.reduce((sum, t) => sum + t.valor_contrato, 0) || 
-      Array.from(contractClientIds).reduce((sum, clientId) => {
-        const client = clients.find(c => c.id === clientId);
-        if (!client) return sum;
-        const s = lastSims[clientId];
+      closedClients.reduce((sum, c) => {
+        const s = lastSims[c.id];
         return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
       }, 0);
 
