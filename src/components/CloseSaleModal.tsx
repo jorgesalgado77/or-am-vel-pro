@@ -203,14 +203,18 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
     // Load environments from simulation data
     if (simulationData?.ambientes && simulationData.ambientes.length > 0) {
-      const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => ({
-        id: crypto.randomUUID(),
-        quantidade: 1,
-        descricao_ambiente: amb.nome || `Ambiente ${idx + 1}`,
-        fornecedor: amb.fornecedor || "",
-        prazo: "",
-        valor_ambiente: amb.valor || 0,
-      }));
+      const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => {
+        // Try to match fornecedor to get prazo
+        const matchedFornecedor = fornecedores.find(f => f.nome === amb.fornecedor);
+        return {
+          id: crypto.randomUUID(),
+          quantidade: 1,
+          descricao_ambiente: amb.nome || `Ambiente ${idx + 1}`,
+          fornecedor: amb.fornecedor || "",
+          prazo: matchedFornecedor?.prazo_entrega || "",
+          valor_ambiente: amb.valor || 0,
+        };
+      });
       const simDetails: SaleItemDetail[] = simulationData.ambientes.map((amb, idx) => ({
         item_num: idx + 1,
         titulos: amb.nome || "",
@@ -222,6 +226,12 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       }));
       setItems(simItems);
       setItemDetails(simDetails);
+
+      // Auto-fill prazo_entrega from first item's fornecedor
+      const firstMatch = simItems.find(i => i.prazo);
+      if (firstMatch?.prazo && !form.prazo_entrega) {
+        updateField("prazo_entrega", firstMatch.prazo);
+      }
     }
   }, [open, client, simulationData]);
 
