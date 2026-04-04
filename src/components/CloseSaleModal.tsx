@@ -299,7 +299,12 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       if (field === "fornecedor" && typeof value === "string") {
         const match = fornecedores.find(f => f.nome === value);
         if (match?.prazo_entrega) {
-          updated[index] = { ...updated[index], prazo: match.prazo_entrega };
+          // Update prazo for this item AND all other items with the same fornecedor
+          for (let i = 0; i < updated.length; i++) {
+            if (updated[i].fornecedor === value) {
+              updated[i] = { ...updated[i], prazo: match.prazo_entrega };
+            }
+          }
           // Also update the form's prazo_entrega if empty or if it's the first item
           if (!form.prazo_entrega || index === 0) {
             updateField("prazo_entrega", match.prazo_entrega);

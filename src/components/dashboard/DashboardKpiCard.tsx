@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface KpiCardProps {
   icon: React.ElementType;
@@ -8,10 +9,11 @@ interface KpiCardProps {
   accent?: boolean;
   destructive?: boolean;
   success?: boolean;
+  tooltip?: string;
 }
 
-export const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent, destructive, success }: KpiCardProps) {
-  return (
+export const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent, destructive, success, tooltip }: KpiCardProps) {
+  const card = (
     <Card className={destructive ? "border-destructive/30" : success ? "border-emerald-500/30" : ""}>
       <CardContent className="p-4 flex items-center gap-3">
         <div className={`p-2 rounded-lg ${
@@ -31,5 +33,18 @@ export const KpiCard = memo(function KpiCard({ icon: Icon, label, value, accent,
         </div>
       </CardContent>
     </Card>
+  );
+
+  if (!tooltip) return card;
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>{card}</TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[220px] text-xs">
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 });
