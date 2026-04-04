@@ -459,7 +459,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
               <SelectTrigger className="w-[180px] h-8 text-sm"><SelectValue placeholder="Todos os projetistas" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os projetistas</SelectItem>
-                {projetistaNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}
+                {projetistaNames.map((name: string) => (<SelectItem key={name} value={name}>{name}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
