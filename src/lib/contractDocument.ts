@@ -58,6 +58,16 @@ const CONTRACT_DOCUMENT_STYLES = `
     border-collapse: collapse;
   }
 
+  mark[data-placeholder-highlight] {
+    background: hsl(210 80% 55% / 0.15);
+    color: hsl(210 80% 45%);
+    border: 1px dashed hsl(210 80% 55% / 0.4);
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+
   @page {
     size: A4;
     margin: 15mm;
