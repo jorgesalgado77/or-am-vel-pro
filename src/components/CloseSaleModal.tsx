@@ -176,9 +176,18 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       });
   }, [open]);
 
-  // Prefill from client and simulation data
+  // Prefill from savedFormData (existing contract), client, and simulation data
   useEffect(() => {
     if (!open) return;
+
+    // If we have saved form data from an existing contract, restore it fully
+    if (savedFormData) {
+      updateForm(savedFormData.form);
+      setItems(savedFormData.items || []);
+      setItemDetails(savedFormData.itemDetails || []);
+      return;
+    }
+
     const prefill: Partial<CloseSaleFormData> = {
       nome_completo: client?.nome || "",
       cpf_cnpj: client?.cpf ? maskCpfCnpj(client.cpf) : "",
@@ -207,7 +216,6 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     // Load environments from simulation data
     if (simulationData?.ambientes && simulationData.ambientes.length > 0) {
       const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => {
-        // Try to match fornecedor to get prazo
         const matchedFornecedor = fornecedores.find(f => f.nome === amb.fornecedor);
         return {
           id: crypto.randomUUID(),
@@ -236,7 +244,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
         updateField("prazo_entrega", firstMatch.prazo);
       }
     }
-  }, [open, client, simulationData, fornecedores]);
+  }, [open, client, simulationData, fornecedores, savedFormData]);
 
   // Same address checkbox handler
   useEffect(() => {
