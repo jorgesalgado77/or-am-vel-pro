@@ -167,7 +167,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
         if (data && (data as any).valor) {
           try {
             const parsed = JSON.parse((data as any).valor);
-            setFornecedores(parsed.filter((f: any) => f.ativo !== false).map((f: any) => ({ id: f.id, nome: f.nome })));
+            setFornecedores(parsed.filter((f: any) => f.ativo !== false).map((f: any) => ({ id: f.id, nome: f.nome, prazo_entrega: f.prazo_entrega || "" })));
           } catch {}
         }
       });
