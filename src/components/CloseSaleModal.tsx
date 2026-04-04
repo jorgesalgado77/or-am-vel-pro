@@ -86,6 +86,7 @@ interface CloseSaleModalProps {
     catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
   };
   saving?: boolean;
+  savedFormData?: { form: CloseSaleFormData; items: SaleItem[]; itemDetails: SaleItemDetail[] } | null;
 }
 
 const UF_OPTIONS = [
