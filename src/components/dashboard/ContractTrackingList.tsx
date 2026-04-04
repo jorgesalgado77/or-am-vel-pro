@@ -67,9 +67,10 @@ interface TrackingRow {
 interface ContractTrackingListProps {
   clients: Client[];
   lastSims: Record<string, LastSimInfo>;
+  globalDateRange?: { start: Date; end: Date };
 }
 
-export const ContractTrackingList = memo(function ContractTrackingList({ clients, lastSims }: ContractTrackingListProps) {
+export const ContractTrackingList = memo(function ContractTrackingList({ clients, lastSims, globalDateRange }: ContractTrackingListProps) {
   const { policy: comissaoPolicy } = useComissaoPolicy();
   const { currentUser, hasPermission } = useCurrentUser();
   const cargoNome = (currentUser?.cargo_nome || "").toLowerCase().trim();
@@ -78,7 +79,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("_all");
-  const [periodFilter, setPeriodFilter] = useState("3meses");
+  const [periodFilter, setPeriodFilter] = useState("global");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [showAdd, setShowAdd] = useState(false);
