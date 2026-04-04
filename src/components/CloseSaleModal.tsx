@@ -283,7 +283,21 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   };
 
   const updateItem = (index: number, field: keyof SaleItem, value: string | number) => {
-    setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+    setItems(prev => {
+      const updated = prev.map((item, i) => i === index ? { ...item, [field]: value } : item);
+      // Auto-fill prazo when fornecedor changes
+      if (field === "fornecedor" && typeof value === "string") {
+        const match = fornecedores.find(f => f.nome === value);
+        if (match?.prazo_entrega) {
+          updated[index] = { ...updated[index], prazo: match.prazo_entrega };
+          // Also update the form's prazo_entrega if empty or if it's the first item
+          if (!form.prazo_entrega || index === 0) {
+            updateField("prazo_entrega", match.prazo_entrega);
+          }
+        }
+      }
+      return updated;
+    });
   };
 
   const updateDetail = (index: number, field: keyof SaleItemDetail, value: string) => {
