@@ -194,6 +194,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const stats = useMemo(() => {
     // Total clients = all existing clients (cumulative)
     const totalClients = clients.length;
+    // New clients created in the selected period
+    const newClientsInPeriod = clients.filter(c => isInRange(c.created_at, dateRange.start, dateRange.end)).length;
     // Clients with simulation in the period
     const clientsWithSim = clients.filter(c => simsInRange[c.id]).length;
     // Clients without any simulation at all
