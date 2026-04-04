@@ -25,7 +25,7 @@ export function LowStockAlerts() {
   const [loading, setLoading] = useState(true);
 
   const loadAlerts = useCallback(async () => {
-    const tenantId = getResolvedTenantId();
+    const tenantId = await getResolvedTenantId();
     if (!tenantId) { setLoading(false); return; }
 
     setLoading(true);
