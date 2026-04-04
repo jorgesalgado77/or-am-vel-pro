@@ -361,7 +361,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
       }
       return matchSearch && matchProjetista && matchPeriod;
     });
-  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd, isSellerRole, currentUser?.nome_completo]);
+  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd, isSellerRole, currentUser?.nome_completo, globalDateRange]);
 
   const getStatusLabel = useCallback((val: string) => STATUS_OPTIONS.find((s) => s.value === val)?.label || val, []);
 
