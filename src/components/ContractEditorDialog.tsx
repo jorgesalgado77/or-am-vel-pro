@@ -365,23 +365,3 @@ function applyLayoutLock(container: HTMLElement) {
   });
 }
 
-function applyLayoutLock(container: HTMLElement) {
-  const structuralSelectors = [
-    "table", "thead", "tbody", "tfoot", "tr",
-    "section.contract-page", "[data-contract-page]", ".contract-page__content",
-  ];
-  structuralSelectors.forEach((selector) => {
-    container.querySelectorAll(selector).forEach((el) => {
-      (el as HTMLElement).setAttribute("contenteditable", "false");
-    });
-  });
-  const textSelectors = ["td", "th", "p", "span", "strong", "em", "h1", "h2", "h3", "h4", "h5", "h6", "li", "a", "div:not(.contract-page__content):not([data-contract-page])"];
-  textSelectors.forEach((selector) => {
-    container.querySelectorAll(selector).forEach((el) => {
-      const htmlEl = el as HTMLElement;
-      if (selector.startsWith("div") && el.querySelector("table, section, [data-contract-page]")) return;
-      if (htmlEl.closest("table") && !["td", "th"].includes(el.tagName.toLowerCase())) return;
-      htmlEl.setAttribute("contenteditable", "true");
-    });
-  });
-}
