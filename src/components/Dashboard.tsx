@@ -551,9 +551,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
       {/* Lazy-loaded bottom sections */}
       <Suspense fallback={<ChartsSkeleton />}>
-        <TopSellingProductsChart />
+        <TopSellingProductsChart dateRange={dateRange} />
         <LowStockAlerts />
-        <ContractTrackingList clients={clients} lastSims={lastSims} />
+        <ContractTrackingList clients={clients} lastSims={lastSims} globalDateRange={dateRange} />
       </Suspense>
     </div>
   );

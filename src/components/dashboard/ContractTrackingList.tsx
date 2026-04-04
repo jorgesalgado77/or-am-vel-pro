@@ -67,9 +67,10 @@ interface TrackingRow {
 interface ContractTrackingListProps {
   clients: Client[];
   lastSims: Record<string, LastSimInfo>;
+  globalDateRange?: { start: Date; end: Date };
 }
 
-export const ContractTrackingList = memo(function ContractTrackingList({ clients, lastSims }: ContractTrackingListProps) {
+export const ContractTrackingList = memo(function ContractTrackingList({ clients, lastSims, globalDateRange }: ContractTrackingListProps) {
   const { policy: comissaoPolicy } = useComissaoPolicy();
   const { currentUser, hasPermission } = useCurrentUser();
   const cargoNome = (currentUser?.cargo_nome || "").toLowerCase().trim();
@@ -78,7 +79,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("_all");
-  const [periodFilter, setPeriodFilter] = useState("3meses");
+  const [periodFilter, setPeriodFilter] = useState("global");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -304,16 +305,23 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
     const now = new Date();
     let pStart: Date | null = null;
     let pEnd: Date | null = null;
-    switch (periodFilter) {
-      case "mes_atual": pStart = startOfMonth(now); pEnd = endOfDay(now); break;
-      case "mes_anterior": { const prev = subMonths(now, 1); pStart = startOfMonth(prev); pEnd = endOfMonth(prev); break; }
-      case "3meses": pStart = startOfDay(subMonths(now, 3)); pEnd = endOfDay(now); break;
-      case "6meses": pStart = startOfDay(subMonths(now, 6)); pEnd = endOfDay(now); break;
-      case "ano_anterior": { const y = now.getFullYear() - 1; pStart = new Date(y, 0, 1); pEnd = new Date(y, 11, 31, 23, 59, 59); break; }
-      case "personalizado":
-        if (customStart) pStart = startOfDay(new Date(customStart));
-        if (customEnd) pEnd = endOfDay(new Date(customEnd));
-        break;
+
+    if (periodFilter === "global" && globalDateRange) {
+      pStart = globalDateRange.start;
+      pEnd = globalDateRange.end;
+    } else {
+      switch (periodFilter) {
+        case "global": pStart = startOfMonth(now); pEnd = endOfDay(now); break;
+        case "mes_atual": pStart = startOfMonth(now); pEnd = endOfDay(now); break;
+        case "mes_anterior": { const prev = subMonths(now, 1); pStart = startOfMonth(prev); pEnd = endOfMonth(prev); break; }
+        case "3meses": pStart = startOfDay(subMonths(now, 3)); pEnd = endOfDay(now); break;
+        case "6meses": pStart = startOfDay(subMonths(now, 6)); pEnd = endOfDay(now); break;
+        case "ano_anterior": { const y = now.getFullYear() - 1; pStart = new Date(y, 0, 1); pEnd = new Date(y, 11, 31, 23, 59, 59); break; }
+        case "personalizado":
+          if (customStart) pStart = startOfDay(new Date(customStart));
+          if (customEnd) pEnd = endOfDay(new Date(customEnd));
+          break;
+      }
     }
     // For vendedor/projetista: only show their own contracts
     const userName = currentUser?.nome_completo || "";
@@ -353,7 +361,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
       }
       return matchSearch && matchProjetista && matchPeriod;
     });
-  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd, isSellerRole, currentUser?.nome_completo]);
+  }, [trackings, search, filterProjetista, periodFilter, customStart, customEnd, isSellerRole, currentUser?.nome_completo, globalDateRange]);
 
   const getStatusLabel = useCallback((val: string) => STATUS_OPTIONS.find((s) => s.value === val)?.label || val, []);
 
@@ -392,6 +400,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="global">Período do Dashboard</SelectItem>
                 <SelectItem value="mes_atual">Mês Atual</SelectItem>
                 <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
                 <SelectItem value="3meses">Últimos 3 Meses</SelectItem>

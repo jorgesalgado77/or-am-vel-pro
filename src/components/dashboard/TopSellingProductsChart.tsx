@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
+import { format } from "date-fns";
 
 const COLORS = [
   "hsl(200, 70%, 50%)", "hsl(160, 60%, 45%)", "hsl(30, 80%, 55%)",
@@ -26,11 +27,14 @@ interface SaleRow {
   product_id: string;
   quantity: number;
   total_price: number;
-  product_name?: string;
-  category?: string;
+  created_at?: string;
 }
 
-export function TopSellingProductsChart() {
+interface TopSellingProductsChartProps {
+  dateRange: { start: Date; end: Date };
+}
+
+export function TopSellingProductsChart({ dateRange }: TopSellingProductsChartProps) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"product" | "category">("category");
   const [salesData, setSalesData] = useState<{ name: string; qty: number; revenue: number }[]>([]);
@@ -41,11 +45,16 @@ export function TopSellingProductsChart() {
     if (!tenantId) { setLoading(false); return; }
 
     setLoading(true);
-    // Load product_sales joined with products
-    const { data: sales } = await supabase
+
+    // Load product_sales filtered by date range
+    let query = supabase
       .from("product_sales" as any)
-      .select("product_id, quantity, total_price")
-      .eq("tenant_id", tenantId);
+      .select("product_id, quantity, total_price, created_at")
+      .eq("tenant_id", tenantId)
+      .gte("created_at", dateRange.start.toISOString())
+      .lte("created_at", dateRange.end.toISOString());
+
+    const { data: sales } = await query;
 
     if (!sales || (sales as any[]).length === 0) {
       setSalesData([]);
@@ -89,12 +98,13 @@ export function TopSellingProductsChart() {
     setCategoryData([...byCat.values()].sort((a, b) => b.revenue - a.revenue));
 
     setLoading(false);
-  }, []);
+  }, [dateRange]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const chartData = view === "category" ? categoryData : salesData;
   const hasData = chartData.length > 0;
+  const periodLabel = `${format(dateRange.start, "dd/MM/yy")} — ${format(dateRange.end, "dd/MM/yy")}`;
 
   return (
     <Card>
@@ -103,6 +113,7 @@ export function TopSellingProductsChart() {
           <CardTitle className="text-base flex items-center gap-2">
             <Package className="h-4 w-4 text-primary" />
             Produtos Mais Vendidos
+            <span className="text-xs font-normal text-muted-foreground ml-1">({periodLabel})</span>
           </CardTitle>
           <Select value={view} onValueChange={(v) => setView(v as any)}>
             <SelectTrigger className="w-[150px] h-8 text-sm">
@@ -122,7 +133,7 @@ export function TopSellingProductsChart() {
           </div>
         ) : !hasData ? (
           <div className="text-center py-12 text-muted-foreground text-sm">
-            Nenhuma venda registrada ainda. Registre vendas pelo catálogo para ver o ranking.
+            Nenhuma venda registrada no período selecionado. Registre vendas pelo catálogo para ver o ranking.
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
