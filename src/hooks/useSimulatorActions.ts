@@ -844,7 +844,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     contractHtml, pendingSimId, setPendingSimId,
     pendingTemplateId, setPendingTemplateId,
     closeSaleModalOpen, setCloseSaleModalOpen,
-    closeSaleFormData,
+    closeSaleFormData, savedContractFormData,
     upgradeOpen, setUpgradeOpen, upgradeMsg,
     handleSave, handleCloseSale, handleCloseSaleConfirm, handleContractSave,
     handleFileImport, handleRemoveEnvironment, handlePdf,
