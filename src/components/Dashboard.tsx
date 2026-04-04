@@ -235,13 +235,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   // Stats computation
   const stats = useMemo(() => {
-    // Total clients = all existing clients (cumulative)
     const totalClients = clients.length;
-    // New clients created in the selected period
     const newClientsInPeriod = clients.filter(c => isInRange(c.created_at, dateRange.start, dateRange.end)).length;
-    // Clients with simulation in the period
     const clientsWithSim = clients.filter(c => simsInRange[c.id]).length;
-    // Clients without any simulation at all
     const clientsWithoutSim = clients.filter(c => !lastSims[c.id]).length;
     const expired = clients.filter(c => {
       const sim = lastSims[c.id];
@@ -249,21 +245,16 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    // Filter closed clients by date range using contract/tracking date
-    const closedClientsInPeriod = clients.filter(c => {
-      if (!contractClientIds.has(c.id)) return false;
-      // Check if this contract's date falls within the selected range
-      const trackingEntry = trackingRaw.find(t => t.clientId === c.id);
-      if (trackingEntry) return true; // Already filtered by dateRange
-      // Fallback: check contract creation date
-      const contractDate = contractDateByClient.get(c.id);
-      if (contractDate) return isInRange(contractDate, dateRange.start, dateRange.end);
-      return false;
-    });
-    const closedClients = closedClientsInPeriod;
-    const openClientsWithSim = clients.filter(c => !contractClientIds.has(c.id) && lastSims[c.id]);
+    const closedByClientInPeriod = new Map(trackingRaw.map(item => [item.clientId, item]));
+    const periodClientIds = new Set<string>([
+      ...Object.keys(simsInRange),
+      ...trackingRaw.map(item => item.clientId),
+    ]);
+
+    const closedClients = clients.filter(c => closedByClientInPeriod.has(c.id));
+    const openClientsWithSim = clients.filter(c => simsInRange[c.id] && !closedByClientInPeriod.has(c.id));
     const totalValueOrcamentos = openClientsWithSim.reduce((sum, c) => {
-      const s = lastSims[c.id];
+      const s = simsInRange[c.id];
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
@@ -280,30 +271,37 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number; closedTotal: number }> = {};
     clients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
-      // For non-admin users, only count their own clients
       if (!isAdminOrGerente && currentUser) {
         const userName = (currentUser.apelido || currentUser.nome_completo || "").toLowerCase().trim();
         const clientVendedor = (c.vendedor || "").toLowerCase().trim();
         if (!clientVendedor || !userName || !(clientVendedor.includes(userName) || userName.includes(clientVendedor))) return;
       }
+      if (!periodClientIds.has(c.id)) return;
+
       if (!byProjetista[name]) byProjetista[name] = { count: 0, total: 0, expired: 0, closed: 0, closedTotal: 0 };
       byProjetista[name].count++;
-      if (contractClientIds.has(c.id)) {
+
+      const closedEntry = closedByClientInPeriod.get(c.id);
+      if (closedEntry) {
         byProjetista[name].closed++;
-        const sim = lastSims[c.id];
-        if (sim) byProjetista[name].closedTotal += sim.valor_com_desconto || sim.valor_final;
+        byProjetista[name].closedTotal += closedEntry.valor_contrato;
+        byProjetista[name].total += closedEntry.valor_contrato;
+        return;
       }
-      const sim = lastSims[c.id];
+
+      const sim = simsInRange[c.id];
       if (sim) {
-        byProjetista[name].total += sim.valor_com_desconto || sim.valor_final;
+        const simValue = sim.valor_com_desconto || sim.valor_final;
+        byProjetista[name].total += simValue;
         if (isPast(addDays(new Date(sim.created_at), budgetValidityDays))) byProjetista[name].expired++;
       }
     });
 
     const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number; clientes: { nome: string; orcamento: string }[] }> = {};
     clients.forEach(c => {
-      if (!c.indicador_id || !contractClientIds.has(c.id)) return;
-      // For non-admin users, only include their own clients' indicadores
+      if (!c.indicador_id) return;
+      const closedEntry = closedByClientInPeriod.get(c.id);
+      if (!closedEntry) return;
       if (!isAdminOrGerente && currentUser) {
         const userName = (currentUser.apelido || currentUser.nome_completo || "").toLowerCase().trim();
         const clientVendedor = (c.vendedor || "").toLowerCase().trim();
@@ -313,12 +311,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       if (!ind) return;
       if (!byIndicador[c.indicador_id]) byIndicador[c.indicador_id] = { nome: ind.nome, comissao: ind.comissao_percentual, count: 0, total: 0, comissaoTotal: 0, clientes: [] };
       byIndicador[c.indicador_id].count++;
-      const sim = lastSims[c.id];
-      if (sim) {
-        const val = sim.valor_com_desconto || sim.valor_final;
-        byIndicador[c.indicador_id].total += val;
-        byIndicador[c.indicador_id].comissaoTotal += val * (ind.comissao_percentual / 100);
-      }
+      byIndicador[c.indicador_id].total += closedEntry.valor_contrato;
+      byIndicador[c.indicador_id].comissaoTotal += closedEntry.valor_contrato * (ind.comissao_percentual / 100);
       byIndicador[c.indicador_id].clientes.push({ nome: c.nome || "—", orcamento: (c as any).numero_orcamento || "—" });
     });
 
@@ -328,7 +322,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
     };
-  }, [clients, lastSims, simsInRange, dateRange, budgetValidityDays, indicadores, contractClientIds, contractDateByClient, trackingRaw, isAdminOrGerente, currentUser]);
+  }, [clients, lastSims, simsInRange, dateRange, budgetValidityDays, indicadores, trackingRaw, isAdminOrGerente, currentUser]);
 
   // Chart data
   const lineData = useMemo(() => {
