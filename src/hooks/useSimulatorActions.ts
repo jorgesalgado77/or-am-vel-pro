@@ -590,9 +590,17 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     }
     setClosingSale(true);
     try {
+      const formDataPayload = closeSaleFormData ? {
+        form: closeSaleFormData,
+        items: closeSaleItems,
+        itemDetails: closeSaleItemDetails,
+      } : null;
+
       const { data: insertedData, error: contractError } = await supabase.from("client_contracts").insert({
         client_id: effectiveClient.id, simulation_id: pendingSimId, template_id: pendingTemplateId,
-        conteudo_html: finalHtml, ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
+        conteudo_html: finalHtml,
+        ...(formDataPayload ? { form_data: formDataPayload } : {}),
+        ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
       } as any).select("id").single();
 
       if (contractError || !insertedData) {
