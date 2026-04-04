@@ -6,6 +6,7 @@ import {Badge} from "@/components/ui/badge";
 import {buildContractDocumentHtml, openContractPrintWindow} from "@/lib/contractDocument";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
+import {replaceDetectedFieldsWithPlaceholders} from "@/lib/contractImport";
 
 interface ContractEditorDialogProps {
   open: boolean;
