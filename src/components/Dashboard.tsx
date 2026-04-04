@@ -139,16 +139,15 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       if (tracked) {
         // Use tracking data, but fallback to sim value if tracking valor is 0
         const valor = tracked.valor_contrato > 0 ? tracked.valor_contrato : simValor;
-        // Use tracking date, but fallback to contract date if tracking date is invalid
-        const dateRef = tracked.dateRef && !isNaN(new Date(tracked.dateRef).getTime()) ? tracked.dateRef : contractDate;
-        all.push({ valor_contrato: valor, dateRef, clientId });
+        // Always use CONTRACT date as the period reference (not tracking date)
+        all.push({ valor_contrato: valor, dateRef: contractDate, clientId });
       } else {
         // No tracking record — use contract date and sim value
         all.push({ valor_contrato: simValor, dateRef: contractDate, clientId });
       }
     });
 
-    console.log("[Dashboard] All contract records before filter:", all.map(t => ({ clientId: t.clientId, dateRef: t.dateRef, valor: t.valor_contrato })));
+    console.log("[Dashboard] Contract records:", all.map(t => ({ clientId: t.clientId.slice(0,8), dateRef: t.dateRef?.slice(0,10), valor: t.valor_contrato })));
     const filtered = all.filter(t => isInRange(t.dateRef, dateRange.start, dateRange.end));
     console.log("[Dashboard] Contracts found:", cIds.size, "Tracking records:", trackMap.size, "In range:", filtered.length, "Range:", dateRange.start.toISOString(), "-", dateRange.end.toISOString());
     setTrackingRaw(filtered);
