@@ -1,19 +1,20 @@
 import {useState, useRef, useEffect, useMemo} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
-import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2} from "lucide-react";
+import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp} from "lucide-react";
 import {Badge} from "@/components/ui/badge";
 import {buildContractDocumentHtml, openContractPrintWindow} from "@/lib/contractDocument";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
-import {replaceDetectedFieldsWithPlaceholders} from "@/lib/contractImport";
+import {replaceDetectedFieldsWithPlaceholders, type FieldReplacement} from "@/lib/contractImport";
+import {ScrollArea} from "@/components/ui/scroll-area";
 
 interface ContractEditorDialogProps {
   open: boolean;
   onClose: () => void;
   initialHtml: string;
   clientName: string;
-  onSave: (finalHtml: string) => Promise<string | null>; // returns contract ID
+  onSave: (finalHtml: string) => Promise<string | null>;
   saving?: boolean;
   contractId?: string | null;
   tenantId?: string | null;
@@ -27,6 +28,8 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   const [sendingToClient, setSendingToClient] = useState(false);
   const [contractId, setContractId] = useState<string | null>(externalContractId || null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [fieldReplacements, setFieldReplacements] = useState<FieldReplacement[]>([]);
+  const [showSummary, setShowSummary] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,6 +38,8 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     setLayoutLocked(true);
     setContractId(externalContractId || null);
     setLinkCopied(false);
+    setFieldReplacements([]);
+    setShowSummary(false);
   }, [initialHtml, externalContractId]);
 
   useEffect(() => {
@@ -58,6 +63,50 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     setViewMode(viewMode === "editor" ? "preview" : "editor");
   };
 
+  const handleAutoVariables = () => {
+    const currentHtml = getCurrentHtml();
+    const result = replaceDetectedFieldsWithPlaceholders(currentHtml);
+    if (result.replacedCount === 0) {
+      toast.info("Nenhum campo detectado para conversão");
+      return;
+    }
+    setHtml(result.html);
+    if (viewMode === "editor" && editorRef.current) {
+      editorRef.current.innerHTML = result.html;
+    }
+    setFieldReplacements(result.replacements);
+    setShowSummary(true);
+    toast.success(`${result.replacedCount} campo(s) convertido(s) em variáveis {{...}}`);
+  };
+
+  const handleUndoReplacement = (replacement: FieldReplacement) => {
+    const currentHtml = getCurrentHtml();
+    // Replace the variable back with the original value
+    const updatedHtml = currentHtml.replace(replacement.variable, replacement.originalValue);
+    if (updatedHtml !== currentHtml) {
+      setHtml(updatedHtml);
+      if (viewMode === "editor" && editorRef.current) {
+        editorRef.current.innerHTML = updatedHtml;
+      }
+      setFieldReplacements((prev) => prev.filter((r) => r.id !== replacement.id));
+      toast.info(`Restaurado: "${replacement.label}" → valor original`);
+    }
+  };
+
+  const handleUndoAll = () => {
+    let currentHtml = getCurrentHtml();
+    for (const r of fieldReplacements) {
+      currentHtml = currentHtml.replace(r.variable, r.originalValue);
+    }
+    setHtml(currentHtml);
+    if (viewMode === "editor" && editorRef.current) {
+      editorRef.current.innerHTML = currentHtml;
+    }
+    setFieldReplacements([]);
+    setShowSummary(false);
+    toast.info("Todas as substituições foram desfeitas");
+  };
+
   // Save contract
   const handleSaveContract = async () => {
     setLocalSaving(true);
@@ -67,6 +116,8 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
       if (savedId) {
         setContractId(savedId);
         setHtml(currentHtml);
+        setFieldReplacements([]);
+        setShowSummary(false);
         toast.success("Contrato salvo com sucesso!");
       }
     } finally {
@@ -74,42 +125,33 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     }
   };
 
-  // Print
   const handlePrint = () => {
     openContractPrintWindow(getCurrentHtml(), `Contrato - ${clientName}`);
   };
 
-  // Download PDF (via print dialog)
   const handleDownloadPdf = () => {
     openContractPrintWindow(getCurrentHtml(), `Contrato - ${clientName}`);
     toast.info("Na janela de impressão, selecione 'Salvar como PDF'");
   };
 
-  // Send to client area
   const handleSendToClient = async () => {
     setSendingToClient(true);
     try {
       const currentHtml = getCurrentHtml();
-      // First save if not saved
       let id = contractId;
       if (!id) {
         id = await onSave(currentHtml);
         if (!id) { toast.error("Salve o contrato antes de enviar"); return; }
         setContractId(id);
       } else {
-        // Update HTML
         await supabase.from("client_contracts").update({ conteudo_html: currentHtml } as any).eq("id", id);
       }
-
-      // Generate public token
       const publicToken = crypto.randomUUID();
       const { error } = await supabase.from("client_contracts").update({
         public_token: publicToken,
         status: "enviado",
       } as any).eq("id", id);
-
       if (error) { toast.error("Erro ao gerar link público"); return; }
-
       const publicUrl = `${window.location.origin}/contrato/${publicToken}`;
       await navigator.clipboard.writeText(publicUrl);
       setLinkCopied(true);
@@ -156,23 +198,26 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             variant="outline"
             size="sm"
             className="gap-1.5"
-            onClick={() => {
-              const currentHtml = getCurrentHtml();
-              const result = replaceDetectedFieldsWithPlaceholders(currentHtml);
-              if (result.replacedCount === 0) {
-                toast.info("Nenhum campo detectado para conversão");
-                return;
-              }
-              setHtml(result.html);
-              if (viewMode === "editor" && editorRef.current) {
-                editorRef.current.innerHTML = result.html;
-              }
-              toast.success(`${result.replacedCount} campo(s) convertido(s) em variáveis {{...}}`);
-            }}
+            onClick={handleAutoVariables}
             disabled={isBusy}
           >
             <Wand2 className="h-3.5 w-3.5" /> Auto-variáveis
           </Button>
+
+          {fieldReplacements.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setShowSummary(!showSummary)}
+            >
+              <Badge variant="secondary" className="text-[10px] px-1.5">
+                {fieldReplacements.length}
+              </Badge>
+              {showSummary ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              Conversões
+            </Button>
+          )}
 
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {viewMode === "editor"
@@ -186,6 +231,51 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             </Badge>
           )}
         </div>
+
+        {/* Replacements Summary Panel */}
+        {showSummary && fieldReplacements.length > 0 && (
+          <div className="mb-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Wand2 className="h-3.5 w-3.5 text-primary" />
+                Campos convertidos ({fieldReplacements.length})
+              </h4>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-destructive hover:text-destructive" onClick={handleUndoAll}>
+                  <Undo2 className="h-3 w-3" /> Desfazer tudo
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowSummary(false)}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            <ScrollArea className="max-h-[140px]">
+              <div className="space-y-1">
+                {fieldReplacements.map((r) => (
+                  <div key={r.id} className="flex items-center gap-2 rounded-md px-2 py-1 text-[11px] bg-background/60 hover:bg-background transition-colors group">
+                    <Badge variant="outline" className="text-[10px] shrink-0 border-primary/30 text-primary font-mono">
+                      {r.variable}
+                    </Badge>
+                    <span className="text-muted-foreground">←</span>
+                    <span className="truncate text-muted-foreground flex-1" title={r.originalValue}>
+                      {r.originalValue.length > 40 ? r.originalValue.slice(0, 40) + "…" : r.originalValue}
+                    </span>
+                    <Badge variant="secondary" className="text-[9px] shrink-0">{r.label}</Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      onClick={() => handleUndoReplacement(r)}
+                      title="Desfazer esta substituição"
+                    >
+                      <Undo2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-hidden rounded-lg border border-border">
@@ -274,3 +364,4 @@ function applyLayoutLock(container: HTMLElement) {
     });
   });
 }
+

@@ -191,13 +191,20 @@ const extractLabelPrefix = (match: string): string => {
   return "";
 };
 
-export const replaceDetectedFieldsWithPlaceholders = (html: string): { html: string; replacedCount: number } => {
-  if (!html || typeof DOMParser === "undefined") return { html, replacedCount: 0 };
+export interface FieldReplacement {
+  id: string;
+  originalValue: string;
+  variable: string;
+  label: string;
+}
+
+export const replaceDetectedFieldsWithPlaceholders = (html: string): { html: string; replacedCount: number; replacements: FieldReplacement[] } => {
+  if (!html || typeof DOMParser === "undefined") return { html, replacedCount: 0, replacements: [] };
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
   const container = doc.body.firstElementChild;
-  if (!container) return { html, replacedCount: 0 };
+  if (!container) return { html, replacedCount: 0, replacements: [] };
 
   const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
@@ -206,7 +213,7 @@ export const replaceDetectedFieldsWithPlaceholders = (html: string): { html: str
   }
 
   let replacedCount = 0;
-  const alreadyReplaced = new Set<string>(); // track which variables were already placed to avoid duplicates in same text node
+  const replacements: FieldReplacement[] = [];
 
   for (const textNode of textNodes) {
     if (!isSafeTextContainer(textNode.parentElement)) continue;
@@ -222,6 +229,12 @@ export const replaceDetectedFieldsWithPlaceholders = (html: string): { html: str
         const regex2 = new RegExp(fp.pattern.source, fp.pattern.flags);
         newText = newText.replace(regex2, (match) => {
           replacedCount++;
+          replacements.push({
+            id: `fr-${replacedCount}-${Date.now()}`,
+            originalValue: match,
+            variable: fp.variable,
+            label: fp.label,
+          });
           if (CONTEXTUAL_FIELD_INDICES.has(idx)) {
             const label = extractLabelPrefix(match);
             return label ? `${label} ${fp.variable}` : fp.variable;
@@ -236,7 +249,7 @@ export const replaceDetectedFieldsWithPlaceholders = (html: string): { html: str
     }
   }
 
-  return { html: container.innerHTML, replacedCount };
+  return { html: container.innerHTML, replacedCount, replacements };
 };
 
 export const highlightSuggestedFields = (html: string): string => {
