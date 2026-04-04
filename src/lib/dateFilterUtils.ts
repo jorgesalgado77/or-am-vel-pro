@@ -42,6 +42,13 @@ export function getDateRange(preset: DateFilterPreset, customStart?: string, cus
 }
 
 export function isInRange(dateStr: string, start: Date, end: Date): boolean {
-  const d = new Date(dateStr);
+  if (!dateStr) return false;
+  let d = new Date(dateStr);
+  // Handle date-only strings (e.g., "2026-04-03") which JS parses as UTC midnight
+  // Add 12h to avoid timezone edge cases
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    d = new Date(dateStr + "T12:00:00");
+  }
+  if (isNaN(d.getTime())) return false;
   return (isAfter(d, start) || d.getTime() === start.getTime()) && (isBefore(d, end) || d.getTime() === end.getTime());
 }

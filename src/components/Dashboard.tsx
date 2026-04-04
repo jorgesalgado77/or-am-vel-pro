@@ -130,17 +130,29 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const all: { valor_contrato: number; dateRef: string; clientId: string }[] = [];
     cIds.forEach(clientId => {
       const tracked = trackMap.get(clientId);
-      if (tracked) { all.push({ ...tracked, clientId }); }
-      else {
-        const contract = (contracts as any[]).find(c => c.client_id === clientId);
-        all.push({ valor_contrato: 0, dateRef: contract?.created_at || new Date().toISOString(), clientId });
+      // Use contract created_at as date reference
+      const contractDate = dateMap.get(clientId) || new Date().toISOString();
+      // Resolve valor: tracking > lastSims > 0
+      const simValue = lastSims[clientId];
+      const simValor = simValue ? (simValue.valor_com_desconto || simValue.valor_final) : 0;
+
+      if (tracked) {
+        // Use tracking data, but fallback to sim value if tracking valor is 0
+        const valor = tracked.valor_contrato > 0 ? tracked.valor_contrato : simValor;
+        // Use tracking date, but fallback to contract date if tracking date is invalid
+        const dateRef = tracked.dateRef && !isNaN(new Date(tracked.dateRef).getTime()) ? tracked.dateRef : contractDate;
+        all.push({ valor_contrato: valor, dateRef, clientId });
+      } else {
+        // No tracking record — use contract date and sim value
+        all.push({ valor_contrato: simValor, dateRef: contractDate, clientId });
       }
     });
 
     const filtered = all.filter(t => isInRange(t.dateRef, dateRange.start, dateRange.end));
+    console.log("[Dashboard] Contracts found:", cIds.size, "Tracking records:", trackMap.size, "In range:", filtered.length, "Range:", dateRange.start.toISOString(), "-", dateRange.end.toISOString());
     setTrackingRaw(filtered);
     setTrackingData({ count: filtered.length, total: filtered.reduce((sum, t) => sum + t.valor_contrato, 0) });
-  }, [dateRange]);
+  }, [dateRange, lastSims]);
 
   useEffect(() => { fetchTrackingStats(); }, [fetchTrackingStats]);
 
@@ -255,11 +267,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    const faturamentoContratos = trackingRaw.reduce((sum, t) => sum + t.valor_contrato, 0) || 
-      closedClients.reduce((sum, c) => {
-        const s = lastSims[c.id];
-        return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
-      }, 0);
+    const trackingTotal = trackingRaw.reduce((sum, t) => sum + t.valor_contrato, 0);
+    const simFallbackTotal = closedClients.reduce((sum, c) => {
+      const s = lastSims[c.id];
+      return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
+    }, 0);
+    const faturamentoContratos = trackingTotal > 0 ? trackingTotal : simFallbackTotal;
 
     const taxaConversao = totalClients > 0 ? (closedClients.length / totalClients) * 100 : 0;
     const ticketMedio = openClientsWithSim.length > 0 ? totalValueOrcamentos / openClientsWithSim.length : 0;
