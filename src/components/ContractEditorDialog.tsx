@@ -1,11 +1,12 @@
 import {useState, useRef, useEffect, useMemo} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
-import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check} from "lucide-react";
+import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2} from "lucide-react";
 import {Badge} from "@/components/ui/badge";
 import {buildContractDocumentHtml, openContractPrintWindow} from "@/lib/contractDocument";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
+import {replaceDetectedFieldsWithPlaceholders} from "@/lib/contractImport";
 
 interface ContractEditorDialogProps {
   open: boolean;
@@ -150,6 +151,28 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
               {layoutLocked ? "Layout Bloqueado" : "Layout Livre"}
             </Button>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              const currentHtml = getCurrentHtml();
+              const result = replaceDetectedFieldsWithPlaceholders(currentHtml);
+              if (result.replacedCount === 0) {
+                toast.info("Nenhum campo detectado para conversão");
+                return;
+              }
+              setHtml(result.html);
+              if (viewMode === "editor" && editorRef.current) {
+                editorRef.current.innerHTML = result.html;
+              }
+              toast.success(`${result.replacedCount} campo(s) convertido(s) em variáveis {{...}}`);
+            }}
+            disabled={isBusy}
+          >
+            <Wand2 className="h-3.5 w-3.5" /> Auto-variáveis
+          </Button>
 
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {viewMode === "editor"
