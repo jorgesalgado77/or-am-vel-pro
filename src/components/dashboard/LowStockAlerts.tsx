@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Package, RefreshCw, Bell, Plus, BellOff } from "lucide-react";
+import { AlertTriangle, Package, RefreshCw, Bell, Plus, BellOff, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getResolvedTenantId } from "@/contexts/TenantContext";
 import { sendPushIfEnabled } from "@/lib/pushHelper";
@@ -27,38 +27,59 @@ interface LowStockProduct {
   supplier_name?: string;
 }
 
+interface SnoozedProduct extends LowStockProduct {
+  snoozedUntil: number;
+}
+
 const SNOOZE_KEY = "low_stock_snoozed";
 const SNOOZE_DAYS = 15;
 
 function getSnoozedProducts(): Record<string, number> {
   try {
     return JSON.parse(localStorage.getItem(SNOOZE_KEY) || "{}");
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
+}
+
+function setSnoozedProducts(next: Record<string, number>) {
+  localStorage.setItem(SNOOZE_KEY, JSON.stringify(next));
 }
 
 function snoozeProduct(productId: string) {
   const snoozed = getSnoozedProducts();
   snoozed[productId] = Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000;
-  localStorage.setItem(SNOOZE_KEY, JSON.stringify(snoozed));
+  setSnoozedProducts(snoozed);
 }
 
-function isSnoozed(productId: string): boolean {
+function getSnoozedUntil(productId: string): number | null {
   const snoozed = getSnoozedProducts();
   const until = snoozed[productId];
-  if (!until) return false;
+  if (!until) return null;
   if (Date.now() > until) {
-    // Expired — clean up
     delete snoozed[productId];
-    localStorage.setItem(SNOOZE_KEY, JSON.stringify(snoozed));
-    return false;
+    setSnoozedProducts(snoozed);
+    return null;
   }
-  return true;
+  return until;
+}
+
+function removeSnooze(productId: string) {
+  const snoozed = getSnoozedProducts();
+  delete snoozed[productId];
+  setSnoozedProducts(snoozed);
+}
+
+function formatSnoozeDate(timestamp: number) {
+  return new Date(timestamp).toLocaleDateString("pt-BR");
 }
 
 export function LowStockAlerts() {
   const { user } = useAuth();
   const [products, setProducts] = useState<LowStockProduct[]>([]);
+  const [snoozedProducts, setSnoozedList] = useState<SnoozedProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSnoozed, setShowSnoozed] = useState(false);
   const [addStockDialog, setAddStockDialog] = useState<LowStockProduct | null>(null);
   const [addQty, setAddQty] = useState("");
 
@@ -67,7 +88,10 @@ export function LowStockAlerts() {
 
   const loadAlerts = useCallback(async () => {
     const tenantId = await getResolvedTenantId();
-    if (!tenantId) { setLoading(false); return; }
+    if (!tenantId) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     const { data } = await supabase
@@ -77,26 +101,38 @@ export function LowStockAlerts() {
       .order("stock_quantity", { ascending: true });
 
     if (data) {
-      const low = (data as any[])
-        .filter(p => {
+      const activeLow: LowStockProduct[] = [];
+      const snoozedLow: SnoozedProduct[] = [];
+
+      (data as any[])
+        .filter((p) => {
           const minQty = p.stock_min_quantity ?? 5;
           return p.stock_quantity <= minQty && p.stock_quantity >= 0;
         })
-        .filter(p => !isSnoozed(p.id))
-        .map(p => ({
-          id: p.id,
-          name: p.name,
-          internal_code: p.internal_code,
-          category: p.category,
-          stock_quantity: p.stock_quantity,
-          stock_min_quantity: p.stock_min_quantity ?? 5,
-          supplier_name: p.suppliers?.name,
-        }));
-      setProducts(low);
+        .forEach((p) => {
+          const product = {
+            id: p.id,
+            name: p.name,
+            internal_code: p.internal_code,
+            category: p.category,
+            stock_quantity: p.stock_quantity,
+            stock_min_quantity: p.stock_min_quantity ?? 5,
+            supplier_name: p.suppliers?.name,
+          };
 
-      // Send push notification if critical items found
-      if (low.some(p => p.stock_quantity === 0)) {
-        const zeroCount = low.filter(p => p.stock_quantity === 0).length;
+          const snoozedUntil = getSnoozedUntil(p.id);
+          if (snoozedUntil) {
+            snoozedLow.push({ ...product, snoozedUntil });
+          } else {
+            activeLow.push(product);
+          }
+        });
+
+      setProducts(activeLow);
+      setSnoozedList(snoozedLow.sort((a, b) => a.snoozedUntil - b.snoozedUntil));
+
+      if (activeLow.some((p) => p.stock_quantity === 0)) {
+        const zeroCount = activeLow.filter((p) => p.stock_quantity === 0).length;
         try {
           const { data: session } = await supabase.auth.getSession();
           if (session?.session?.user?.id) {
@@ -108,13 +144,15 @@ export function LowStockAlerts() {
               "low-stock",
             );
           }
-        } catch { /* silent */ }
+        } catch {}
       }
     }
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadAlerts(); }, [loadAlerts]);
+  useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
 
   const handleAddStock = async () => {
     if (!addStockDialog || !addQty || Number(addQty) <= 0) return;
@@ -128,26 +166,38 @@ export function LowStockAlerts() {
 
     if (error) {
       toast.error("Erro ao atualizar estoque");
-    } else {
-      toast.success(`Estoque de "${addStockDialog.name}" atualizado para ${newQty} unidades`);
-      setAddStockDialog(null);
-      setAddQty("");
-      loadAlerts();
+      return;
     }
+
+    toast.success(`Estoque de "${addStockDialog.name}" atualizado para ${newQty} unidades`);
+    setAddStockDialog(null);
+    setAddQty("");
+    loadAlerts();
   };
 
   const handleSnooze = (product: LowStockProduct) => {
     snoozeProduct(product.id);
-    setProducts(prev => prev.filter(p => p.id !== product.id));
-    toast.info(
-      `Alerta de "${product.name}" silenciado por ${SNOOZE_DAYS} dias. Você será notificado novamente após esse período.`,
-      { duration: 5000 }
-    );
+    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    const snoozedUntil = getSnoozedUntil(product.id);
+    if (snoozedUntil) {
+      setSnoozedList((prev) => [...prev, { ...product, snoozedUntil }].sort((a, b) => a.snoozedUntil - b.snoozedUntil));
+    }
+    toast.info(`Alerta de "${product.name}" silenciado por ${SNOOZE_DAYS} dias. Você será novamente notificado após esse período.`, {
+      duration: 5000,
+    });
   };
 
-  const criticalCount = products.filter(p => p.stock_quantity === 0).length;
+  const handleReactivate = (product: SnoozedProduct) => {
+    removeSnooze(product.id);
+    setSnoozedList((prev) => prev.filter((p) => p.id !== product.id));
+    setProducts((prev) => [...prev, product].sort((a, b) => a.stock_quantity - b.stock_quantity));
+    toast.success(`Alerta de "${product.name}" reativado antes dos ${SNOOZE_DAYS} dias.`);
+  };
 
-  if (!loading && products.length === 0) return null;
+  const criticalCount = products.filter((p) => p.stock_quantity === 0).length;
+  const hasVisibleContent = products.length > 0 || (isAdmin && snoozedProducts.length > 0);
+
+  if (!loading && !hasVisibleContent) return null;
 
   return (
     <>
@@ -157,80 +207,115 @@ export function LowStockAlerts() {
             <CardTitle className="text-base flex items-center gap-2">
               <AlertTriangle className={`h-4 w-4 ${criticalCount > 0 ? "text-destructive" : "text-yellow-500"}`} />
               Alertas de Estoque Baixo
-              {products.length > 0 && (
-                <Badge variant="destructive" className="text-xs">{products.length}</Badge>
-              )}
+              {products.length > 0 && <Badge variant="destructive" className="text-xs">{products.length}</Badge>}
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={loadAlerts} className="gap-1">
-              <RefreshCw className="h-3 w-3" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {isAdmin && snoozedProducts.length > 0 && (
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowSnoozed((prev) => !prev)}>
+                  {showSnoozed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  Silenciados ({snoozedProducts.length})
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={loadAlerts} className="gap-1">
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-4 text-sm text-muted-foreground">Verificando estoque...</div>
           ) : (
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            <div className="space-y-3 max-h-[360px] overflow-y-auto">
               {criticalCount > 0 && (
-                <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs font-medium mb-2">
+                <div className="flex items-center gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs font-medium">
                   <Bell className="h-3 w-3" />
                   {criticalCount} produto(s) com estoque ZERADO — reposição urgente!
                 </div>
               )}
-              {products.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/30 transition-colors gap-2"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {p.internal_code} • {p.category}
-                        {p.supplier_name && ` • ${p.supplier_name}`}
-                      </p>
+
+              {products.length === 0 ? (
+                <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                  Nenhum alerta ativo no momento.
+                </div>
+              ) : (
+                products.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/30 transition-colors gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.internal_code} • {p.category}
+                          {p.supplier_name && ` • ${p.supplier_name}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isAdmin && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs gap-1"
+                            onClick={() => {
+                              setAddStockDialog(p);
+                              setAddQty("");
+                            }}
+                            title="Adicionar ao estoque"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Estoque
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                            onClick={() => handleSnooze(p)}
+                            title="Silenciar alerta por 15 dias"
+                          >
+                            <BellOff className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                      <Badge variant={p.stock_quantity === 0 ? "destructive" : "outline"} className="text-xs">
+                        {p.stock_quantity} / {p.stock_min_quantity}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {isAdmin && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs gap-1"
-                          onClick={() => { setAddStockDialog(p); setAddQty(""); }}
-                          title="Adicionar ao estoque"
-                        >
-                          <Plus className="h-3 w-3" />
-                          Estoque
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                          onClick={() => handleSnooze(p)}
-                          title="Silenciar alerta por 15 dias"
-                        >
-                          <BellOff className="h-3 w-3" />
-                        </Button>
-                      </>
-                    )}
-                    <Badge
-                      variant={p.stock_quantity === 0 ? "destructive" : "outline"}
-                      className="text-xs"
-                    >
-                      {p.stock_quantity} / {p.stock_min_quantity}
-                    </Badge>
+                ))
+              )}
+
+              {isAdmin && showSnoozed && snoozedProducts.length > 0 && (
+                <div className="space-y-2 border-t pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Alertas silenciados</p>
+                    <span className="text-xs text-muted-foreground">Reative antes dos 15 dias se desejar</span>
                   </div>
+                  {snoozedProducts.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 rounded-md border border-dashed p-2 bg-muted/30">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.internal_code} • volta em {formatSnoozeDate(p.snoozedUntil)}
+                        </p>
+                      </div>
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => handleReactivate(p)}>
+                        <RotateCcw className="h-3 w-3" />
+                        Reativar
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Add Stock Dialog */}
       <Dialog open={!!addStockDialog} onOpenChange={(open) => { if (!open) setAddStockDialog(null); }}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -262,7 +347,7 @@ export function LowStockAlerts() {
             {addQty && Number(addQty) > 0 && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Novo estoque:</span>
-                <Badge className="bg-green-600 text-white">
+                <Badge variant="default">
                   {(addStockDialog?.stock_quantity || 0) + Number(addQty)} un.
                 </Badge>
               </div>
