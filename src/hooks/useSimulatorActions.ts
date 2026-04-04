@@ -701,7 +701,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
             cpf_cnpj: effectiveClient.cpf || null,
             quantidade_ambientes: quantidadeAmbientes,
             valor_contrato: Number(result.valorFinal) || 0,
-            data_fechamento: new Date().toISOString(),
+            data_fechamento: formDataFechamento,
             projetista,
             status: "medicao",
           } as any;
