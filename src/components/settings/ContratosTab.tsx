@@ -9,7 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
+import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import { getTenantId } from "@/lib/tenantState";
 
@@ -109,6 +111,7 @@ export function ContratosTab() {
   const [importing, setImporting] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const [showHighlights, setShowHighlights] = useState(true);
+  const [autoReplace, setAutoReplace] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const previewDocument = useMemo(
@@ -205,7 +208,16 @@ export function ContratosTab() {
 
     try {
       const imported = await importContractFile(file);
-      const highlighted = showHighlights ? highlightSuggestedFields(imported.html) : imported.html;
+      let processedHtml = imported.html;
+      let replacedCount = 0;
+
+      if (autoReplace) {
+        const result = replaceDetectedFieldsWithPlaceholders(processedHtml);
+        processedHtml = result.html;
+        replacedCount = result.replacedCount;
+      }
+
+      const highlighted = showHighlights ? highlightSuggestedFields(processedHtml) : processedHtml;
 
       setHtmlContent(highlighted);
       setViewMode("editor");
@@ -215,7 +227,8 @@ export function ContratosTab() {
         setNome(imported.suggestedName);
       }
 
-      toast.success(`${imported.sourceLabel} importado e carregado para edição!`);
+      const replaceMsg = replacedCount > 0 ? ` — ${replacedCount} campo(s) convertido(s) em variáveis` : "";
+      toast.success(`${imported.sourceLabel} importado e carregado para edição!${replaceMsg}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao importar arquivo";
       toast.error(message);
@@ -409,6 +422,19 @@ export function ContratosTab() {
                 </div>
               </div>
               <Switch checked={showHighlights} onCheckedChange={toggleHighlights} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border bg-accent/10 p-3">
+              <div className="flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">Conversão automática de campos</p>
+                  <p className="text-xs text-muted-foreground">
+                    Ao importar, substitui CPF, valores, datas e nomes por variáveis {"{{...}}"} automaticamente
+                  </p>
+                </div>
+              </div>
+              <Switch checked={autoReplace} onCheckedChange={setAutoReplace} />
             </div>
 
             <Separator />

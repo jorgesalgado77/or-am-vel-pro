@@ -175,6 +175,70 @@ const isSafeTextContainer = (element: Element | null) => {
   return !["style", "script", "mark", "table", "thead", "tbody", "tr", "td", "th"].includes(tag);
 };
 
+/**
+ * Contextual patterns replace the entire "Label: Value" match with "Label: {{variable}}".
+ * Standalone patterns replace just the matched value with {{variable}}.
+ */
+const CONTEXTUAL_FIELD_INDICES = new Set([
+  // indices of patterns in FIELD_PATTERNS that include a label prefix (e.g. "Nome do cliente: Fulano")
+  8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+]);
+
+const extractLabelPrefix = (match: string): string => {
+  // For contextual patterns like "Nome do cliente: João Silva", extract "Nome do cliente:"
+  const colonIdx = match.indexOf(":");
+  if (colonIdx > 0) return match.substring(0, colonIdx + 1).trim();
+  return "";
+};
+
+export const replaceDetectedFieldsWithPlaceholders = (html: string): { html: string; replacedCount: number } => {
+  if (!html || typeof DOMParser === "undefined") return { html, replacedCount: 0 };
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
+  const container = doc.body.firstElementChild;
+  if (!container) return { html, replacedCount: 0 };
+
+  const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  while (walker.nextNode()) {
+    textNodes.push(walker.currentNode as Text);
+  }
+
+  let replacedCount = 0;
+  const alreadyReplaced = new Set<string>(); // track which variables were already placed to avoid duplicates in same text node
+
+  for (const textNode of textNodes) {
+    if (!isSafeTextContainer(textNode.parentElement)) continue;
+
+    const text = textNode.textContent || "";
+    let newText = text;
+    let hasMatch = false;
+
+    FIELD_PATTERNS.forEach((fp, idx) => {
+      const regex = new RegExp(fp.pattern.source, fp.pattern.flags);
+      if (regex.test(newText)) {
+        hasMatch = true;
+        const regex2 = new RegExp(fp.pattern.source, fp.pattern.flags);
+        newText = newText.replace(regex2, (match) => {
+          replacedCount++;
+          if (CONTEXTUAL_FIELD_INDICES.has(idx)) {
+            const label = extractLabelPrefix(match);
+            return label ? `${label} ${fp.variable}` : fp.variable;
+          }
+          return fp.variable;
+        });
+      }
+    });
+
+    if (hasMatch) {
+      textNode.textContent = newText;
+    }
+  }
+
+  return { html: container.innerHTML, replacedCount };
+};
+
 export const highlightSuggestedFields = (html: string): string => {
   if (!html || typeof DOMParser === "undefined") return html;
 
