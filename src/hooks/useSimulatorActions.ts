@@ -637,8 +637,14 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       }
 
       const contractId = (insertedData as any).id as string;
+      const formDataFechamento = closeSaleFormData?.data_fechamento
+        ? new Date(closeSaleFormData.data_fechamento + "T12:00:00").toISOString()
+        : new Date().toISOString();
 
-      await supabase.from("clients").update({ status: "fechado" } as any).eq("id", effectiveClient.id);
+      await supabase.from("clients").update({
+        status: "fechado",
+        data_contrato: formDataFechamento,
+      } as any).eq("id", effectiveClient.id);
 
       try {
         const valorAVista = applyDiscounts(valorTelaComComissao, desconto1, desconto2, desconto3);
@@ -695,7 +701,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
             cpf_cnpj: effectiveClient.cpf || null,
             quantidade_ambientes: quantidadeAmbientes,
             valor_contrato: Number(result.valorFinal) || 0,
-            data_fechamento: new Date().toISOString(),
+            data_fechamento: formDataFechamento,
             projetista,
             status: "medicao",
           } as any;

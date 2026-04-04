@@ -87,8 +87,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   // Contract tracking data
   const [trackingData, setTrackingData] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
-  const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string }[]>([]);
+  const [trackingRaw, setTrackingRaw] = useState<{ valor_contrato: number; dateRef: string; clientId: string }[]>([]);
   const [contractClientIds, setContractClientIds] = useState<Set<string>>(new Set());
+  const [contractDateByClient, setContractDateByClient] = useState<Map<string, string>>(new Map());
 
   const fetchTrackingStats = useCallback(async () => {
     const tenantId = await getResolvedTenantId();
@@ -97,11 +98,21 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     const { data: contracts } = await contractQuery;
 
     if (!contracts || contracts.length === 0) {
-      setTrackingRaw([]); setTrackingData({ count: 0, total: 0 }); setContractClientIds(new Set()); return;
+      setTrackingRaw([]); setTrackingData({ count: 0, total: 0 }); setContractClientIds(new Set()); setContractDateByClient(new Map()); return;
     }
 
     const cIds = new Set((contracts as any[]).map(c => c.client_id));
     setContractClientIds(cIds);
+
+    // Build contract date map (latest per client)
+    const dateMap = new Map<string, string>();
+    (contracts as any[]).forEach(c => {
+      if (c.client_id && c.created_at) {
+        const existing = dateMap.get(c.client_id);
+        if (!existing || c.created_at > existing) dateMap.set(c.client_id, c.created_at);
+      }
+    });
+    setContractDateByClient(dateMap);
 
     let trackQuery = supabase.from("client_tracking").select("client_id, valor_contrato, data_fechamento, created_at");
     if (tenantId) trackQuery = trackQuery.eq("tenant_id", tenantId);
@@ -116,13 +127,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       });
     }
 
-    const all: { valor_contrato: number; dateRef: string }[] = [];
+    const all: { valor_contrato: number; dateRef: string; clientId: string }[] = [];
     cIds.forEach(clientId => {
       const tracked = trackMap.get(clientId);
-      if (tracked) { all.push(tracked); }
+      if (tracked) { all.push({ ...tracked, clientId }); }
       else {
         const contract = (contracts as any[]).find(c => c.client_id === clientId);
-        all.push({ valor_contrato: 0, dateRef: contract?.created_at || new Date().toISOString() });
+        all.push({ valor_contrato: 0, dateRef: contract?.created_at || new Date().toISOString(), clientId });
       }
     });
 
@@ -132,6 +143,26 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   }, [dateRange]);
 
   useEffect(() => { fetchTrackingStats(); }, [fetchTrackingStats]);
+
+  // Realtime: refresh dashboard when contracts change
+  useEffect(() => {
+    const setupRealtime = async () => {
+      const tenantId = await getResolvedTenantId();
+      if (!tenantId) return;
+      const channel = supabase
+        .channel(`dashboard-contracts-${tenantId}`)
+        .on("postgres_changes" as any, { event: "*", schema: "public", table: "client_contracts", filter: `tenant_id=eq.${tenantId}` }, () => {
+          fetchTrackingStats();
+        })
+        .on("postgres_changes" as any, { event: "*", schema: "public", table: "client_tracking", filter: `tenant_id=eq.${tenantId}` }, () => {
+          fetchTrackingStats();
+        })
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    };
+    const cleanup = setupRealtime();
+    return () => { cleanup.then(fn => fn?.()); };
+  }, [fetchTrackingStats]);
 
   // Notify technical users about pending measurement schedules on login
   useEffect(() => {
@@ -206,7 +237,18 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    const closedClients = clients.filter(c => contractClientIds.has(c.id));
+    // Filter closed clients by date range using contract/tracking date
+    const closedClientsInPeriod = clients.filter(c => {
+      if (!contractClientIds.has(c.id)) return false;
+      // Check if this contract's date falls within the selected range
+      const trackingEntry = trackingRaw.find(t => t.clientId === c.id);
+      if (trackingEntry) return true; // Already filtered by dateRange
+      // Fallback: check contract creation date
+      const contractDate = contractDateByClient.get(c.id);
+      if (contractDate) return isInRange(contractDate, dateRange.start, dateRange.end);
+      return false;
+    });
+    const closedClients = closedClientsInPeriod;
     const openClientsWithSim = clients.filter(c => !contractClientIds.has(c.id) && lastSims[c.id]);
     const totalValueOrcamentos = openClientsWithSim.reduce((sum, c) => {
       const s = lastSims[c.id];
@@ -214,10 +256,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     }, 0);
 
     const faturamentoContratos = trackingRaw.reduce((sum, t) => sum + t.valor_contrato, 0) || 
-      Array.from(contractClientIds).reduce((sum, clientId) => {
-        const client = clients.find(c => c.id === clientId);
-        if (!client) return sum;
-        const s = lastSims[clientId];
+      closedClients.reduce((sum, c) => {
+        const s = lastSims[c.id];
         return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
       }, 0);
 
@@ -275,7 +315,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
     };
-  }, [clients, lastSims, simsInRange, dateRange, budgetValidityDays, indicadores, contractClientIds, trackingRaw, isAdminOrGerente, currentUser]);
+  }, [clients, lastSims, simsInRange, dateRange, budgetValidityDays, indicadores, contractClientIds, contractDateByClient, trackingRaw, isAdminOrGerente, currentUser]);
 
   // Chart data
   const lineData = useMemo(() => {
