@@ -113,6 +113,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
   const [closeSaleFormData, setCloseSaleFormData] = useState<any>(null);
   const [closeSaleItems, setCloseSaleItems] = useState<any[]>([]);
   const [closeSaleItemDetails, setCloseSaleItemDetails] = useState<any[]>([]);
+  const [savedContractFormData, setSavedContractFormData] = useState<any>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeMsg, setUpgradeMsg] = useState("");
   const savedRef = useRef(false);
