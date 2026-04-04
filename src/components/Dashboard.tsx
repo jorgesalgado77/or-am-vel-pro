@@ -267,11 +267,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    const faturamentoContratos = trackingRaw.reduce((sum, t) => sum + t.valor_contrato, 0) || 
-      closedClients.reduce((sum, c) => {
-        const s = lastSims[c.id];
-        return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
-      }, 0);
+    const trackingTotal = trackingRaw.reduce((sum, t) => sum + t.valor_contrato, 0);
+    const simFallbackTotal = closedClients.reduce((sum, c) => {
+      const s = lastSims[c.id];
+      return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
+    }, 0);
+    const faturamentoContratos = trackingTotal > 0 ? trackingTotal : simFallbackTotal;
 
     const taxaConversao = totalClients > 0 ? (closedClients.length / totalClients) * 100 : 0;
     const ticketMedio = openClientsWithSim.length > 0 ? totalValueOrcamentos / openClientsWithSim.length : 0;
