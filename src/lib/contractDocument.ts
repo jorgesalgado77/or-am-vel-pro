@@ -150,6 +150,26 @@ export const buildContractDocumentHtml = (html: string, title: string) => {
 </head>
 <body class="contract-document-root">
   ${content}
+  <script>
+    document.querySelectorAll('*').forEach(el => {
+      el.childNodes.forEach(node => {
+        if (node.nodeType !== 3) return;
+        const re = /(\\{\\{[^}]+\\}\\})/g;
+        if (!re.test(node.textContent)) return;
+        const frag = document.createDocumentFragment();
+        node.textContent.split(re).forEach(part => {
+          if (re.test(part)) {
+            const m = document.createElement('mark');
+            m.setAttribute('data-placeholder-highlight','true');
+            m.textContent = part;
+            frag.appendChild(m);
+          } else if (part) frag.appendChild(document.createTextNode(part));
+          re.lastIndex = 0;
+        });
+        node.parentNode.replaceChild(frag, node);
+      });
+    });
+  <\/script>
 </body>
 </html>`;
 };
