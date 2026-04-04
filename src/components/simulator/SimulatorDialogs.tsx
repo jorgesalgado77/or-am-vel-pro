@@ -39,6 +39,7 @@ interface SimulatorDialogsProps {
     ambientes: any[];
     catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
   };
+  savedContractFormData?: any;
   // Contract editor
   contractEditorOpen: boolean;
   setContractEditorOpen: (v: boolean) => void;
@@ -110,6 +111,7 @@ export const SimulatorDialogs = React.memo(function SimulatorDialogs(props: Simu
         client={props.client}
         simulationData={props.simulationData}
         saving={props.closingSale}
+        savedFormData={props.savedContractFormData}
       />
 
       {props.client && (

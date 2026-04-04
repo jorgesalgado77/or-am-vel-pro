@@ -556,6 +556,7 @@ export function SimulatorPanel({ client, onBack, onClientCreated, initialSimulat
               quantity: cp.quantity, sale_price: cp.product.sale_price,
             })),
           }}
+          savedContractFormData={actions.savedContractFormData}
           contractEditorOpen={actions.contractEditorOpen} setContractEditorOpen={actions.setContractEditorOpen}
           contractHtml={actions.contractHtml} onContractSave={actions.handleContractSave}
           pendingSimId={actions.pendingSimId} setPendingSimId={actions.setPendingSimId}

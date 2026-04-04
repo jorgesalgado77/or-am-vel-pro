@@ -113,6 +113,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
   const [closeSaleFormData, setCloseSaleFormData] = useState<any>(null);
   const [closeSaleItems, setCloseSaleItems] = useState<any[]>([]);
   const [closeSaleItemDetails, setCloseSaleItemDetails] = useState<any[]>([]);
+  const [savedContractFormData, setSavedContractFormData] = useState<any>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeMsg, setUpgradeMsg] = useState("");
   const savedRef = useRef(false);
@@ -454,6 +455,25 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       message: "Modal de fechamento de venda aberto",
       metadata: { client_id: effectiveClient.id, tenant_id: resolvedTenantId },
     });
+
+    // Check for existing contract with saved form data
+    try {
+      const { data: existingContract } = await supabase
+        .from("client_contracts")
+        .select("form_data")
+        .eq("client_id", effectiveClient.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingContract && (existingContract as any).form_data) {
+        setSavedContractFormData((existingContract as any).form_data);
+      } else {
+        setSavedContractFormData(null);
+      }
+    } catch {
+      setSavedContractFormData(null);
+    }
+
     setCloseSaleModalOpen(true);
   }, [effectiveClient, resolvedTenantId, validateAccess, environments]);
 
@@ -590,9 +610,17 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     }
     setClosingSale(true);
     try {
+      const formDataPayload = closeSaleFormData ? {
+        form: closeSaleFormData,
+        items: closeSaleItems,
+        itemDetails: closeSaleItemDetails,
+      } : null;
+
       const { data: insertedData, error: contractError } = await supabase.from("client_contracts").insert({
         client_id: effectiveClient.id, simulation_id: pendingSimId, template_id: pendingTemplateId,
-        conteudo_html: finalHtml, ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
+        conteudo_html: finalHtml,
+        ...(formDataPayload ? { form_data: formDataPayload } : {}),
+        ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
       } as any).select("id").single();
 
       if (contractError || !insertedData) {
@@ -775,6 +803,11 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         metadata: { client_id: effectiveClient.id, simulation_id: pendingSimId, tenant_id: resolvedTenantId },
       });
 
+      // Clear persisted form data for this client after successful contract save
+      try {
+        sessionStorage.removeItem(`form_persist_close-sale-form-${effectiveClient.id}`);
+      } catch {}
+
       return contractId;
     } finally {
       setClosingSale(false);
@@ -811,7 +844,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     contractHtml, pendingSimId, setPendingSimId,
     pendingTemplateId, setPendingTemplateId,
     closeSaleModalOpen, setCloseSaleModalOpen,
-    closeSaleFormData,
+    closeSaleFormData, savedContractFormData,
     upgradeOpen, setUpgradeOpen, upgradeMsg,
     handleSave, handleCloseSale, handleCloseSaleConfirm, handleContractSave,
     handleFileImport, handleRemoveEnvironment, handlePdf,

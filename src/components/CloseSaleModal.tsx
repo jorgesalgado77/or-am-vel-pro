@@ -86,6 +86,7 @@ interface CloseSaleModalProps {
     catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
   };
   saving?: boolean;
+  savedFormData?: { form: CloseSaleFormData; items: SaleItem[]; itemDetails: SaleItemDetail[] } | null;
 }
 
 const UF_OPTIONS = [
@@ -93,7 +94,9 @@ const UF_OPTIONS = [
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ];
 
-export function CloseSaleModal({ open, onClose, onConfirm, client, simulationData, saving }: CloseSaleModalProps) {
+export function CloseSaleModal({ open, onClose, onConfirm, client, simulationData, saving, savedFormData }: CloseSaleModalProps) {
+  const clientFormKey = `close-sale-form-${client?.id || "new"}`;
+
   const defaultForm: CloseSaleFormData = {
     numero_contrato: "",
     data_fechamento: format(new Date(), "yyyy-MM-dd"),
@@ -122,7 +125,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     valor_parcelas: "",
   };
 
-  const [form, updateForm, clearForm] = usePersistedFormState<CloseSaleFormData>("close-sale-form", defaultForm);
+  const [form, updateForm, clearForm] = usePersistedFormState<CloseSaleFormData>(clientFormKey, defaultForm);
 
   const [items, setItems] = useState<SaleItem[]>([]);
   const [itemDetails, setItemDetails] = useState<SaleItemDetail[]>([]);
@@ -173,9 +176,18 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       });
   }, [open]);
 
-  // Prefill from client and simulation data
+  // Prefill from savedFormData (existing contract), client, and simulation data
   useEffect(() => {
     if (!open) return;
+
+    // If we have saved form data from an existing contract, restore it fully
+    if (savedFormData) {
+      updateForm(savedFormData.form);
+      setItems(savedFormData.items || []);
+      setItemDetails(savedFormData.itemDetails || []);
+      return;
+    }
+
     const prefill: Partial<CloseSaleFormData> = {
       nome_completo: client?.nome || "",
       cpf_cnpj: client?.cpf ? maskCpfCnpj(client.cpf) : "",
@@ -204,7 +216,6 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     // Load environments from simulation data
     if (simulationData?.ambientes && simulationData.ambientes.length > 0) {
       const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => {
-        // Try to match fornecedor to get prazo
         const matchedFornecedor = fornecedores.find(f => f.nome === amb.fornecedor);
         return {
           id: crypto.randomUUID(),
@@ -233,7 +244,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
         updateField("prazo_entrega", firstMatch.prazo);
       }
     }
-  }, [open, client, simulationData, fornecedores]);
+  }, [open, client, simulationData, fornecedores, savedFormData]);
 
   // Same address checkbox handler
   useEffect(() => {
@@ -368,7 +379,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
       const success = await onConfirm(form, items, itemDetails);
       console.log("[CloseSaleModal] onConfirm returned:", success);
-      if (success) clearForm();
+      // Don't clear form here — data persists per-client until contract is fully saved
     } catch (err) {
       console.error("[CloseSaleModal] handleSubmit error:", err);
       toast.error(`Erro ao processar: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
