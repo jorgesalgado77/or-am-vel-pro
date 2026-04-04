@@ -329,11 +329,26 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
       const matchProjetista = filterProjetista === "_all" || (t.projetista || t.vendedor) === filterProjetista;
       let matchPeriod = true;
       if (pStart || pEnd) {
-        const d = t.data_fechamento ? new Date(t.data_fechamento) : (t.created_at ? new Date(t.created_at) : null);
-        if (!d) matchPeriod = false;
-        else {
-          if (pStart && d < pStart) matchPeriod = false;
-          if (pEnd && d > pEnd) matchPeriod = false;
+        // Try multiple date sources: data_fechamento, created_at, contract created_at
+        const rawDate = t.data_fechamento || t.created_at;
+        if (!rawDate) {
+          matchPeriod = false;
+        } else {
+          const d = new Date(rawDate);
+          if (isNaN(d.getTime())) {
+            // Try parsing DD/MM/YYYY format
+            const parts = rawDate.split("/");
+            const parsed = parts.length === 3 ? new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]), 12, 0, 0) : null;
+            if (!parsed || isNaN(parsed.getTime())) {
+              matchPeriod = false;
+            } else {
+              if (pStart && parsed < pStart) matchPeriod = false;
+              if (pEnd && parsed > pEnd) matchPeriod = false;
+            }
+          } else {
+            if (pStart && d < pStart) matchPeriod = false;
+            if (pEnd && d > pEnd) matchPeriod = false;
+          }
         }
       }
       return matchSearch && matchProjetista && matchPeriod;
