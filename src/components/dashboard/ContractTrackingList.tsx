@@ -400,6 +400,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="global">Período do Dashboard</SelectItem>
                 <SelectItem value="mes_atual">Mês Atual</SelectItem>
                 <SelectItem value="mes_anterior">Mês Anterior</SelectItem>
                 <SelectItem value="3meses">Últimos 3 Meses</SelectItem>
