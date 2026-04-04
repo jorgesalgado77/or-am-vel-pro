@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
@@ -421,6 +422,19 @@ export function ContratosTab() {
                 </div>
               </div>
               <Switch checked={showHighlights} onCheckedChange={toggleHighlights} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border bg-accent/10 p-3">
+              <div className="flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">Conversão automática de campos</p>
+                  <p className="text-xs text-muted-foreground">
+                    Ao importar, substitui CPF, valores, datas e nomes por variáveis {"{{...}}"} automaticamente
+                  </p>
+                </div>
+              </div>
+              <Switch checked={autoReplace} onCheckedChange={setAutoReplace} />
             </div>
 
             <Separator />
