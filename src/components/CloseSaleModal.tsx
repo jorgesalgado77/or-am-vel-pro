@@ -379,7 +379,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
       const success = await onConfirm(form, items, itemDetails);
       console.log("[CloseSaleModal] onConfirm returned:", success);
-      if (success) clearForm();
+      // Don't clear form here — data persists per-client until contract is fully saved
     } catch (err) {
       console.error("[CloseSaleModal] handleSubmit error:", err);
       toast.error(`Erro ao processar: ${err instanceof Error ? err.message : "Erro desconhecido"}`);
