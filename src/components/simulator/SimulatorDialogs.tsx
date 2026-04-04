@@ -39,6 +39,7 @@ interface SimulatorDialogsProps {
     ambientes: any[];
     catalogProducts?: Array<{ name: string; internal_code: string; quantity: number; sale_price: number }>;
   };
+  savedContractFormData?: any;
   // Contract editor
   contractEditorOpen: boolean;
   setContractEditorOpen: (v: boolean) => void;
