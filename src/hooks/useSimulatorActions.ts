@@ -455,6 +455,25 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       message: "Modal de fechamento de venda aberto",
       metadata: { client_id: effectiveClient.id, tenant_id: resolvedTenantId },
     });
+
+    // Check for existing contract with saved form data
+    try {
+      const { data: existingContract } = await supabase
+        .from("client_contracts")
+        .select("form_data")
+        .eq("client_id", effectiveClient.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingContract && (existingContract as any).form_data) {
+        setSavedContractFormData((existingContract as any).form_data);
+      } else {
+        setSavedContractFormData(null);
+      }
+    } catch {
+      setSavedContractFormData(null);
+    }
+
     setCloseSaleModalOpen(true);
   }, [effectiveClient, resolvedTenantId, validateAccess, environments]);
 
