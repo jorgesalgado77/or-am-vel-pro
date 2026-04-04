@@ -328,13 +328,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   // Lead source data
   const projetistaNames = useMemo(() => {
-    const names = new Set(filteredClients.map(c => c.vendedor || "Sem projetista"));
+    const names = new Set(clients.map(c => c.vendedor || "Sem projetista"));
     return Array.from(names).sort();
-  }, [filteredClients]);
+  }, [clients]);
 
   const filteredLeadsBySource = useMemo(() => {
     const src = { landing_page: 0, afiliado: 0, indicacao: 0, link: 0, manual: 0, total: 0 };
-    const clientsToCount = leadProjetistaFilter === "todos" ? filteredClients : filteredClients.filter(c => (c.vendedor || "Sem projetista") === leadProjetistaFilter);
+    const clientsToCount = leadProjetistaFilter === "todos" ? clients : clients.filter(c => (c.vendedor || "Sem projetista") === leadProjetistaFilter);
     clientsToCount.forEach(c => {
       const origem = (c as any).origem_lead;
       if (!origem || origem === "manual") src.manual++;
@@ -346,7 +346,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       if (origem && origem !== "manual") src.total++;
     });
     return src;
-  }, [filteredClients, leadProjetistaFilter]);
+  }, [clients, leadProjetistaFilter]);
 
   const leadsPieData = useMemo(() => [
     { name: "Landing Page", value: filteredLeadsBySource.landing_page },
@@ -358,9 +358,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const vendedorLeadsPieData = useMemo(() => {
     const byVendedor: Record<string, number> = {};
-    filteredClients.forEach(c => { const name = c.vendedor || "Sem vendedor"; byVendedor[name] = (byVendedor[name] || 0) + 1; });
+    clients.forEach(c => { const name = c.vendedor || "Sem vendedor"; byVendedor[name] = (byVendedor[name] || 0) + 1; });
     return Object.entries(byVendedor).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).filter(d => d.value > 0);
-  }, [filteredClients]);
+  }, [clients]);
 
   const chartToggles: { key: ChartKey; label: string }[] = useMemo(() => [
     { key: "evolucao", label: "Evolução" }, { key: "contratos", label: "Contratos" },
