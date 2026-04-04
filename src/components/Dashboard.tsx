@@ -178,53 +178,52 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const budgetValidityDays = settings.budget_validity_days;
 
-  // Filtered data by date range
-  const filteredClients = useMemo(() => clients.filter(c => isInRange(c.created_at, dateRange.start, dateRange.end)), [clients, dateRange]);
+  // Simulations filtered by date range
   const filteredSimulations = useMemo(() => allSimulations.filter(s => isInRange(s.created_at, dateRange.start, dateRange.end)), [allSimulations, dateRange]);
-  const filteredLastSims = useMemo(() => {
-    const filteredIds = new Set(filteredClients.map(c => c.id));
+
+  // Simulations within the date range (keyed by client_id)
+  const simsInRange = useMemo(() => {
     const result: Record<string, LastSimInfo> = {};
     for (const [id, sim] of Object.entries(lastSims)) {
-      if (filteredIds.has(id) && isInRange(sim.created_at, dateRange.start, dateRange.end)) result[id] = sim;
+      if (isInRange(sim.created_at, dateRange.start, dateRange.end)) result[id] = sim;
     }
     return result;
-  }, [filteredClients, lastSims, dateRange]);
+  }, [lastSims, dateRange]);
 
   // Stats computation
   const stats = useMemo(() => {
-    const totalClients = filteredClients.length;
-    const clientsWithSim = filteredClients.filter(c => filteredLastSims[c.id]).length;
-    const clientsWithoutSim = totalClients - clientsWithSim;
-    const expired = filteredClients.filter(c => {
-      const sim = filteredLastSims[c.id];
+    // Total clients = all existing clients (cumulative)
+    const totalClients = clients.length;
+    // Clients with simulation in the period
+    const clientsWithSim = clients.filter(c => simsInRange[c.id]).length;
+    // Clients without any simulation at all
+    const clientsWithoutSim = clients.filter(c => !lastSims[c.id]).length;
+    const expired = clients.filter(c => {
+      const sim = lastSims[c.id];
       if (!sim) return false;
       return isPast(addDays(new Date(sim.created_at), budgetValidityDays));
     }).length;
 
-    const closedClients = filteredClients.filter(c => contractClientIds.has(c.id));
-    const openClientsWithSim = filteredClients.filter(c => !contractClientIds.has(c.id) && filteredLastSims[c.id]);
+    const closedClients = clients.filter(c => contractClientIds.has(c.id));
+    const openClientsWithSim = clients.filter(c => !contractClientIds.has(c.id) && lastSims[c.id]);
     const totalValueOrcamentos = openClientsWithSim.reduce((sum, c) => {
-      const s = filteredLastSims[c.id];
+      const s = lastSims[c.id];
       return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
     }, 0);
 
-    const filteredContractClientIds = new Set(
-      Array.from(contractClientIds).filter(cid => {
-        // Only count contracts whose clients are in the filtered set
-        return filteredClients.some(c => c.id === cid);
-      })
-    );
-
-    const faturamentoContratos = Array.from(filteredContractClientIds).reduce((sum, clientId) => {
-      const s = filteredLastSims[clientId] || lastSims[clientId];
-      return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
-    }, 0);
+    const faturamentoContratos = trackingRaw.reduce((sum, t) => sum + t.valor_contrato, 0) || 
+      Array.from(contractClientIds).reduce((sum, clientId) => {
+        const client = clients.find(c => c.id === clientId);
+        if (!client) return sum;
+        const s = lastSims[clientId];
+        return sum + (s ? (s.valor_com_desconto || s.valor_final) : 0);
+      }, 0);
 
     const taxaConversao = totalClients > 0 ? (closedClients.length / totalClients) * 100 : 0;
     const ticketMedio = openClientsWithSim.length > 0 ? totalValueOrcamentos / openClientsWithSim.length : 0;
 
     const byProjetista: Record<string, { count: number; total: number; expired: number; closed: number; closedTotal: number }> = {};
-    filteredClients.forEach(c => {
+    clients.forEach(c => {
       const name = c.vendedor || "Sem projetista";
       // For non-admin users, only count their own clients
       if (!isAdminOrGerente && currentUser) {
@@ -236,10 +235,10 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byProjetista[name].count++;
       if (contractClientIds.has(c.id)) {
         byProjetista[name].closed++;
-        const sim = filteredLastSims[c.id];
+        const sim = lastSims[c.id];
         if (sim) byProjetista[name].closedTotal += sim.valor_com_desconto || sim.valor_final;
       }
-      const sim = filteredLastSims[c.id];
+      const sim = lastSims[c.id];
       if (sim) {
         byProjetista[name].total += sim.valor_com_desconto || sim.valor_final;
         if (isPast(addDays(new Date(sim.created_at), budgetValidityDays))) byProjetista[name].expired++;
@@ -247,7 +246,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     });
 
     const byIndicador: Record<string, { nome: string; comissao: number; count: number; total: number; comissaoTotal: number; clientes: { nome: string; orcamento: string }[] }> = {};
-    filteredClients.forEach(c => {
+    clients.forEach(c => {
       if (!c.indicador_id || !contractClientIds.has(c.id)) return;
       // For non-admin users, only include their own clients' indicadores
       if (!isAdminOrGerente && currentUser) {
@@ -259,7 +258,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       if (!ind) return;
       if (!byIndicador[c.indicador_id]) byIndicador[c.indicador_id] = { nome: ind.nome, comissao: ind.comissao_percentual, count: 0, total: 0, comissaoTotal: 0, clientes: [] };
       byIndicador[c.indicador_id].count++;
-      const sim = filteredLastSims[c.id];
+      const sim = lastSims[c.id];
       if (sim) {
         const val = sim.valor_com_desconto || sim.valor_final;
         byIndicador[c.indicador_id].total += val;
@@ -274,7 +273,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
     };
-  }, [filteredClients, filteredLastSims, lastSims, budgetValidityDays, indicadores, contractClientIds, isAdminOrGerente, currentUser]);
+  }, [clients, lastSims, simsInRange, budgetValidityDays, indicadores, contractClientIds, trackingRaw, isAdminOrGerente, currentUser]);
 
   // Chart data
   const lineData = useMemo(() => {
@@ -318,13 +317,13 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   // Lead source data
   const projetistaNames = useMemo(() => {
-    const names = new Set(filteredClients.map(c => c.vendedor || "Sem projetista"));
+    const names = new Set(clients.map(c => c.vendedor || "Sem projetista"));
     return Array.from(names).sort();
-  }, [filteredClients]);
+  }, [clients]);
 
   const filteredLeadsBySource = useMemo(() => {
     const src = { landing_page: 0, afiliado: 0, indicacao: 0, link: 0, manual: 0, total: 0 };
-    const clientsToCount = leadProjetistaFilter === "todos" ? filteredClients : filteredClients.filter(c => (c.vendedor || "Sem projetista") === leadProjetistaFilter);
+    const clientsToCount = leadProjetistaFilter === "todos" ? clients : clients.filter(c => (c.vendedor || "Sem projetista") === leadProjetistaFilter);
     clientsToCount.forEach(c => {
       const origem = (c as any).origem_lead;
       if (!origem || origem === "manual") src.manual++;
@@ -336,7 +335,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       if (origem && origem !== "manual") src.total++;
     });
     return src;
-  }, [filteredClients, leadProjetistaFilter]);
+  }, [clients, leadProjetistaFilter]);
 
   const leadsPieData = useMemo(() => [
     { name: "Landing Page", value: filteredLeadsBySource.landing_page },
@@ -348,9 +347,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const vendedorLeadsPieData = useMemo(() => {
     const byVendedor: Record<string, number> = {};
-    filteredClients.forEach(c => { const name = c.vendedor || "Sem vendedor"; byVendedor[name] = (byVendedor[name] || 0) + 1; });
+    clients.forEach(c => { const name = c.vendedor || "Sem vendedor"; byVendedor[name] = (byVendedor[name] || 0) + 1; });
     return Object.entries(byVendedor).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).filter(d => d.value > 0);
-  }, [filteredClients]);
+  }, [clients]);
 
   const chartToggles: { key: ChartKey; label: string }[] = useMemo(() => [
     { key: "evolucao", label: "Evolução" }, { key: "contratos", label: "Contratos" },
@@ -449,7 +448,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
               <SelectTrigger className="w-[180px] h-8 text-sm"><SelectValue placeholder="Todos os projetistas" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os projetistas</SelectItem>
-                {projetistaNames.map(name => (<SelectItem key={name} value={name}>{name}</SelectItem>))}
+                {projetistaNames.map((name: string) => (<SelectItem key={name} value={name}>{name}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
