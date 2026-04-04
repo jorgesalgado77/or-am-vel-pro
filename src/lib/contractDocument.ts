@@ -58,6 +58,16 @@ const CONTRACT_DOCUMENT_STYLES = `
     border-collapse: collapse;
   }
 
+  mark[data-placeholder-highlight] {
+    background: hsl(210 80% 55% / 0.15);
+    color: hsl(210 80% 45%);
+    border: 1px dashed hsl(210 80% 55% / 0.4);
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+
   @page {
     size: A4;
     margin: 15mm;
@@ -140,6 +150,26 @@ export const buildContractDocumentHtml = (html: string, title: string) => {
 </head>
 <body class="contract-document-root">
   ${content}
+  <script>
+    document.querySelectorAll('*').forEach(el => {
+      el.childNodes.forEach(node => {
+        if (node.nodeType !== 3) return;
+        const re = /(\\{\\{[^}]+\\}\\})/g;
+        if (!re.test(node.textContent)) return;
+        const frag = document.createDocumentFragment();
+        node.textContent.split(re).forEach(part => {
+          if (re.test(part)) {
+            const m = document.createElement('mark');
+            m.setAttribute('data-placeholder-highlight','true');
+            m.textContent = part;
+            frag.appendChild(m);
+          } else if (part) frag.appendChild(document.createTextNode(part));
+          re.lastIndex = 0;
+        });
+        node.parentNode.replaceChild(frag, node);
+      });
+    });
+  <\/script>
 </body>
 </html>`;
 };

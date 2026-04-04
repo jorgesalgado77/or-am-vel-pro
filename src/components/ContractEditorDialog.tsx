@@ -43,10 +43,11 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   }, [initialHtml, externalContractId]);
 
   useEffect(() => {
-    if (viewMode === "editor" && editorRef.current && layoutLocked) {
-      applyLayoutLock(editorRef.current);
+    if (viewMode === "editor" && editorRef.current) {
+      if (layoutLocked) applyLayoutLock(editorRef.current);
+      highlightPlaceholders(editorRef.current);
     }
-  }, [viewMode, layoutLocked]);
+  }, [viewMode, layoutLocked, html]);
 
   const getCurrentHtml = () => {
     if (viewMode === "editor" && editorRef.current) return editorRef.current.innerHTML;
@@ -342,6 +343,40 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
       </DialogContent>
     </Dialog>
   );
+}
+
+function highlightPlaceholders(container: HTMLElement) {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const placeholderRegex = /(\{\{[^}]+\}\})/g;
+  const nodesToReplace: { node: Text; frag: DocumentFragment }[] = [];
+
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode as Text;
+    if (!placeholderRegex.test(textNode.textContent || "")) continue;
+    // Skip if already inside a highlight mark
+    if (textNode.parentElement?.closest("[data-placeholder-highlight]")) continue;
+
+    const frag = document.createDocumentFragment();
+    const parts = textNode.textContent!.split(placeholderRegex);
+    for (const part of parts) {
+      if (placeholderRegex.test(part)) {
+        const mark = document.createElement("mark");
+        mark.setAttribute("data-placeholder-highlight", "true");
+        mark.style.cssText =
+          "background: hsl(var(--primary) / 0.15); color: hsl(var(--primary)); border: 1px dashed hsl(var(--primary) / 0.4); border-radius: 4px; padding: 1px 4px; font-family: monospace; font-size: 0.9em;";
+        mark.textContent = part;
+        frag.appendChild(mark);
+      } else if (part) {
+        frag.appendChild(document.createTextNode(part));
+      }
+    }
+    placeholderRegex.lastIndex = 0;
+    nodesToReplace.push({ node: textNode, frag });
+  }
+
+  for (const { node, frag } of nodesToReplace) {
+    node.parentNode?.replaceChild(frag, node);
+  }
 }
 
 function applyLayoutLock(container: HTMLElement) {
