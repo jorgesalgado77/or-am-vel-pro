@@ -131,7 +131,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const [cpfCnpjError, setCpfCnpjError] = useState<string>("");
   const [sameAddress, setSameAddress] = useState(false);
   // deliveryDeadlines now handled by PrazoEntregaSelect
-  const [fornecedores, setFornecedores] = useState<{id: string; nome: string}[]>([]);
+  const [fornecedores, setFornecedores] = useState<{id: string; nome: string; prazo_entrega?: string}[]>([]);
 
   const REQUIRED_FIELDS: { key: keyof CloseSaleFormData; label: string }[] = [
     { key: "nome_completo", label: "Nome Completo" },
@@ -167,7 +167,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
         if (data && (data as any).valor) {
           try {
             const parsed = JSON.parse((data as any).valor);
-            setFornecedores(parsed.filter((f: any) => f.ativo !== false).map((f: any) => ({ id: f.id, nome: f.nome })));
+            setFornecedores(parsed.filter((f: any) => f.ativo !== false).map((f: any) => ({ id: f.id, nome: f.nome, prazo_entrega: f.prazo_entrega || "" })));
           } catch {}
         }
       });
@@ -203,14 +203,18 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
 
     // Load environments from simulation data
     if (simulationData?.ambientes && simulationData.ambientes.length > 0) {
-      const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => ({
-        id: crypto.randomUUID(),
-        quantidade: 1,
-        descricao_ambiente: amb.nome || `Ambiente ${idx + 1}`,
-        fornecedor: amb.fornecedor || "",
-        prazo: "",
-        valor_ambiente: amb.valor || 0,
-      }));
+      const simItems: SaleItem[] = simulationData.ambientes.map((amb, idx) => {
+        // Try to match fornecedor to get prazo
+        const matchedFornecedor = fornecedores.find(f => f.nome === amb.fornecedor);
+        return {
+          id: crypto.randomUUID(),
+          quantidade: 1,
+          descricao_ambiente: amb.nome || `Ambiente ${idx + 1}`,
+          fornecedor: amb.fornecedor || "",
+          prazo: matchedFornecedor?.prazo_entrega || "",
+          valor_ambiente: amb.valor || 0,
+        };
+      });
       const simDetails: SaleItemDetail[] = simulationData.ambientes.map((amb, idx) => ({
         item_num: idx + 1,
         titulos: amb.nome || "",
@@ -222,8 +226,14 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       }));
       setItems(simItems);
       setItemDetails(simDetails);
+
+      // Auto-fill prazo_entrega from first item's fornecedor
+      const firstMatch = simItems.find(i => i.prazo);
+      if (firstMatch?.prazo && !form.prazo_entrega) {
+        updateField("prazo_entrega", firstMatch.prazo);
+      }
     }
-  }, [open, client, simulationData]);
+  }, [open, client, simulationData, fornecedores]);
 
   // Same address checkbox handler
   useEffect(() => {
@@ -283,7 +293,21 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   };
 
   const updateItem = (index: number, field: keyof SaleItem, value: string | number) => {
-    setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+    setItems(prev => {
+      const updated = prev.map((item, i) => i === index ? { ...item, [field]: value } : item);
+      // Auto-fill prazo when fornecedor changes
+      if (field === "fornecedor" && typeof value === "string") {
+        const match = fornecedores.find(f => f.nome === value);
+        if (match?.prazo_entrega) {
+          updated[index] = { ...updated[index], prazo: match.prazo_entrega };
+          // Also update the form's prazo_entrega if empty or if it's the first item
+          if (!form.prazo_entrega || index === 0) {
+            updateField("prazo_entrega", match.prazo_entrega);
+          }
+        }
+      }
+      return updated;
+    });
   };
 
   const updateDetail = (index: number, field: keyof SaleItemDetail, value: string) => {
