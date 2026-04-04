@@ -178,9 +178,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
 
   const budgetValidityDays = settings.budget_validity_days;
 
-  // Filtered data by date range
-  // Clients created in the period (for new client metrics)
-  const filteredNewClients = useMemo(() => clients.filter(c => isInRange(c.created_at, dateRange.start, dateRange.end)), [clients, dateRange]);
+  // Simulations filtered by date range
   const filteredSimulations = useMemo(() => allSimulations.filter(s => isInRange(s.created_at, dateRange.start, dateRange.end)), [allSimulations, dateRange]);
 
   // Simulations within the date range (keyed by client_id)
@@ -191,15 +189,6 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     }
     return result;
   }, [lastSims, dateRange]);
-
-  // All clients that have activity in the period (created OR have a simulation OR have a contract)
-  const activeClients = useMemo(() => {
-    return clients.filter(c =>
-      isInRange(c.created_at, dateRange.start, dateRange.end) ||
-      simsInRange[c.id] ||
-      contractClientIds.has(c.id)
-    );
-  }, [clients, dateRange, simsInRange, contractClientIds]);
 
   // Stats computation
   const stats = useMemo(() => {
