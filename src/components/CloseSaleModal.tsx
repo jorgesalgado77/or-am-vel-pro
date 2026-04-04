@@ -233,7 +233,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
         updateField("prazo_entrega", firstMatch.prazo);
       }
     }
-  }, [open, client, simulationData]);
+  }, [open, client, simulationData, fornecedores]);
 
   // Same address checkbox handler
   useEffect(() => {
