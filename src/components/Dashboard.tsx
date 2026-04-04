@@ -194,6 +194,8 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
   const stats = useMemo(() => {
     // Total clients = all existing clients (cumulative)
     const totalClients = clients.length;
+    // New clients created in the selected period
+    const newClientsInPeriod = clients.filter(c => isInRange(c.created_at, dateRange.start, dateRange.end)).length;
     // Clients with simulation in the period
     const clientsWithSim = clients.filter(c => simsInRange[c.id]).length;
     // Clients without any simulation at all
@@ -268,12 +270,12 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     });
 
     return {
-      totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue: totalValueOrcamentos,
+      totalClients, newClientsInPeriod, clientsWithSim, clientsWithoutSim, expired, totalValue: totalValueOrcamentos,
       ticketMedio, taxaConversao, closedClients: closedClients.length, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
     };
-  }, [clients, lastSims, simsInRange, budgetValidityDays, indicadores, contractClientIds, trackingRaw, isAdminOrGerente, currentUser]);
+  }, [clients, lastSims, simsInRange, dateRange, budgetValidityDays, indicadores, contractClientIds, trackingRaw, isAdminOrGerente, currentUser]);
 
   // Chart data
   const lineData = useMemo(() => {
@@ -386,8 +388,9 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       />
 
       {/* Primary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard icon={Users} label="Total de Clientes" value={String(stats.totalClients)} />
+        <KpiCard icon={UserPlus} label="Novos no Período" value={String(stats.newClientsInPeriod)} accent={stats.newClientsInPeriod > 0} />
         <KpiCard icon={Calculator} label="Com Orçamento" value={String(stats.clientsWithSim)} accent />
         <KpiCard icon={TrendingUp} label="Valor Total Orçamentos" value={formatCurrency(stats.totalValue)} accent />
         <KpiCard icon={FileCheck} label="Contratos Fechados" value={String(stats.closedClients)} success />
