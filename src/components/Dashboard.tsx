@@ -270,7 +270,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
     });
 
     return {
-      totalClients, clientsWithSim, clientsWithoutSim, expired, totalValue: totalValueOrcamentos,
+      totalClients, newClientsInPeriod, clientsWithSim, clientsWithoutSim, expired, totalValue: totalValueOrcamentos,
       ticketMedio, taxaConversao, closedClients: closedClients.length, faturamentoContratos,
       byProjetista: Object.entries(byProjetista).sort((a, b) => b[1].total - a[1].total),
       byIndicador: Object.entries(byIndicador).sort((a, b) => b[1].total - a[1].total),
