@@ -37,7 +37,7 @@ export function TopSellingProductsChart() {
   const [categoryData, setCategoryData] = useState<{ name: string; qty: number; revenue: number }[]>([]);
 
   const loadData = useCallback(async () => {
-    const tenantId = getResolvedTenantId();
+    const tenantId = await getResolvedTenantId();
     if (!tenantId) { setLoading(false); return; }
 
     setLoading(true);

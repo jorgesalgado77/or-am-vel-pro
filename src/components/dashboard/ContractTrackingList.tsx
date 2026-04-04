@@ -78,7 +78,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterProjetista, setFilterProjetista] = useState("_all");
-  const [periodFilter, setPeriodFilter] = useState("mes_atual");
+  const [periodFilter, setPeriodFilter] = useState("3meses");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -329,7 +329,7 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
       const matchProjetista = filterProjetista === "_all" || (t.projetista || t.vendedor) === filterProjetista;
       let matchPeriod = true;
       if (pStart || pEnd) {
-        const d = t.data_fechamento ? new Date(t.data_fechamento) : null;
+        const d = t.data_fechamento ? new Date(t.data_fechamento) : (t.created_at ? new Date(t.created_at) : null);
         if (!d) matchPeriod = false;
         else {
           if (pStart && d < pStart) matchPeriod = false;
