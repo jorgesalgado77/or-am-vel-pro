@@ -94,7 +94,9 @@ const UF_OPTIONS = [
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ];
 
-export function CloseSaleModal({ open, onClose, onConfirm, client, simulationData, saving }: CloseSaleModalProps) {
+export function CloseSaleModal({ open, onClose, onConfirm, client, simulationData, saving, savedFormData }: CloseSaleModalProps) {
+  const clientFormKey = `close-sale-form-${client?.id || "new"}`;
+
   const defaultForm: CloseSaleFormData = {
     numero_contrato: "",
     data_fechamento: format(new Date(), "yyyy-MM-dd"),
@@ -123,7 +125,7 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
     valor_parcelas: "",
   };
 
-  const [form, updateForm, clearForm] = usePersistedFormState<CloseSaleFormData>("close-sale-form", defaultForm);
+  const [form, updateForm, clearForm] = usePersistedFormState<CloseSaleFormData>(clientFormKey, defaultForm);
 
   const [items, setItems] = useState<SaleItem[]>([]);
   const [itemDetails, setItemDetails] = useState<SaleItemDetail[]>([]);
