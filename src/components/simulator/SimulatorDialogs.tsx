@@ -111,6 +111,7 @@ export const SimulatorDialogs = React.memo(function SimulatorDialogs(props: Simu
         client={props.client}
         simulationData={props.simulationData}
         saving={props.closingSale}
+        savedFormData={props.savedContractFormData}
       />
 
       {props.client && (
