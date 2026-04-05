@@ -29,6 +29,7 @@ import {AdminLandingPage} from "@/components/admin/AdminLandingPage";
 import {AdminDealRoom} from "@/components/admin/AdminDealRoom";
 import {AdminPlans} from "@/components/admin/AdminPlans";
 import {AdminWhatsAppConfig} from "@/components/admin/AdminWhatsAppConfig";
+import {AdminWhatsAppFunnel} from "@/components/admin/AdminWhatsAppFunnel";
 import {AdminResendConfig} from "@/components/admin/AdminResendConfig";
 import {AdminLoginDiagnostics} from "@/components/admin/AdminLoginDiagnostics";
 import {AdminSystemDiagnostics} from "@/components/admin/AdminSystemDiagnostics";
@@ -867,6 +868,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               <TabsTrigger value="sysdiag" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Server className="h-4 w-4" />Saúde do Sistema</TabsTrigger>
               <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
               <TabsTrigger value="usage-billing" className="gap-2 data-[state=active]:bg-[hsl(260,60%,50%)] data-[state=active]:text-white"><TrendingUp className="h-4 w-4" />Consumo</TabsTrigger>
+              <TabsTrigger value="wa-funnel" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageCircle className="h-4 w-4" />Funil WA</TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
@@ -1169,6 +1171,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           {/* TAB: Consumo & Billing */}
           <TabsContent value="usage-billing">
             <BillingDashboard />
+          </TabsContent>
+
+          {/* TAB: Funil WhatsApp */}
+          <TabsContent value="wa-funnel">
+            <AdminWhatsAppFunnel />
           </TabsContent>
         </Tabs>
       </main>
