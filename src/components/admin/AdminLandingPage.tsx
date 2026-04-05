@@ -492,17 +492,27 @@ export function AdminLandingPage() {
                     <div><Label className="text-xs">Preço Mensal</Label>
                       <div className="relative mt-1">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                        <Input type="number" min={0} step={0.01} value={plan.price_monthly} onChange={(e) => {
-                          const np = [...config.plans]; np[i] = { ...np[i], price_monthly: Number(e.target.value) }; updateField("plans", np);
-                        }} className="pl-9" />
+                        <Input
+                          value={formatBRL(plan.price_monthly)}
+                          onChange={(e) => {
+                            const np = [...config.plans]; np[i] = { ...np[i], price_monthly: parseBRL(e.target.value) }; updateField("plans", np);
+                          }}
+                          className="pl-9"
+                          inputMode="numeric"
+                        />
                       </div>
                     </div>
                     <div><Label className="text-xs">Preço Anual</Label>
                       <div className="relative mt-1">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                        <Input type="number" min={0} step={0.01} value={plan.price_yearly} onChange={(e) => {
-                          const np = [...config.plans]; np[i] = { ...np[i], price_yearly: Number(e.target.value) }; updateField("plans", np);
-                        }} className="pl-9" />
+                        <Input
+                          value={formatBRL(plan.price_yearly)}
+                          onChange={(e) => {
+                            const np = [...config.plans]; np[i] = { ...np[i], price_yearly: parseBRL(e.target.value) }; updateField("plans", np);
+                          }}
+                          className="pl-9"
+                          inputMode="numeric"
+                        />
                       </div>
                     </div>
                     <div><Label className="text-xs">Máx. Usuários</Label><Input type="number" value={plan.max_users} onChange={(e) => {
