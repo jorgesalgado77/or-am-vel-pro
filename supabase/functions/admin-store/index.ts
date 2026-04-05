@@ -234,6 +234,24 @@ serve(async (req) => {
       }
     }
 
+    if (action === "sync_resend_settings") {
+      const { id, api_key, from_email, from_name, ativo } = body;
+      if (!id) return json({ error: "id é obrigatório" }, 400);
+
+      const { error } = await adminClient
+        .from("admin_resend_settings")
+        .upsert({
+          id,
+          api_key: typeof api_key === "string" && api_key.trim() ? api_key.trim() : null,
+          from_email: typeof from_email === "string" && from_email.trim() ? from_email.trim() : null,
+          from_name: typeof from_name === "string" && from_name.trim() ? from_name.trim() : null,
+          ativo: ativo !== false,
+        }, { onConflict: "id" });
+
+      if (error) return json({ error: error.message }, 500);
+      return json({ success: true });
+    }
+
     return json({ error: "Ação inválida" }, 400);
   } catch (err) {
     console.error("admin-store error:", err);
