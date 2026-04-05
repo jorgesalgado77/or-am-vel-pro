@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { addDays, format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, Mail, CheckCircle2, XCircle,
-  Plus, Trash2, Edit, Send,
+  Plus, Trash2, Edit, Send, Share2,
 } from "lucide-react";
 
 interface ResendSettings {
@@ -68,6 +69,17 @@ export function AdminResendConfig() {
 
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
+
+  // Sharing state
+  interface TenantRow { id: string; nome_loja: string; codigo_loja: string | null; ativo: boolean; }
+  interface ShareRow { id: string; config_id: string; tenant_id: string; starts_at: string; ends_at: string; is_active: boolean; }
+  const [tenants, setTenants] = useState<TenantRow[]>([]);
+  const [shares, setShares] = useState<ShareRow[]>([]);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareTenantId, setShareTenantId] = useState("");
+  const [shareStartsAt, setShareStartsAt] = useState("");
+  const [shareEndsAt, setShareEndsAt] = useState("");
+  const [shareSaving, setShareSaving] = useState(false);
 
   const getFunctionErrorMessage = async (error: unknown) => {
     const fallback = error instanceof Error ? error.message : "Erro desconhecido";
@@ -141,10 +153,98 @@ export function AdminResendConfig() {
     if (data) setTemplates(data as unknown as EmailTemplate[]);
   };
 
+  const fetchTenants = async () => {
+    const { data } = await supabase.from("tenants").select("id, nome_loja, codigo_loja, ativo").order("nome_loja");
+    if (data) setTenants(data as TenantRow[]);
+  };
+
+  const fetchShares = async () => {
+    // Get the resend config id first
+    const { data: configData } = await (supabase as any)
+      .from("dealroom_api_configs")
+      .select("id")
+      .eq("provider", RESEND_MASTER_PROVIDER_KEY)
+      .limit(1)
+      .maybeSingle();
+    if (!configData) { setShares([]); return; }
+    const { data } = await (supabase as any)
+      .from("dealroom_api_shares")
+      .select("*")
+      .eq("config_id", configData.id)
+      .order("created_at", { ascending: false });
+    if (data) setShares(data as ShareRow[]);
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchTemplates();
+    fetchTenants();
+    fetchShares();
   }, []);
+
+  const formatForInput = (value?: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+  };
+
+  const toIso = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  };
+
+  const openShareDialog = () => {
+    const now = new Date();
+    setShareTenantId("");
+    setShareStartsAt(formatForInput(now.toISOString()));
+    setShareEndsAt(formatForInput(addDays(now, 30).toISOString()));
+    setShareDialogOpen(true);
+  };
+
+  const saveShare = async () => {
+    if (!shareTenantId || !shareEndsAt) {
+      toast.error("Selecione a loja e o período do compartilhamento.");
+      return;
+    }
+    setShareSaving(true);
+    try {
+      // Ensure config exists
+      const { data: configResult, error: configError } = await persistResendSettings(ativo);
+      if (configError || !configResult) {
+        toast.error("Erro ao preparar configuração: " + (configError?.message || "Config não encontrada"));
+        return;
+      }
+
+      const { error } = await (supabase as any)
+        .from("dealroom_api_shares")
+        .upsert({
+          config_id: configResult.id,
+          tenant_id: shareTenantId,
+          starts_at: toIso(shareStartsAt),
+          ends_at: toIso(shareEndsAt),
+          is_active: true,
+          shared_by: "admin_master",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "config_id,tenant_id" });
+
+      if (error) throw new Error(error.message);
+      toast.success("API Resend compartilhada com a loja!");
+      setShareDialogOpen(false);
+      fetchShares();
+    } catch (error: any) {
+      toast.error("Erro ao compartilhar: " + (error?.message || "desconhecido"));
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  const removeShare = async (shareId: string) => {
+    if (!confirm("Remover este compartilhamento?")) return;
+    await (supabase as any).from("dealroom_api_shares").delete().eq("id", shareId);
+    toast.success("Compartilhamento removido");
+    fetchShares();
+  };
 
   const persistResendSettings = async (forceActive = ativo) => {
     const trimmedApiKey = apiKey.trim();
@@ -508,6 +608,110 @@ export function AdminResendConfig() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>Cancelar</Button>
             <Button onClick={saveTemplate}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sharing Section */}
+      <Separator className="my-8" />
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Share2 className="h-5 w-5 text-primary" />
+              Compartilhar API Resend com Lojas
+            </CardTitle>
+            <Button size="sm" onClick={openShareDialog} className="gap-2">
+              <Plus className="h-3 w-3" /> Compartilhar com loja
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {shares.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6 text-sm">Nenhum compartilhamento ativo.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Loja</TableHead>
+                  <TableHead>Início</TableHead>
+                  <TableHead>Fim</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-16">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shares.map((share) => {
+                  const tenant = tenants.find(t => t.id === share.tenant_id);
+                  const now = new Date();
+                  const isExpired = new Date(share.ends_at) < now;
+                  const isActive = share.is_active && !isExpired;
+                  return (
+                    <TableRow key={share.id}>
+                      <TableCell className="font-medium">
+                        {tenant ? `${tenant.nome_loja}${tenant.codigo_loja ? ` • ${tenant.codigo_loja}` : ""}` : share.tenant_id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell className="text-xs">{format(new Date(share.starts_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                      <TableCell className="text-xs">{format(new Date(share.ends_at), "dd/MM/yyyy HH:mm")}</TableCell>
+                      <TableCell>
+                        <Badge variant={isActive ? "default" : "secondary"} className={isActive ? "bg-green-600 text-white" : ""}>
+                          {isExpired ? "Expirado" : isActive ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeShare(share.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Share Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Compartilhar API Resend com loja</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>API</Label>
+              <Input value="Resend — Email" readOnly />
+            </div>
+            <div className="space-y-2">
+              <Label>Loja</Label>
+              <Select value={shareTenantId} onValueChange={setShareTenantId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a loja" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tenants.filter(t => t.ativo).map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.nome_loja} {t.codigo_loja ? `• ${t.codigo_loja}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Início do uso</Label>
+                <Input type="datetime-local" value={shareStartsAt} onChange={(e) => setShareStartsAt(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Fim programado</Label>
+                <Input type="datetime-local" value={shareEndsAt} onChange={(e) => setShareEndsAt(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={saveShare} disabled={shareSaving}>{shareSaving ? "Salvando..." : "Salvar compartilhamento"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
