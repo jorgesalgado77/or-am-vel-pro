@@ -2,7 +2,7 @@
  * Resend Email Gateway — Send transactional emails via Resend API
  * 
  * Uses tenant-specific API key from api_keys table.
- * Actions: send, verify
+ * Actions: send, verify, get_settings, save_settings
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -56,6 +56,65 @@ serve(async (req) => {
     const body = await req.json();
     const { action, tenant_id } = body;
 
+    // ── GET SETTINGS ──
+    if (action === "get_settings") {
+      const sb = getSupabaseAdmin();
+      const { data, error } = await sb
+        .from("admin_resend_settings")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        return respond({ success: false, error: error.message }, 500);
+      }
+      return respond({ success: true, settings: data || null });
+    }
+
+    // ── SAVE SETTINGS (upsert) ──
+    if (action === "save_settings") {
+      const { api_key, from_email, from_name, ativo, id } = body;
+      const sb = getSupabaseAdmin();
+
+      if (id) {
+        // Update existing row
+        const { data, error } = await sb
+          .from("admin_resend_settings")
+          .update({
+            api_key: api_key ?? null,
+            from_email: from_email ?? null,
+            from_name: from_name ?? null,
+            ativo: ativo ?? false,
+          })
+          .eq("id", id)
+          .select("*")
+          .single();
+
+        if (error) {
+          return respond({ success: false, error: error.message }, 500);
+        }
+        return respond({ success: true, settings: data });
+      } else {
+        // Insert new row
+        const { data, error } = await sb
+          .from("admin_resend_settings")
+          .insert({
+            api_key: api_key ?? null,
+            from_email: from_email ?? null,
+            from_name: from_name ?? null,
+            ativo: ativo ?? false,
+          })
+          .select("*")
+          .single();
+
+        if (error) {
+          return respond({ success: false, error: error.message }, 500);
+        }
+        return respond({ success: true, settings: data });
+      }
+    }
+
+    // ── SEND ──
     if (action === "send") {
       const { to, subject, html, text, from, reply_to, cc, bcc } = body;
       if (!to || !subject || (!html && !text)) {
@@ -115,8 +174,8 @@ serve(async (req) => {
       return respond({ success: true, email_id: data.id });
     }
 
+    // ── VERIFY ──
     if (action === "verify") {
-      // Allow validating a temporary key passed from the client (before saving)
       const tempKey = body._temp_key;
       const apiKey = tempKey || await resolveResendKey(tenant_id || null);
       if (!apiKey) {
@@ -134,7 +193,7 @@ serve(async (req) => {
       return respond({ success: false, error: `Resend [${res.status}]` });
     }
 
-    return respond({ error: "Ação inválida. Use 'send' ou 'verify'" }, 400);
+    return respond({ error: "Ação inválida. Use 'send', 'verify', 'get_settings' ou 'save_settings'" }, 400);
   } catch (e) {
     console.error("resend-email error:", e);
     return respond({ error: "Erro interno" }, 500);
