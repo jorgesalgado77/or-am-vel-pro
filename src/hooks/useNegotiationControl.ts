@@ -94,7 +94,7 @@ export function useNegotiationControl(): UseNegotiationControlReturn {
 
       // Also record to ai_learning_events for cross-system learning
       try {
-        await (supabase as ReturnType<typeof supabase>).from("ai_learning_events" as string).insert({
+        await (supabase as unknown as { from: (table: string) => { insert: (data: Record<string, unknown>) => Promise<unknown> } }).from("ai_learning_events").insert({
           tenant_id: ctx.tenant_id,
           user_id: ctx.user_id,
           event_type: "negotiation_feedback",
