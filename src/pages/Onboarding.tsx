@@ -23,9 +23,9 @@ const UF_OPTIONS = [
 ];
 
 const PLANS = [
-  { id: "trial", slug: "trial", nome: "Trial", descricao: "Teste grátis", preco_mensal: 0, preco_anual_mensal: 0, max_usuarios: 2, icon: Zap, destaque: false, features: [] },
-  { id: "basico", slug: "basico", nome: "Básico", descricao: "Para lojas pequenas", preco_mensal: 149.9, preco_anual_mensal: 119.9, max_usuarios: 5, icon: Users, destaque: false, features: [] },
-  { id: "premium", slug: "premium", nome: "Premium", descricao: "Para lojas maiores", preco_mensal: 299.9, preco_anual_mensal: 249.9, max_usuarios: null, icon: Crown, destaque: true, features: [] },
+  { id: "basico", slug: "basico", nome: "Básico", descricao: "Ideal para lojas iniciantes", preco_mensal: 97, preco_anual_mensal: 82.45, max_usuarios: 3, icon: Users, destaque: false, features: [] },
+  { id: "premium", slug: "premium", nome: "Premium", descricao: "Para lojas que querem vender mais", preco_mensal: 197, preco_anual_mensal: 167.45, max_usuarios: 10, icon: Crown, destaque: true, features: [] },
+  { id: "enterprise", slug: "enterprise", nome: "Enterprise", descricao: "Máximo poder para sua operação", preco_mensal: 397, preco_anual_mensal: 337.45, max_usuarios: 999, icon: Building2, destaque: false, features: [] },
 ];
 
 function getUserId() {
@@ -39,7 +39,7 @@ type Step = "plan" | "company";
 export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("plan");
-  const [selectedPlan, setSelectedPlan] = useState<string>("trial");
+  const [selectedPlan, setSelectedPlan] = useState<string>("basico");
   const [annual, setAnnual] = useState(false);
 
   // Company form
@@ -111,9 +111,7 @@ export default function Onboarding() {
     const now = new Date();
     const endDate = new Date(now);
 
-    if (planId === "trial") {
-      endDate.setDate(endDate.getDate() + 7);
-    } else if (annual) {
+    if (annual) {
       endDate.setFullYear(endDate.getFullYear() + 1);
     } else {
       endDate.setMonth(endDate.getMonth() + 1);
@@ -123,13 +121,12 @@ export default function Onboarding() {
       plano: planId,
       plano_periodo: periodo,
       max_usuarios: plan.max_usuarios ?? 999,
-      assinatura_inicio: planId !== "trial" ? now.toISOString() : null,
-      assinatura_fim: planId !== "trial" ? endDate.toISOString() : null,
+      assinatura_inicio: now.toISOString(),
+      assinatura_fim: endDate.toISOString(),
     }).eq("id", tenantId);
 
     // ---- Affiliate: update pending conversion with real plan value ----
-    if (planId !== "trial") {
-      try {
+    try {
         const { data: sessionData } = await supabase.auth.getUser();
         const userId = sessionData.user?.id;
         if (userId) {
@@ -152,9 +149,8 @@ export default function Onboarding() {
             .eq("status", "pending")
             .eq("plan", "signup_pending");
         }
-      } catch (err) {
-        console.warn("Affiliate conversion update error (non-blocking):", err);
-      }
+    } catch (err) {
+      console.warn("Affiliate conversion update error (non-blocking):", err);
     }
 
     setStep("company");
@@ -315,14 +311,8 @@ export default function Onboarding() {
                   </CardHeader>
                   <CardContent className="flex-1 space-y-4">
                     <div className="text-center">
-                      {p.preco_mensal === 0 ? (
-                        <p className="text-3xl font-bold text-foreground">Grátis</p>
-                      ) : (
-                        <>
-                          <p className="text-3xl font-bold text-foreground">{formatCurrency(price)}</p>
-                          <p className="text-xs text-muted-foreground">/mês</p>
-                        </>
-                      )}
+                      <p className="text-3xl font-bold text-foreground">{formatCurrency(price)}</p>
+                      <p className="text-xs text-muted-foreground">/mês</p>
                     </div>
                     <ul className="space-y-2">
                       {p.features.map((f) => (
@@ -339,7 +329,7 @@ export default function Onboarding() {
                       variant={p.destaque ? "default" : "outline"}
                       onClick={() => handleSelectPlan(p.id)}
                     >
-                      {p.id === "trial" ? "Começar Grátis" : `Assinar ${p.nome}`}
+                      {`Assinar ${p.nome}`}
                     </Button>
                   </CardFooter>
                 </Card>

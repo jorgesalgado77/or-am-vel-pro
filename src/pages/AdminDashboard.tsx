@@ -74,10 +74,11 @@ interface PaymentSetting {
   configuracoes: any;
 }
 
-const PLAN_CONFIG = {
-  trial: { label: "Teste Grátis", color: "secondary" as const, icon: Zap },
-  basico: { label: "Básico", color: "default" as const, icon: Users },
-  premium: { label: "Premium", color: "destructive" as const, icon: Crown },
+const PLAN_CONFIG: Record<string, { label: string; color: "secondary" | "default" | "destructive"; icon: React.ElementType }> = {
+  trial: { label: "Trial (legado)", color: "secondary", icon: Zap },
+  basico: { label: "Básico", color: "default", icon: Users },
+  premium: { label: "Premium", color: "destructive", icon: Crown },
+  enterprise: { label: "Enterprise", color: "default", icon: Shield },
 };
 
 // Plan prices loaded dynamically from subscription_plans table

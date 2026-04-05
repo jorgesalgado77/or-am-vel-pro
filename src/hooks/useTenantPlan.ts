@@ -15,12 +15,12 @@ export interface TenantPlan {
 }
 
 const DEFAULT_PLAN: TenantPlan = {
-  plano: "trial",
+  plano: "basico",
   plano_periodo: "mensal",
-  max_usuarios: 999,
+  max_usuarios: 3,
   ativo: true,
   expirado: false,
-  dias_restantes: 7,
+  dias_restantes: 30,
   trial_fim: null,
   assinatura_fim: null,
   recursos_vip: { ocultar_indicador: false },
@@ -95,7 +95,7 @@ export function useTenantPlan() {
     let expirado = false;
     let diasRestantes = 0;
 
-    if (t.plano === "trial") {
+    if (t.plano === "trial" && t.trial_fim) {
       const trialFim = new Date(t.trial_fim);
       expirado = now > trialFim;
       diasRestantes = Math.max(0, Math.ceil((trialFim.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));

@@ -111,7 +111,7 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Obrigado pelo interesse!</h2>
             <p className="text-gray-600 text-lg">
-              Nossa equipe entrará em contato em breve para ativar seu período de teste gratuito de 7 dias.
+              Nossa equipe entrará em contato em breve para ativar seu acesso ao OrçaMóvel PRO.
             </p>
           </div>
         </AnimatedSection>
@@ -126,13 +126,13 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
           <AnimatedSection variant="slideLeft">
             <div className="space-y-6">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-                Comece seu <span style={{ color: primaryColor }}>teste gratuito</span>
+                Comece a <span style={{ color: primaryColor }}>vender mais</span> hoje
               </h2>
               <p className="text-lg text-gray-600 leading-relaxed">
-                Preencha seus dados e receba acesso completo ao OrçaMóvel PRO por 7 dias, sem compromisso e sem cartão de crédito.
+                Preencha seus dados e nossa equipe entrará em contato para ativar seu plano. Resultado desde o primeiro dia.
               </p>
               <ul className="space-y-3">
-                {["Acesso a todas as funcionalidades", "Suporte técnico incluído", "Sem cartão de crédito", "Cancele quando quiser"].map((item, i) => (
+                {["Acesso a todas as funcionalidades", "Suporte técnico incluído", "Acesso imediato após assinatura", "Cancele quando quiser"].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 text-gray-700">
                     <CheckCircle className="h-5 w-5" style={{ color: primaryColor }} />
                     {item}
@@ -247,7 +247,7 @@ export function LandingLeadForm({ primaryColor }: LandingLeadFormProps) {
                   style={{ backgroundColor: primaryColor }}
                 >
                   {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                  Quero testar grátis
+                  Quero começar agora
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </form>

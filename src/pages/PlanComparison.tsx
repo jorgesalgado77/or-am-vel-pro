@@ -304,7 +304,7 @@ export default function PlanComparison() {
                         variant={isPremium || isEnterprise ? "default" : "outline"}
                         onClick={() => navigate("/")}
                       >
-                        {isEnterprise ? "Falar com consultor" : plan.slug === "trial" ? "Começar grátis" : "Assinar agora"}
+                        {isEnterprise ? "Falar com consultor" : "Assinar agora"}
                       </Button>
                     </td>
                   );
@@ -316,7 +316,7 @@ export default function PlanComparison() {
 
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground mt-8">
-          Todos os planos incluem 7 dias de teste grátis. Cancele a qualquer momento.
+          Acesso imediato após assinatura. Cancele a qualquer momento.
         </p>
       </div>
     </div>
