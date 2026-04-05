@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
+import { trackAndAlert } from "@/services/billing/UsageAlerts";
 
 interface WhatsAppSettings {
   provider: string;
