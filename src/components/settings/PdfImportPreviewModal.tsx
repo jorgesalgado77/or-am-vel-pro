@@ -145,7 +145,7 @@ export function PdfImportPreviewModal({
                 </p>
               </div>
             </div>
-            <Switch checked={useAutoReplace} onCheckedChange={setUseAutoReplace} />
+            <Switch checked={useAutoReplace} onCheckedChange={handleAutoReplaceChange} />
           </div>
 
           {/* Tab buttons */}
