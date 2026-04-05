@@ -9,6 +9,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { sendPushIfEnabled } from "@/lib/pushHelper";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -107,12 +108,54 @@ class MIAMonitorServiceClass {
 
       this.cachedAlerts = alerts;
       this.lastRun = Date.now();
+
+      // Send push notifications for critical/warning alerts
+      this.dispatchPushNotifications(userId, alerts);
+
       return alerts;
     } catch (err) {
       console.warn("[MIAMonitor] Cycle failed:", err);
       return this.cachedAlerts;
     } finally {
       this.running = false;
+    }
+  }
+
+  /** Dispatch push notifications for critical alerts */
+  private dispatchPushNotifications(userId: string, alerts: MIAMonitorAlert[]): void {
+    const criticalAlerts = alerts.filter(a => a.severity === "critical" || a.severity === "warning");
+    if (criticalAlerts.length === 0) return;
+
+    // Send a consolidated push for critical alerts
+    const criticalCount = criticalAlerts.filter(a => a.severity === "critical").length;
+    const warningCount = criticalAlerts.length - criticalCount;
+
+    const title = criticalCount > 0
+      ? `🚨 ${criticalCount} alerta(s) crítico(s) da MIA`
+      : `⚠️ ${warningCount} alerta(s) da MIA`;
+
+    const body = criticalAlerts
+      .slice(0, 3)
+      .map(a => `${a.icon} ${a.title}`)
+      .join(" • ");
+
+    void sendPushIfEnabled(
+      "leads",
+      userId,
+      title,
+      body + (criticalAlerts.length > 3 ? ` +${criticalAlerts.length - 3} mais` : ""),
+      `mia-monitor-${Date.now()}`
+    );
+
+    // Also send individual pushes for critical-severity alerts
+    for (const alert of alerts.filter(a => a.severity === "critical")) {
+      void sendPushIfEnabled(
+        "leads",
+        userId,
+        `${alert.icon} ${alert.title}`,
+        alert.detail.replace(/\*\*/g, ""),
+        `mia-alert-${alert.type}-${Date.now()}`
+      );
     }
   }
 
