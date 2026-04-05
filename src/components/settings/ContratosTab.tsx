@@ -379,10 +379,26 @@ export function ContratosTab() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Modelos de Contrato</CardTitle>
-            <Button size="sm" className="gap-2" onClick={handleNew}>
-              <Plus className="h-4 w-4" />
-              Novo Modelo
-            </Button>
+            <div className="flex gap-2">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={handleImportTemplate}
+                />
+                <Button variant="outline" size="sm" className="gap-2" asChild>
+                  <span>
+                    <FolderInput className="h-4 w-4" />
+                    Importar Template
+                  </span>
+                </Button>
+              </label>
+              <Button size="sm" className="gap-2" onClick={handleNew}>
+                <Plus className="h-4 w-4" />
+                Novo Modelo
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
