@@ -251,10 +251,24 @@ export function ContratosTab() {
         return;
       }
 
+      // Validate variables used in the template
+      const knownVars = new Set(AVAILABLE_VARIABLES.map((v) => v.var));
+      const htmlContent = data.conteudo_html || "";
+      const usedVars = htmlContent.match(/\{\{[^}]+\}\}/g) || [];
+      const uniqueUsed = [...new Set(usedVars)];
+      const unknown = uniqueUsed.filter((v: string) => !knownVars.has(v) && !/\{\{.*ambiente_\d+\}\}/.test(v));
+
+      if (unknown.length > 0) {
+        const proceed = confirm(
+          `O template contém ${unknown.length} variável(is) não reconhecida(s):\n\n${unknown.join(", ")}\n\nDeseja importar mesmo assim?`
+        );
+        if (!proceed) return;
+      }
+
       const tenantId = getTenantId();
       const insertPayload: Record<string, any> = {
         nome: data.nome || "Template Importado",
-        conteudo_html: data.conteudo_html || "",
+        conteudo_html: htmlContent,
         ativo: true,
         ...(tenantId ? { tenant_id: tenantId } : {}),
       };
