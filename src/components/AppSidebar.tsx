@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useTheme } from "@/hooks/useTheme";
 import { SidebarNotifications } from "@/components/sidebar/SidebarNotifications";
 import { SidebarUserProfile } from "@/components/sidebar/SidebarUserProfile";
+import { SidebarUsageWidget } from "@/components/sidebar/SidebarUsageWidget";
 import type { OnlineUser } from "@/hooks/useOnlinePresence";
 
 interface AppSidebarProps {
@@ -252,6 +253,11 @@ export function AppSidebar({
           <NavButton label="Sair" icon={LogOut} destructive onClick={async () => { await logout(); navigate("/"); }} />
         </div>
       </nav>
+
+      {/* Usage Widget */}
+      <div style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
+        <SidebarUsageWidget collapsed={collapsed} />
+      </div>
 
       {/* User profile section */}
       <div className={cn(collapsed ? "p-2" : "p-3")} style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
