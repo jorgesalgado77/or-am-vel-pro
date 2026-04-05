@@ -311,14 +311,8 @@ export default function Onboarding() {
                   </CardHeader>
                   <CardContent className="flex-1 space-y-4">
                     <div className="text-center">
-                      {p.preco_mensal === 0 ? (
-                        <p className="text-3xl font-bold text-foreground">Grátis</p>
-                      ) : (
-                        <>
-                          <p className="text-3xl font-bold text-foreground">{formatCurrency(price)}</p>
-                          <p className="text-xs text-muted-foreground">/mês</p>
-                        </>
-                      )}
+                      <p className="text-3xl font-bold text-foreground">{formatCurrency(price)}</p>
+                      <p className="text-xs text-muted-foreground">/mês</p>
                     </div>
                     <ul className="space-y-2">
                       {p.features.map((f) => (
@@ -335,7 +329,7 @@ export default function Onboarding() {
                       variant={p.destaque ? "default" : "outline"}
                       onClick={() => handleSelectPlan(p.id)}
                     >
-                      {p.id === "trial" ? "Começar Grátis" : `Assinar ${p.nome}`}
+                      {`Assinar ${p.nome}`}
                     </Button>
                   </CardFooter>
                 </Card>
