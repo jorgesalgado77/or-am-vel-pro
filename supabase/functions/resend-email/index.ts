@@ -1,8 +1,8 @@
 /**
  * Resend Email Gateway — Send transactional emails via Resend API
- * 
+ *
  * Uses tenant-specific API key from api_keys table.
- * Actions: send, verify, get_settings, save_settings
+ * Actions: send, send_test, verify, get_settings, save_settings
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
@@ -27,21 +27,31 @@ function getSupabaseAdmin() {
   );
 }
 
-function extractTempApiKey(body: Record<string, unknown>): string {
-  const candidates = [body._temp_key, body.api_key, body.resend_api_key];
+function normalizeApiKey(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim();
+  return normalized || "";
+}
+
+function extractRequestApiKey(body: Record<string, unknown>): string {
+  const candidates = [
+    body.test_api_key,
+    body._temp_key,
+    body.api_key,
+    body.apiKey,
+    body.resend_api_key,
+    body.resendApiKey,
+  ];
 
   for (const candidate of candidates) {
-    if (typeof candidate === "string") {
-      const normalized = candidate.trim();
-      if (normalized) return normalized;
-    }
+    const apiKey = normalizeApiKey(candidate);
+    if (apiKey) return apiKey;
   }
 
   return "";
 }
 
-async function resolveResendKey(tenantId: string | null): Promise<string | null> {
-  // 1. Tenant-specific key via RPC
+async function resolveStoredResendKey(tenantId: string | null): Promise<string | null> {
   if (tenantId) {
     try {
       const sb = getSupabaseAdmin();
@@ -50,7 +60,7 @@ async function resolveResendKey(tenantId: string | null): Promise<string | null>
         return data[0].api_key;
       }
     } catch (e) {
-      console.warn("[resolveResendKey] Tenant lookup failed:", e);
+      console.warn("[resolveStoredResendKey] Tenant RPC lookup failed:", e);
     }
 
     try {
@@ -66,15 +76,13 @@ async function resolveResendKey(tenantId: string | null): Promise<string | null>
         return data.api_key;
       }
     } catch (e) {
-      console.warn("[resolveResendKey] tenant_resend_settings lookup failed:", e);
+      console.warn("[resolveStoredResendKey] tenant_resend_settings lookup failed:", e);
     }
   }
 
-  // 2. Environment variable
-  const envKey = Deno.env.get("RESEND_API_KEY");
+  const envKey = normalizeApiKey(Deno.env.get("RESEND_API_KEY"));
   if (envKey) return envKey;
 
-  // 3. Admin master key from dealroom_api_configs
   try {
     const sb = getSupabaseAdmin();
     const { data } = await sb
@@ -83,14 +91,30 @@ async function resolveResendKey(tenantId: string | null): Promise<string | null>
       .eq("provider", "resend_master")
       .limit(1)
       .maybeSingle();
-    if (data?.credenciais?.api_key) {
-      return data.credenciais.api_key;
+
+    const adminKey = normalizeApiKey(data?.credenciais?.api_key);
+    if (adminKey) {
+      return adminKey;
     }
   } catch (e) {
-    console.warn("[resolveResendKey] Admin master lookup failed:", e);
+    console.warn("[resolveStoredResendKey] Admin master lookup failed:", e);
   }
 
   return null;
+}
+
+async function resolveResendKey(body: Record<string, unknown>, tenantId: string | null) {
+  const requestKey = extractRequestApiKey(body);
+  if (requestKey) {
+    return { apiKey: requestKey, source: "request" as const };
+  }
+
+  const storedKey = await resolveStoredResendKey(tenantId);
+  if (storedKey) {
+    return { apiKey: storedKey, source: "stored" as const };
+  }
+
+  return { apiKey: null, source: "missing" as const };
 }
 
 serve(async (req) => {
@@ -105,9 +129,9 @@ serve(async (req) => {
     }
 
     const body = await req.json();
+    const requestBody = body as Record<string, unknown>;
     const { action, tenant_id } = body;
 
-    // ── GET SETTINGS ──
     if (action === "get_settings") {
       const sb = getSupabaseAdmin();
       const { data, error } = await sb
@@ -122,13 +146,11 @@ serve(async (req) => {
       return respond({ success: true, settings: data || null });
     }
 
-    // ── SAVE SETTINGS (upsert) ──
     if (action === "save_settings") {
       const { api_key, from_email, from_name, ativo, id } = body;
       const sb = getSupabaseAdmin();
 
       if (id) {
-        // Update existing row
         const { data, error } = await sb
           .from("admin_resend_settings")
           .update({
@@ -145,35 +167,39 @@ serve(async (req) => {
           return respond({ success: false, error: error.message }, 500);
         }
         return respond({ success: true, settings: data });
-      } else {
-        // Insert new row
-        const { data, error } = await sb
-          .from("admin_resend_settings")
-          .insert({
-            api_key: api_key ?? null,
-            from_email: from_email ?? null,
-            from_name: from_name ?? null,
-            ativo: ativo ?? false,
-          })
-          .select("*")
-          .single();
-
-        if (error) {
-          return respond({ success: false, error: error.message }, 500);
-        }
-        return respond({ success: true, settings: data });
       }
+
+      const { data, error } = await sb
+        .from("admin_resend_settings")
+        .insert({
+          api_key: api_key ?? null,
+          from_email: from_email ?? null,
+          from_name: from_name ?? null,
+          ativo: ativo ?? false,
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        return respond({ success: false, error: error.message }, 500);
+      }
+      return respond({ success: true, settings: data });
     }
 
-    // ── SEND ──
-    if (action === "send") {
+    if (action === "send" || action === "send_test") {
       const { to, subject, html, text, from, reply_to, cc, bcc } = body;
       if (!to || !subject || (!html && !text)) {
         return respond({ error: "to, subject e html/text são obrigatórios" }, 400);
       }
 
-      const tempKey = extractTempApiKey(body as Record<string, unknown>);
-      const apiKey = tempKey || await resolveResendKey(tenant_id || null);
+      const { apiKey, source } = await resolveResendKey(requestBody, tenant_id || null);
+      console.log("[resend-email/send] resolving api key", {
+        action,
+        source,
+        hasTenantId: !!tenant_id,
+        hasRequestKey: !!extractRequestApiKey(requestBody),
+      });
+
       if (!apiKey) {
         return respond({ error: "API Key do Resend não configurada. Adicione em Configurações > APIs." }, 400);
       }
@@ -200,12 +226,12 @@ serve(async (req) => {
 
       if (!res.ok) {
         const errText = await res.text();
+        console.error("[resend-email/send] resend api error", { status: res.status, source, errText });
         return respond({ success: false, error: `Resend [${res.status}]: ${errText}` }, 502);
       }
 
       const data = await res.json();
 
-      // Save to email history
       try {
         const sb = getSupabaseAdmin();
         await sb.from("mia_email_history").insert({
@@ -223,13 +249,17 @@ serve(async (req) => {
         console.warn("Failed to save email history:", e);
       }
 
-      return respond({ success: true, email_id: data.id });
+      return respond({ success: true, email_id: data.id, source });
     }
 
-    // ── VERIFY ──
     if (action === "verify") {
-      const tempKey = extractTempApiKey(body as Record<string, unknown>);
-      const apiKey = tempKey || await resolveResendKey(tenant_id || null);
+      const { apiKey, source } = await resolveResendKey(requestBody, tenant_id || null);
+      console.log("[resend-email/verify] resolving api key", {
+        source,
+        hasTenantId: !!tenant_id,
+        hasRequestKey: !!extractRequestApiKey(requestBody),
+      });
+
       if (!apiKey) {
         return respond({ success: false, error: "API Key não encontrada" });
       }
@@ -240,12 +270,12 @@ serve(async (req) => {
 
       if (res.ok) {
         const data = await res.json();
-        return respond({ success: true, domains: data.data || [] });
+        return respond({ success: true, domains: data.data || [], source });
       }
-      return respond({ success: false, error: `Resend [${res.status}]` });
+      return respond({ success: false, error: `Resend [${res.status}]`, source });
     }
 
-    return respond({ error: "Ação inválida. Use 'send', 'verify', 'get_settings' ou 'save_settings'" }, 400);
+    return respond({ error: "Ação inválida. Use 'send', 'send_test', 'verify', 'get_settings' ou 'save_settings'" }, 400);
   } catch (e) {
     console.error("resend-email error:", e);
     return respond({ error: "Erro interno" }, 500);
