@@ -5,10 +5,10 @@ import { supabase } from "@/lib/supabaseClient";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart,
 } from "recharts";
-import { Users, DollarSign, TrendingUp, Store, BarChart3, TrendingUp as LineIcon } from "lucide-react";
+import { Users, DollarSign, TrendingUp, Store, BarChart3 } from "lucide-react";
 
 interface MonthData {
   month: string;
@@ -21,8 +21,24 @@ interface MonthData {
 
 type ChartMode = "bar" | "line";
 
-const CustomTooltip = ({ active, payload, label, valueLabel, prefix }: any) => {
+function getVariation(data: MonthData[], index: number, key: keyof MonthData): string | null {
+  if (index <= 0) return null;
+  const current = Number(data[index][key]);
+  const previous = Number(data[index - 1][key]);
+  if (previous === 0) return current > 0 ? "+∞%" : "0%";
+  const pct = ((current - previous) / previous) * 100;
+  const sign = pct > 0 ? "+" : "";
+  return `${sign}${pct.toFixed(1)}%`;
+}
+
+const CustomTooltip = ({ active, payload, label, valueLabel, prefix, dataKey, chartData }: any) => {
   if (!active || !payload?.length) return null;
+
+  const currentIndex = chartData?.findIndex((d: MonthData) => d.label === label);
+  const variation = currentIndex != null && currentIndex >= 0
+    ? getVariation(chartData, currentIndex, dataKey)
+    : null;
+
   return (
     <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-sm">
       <p className="font-medium text-foreground mb-1">{label}</p>
@@ -32,6 +48,11 @@ const CustomTooltip = ({ active, payload, label, valueLabel, prefix }: any) => {
           {valueLabel || entry.name}: <span className="font-semibold text-foreground">{prefix}{typeof entry.value === "number" ? entry.value.toLocaleString("pt-BR") : entry.value}</span>
         </p>
       ))}
+      {variation && (
+        <p className={`text-xs mt-1 font-medium ${variation.startsWith("+") ? "text-emerald-600" : variation.startsWith("-") ? "text-destructive" : "text-muted-foreground"}`}>
+          vs mês anterior: {variation}
+        </p>
+      )}
     </div>
   );
 };
@@ -163,7 +184,7 @@ export function AdminKpiCharts() {
   }
 
   const renderChart = (
-    dataKey: string,
+    dataKey: keyof MonthData,
     mode: ChartMode,
     color: string,
     tooltipLabel: string,
@@ -174,7 +195,7 @@ export function AdminKpiCharts() {
     const xAxis = <XAxis dataKey="label" tick={{ fontSize: 11 }} />;
     const yAxis = <YAxis allowDecimals={false} tick={{ fontSize: 11 }} tickFormatter={yFormatter} />;
     const grid = <CartesianGrid strokeDasharray="3 3" className="opacity-30" />;
-    const tooltip = <Tooltip content={<CustomTooltip valueLabel={tooltipLabel} prefix={prefix} />} />;
+    const tooltip = <Tooltip content={<CustomTooltip valueLabel={tooltipLabel} prefix={prefix} dataKey={dataKey} chartData={data} />} />;
 
     if (mode === "line") {
       return (
@@ -205,7 +226,6 @@ export function AdminKpiCharts() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Clientes */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -221,7 +241,6 @@ export function AdminKpiCharts() {
         </CardContent>
       </Card>
 
-      {/* Contratos */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -237,7 +256,6 @@ export function AdminKpiCharts() {
         </CardContent>
       </Card>
 
-      {/* Receita */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -253,7 +271,6 @@ export function AdminKpiCharts() {
         </CardContent>
       </Card>
 
-      {/* Lojas */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
