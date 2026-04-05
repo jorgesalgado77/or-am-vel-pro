@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useMemo, useCallback} from "react";
 import {supabase} from "@/lib/supabaseClient";
 import {maskPhone} from "@/lib/masks";
 import {toast} from "sonner";
@@ -40,8 +40,37 @@ import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
 import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
-import {format, isAfter, isBefore} from "date-fns";
+import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";
+
+type AdminDatePreset = "mes_atual" | "mes_anterior" | "60dias" | "90dias" | "personalizado";
+
+const ADMIN_DATE_PRESETS: { value: AdminDatePreset; label: string }[] = [
+  { value: "mes_atual", label: "Mês Atual" },
+  { value: "mes_anterior", label: "Mês Anterior" },
+  { value: "60dias", label: "Últimos 60 dias" },
+  { value: "90dias", label: "Últimos 90 dias" },
+  { value: "personalizado", label: "Personalizado" },
+];
+
+function getAdminDateRange(preset: AdminDatePreset, customStart?: string, customEnd?: string) {
+  const now = new Date();
+  const end = endOfDay(now);
+  switch (preset) {
+    case "mes_atual": return { start: startOfMonth(now), end };
+    case "mes_anterior": {
+      const prev = subMonths(now, 1);
+      return { start: startOfMonth(prev), end: endOfDay(endOfMonth(prev)) };
+    }
+    case "60dias": return { start: startOfDay(subDays(now, 60)), end };
+    case "90dias": return { start: startOfDay(subDays(now, 90)), end };
+    case "personalizado": return {
+      start: customStart ? startOfDay(new Date(customStart)) : startOfMonth(now),
+      end: customEnd ? endOfDay(new Date(customEnd)) : end,
+    };
+    default: return { start: startOfMonth(now), end };
+  }
+}
 
 interface AdminDashboardProps {
   adminName: string;
@@ -140,6 +169,17 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [selectedStatusPeriod, setSelectedStatusPeriod] = useState("mensal");
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [repairingAccess, setRepairingAccess] = useState(false);
+
+  // Date filter for KPIs
+  const [adminDatePreset, setAdminDatePreset] = useState<AdminDatePreset>("mes_atual");
+  const [adminCustomStart, setAdminCustomStart] = useState("");
+  const [adminCustomEnd, setAdminCustomEnd] = useState("");
+  const adminDateRange = useMemo(() => getAdminDateRange(adminDatePreset, adminCustomStart, adminCustomEnd), [adminDatePreset, adminCustomStart, adminCustomEnd]);
+
+  // Date-filtered KPI state
+  const [filteredClientCount, setFilteredClientCount] = useState(0);
+  const [filteredContractsTotal, setFilteredContractsTotal] = useState(0);
+  const [filteredSimCount, setFilteredSimCount] = useState(0);
 
   // Tenant form
   const [tNome, setTNome] = useState("");
@@ -311,6 +351,56 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       supabase.removeChannel(plansChannel);
     };
   }, []);
+
+  // Date-filtered KPI fetch
+  const fetchDateFilteredKpis = useCallback(async (dateRange: { start: Date; end: Date }) => {
+    const startISO = dateRange.start.toISOString();
+    const endISO = dateRange.end.toISOString();
+
+    const [clientsRes, contractClientsRes, dealRoomRes, dealRoomFallbackRes] = await Promise.all([
+      supabase.from("clients").select("id", { count: "exact", head: true }).gte("created_at", startISO).lte("created_at", endISO),
+      supabase.from("clients").select("id, tenant_id, created_at").eq("status", "venda_fechada").gte("created_at", startISO).lte("created_at", endISO),
+      supabase.from("dealroom_proposals" as any).select("commission_value, status, created_at").eq("status", "paid").gte("created_at", startISO).lte("created_at", endISO),
+      supabase.from("payroll_commissions" as any).select("valor_comissao, created_at").ilike("observacao", "%deal%room%").gte("created_at", startISO).lte("created_at", endISO),
+    ]);
+
+    setFilteredClientCount(clientsRes.count || 0);
+
+    // Contracts: get valor_avista from simulations
+    if (contractClientsRes.data && contractClientsRes.data.length > 0) {
+      const clientIds = contractClientsRes.data.map((c: any) => c.id);
+      const { data: sims } = await supabase
+        .from("simulations")
+        .select("client_id, valor_tela, desconto1, desconto2, desconto3")
+        .in("client_id", clientIds)
+        .order("created_at", { ascending: false });
+      const simMap: Record<string, number> = {};
+      (sims || []).forEach((s: any) => {
+        if (!simMap[s.client_id]) {
+          const vt = Number(s.valor_tela) || 0;
+          const d1 = Number(s.desconto1) || 0;
+          const d2 = Number(s.desconto2) || 0;
+          const d3 = Number(s.desconto3) || 0;
+          simMap[s.client_id] = vt * (1 - d1 / 100) * (1 - d2 / 100) * (1 - d3 / 100);
+        }
+      });
+      setFilteredContractsTotal(Object.values(simMap).reduce((a, b) => a + b, 0));
+    } else {
+      setFilteredContractsTotal(0);
+    }
+
+    // Deal Room commissions
+    if (dealRoomRes.data && dealRoomRes.data.length > 0) {
+      setDealRoomCommissions(dealRoomRes.data.reduce((sum: number, r: any) => sum + (Number(r.commission_value) || 0), 0));
+    } else {
+      setDealRoomCommissions((dealRoomFallbackRes.data || []).reduce((sum: number, r: any) => sum + (Number(r.valor_comissao) || 0), 0));
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDateFilteredKpis(adminDateRange);
+  }, [adminDateRange, fetchDateFilteredKpis]);
+
 
   const toggleTenantActive = async (tenant: Tenant) => {
     const newAtivo = !tenant.ativo;
@@ -769,8 +859,40 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9 gap-2 sm:gap-3">
+        {/* Date Filter */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Período:</span>
+              </div>
+              <Select value={adminDatePreset} onValueChange={(v) => setAdminDatePreset(v as AdminDatePreset)}>
+                <SelectTrigger className="w-[180px] h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ADMIN_DATE_PRESETS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {adminDatePreset === "personalizado" && (
+                <>
+                  <Input type="date" value={adminCustomStart} onChange={(e) => setAdminCustomStart(e.target.value)} className="w-[150px] h-8 text-sm" />
+                  <span className="text-xs text-muted-foreground">até</span>
+                  <Input type="date" value={adminCustomEnd} onChange={(e) => setAdminCustomEnd(e.target.value)} className="w-[150px] h-8 text-sm" />
+                </>
+              )}
+              <span className="text-xs text-muted-foreground ml-auto">
+                {format(adminDateRange.start, "dd/MM/yyyy")} — {format(adminDateRange.end, "dd/MM/yyyy")}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* KPI Cards - Row 1: Structural (not date-filtered) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
           <Card>
             <CardContent className="p-3 flex items-center gap-2">
               <Store className="h-4 w-4 text-primary shrink-0" />
@@ -825,16 +947,30 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* KPI Cards - Row 2: Date-filtered */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowClientsModal(true)}>
             <CardContent className="p-3 flex items-center gap-2">
               <Users className="h-4 w-4 text-accent shrink-0" />
               <div>
                 <p className="text-[10px] text-muted-foreground">Clientes</p>
-                <p className="text-base font-bold text-foreground">{totalClientes}</p>
+                <p className="text-base font-bold text-foreground">{filteredClientCount}</p>
               </div>
             </CardContent>
           </Card>
-          <AdminContractsValueCard tenants={tenants} />
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-600 shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Contratos Fechados</p>
+                <p className="text-base font-bold text-foreground">
+                  R$ {filteredContractsTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-accent shrink-0" />
