@@ -44,6 +44,8 @@ const EMAIL_TYPES = [
   { value: "outro", label: "Outro" },
 ];
 
+const RESEND_MASTER_PROVIDER_KEY = "resend_master";
+
 export function AdminResendConfig() {
   const [settings, setSettings] = useState<ResendSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,27 +71,52 @@ export function AdminResendConfig() {
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
 
+  const applySettings = (s: ResendSettings | null) => {
+    setSettings(s);
+    setApiKey(s?.api_key || "");
+    setFromEmail(s?.from_email || "");
+    setFromName(s?.from_name || "");
+    setAtivo(s?.ativo || false);
+  };
+
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("resend-email", {
-        body: { action: "get_settings" },
-      });
-      if (error) {
-        console.error("Erro ao buscar settings:", error);
+      const { data: configData } = await (supabase as any)
+        .from("dealroom_api_configs")
+        .select("id, credenciais, configuracoes, is_active")
+        .eq("provider", RESEND_MASTER_PROVIDER_KEY)
+        .limit(1)
+        .maybeSingle();
+
+      if (configData) {
+        const credenciais = (configData.credenciais || {}) as Record<string, string>;
+        const configuracoes = (configData.configuracoes || {}) as Record<string, string>;
+        applySettings({
+          id: configData.id,
+          api_key: credenciais.api_key || null,
+          from_email: configuracoes.from_email || null,
+          from_name: configuracoes.from_name || null,
+          ativo: Boolean(configData.is_active),
+        });
         setLoading(false);
         return;
       }
-      if (data?.success && data.settings) {
-        const s = data.settings as ResendSettings;
-        setSettings(s);
-        setApiKey(s.api_key || "");
-        setFromEmail(s.from_email || "");
-        setFromName(s.from_name || "");
-        setAtivo(s.ativo);
+
+      const { data: legacyData } = await supabase
+        .from("admin_resend_settings" as any)
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      if (legacyData) {
+        const s = legacyData as unknown as ResendSettings;
+        applySettings(s);
+      } else {
+        applySettings(null);
       }
-      // If no settings exist yet, settings stays null and we'll create on first save
     } catch (e) {
       console.error("Erro ao buscar settings:", e);
+      applySettings(null);
     }
     setLoading(false);
   };
@@ -110,28 +137,41 @@ export function AdminResendConfig() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { data, error } = await supabase.functions.invoke("resend-email", {
-        body: {
-          action: "save_settings",
-          id: settings?.id || null,
-          api_key: apiKey.trim() || null,
-          from_email: fromEmail.trim() || null,
-          from_name: fromName.trim() || null,
-          ativo,
+      const payload = {
+        provider: RESEND_MASTER_PROVIDER_KEY,
+        nome: "Resend Admin Master",
+        categoria: "email",
+        credenciais: {
+          api_key: apiKey.trim(),
         },
-      });
-      if (error || !data?.success) {
-        toast.error("Erro ao salvar configurações: " + (data?.error || error?.message || "Erro desconhecido"));
+        configuracoes: {
+          from_email: fromEmail.trim(),
+          from_name: fromName.trim(),
+        },
+        is_active: ativo,
+        updated_at: new Date().toISOString(),
+        created_by: "admin_master",
+      };
+
+      const { data, error } = await (supabase as any)
+        .from("dealroom_api_configs")
+        .upsert(payload, { onConflict: "provider" })
+        .select("id, credenciais, configuracoes, is_active")
+        .single();
+
+      if (error) {
+        toast.error("Erro ao salvar configurações: " + error.message);
       } else {
+        const credenciais = (data?.credenciais || {}) as Record<string, string>;
+        const configuracoes = (data?.configuracoes || {}) as Record<string, string>;
+        applySettings({
+          id: data.id,
+          api_key: credenciais.api_key || null,
+          from_email: configuracoes.from_email || null,
+          from_name: configuracoes.from_name || null,
+          ativo: Boolean(data.is_active),
+        });
         toast.success("Configurações do Resend salvas!");
-        if (data.settings) {
-          const s = data.settings as ResendSettings;
-          setSettings(s);
-          setApiKey(s.api_key || "");
-          setFromEmail(s.from_email || "");
-          setFromName(s.from_name || "");
-          setAtivo(s.ativo);
-        }
       }
     } catch (e: any) {
       toast.error("Erro ao salvar: " + (e.message || "Erro desconhecido"));
@@ -144,14 +184,15 @@ export function AdminResendConfig() {
       toast.error("Informe um email de destino");
       return;
     }
-    if (!settings?.api_key) {
+    const effectiveApiKey = apiKey.trim() || settings?.api_key || "";
+    if (!effectiveApiKey) {
       toast.error("Configure a API Key do Resend antes de enviar um teste.");
       return;
     }
     setSendingTest(true);
     try {
-      const fromEmail = settings.from_email || "noreply@resend.dev";
-      const fromName = settings.from_name || "OrçaMóvel PRO";
+      const effectiveFromEmail = fromEmail.trim() || settings?.from_email || "noreply@resend.dev";
+      const effectiveFromName = fromName.trim() || settings?.from_name || "OrçaMóvel PRO";
       const { data, error } = await supabase.functions.invoke("resend-email", {
         body: {
           action: "send",
@@ -162,9 +203,9 @@ export function AdminResendConfig() {
             <p>Este é um email de teste enviado pelo painel do Administrador Master.</p>
             <p style="color:#6b7280;font-size:13px;">Se você recebeu este email, a integração com o Resend está funcionando corretamente.</p>
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
-            <p style="color:#9ca3af;font-size:12px;">${fromName}</p>
+            <p style="color:#9ca3af;font-size:12px;">${effectiveFromName}</p>
           </div>`,
-          from: `${fromName} <${fromEmail}>`,
+          from: `${effectiveFromName} <${effectiveFromEmail}>`,
         },
       });
       if (error) {
