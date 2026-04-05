@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
@@ -121,6 +121,17 @@ export function ContratosTab() {
     () => buildContractDocumentHtml(removeHighlights(htmlContent), nome || "Preview do contrato"),
     [htmlContent, nome],
   );
+
+  const variableReport = useMemo(() => {
+    const cleanHtml = removeHighlights(htmlContent);
+    const knownVars = new Set(AVAILABLE_VARIABLES.map((v) => v.var));
+    const matches = cleanHtml.match(/\{\{[^}]+\}\}/g) || [];
+    const usedSet = new Set(matches);
+    const used = AVAILABLE_VARIABLES.filter((v) => usedSet.has(v.var));
+    const missing = AVAILABLE_VARIABLES.filter((v) => !usedSet.has(v.var));
+    const unknown = [...usedSet].filter((v) => !knownVars.has(v));
+    return { used, missing, unknown, total: AVAILABLE_VARIABLES.length };
+  }, [htmlContent]);
 
   const fetchTemplates = async () => {
     const tenantId = getTenantId();
