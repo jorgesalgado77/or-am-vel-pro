@@ -234,6 +234,8 @@ export function AdminResendConfig() {
         body: {
           action: "verify",
           _temp_key: effectiveApiKey,
+          api_key: effectiveApiKey,
+          resend_api_key: effectiveApiKey,
         },
       });
 
@@ -252,6 +254,8 @@ export function AdminResendConfig() {
         body: {
           action: "send",
           _temp_key: effectiveApiKey,
+          api_key: effectiveApiKey,
+          resend_api_key: effectiveApiKey,
           to: testEmail.trim(),
           subject: "Email de Teste — OrçaMóvel PRO",
           html: `<div style="font-family:Arial,sans-serif;padding:24px;max-width:480px;margin:auto;">
