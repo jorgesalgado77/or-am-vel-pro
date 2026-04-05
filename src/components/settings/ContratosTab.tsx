@@ -500,7 +500,7 @@ export function ContratosTab() {
                 <Button variant="outline" size="sm" className="gap-2" asChild>
                   <span>
                     <FolderInput className="h-4 w-4" />
-                    Importar Template
+                    Importar (PDF, DOCX, JSON)
                   </span>
                 </Button>
               </label>
