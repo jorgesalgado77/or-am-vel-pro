@@ -17,7 +17,7 @@ export interface AppNotification {
   meta?: Record<string, any>;
 }
 
-export function useNotificationCenter(userId: string | undefined, userName: string | undefined, tenantId: string | null) {
+export function useNotificationCenter(userId: string | undefined, userName: string | undefined, tenantId: string | null, cargoNome?: string) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const readIds = useMemo(() => {
@@ -207,6 +207,53 @@ export function useNotificationCenter(userId: string | undefined, userName: stri
 
     return () => { supabase.removeChannel(channel); };
   }, [tenantId, userName, userId]);
+
+  // Realtime: WhatsApp funnel leads — only for admin/gerente
+  useEffect(() => {
+    if (!tenantId) return;
+    const cargo = (cargoNome || "").toLowerCase();
+    const isAdminOrManager = cargo.includes("administrador") || cargo.includes("admin") || cargo.includes("gerente");
+    if (!isAdminOrManager) return;
+
+    const channel = supabase
+      .channel("notif-wa-funnel-leads")
+      .on("postgres_changes" as any, {
+        event: "INSERT",
+        schema: "public",
+        table: "client_tracking",
+      }, (payload: any) => {
+        const row = payload.new;
+        if (row?.origem !== "whatsapp_funnel") return;
+        // Ensure same tenant
+        if (row.tenant_id && row.tenant_id !== tenantId) return;
+
+        playNotificationSound();
+        const notif: AppNotification = {
+          id: `wa-lead-${row.id}`,
+          type: "lead",
+          titulo: "🟢 Novo Lead via WhatsApp",
+          descricao: `${row.nome_cliente || "Lead"}${row.telefone_principal ? ` • ${row.telefone_principal}` : ""} entrou pelo funil WhatsApp`,
+          created_at: row.created_at || new Date().toISOString(),
+          lido: false,
+          link_view: "vendazap-chat",
+          meta: { client_tracking_id: row.id, origem: "whatsapp_funnel" },
+        };
+        setNotifications(prev => [notif, ...prev].slice(0, 30));
+
+        if (userId) {
+          sendPushIfEnabled(
+            "leads",
+            userId,
+            "🟢 Novo Lead via WhatsApp",
+            `${row.nome_cliente || "Lead"} entrou pelo funil WhatsApp`,
+            `wa-lead-${row.id}`,
+          );
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, cargoNome, userId]);
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.lido).length, [notifications]);
 

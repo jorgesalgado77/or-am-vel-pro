@@ -49,7 +49,7 @@ export function AppSidebar({
 
   const tenantId = (currentUser as any)?.tenant_id || null;
   const { notifications, unreadCount: unreadNotifications, markAsRead, markAllRead } = useNotificationCenter(
-    currentUser?.id, currentUser?.nome_completo, tenantId
+    currentUser?.id, currentUser?.nome_completo, tenantId, currentUser?.cargo_nome
   );
 
   const isAdmin = currentUser?.cargo_nome?.toUpperCase().includes("ADMINISTRADOR") || currentUser?.cargo_nome?.toUpperCase().includes("ADMIN");
