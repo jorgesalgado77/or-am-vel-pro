@@ -189,7 +189,6 @@ export const ContractTrackingList = memo(function ContractTrackingList({ clients
     }
     if (syncPromises.length > 0) {
       await Promise.allSettled(syncPromises);
-      console.log(`[RetroSync] Synced ${syncPromises.length} tracking records`);
     }
     // --- End retroactive sync ---
 

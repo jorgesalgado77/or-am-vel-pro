@@ -334,7 +334,6 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
   const formaLabel = FORMAS_PAGAMENTO_LABELS;
 
   const handleSubmit = async () => {
-    console.log("[CloseSaleModal] handleSubmit called");
     try {
       const errors = new Set<string>();
       for (const { key } of REQUIRED_FIELDS) {
@@ -354,7 +353,6 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
         toast.error(cpfErr || `Preencha: ${missing.join(", ")}`);
         return;
       }
-      console.log("[CloseSaleModal] Validation passed, calling onConfirm...");
       const localTenantId = getTenantId();
       if (localTenantId && client) {
         const totalValue = simulationData?.valorFinal || totalAmbientes;
@@ -378,7 +376,6 @@ export function CloseSaleModal({ open, onClose, onConfirm, client, simulationDat
       }
 
       const success = await onConfirm(form, items, itemDetails);
-      console.log("[CloseSaleModal] onConfirm returned:", success);
       // Don't clear form here — data persists per-client until contract is fully saved
     } catch (err) {
       console.error("[CloseSaleModal] handleSubmit error:", err);

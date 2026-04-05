@@ -370,7 +370,6 @@ function WebGLViewer({
           camera.position.copy(camDir.multiplyScalar(autoResult.cameraDistance));
           controls.update();
           needsRenderRef.current = true;
-          console.log(`[Auto-Lighting IA] ${autoResult.reason}`);
           onAutoLighting?.(autoResult);
         }
 
