@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,6 @@ import {
   X,
   Pencil,
 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import { removeHighlights } from "@/lib/contractImport";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import type { ImportedContractContent } from "@/lib/contractImport";
@@ -79,14 +78,29 @@ export function PdfImportPreviewModal({
   const [viewMode, setViewMode] = useState<"preview" | "variables" | "html">("preview");
   const [useAutoReplace, setUseAutoReplace] = useState(true);
   const [editedHtml, setEditedHtml] = useState<string | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [editorKey, setEditorKey] = useState(0);
 
   const baseHtml = useAutoReplace ? processedHtml : imported.html;
   const finalHtml = editedHtml !== null ? editedHtml : baseHtml;
+
+  // Capture editor content when switching away from editor tab
+  const captureEditorContent = useCallback(() => {
+    if (editorRef.current) {
+      setEditedHtml(editorRef.current.innerHTML);
+    }
+  }, []);
 
   // Sync editedHtml when toggling auto-replace
   const handleAutoReplaceChange = (val: boolean) => {
     setUseAutoReplace(val);
     setEditedHtml(null);
+    setEditorKey((k) => k + 1);
+  };
+
+  const handleViewChange = (mode: "preview" | "variables" | "html") => {
+    if (viewMode === "html") captureEditorContent();
+    setViewMode(mode);
   };
 
   const variableSummary = useMemo(() => {
@@ -105,9 +119,13 @@ export function PdfImportPreviewModal({
   );
 
   const handleConfirm = () => {
+    if (viewMode === "html") captureEditorContent();
+    const html = viewMode === "html" && editorRef.current
+      ? editorRef.current.innerHTML
+      : finalHtml;
     onConfirm({
       nome: templateName || "Template Importado",
-      html: finalHtml,
+      html,
       structure: imported.structure,
       templateType: imported.templateType,
       fileName,
@@ -156,7 +174,7 @@ export function PdfImportPreviewModal({
               variant={viewMode === "preview" ? "default" : "ghost"}
               size="sm"
               className="flex-1 gap-1.5"
-              onClick={() => setViewMode("preview")}
+              onClick={() => handleViewChange("preview")}
             >
               <Eye className="h-3.5 w-3.5" />
               Preview
@@ -165,7 +183,7 @@ export function PdfImportPreviewModal({
               variant={viewMode === "variables" ? "default" : "ghost"}
               size="sm"
               className="flex-1 gap-1.5"
-              onClick={() => setViewMode("variables")}
+              onClick={() => handleViewChange("variables")}
             >
               <Code className="h-3.5 w-3.5" />
               Variáveis ({variableSummary.total})
@@ -174,10 +192,10 @@ export function PdfImportPreviewModal({
               variant={viewMode === "html" ? "default" : "ghost"}
               size="sm"
               className="flex-1 gap-1.5"
-              onClick={() => setViewMode("html")}
+              onClick={() => handleViewChange("html")}
             >
               <Pencil className="h-3.5 w-3.5" />
-              Editar HTML
+              Editor Visual
             </Button>
           </div>
 
@@ -190,12 +208,17 @@ export function PdfImportPreviewModal({
                 style={{ fontSize: "10px", transform: "scale(0.7)", transformOrigin: "top left", width: "142%" }}
               />
             ) : viewMode === "html" ? (
-              <div className="p-2">
-                <Textarea
-                  value={editedHtml !== null ? editedHtml : baseHtml}
-                  onChange={(e) => setEditedHtml(e.target.value)}
-                  className="min-h-[40vh] font-mono text-xs leading-relaxed resize-none"
-                  placeholder="HTML do template..."
+              <div className="p-4">
+                <div
+                  key={editorKey}
+                  ref={editorRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  className="prose prose-sm min-h-[35vh] max-w-none rounded-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  dangerouslySetInnerHTML={{ __html: editedHtml !== null ? editedHtml : baseHtml }}
+                  onBlur={() => {
+                    if (editorRef.current) setEditedHtml(editorRef.current.innerHTML);
+                  }}
                 />
               </div>
             ) : (
