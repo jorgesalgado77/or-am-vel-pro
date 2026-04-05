@@ -1009,6 +1009,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
         <AdminSharedApiUsageList />
         </AdminCollapsibleSection>
 
+        <AdminCollapsibleSection title="Gerenciamento" icon={Shield}>
         <Tabs defaultValue="lojas" className="space-y-4">
           <ScrollArea className="w-full">
             <TabsList className="inline-flex w-max gap-1 p-1">
