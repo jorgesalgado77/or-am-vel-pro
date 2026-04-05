@@ -70,6 +70,17 @@ export function AdminResendConfig() {
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
 
+  // Sharing state
+  interface TenantRow { id: string; nome_loja: string; codigo_loja: string | null; ativo: boolean; }
+  interface ShareRow { id: string; config_id: string; tenant_id: string; starts_at: string; ends_at: string; is_active: boolean; }
+  const [tenants, setTenants] = useState<TenantRow[]>([]);
+  const [shares, setShares] = useState<ShareRow[]>([]);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareTenantId, setShareTenantId] = useState("");
+  const [shareStartsAt, setShareStartsAt] = useState("");
+  const [shareEndsAt, setShareEndsAt] = useState("");
+  const [shareSaving, setShareSaving] = useState(false);
+
   const getFunctionErrorMessage = async (error: unknown) => {
     const fallback = error instanceof Error ? error.message : "Erro desconhecido";
     const response = (error as { context?: { clone?: () => { json: () => Promise<any> }; json?: () => Promise<any> } })?.context;
