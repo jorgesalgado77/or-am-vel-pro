@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
@@ -217,6 +217,70 @@ export function ContratosTab() {
     fetchTemplates();
   };
 
+  // ── Export template as JSON file ──
+  const handleExportTemplate = (t: ContractTemplate) => {
+    const exportData = {
+      _format: "orcamovel_contract_template_v1",
+      nome: t.nome,
+      conteudo_html: t.conteudo_html,
+      template_structure: t.template_structure || null,
+      template_type: t.template_type || "flow",
+      exported_at: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${t.nome.replace(/[^a-zA-Z0-9À-ú_-]/g, "_")}.template.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Template exportado!");
+  };
+
+  // ── Import template from JSON file ──
+  const handleImportTemplate = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (data._format !== "orcamovel_contract_template_v1") {
+        toast.error("Arquivo inválido. Use um template exportado pelo sistema.");
+        return;
+      }
+
+      const tenantId = getTenantId();
+      const insertPayload: Record<string, any> = {
+        nome: data.nome || "Template Importado",
+        conteudo_html: data.conteudo_html || "",
+        ativo: true,
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+      };
+      if (data.template_structure) {
+        insertPayload.template_structure = data.template_structure;
+        insertPayload.template_type = data.template_type || "flow";
+      }
+
+      const { error } = await supabase
+        .from("contract_templates")
+        .insert(insertPayload as never);
+
+      if (error) {
+        toast.error("Erro ao importar template: " + error.message);
+      } else {
+        toast.success(`Template "${data.nome}" importado com sucesso!`);
+        fetchTemplates();
+      }
+    } catch (err) {
+      toast.error("Erro ao ler arquivo JSON");
+      console.error(err);
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -315,10 +379,26 @@ export function ContratosTab() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Modelos de Contrato</CardTitle>
-            <Button size="sm" className="gap-2" onClick={handleNew}>
-              <Plus className="h-4 w-4" />
-              Novo Modelo
-            </Button>
+            <div className="flex gap-2">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={handleImportTemplate}
+                />
+                <Button variant="outline" size="sm" className="gap-2" asChild>
+                  <span>
+                    <FolderInput className="h-4 w-4" />
+                    Importar Template
+                  </span>
+                </Button>
+              </label>
+              <Button size="sm" className="gap-2" onClick={handleNew}>
+                <Plus className="h-4 w-4" />
+                Novo Modelo
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -348,6 +428,9 @@ export function ContratosTab() {
                     )}
                   </div>
                   <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleExportTemplate(t)} title="Exportar template">
+                      <Download className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(t)} title="Editar">
                       <FileText className="h-4 w-4" />
                     </Button>
