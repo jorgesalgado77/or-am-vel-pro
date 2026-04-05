@@ -149,43 +149,54 @@ export function AdminResendConfig() {
     fetchTemplates();
   }, []);
 
+  const persistResendSettings = async (forceActive = ativo) => {
+    const payload = {
+      provider: RESEND_MASTER_PROVIDER_KEY,
+      nome: "Resend Admin Master",
+      categoria: "email",
+      credenciais: {
+        api_key: apiKey.trim(),
+      },
+      configuracoes: {
+        from_email: fromEmail.trim(),
+        from_name: fromName.trim(),
+      },
+      is_active: forceActive,
+      updated_at: new Date().toISOString(),
+      created_by: "admin_master",
+    };
+
+    const { data, error } = await (supabase as any)
+      .from("dealroom_api_configs")
+      .upsert(payload, { onConflict: "provider" })
+      .select("id, credenciais, configuracoes, is_active")
+      .single();
+
+    if (error) return { data: null, error };
+
+    const credenciais = (data?.credenciais || {}) as Record<string, string>;
+    const configuracoes = (data?.configuracoes || {}) as Record<string, string>;
+
+    const nextSettings = {
+      id: data.id,
+      api_key: credenciais.api_key || null,
+      from_email: configuracoes.from_email || null,
+      from_name: configuracoes.from_name || null,
+      ativo: Boolean(data.is_active),
+    };
+
+    applySettings(nextSettings);
+    return { data: nextSettings, error: null };
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = {
-        provider: RESEND_MASTER_PROVIDER_KEY,
-        nome: "Resend Admin Master",
-        categoria: "email",
-        credenciais: {
-          api_key: apiKey.trim(),
-        },
-        configuracoes: {
-          from_email: fromEmail.trim(),
-          from_name: fromName.trim(),
-        },
-        is_active: ativo,
-        updated_at: new Date().toISOString(),
-        created_by: "admin_master",
-      };
-
-      const { data, error } = await (supabase as any)
-        .from("dealroom_api_configs")
-        .upsert(payload, { onConflict: "provider" })
-        .select("id, credenciais, configuracoes, is_active")
-        .single();
+      const { error } = await persistResendSettings(ativo);
 
       if (error) {
         toast.error("Erro ao salvar configurações: " + error.message);
       } else {
-        const credenciais = (data?.credenciais || {}) as Record<string, string>;
-        const configuracoes = (data?.configuracoes || {}) as Record<string, string>;
-        applySettings({
-          id: data.id,
-          api_key: credenciais.api_key || null,
-          from_email: configuracoes.from_email || null,
-          from_name: configuracoes.from_name || null,
-          ativo: Boolean(data.is_active),
-        });
         toast.success("Configurações do Resend salvas!");
       }
     } catch (e: any) {
@@ -204,10 +215,20 @@ export function AdminResendConfig() {
       toast.error("Configure a API Key do Resend antes de enviar um teste.");
       return;
     }
+    if (!ativo) {
+      toast.error("Ative a integração do Resend antes de enviar um teste.");
+      return;
+    }
     setSendingTest(true);
     try {
       const effectiveFromEmail = fromEmail.trim() || settings?.from_email || "noreply@resend.dev";
       const effectiveFromName = fromName.trim() || settings?.from_name || "OrçaMóvel PRO";
+
+      const { error: persistError } = await persistResendSettings(true);
+      if (persistError) {
+        toast.error("Erro ao preparar configurações para o teste: " + persistError.message);
+        return;
+      }
 
       const { data: verifyData, error: verifyError } = await supabase.functions.invoke("resend-email", {
         body: {
