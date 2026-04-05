@@ -207,33 +207,7 @@ export function AdminResendConfig() {
   };
 
   const invokeResendAdminTest = async (body: Record<string, unknown>) => {
-    const requestedAction = typeof body.action === "string" ? body.action : "";
-    const attempts = requestedAction === "send_test"
-      ? [
-          { ...body, action: "send_test" },
-          { ...body, action: "send" },
-        ]
-      : [body];
-
-    let lastResult: Awaited<ReturnType<typeof supabase.functions.invoke>> | null = null;
-
-    for (const candidate of attempts) {
-      const result = await supabase.functions.invoke("resend-email", { body: candidate });
-      lastResult = result;
-
-      if (!result.error) {
-        return result;
-      }
-
-      const message = await getFunctionErrorMessage(result.error);
-      const isCompatibilityMiss = /ação inválida|api key do resend não configurada/i.test(message);
-
-      if (!isCompatibilityMiss || candidate.action === "send") {
-        return result;
-      }
-    }
-
-    return lastResult ?? { data: null, error: new Error("Falha ao chamar a Edge Function.") };
+    return supabase.functions.invoke("resend-email", { body });
   };
 
   const handleSendTest = async () => {
@@ -283,7 +257,7 @@ export function AdminResendConfig() {
       }
 
       const { data, error } = await invokeResendAdminTest({
-        action: "send_test",
+        action: "send",
         _temp_key: effectiveApiKey,
         api_key: effectiveApiKey,
         resend_api_key: effectiveApiKey,
