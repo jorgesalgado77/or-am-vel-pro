@@ -863,6 +863,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Date Filter */}
         <AdminCollapsibleSection title="Filtro de Período" icon={Calendar}>
+          <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
@@ -891,7 +892,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </span>
             </div>
           </CardContent>
-        </Card>
+          </Card>
         </AdminCollapsibleSection>
 
         {/* KPI Cards - Row 1: Structural (not date-filtered) */}
