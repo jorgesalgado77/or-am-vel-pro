@@ -170,6 +170,17 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [repairingAccess, setRepairingAccess] = useState(false);
 
+  // Date filter for KPIs
+  const [adminDatePreset, setAdminDatePreset] = useState<AdminDatePreset>("mes_atual");
+  const [adminCustomStart, setAdminCustomStart] = useState("");
+  const [adminCustomEnd, setAdminCustomEnd] = useState("");
+  const adminDateRange = useMemo(() => getAdminDateRange(adminDatePreset, adminCustomStart, adminCustomEnd), [adminDatePreset, adminCustomStart, adminCustomEnd]);
+
+  // Date-filtered KPI state
+  const [filteredClientCount, setFilteredClientCount] = useState(0);
+  const [filteredContractsTotal, setFilteredContractsTotal] = useState(0);
+  const [filteredSimCount, setFilteredSimCount] = useState(0);
+
   // Tenant form
   const [tNome, setTNome] = useState("");
   const [tCodigo, setTCodigo] = useState("");
