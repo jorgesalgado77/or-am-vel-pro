@@ -1,6 +1,7 @@
 /**
  * Modal for sending measurement requests (Solicitação de Medida).
  * Shows client data, sale value, environments, imported files and requires image uploads.
+ * PDF generation delegated to measurement/MeasurementPdfBuilder.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -19,6 +20,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { logAudit, getAuditUserInfo } from "@/services/auditService";
 import { formatCurrency } from "@/lib/financing";
+import { buildMeasurementPdf } from "./measurement/MeasurementPdfBuilder";
 import { parseArquivoNome } from "@/lib/parseArquivoNome";
 import { maskCep, maskCodigoLoja, maskCpfCnpj, maskPhone } from "@/lib/masks";
 import { toast } from "sonner";
