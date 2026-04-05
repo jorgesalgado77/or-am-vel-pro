@@ -352,6 +352,56 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     };
   }, []);
 
+  // Date-filtered KPI fetch
+  const fetchDateFilteredKpis = useCallback(async (dateRange: { start: Date; end: Date }) => {
+    const startISO = dateRange.start.toISOString();
+    const endISO = dateRange.end.toISOString();
+
+    const [clientsRes, contractClientsRes, dealRoomRes, dealRoomFallbackRes] = await Promise.all([
+      supabase.from("clients").select("id", { count: "exact", head: true }).gte("created_at", startISO).lte("created_at", endISO),
+      supabase.from("clients").select("id, tenant_id, created_at").eq("status", "venda_fechada").gte("created_at", startISO).lte("created_at", endISO),
+      supabase.from("dealroom_proposals" as any).select("commission_value, status, created_at").eq("status", "paid").gte("created_at", startISO).lte("created_at", endISO),
+      supabase.from("payroll_commissions" as any).select("valor_comissao, created_at").ilike("observacao", "%deal%room%").gte("created_at", startISO).lte("created_at", endISO),
+    ]);
+
+    setFilteredClientCount(clientsRes.count || 0);
+
+    // Contracts: get valor_avista from simulations
+    if (contractClientsRes.data && contractClientsRes.data.length > 0) {
+      const clientIds = contractClientsRes.data.map((c: any) => c.id);
+      const { data: sims } = await supabase
+        .from("simulations")
+        .select("client_id, valor_tela, desconto1, desconto2, desconto3")
+        .in("client_id", clientIds)
+        .order("created_at", { ascending: false });
+      const simMap: Record<string, number> = {};
+      (sims || []).forEach((s: any) => {
+        if (!simMap[s.client_id]) {
+          const vt = Number(s.valor_tela) || 0;
+          const d1 = Number(s.desconto1) || 0;
+          const d2 = Number(s.desconto2) || 0;
+          const d3 = Number(s.desconto3) || 0;
+          simMap[s.client_id] = vt * (1 - d1 / 100) * (1 - d2 / 100) * (1 - d3 / 100);
+        }
+      });
+      setFilteredContractsTotal(Object.values(simMap).reduce((a, b) => a + b, 0));
+    } else {
+      setFilteredContractsTotal(0);
+    }
+
+    // Deal Room commissions
+    if (dealRoomRes.data && dealRoomRes.data.length > 0) {
+      setDealRoomCommissions(dealRoomRes.data.reduce((sum: number, r: any) => sum + (Number(r.commission_value) || 0), 0));
+    } else {
+      setDealRoomCommissions((dealRoomFallbackRes.data || []).reduce((sum: number, r: any) => sum + (Number(r.valor_comissao) || 0), 0));
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDateFilteredKpis(adminDateRange);
+  }, [adminDateRange, fetchDateFilteredKpis]);
+
+
   const toggleTenantActive = async (tenant: Tenant) => {
     const newAtivo = !tenant.ativo;
     const { error } = await supabase.from("tenants").update({ ativo: newAtivo } as any).eq("id", tenant.id);
