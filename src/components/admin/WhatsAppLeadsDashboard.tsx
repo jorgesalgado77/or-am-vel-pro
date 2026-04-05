@@ -66,20 +66,19 @@ export function WhatsAppLeadsDashboard() {
     setLoading(true);
     const since = startOfDay(subDays(new Date(), parseInt(period))).toISOString();
 
-    const [leadsRes, trackingRes] = await Promise.all([
-      supabase
-        .from("leads" as any)
-        .select("id, nome, email, telefone, origem, mensagem, created_at")
-        .eq("origem" as any, "whatsapp_funnel" as any)
-        .gte("created_at" as any, since as any)
-        .order("created_at" as any, { ascending: false } as any),
-      supabase
-        .from("client_tracking" as any)
-        .select("id, nome_cliente, telefone_principal, status, origem, created_at")
-        .eq("origem" as any, "whatsapp_funnel" as any)
-        .gte("created_at" as any, since as any)
-        .order("created_at" as any, { ascending: false } as any),
-    ]);
+    const leadsRes = await supabase
+      .from("leads" as never)
+      .select("id, nome, email, telefone, origem, mensagem, created_at")
+      .eq("origem" as never, "whatsapp_funnel" as never)
+      .gte("created_at" as never, since as never)
+      .order("created_at" as never, { ascending: false } as never);
+
+    const trackingRes = await supabase
+      .from("client_tracking" as never)
+      .select("id, nome_cliente, telefone_principal, status, origem, created_at")
+      .eq("origem" as never, "whatsapp_funnel" as never)
+      .gte("created_at" as never, since as never)
+      .order("created_at" as never, { ascending: false } as never);
 
     setLeads((leadsRes.data as any as Lead[]) || []);
     setTrackingLeads((trackingRes.data as any as TrackingLead[]) || []);
