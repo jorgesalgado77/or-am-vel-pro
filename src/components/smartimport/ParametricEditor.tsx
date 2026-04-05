@@ -289,8 +289,6 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const threeRef = useRef<any>(null);
   const needsRenderRef = useRef(true);
   const animFrameRef = useRef(0);
-  const dragRef = useRef<{ id: string; startX: number; startY: number; mouseX: number; mouseY: number; isMain?: boolean } | null>(null);
-  const isDraggingRef = useRef(false);
 
   const { tree: categoryTree, categories, addCategory, loadCategories } = useModuleCategories(tenantId ?? null);
 
