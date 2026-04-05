@@ -245,7 +245,7 @@ export const extractEmbeddedImages = async (
           ca * e + cc * f + ce,
           cb * e + cd * f + cf,
         ];
-      } else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
+      } else if (fn === OPS.paintImageXObject || fn === OPS.paintXObject) {
         const imgName = args[0] as string;
         try {
           const imgData = await new Promise<any>((resolve, reject) => {
