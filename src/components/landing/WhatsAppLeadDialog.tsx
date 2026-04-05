@@ -1,5 +1,6 @@
 /**
- * WhatsAppLeadDialog — captures name/email before redirecting to WhatsApp
+ * WhatsAppLeadDialog — captures name/email/phone before redirecting to WhatsApp
+ * Also creates a client + client_tracking entry for the sales chat
  */
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -22,22 +23,49 @@ interface WhatsAppLeadDialogProps {
 export function WhatsAppLeadDialog({ open, onOpenChange, phone, message, primaryColor }: WhatsAppLeadDialogProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [leadPhone, setLeadPhone] = useState("");
   const [sending, setSending] = useState(false);
 
   const handleSubmit = async () => {
     setSending(true);
 
-    // Save lead if name provided
     if (name.trim()) {
       try {
+        // 1. Insert into clients table
+        const { data: client } = await supabase
+          .from("clients" as any)
+          .insert({
+            nome: name.trim(),
+            email: email.trim() || null,
+            telefone1: leadPhone.trim() || null,
+            origem: "whatsapp_funnel",
+            status: "novo",
+          } as any)
+          .select("id")
+          .single();
+
+        // 2. Create client_tracking for sales chat integration
+        if (client?.id) {
+          await supabase.from("client_tracking" as any).insert({
+            client_id: client.id,
+            nome_cliente: name.trim(),
+            telefone_principal: leadPhone.trim() || null,
+            status: "novo",
+            origem: "whatsapp_funnel",
+            observacoes: `Lead via funil WhatsApp. Mensagem: "${message}"`,
+          } as any);
+        }
+
+        // 3. Also save to leads table for analytics
         await supabase.from("leads" as any).insert({
           nome: name.trim(),
           email: email.trim() || null,
+          telefone: leadPhone.trim() || null,
           origem: "whatsapp_funnel",
           mensagem: message,
         } as any);
       } catch {
-        // non-blocking
+        // non-blocking — don't prevent WhatsApp from opening
       }
     }
 
@@ -46,6 +74,7 @@ export function WhatsAppLeadDialog({ open, onOpenChange, phone, message, primary
     onOpenChange(false);
     setName("");
     setEmail("");
+    setLeadPhone("");
     toast.success("WhatsApp aberto! Aguarde o atendimento.");
   };
 
@@ -76,6 +105,17 @@ export function WhatsAppLeadDialog({ open, onOpenChange, phone, message, primary
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={100}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lead-phone">WhatsApp / Telefone</Label>
+            <Input
+              id="lead-phone"
+              type="tel"
+              placeholder="(11) 99999-9999"
+              value={leadPhone}
+              onChange={(e) => setLeadPhone(e.target.value)}
+              maxLength={20}
             />
           </div>
           <div className="space-y-2">
