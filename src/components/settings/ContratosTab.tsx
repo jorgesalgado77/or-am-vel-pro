@@ -119,6 +119,14 @@ export function ContratosTab() {
   const [showHighlights, setShowHighlights] = useState(true);
   const [autoReplace, setAutoReplace] = useState(true);
   const [keepBackground, setKeepBackground] = useState(true);
+  const [pdfPreview, setPdfPreview] = useState<{
+    imported: ImportedContractContent;
+    processedHtml: string;
+    replacements: Array<{ variable: string; label: string; originalValue: string }>;
+    replacedCount: number;
+    fileName: string;
+  } | null>(null);
+  const [savingImport, setSavingImport] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const previewDocument = useMemo(
