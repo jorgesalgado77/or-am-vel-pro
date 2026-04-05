@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useMemo, useCallback} from "react";
 import {supabase} from "@/lib/supabaseClient";
 import {maskPhone} from "@/lib/masks";
 import {toast} from "sonner";
@@ -40,8 +40,37 @@ import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
 import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
-import {format, isAfter, isBefore} from "date-fns";
+import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";
+
+type AdminDatePreset = "mes_atual" | "mes_anterior" | "60dias" | "90dias" | "personalizado";
+
+const ADMIN_DATE_PRESETS: { value: AdminDatePreset; label: string }[] = [
+  { value: "mes_atual", label: "Mês Atual" },
+  { value: "mes_anterior", label: "Mês Anterior" },
+  { value: "60dias", label: "Últimos 60 dias" },
+  { value: "90dias", label: "Últimos 90 dias" },
+  { value: "personalizado", label: "Personalizado" },
+];
+
+function getAdminDateRange(preset: AdminDatePreset, customStart?: string, customEnd?: string) {
+  const now = new Date();
+  const end = endOfDay(now);
+  switch (preset) {
+    case "mes_atual": return { start: startOfMonth(now), end };
+    case "mes_anterior": {
+      const prev = subMonths(now, 1);
+      return { start: startOfMonth(prev), end: endOfDay(endOfMonth(prev)) };
+    }
+    case "60dias": return { start: startOfDay(subDays(now, 60)), end };
+    case "90dias": return { start: startOfDay(subDays(now, 90)), end };
+    case "personalizado": return {
+      start: customStart ? startOfDay(new Date(customStart)) : startOfMonth(now),
+      end: customEnd ? endOfDay(new Date(customEnd)) : end,
+    };
+    default: return { start: startOfMonth(now), end };
+  }
+}
 
 interface AdminDashboardProps {
   adminName: string;
