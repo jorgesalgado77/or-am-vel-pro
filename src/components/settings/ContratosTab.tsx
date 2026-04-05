@@ -440,6 +440,47 @@ export function ContratosTab() {
     }
   };
 
+  const handleConfirmPdfImport = async (data: {
+    nome: string;
+    html: string;
+    structure?: any;
+    templateType?: string;
+    fileName: string;
+  }) => {
+    setSavingImport(true);
+    try {
+      const tenantId = getTenantId();
+      const insertPayload: Record<string, any> = {
+        nome: data.nome,
+        conteudo_html: data.html,
+        ativo: true,
+        arquivo_original_nome: data.fileName,
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+      };
+      if (data.structure) {
+        insertPayload.template_structure = data.structure;
+        insertPayload.template_type = data.templateType || "hybrid";
+      }
+
+      const { error } = await supabase
+        .from("contract_templates")
+        .insert(insertPayload as never);
+
+      if (error) {
+        toast.error("Erro ao importar PDF: " + error.message);
+      } else {
+        toast.success(`Template "${data.nome}" importado com sucesso!`);
+        setPdfPreview(null);
+        fetchTemplates();
+      }
+    } catch (err) {
+      toast.error("Erro ao salvar template");
+      console.error(err);
+    } finally {
+      setSavingImport(false);
+    }
+  };
+
   const isEditing = editingTemplate !== null || htmlContent !== "";
 
   return (
