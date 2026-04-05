@@ -13,9 +13,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { toast } from "sonner";
 import type {
   ParametricModule, InternalComponent, ComponentType, ModuleBOM, ModuleType,
 } from "@/types/parametricModule";
@@ -27,6 +24,7 @@ import { generateBomPdf } from "@/lib/generateBomPdf";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 import { useModuleCategories, type CategoryTreeNode } from "@/hooks/useModuleCategories";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
+import { useModuleDrag } from "@/hooks/useModuleDrag";
 import { supabase } from "@/lib/supabaseClient";
 
 const SHELF_THICKNESSES = [15, 18, 25, 36] as const;
