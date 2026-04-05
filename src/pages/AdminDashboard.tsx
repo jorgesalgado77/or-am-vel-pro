@@ -978,8 +978,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                               <Badge variant={status.variant} className="cursor-pointer">{status.text}</Badge>
                             </Button>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {validadeDate ? format(new Date(validadeDate), "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                          <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                            {validadeDate ? format(new Date(String(validadeDate).length === 10 ? validadeDate + "T12:00:00" : validadeDate), "dd/MM/yyyy") : "—"}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-center">
