@@ -24,7 +24,7 @@ export const LandingCTA = forwardRef<HTMLElement, LandingCTAProps>(
           style={{ backgroundColor: primaryColor }}
           className="text-white hover:opacity-90 text-base px-10 py-6 rounded-xl shadow-lg"
         >
-          Testar grátis por 7 dias
+          Escolher meu plano
           <ArrowRight className="ml-2 h-5 w-5" />
         </Button>
       </div>

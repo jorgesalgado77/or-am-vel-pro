@@ -54,7 +54,7 @@ export function LandingUrgencyBanner({ primaryColor }: LandingUrgencyBannerProps
         <Flame className="h-4 w-4 animate-pulse" />
         <span className="hidden sm:inline">🔥 Oferta por tempo limitado:</span>
         <span className="sm:hidden">🔥 Oferta limitada:</span>
-        <span className="font-bold">7 dias grátis + 15% OFF no plano anual</span>
+        <span className="font-bold">15% OFF no plano anual — Comece a vender mais hoje!</span>
         <div className="flex items-center gap-1.5 ml-2">
           <Clock className="h-3.5 w-3.5" />
           <div className="flex items-center gap-1 font-mono font-bold">

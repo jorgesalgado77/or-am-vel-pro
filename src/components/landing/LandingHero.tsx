@@ -57,7 +57,7 @@ export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor,
                   style={{ backgroundColor: primaryColor }}
                   className="text-white hover:opacity-90 transition-opacity text-base px-8 py-6 rounded-xl shadow-lg"
                 >
-                  Testar grátis por 7 dias
+                  Começar agora
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
                 <Button
