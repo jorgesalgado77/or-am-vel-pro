@@ -153,10 +153,98 @@ export function AdminResendConfig() {
     if (data) setTemplates(data as unknown as EmailTemplate[]);
   };
 
+  const fetchTenants = async () => {
+    const { data } = await supabase.from("tenants").select("id, nome_loja, codigo_loja, ativo").order("nome_loja");
+    if (data) setTenants(data as TenantRow[]);
+  };
+
+  const fetchShares = async () => {
+    // Get the resend config id first
+    const { data: configData } = await (supabase as any)
+      .from("dealroom_api_configs")
+      .select("id")
+      .eq("provider", RESEND_MASTER_PROVIDER_KEY)
+      .limit(1)
+      .maybeSingle();
+    if (!configData) { setShares([]); return; }
+    const { data } = await (supabase as any)
+      .from("dealroom_api_shares")
+      .select("*")
+      .eq("config_id", configData.id)
+      .order("created_at", { ascending: false });
+    if (data) setShares(data as ShareRow[]);
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchTemplates();
+    fetchTenants();
+    fetchShares();
   }, []);
+
+  const formatForInput = (value?: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+  };
+
+  const toIso = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  };
+
+  const openShareDialog = () => {
+    const now = new Date();
+    setShareTenantId("");
+    setShareStartsAt(formatForInput(now.toISOString()));
+    setShareEndsAt(formatForInput(addDays(now, 30).toISOString()));
+    setShareDialogOpen(true);
+  };
+
+  const saveShare = async () => {
+    if (!shareTenantId || !shareEndsAt) {
+      toast.error("Selecione a loja e o período do compartilhamento.");
+      return;
+    }
+    setShareSaving(true);
+    try {
+      // Ensure config exists
+      const { data: configResult, error: configError } = await persistResendSettings(ativo);
+      if (configError || !configResult) {
+        toast.error("Erro ao preparar configuração: " + (configError?.message || "Config não encontrada"));
+        return;
+      }
+
+      const { error } = await (supabase as any)
+        .from("dealroom_api_shares")
+        .upsert({
+          config_id: configResult.id,
+          tenant_id: shareTenantId,
+          starts_at: toIso(shareStartsAt),
+          ends_at: toIso(shareEndsAt),
+          is_active: true,
+          shared_by: "admin_master",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "config_id,tenant_id" });
+
+      if (error) throw new Error(error.message);
+      toast.success("API Resend compartilhada com a loja!");
+      setShareDialogOpen(false);
+      fetchShares();
+    } catch (error: any) {
+      toast.error("Erro ao compartilhar: " + (error?.message || "desconhecido"));
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  const removeShare = async (shareId: string) => {
+    if (!confirm("Remover este compartilhamento?")) return;
+    await (supabase as any).from("dealroom_api_shares").delete().eq("id", shareId);
+    toast.success("Compartilhamento removido");
+    fetchShares();
+  };
 
   const persistResendSettings = async (forceActive = ativo) => {
     const trimmedApiKey = apiKey.trim();
