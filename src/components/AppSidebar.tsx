@@ -20,6 +20,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { SidebarNotifications } from "@/components/sidebar/SidebarNotifications";
 import { SidebarUserProfile } from "@/components/sidebar/SidebarUserProfile";
 import { SidebarUsageWidget } from "@/components/sidebar/SidebarUsageWidget";
+import { UsageNotificationsPanel } from "@/components/sidebar/UsageNotificationsPanel";
 import type { OnlineUser } from "@/hooks/useOnlinePresence";
 
 interface AppSidebarProps {
@@ -213,6 +214,8 @@ export function AppSidebar({
         </Tooltip>
 
         <div className={cn("flex items-center", collapsed ? "flex-col gap-1" : "gap-0.5")}>
+          <UsageNotificationsPanel collapsed={collapsed} />
+
           <SidebarNotifications
             notifications={notifications}
             unreadCount={unreadNotifications}
