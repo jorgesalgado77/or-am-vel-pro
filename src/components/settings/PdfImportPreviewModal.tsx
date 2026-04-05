@@ -24,7 +24,6 @@ import {
   X,
   Pencil,
 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import { removeHighlights } from "@/lib/contractImport";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import type { ImportedContractContent } from "@/lib/contractImport";
