@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { addDays, format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, Mail, CheckCircle2, XCircle,
-  Plus, Trash2, Edit, Send,
+  Plus, Trash2, Edit, Send, Share2,
 } from "lucide-react";
 
 interface ResendSettings {
