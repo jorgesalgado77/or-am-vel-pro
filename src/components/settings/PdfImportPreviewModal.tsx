@@ -22,7 +22,9 @@ import {
   Sparkles,
   Save,
   X,
+  Pencil,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { removeHighlights } from "@/lib/contractImport";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import type { ImportedContractContent } from "@/lib/contractImport";
@@ -167,6 +169,15 @@ export function PdfImportPreviewModal({
             >
               <Code className="h-3.5 w-3.5" />
               Variáveis ({variableSummary.total})
+            </Button>
+            <Button
+              variant={viewMode === "html" ? "default" : "ghost"}
+              size="sm"
+              className="flex-1 gap-1.5"
+              onClick={() => setViewMode("html")}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Editar HTML
             </Button>
           </div>
 
