@@ -39,6 +39,8 @@ export function AdminLandingPage() {
   const [saving, setSaving] = useState(false);
   const [leadTempFilter, setLeadTempFilter] = useState("all");
   const [leadOrigemFilter, setLeadOrigemFilter] = useState("all");
+  const [dbPlans, setDbPlans] = useState<any[]>([]);
+  const [showPlanSelector, setShowPlanSelector] = useState(false);
 
   const filteredLeads = leads.filter((l) => {
     if (leadTempFilter !== "all" && (l.lead_temperature || "morno") !== leadTempFilter) return false;
