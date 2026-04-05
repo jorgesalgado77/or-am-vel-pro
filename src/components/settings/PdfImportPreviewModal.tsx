@@ -79,14 +79,29 @@ export function PdfImportPreviewModal({
   const [viewMode, setViewMode] = useState<"preview" | "variables" | "html">("preview");
   const [useAutoReplace, setUseAutoReplace] = useState(true);
   const [editedHtml, setEditedHtml] = useState<string | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [editorKey, setEditorKey] = useState(0);
 
   const baseHtml = useAutoReplace ? processedHtml : imported.html;
   const finalHtml = editedHtml !== null ? editedHtml : baseHtml;
+
+  // Capture editor content when switching away from editor tab
+  const captureEditorContent = useCallback(() => {
+    if (editorRef.current) {
+      setEditedHtml(editorRef.current.innerHTML);
+    }
+  }, []);
 
   // Sync editedHtml when toggling auto-replace
   const handleAutoReplaceChange = (val: boolean) => {
     setUseAutoReplace(val);
     setEditedHtml(null);
+    setEditorKey((k) => k + 1);
+  };
+
+  const handleViewChange = (mode: "preview" | "variables" | "html") => {
+    if (viewMode === "html") captureEditorContent();
+    setViewMode(mode);
   };
 
   const variableSummary = useMemo(() => {
