@@ -4,15 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { ParametricBOMPanel } from "./parametric/ParametricBOMPanel";
 import { ParametricSidePanel } from "./parametric/ParametricSidePanel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ParametricPreview3D } from "./parametric/ParametricPreview3D";
 import {
-  Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
-  PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
-  Upload, ImageIcon, FolderOpen, GripVertical, BookOpen, FileDown, Eye, EyeOff,
-  Camera, Lock, Unlock, Trash2, MousePointer, Group, Shield, ShieldOff,
+  PanelLeftClose, PanelLeft, FolderOpen, Save,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -28,6 +24,7 @@ import { generateBomPdf } from "@/lib/generateBomPdf";
 import type { CatalogItem } from "@/hooks/useModuleCatalog";
 import { useModuleCategories, type CategoryTreeNode } from "@/hooks/useModuleCategories";
 import { usePersistedFormState } from "@/hooks/usePersistedFormState";
+import { useModuleDrag } from "@/hooks/useModuleDrag";
 import { supabase } from "@/lib/supabaseClient";
 
 const SHELF_THICKNESSES = [15, 18, 25, 36] as const;
@@ -292,8 +289,6 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
   const threeRef = useRef<any>(null);
   const needsRenderRef = useRef(true);
   const animFrameRef = useRef(0);
-  const dragRef = useRef<{ id: string; startX: number; startY: number; mouseX: number; mouseY: number; isMain?: boolean } | null>(null);
-  const isDraggingRef = useRef(false);
 
   const { tree: categoryTree, categories, addCategory, loadCategories } = useModuleCategories(tenantId ?? null);
 
@@ -760,270 +755,21 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
     }
   }, [selectedModuleId, duplicates, setModule, updatePersisted]);
 
-  // ── Drag modules in 3D (main + duplicates) ──
-  const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!threeRef.current) return;
-    const { THREE, camera, renderer, moduleGroups } = threeRef.current;
-    const rect = renderer.domElement.getBoundingClientRect();
-    const mouse = new THREE.Vector2(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      -((e.clientY - rect.top) / rect.height) * 2 + 1
-    );
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-
-    // Helper to find which module was clicked using userData tags
-    const findHitModule = (): string | null => {
-      // Collect all module groups (those with moduleId in userData)
-      const taggedGroups = moduleGroups.filter((g: any) => g.userData?.moduleId);
-      // Sort: duplicates first so they get priority on overlap
-      const sorted = taggedGroups.sort((a: any, b: any) => {
-        if (a.userData.moduleId === "__main__") return 1;
-        if (b.userData.moduleId === "__main__") return -1;
-        return 0;
-      });
-      for (const grp of sorted) {
-        const intersects = raycaster.intersectObjects(grp.children, true);
-        if (intersects.length > 0) return grp.userData.moduleId;
-      }
-      return null;
-    };
-
-    const hitId = findHitModule();
-
-    if (hitId) {
-      // Select the module
-      updatePersisted({ selectedModuleId: hitId });
-
-      // Only start drag if position is NOT locked
-      if (!lockPosition) {
-        if (hitId === "__main__") {
-          if (groupSelect) {
-            // Group drag: store all starting positions
-            dragRef.current = { id: "__group__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
-          } else {
-            dragRef.current = { id: "__main__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
-          }
-        } else {
-          const dup = duplicates.find((d) => d.id === hitId);
-          if (dup) {
-            if (groupSelect) {
-              dragRef.current = { id: "__group__", startX: moduleOffsetX, startY: moduleOffsetY, mouseX: e.clientX, mouseY: e.clientY, isMain: true };
-            } else {
-              dragRef.current = { id: dup.id, startX: dup.positionX, startY: dup.positionZ, mouseX: e.clientX, mouseY: e.clientY };
-            }
-          }
-        }
-        isDraggingRef.current = false;
-        threeRef.current.controls.enabled = false;
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      }
-    } else {
-      // Clicked empty space — deselect
-      updatePersisted({ selectedModuleId: null });
-    }
-  }, [duplicates, wall.enabled, moduleOffsetX, moduleOffsetY, lockPosition, groupSelect, updatePersisted]);
-
-  const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current || !threeRef.current) return;
-    const dx = e.clientX - dragRef.current.mouseX;
-    const dy = e.clientY - dragRef.current.mouseY;
-    const threshold = 8;
-    if (!isDraggingRef.current && Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
-    isDraggingRef.current = true;
-    const scale = 5;
-    const SNAP_THRESHOLD = 30;
-
-    const magneticSnap = (val: number, targets: number[]): number => {
-      for (const t of targets) {
-        if (Math.abs(val - t) <= SNAP_THRESHOLD) return t;
-      }
-      return val;
-    };
-
-    if (dragRef.current.id === "__group__") {
-      // Move all modules together
-      const deltaX = snapToGrid(dx * scale);
-      const deltaY = snapToGrid(-dy * scale);
-      let newMainX = dragRef.current.startX + deltaX;
-      let newMainY = dragRef.current.startY + deltaY;
-
-      if (wall.enabled) {
-        const halfWall = wall.width / 2;
-        const halfMod = module.width / 2;
-        const minX = -halfWall + halfMod;
-        const maxX = halfWall - halfMod;
-        newMainX = Math.max(minX, Math.min(maxX, newMainX));
-        newMainY = Math.max(0, Math.min(wall.height - module.height - computedFloorOffset, newMainY));
-      }
-
-      const actualDeltaX = newMainX - persisted.moduleOffsetX;
-      const newDups = duplicates.map((d) => ({
-        ...d,
-        positionX: d.positionX + actualDeltaX,
-      }));
-      updatePersisted({ moduleOffsetX: newMainX, moduleOffsetY: newMainY, duplicates: newDups });
-    } else if (dragRef.current.isMain) {
-      let newX = snapToGrid(dragRef.current.startX + dx * scale);
-      let newY = snapToGrid(dragRef.current.startY - dy * scale);
-
-      if (wall.enabled) {
-        const halfWall = wall.width / 2;
-        const halfMod = module.width / 2;
-        const minX = -halfWall + halfMod;
-        const maxX = halfWall - halfMod;
-        const snapTargetsX = [minX, 0, maxX];
-        const snapTargetsY = [0, wall.height - module.height - computedFloorOffset];
-        newX = magneticSnap(newX, snapTargetsX);
-        newY = magneticSnap(newY, snapTargetsY);
-        newX = Math.max(minX, Math.min(maxX, newX));
-        newY = Math.max(0, Math.min(wall.height - module.height - computedFloorOffset, newY));
-      }
-
-      // Collision detection with duplicates
-      if (collisionEnabled && wall.enabled) {
-        const mainHalfW = module.width / 2;
-        const mainHalfH = module.height / 2;
-        const mainCenterY = newY + computedFloorOffset + module.height / 2;
-
-        for (const d of duplicates) {
-          // Duplicates are relative to moduleOffsetX, but after this update moduleOffsetX = newX
-          // So duplicate absolute pos = d.positionX + newX
-          const dupAbsX = d.positionX + newX;
-          const dupHalfW = d.module.width / 2;
-          const dupHalfH = d.module.height / 2;
-          const dupFloor = computedFloorOffset;
-          const dupCenterY = (d.positionZ || 0) + dupFloor + d.module.height / 2;
-
-          const overlapX = (newX + mainHalfW > dupAbsX - dupHalfW) && (newX - mainHalfW < dupAbsX + dupHalfW);
-          const overlapY = (mainCenterY + mainHalfH > dupCenterY - dupHalfH) && (mainCenterY - mainHalfH < dupCenterY + dupHalfH);
-
-          if (overlapX && overlapY) {
-            // Push horizontally to nearest non-overlapping side
-            const pushLeft = dupAbsX - dupHalfW - mainHalfW;
-            const pushRight = dupAbsX + dupHalfW + mainHalfW;
-            // But since dupAbsX depends on newX (dupAbsX = d.positionX + newX), solve:
-            // pushLeft: newX = (d.positionX + newX) - dupHalfW - mainHalfW → won't work directly
-            // Absolute duplicate position when main is at candidate X: d.positionX + candidateX
-            // We need: candidateX + mainHalfW <= d.positionX + candidateX - dupHalfW → impossible (mainHalfW <= -dupHalfW)
-            // Duplicates move with main! So we can't separate them by moving main alone.
-            // Instead, use the CURRENT absolute positions of duplicates (before main moves)
-            const dupAbsCurrent = d.positionX + moduleOffsetX;
-            const pushL = dupAbsCurrent - dupHalfW - mainHalfW;
-            const pushR = dupAbsCurrent + dupHalfW + mainHalfW;
-            newX = Math.abs(newX - pushL) < Math.abs(newX - pushR) ? pushL : pushR;
-          }
-        }
-        // Re-clamp after collision
-        const halfWall = wall.width / 2;
-        const halfMod = module.width / 2;
-        newX = Math.max(-halfWall + halfMod, Math.min(halfWall - halfMod, newX));
-      }
-
-      updatePersisted({ moduleOffsetX: newX, moduleOffsetY: newY });
-    } else {
-      let newX = snapToGrid(dragRef.current.startX + dx * scale);
-      const newZ = snapToGrid(dragRef.current.startY + dy * scale);
-      const dragDup = duplicates.find((d) => d.id === dragRef.current!.id);
-      const dragW = dragDup?.module.width || module.width;
-
-      if (wall.enabled) {
-        const mainRight = moduleOffsetX + module.width / 2;
-        const mainLeft = moduleOffsetX - module.width / 2;
-        const snapTargetsX: number[] = [];
-        duplicates.forEach((d) => {
-          if (d.id !== dragRef.current!.id) {
-            snapTargetsX.push(d.positionX + d.module.width + 3);
-            snapTargetsX.push(d.positionX - dragW - 3);
-          }
-        });
-        snapTargetsX.push(mainRight + 3, mainLeft - dragW - 3);
-        newX = magneticSnap(newX, snapTargetsX);
-
-        // Collision with wall limits for duplicates
-        if (collisionEnabled) {
-          const halfWall = wall.width / 2;
-          const absX = newX + moduleOffsetX;
-          const dupHalf = dragW / 2;
-          const clampedAbs = Math.max(-halfWall + dupHalf, Math.min(halfWall - dupHalf, absX));
-          newX = clampedAbs - moduleOffsetX;
-        }
-      }
-
-      // Collision with main module and other duplicates
-      if (collisionEnabled) {
-        let absX = newX + moduleOffsetX;
-        const dragHalfW = dragW / 2;
-        const dragH = dragDup?.module.height || module.height;
-
-        // Check against main module
-        const mainCX = moduleOffsetX;
-        const mainHalfW = module.width / 2;
-        const overlapX_main = (absX + dragHalfW > mainCX - mainHalfW) && (absX - dragHalfW < mainCX + mainHalfW);
-        // For simplicity, assume same vertical level (most common case)
-        if (overlapX_main) {
-          const pushLeft = mainCX - mainHalfW - dragHalfW;
-          const pushRight = mainCX + mainHalfW + dragHalfW;
-          absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
-        }
-
-        // Check against other duplicates
-        for (const d of duplicates) {
-          if (d.id === dragRef.current!.id) continue;
-          const dAbsX = d.positionX + moduleOffsetX;
-          const dHalfW = d.module.width / 2;
-          const myLeft = absX - dragHalfW;
-          const myRight = absX + dragHalfW;
-          if (myRight > dAbsX - dHalfW && myLeft < dAbsX + dHalfW) {
-            const pushLeft = dAbsX - dHalfW - dragHalfW;
-            const pushRight = dAbsX + dHalfW + dragHalfW;
-            absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
-          }
-        }
-
-        // Second pass — re-check all after adjustments to prevent chain overlaps
-        for (const d of duplicates) {
-          if (d.id === dragRef.current!.id) continue;
-          const dAbsX = d.positionX + moduleOffsetX;
-          const dHalfW = d.module.width / 2;
-          if (absX + dragHalfW > dAbsX - dHalfW && absX - dragHalfW < dAbsX + dHalfW) {
-            const pushLeft = dAbsX - dHalfW - dragHalfW;
-            const pushRight = dAbsX + dHalfW + dragHalfW;
-            absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
-          }
-        }
-        // Also re-check main
-        if (absX + dragHalfW > mainCX - mainHalfW && absX - dragHalfW < mainCX + mainHalfW) {
-          const pushLeft = mainCX - mainHalfW - dragHalfW;
-          const pushRight = mainCX + mainHalfW + dragHalfW;
-          absX = Math.abs(absX - pushLeft) < Math.abs(absX - pushRight) ? pushLeft : pushRight;
-        }
-
-        newX = absX - moduleOffsetX;
-
-        // Re-clamp to wall after collision
-        if (wall.enabled) {
-          const halfWall = wall.width / 2;
-          const finalAbs = newX + moduleOffsetX;
-          const clampedAbs = Math.max(-halfWall + dragHalfW, Math.min(halfWall - dragHalfW, finalAbs));
-          newX = clampedAbs - moduleOffsetX;
-        }
-      }
-
-      const newDups = duplicates.map((d) =>
-        d.id === dragRef.current!.id ? { ...d, positionX: newX, positionZ: newZ } : d
-      );
-      updatePersisted({ duplicates: newDups });
-    }
-  }, [duplicates, updatePersisted, wall, module.width, module.height, computedFloorOffset, moduleOffsetX, persisted.moduleOffsetX, collisionEnabled]);
-
-  const handleCanvasPointerUp = useCallback(() => {
-    if (dragRef.current && threeRef.current) {
-      threeRef.current.controls.enabled = true;
-    }
-    dragRef.current = null;
-    isDraggingRef.current = false;
-  }, []);
+  // ── Drag modules in 3D (via hook) ──
+  const { handleCanvasPointerDown, handleCanvasPointerMove, handleCanvasPointerUp } = useModuleDrag({
+    module,
+    duplicates,
+    wall,
+    moduleOffsetX,
+    moduleOffsetY,
+    lockPosition,
+    groupSelect,
+    collisionEnabled,
+    computedFloorOffset,
+    selectedModuleId,
+    threeRef,
+    updatePersisted,
+  });
 
   // ── Save to Library ──
   const handleSaveToLibrary = useCallback(async () => {
@@ -1146,316 +892,27 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
 
       {/* ── Área de Preview 3D + BOM ── */}
       <div className="flex-1 flex flex-col gap-3 min-w-0">
-        <Card className="flex-1 relative overflow-hidden min-h-[350px]">
-          <CardContent className="p-0 absolute inset-0">
-            <canvas
-              ref={canvasRef}
-              className="w-full h-full block"
-              style={{ minHeight: 350, cursor: lockPosition ? "default" : "grab" }}
-              onPointerDown={handleCanvasPointerDown}
-              onPointerMove={handleCanvasPointerMove}
-              onPointerUp={handleCanvasPointerUp}
-            />
-            {/* Camera preset views */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
-              {([
-                { label: "Frontal", icon: "F", pos: [0, 0.5, 1], target: [0, 0.5, 0] },
-                { label: "Traseira", icon: "T", pos: [0, 0.5, -1], target: [0, 0.5, 0] },
-                { label: "Esquerda", icon: "E", pos: [-1, 0.5, 0], target: [0, 0.5, 0] },
-                { label: "Direita", icon: "D", pos: [1, 0.5, 0], target: [0, 0.5, 0] },
-                { label: "Planta", icon: "P", pos: [0, 1, 0.01], target: [0, 0, 0] },
-                { label: "Perspectiva", icon: "3D", pos: [1, 0.7, 1], target: [0, 0.3, 0] },
-              ] as { label: string; icon: string; pos: number[]; target: number[] }[]).map((view) => (
-                <Button
-                  key={view.label}
-                  variant="outline"
-                  size="sm"
-                  className="h-6 text-[9px] px-1.5 gap-0.5 bg-background/80 backdrop-blur-sm w-[70px] justify-start"
-                  title={view.label}
-                  onClick={() => {
-                    if (!threeRef.current) return;
-                    const { camera, controls } = threeRef.current;
-                    const maxDim = Math.max(module.width, module.height, module.depth) * 0.01;
-                    const dist = Math.max(maxDim * 2.2, 4);
-                    const centerY = (computedFloorOffset * 0.01) + (module.height * 0.01) / 2;
-                    const endPos: [number, number, number] = [
-                      view.pos[0] * dist,
-                      view.pos[1] * dist + (view.label === "Planta" ? dist : 0),
-                      view.pos[2] * dist,
-                    ];
-                    const endTarget: [number, number, number] = [
-                      view.target[0],
-                      view.label === "Planta" ? 0 : centerY,
-                      view.target[2] * maxDim * 0.3,
-                    ];
-                    cameraAnimRef.current = {
-                      startPos: [camera.position.x, camera.position.y, camera.position.z],
-                      endPos,
-                      startTarget: [controls.target.x, controls.target.y, controls.target.z],
-                      endTarget,
-                      progress: 0,
-                      active: true,
-                    };
-                  }}
-                >
-                  <span className="font-bold text-[9px] w-4 text-center">{view.icon}</span>
-                  <span className="truncate">{view.label}</span>
-                </Button>
-              ))}
-            </div>
-            {/* Module controls: lock, group, delete */}
-            <div className="absolute bottom-2 right-2 flex gap-1 z-10">
-              <Button
-                variant={lockPosition ? "default" : "outline"}
-                size="sm"
-                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
-                onClick={() => updatePersisted({ lockPosition: !lockPosition })}
-                title={lockPosition ? "Desbloquear arraste" : "Travar posição"}
-              >
-                {lockPosition ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                {lockPosition ? "Travado" : "Livre"}
-              </Button>
-              <Button
-                variant={groupSelect ? "default" : "outline"}
-                size="sm"
-                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
-                onClick={() => updatePersisted({ groupSelect: !groupSelect })}
-                title={groupSelect ? "Mover individualmente" : "Mover todos juntos"}
-                disabled={duplicates.length === 0}
-              >
-                <Group className="h-3 w-3" />
-                {groupSelect ? "Grupo" : "Individual"}
-              </Button>
-              <Button
-                variant={collisionEnabled ? "default" : "outline"}
-                size="sm"
-                className="h-7 text-[9px] px-2 gap-1 bg-background/80 backdrop-blur-sm"
-                onClick={() => updatePersisted({ collisionEnabled: !collisionEnabled })}
-                title={collisionEnabled ? "Desativar colisão" : "Ativar colisão"}
-              >
-                {collisionEnabled ? <Shield className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
-                {collisionEnabled ? "Colisão" : "Livre"}
-              </Button>
-              {selectedModuleId && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="h-7 text-[9px] px-2 gap-1"
-                  onClick={deleteSelectedModule}
-                  title="Excluir módulo selecionado"
-                >
-                  <Trash2 className="h-3 w-3" /> Excluir
-                </Button>
-              )}
-              {selectedModuleId && (
-                <Badge variant="secondary" className="text-[9px] h-7 flex items-center">
-                  <MousePointer className="h-3 w-3 mr-1" />
-                  {selectedModuleId === "__main__" ? module.name : duplicates.find((d) => d.id === selectedModuleId)?.module.name || ""}
-                </Badge>
-              )}
-            </div>
-            <div className="absolute top-2 right-2 flex gap-1.5 flex-wrap justify-end max-w-[65%]">
-              <Button
-                variant={showCotas ? "default" : "outline"}
-                size="sm"
-                className="h-6 text-[10px] px-2 gap-1"
-                onClick={() => updatePersisted({ showCotas: !showCotas })}
-              >
-                {showCotas ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                Cotas
-              </Button>
-              {module.components.filter((c) => c.type === "porta").length > 0 && (
-                <Button
-                  variant={openDoors ? "default" : "outline"}
-                  size="sm"
-                  className="h-6 text-[10px] px-2 gap-1"
-                  onClick={() => updatePersisted({ openDoors: !openDoors })}
-                >
-                  {openDoors ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                  Portas
-                </Button>
-              )}
-              {module.components.filter((c) => c.type === "gaveta").length > 0 && (
-                <Button
-                  variant={openDrawers ? "default" : "outline"}
-                  size="sm"
-                  className="h-6 text-[10px] px-2 gap-1"
-                  onClick={() => updatePersisted({ openDrawers: !openDrawers })}
-                >
-                  {openDrawers ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                  Gavetas
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 text-[10px] px-2 gap-1"
-                onClick={() => {
-                  if (!threeRef.current) return;
-                  const { renderer, scene, camera } = threeRef.current;
-                  // Render at 2x resolution
-                  const origW = renderer.domElement.width;
-                  const origH = renderer.domElement.height;
-                  renderer.setSize(origW * 2, origH * 2);
-                  renderer.render(scene, camera);
-                  const dataUrl = renderer.domElement.toDataURL("image/png");
-                  renderer.setSize(origW, origH);
-                  renderer.render(scene, camera);
-                  // Add watermark via canvas
-                  const img = new Image();
-                  img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext("2d")!;
-                    ctx.drawImage(img, 0, 0);
-                    // Watermark text
-                    ctx.globalAlpha = 0.3;
-                    ctx.fillStyle = "#333333";
-                    ctx.font = `bold ${Math.max(16, canvas.height * 0.025)}px Arial`;
-                    ctx.textAlign = "right";
-                    ctx.fillText(`OrçaMóvel Pro • ${module.name}`, canvas.width - 20, canvas.height - 20);
-                    ctx.fillText(
-                      `${module.width}×${module.height}×${module.depth}mm`,
-                      canvas.width - 20,
-                      canvas.height - 45
-                    );
-                    ctx.globalAlpha = 1;
-                    // Download
-                    const link = document.createElement("a");
-                    link.download = `Projeto_3D_${module.name.replace(/\s+/g, "_")}.png`;
-                    link.href = canvas.toDataURL("image/png");
-                    link.click();
-                    toast.success("Imagem PNG exportada em alta resolução!");
-                  };
-                  img.src = dataUrl;
-                }}
-              >
-                <Camera className="h-3 w-3" /> PNG
-               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 text-[10px] px-2 gap-1"
-                onClick={async () => {
-                  if (!threeRef.current) return;
-                  const { renderer, scene, camera, controls } = threeRef.current;
-                  const maxDim = Math.max(module.width, module.height, module.depth) * 0.01;
-                  const dist = Math.max(maxDim * 2.2, 4);
-                  const centerY = (computedFloorOffset * 0.01) + (module.height * 0.01) / 2;
-                  const views = [
-                    { label: "Frontal", pos: [0, 0.5, 1], target: [0, 0.5, 0] },
-                    { label: "Traseira", pos: [0, 0.5, -1], target: [0, 0.5, 0] },
-                    { label: "Esquerda", pos: [-1, 0.5, 0], target: [0, 0.5, 0] },
-                    { label: "Direita", pos: [1, 0.5, 0], target: [0, 0.5, 0] },
-                    { label: "Planta", pos: [0, 1, 0.01], target: [0, 0, 0] },
-                    { label: "Perspectiva", pos: [1, 0.7, 1], target: [0, 0.3, 0] },
-                  ];
-                  const origW = renderer.domElement.width;
-                  const origH = renderer.domElement.height;
-                  const snapW = 1200;
-                  const snapH = 900;
-                  const snapshots: { label: string; dataUrl: string }[] = [];
-                  // Save original camera state
-                  const origPos = camera.position.clone();
-                  const origTarget = controls.target.clone();
-                  camera.aspect = snapW / snapH;
-                  camera.updateProjectionMatrix();
-                  renderer.setSize(snapW, snapH);
-                  for (const v of views) {
-                    camera.position.set(
-                      v.pos[0] * dist,
-                      v.pos[1] * dist + (v.label === "Planta" ? dist : 0),
-                      v.pos[2] * dist
-                    );
-                    controls.target.set(v.target[0], v.label === "Planta" ? 0 : centerY, v.target[2] * maxDim * 0.3);
-                    controls.update();
-                    renderer.render(scene, camera);
-                    snapshots.push({ label: v.label, dataUrl: renderer.domElement.toDataURL("image/jpeg", 0.92) });
-                  }
-                  // Restore camera
-                  camera.position.copy(origPos);
-                  controls.target.copy(origTarget);
-                  camera.aspect = origW / origH;
-                  camera.updateProjectionMatrix();
-                  renderer.setSize(origW, origH);
-                  controls.update();
-                  renderer.render(scene, camera);
-                  // Build PDF with jsPDF
-                  const { default: jsPDFLib } = await import("jspdf");
-                  const pdf = new jsPDFLib({ orientation: "landscape", unit: "mm", format: "a4" });
-                  const pw = pdf.internal.pageSize.getWidth();
-                  const ph = pdf.internal.pageSize.getHeight();
-                  // Title page
-                  pdf.setFontSize(22);
-                  pdf.setFont("helvetica", "bold");
-                  pdf.text("PROPOSTA COMERCIAL — VISTAS 3D", pw / 2, 40, { align: "center" });
-                  pdf.setFontSize(12);
-                  pdf.setFont("helvetica", "normal");
-                  pdf.text(`Projeto: ${module.name}`, pw / 2, 55, { align: "center" });
-                  pdf.text(`Dimensões: ${module.width}×${module.height}×${module.depth}mm`, pw / 2, 63, { align: "center" });
-                  pdf.text(new Date().toLocaleDateString("pt-BR"), pw / 2, 71, { align: "center" });
-                  // One page per view
-                  for (const snap of snapshots) {
-                    pdf.addPage();
-                    pdf.setFontSize(14);
-                    pdf.setFont("helvetica", "bold");
-                    pdf.text(`Vista: ${snap.label}`, 15, 15);
-                    const imgW = pw - 30;
-                    const imgH = imgW * (snapH / snapW);
-                    const yOff = Math.max(20, (ph - imgH) / 2);
-                    pdf.addImage(snap.dataUrl, "JPEG", 15, yOff, imgW, imgH);
-                    // Footer
-                    pdf.setFontSize(7);
-                    pdf.setFont("helvetica", "normal");
-                    pdf.setTextColor(150);
-                    pdf.text("OrçaMóvel Pro — Proposta gerada automaticamente", pw / 2, ph - 8, { align: "center" });
-                    pdf.setTextColor(0);
-                  }
-                  pdf.save(`Proposta_Vistas_${module.name.replace(/\s+/g, "_")}.pdf`);
-                  toast.success("PDF multi-ângulo exportado com sucesso!");
-                }}
-              >
-                <FileDown className="h-3 w-3" /> PDF Vistas
-              </Button>
-              <Badge variant="secondary" className="text-[10px]">
-                {module.width}×{module.height}×{module.depth}mm
-              </Badge>
-              {computedFloorOffset > 0 && (
-                <Badge variant="outline" className="text-[10px]">
-                  Piso: {computedFloorOffset}mm
-                </Badge>
-              )}
-              {module.moduleType !== "custom" && (
-                <Badge className="text-[10px]">
-                  {MODULE_PRESETS.find((p) => p.type === module.moduleType)?.label}
-                </Badge>
-              )}
-              {wall.enabled && (
-                <Badge variant="outline" className="text-[10px]">
-                  Parede {wall.width}×{wall.height}mm
-                </Badge>
-              )}
-              {duplicates.length > 0 && (
-                <Badge variant="outline" className="text-[10px]">
-                  +{duplicates.length} cópia{duplicates.length > 1 ? "s" : ""}
-                </Badge>
-              )}
-            </div>
-            {/* Cota color legend */}
-            {showCotas && (
-              <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm rounded-lg border border-border p-2 space-y-0.5 z-10">
-                <p className="text-[9px] font-semibold text-foreground mb-1">Legenda das Cotas</p>
-                {COTA_LEGEND.map((item) => (
-                  <div key={item.color} className="flex items-center gap-1.5">
-                    <span className="w-3 h-2 rounded-sm inline-block" style={{ backgroundColor: item.hex }} />
-                    <span className="text-[8px] text-muted-foreground">{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <ParametricPreview3D
+          module={module}
+          wall={wall}
+          duplicates={duplicates}
+          showCotas={showCotas}
+          openDoors={openDoors}
+          openDrawers={openDrawers}
+          lockPosition={lockPosition}
+          groupSelect={groupSelect}
+          collisionEnabled={collisionEnabled}
+          selectedModuleId={selectedModuleId}
+          computedFloorOffset={computedFloorOffset}
+          canvasRef={canvasRef}
+          threeRef={threeRef}
+          cameraAnimRef={cameraAnimRef}
+          updatePersisted={updatePersisted}
+          deleteSelectedModule={deleteSelectedModule}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+        />
 
         <ParametricBOMPanel bom={bom} />
       </div>
