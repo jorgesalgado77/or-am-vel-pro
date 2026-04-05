@@ -71,6 +71,21 @@ export function AdminResendConfig() {
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
 
+  const getFunctionErrorMessage = async (error: unknown) => {
+    const fallback = error instanceof Error ? error.message : "Erro desconhecido";
+    const response = (error as { context?: { clone?: () => { json: () => Promise<any> }; json?: () => Promise<any> } })?.context;
+
+    if (!response) return fallback;
+
+    try {
+      const readableResponse = typeof response.clone === "function" ? response.clone() : response;
+      const payload = await readableResponse.json?.();
+      return payload?.error || payload?.message || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   const applySettings = (s: ResendSettings | null) => {
     setSettings(s);
     setApiKey(s?.api_key || "");
@@ -196,6 +211,7 @@ export function AdminResendConfig() {
       const { data, error } = await supabase.functions.invoke("resend-email", {
         body: {
           action: "send",
+          _temp_key: effectiveApiKey,
           to: testEmail.trim(),
           subject: "Email de Teste — OrçaMóvel PRO",
           html: `<div style="font-family:Arial,sans-serif;padding:24px;max-width:480px;margin:auto;">
@@ -209,7 +225,8 @@ export function AdminResendConfig() {
         },
       });
       if (error) {
-        toast.error("Erro ao enviar email de teste: " + (error.message || "Erro desconhecido"));
+        const message = await getFunctionErrorMessage(error);
+        toast.error("Erro ao enviar email de teste: " + message);
       } else if (data?.success) {
         toast.success("Email de teste enviado com sucesso para " + testEmail.trim());
       } else {
