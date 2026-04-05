@@ -250,17 +250,69 @@ export function ContratosTab() {
     toast.success("Template exportado!");
   };
 
-  // ── Import template from JSON file ──
+  // ── Import template from JSON or PDF file ──
   const handleImportTemplate = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const extension = file.name.split(".").pop()?.toLowerCase();
+
+    // PDF import — extract, auto-replace variables, save as template
+    if (extension === "pdf") {
+      setImporting(true);
+      try {
+        const imported = await importContractFile(file);
+        let processedHtml = imported.html;
+        let replacedCount = 0;
+
+        // Auto-detect and replace fields with variables
+        const result = replaceDetectedFieldsWithPlaceholders(processedHtml);
+        processedHtml = result.html;
+        replacedCount = result.replacedCount;
+
+        const tenantId = getTenantId();
+        const templateName = imported.suggestedName || file.name.replace(/\.pdf$/i, "");
+        const insertPayload: Record<string, any> = {
+          nome: templateName,
+          conteudo_html: processedHtml,
+          ativo: true,
+          arquivo_original_nome: file.name,
+          ...(tenantId ? { tenant_id: tenantId } : {}),
+        };
+        if (imported.structure) {
+          insertPayload.template_structure = imported.structure;
+          insertPayload.template_type = imported.templateType || "hybrid";
+        }
+
+        const { error } = await supabase
+          .from("contract_templates")
+          .insert(insertPayload as never);
+
+        if (error) {
+          toast.error("Erro ao importar PDF: " + error.message);
+        } else {
+          const replaceMsg = replacedCount > 0 ? ` — ${replacedCount} variável(is) detectada(s)` : "";
+          toast.success(`Template "${templateName}" importado do PDF!${replaceMsg}`);
+          fetchTemplates();
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erro ao importar PDF";
+        toast.error(message);
+        console.error(err);
+      } finally {
+        setImporting(false);
+        e.target.value = "";
+      }
+      return;
+    }
+
+    // JSON import (existing logic)
     try {
       const text = await file.text();
       const data = JSON.parse(text);
 
       if (data._format !== "orcamovel_contract_template_v1") {
-        toast.error("Arquivo inválido. Use um template exportado pelo sistema.");
+        toast.error("Arquivo inválido. Use um template exportado pelo sistema ou PDF.");
         return;
       }
 
@@ -301,7 +353,7 @@ export function ContratosTab() {
         fetchTemplates();
       }
     } catch (err) {
-      toast.error("Erro ao ler arquivo JSON");
+      toast.error("Erro ao ler arquivo");
       console.error(err);
     } finally {
       e.target.value = "";
@@ -410,7 +462,7 @@ export function ContratosTab() {
               <label className="cursor-pointer">
                 <input
                   type="file"
-                  accept=".json"
+                  accept=".json,.pdf"
                   className="hidden"
                   onChange={handleImportTemplate}
                 />
