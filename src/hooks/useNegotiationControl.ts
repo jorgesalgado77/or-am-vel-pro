@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import {
   getControlEngine,
   type NegotiationContext,
