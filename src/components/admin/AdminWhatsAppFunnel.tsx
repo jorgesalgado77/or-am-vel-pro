@@ -2,6 +2,7 @@
  * AdminWhatsAppFunnel — Config panel for WhatsApp conversion funnel on landing page
  */
 import { useState, useEffect } from "react";
+import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, MessageCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { useWhatsAppFunnel } from "@/hooks/useWhatsAppFunnel";
 import { generateWhatsAppLink } from "@/lib/whatsappFunnel";
+import { WhatsAppLeadsDashboard } from "@/components/admin/WhatsAppLeadsDashboard";
 import { toast } from "sonner";
 
 export function AdminWhatsAppFunnel() {
@@ -150,6 +152,11 @@ export function AdminWhatsAppFunnel() {
           Salvar Configuração
         </Button>
       </div>
+
+      <Separator className="my-6" />
+
+      {/* Leads Dashboard */}
+      <WhatsAppLeadsDashboard />
     </div>
   );
 }
