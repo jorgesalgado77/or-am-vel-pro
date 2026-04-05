@@ -262,7 +262,16 @@ export function PdfImportPreviewModal({
                   )}
                 </div>
               </div>
-            )}
+            ) : viewMode === "html" ? (
+              <div className="p-2">
+                <Textarea
+                  value={editedHtml !== null ? editedHtml : baseHtml}
+                  onChange={(e) => setEditedHtml(e.target.value)}
+                  className="min-h-[40vh] font-mono text-xs leading-relaxed resize-none"
+                  placeholder="HTML do template..."
+                />
+              </div>
+            ) : null}
           </ScrollArea>
         </div>
 
