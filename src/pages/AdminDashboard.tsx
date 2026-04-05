@@ -39,6 +39,7 @@ import {AdminTutorials} from "@/components/admin/AdminTutorials";
 import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
 import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
+import {AdminKpiCharts} from "@/components/admin/AdminKpiCharts";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
 import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";
@@ -992,6 +993,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </CardContent>
           </Card>
         </div>
+
+        <AdminKpiCharts />
 
         <AdminSharedApiUsageList />
 
