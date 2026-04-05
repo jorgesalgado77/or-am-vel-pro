@@ -428,6 +428,9 @@ export function ContratosTab() {
                     )}
                   </div>
                   <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleExportTemplate(t)} title="Exportar template">
+                      <Download className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(t)} title="Editar">
                       <FileText className="h-4 w-4" />
                     </Button>
