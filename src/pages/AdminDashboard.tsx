@@ -537,6 +537,18 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     return acc + price;
   }, 0);
 
+  const revenueItems = useMemo(() => {
+    return tenants
+      .filter(t => t.plano !== "trial" && t.ativo)
+      .map(t => ({
+        nome_loja: t.nome_loja,
+        plano: t.plano,
+        plano_periodo: t.plano_periodo,
+        valor_mensal: planPrices[t.plano]?.mensal || 0,
+      }))
+      .sort((a, b) => b.valor_mensal - a.valor_mensal);
+  }, [tenants, planPrices]);
+
   // Generate unique 6-digit store code (format: 999.999)
   const generateUniqueCode = async (): Promise<string> => {
     const existingCodes = new Set(tenants.map(t => t.codigo_loja).filter(Boolean));
@@ -1677,6 +1689,12 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           codigoLoja={storeUsersTarget.codigo_loja}
         />
       )}
+      <AdminRevenueDetailModal
+        open={showRevenueModal}
+        onOpenChange={setShowRevenueModal}
+        items={revenueItems}
+        total={receitaMensal}
+      />
     </div>
   );
 }
