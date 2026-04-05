@@ -17,6 +17,7 @@ import { getTenantId } from "@/lib/tenantState";
 import { VariableAutocomplete } from "./VariableAutocomplete";
 import { VariableTooltip } from "./VariableTooltip";
 import { PdfImportPreviewModal } from "./PdfImportPreviewModal";
+import { EditorToolbar } from "./EditorToolbar";
 import type { ImportedContractContent } from "@/lib/contractImport";
 
 interface ContractTemplate {
@@ -770,12 +771,13 @@ export function ContratosTab() {
 
             {viewMode === "editor" ? (
               <div className="relative">
+                <EditorToolbar editorRef={editorRef as React.RefObject<HTMLDivElement>} />
                 <div
                   key={editorKey}
                   ref={editorRef}
                   contentEditable
                   suppressContentEditableWarning
-                  className="prose prose-sm min-h-[400px] max-w-none rounded-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="prose prose-sm min-h-[400px] max-w-none rounded-b-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                   dangerouslySetInnerHTML={{ __html: htmlContent }}
                   onKeyDown={(e) => {
                     // Paste as plain text to protect structure
