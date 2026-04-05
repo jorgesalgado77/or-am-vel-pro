@@ -120,9 +120,13 @@ export function PdfImportPreviewModal({
   );
 
   const handleConfirm = () => {
+    if (viewMode === "html") captureEditorContent();
+    const html = viewMode === "html" && editorRef.current
+      ? editorRef.current.innerHTML
+      : finalHtml;
     onConfirm({
       nome: templateName || "Template Importado",
-      html: finalHtml,
+      html,
       structure: imported.structure,
       templateType: imported.templateType,
       fileName,
