@@ -371,15 +371,49 @@ export function AdminLandingPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Planos de Assinatura</CardTitle>
                 <div className="flex gap-2">
+                  <Button size="sm" variant="default" disabled={syncing} onClick={async () => {
+                    setSyncing(true);
+                    const { data } = await supabase.from("subscription_plans" as any).select("*").eq("ativo", true).order("ordem", { ascending: true });
+                    const plans = (data as any[]) || [];
+                    if (plans.length === 0) {
+                      toast.error("Nenhum plano ativo encontrado no sistema.");
+                      setSyncing(false);
+                      return;
+                    }
+                    const synced = plans.map((dp: any) => {
+                      const features: string[] = [];
+                      if (dp.recursos && typeof dp.recursos === 'object') {
+                        Object.entries(dp.recursos).forEach(([key, val]) => {
+                          if (val) features.push(key.replace(/_/g, ' '));
+                        });
+                      }
+                      // Preserve "recommended" from existing config if plan name matches
+                      const existing = config.plans.find(cp => cp.name === dp.nome);
+                      return {
+                        name: dp.nome,
+                        price_monthly: dp.preco_mensal || 0,
+                        price_yearly: dp.preco_anual || 0,
+                        max_users: dp.max_usuarios || 5,
+                        features: features.length > 0 ? features : ["Recurso 1"],
+                        recommended: existing?.recommended ?? (dp.recomendado || false),
+                      };
+                    });
+                    updateField("plans", synced);
+                    setSyncing(false);
+                    toast.success(`${synced.length} plano(s) sincronizado(s) com sucesso!`);
+                  }}>
+                    {syncing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                    Sincronizar Planos
+                  </Button>
                   <Button size="sm" variant="outline" onClick={async () => {
                     const { data } = await supabase.from("subscription_plans" as any).select("*").order("ordem", { ascending: true });
                     setDbPlans((data as any) || []);
                     setShowPlanSelector(true);
                   }}>
-                    <Download className="h-3 w-3 mr-1" />Importar Plano
+                    <Download className="h-3 w-3 mr-1" />Importar Individual
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => updateField("plans", [...config.plans, { name: "Novo Plano", price_monthly: 0, price_yearly: 0, max_users: 5, features: ["Recurso 1"], recommended: false }])}>
-                    <Plus className="h-3 w-3 mr-1" />Adicionar Manual
+                    <Plus className="h-3 w-3 mr-1" />Manual
                   </Button>
                 </div>
               </div>
