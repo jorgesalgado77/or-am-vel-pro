@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabaseClient";
-import { adminSyncResendSettings } from "@/lib/adminStoreUsersApi";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, Mail, CheckCircle2, XCircle,
@@ -46,6 +45,7 @@ const EMAIL_TYPES = [
 ];
 
 const RESEND_MASTER_PROVIDER_KEY = "resend_master";
+const RESEND_ADMIN_TEST_FUNCTION = "resend-admin-test";
 
 export function AdminResendConfig() {
   const [settings, setSettings] = useState<ResendSettings | null>(null);
@@ -58,7 +58,6 @@ export function AdminResendConfig() {
   const [fromName, setFromName] = useState("");
   const [ativo, setAtivo] = useState(false);
 
-  // Templates
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
@@ -68,7 +67,6 @@ export function AdminResendConfig() {
   const [tTipo, setTTipo] = useState("comunicado");
   const [tAtivo, setTAtivo] = useState(true);
 
-  // Test
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
 
@@ -125,8 +123,7 @@ export function AdminResendConfig() {
         .maybeSingle();
 
       if (legacyData) {
-        const s = legacyData as unknown as ResendSettings;
-        applySettings(s);
+        applySettings(legacyData as unknown as ResendSettings);
       } else {
         applySettings(null);
       }
@@ -190,15 +187,6 @@ export function AdminResendConfig() {
       ativo: Boolean(data.is_active),
     };
 
-    // Sync to legacy table via backend (non-blocking — primary storage is dealroom_api_configs)
-    adminSyncResendSettings({
-      id: data.id,
-      api_key: trimmedApiKey || null,
-      from_email: trimmedFromEmail || null,
-      from_name: trimmedFromName || null,
-      ativo: forceActive,
-    }).catch((e) => console.warn("[AdminResendConfig] Legacy sync failed (non-critical):", e));
-
     applySettings(nextSettings);
     return { data: nextSettings, error: null };
   };
@@ -219,20 +207,26 @@ export function AdminResendConfig() {
     setSaving(false);
   };
 
+  const invokeResendAdminTest = (body: Record<string, unknown>) =>
+    supabase.functions.invoke(RESEND_ADMIN_TEST_FUNCTION, { body });
+
   const handleSendTest = async () => {
     if (!testEmail.trim()) {
       toast.error("Informe um email de destino");
       return;
     }
+
     const effectiveApiKey = apiKey.trim() || settings?.api_key || "";
     if (!effectiveApiKey) {
       toast.error("Configure a API Key do Resend antes de enviar um teste.");
       return;
     }
+
     if (!ativo) {
       toast.error("Ative a integração do Resend antes de enviar um teste.");
       return;
     }
+
     setSendingTest(true);
     try {
       const effectiveFromEmail = fromEmail.trim() || settings?.from_email || "noreply@resend.dev";
@@ -244,13 +238,11 @@ export function AdminResendConfig() {
         return;
       }
 
-      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("resend-email", {
-        body: {
-          action: "verify",
-          _temp_key: effectiveApiKey,
-          api_key: effectiveApiKey,
-          resend_api_key: effectiveApiKey,
-        },
+      const { data: verifyData, error: verifyError } = await invokeResendAdminTest({
+        action: "verify",
+        _temp_key: effectiveApiKey,
+        api_key: effectiveApiKey,
+        resend_api_key: effectiveApiKey,
       });
 
       if (verifyError) {
@@ -264,24 +256,23 @@ export function AdminResendConfig() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("resend-email", {
-        body: {
-          action: "send",
-          _temp_key: effectiveApiKey,
-          api_key: effectiveApiKey,
-          resend_api_key: effectiveApiKey,
-          to: testEmail.trim(),
-          subject: "Email de Teste — OrçaMóvel PRO",
-          html: `<div style="font-family:Arial,sans-serif;padding:24px;max-width:480px;margin:auto;">
+      const { data, error } = await invokeResendAdminTest({
+        action: "send_test",
+        _temp_key: effectiveApiKey,
+        api_key: effectiveApiKey,
+        resend_api_key: effectiveApiKey,
+        to: testEmail.trim(),
+        subject: "Email de Teste — OrçaMóvel PRO",
+        html: `<div style="font-family:Arial,sans-serif;padding:24px;max-width:480px;margin:auto;">
             <h2 style="color:#0f766e;">✅ Email de Teste</h2>
             <p>Este é um email de teste enviado pelo painel do Administrador Master.</p>
             <p style="color:#6b7280;font-size:13px;">Se você recebeu este email, a integração com o Resend está funcionando corretamente.</p>
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
             <p style="color:#9ca3af;font-size:12px;">${effectiveFromName}</p>
           </div>`,
-          from: `${effectiveFromName} <${effectiveFromEmail}>`,
-        },
+        from: `${effectiveFromName} <${effectiveFromEmail}>`,
       });
+
       if (error) {
         const message = await getFunctionErrorMessage(error);
         toast.error("Erro ao enviar email de teste: " + message);
@@ -297,16 +288,23 @@ export function AdminResendConfig() {
     }
   };
 
-  // Template CRUD
   const openNewTemplate = () => {
     setEditingTemplate(null);
-    setTNome(""); setTAssunto(""); setTConteudo(""); setTTipo("comunicado"); setTAtivo(true);
+    setTNome("");
+    setTAssunto("");
+    setTConteudo("");
+    setTTipo("comunicado");
+    setTAtivo(true);
     setShowTemplateDialog(true);
   };
 
   const openEditTemplate = (t: EmailTemplate) => {
     setEditingTemplate(t);
-    setTNome(t.nome); setTAssunto(t.assunto); setTConteudo(t.conteudo); setTTipo(t.tipo); setTAtivo(t.ativo);
+    setTNome(t.nome);
+    setTAssunto(t.assunto);
+    setTConteudo(t.conteudo);
+    setTTipo(t.tipo);
+    setTAtivo(t.ativo);
     setShowTemplateDialog(true);
   };
 
@@ -315,14 +313,26 @@ export function AdminResendConfig() {
       toast.error("Nome, assunto e conteúdo são obrigatórios");
       return;
     }
-    const payload = { nome: tNome.trim(), assunto: tAssunto.trim(), conteudo: tConteudo.trim(), tipo: tTipo, ativo: tAtivo };
+
+    const payload = {
+      nome: tNome.trim(),
+      assunto: tAssunto.trim(),
+      conteudo: tConteudo.trim(),
+      tipo: tTipo,
+      ativo: tAtivo,
+    };
+
     if (editingTemplate) {
-      const { error } = await supabase.from("admin_email_templates" as any).update(payload as any).eq("id", editingTemplate.id);
+      const { error } = await supabase
+        .from("admin_email_templates" as any)
+        .update(payload as any)
+        .eq("id", editingTemplate.id);
       if (error) toast.error("Erro ao atualizar"); else toast.success("Template atualizado!");
     } else {
       const { error } = await supabase.from("admin_email_templates" as any).insert(payload as any);
       if (error) toast.error("Erro ao criar"); else toast.success("Template criado!");
     }
+
     setShowTemplateDialog(false);
     fetchTemplates();
   };
@@ -382,7 +392,6 @@ export function AdminResendConfig() {
         </CardContent>
       </Card>
 
-      {/* Test */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -400,7 +409,6 @@ export function AdminResendConfig() {
         </CardContent>
       </Card>
 
-      {/* Save */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2">
           <Save className="h-4 w-4" />
@@ -410,7 +418,6 @@ export function AdminResendConfig() {
 
       <Separator className="my-8" />
 
-      {/* Email Templates */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -464,7 +471,6 @@ export function AdminResendConfig() {
         </CardContent>
       </Card>
 
-      {/* Template Dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
