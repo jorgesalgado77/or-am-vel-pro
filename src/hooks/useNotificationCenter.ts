@@ -17,7 +17,7 @@ export interface AppNotification {
   meta?: Record<string, any>;
 }
 
-export function useNotificationCenter(userId: string | undefined, userName: string | undefined, tenantId: string | null) {
+export function useNotificationCenter(userId: string | undefined, userName: string | undefined, tenantId: string | null, cargoNome?: string) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const readIds = useMemo(() => {
