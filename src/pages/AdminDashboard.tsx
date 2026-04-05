@@ -40,6 +40,7 @@ import {Admin3DSmartImport} from "@/components/admin/Admin3DSmartImport";
 import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
 import {AdminKpiCharts} from "@/components/admin/AdminKpiCharts";
+import {AdminCollapsibleSection} from "@/components/admin/AdminCollapsibleSection";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
 import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";
@@ -861,7 +862,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Date Filter */}
-        <Card>
+        <AdminCollapsibleSection title="Filtro de Período" icon={Calendar}>
+          <Card>
           <CardContent className="p-3">
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
@@ -890,9 +892,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </span>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        </AdminCollapsibleSection>
 
         {/* KPI Cards - Row 1: Structural (not date-filtered) */}
+        <AdminCollapsibleSection title="Indicadores Estruturais" icon={Store}>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
           <Card>
             <CardContent className="p-3 flex items-center gap-2">
@@ -949,8 +953,10 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </CardContent>
           </Card>
         </div>
+        </AdminCollapsibleSection>
 
         {/* KPI Cards - Row 2: Date-filtered */}
+        <AdminCollapsibleSection title="KPIs do Período" icon={DollarSign}>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowClientsModal(true)}>
             <CardContent className="p-3 flex items-center gap-2">
@@ -993,11 +999,17 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </CardContent>
           </Card>
         </div>
+        </AdminCollapsibleSection>
 
+        <AdminCollapsibleSection title="Evolução Mensal (Gráficos)" icon={BarChart3}>
         <AdminKpiCharts />
+        </AdminCollapsibleSection>
 
+        <AdminCollapsibleSection title="APIs Compartilhadas" icon={Server}>
         <AdminSharedApiUsageList />
+        </AdminCollapsibleSection>
 
+        <AdminCollapsibleSection title="Gerenciamento" icon={Shield}>
         <Tabs defaultValue="lojas" className="space-y-4">
           <ScrollArea className="w-full">
             <TabsList className="inline-flex w-max gap-1 p-1">
@@ -1356,6 +1368,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <AdminWhatsAppFunnel />
           </TabsContent>
         </Tabs>
+        </AdminCollapsibleSection>
       </main>
 
       {/* Tenant Dialog */}
