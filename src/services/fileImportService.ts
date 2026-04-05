@@ -21,6 +21,13 @@ export interface ParsedModule {
   supplier: string;
   category: string;
   group: string;
+  /** Dedicated hardware/detail fields */
+  doorType?: string;
+  hingeModel?: string;
+  slideModel?: string;
+  boxColor?: string;
+  doorColor?: string;
+  thickness?: string;
 }
 
 export interface ParsedFileResult {
@@ -63,6 +70,38 @@ export function normalizeFinish(raw: string): string {
   return trimmed
     .toLowerCase()
     .replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
+}
+
+/** Normalize material descriptions (MDF, MDP, Compensado, etc.) */
+export function normalizeMaterial(raw: string): string {
+  if (!raw) return "";
+  const trimmed = raw.trim().toUpperCase();
+  if (/\bMDF\b/.test(trimmed)) return "MDF";
+  if (/\bMDP\b/.test(trimmed)) return "MDP";
+  if (/\bCOMPENSADO\b/.test(trimmed)) return "Compensado";
+  if (/\bMELAMIN/i.test(trimmed)) return "Melamínico";
+  if (/\bLACAD[OA]\b/i.test(trimmed)) return "Lacado";
+  if (/\bVIDRO\b/i.test(trimmed)) return "Vidro";
+  if (/\bACR[IÍ]LIC/i.test(trimmed)) return "Acrílico";
+  return normalizeFinish(raw);
+}
+
+/** Normalize hardware descriptions (hinges, slides, etc.) */
+export function normalizeHardware(raw: string): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  // Standardize common hardware brands and types
+  const normalized = trimmed
+    .replace(/\bBLUM\b/i, "Blum")
+    .replace(/\bHETTICH\b/i, "Hettich")
+    .replace(/\bHAFELE\b/i, "Häfele")
+    .replace(/\bGRASS\b/i, "Grass")
+    .replace(/\bSALICE\b/i, "Salice")
+    .replace(/\bSOFT\s*CLOSE\b/i, "Soft Close")
+    .replace(/\bPUSH\s*TO\s*OPEN\b/i, "Push to Open")
+    .replace(/\bFULL\s*EXTENSION\b/i, "Full Extension")
+    .replace(/\bTELESCOP(?:IC[OA]?)?\b/i, "Telescópica");
+  return normalized;
 }
 
 /** Classify a module description into a type */
@@ -193,6 +232,10 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
 
       const moduleType = classifyModuleType(desc, code);
 
+      // Extract dedicated detail fields
+      const thicknessMatch = desc.match(/(\d+)\s*mm/i);
+      const doorTypeMatch = desc.match(/\b(GIRO|BASCULANTE|CORRER|DESLIZANTE|DOBRA[ÇC]|PIVOTANTE|TOMBAR)\b/i);
+
       modules.push({
         id: crypto.randomUUID(),
         code,
@@ -206,6 +249,8 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
         supplier: "",
         category: "",
         group: "",
+        thickness: thicknessMatch ? `${thicknessMatch[1]}mm` : undefined,
+        doorType: moduleType === "porta" || moduleType === "frente" ? (doorTypeMatch?.[1] || undefined) : undefined,
       });
 
       pieceCount += Math.max(1, Math.round(qty));
@@ -221,10 +266,29 @@ function parsePromobTxt(content: string, fileName: string): ParsedFileResult {
     const puxadorModule = modules.find(m => /PUXADOR/i.test(m.description));
     if (puxadorModule) puxador = puxadorModule.description;
 
+    // Assign boxColor/doorColor to modules based on derived corpo/porta
+    for (const mod of modules) {
+      if (mod.type === "modulo" && corpo) mod.boxColor = normalizeFinish(corpo);
+      if ((mod.type === "porta" || mod.type === "frente") && porta) mod.doorColor = normalizeFinish(porta);
+    }
+
     const dobradicaModule = modules.find(m => /DOBRADICA/i.test(m.description));
-    if (dobradicaModule) compParts.push(`Dobradiças: ${dobradicaModule.description}`);
+    if (dobradicaModule) {
+      const hingeModel = normalizeHardware(dobradicaModule.description);
+      compParts.push(`Dobradiças: ${hingeModel}`);
+      // Assign to all porta/frente modules
+      for (const mod of modules) {
+        if (mod.type === "porta" || mod.type === "frente") mod.hingeModel = hingeModel;
+      }
+    }
     const corredicaModule = modules.find(m => /TRILHO\s*TELESCOP|CORREDIC/i.test(m.description));
-    if (corredicaModule) compParts.push(`Corrediças: ${corredicaModule.description}`);
+    if (corredicaModule) {
+      const slideModel = normalizeHardware(corredicaModule.description);
+      compParts.push(`Corrediças: ${slideModel}`);
+      for (const mod of modules) {
+        if (mod.type === "gaveta") mod.slideModel = slideModel;
+      }
+    }
 
     return {
       envName, pieces: pieceCount, total: totalValue || null, software,

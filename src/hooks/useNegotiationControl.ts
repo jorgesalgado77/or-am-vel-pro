@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import {
   getControlEngine,
   type NegotiationContext,
@@ -90,6 +91,30 @@ export function useNegotiationControl(): UseNegotiationControlReturn {
         deal_result: dealResult,
         closing_signal_detected: decision.is_closing_opportunity,
       });
+
+      // Also record to ai_learning_events for cross-system learning
+      try {
+        await (supabase as unknown as { from: (table: string) => { insert: (data: Record<string, unknown>) => Promise<unknown> } }).from("ai_learning_events").insert({
+          tenant_id: ctx.tenant_id,
+          user_id: ctx.user_id,
+          event_type: "negotiation_feedback",
+          event_data: {
+            client_id: ctx.client_id,
+            resultado,
+            deal_result: dealResult,
+            strategy: decision.strategy,
+            timing: decision.timing,
+            desconto: decision.pricing.desconto_recomendado,
+            brinde: decision.pricing.usar_brinde,
+            closing_probability: decision.is_closing_opportunity,
+            valor_orcamento: ctx.valor_orcamento,
+          },
+          score: resultado === "positivo" ? 1 : resultado === "negativo" ? -1 : 0,
+        } as Record<string, unknown>);
+      } catch {
+        // ai_learning_events table may not exist — non-critical
+      }
+
       toast.success("Feedback registrado para aprendizado da IA");
     } catch (err) {
       toast.error("Erro ao registrar feedback");

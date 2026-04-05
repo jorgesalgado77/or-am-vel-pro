@@ -19,6 +19,8 @@ export { PersonalizationEngine, getPersonalizationEngine } from "./Personalizati
 export type { PersonalizationConfig, DISCProfile } from "./PersonalizationEngine";
 export { SystemKnowledgeEngine, getSystemKnowledgeEngine } from "./engines/SystemKnowledgeEngine";
 export type { MIAActionExecutionRequest, MIAActionExecutionResult, MIAActionStatus } from "./ActionExecutionEngine";
+export { MIAMonitorService, getMIAMonitorService } from "./MIAMonitorService";
+export type { MIAMonitorAlert, MIAMonitorAlertType, MIAMonitorAction } from "./MIAMonitorService";
 export { miaGenerateResponse } from "./MIAAdapter";
 export { miaInvoke } from "./MIAInvoke";
 
