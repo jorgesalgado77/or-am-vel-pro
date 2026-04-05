@@ -185,7 +185,7 @@ export const renderPageToBase64 = async (
   canvas.width = viewport.width;
   canvas.height = viewport.height;
   const ctx = canvas.getContext("2d")!;
-  await page.render({ canvasContext: ctx, viewport }).promise;
+  await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
   return canvas.toDataURL("image/png");
 };
 
