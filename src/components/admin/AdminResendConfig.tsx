@@ -45,7 +45,6 @@ const EMAIL_TYPES = [
 ];
 
 const RESEND_MASTER_PROVIDER_KEY = "resend_master";
-const RESEND_ADMIN_TEST_FUNCTION = "resend-admin-test";
 
 export function AdminResendConfig() {
   const [settings, setSettings] = useState<ResendSettings | null>(null);
@@ -207,8 +206,35 @@ export function AdminResendConfig() {
     setSaving(false);
   };
 
-  const invokeResendAdminTest = (body: Record<string, unknown>) =>
-    supabase.functions.invoke(RESEND_ADMIN_TEST_FUNCTION, { body });
+  const invokeResendAdminTest = async (body: Record<string, unknown>) => {
+    const requestedAction = typeof body.action === "string" ? body.action : "";
+    const attempts = requestedAction === "send_test"
+      ? [
+          { ...body, action: "send_test" },
+          { ...body, action: "send" },
+        ]
+      : [body];
+
+    let lastResult: Awaited<ReturnType<typeof supabase.functions.invoke>> | null = null;
+
+    for (const candidate of attempts) {
+      const result = await supabase.functions.invoke("resend-email", { body: candidate });
+      lastResult = result;
+
+      if (!result.error) {
+        return result;
+      }
+
+      const message = await getFunctionErrorMessage(result.error);
+      const isCompatibilityMiss = /ação inválida|api key do resend não configurada/i.test(message);
+
+      if (!isCompatibilityMiss || candidate.action === "send") {
+        return result;
+      }
+    }
+
+    return lastResult ?? { data: null, error: new Error("Falha ao chamar a Edge Function.") };
+  };
 
   const handleSendTest = async () => {
     if (!testEmail.trim()) {
