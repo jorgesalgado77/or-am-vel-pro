@@ -150,16 +150,20 @@ export function AdminResendConfig() {
   }, []);
 
   const persistResendSettings = async (forceActive = ativo) => {
+    const trimmedApiKey = apiKey.trim();
+    const trimmedFromEmail = fromEmail.trim();
+    const trimmedFromName = fromName.trim();
+
     const payload = {
       provider: RESEND_MASTER_PROVIDER_KEY,
       nome: "Resend Admin Master",
       categoria: "email",
       credenciais: {
-        api_key: apiKey.trim(),
+        api_key: trimmedApiKey,
       },
       configuracoes: {
-        from_email: fromEmail.trim(),
-        from_name: fromName.trim(),
+        from_email: trimmedFromEmail,
+        from_name: trimmedFromName,
       },
       is_active: forceActive,
       updated_at: new Date().toISOString(),
@@ -173,6 +177,16 @@ export function AdminResendConfig() {
       .single();
 
     if (error) return { data: null, error };
+
+    await supabase
+      .from("admin_resend_settings" as any)
+      .upsert({
+        id: data.id,
+        api_key: trimmedApiKey || null,
+        from_email: trimmedFromEmail || null,
+        from_name: trimmedFromName || null,
+        ativo: forceActive,
+      }, { onConflict: "id" });
 
     const credenciais = (data?.credenciais || {}) as Record<string, string>;
     const configuracoes = (data?.configuracoes || {}) as Record<string, string>;
