@@ -1224,9 +1224,12 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                 <Select value={tPlano} onValueChange={setTPlano}>
                   <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="trial">Teste Grátis</SelectItem>
-                    <SelectItem value="basico">Básico</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
+                    {subscriptionPlans.map((p) => (
+                      <SelectItem key={p.slug} value={p.slug}>{p.nome}</SelectItem>
+                    ))}
+                    {subscriptionPlans.length === 0 && (
+                      <SelectItem value="trial" disabled>Nenhum plano cadastrado</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
