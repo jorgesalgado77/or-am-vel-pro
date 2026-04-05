@@ -381,22 +381,8 @@ export function AdminLandingPage() {
                       return;
                     }
                     const synced = plans.map((dp: any) => {
-                      const features: string[] = [];
-                      if (dp.recursos && typeof dp.recursos === 'object') {
-                        Object.entries(dp.recursos).forEach(([key, val]) => {
-                          if (val) features.push(key.replace(/_/g, ' '));
-                        });
-                      }
-                      // Preserve "recommended" from existing config if plan name matches
                       const existing = config.plans.find(cp => cp.name === dp.nome);
-                      return {
-                        name: dp.nome,
-                        price_monthly: dp.preco_mensal || 0,
-                        price_yearly: dp.preco_anual || 0,
-                        max_users: dp.max_usuarios || 5,
-                        features: features.length > 0 ? features : ["Recurso 1"],
-                        recommended: existing?.recommended ?? (dp.recomendado || false),
-                      };
+                      return mapDbPlanToLanding(dp, existing?.recommended);
                     });
                     updateField("plans", synced);
                     setSyncing(false);
@@ -431,24 +417,11 @@ export function AdminLandingPage() {
                         <div>
                           <span className="font-medium">{dp.nome}</span>
                           <span className="text-muted-foreground text-sm ml-2">
-                            R$ {dp.preco_mensal || 0}/mês · R$ {dp.preco_anual || 0}/ano · {dp.max_usuarios || 0} usuários
+                            R$ {dp.preco_mensal || 0}/mês · R$ {(dp.preco_anual_mensal || 0) * 12}/ano · {dp.max_usuarios || 0} usuários
                           </span>
                         </div>
                         <Button size="sm" variant="secondary" onClick={() => {
-                          const features: string[] = [];
-                          if (dp.recursos && typeof dp.recursos === 'object') {
-                            Object.entries(dp.recursos).forEach(([key, val]) => {
-                              if (val) features.push(key.replace(/_/g, ' '));
-                            });
-                          }
-                          updateField("plans", [...config.plans, {
-                            name: dp.nome,
-                            price_monthly: dp.preco_mensal || 0,
-                            price_yearly: dp.preco_anual || 0,
-                            max_users: dp.max_usuarios || 5,
-                            features: features.length > 0 ? features : ["Recurso 1"],
-                            recommended: dp.recomendado || false,
-                          }]);
+                          updateField("plans", [...config.plans, mapDbPlanToLanding(dp)]);
                           toast.success(`Plano "${dp.nome}" importado!`);
                         }}>
                           <Plus className="h-3 w-3 mr-1" />Importar
