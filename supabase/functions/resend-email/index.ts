@@ -144,7 +144,8 @@ serve(async (req) => {
         return respond({ error: "to, subject e html/text são obrigatórios" }, 400);
       }
 
-      const apiKey = await resolveResendKey(tenant_id || null);
+      const tempKey = typeof body._temp_key === "string" ? body._temp_key.trim() : "";
+      const apiKey = tempKey || await resolveResendKey(tenant_id || null);
       if (!apiKey) {
         return respond({ error: "API Key do Resend não configurada. Adicione em Configurações > APIs." }, 400);
       }
