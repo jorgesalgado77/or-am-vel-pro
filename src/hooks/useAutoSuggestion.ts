@@ -13,6 +13,7 @@ import { calcLeadTemperature } from "@/lib/leadTemperature";
 import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEngine";
 import { getControlEngine, type NegotiationStrategy } from "@/services/commercial/NegotiationControlEngine";
 import type { DealContext, FormaPagamento } from "@/services/commercial/types";
+import { trackAndAlert } from "@/services/billing/UsageAlerts";
 
 interface SuggestionCache {
   clientId: string;
@@ -149,6 +150,13 @@ export function useAutoSuggestion({ tenantId, addon, userId }: UseAutoSuggestion
     }
 
     try {
+      // Track IA usage
+      void trackAndAlert({
+        tenant_id: tenantId,
+        user_id: userId || "system",
+        feature: "ia_interactions",
+      });
+
       const result = await Promise.race([
         miaInvoke("vendazap-ai", {
             nome_cliente: client.nome,
