@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { trackAndAlert } from "@/services/billing/UsageAlerts";
 
 export interface BudgetPdfPayload {
   clientName: string;
@@ -46,6 +47,9 @@ export async function generateBudgetPdfServerSide(
   tenantId: string,
   payload: BudgetPdfPayload
 ): Promise<PdfResult> {
+  // Track PDF generation usage
+  void trackAndAlert({ tenant_id: tenantId, user_id: "system", feature: "pdf_generation" });
+
   const { data, error } = await supabase.functions.invoke("generate-pdf", {
     body: {
       action: "generate-budget",
@@ -103,6 +107,9 @@ export async function generateContractPdfServerSide(
   html: string,
   title: string
 ): Promise<PdfResult> {
+  // Track PDF generation usage
+  void trackAndAlert({ tenant_id: tenantId, user_id: "system", feature: "pdf_generation" });
+
   const { data, error } = await supabase.functions.invoke("generate-pdf", {
     body: {
       action: "generate-contract-pdf",

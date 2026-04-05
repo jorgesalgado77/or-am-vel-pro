@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/lib/supabaseClient";
 import { getTenantId } from "@/lib/tenantState";
+import { trackAndAlert } from "@/services/billing/UsageAlerts";
 
 interface WhatsAppSettings {
   provider: string;
@@ -57,6 +58,10 @@ function formatPhone(phone: string): string {
 export async function sendWhatsAppText(phone: string, text: string): Promise<boolean> {
   const s = await getSettings();
   if (!s) return false;
+
+  // Track WhatsApp message usage
+  const tid = getTenantId();
+  if (tid) void trackAndAlert({ tenant_id: tid, user_id: "system", feature: "whatsapp_messages" });
 
   const formattedPhone = formatPhone(phone);
   const maxRetries = 2;
