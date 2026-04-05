@@ -70,26 +70,26 @@ export function AdminResendConfig() {
   const [sendingTest, setSendingTest] = useState(false);
 
   const fetchSettings = async () => {
-    const { data } = await supabase
-      .from("admin_resend_settings" as any)
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-
-    if (data) {
-      const s = data as unknown as ResendSettings;
-      setSettings(s);
-      setApiKey(s.api_key || "");
-      setFromEmail(s.from_email || "");
-      setFromName(s.from_name || "");
-      setAtivo(s.ativo);
-    } else {
-      const { data: created } = await supabase
-        .from("admin_resend_settings" as any)
-        .insert({} as any)
-        .select("*")
-        .single();
-      if (created) setSettings(created as unknown as ResendSettings);
+    try {
+      const { data, error } = await supabase.functions.invoke("resend-email", {
+        body: { action: "get_settings" },
+      });
+      if (error) {
+        console.error("Erro ao buscar settings:", error);
+        setLoading(false);
+        return;
+      }
+      if (data?.success && data.settings) {
+        const s = data.settings as ResendSettings;
+        setSettings(s);
+        setApiKey(s.api_key || "");
+        setFromEmail(s.from_email || "");
+        setFromName(s.from_name || "");
+        setAtivo(s.ativo);
+      }
+      // If no settings exist yet, settings stays null and we'll create on first save
+    } catch (e) {
+      console.error("Erro ao buscar settings:", e);
     }
     setLoading(false);
   };
@@ -108,23 +108,35 @@ export function AdminResendConfig() {
   }, []);
 
   const handleSave = async () => {
-    if (!settings) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("admin_resend_settings" as any)
-      .update({
-        api_key: apiKey.trim() || null,
-        from_email: fromEmail.trim() || null,
-        from_name: fromName.trim() || null,
-        ativo,
-      } as any)
-      .eq("id", settings.id);
-    setSaving(false);
-    if (error) toast.error("Erro ao salvar configurações");
-    else {
-      toast.success("Configurações do Resend salvas!");
-      fetchSettings();
+    try {
+      const { data, error } = await supabase.functions.invoke("resend-email", {
+        body: {
+          action: "save_settings",
+          id: settings?.id || null,
+          api_key: apiKey.trim() || null,
+          from_email: fromEmail.trim() || null,
+          from_name: fromName.trim() || null,
+          ativo,
+        },
+      });
+      if (error || !data?.success) {
+        toast.error("Erro ao salvar configurações: " + (data?.error || error?.message || "Erro desconhecido"));
+      } else {
+        toast.success("Configurações do Resend salvas!");
+        if (data.settings) {
+          const s = data.settings as ResendSettings;
+          setSettings(s);
+          setApiKey(s.api_key || "");
+          setFromEmail(s.from_email || "");
+          setFromName(s.from_name || "");
+          setAtivo(s.ativo);
+        }
+      }
+    } catch (e: any) {
+      toast.error("Erro ao salvar: " + (e.message || "Erro desconhecido"));
     }
+    setSaving(false);
   };
 
   const handleSendTest = async () => {
