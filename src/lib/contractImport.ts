@@ -16,6 +16,7 @@ import {
   detectTableBlocks,
   renderPageToBase64,
   buildStructureBlocks,
+  extractEmbeddedImages,
 } from "./contract/pdfExtractor";
 import { buildPixelPerfectPageHtml } from "./contract/pdfRenderer";
 import { sanitizeImportedHtml, normalizeSuggestedName, arrayBufferToBase64 } from "./contract/importUtils";
@@ -219,6 +220,14 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
       const lines = groupTextLines(extracted);
       const tables = detectTableBlocks(lines);
 
+      // Extract embedded images/logos
+      let embeddedImages: Awaited<ReturnType<typeof extractEmbeddedImages>> = [];
+      try {
+        embeddedImages = await extractEmbeddedImages(page, viewport.width, viewport.height);
+      } catch (err) {
+        console.warn(`Image extraction failed for page ${pageNumber}:`, err);
+      }
+
       // Try canvas background for complex PDFs
       let bgBase64: string | null = null;
       try {
@@ -227,7 +236,7 @@ const importPdf = async (file: File): Promise<ImportedContractContent> => {
         console.warn(`Canvas render failed for page ${pageNumber}:`, err);
       }
 
-      const pageHtml = buildPixelPerfectPageHtml(lines, tables, bgBase64, pageNumber - 1);
+      const pageHtml = buildPixelPerfectPageHtml(lines, tables, bgBase64, pageNumber - 1, embeddedImages);
       if (pageHtml) pages.push(pageHtml);
 
       // Build structure blocks for hybrid storage
