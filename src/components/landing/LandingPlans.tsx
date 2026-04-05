@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, X, Star, Zap, Users, Crown } from "lucide-react";
+import { Check, X, Star, Zap, Users, Crown, Building2, MessageCircle } from "lucide-react";
 import { AnimatedSection, StaggerContainer, StaggerItem } from "./AnimatedSection";
 import { supabase } from "@/lib/supabaseClient";
 
 interface LandingPlansProps {
-  plans: any[];
+  plans: unknown[];
   primaryColor: string;
+}
+
+interface FeatureDisplay {
+  label: string;
+  included: boolean;
 }
 
 interface DynamicPlan {
@@ -21,13 +26,48 @@ interface DynamicPlan {
   ativo: boolean;
   ordem: number;
   trial_dias: number;
-  features_display: { label: string; included: boolean }[];
+  features_display: FeatureDisplay[];
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
   trial: Zap,
   basico: Users,
   premium: Crown,
+  enterprise: Building2,
+};
+
+const PLAN_STYLES: Record<string, {
+  gradient: string;
+  border: string;
+  badge: string;
+  cardBg: string;
+  textColor: string;
+  priceColor: string;
+}> = {
+  basico: {
+    gradient: "",
+    border: "border-gray-200",
+    badge: "",
+    cardBg: "bg-white",
+    textColor: "text-gray-900",
+    priceColor: "text-gray-900",
+  },
+  premium: {
+    gradient: "",
+    border: "",
+    badge: "",
+    cardBg: "bg-white",
+    textColor: "text-gray-900",
+    priceColor: "text-gray-900",
+  },
+  enterprise: {
+    gradient: "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900",
+    border: "border-gray-700",
+    badge: "bg-amber-500",
+    cardBg: "",
+    textColor: "text-white",
+    priceColor: "text-white",
+  },
 };
 
 export function LandingPlans({ primaryColor }: LandingPlansProps) {
@@ -36,12 +76,12 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
   const [loaded, setLoaded] = useState(false);
 
   const fetchPlans = async () => {
-    const { data } = await supabase
-      .from("subscription_plans" as any)
+    const { data } = await (supabase as any)
+      .from("subscription_plans")
       .select("*")
       .eq("ativo", true)
       .order("ordem", { ascending: true });
-    if (data) setDynamicPlans(data as any);
+    if (data) setDynamicPlans(data as DynamicPlan[]);
     setLoaded(true);
   };
 
@@ -95,21 +135,30 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
           </div>
         </AnimatedSection>
 
-        <StaggerContainer className={`grid gap-8 max-w-5xl mx-auto ${dynamicPlans.length <= 3 ? "md:grid-cols-3" : `md:grid-cols-${Math.min(dynamicPlans.length, 4)}`}`}>
+        <StaggerContainer className={`grid gap-8 max-w-6xl mx-auto ${
+          dynamicPlans.length <= 3 ? "md:grid-cols-3" : `md:grid-cols-${Math.min(dynamicPlans.length, 4)}`
+        }`}>
           {dynamicPlans.map((plan) => {
             const price = annual ? plan.preco_anual_mensal : plan.preco_mensal;
             const Icon = ICON_MAP[plan.slug] || Crown;
+            const style = PLAN_STYLES[plan.slug] || PLAN_STYLES.basico;
+            const isEnterprise = plan.slug === "enterprise";
+            const isPremium = plan.destaque;
+
             return (
               <StaggerItem key={plan.id}>
                 <div
-                  className={`bg-white rounded-2xl p-8 border-2 relative transition-all duration-300 h-full flex flex-col ${
-                    plan.destaque
-                      ? "shadow-xl scale-105"
-                      : "shadow-sm hover:shadow-lg border-gray-100"
+                  className={`rounded-2xl p-8 border-2 relative transition-all duration-300 h-full flex flex-col ${
+                    isEnterprise
+                      ? `${style.gradient} ${style.border} shadow-2xl`
+                      : isPremium
+                        ? `${style.cardBg} shadow-xl scale-105`
+                        : `${style.cardBg} shadow-sm hover:shadow-lg ${style.border}`
                   }`}
-                  style={plan.destaque ? { borderColor: primaryColor } : {}}
+                  style={isPremium && !isEnterprise ? { borderColor: primaryColor } : {}}
                 >
-                  {plan.destaque && (
+                  {/* Badge */}
+                  {isPremium && !isEnterprise && (
                     <div
                       className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-lg"
                       style={{ backgroundColor: primaryColor }}
@@ -119,64 +168,117 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
                     </div>
                   )}
 
+                  {isEnterprise && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-xs font-bold shadow-lg bg-amber-500">
+                      <Building2 className="h-3.5 w-3.5" />
+                      Máximo Poder
+                    </div>
+                  )}
+
+                  {/* Header */}
                   <div className="text-center mb-6">
                     <div
-                      className="h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-3"
-                      style={{ backgroundColor: `${primaryColor}12` }}
+                      className={`h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-3 ${
+                        isEnterprise ? "bg-amber-500/20" : ""
+                      }`}
+                      style={!isEnterprise ? { backgroundColor: `${primaryColor}12` } : {}}
                     >
-                      <Icon className="h-6 w-6" style={{ color: primaryColor }} />
+                      <Icon
+                        className="h-6 w-6"
+                        style={isEnterprise ? { color: "#f59e0b" } : { color: primaryColor }}
+                      />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.nome}</h3>
-                    <p className="text-xs text-gray-500 mb-4">{plan.descricao}</p>
+                    <h3 className={`text-xl font-bold mb-1 ${style.textColor}`}>{plan.nome}</h3>
+                    <p className={`text-xs mb-4 ${isEnterprise ? "text-gray-400" : "text-gray-500"}`}>
+                      {plan.descricao}
+                    </p>
+
+                    {/* Price */}
                     <div className="flex items-baseline justify-center gap-1">
                       {price === 0 ? (
-                        <span className="text-4xl font-extrabold text-gray-900">Grátis</span>
+                        <span className={`text-4xl font-extrabold ${style.priceColor}`}>Grátis</span>
                       ) : (
                         <>
-                          <span className="text-sm text-gray-500">R$</span>
-                          <span className="text-4xl font-extrabold text-gray-900">
+                          <span className={`text-sm ${isEnterprise ? "text-gray-400" : "text-gray-500"}`}>R$</span>
+                          <span className={`text-4xl font-extrabold ${style.priceColor}`}>
                             {price.toFixed(2).replace(".", ",")}
                           </span>
-                          <span className="text-sm text-gray-500">/mês</span>
+                          <span className={`text-sm ${isEnterprise ? "text-gray-400" : "text-gray-500"}`}>/mês</span>
                         </>
                       )}
                     </div>
+
+                    {/* User limit */}
                     {plan.max_usuarios < 999 && (
-                      <p className="text-xs text-gray-500 mt-1">até {plan.max_usuarios} usuários</p>
+                      <p className={`text-xs mt-1 ${isEnterprise ? "text-gray-400" : "text-gray-500"}`}>
+                        até {plan.max_usuarios} usuários
+                      </p>
                     )}
                     {plan.max_usuarios >= 999 && plan.slug !== "trial" && (
-                      <p className="text-xs text-gray-500 mt-1">usuários ilimitados</p>
+                      <p className={`text-xs mt-1 ${isEnterprise ? "text-gray-400" : "text-gray-500"}`}>
+                        usuários ilimitados
+                      </p>
                     )}
                     {plan.trial_dias > 0 && (
-                      <p className="text-xs text-green-600 font-medium mt-1">{plan.trial_dias} dias sem compromisso</p>
+                      <p className={`text-xs font-medium mt-1 ${isEnterprise ? "text-amber-400" : "text-green-600"}`}>
+                        {plan.trial_dias} dias sem compromisso
+                      </p>
                     )}
                   </div>
 
+                  {/* Features */}
                   <ul className="space-y-2.5 mb-8 flex-1">
-                    {(plan.features_display || []).map((f: any, j: number) => (
+                    {(plan.features_display || []).map((f: FeatureDisplay, j: number) => (
                       <li key={j} className="flex items-start gap-3 text-sm">
                         {f.included ? (
-                          <Check className="h-4 w-4 shrink-0 mt-0.5" style={{ color: primaryColor }} />
+                          <Check
+                            className="h-4 w-4 shrink-0 mt-0.5"
+                            style={{ color: isEnterprise ? "#f59e0b" : primaryColor }}
+                          />
                         ) : (
-                          <X className="h-4 w-4 shrink-0 mt-0.5 text-gray-300" />
+                          <X className={`h-4 w-4 shrink-0 mt-0.5 ${isEnterprise ? "text-gray-600" : "text-gray-300"}`} />
                         )}
-                        <span className={f.included ? "text-gray-700" : "text-gray-400"}>{f.label}</span>
+                        <span className={
+                          f.included
+                            ? isEnterprise ? "text-gray-200" : "text-gray-700"
+                            : isEnterprise ? "text-gray-600" : "text-gray-400"
+                        }>
+                          {f.label}
+                        </span>
                       </li>
                     ))}
                   </ul>
 
-                  <Button
-                    className="w-full text-base py-5 rounded-xl"
-                    onClick={() => scrollTo("lead-form")}
-                    style={
-                      plan.destaque
-                        ? { backgroundColor: primaryColor, color: "white" }
-                        : { borderColor: primaryColor, color: primaryColor }
-                    }
-                    variant={plan.destaque ? "default" : "outline"}
-                  >
-                    {plan.slug === "trial" ? "Começar grátis" : "Começar teste grátis"}
-                  </Button>
+                  {/* CTA Buttons */}
+                  <div className="space-y-2">
+                    {isEnterprise ? (
+                      <>
+                        <Button
+                          className="w-full text-base py-5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white border-0"
+                          onClick={() => scrollTo("lead-form")}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Falar com consultor
+                        </Button>
+                        <p className="text-center text-xs text-gray-500">
+                          Atendimento personalizado para sua empresa
+                        </p>
+                      </>
+                    ) : (
+                      <Button
+                        className="w-full text-base py-5 rounded-xl"
+                        onClick={() => scrollTo("lead-form")}
+                        style={
+                          isPremium
+                            ? { backgroundColor: primaryColor, color: "white" }
+                            : { borderColor: primaryColor, color: primaryColor }
+                        }
+                        variant={isPremium ? "default" : "outline"}
+                      >
+                        {plan.slug === "trial" ? "Começar grátis" : "Assinar agora"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </StaggerItem>
             );

@@ -66,6 +66,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   trial: Zap,
   basico: Users,
   premium: Crown,
+  enterprise: Crown,
 };
 
 // Live preview component matching landing page style
