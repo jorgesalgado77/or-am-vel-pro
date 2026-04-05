@@ -15,6 +15,7 @@ import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import { getTenantId } from "@/lib/tenantState";
 import { VariableAutocomplete } from "./VariableAutocomplete";
+import { VariableTooltip } from "./VariableTooltip";
 
 interface ContractTemplate {
   id: string;
