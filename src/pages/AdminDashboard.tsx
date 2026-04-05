@@ -918,7 +918,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </div>
             <Card>
               <CardContent className="p-0">
-                <ScrollArea className="w-full">
+                <ScrollArea className="w-full whitespace-nowrap">
+                <div className="min-w-[1200px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
