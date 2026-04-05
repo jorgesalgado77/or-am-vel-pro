@@ -72,12 +72,20 @@ export function PdfImportPreviewModal({
   saving = false,
 }: PdfImportPreviewModalProps) {
   const [templateName, setTemplateName] = useState(
-    imported.suggestedName || fileName.replace(/\.pdf$/i, "")
+    imported.suggestedName || fileName.replace(/\.(pdf|docx)$/i, "")
   );
-  const [viewMode, setViewMode] = useState<"preview" | "variables">("preview");
+  const [viewMode, setViewMode] = useState<"preview" | "variables" | "html">("preview");
   const [useAutoReplace, setUseAutoReplace] = useState(true);
+  const [editedHtml, setEditedHtml] = useState<string | null>(null);
 
-  const finalHtml = useAutoReplace ? processedHtml : imported.html;
+  const baseHtml = useAutoReplace ? processedHtml : imported.html;
+  const finalHtml = editedHtml !== null ? editedHtml : baseHtml;
+
+  // Sync editedHtml when toggling auto-replace
+  const handleAutoReplaceChange = (val: boolean) => {
+    setUseAutoReplace(val);
+    setEditedHtml(null);
+  };
 
   const variableSummary = useMemo(() => {
     const html = removeHighlights(finalHtml);
