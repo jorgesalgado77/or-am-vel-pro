@@ -189,9 +189,17 @@ export function PdfImportPreviewModal({
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
                 style={{ fontSize: "10px", transform: "scale(0.7)", transformOrigin: "top left", width: "142%" }}
               />
+            ) : viewMode === "html" ? (
+              <div className="p-2">
+                <Textarea
+                  value={editedHtml !== null ? editedHtml : baseHtml}
+                  onChange={(e) => setEditedHtml(e.target.value)}
+                  className="min-h-[40vh] font-mono text-xs leading-relaxed resize-none"
+                  placeholder="HTML do template..."
+                />
+              </div>
             ) : (
               <div className="p-4 space-y-4">
-                {/* Detected replacements */}
                 {useAutoReplace && replacements.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold flex items-center gap-1.5">
@@ -219,7 +227,6 @@ export function PdfImportPreviewModal({
 
                 <Separator />
 
-                {/* Variable summary */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-semibold">Resumo de variáveis no template</h4>
 
@@ -262,16 +269,7 @@ export function PdfImportPreviewModal({
                   )}
                 </div>
               </div>
-            ) : viewMode === "html" ? (
-              <div className="p-2">
-                <Textarea
-                  value={editedHtml !== null ? editedHtml : baseHtml}
-                  onChange={(e) => setEditedHtml(e.target.value)}
-                  className="min-h-[40vh] font-mono text-xs leading-relaxed resize-none"
-                  placeholder="HTML do template..."
-                />
-              </div>
-            ) : null}
+            )}
           </ScrollArea>
         </div>
 
