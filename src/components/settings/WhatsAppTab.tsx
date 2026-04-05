@@ -152,7 +152,6 @@ export function WhatsAppTab() {
           .from("whatsapp_settings")
           .update({ zapi_webhook_url: correctedUrl } as any)
           .eq("tenant_id", tenantId);
-        console.log("[WhatsApp] Auto-corrected webhook URL:", correctedUrl);
       }
 
       setLoading(false);

@@ -13,6 +13,7 @@ import { useQuickReplies } from "@/hooks/useQuickReplies";
 import { sendWhatsAppText, sendWhatsAppMedia } from "@/lib/whatsappSender";
 import { VendaZapMonitorIndicator } from "./VendaZapMonitorIndicator";
 import { AICloserBanner, type CloseSaleData } from "./AICloserBanner";
+import { normalizePhone, phonesMatch } from "@/lib/phoneUtils";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
@@ -36,28 +37,6 @@ interface Props {
 
 const PAGE_SIZE = 40;
 
-function normalizePhone(value?: string | null) {
-  const digits = String(value || "")
-    .replace(/^WA-/i, "")
-    .replace(/@.*/, "")
-    .replace(/\D/g, "")
-    .replace(/^0+/, "");
-
-  return /^55\d{10,11}$/.test(digits) ? digits.slice(2) : digits;
-}
-
-function phonesMatch(first?: string | null, second?: string | null) {
-  const left = normalizePhone(first);
-  const right = normalizePhone(second);
-
-  if (!left || !right) return false;
-  if (left === right) return true;
-  if (left.endsWith(right) || right.endsWith(left)) return true;
-
-  const leftLast8 = left.slice(-8);
-  const rightLast8 = right.slice(-8);
-  return Boolean(leftLast8 && rightLast8 && leftLast8 === rightLast8);
-}
 
 function getConversationPhone(conversation: ChatConversation | null | undefined) {
   if (!conversation) return "";

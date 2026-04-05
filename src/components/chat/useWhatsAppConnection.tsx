@@ -50,7 +50,6 @@ export function useWhatsAppConnectionStatus(tenantId: string | null) {
           .from("whatsapp_settings")
           .update({ zapi_webhook_url: correctedUrl } as any)
           .eq("id", settings.id);
-        console.log("[WhatsApp] Auto-corrected webhook URL on chat open:", correctedUrl);
       }
 
       setProvider(settings.provider);
@@ -78,7 +77,6 @@ export function useWhatsAppConnectionStatus(tenantId: string | null) {
                 fetch(`${baseUrl}/update-notify-sent-by-me`, { method: "PUT", headers, body: JSON.stringify({ notifySentByMe: true }) }),
               ]);
 
-              console.log("[WhatsApp] Webhook sync:", { received: receivedRes.ok, delivery: deliveryRes.ok, notify: notifyRes.ok, url: webhookUrl });
 
               if (receivedRes.ok && deliveryRes.ok && notifyRes.ok) {
                 syncedWebhookRef.current = syncKey;

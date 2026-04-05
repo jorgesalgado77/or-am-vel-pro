@@ -147,9 +147,7 @@ export function Dashboard({ clients, lastSims, allSimulations = [], onOpenProfil
       }
     });
 
-    console.log("[Dashboard] Contract records:", all.map(t => ({ clientId: t.clientId.slice(0,8), dateRef: t.dateRef?.slice(0,10), valor: t.valor_contrato })));
     const filtered = all.filter(t => isInRange(t.dateRef, dateRange.start, dateRange.end));
-    console.log("[Dashboard] Contracts found:", cIds.size, "Tracking records:", trackMap.size, "In range:", filtered.length, "Range:", dateRange.start.toISOString(), "-", dateRange.end.toISOString());
     setTrackingRaw(filtered);
     setTrackingData({ count: filtered.length, total: filtered.reduce((sum, t) => sum + t.valor_contrato, 0) });
   }, [dateRange, lastSims]);
