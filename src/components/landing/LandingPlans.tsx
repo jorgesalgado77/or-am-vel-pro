@@ -76,12 +76,12 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
   const [loaded, setLoaded] = useState(false);
 
   const fetchPlans = async () => {
-    const { data } = await supabase
-      .from("subscription_plans" as string & keyof never)
+    const { data } = await (supabase as any)
+      .from("subscription_plans")
       .select("*")
       .eq("ativo", true)
       .order("ordem", { ascending: true });
-    if (data) setDynamicPlans(data as unknown as DynamicPlan[]);
+    if (data) setDynamicPlans(data as DynamicPlan[]);
     setLoaded(true);
   };
 
