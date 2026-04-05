@@ -624,6 +624,7 @@ export function ContratosTab() {
             )}
 
 
+            <div className="flex items-center justify-between rounded-lg border border-border bg-accent/10 p-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-500" />
                 <div>
