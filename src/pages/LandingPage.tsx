@@ -1,4 +1,5 @@
 import { useLandingConfig } from "@/hooks/useLandingConfig";
+import { useWhatsAppFunnel } from "@/hooks/useWhatsAppFunnel";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LandingUrgencyBanner } from "@/components/landing/LandingUrgencyBanner";
 import { LandingHero } from "@/components/landing/LandingHero";
@@ -13,10 +14,12 @@ import { LandingLeadForm } from "@/components/landing/LandingLeadForm";
 import { LandingAffiliate } from "@/components/landing/LandingAffiliate";
 import { LandingCTA } from "@/components/landing/LandingCTA";
 import { LandingFooter } from "@/components/landing/LandingFooter";
+import { WhatsAppFloatingButton } from "@/components/landing/WhatsAppFloatingButton";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 
 export default function LandingPage() {
   const { config, loading } = useLandingConfig();
+  const { config: waConfig } = useWhatsAppFunnel();
 
   if (loading) {
     return (
@@ -27,6 +30,7 @@ export default function LandingPage() {
   }
 
   const s = config.sections_visible;
+  const waEnabled = waConfig.enabled && !!waConfig.phone;
 
   return (
     <div className="min-h-screen bg-white">
@@ -43,6 +47,9 @@ export default function LandingPage() {
             videoUrl={config.hero_video_url}
             primaryColor={config.primary_color}
             secondaryColor={config.secondary_color}
+            whatsappEnabled={waEnabled}
+            whatsappPhone={waConfig.phone}
+            whatsappMessage={waConfig.messages.interest}
           />
         )}
 
@@ -105,6 +112,9 @@ export default function LandingPage() {
             text={config.cta_final_text}
             primaryColor={config.primary_color}
             secondaryColor={config.secondary_color}
+            whatsappEnabled={waEnabled}
+            whatsappPhone={waConfig.phone}
+            whatsappMessage={waConfig.messages.closing}
           />
         )}
 
@@ -115,6 +125,15 @@ export default function LandingPage() {
           primaryColor={config.primary_color}
         />
       </div>
+
+      {/* Floating WhatsApp button (mobile & desktop) */}
+      {waEnabled && (
+        <WhatsAppFloatingButton
+          phone={waConfig.phone}
+          message={waConfig.messages.support}
+          primaryColor={config.primary_color}
+        />
+      )}
     </div>
   );
 }

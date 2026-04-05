@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Play, CheckCircle2, MessageCircle } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
+import { WhatsAppLeadDialog } from "./WhatsAppLeadDialog";
 import heroImg from "@/assets/screen-kanban.jpg";
 
 interface LandingHeroProps {
@@ -10,9 +12,14 @@ interface LandingHeroProps {
   videoUrl: string | null;
   primaryColor: string;
   secondaryColor: string;
+  whatsappEnabled?: boolean;
+  whatsappPhone?: string;
+  whatsappMessage?: string;
 }
 
-export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor, secondaryColor }: LandingHeroProps) {
+export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor, secondaryColor, whatsappEnabled, whatsappPhone, whatsappMessage }: LandingHeroProps) {
+  const [whatsappDialog, setWhatsappDialog] = useState(false);
+
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
@@ -60,16 +67,29 @@ export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor,
                   Começar agora
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => scrollTo("how-it-works")}
-                  className="text-base px-8 py-6 rounded-xl border-2"
-                  style={{ borderColor: primaryColor, color: primaryColor }}
-                >
-                  <Play className="mr-2 h-5 w-5" />
-                  Ver como funciona
-                </Button>
+
+                {whatsappEnabled && whatsappPhone ? (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setWhatsappDialog(true)}
+                    className="text-base px-8 py-6 rounded-xl border-2 border-green-500 text-green-700 hover:bg-green-50"
+                  >
+                    <MessageCircle className="mr-2 h-5 w-5" />
+                    Falar com especialista
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => scrollTo("how-it-works")}
+                    className="text-base px-8 py-6 rounded-xl border-2"
+                    style={{ borderColor: primaryColor, color: primaryColor }}
+                  >
+                    <Play className="mr-2 h-5 w-5" />
+                    Ver como funciona
+                  </Button>
+                )}
               </div>
             </AnimatedSection>
 
@@ -110,6 +130,16 @@ export function LandingHero({ title, subtitle, imageUrl, videoUrl, primaryColor,
           </AnimatedSection>
         </div>
       </div>
+
+      {whatsappEnabled && whatsappPhone && (
+        <WhatsAppLeadDialog
+          open={whatsappDialog}
+          onOpenChange={setWhatsappDialog}
+          phone={whatsappPhone}
+          message={whatsappMessage || "Olá, quero saber mais sobre o OrçaMóvel Pro."}
+          primaryColor={primaryColor}
+        />
+      )}
     </section>
   );
 }
