@@ -21,6 +21,13 @@ export interface ParsedModule {
   supplier: string;
   category: string;
   group: string;
+  /** Dedicated hardware/detail fields */
+  doorType?: string;
+  hingeModel?: string;
+  slideModel?: string;
+  boxColor?: string;
+  doorColor?: string;
+  thickness?: string;
 }
 
 export interface ParsedFileResult {

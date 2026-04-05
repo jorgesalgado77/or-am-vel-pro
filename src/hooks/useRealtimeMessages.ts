@@ -66,10 +66,17 @@ export function useRealtimeMessages(activeView?: string, onNewMessage?: (payload
             ...(tenantId ? { filter: `tenant_id=eq.${tenantId}` } : {}),
           },
           (payload) => {
-            const updated = payload.new as { remetente_tipo?: string; lida?: boolean };
-            const previous = payload.old as { lida?: boolean };
+            const updated = payload.new as { remetente_tipo?: string; lida?: boolean; status?: string };
+            const previous = payload.old as { lida?: boolean; status?: string };
+
+            // Refresh unread count when a client message is marked as read
             if (updated.remetente_tipo === "cliente" && previous.lida === false && updated.lida === true) {
               void fetchUnreadCount();
+            }
+
+            // Propagate status changes (sent → delivered → read) to listeners
+            if (updated.status && updated.status !== previous.status) {
+              onNewMessage?.(updated);
             }
           }
         )
