@@ -4,6 +4,7 @@
  */
 import { trackUsage, checkUsageLimit, type UsageFeature } from "@/services/billing/UsageTracker";
 import { toast } from "sonner";
+import { addNotification } from "@/services/billing/UsageNotificationStore";
 
 const FEATURE_LABELS: Record<UsageFeature, string> = {
   ia_interactions: "Interações IA",
@@ -24,16 +25,16 @@ function showUsageAlert(feature: UsageFeature, percentUsed: number, isExceeded: 
 
   if (isExceeded && !alertsShown.has(key100)) {
     alertsShown.add(key100);
-    toast.error(`⚠️ Limite de ${label} excedido!`, {
-      description: "O uso adicional será cobrado como excedente. Considere fazer upgrade do plano.",
-      duration: 8000,
-    });
+    const message = `⚠️ Limite de ${label} excedido!`;
+    const description = "O uso adicional será cobrado como excedente. Considere fazer upgrade do plano.";
+    toast.error(message, { description, duration: 8000 });
+    addNotification({ feature, type: "exceeded", percentUsed, message, description });
   } else if (percentUsed >= 80 && !isExceeded && !alertsShown.has(key80)) {
     alertsShown.add(key80);
-    toast.warning(`${label}: ${Math.round(percentUsed)}% do limite utilizado`, {
-      description: "Você está próximo do limite do seu plano.",
-      duration: 6000,
-    });
+    const message = `${label}: ${Math.round(percentUsed)}% do limite utilizado`;
+    const description = "Você está próximo do limite do seu plano.";
+    toast.warning(message, { description, duration: 6000 });
+    addNotification({ feature, type: "warning", percentUsed, message, description });
   }
 }
 
