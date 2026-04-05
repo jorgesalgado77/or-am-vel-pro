@@ -214,14 +214,9 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
                         até {plan.max_usuarios} usuários
                       </p>
                     )}
-                    {plan.max_usuarios >= 999 && plan.slug !== "trial" && (
+                    {plan.max_usuarios >= 999 && (
                       <p className={`text-xs mt-1 ${isEnterprise ? "text-gray-400" : "text-gray-500"}`}>
                         usuários ilimitados
-                      </p>
-                    )}
-                    {plan.trial_dias > 0 && (
-                      <p className={`text-xs font-medium mt-1 ${isEnterprise ? "text-amber-400" : "text-green-600"}`}>
-                        {plan.trial_dias} dias sem compromisso
                       </p>
                     )}
                   </div>
@@ -275,7 +270,7 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
                         }
                         variant={isPremium ? "default" : "outline"}
                       >
-                        {plan.slug === "trial" ? "Começar grátis" : "Assinar agora"}
+                        {plan.slug === "trial" ? "Começar agora" : "Assinar agora"}
                       </Button>
                     )}
                   </div>
@@ -288,7 +283,7 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
         <AnimatedSection>
           <div className="text-center mt-8 space-y-3">
             <p className="text-sm text-gray-500">
-              Todos os planos incluem 7 dias de teste grátis. Cancele a qualquer momento.
+              Acesso imediato após assinatura. Cancele a qualquer momento.
             </p>
             <a
               href="/planos"
