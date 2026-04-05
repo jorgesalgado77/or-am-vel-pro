@@ -16,6 +16,8 @@ import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import { getTenantId } from "@/lib/tenantState";
 import { VariableAutocomplete } from "./VariableAutocomplete";
 import { VariableTooltip } from "./VariableTooltip";
+import { PdfImportPreviewModal } from "./PdfImportPreviewModal";
+import type { ImportedContractContent } from "@/lib/contractImport";
 
 interface ContractTemplate {
   id: string;
@@ -117,6 +119,14 @@ export function ContratosTab() {
   const [showHighlights, setShowHighlights] = useState(true);
   const [autoReplace, setAutoReplace] = useState(true);
   const [keepBackground, setKeepBackground] = useState(true);
+  const [pdfPreview, setPdfPreview] = useState<{
+    imported: ImportedContractContent;
+    processedHtml: string;
+    replacements: Array<{ variable: string; label: string; originalValue: string }>;
+    replacedCount: number;
+    fileName: string;
+  } | null>(null);
+  const [savingImport, setSavingImport] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const previewDocument = useMemo(
@@ -262,39 +272,19 @@ export function ContratosTab() {
       setImporting(true);
       try {
         const imported = await importContractFile(file);
-        let processedHtml = imported.html;
-        let replacedCount = 0;
+        const result = replaceDetectedFieldsWithPlaceholders(imported.html);
 
-        // Auto-detect and replace fields with variables
-        const result = replaceDetectedFieldsWithPlaceholders(processedHtml);
-        processedHtml = result.html;
-        replacedCount = result.replacedCount;
-
-        const tenantId = getTenantId();
-        const templateName = imported.suggestedName || file.name.replace(/\.pdf$/i, "");
-        const insertPayload: Record<string, any> = {
-          nome: templateName,
-          conteudo_html: processedHtml,
-          ativo: true,
-          arquivo_original_nome: file.name,
-          ...(tenantId ? { tenant_id: tenantId } : {}),
-        };
-        if (imported.structure) {
-          insertPayload.template_structure = imported.structure;
-          insertPayload.template_type = imported.templateType || "hybrid";
-        }
-
-        const { error } = await supabase
-          .from("contract_templates")
-          .insert(insertPayload as never);
-
-        if (error) {
-          toast.error("Erro ao importar PDF: " + error.message);
-        } else {
-          const replaceMsg = replacedCount > 0 ? ` — ${replacedCount} variável(is) detectada(s)` : "";
-          toast.success(`Template "${templateName}" importado do PDF!${replaceMsg}`);
-          fetchTemplates();
-        }
+        setPdfPreview({
+          imported,
+          processedHtml: result.html,
+          replacements: result.replacements.map((r) => ({
+            variable: r.variable,
+            label: r.label,
+            originalValue: r.originalValue,
+          })),
+          replacedCount: result.replacedCount,
+          fileName: file.name,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao importar PDF";
         toast.error(message);
@@ -447,6 +437,47 @@ export function ContratosTab() {
       editorRef.current.innerHTML += varName;
     } else {
       setHtmlContent((prev) => prev + varName);
+    }
+  };
+
+  const handleConfirmPdfImport = async (data: {
+    nome: string;
+    html: string;
+    structure?: any;
+    templateType?: string;
+    fileName: string;
+  }) => {
+    setSavingImport(true);
+    try {
+      const tenantId = getTenantId();
+      const insertPayload: Record<string, any> = {
+        nome: data.nome,
+        conteudo_html: data.html,
+        ativo: true,
+        arquivo_original_nome: data.fileName,
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+      };
+      if (data.structure) {
+        insertPayload.template_structure = data.structure;
+        insertPayload.template_type = data.templateType || "hybrid";
+      }
+
+      const { error } = await supabase
+        .from("contract_templates")
+        .insert(insertPayload as never);
+
+      if (error) {
+        toast.error("Erro ao importar PDF: " + error.message);
+      } else {
+        toast.success(`Template "${data.nome}" importado com sucesso!`);
+        setPdfPreview(null);
+        fetchTemplates();
+      }
+    } catch (err) {
+      toast.error("Erro ao salvar template");
+      console.error(err);
+    } finally {
+      setSavingImport(false);
     }
   };
 
@@ -789,6 +820,20 @@ export function ContratosTab() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {pdfPreview && (
+        <PdfImportPreviewModal
+          open={!!pdfPreview}
+          onClose={() => setPdfPreview(null)}
+          onConfirm={handleConfirmPdfImport}
+          imported={pdfPreview.imported}
+          processedHtml={pdfPreview.processedHtml}
+          replacements={pdfPreview.replacements}
+          replacedCount={pdfPreview.replacedCount}
+          fileName={pdfPreview.fileName}
+          saving={savingImport}
+        />
       )}
     </div>
   );
