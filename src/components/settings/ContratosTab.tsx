@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
@@ -114,6 +114,7 @@ export function ContratosTab() {
   const [editorKey, setEditorKey] = useState(0);
   const [showHighlights, setShowHighlights] = useState(true);
   const [autoReplace, setAutoReplace] = useState(true);
+  const [keepBackground, setKeepBackground] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const previewDocument = useMemo(
