@@ -7,6 +7,8 @@ import { useNegotiationControl } from "@/hooks/useNegotiationControl";
 import type { NegotiationMode } from "@/services/commercial/NegotiationControlEngine";
 import type { ChatConversation } from "./types";
 import { Brain, Clock3, Crosshair, HandCoins, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
+import { normalizePhone } from "@/lib/phoneUtils";
+import { formatCurrency } from "@/lib/financing";
 
 interface Props {
   conversation: ChatConversation;
@@ -15,18 +17,6 @@ interface Props {
   mode: NegotiationMode;
 }
 
-function formatCurrency(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function normalizePhone(value?: string | null) {
-  const digits = String(value || "")
-    .replace(/^WA-/i, "")
-    .replace(/@.*/, "")
-    .replace(/\D/g, "")
-    .replace(/^55(?=\d{10,11}$)/, "");
-  return digits;
-}
 
 const MODE_LABEL: Record<NegotiationMode, string> = {
   automatico: "Automático",
