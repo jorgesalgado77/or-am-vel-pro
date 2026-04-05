@@ -16,6 +16,8 @@ import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import { getTenantId } from "@/lib/tenantState";
 import { VariableAutocomplete } from "./VariableAutocomplete";
 import { VariableTooltip } from "./VariableTooltip";
+import { PdfImportPreviewModal } from "./PdfImportPreviewModal";
+import type { ImportedContractContent } from "@/lib/contractImport";
 
 interface ContractTemplate {
   id: string;
