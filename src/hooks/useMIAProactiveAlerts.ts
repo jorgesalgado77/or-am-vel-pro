@@ -7,6 +7,14 @@
 import { useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+export interface ProactiveAlertAction {
+  type: "send_followup" | "navigate" | "send_whatsapp" | "schedule_task";
+  label: string;
+  target?: string;
+  payload?: Record<string, unknown>;
+  requiresConfirmation: boolean;
+}
+
 export interface ProactiveAlert {
   type: string;
   icon: string;
@@ -14,6 +22,8 @@ export interface ProactiveAlert {
   detail: string;
   count: number;
   action?: { label: string; target: string };
+  /** Executable action for MIA agent mode */
+  executableAction?: ProactiveAlertAction;
 }
 
 const COOLDOWN_KEY = "mia_proactive_last_check";
@@ -95,6 +105,12 @@ export function useMIAProactiveAlerts(
             detail: `Você tem **${leadsCount}** lead(s) sem movimentação há mais de 2 dias. Faça follow-up!`,
             count: leadsCount || 0,
             action: { label: "Ver Leads", target: "clients" },
+            executableAction: {
+              type: "send_followup",
+              label: "Enviar follow-up automático",
+              target: "vendazap-chat",
+              requiresConfirmation: true,
+            },
           });
         }
 
@@ -113,6 +129,12 @@ export function useMIAProactiveAlerts(
             detail: `Há **${unreadCount}** mensagem(ns) aguardando resposta. Responda rápido!`,
             count: unreadCount || 0,
             action: { label: "Ver Mensagens", target: "vendazap-chat" },
+            executableAction: {
+              type: "navigate",
+              label: "Abrir Chat de Vendas",
+              target: "vendazap-chat",
+              requiresConfirmation: false,
+            },
           });
         }
       }
