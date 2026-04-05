@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
@@ -121,6 +121,17 @@ export function ContratosTab() {
     () => buildContractDocumentHtml(removeHighlights(htmlContent), nome || "Preview do contrato"),
     [htmlContent, nome],
   );
+
+  const variableReport = useMemo(() => {
+    const cleanHtml = removeHighlights(htmlContent);
+    const knownVars = new Set(AVAILABLE_VARIABLES.map((v) => v.var));
+    const matches = cleanHtml.match(/\{\{[^}]+\}\}/g) || [];
+    const usedSet = new Set(matches);
+    const used = AVAILABLE_VARIABLES.filter((v) => usedSet.has(v.var));
+    const missing = AVAILABLE_VARIABLES.filter((v) => !usedSet.has(v.var));
+    const unknown = [...usedSet].filter((v) => !knownVars.has(v));
+    return { used, missing, unknown, total: AVAILABLE_VARIABLES.length };
+  }, [htmlContent]);
 
   const fetchTemplates = async () => {
     const tenantId = getTenantId();
@@ -534,6 +545,84 @@ export function ContratosTab() {
                 ))}
               </div>
             </div>
+
+            {/* Variable usage report */}
+            {htmlContent && (
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">
+                    Relatório de variáveis — {variableReport.used.length}/{variableReport.total} em uso
+                  </span>
+                  <div className="flex gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      {variableReport.used.length} usadas
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3 text-amber-500" />
+                      {variableReport.missing.length} não usadas
+                    </span>
+                    {variableReport.unknown.length > 0 && (
+                      <span className="flex items-center gap-1">
+                        <XCircle className="h-3 w-3 text-destructive" />
+                        {variableReport.unknown.length} desconhecidas
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {variableReport.unknown.length > 0 && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
+                    <p className="text-xs font-medium text-destructive mb-1">Variáveis não reconhecidas:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {variableReport.unknown.map((v) => (
+                        <span key={v} className="rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-xs text-destructive">
+                          {v}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    Ver detalhes ({variableReport.used.length} usadas, {variableReport.missing.length} disponíveis)
+                  </summary>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {variableReport.used.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-emerald-600">✓ Em uso</p>
+                        <div className="flex flex-wrap gap-1">
+                          {variableReport.used.map((v) => (
+                            <span key={v.var} className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-xs text-emerald-700" title={v.desc}>
+                              {v.var}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {variableReport.missing.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-amber-600">○ Disponíveis (não usadas)</p>
+                        <div className="flex flex-wrap gap-1">
+                          {variableReport.missing.map((v) => (
+                            <button
+                              key={v.var}
+                              onClick={() => insertVariable(v.var)}
+                              className="rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-xs text-amber-700 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                              title={`${v.desc} — clique para inserir`}
+                            >
+                              {v.var}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </div>
+            )}
+
 
             <div className="flex items-center justify-between rounded-lg border border-border bg-accent/10 p-3">
               <div className="flex items-center gap-2">
