@@ -1,6 +1,7 @@
 /**
  * AICloserBanner — Detects purchase intent and suggests closing actions.
  * Shows inline in the chat when the AI detects the client is ready to buy.
+ * Includes MIAFeedback after proposal is sent for learning.
  */
 
 import { memo, useState, useEffect, useCallback } from "react";
@@ -15,6 +16,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { getCommercialEngine, formatCurrency } from "@/services/commercial";
 import { getContextBuilder } from "@/services/commercial/ClientContextBuilder";
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 import type { DealAnalysis, DealScenario, StrategyRecommendation } from "@/services/commercial/types";
 import type { ChatConversation } from "./types";
 

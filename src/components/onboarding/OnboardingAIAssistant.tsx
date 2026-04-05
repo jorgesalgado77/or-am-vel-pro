@@ -40,6 +40,8 @@ import { useApiKeys } from "@/hooks/useApiKeys";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMIAProactiveAlerts } from "@/hooks/useMIAProactiveAlerts";
 import { useMIACriticalToasts } from "@/hooks/useMIACriticalToasts";
+import { getMIAMonitorService } from "@/services/mia/MIAMonitorService";
+import type { MIAMonitorAlert } from "@/services/mia/MIAMonitorService";
 import { MIAKpiSummary } from "@/components/onboarding/MIAKpiSummary";
 import { MIAWeeklyInsights } from "@/components/onboarding/MIAWeeklyInsights";
 import { getContextualTip } from "@/hooks/useMIAContextualTips";
@@ -190,7 +192,15 @@ export function OnboardingAIAssistant() {
       // Proactive alerts: check once per chat open session
       if (!proactiveCheckedRef.current) {
         proactiveCheckedRef.current = true;
-        checkAlerts().then(alerts => {
+
+        // Run both proactive alerts and monitor service in parallel
+        const proactivePromise = checkAlerts();
+        const monitorPromise = tenantId && currentUserId
+          ? getMIAMonitorService().runMonitorCycle(tenantId, currentUserId)
+          : Promise.resolve([] as MIAMonitorAlert[]);
+
+        Promise.all([proactivePromise, monitorPromise]).then(([alerts, monitorAlerts]) => {
+          // Proactive alerts (existing)
           if (alerts.length > 0) {
             const alertLines = alerts.map(a =>
               `${a.icon} **${a.title}** — ${a.detail}`
@@ -205,6 +215,27 @@ export function OnboardingAIAssistant() {
                     type: a.type,
                     label: a.action!.label,
                     target: a.action!.target,
+                  })),
+              },
+            }));
+          }
+
+          // Monitor service alerts (deep analysis)
+          if (monitorAlerts.length > 0) {
+            const monitorLines = monitorAlerts.map(a =>
+              `${a.icon} **${a.title}** — ${a.detail}`
+            ).join("\n\n");
+            const monitorMsg = `🧠 **Monitor Inteligente:**\n\n${monitorLines}`;
+            window.dispatchEvent(new CustomEvent("mia-inject-message", {
+              detail: {
+                content: monitorMsg,
+                actions: monitorAlerts
+                  .filter(a => a.suggestedAction)
+                  .map(a => ({
+                    type: a.type,
+                    label: a.suggestedAction!.label,
+                    target: a.suggestedAction!.target || "",
+                    executableAction: a.suggestedAction,
                   })),
               },
             }));
