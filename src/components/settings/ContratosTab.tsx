@@ -821,6 +821,20 @@ export function ContratosTab() {
           </CardContent>
         </Card>
       )}
+
+      {pdfPreview && (
+        <PdfImportPreviewModal
+          open={!!pdfPreview}
+          onClose={() => setPdfPreview(null)}
+          onConfirm={handleConfirmPdfImport}
+          imported={pdfPreview.imported}
+          processedHtml={pdfPreview.processedHtml}
+          replacements={pdfPreview.replacements}
+          replacedCount={pdfPreview.replacedCount}
+          fileName={pdfPreview.fileName}
+          saving={savingImport}
+        />
+      )}
     </div>
   );
 }
