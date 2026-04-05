@@ -231,7 +231,6 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
 
   const handleSave = useCallback(async (options?: { silent?: boolean }): Promise<string | null> => {
     const silent = options?.silent ?? false;
-    console.log("[SimulatorSave] handleSave called", { silent, resolvedTenantId, valorTela, valorEntrada, hasClient: !!effectiveClient });
     if (!resolvedTenantId) {
       const message = "Não foi possível identificar a loja atual; recarregue a página e tente novamente.";
       console.error("[SimulatorSave] No tenant ID");
@@ -478,7 +477,6 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
   }, [effectiveClient, resolvedTenantId, validateAccess, environments]);
 
   const handleCloseSaleConfirm = useCallback(async (formData: any, items: any[], itemDetails: any[]) => {
-    console.log("[CloseSaleFlow] handleCloseSaleConfirm called", { hasClient: !!effectiveClient, tenantId: resolvedTenantId });
     if (!effectiveClient) {
       reportCloseSaleIssue("Selecione ou vincule um cliente antes de continuar.", { step: "confirm_close_sale" });
       return false;
@@ -492,15 +490,12 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
     setCloseSaleItemDetails(itemDetails);
     setClosingSale(true);
     try {
-      console.log("[CloseSaleFlow] Saving simulation (silent)...");
       const simulationId = await handleSave({ silent: true });
-      console.log("[CloseSaleFlow] handleSave returned:", simulationId);
       if (!simulationId) {
         reportCloseSaleIssue("A simulação não foi salva. Verifique os dados e tente novamente.", { step: "save_before_contract" });
         return false;
       }
 
-      console.log("[CloseSaleFlow] Fetching contract template...");
       const { data: template, error: templateError } = await supabase
         .from("contract_templates" as any)
         .select("id, nome, conteudo_html, template_type, template_structure")
@@ -539,7 +534,6 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         });
       }
 
-      console.log("[CloseSaleFlow] Building contract HTML...");
       const html = buildContractHtml(templateHtml, {
         formData,
         client: effectiveClient,
@@ -556,7 +550,6 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         catalogProducts: catalogProducts.map(cp => ({ name: cp.product.name, internal_code: cp.product.internal_code, quantity: cp.quantity, sale_price: cp.product.sale_price })),
       });
 
-      console.log("[CloseSaleFlow] Opening contract editor...");
       setPendingSimId(simulationId);
       setPendingTemplateId((template as any)?.id ?? null);
       setContractHtml(html);
@@ -564,7 +557,6 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       setClosingSale(false);
       // Use requestAnimationFrame to ensure modal unmounts before editor opens
       requestAnimationFrame(() => {
-        console.log("[CloseSaleFlow] requestAnimationFrame: setting contractEditorOpen=true");
         setContractEditorOpen(true);
       });
       toast.success("Simulação salva! Abrindo editor do contrato...");

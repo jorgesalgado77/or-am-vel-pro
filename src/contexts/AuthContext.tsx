@@ -115,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!stableUser) return null;
 
-      console.log("[Auth] ✅ User re-hydrated from DB:", stableUser.nome_completo, "reason:", reason);
       currentAuthIdRef.current = authUser.id;
       userRef.current = stableUser;
       setUser(stableUser);
@@ -127,18 +126,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadFromSession = useCallback(async (sess: Session | null, event?: string) => {
-    console.log("[Auth] loadFromSession called", { event, hasSession: !!sess?.user, currentRef: currentAuthIdRef.current, currentUserRef: userRef.current?.nome_completo });
 
     if (!sess?.user) {
       if (currentAuthIdRef.current && event && EXPLICIT_SIGN_OUT_EVENTS.has(event)) {
-        console.log("[Auth] ⛔ Clearing user after explicit sign-out event:", event);
         userRef.current = null;
         setUser(null);
         setSession(null);
         currentAuthIdRef.current = null;
         syncGlobalState(null);
       } else {
-        console.log("[Auth] ✅ Ignoring transient null session", { event });
       }
       setLoading(false);
       return;
@@ -147,17 +143,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(sess);
 
     if (loginInProgressRef.current) {
-      console.log("[Auth] ⏳ Login in progress, skipping");
       return;
     }
 
     if (currentAuthIdRef.current === sess.user.id && userRef.current) {
-      console.log("[Auth] ✅ Same user already loaded:", userRef.current.nome_completo, "— skipping reload");
       setLoading(false);
       return;
     }
 
-    console.log("[Auth] 🔄 Loading user profile for:", sess.user.email);
 
     const sessionTenantId = (sess.user.user_metadata as any)?.tenant_id as string | undefined ?? null;
 
@@ -185,7 +178,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? userRef.current
         : appUser;
 
-      console.log("[Auth] ✅ User loaded from DB:", stableUser?.nome_completo, "cargo:", stableUser?.cargo_nome);
       currentAuthIdRef.current = sess.user.id;
       userRef.current = stableUser;
       setUser(stableUser);

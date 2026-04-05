@@ -162,13 +162,11 @@ export function useAutoPilot({ tenantId, userId, addon }: UseAutoPilotParams) {
 
     // Don't auto-respond to clients who explicitly gave up (resistance >= 80 & desistencia)
     if (resistance.level >= 80 && resistance.category === "desistencia") {
-      console.log(`[AutoPilot] Skipping ${clientName}: desistência explícita (resistance=${resistance.level})`);
       return null;
     }
 
     // For very low engagement (lost), only respond if configured for cold leads
     if (engagement.level === "perdido" && !settings?.responder_frio) {
-      console.log(`[AutoPilot] Skipping ${clientName}: engagement perdido (${engagement.score})`);
       return null;
     }
 
