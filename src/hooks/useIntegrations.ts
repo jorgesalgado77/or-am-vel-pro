@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
+import { trackAndAlert } from "@/services/billing/UsageAlerts";
 
 interface SendEmailParams {
   to: string | string[];
@@ -38,6 +39,9 @@ interface GeneratePDFParams {
 export function useResendEmail(tenantId: string | null) {
   const sendEmail = useCallback(async (params: SendEmailParams) => {
     if (!tenantId) { toast.error("Tenant não identificado"); return null; }
+
+    // Track email usage
+    void trackAndAlert({ tenant_id: tenantId, user_id: "system", feature: "email_sends" });
 
     const { data, error } = await supabase.functions.invoke("resend-email", {
       body: { action: "send", tenant_id: tenantId, ...params },
@@ -128,6 +132,9 @@ export function useAsaasBilling(tenantId: string | null) {
 export function useDocumentGenerator(tenantId: string | null) {
   const generatePDF = useCallback(async (params: GeneratePDFParams) => {
     if (!tenantId) { toast.error("Tenant não identificado"); return null; }
+
+    // Track PDF generation usage
+    void trackAndAlert({ tenant_id: tenantId, user_id: "system", feature: "pdf_generation" });
 
     const { data, error } = await supabase.functions.invoke("generate-pdf", {
       body: {
