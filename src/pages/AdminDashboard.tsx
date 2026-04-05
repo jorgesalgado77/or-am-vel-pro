@@ -996,7 +996,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowRevenueModal(true)}>
             <CardContent className="p-3 flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-accent shrink-0" />
               <div>
