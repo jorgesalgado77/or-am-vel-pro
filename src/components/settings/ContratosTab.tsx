@@ -23,6 +23,8 @@ interface ContractTemplate {
   arquivo_original_nome: string | null;
   ativo: boolean;
   created_at: string;
+  template_structure?: any;
+  template_type?: string;
 }
 
 const AVAILABLE_VARIABLES = [
@@ -170,17 +172,31 @@ export function ContratosTab() {
     setHtmlContent(finalHtml);
 
     if (editingTemplate) {
+      const updatePayload: Record<string, any> = { nome, conteudo_html: finalHtml };
+      if (editingTemplate.template_structure) {
+        updatePayload.template_structure = editingTemplate.template_structure;
+        updatePayload.template_type = editingTemplate.template_type || "flow";
+      }
       const { error } = await supabase
         .from("contract_templates")
-        .update({ nome, conteudo_html: finalHtml } as never)
+        .update(updatePayload as never)
         .eq("id", editingTemplate.id);
       if (error) toast.error("Erro ao salvar");
       else toast.success("Contrato atualizado!");
     } else {
       const tenantId = getTenantId();
+      const insertPayload: Record<string, any> = {
+        nome,
+        conteudo_html: finalHtml,
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+      };
+      if ((editingTemplate as any)?.template_structure) {
+        insertPayload.template_structure = (editingTemplate as any).template_structure;
+        insertPayload.template_type = (editingTemplate as any).template_type || "flow";
+      }
       const { error } = await supabase
         .from("contract_templates")
-        .insert({ nome, conteudo_html: finalHtml, ...(tenantId ? { tenant_id: tenantId } : {}) } as never);
+        .insert(insertPayload as never);
       if (error) toast.error("Erro ao criar");
       else toast.success("Contrato criado!");
     }
@@ -223,12 +239,22 @@ export function ContratosTab() {
       setViewMode("editor");
       setEditorKey((k) => k + 1);
 
+      // Store structure metadata on the editing template for save
+      if (imported.structure || imported.templateType) {
+        setEditingTemplate((prev) => ({
+          ...(prev || { id: "", nome: "", conteudo_html: "", arquivo_original_url: null, arquivo_original_nome: null, ativo: true, created_at: "" }),
+          template_structure: imported.structure || null,
+          template_type: imported.templateType || "flow",
+        } as ContractTemplate));
+      }
+
       if (!nome || nome === "Novo Contrato") {
         setNome(imported.suggestedName);
       }
 
       const replaceMsg = replacedCount > 0 ? ` — ${replacedCount} campo(s) convertido(s) em variáveis` : "";
-      toast.success(`${imported.sourceLabel} importado e carregado para edição!${replaceMsg}`);
+      const typeMsg = imported.templateType === "hybrid" ? " (layout pixel-perfect)" : "";
+      toast.success(`${imported.sourceLabel} importado e carregado para edição!${replaceMsg}${typeMsg}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao importar arquivo";
       toast.error(message);
