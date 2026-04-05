@@ -288,9 +288,27 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       })
       .subscribe();
 
+    // Realtime subscription_plans updates (sync plan selector dynamically)
+    const plansChannel = supabase
+      .channel("admin-plans-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscription_plans" }, async () => {
+        const { data } = await supabase.from("subscription_plans" as any).select("id,slug,nome,max_usuarios,preco_mensal,preco_anual_mensal").eq("ativo", true).order("ordem", { ascending: true });
+        if (data) {
+          const plans = (data as any[]) as SubscriptionPlanOption[];
+          setSubscriptionPlans(plans);
+          const prices: PlanPriceMap = {};
+          plans.forEach((p) => {
+            prices[p.slug] = { mensal: p.preco_mensal, anual: p.preco_anual_mensal * 12 };
+          });
+          setPlanPrices(prices);
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(addonChannel);
       supabase.removeChannel(tenantChannel);
+      supabase.removeChannel(plansChannel);
     };
   }, []);
 
