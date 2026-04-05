@@ -272,39 +272,19 @@ export function ContratosTab() {
       setImporting(true);
       try {
         const imported = await importContractFile(file);
-        let processedHtml = imported.html;
-        let replacedCount = 0;
+        const result = replaceDetectedFieldsWithPlaceholders(imported.html);
 
-        // Auto-detect and replace fields with variables
-        const result = replaceDetectedFieldsWithPlaceholders(processedHtml);
-        processedHtml = result.html;
-        replacedCount = result.replacedCount;
-
-        const tenantId = getTenantId();
-        const templateName = imported.suggestedName || file.name.replace(/\.pdf$/i, "");
-        const insertPayload: Record<string, any> = {
-          nome: templateName,
-          conteudo_html: processedHtml,
-          ativo: true,
-          arquivo_original_nome: file.name,
-          ...(tenantId ? { tenant_id: tenantId } : {}),
-        };
-        if (imported.structure) {
-          insertPayload.template_structure = imported.structure;
-          insertPayload.template_type = imported.templateType || "hybrid";
-        }
-
-        const { error } = await supabase
-          .from("contract_templates")
-          .insert(insertPayload as never);
-
-        if (error) {
-          toast.error("Erro ao importar PDF: " + error.message);
-        } else {
-          const replaceMsg = replacedCount > 0 ? ` — ${replacedCount} variável(is) detectada(s)` : "";
-          toast.success(`Template "${templateName}" importado do PDF!${replaceMsg}`);
-          fetchTemplates();
-        }
+        setPdfPreview({
+          imported,
+          processedHtml: result.html,
+          replacements: result.replacements.map((r) => ({
+            variable: r.variable,
+            label: r.label,
+            originalValue: r.originalValue,
+          })),
+          replacedCount: result.replacedCount,
+          fileName: file.name,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao importar PDF";
         toast.error(message);
