@@ -42,12 +42,14 @@ export function WhatsAppLeadDialog({ open, onOpenChange, phone, message, primary
             status: "novo",
           } as any)
           .select("id")
-          .single();
+          .single() as any;
+
+        const clientId = (client as any)?.id;
 
         // 2. Create client_tracking for sales chat integration
-        if (client?.id) {
+        if (clientId) {
           await supabase.from("client_tracking" as any).insert({
-            client_id: client.id,
+            client_id: clientId,
             nome_cliente: name.trim(),
             telefone_principal: leadPhone.trim() || null,
             status: "novo",
