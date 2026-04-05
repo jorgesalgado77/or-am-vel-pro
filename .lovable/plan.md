@@ -1,97 +1,102 @@
 
 
-## Plano: Fluxo Completo de Fechamento de Contrato + Portal do Cliente
+## Plano: Sistema de Contrato Dinâmico — Evolução do Fluxo Existente
 
-### Problema Atual
-O botão "Salvar Contrato e Continuar" no `CloseSaleModal` chama `handleCloseSaleConfirm`, que salva a simulação e abre o `ContractEditorDialog`. Porém, o `ContractEditorDialog` atual tem apenas botões "Cancelar" e "Salvar e Imprimir" — faltam opções de PDF, envio ao cliente e o portal público. Além disso, o `handleContractConfirm` salva o contrato e imediatamente abre janela de impressão sem dar controle ao usuário.
+### Diagnóstico: O que já existe vs. o que falta
 
-### Arquitetura do Fluxo Proposto
+O sistema já possui **quase tudo** que o prompt descreve:
 
-```text
-CloseSaleModal (dados do contrato)
-  └─► "Salvar Contrato e Continuar"
-        └─► Salva simulação + gera HTML do contrato
-              └─► ContractEditorDialog (REFORMULADO)
-                    ├─ Preview do contrato (iframe)
-                    ├─ Modo edição (contentEditable)
-                    └─ Barra de ações:
-                         ├─ Imprimir
-                         ├─ Salvar como PDF
-                         ├─ Enviar à Área do Cliente (gera link público)
-                         └─ Salvar Contrato (persiste no banco)
+| Funcionalidade | Status | Localização |
+|---|---|---|
+| Botão "Fechar Venda" com validação | ✅ Existe | `useSimulatorActions.handleCloseSale` |
+| Modal com dados do cliente/contrato | ✅ Existe | `CloseSaleModal` |
+| Auto-preenchimento do formulário | ✅ Existe | `handleCloseSaleConfirm` monta formData |
+| Template dinâmico com {{variáveis}} | ✅ Existe | `buildContractHtml` em `contractService.ts` |
+| Auto-variáveis (botão Wand2) | ✅ Existe | `ContractEditorDialog.handleAutoVariables` |
+| Preview HTML do contrato | ✅ Existe | iframe com `srcDoc` |
+| Salvar contrato no banco | ✅ Existe | `handleContractSave` → `client_contracts` |
+| Enviar ao Cliente (link público) | ✅ Existe | `handleSendToClient` gera `public_token` |
+| Snapshot via form_data (JSONB) | ✅ Parcial | Salva `form_data` mas não `snapshot` completo |
+| PDF real (server-side) | ❌ Falta | Usa `window.print()` como workaround |
+| Snapshot HTML final persistido | ❌ Parcial | Salva `conteudo_html` mas sem snapshot de dados |
 
-Link público → /contrato/:token
-  └─► ClientContractPortal (página pública)
-        ├─ Preview do contrato (iframe)
-        ├─ Botão Imprimir
-        ├─ Botão Baixar PDF
-        ├─ Assinatura Digital (canvas)
-        ├─ Upload de selfie + documento
-        ├─ Assinar via Gov.br (link externo)
-        └─ Botão "Confirmar e Enviar"
+### O que será implementado
+
+Apenas as lacunas reais, sem tocar no fluxo funcional:
+
+---
+
+#### 1. PDF Real via Edge Function (substituir workaround do print)
+
+**Arquivo:** `src/components/ContractEditorDialog.tsx`
+
+- Substituir `handleDownloadPdf` para chamar a Edge Function `generate-pdf` existente com o HTML do contrato
+- Enviar o HTML renderizado para a função server-side que gera PDF via jsPDF
+- Receber URL assinada do bucket e disparar download automático
+- Manter botão "Imprimir" separado (via `window.print()`)
+
+**Arquivo:** `supabase/functions/generate-pdf/index.ts`
+
+- Adicionar nova action `generate-contract-pdf` que recebe HTML do contrato
+- Converter HTML para PDF usando jsPDF (já disponível na função)
+- Salvar no bucket `budget-pdfs` e retornar URL assinada
+
+**Arquivo:** `src/pages/ClientContractPortal.tsx`
+
+- Atualizar `handleDownloadPdf` para também usar a Edge Function em vez de `window.print()`
+
+---
+
+#### 2. Snapshot Completo (segurança jurídica)
+
+**Arquivo:** `src/hooks/useSimulatorActions.ts` → `handleContractSave`
+
+- Ao salvar o contrato, persistir um campo `snapshot` (JSONB) contendo:
+  - Todos os dados do formulário (`formData`)
+  - Itens e detalhes técnicos (`items`, `itemDetails`)
+  - Valores financeiros calculados (`valorFinal`, `parcelas`, `entrada`)
+  - Produtos do catálogo
+  - Data/hora exata da geração
+- O `conteudo_html` já salva o HTML final — adicionar `snapshot` como dados estruturados
+
+**Migração SQL** (fornecida para execução manual):
+- Adicionar coluna `snapshot` (jsonb, nullable) à tabela `client_contracts`
+
+---
+
+#### 3. Garantir que Preview = PDF Final
+
+**Arquivo:** `src/components/ContractEditorDialog.tsx`
+
+- Antes de gerar PDF, sincronizar o HTML do editor com o estado atual (caso tenha sido editado)
+- O PDF será gerado a partir do mesmo HTML exibido no preview, garantindo fidelidade
+
+---
+
+### Arquivos a modificar
+
+| Arquivo | Alteração |
+|---|---|
+| `src/components/ContractEditorDialog.tsx` | Novo `handleDownloadPdf` com PDF server-side |
+| `src/hooks/useSimulatorActions.ts` | Adicionar `snapshot` ao insert de `client_contracts` |
+| `supabase/functions/generate-pdf/index.ts` | Nova action `generate-contract-pdf` |
+| `src/pages/ClientContractPortal.tsx` | PDF real no portal público |
+
+### SQL para execução manual
+
+```sql
+ALTER TABLE client_contracts
+ADD COLUMN IF NOT EXISTS snapshot jsonb;
+
+COMMENT ON COLUMN client_contracts.snapshot IS 'Snapshot completo dos dados do contrato no momento da geração (segurança jurídica)';
 ```
 
-### Tarefas de Implementação
+### O que NÃO será alterado
 
-#### 1. Migração de Schema (nova tabela + coluna)
-- Adicionar colunas à tabela `client_contracts`:
-  - `public_token` (text, unique) — token UUID para acesso público
-  - `status` (text, default 'rascunho') — rascunho | enviado | assinado
-  - `assinatura_url` (text, nullable) — URL da imagem de assinatura
-  - `selfie_url` (text, nullable) — URL da selfie
-  - `documento_url` (text, nullable) — URL da foto do documento
-  - `assinado_em` (timestamptz, nullable)
-  - `assinado_via` (text, nullable) — 'manual' | 'govbr'
-- Criar política RLS para acesso público via token (sem auth)
-
-#### 2. Reformular o `ContractEditorDialog`
-- Manter preview e edição como estão
-- Substituir footer com barra de ações completa:
-  - **Salvar Contrato**: persiste no banco (insert/update `client_contracts`)
-  - **Imprimir**: abre janela de impressão via `openContractPrintWindow`
-  - **Baixar PDF**: gera PDF server-side e baixa
-  - **Enviar à Área do Cliente**: gera `public_token`, salva contrato, copia link para clipboard e mostra toast com URL
-- Após salvar, manter dialog aberto (não fechar automaticamente)
-
-#### 3. Criar página pública `/contrato/:token` (ClientContractPortal)
-- Rota pública (sem auth) no `App.tsx`
-- Busca contrato pelo `public_token` (RLS bypassed via security definer function)
-- Exibe:
-  - Preview do contrato em iframe
-  - Botões: Imprimir / Baixar PDF
-  - Seção de assinatura digital (canvas de desenho, reutilizando padrão do `DealRoomSignature`)
-  - Upload de selfie (câmera ou arquivo)
-  - Upload de foto do documento (frente)
-  - Opção "Assinar via Gov.br" (link para assinador.iti.br)
-  - Botão "Confirmar e Enviar" que salva tudo e atualiza status para 'assinado'
-- Design responsivo, mobile-first
-
-#### 4. Atualizar `handleContractConfirm` no `useSimulatorActions`
-- Remover `openContractPrintWindow` automático
-- Após salvar o contrato, manter o editor aberto com toast de sucesso
-- Separar ações: salvar ≠ imprimir ≠ enviar
-
-#### 5. Edge Function para acesso público ao contrato
-- Criar function `public-contract` que busca contrato por token sem exigir JWT
-- Aceita uploads de assinatura/selfie/documento para o bucket `contract-signatures`
-
-### Detalhes Técnicos
-
-**Arquivos a criar:**
-- `src/pages/ClientContractPortal.tsx` — página pública do portal
-- `src/components/contract/ContractSignaturePad.tsx` — componente de assinatura
-- `src/components/contract/ContractDocumentUpload.tsx` — upload de selfie/documento
-- `supabase/functions/public-contract/index.ts` — API pública para contratos
-- Migration SQL para novas colunas
-
-**Arquivos a modificar:**
-- `src/components/ContractEditorDialog.tsx` — nova barra de ações
-- `src/hooks/useSimulatorActions.ts` — separar salvar de imprimir
-- `src/App.tsx` — nova rota `/contrato/:token`
-
-**Dependências existentes reutilizadas:**
-- `buildContractDocumentHtml` de `contractDocument.ts`
-- `generateBudgetPdfServerSide` de `pdfService.ts`
-- Padrão de assinatura do `DealRoomSignature.tsx`
-- Padrão Gov.br do `DealRoomContractPdf.tsx`
+- Fluxo de navegação (Simulador → Fechar Venda → Editor)
+- `CloseSaleModal` (mantido como está)
+- `buildContractHtml` (já funcional)
+- Sistema de auto-variáveis (já funcional)
+- Envio ao cliente / portal público (já funcional)
+- Estrutura de templates (já funcional)
 
