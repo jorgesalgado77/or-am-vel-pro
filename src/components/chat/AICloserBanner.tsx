@@ -1,6 +1,7 @@
 /**
  * AICloserBanner — Detects purchase intent and suggests closing actions.
  * Shows inline in the chat when the AI detects the client is ready to buy.
+ * Includes MIAFeedback after proposal is sent for learning.
  */
 
 import { memo, useState, useEffect, useCallback } from "react";
@@ -15,6 +16,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import { getCommercialEngine, formatCurrency } from "@/services/commercial";
 import { getContextBuilder } from "@/services/commercial/ClientContextBuilder";
+import { MIAFeedback } from "@/components/mia/MIAFeedback";
 import type { DealAnalysis, DealScenario, StrategyRecommendation } from "@/services/commercial/types";
 import type { ChatConversation } from "./types";
 
@@ -83,6 +85,8 @@ export const AICloserBanner = memo(function AICloserBanner({
   const [expanded, setExpanded] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [proposalSent, setProposalSent] = useState(false);
+  const proposalResponseId = `closer_${conversation.id}_${Date.now()}`;
 
   // Analyze intent when last client message changes
   useEffect(() => {
@@ -159,6 +163,7 @@ export const AICloserBanner = memo(function AICloserBanner({
   useEffect(() => {
     setDismissed(false);
     setExpanded(false);
+    setProposalSent(false);
   }, [conversation.id]);
 
   const handleSendProposal = useCallback(async () => {
@@ -168,7 +173,7 @@ export const AICloserBanner = memo(function AICloserBanner({
     try {
       onSendProposal(state.proposalText);
       toast.success("🎯 Proposta enviada automaticamente!");
-      setDismissed(true);
+      setProposalSent(true);
     } catch {
       toast.error("Erro ao enviar proposta");
     } finally {
@@ -176,7 +181,46 @@ export const AICloserBanner = memo(function AICloserBanner({
     }
   }, [state.proposalText, onSendProposal]);
 
-  if (!state.visible || dismissed) return null;
+  if (!state.visible && !proposalSent) return null;
+  if (dismissed && !proposalSent) return null;
+
+  // Show feedback card after proposal sent
+  if (proposalSent) {
+    return (
+      <div className="mx-3 mb-2 rounded-lg border border-primary/20 bg-primary/5 p-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold text-foreground">Proposta enviada!</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 text-muted-foreground"
+            onClick={() => { setProposalSent(false); setDismissed(true); }}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-1">A proposta foi útil para o fechamento?</p>
+        <div className="mt-2">
+          <MIAFeedback
+            tenantId={tenantId || ""}
+            userId=""
+            context="vendazap"
+            responseId={proposalResponseId}
+            actionTaken="ai-closer-proposal"
+            metadata={{
+              conversationId: conversation.id,
+              intent: state.intent,
+              probability: state.probability,
+              scenarioType: state.bestScenario?.type,
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const intentInfo = state.intent ? INTENT_CONFIG[state.intent] : null;
 
