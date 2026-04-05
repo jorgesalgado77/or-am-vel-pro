@@ -28,6 +28,7 @@ function getSupabaseAdmin() {
 }
 
 async function resolveResendKey(tenantId: string | null): Promise<string | null> {
+  // 1. Tenant-specific key via RPC
   if (tenantId) {
     try {
       const sb = getSupabaseAdmin();
@@ -36,10 +37,32 @@ async function resolveResendKey(tenantId: string | null): Promise<string | null>
         return data[0].api_key;
       }
     } catch (e) {
-      console.warn("[resolveResendKey] Fallback:", e);
+      console.warn("[resolveResendKey] Tenant lookup failed:", e);
     }
   }
-  return Deno.env.get("RESEND_API_KEY") || null;
+
+  // 2. Environment variable
+  const envKey = Deno.env.get("RESEND_API_KEY");
+  if (envKey) return envKey;
+
+  // 3. Admin master key from dealroom_api_configs
+  try {
+    const sb = getSupabaseAdmin();
+    const { data } = await sb
+      .from("dealroom_api_configs")
+      .select("credenciais")
+      .eq("provider", "resend_master")
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+    if (data?.credenciais?.api_key) {
+      return data.credenciais.api_key;
+    }
+  } catch (e) {
+    console.warn("[resolveResendKey] Admin master lookup failed:", e);
+  }
+
+  return null;
 }
 
 serve(async (req) => {
