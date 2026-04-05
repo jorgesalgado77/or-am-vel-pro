@@ -147,6 +147,8 @@ interface TenantStats {
 }
 
 export default function AdminDashboard({ adminName, onLogout }: AdminDashboardProps) {
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
