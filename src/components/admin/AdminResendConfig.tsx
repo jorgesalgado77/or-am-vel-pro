@@ -208,6 +208,25 @@ export function AdminResendConfig() {
     try {
       const effectiveFromEmail = fromEmail.trim() || settings?.from_email || "noreply@resend.dev";
       const effectiveFromName = fromName.trim() || settings?.from_name || "OrçaMóvel PRO";
+
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke("resend-email", {
+        body: {
+          action: "verify",
+          _temp_key: effectiveApiKey,
+        },
+      });
+
+      if (verifyError) {
+        const message = await getFunctionErrorMessage(verifyError);
+        toast.error("Erro ao validar API Key: " + message);
+        return;
+      }
+
+      if (!verifyData?.success) {
+        toast.error("API Key inválida ou sem acesso aos domínios do Resend.");
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("resend-email", {
         body: {
           action: "send",
