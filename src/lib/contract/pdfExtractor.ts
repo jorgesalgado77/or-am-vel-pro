@@ -1,6 +1,8 @@
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import type { PdfTextItem, ExtractedTextItem, TextLine, TableBlock, StructureBlock } from "./types";
+import type { PdfTextItem, ExtractedTextItem, TextLine, TableBlock, StructureBlock, SemanticBlockType } from "./types";
+import { annotateLines } from "./semanticDetector";
+import { normalizePageLayout } from "./layoutNormalizer";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
