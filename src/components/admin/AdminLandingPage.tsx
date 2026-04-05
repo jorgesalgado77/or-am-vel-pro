@@ -32,6 +32,17 @@ interface Lead {
   whatsapp_enviado?: boolean;
 }
 
+/** Format cents to BRL display: 9700 → "97,00" / 19700 → "197,00" */
+function formatBRL(value: number): string {
+  return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Parse BRL input string back to number: "197,00" → 197 */
+function parseBRL(raw: string): number {
+  const digits = raw.replace(/[^\d]/g, "");
+  return Number(digits) / 100;
+}
+
 /** Map a DB subscription_plan row to the landing page PlanItem shape */
 function mapDbPlanToLanding(dp: any, preserveRecommended?: boolean) {
   // Use features_display (array of {label, included}) as primary source
