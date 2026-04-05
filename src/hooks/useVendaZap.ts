@@ -6,6 +6,7 @@ import { getCommercialEngine } from "@/services/commercial/CommercialDecisionEng
 import type { DealContext, MessageContext } from "@/services/commercial/types";
 import { calcLeadTemperature } from "@/lib/leadTemperature";
 import type { StrategyType } from "@/services/ai/types";
+import { trackAndAlert } from "@/services/billing/UsageAlerts";
 
 /** Fire-and-forget learning event registration */
 function recordLearningEvent(
@@ -287,6 +288,13 @@ export function useVendaZap(tenantId: string | null) {
           learningCtx = `\n=== OTIMIZAÇÃO IA (dados reais) ===\n🎯 Estratégia: "${opt.recommended_strategy}" (${opt.strategy_confidence}% confiança)\n💰 Desconto ideal: ${opt.recommended_discount_range.optimal}%\n⏰ ${opt.recommended_timing}\n📝 ${opt.reasoning}`;
         } catch { /* silent — learning context is optional */ }
       }
+
+      // Track WhatsApp usage
+      void trackAndAlert({
+        tenant_id: tenantId,
+        user_id: params.usuario_id || "system",
+        feature: "whatsapp_messages",
+      });
 
       const { data, error } = await miaInvoke("vendazap-ai", {
           ...params,
