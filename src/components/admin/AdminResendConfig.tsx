@@ -132,9 +132,41 @@ export function AdminResendConfig() {
       toast.error("Informe um email de destino");
       return;
     }
+    if (!settings?.api_key) {
+      toast.error("Configure a API Key do Resend antes de enviar um teste.");
+      return;
+    }
     setSendingTest(true);
-    toast.info("Funcionalidade de envio de teste será ativada após configurar a Edge Function do Resend.");
-    setSendingTest(false);
+    try {
+      const fromEmail = settings.from_email || "noreply@resend.dev";
+      const fromName = settings.from_name || "OrçaMóvel PRO";
+      const { data, error } = await supabase.functions.invoke("resend-email", {
+        body: {
+          action: "send",
+          to: testEmail.trim(),
+          subject: "Email de Teste — OrçaMóvel PRO",
+          html: `<div style="font-family:Arial,sans-serif;padding:24px;max-width:480px;margin:auto;">
+            <h2 style="color:#0f766e;">✅ Email de Teste</h2>
+            <p>Este é um email de teste enviado pelo painel do Administrador Master.</p>
+            <p style="color:#6b7280;font-size:13px;">Se você recebeu este email, a integração com o Resend está funcionando corretamente.</p>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
+            <p style="color:#9ca3af;font-size:12px;">${fromName}</p>
+          </div>`,
+          from: `${fromName} <${fromEmail}>`,
+        },
+      });
+      if (error) {
+        toast.error("Erro ao enviar email de teste: " + (error.message || "Erro desconhecido"));
+      } else if (data?.success) {
+        toast.success("Email de teste enviado com sucesso para " + testEmail.trim());
+      } else {
+        toast.error("Falha ao enviar: " + (data?.error || "Erro desconhecido"));
+      }
+    } catch (err: any) {
+      toast.error("Erro ao enviar email de teste: " + (err.message || "Erro desconhecido"));
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   // Template CRUD
