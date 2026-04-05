@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
@@ -114,6 +114,7 @@ export function ContratosTab() {
   const [editorKey, setEditorKey] = useState(0);
   const [showHighlights, setShowHighlights] = useState(true);
   const [autoReplace, setAutoReplace] = useState(true);
+  const [keepBackground, setKeepBackground] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const previewDocument = useMemo(
@@ -460,7 +461,38 @@ export function ContratosTab() {
                   </p>
                 </div>
               </div>
-              <Switch checked={autoReplace} onCheckedChange={setAutoReplace} />
+            <Switch checked={autoReplace} onCheckedChange={setAutoReplace} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border bg-accent/10 p-3">
+              <div className="flex items-center gap-2">
+                <ImageOff className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">Imagem de fundo do PDF</p>
+                  <p className="text-xs text-muted-foreground">
+                    Mantém a imagem renderizada do PDF como fundo — desative para usar apenas texto posicionado
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={keepBackground}
+                onCheckedChange={(checked) => {
+                  setKeepBackground(checked);
+                  // Strip or restore background images in the HTML
+                  let currentHtml = htmlContent;
+                  if (viewMode === "editor" && editorRef.current) {
+                    currentHtml = editorRef.current.innerHTML;
+                  }
+                  if (!checked) {
+                    // Remove background-image from sections and make text visible
+                    currentHtml = currentHtml
+                      .replace(/background-image:url\([^)]+\);background-size:100% 100%;background-repeat:no-repeat;/g, "")
+                      .replace(/color:transparent;/g, "");
+                  }
+                  setHtmlContent(currentHtml);
+                  setEditorKey((k) => k + 1);
+                }}
+              />
             </div>
 
             <Separator />
