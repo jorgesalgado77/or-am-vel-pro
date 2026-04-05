@@ -994,6 +994,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           </Card>
         </div>
 
+        <AdminKpiCharts />
+
         <AdminSharedApiUsageList />
 
         <Tabs defaultValue="lojas" className="space-y-4">
