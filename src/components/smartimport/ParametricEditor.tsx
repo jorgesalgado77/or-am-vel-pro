@@ -4,16 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
 import { ParametricBOMPanel } from "./parametric/ParametricBOMPanel";
 import { ParametricSidePanel } from "./parametric/ParametricSidePanel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ParametricPreview3D } from "./parametric/ParametricPreview3D";
 import {
-  Plus, Minus, Layers, Box, RulerIcon, Wrench, Save, RotateCcw,
-  PanelLeftClose, PanelLeft, Package, Palette, LayoutTemplate, Copy, Square,
-  Upload, ImageIcon, FolderOpen, GripVertical, BookOpen, FileDown, Eye, EyeOff,
-  Camera, Lock, Unlock, Trash2, MousePointer, Group, Shield, ShieldOff,
+  PanelLeftClose, PanelLeft, FolderOpen, Save,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
