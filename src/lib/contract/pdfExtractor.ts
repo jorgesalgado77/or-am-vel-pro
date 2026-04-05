@@ -113,7 +113,8 @@ export const groupTextLines = (items: ExtractedTextItem[]): TextLine[] => {
     });
   }
 
-  return lines;
+  // Apply layout normalization to prevent overlaps and fix spacing
+  return normalizePageLayout(lines);
 };
 
 // ── Table detection ──
@@ -197,13 +198,16 @@ export const buildStructureBlocks = (
   lines: TextLine[],
   tables: TableBlock[],
   pageWidth: number,
-  pageHeight: number,
+  _pageHeight: number,
 ): StructureBlock[] => {
   const blocks: StructureBlock[] = [];
   const tableLineIndices = new Set<number>();
   tables.forEach((t) => {
     for (let i = t.startLineIdx; i <= t.endLineIdx; i++) tableLineIndices.add(i);
   });
+
+  // Annotate lines with semantic types
+  const annotated = annotateLines(lines);
 
   // Add table blocks
   for (const table of tables) {
@@ -224,6 +228,7 @@ export const buildStructureBlocks = (
     );
     blocks.push({
       type: "table",
+      semantic: "tabela",
       x: Math.min(...firstLine.items.map((i) => i.x)),
       y: firstLine.y,
       w: pageWidth,
@@ -233,12 +238,13 @@ export const buildStructureBlocks = (
     });
   }
 
-  // Add text blocks
-  lines.forEach((line, idx) => {
+  // Add text blocks with semantic annotation
+  annotated.forEach(({ line, semantic }, idx) => {
     if (tableLineIndices.has(idx)) return;
     const joinedText = line.items.map((i) => i.text).join(" ");
     blocks.push({
       type: "text",
+      semantic,
       x: line.items[0].x,
       y: line.y,
       w: Math.max(...line.items.map((i) => i.x + i.width)) - line.items[0].x,
