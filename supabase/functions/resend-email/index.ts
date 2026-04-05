@@ -27,6 +27,19 @@ function getSupabaseAdmin() {
   );
 }
 
+function extractTempApiKey(body: Record<string, unknown>): string {
+  const candidates = [body._temp_key, body.api_key, body.resend_api_key];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const normalized = candidate.trim();
+      if (normalized) return normalized;
+    }
+  }
+
+  return "";
+}
+
 async function resolveResendKey(tenantId: string | null): Promise<string | null> {
   // 1. Tenant-specific key via RPC
   if (tenantId) {
@@ -143,7 +156,7 @@ serve(async (req) => {
         return respond({ error: "to, subject e html/text são obrigatórios" }, 400);
       }
 
-      const tempKey = typeof body._temp_key === "string" ? body._temp_key.trim() : "";
+      const tempKey = extractTempApiKey(body as Record<string, unknown>);
       const apiKey = tempKey || await resolveResendKey(tenant_id || null);
       if (!apiKey) {
         return respond({ error: "API Key do Resend não configurada. Adicione em Configurações > APIs." }, 400);
@@ -199,7 +212,7 @@ serve(async (req) => {
 
     // ── VERIFY ──
     if (action === "verify") {
-      const tempKey = body._temp_key;
+      const tempKey = extractTempApiKey(body as Record<string, unknown>);
       const apiKey = tempKey || await resolveResendKey(tenant_id || null);
       if (!apiKey) {
         return respond({ success: false, error: "API Key não encontrada" });
