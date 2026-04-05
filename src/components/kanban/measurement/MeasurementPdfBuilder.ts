@@ -446,7 +446,7 @@ export async function buildMeasurementPdf(params: MeasurementPdfParams) {
   };
 
   const addFooter = () => {
-    const totalPages = (doc as Record<string, Record<string, () => number>>).internal.getNumberOfPages();
+    const totalPages = (doc as unknown as Record<string, Record<string, () => number>>).internal.getNumberOfPages();
     for (let page = 1; page <= totalPages; page++) {
       doc.setPage(page);
       const footerY = ph - 9;
