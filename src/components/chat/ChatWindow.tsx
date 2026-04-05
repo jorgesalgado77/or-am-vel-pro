@@ -13,6 +13,7 @@ import { useQuickReplies } from "@/hooks/useQuickReplies";
 import { sendWhatsAppText, sendWhatsAppMedia } from "@/lib/whatsappSender";
 import { VendaZapMonitorIndicator } from "./VendaZapMonitorIndicator";
 import { AICloserBanner, type CloseSaleData } from "./AICloserBanner";
+import { normalizePhone, phonesMatch } from "@/lib/phoneUtils";
 import type { ChatConversation, ChatMessage } from "./types";
 
 interface Props {
