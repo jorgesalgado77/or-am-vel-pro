@@ -1066,6 +1066,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                     })}
                   </TableBody>
                 </Table>
+                </div>
                 <ScrollBar orientation="horizontal" />
                 </ScrollArea>
               </CardContent>
