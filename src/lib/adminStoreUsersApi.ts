@@ -77,3 +77,11 @@ export const adminUpsertStoreUser = (payload: {
   comissao_percentual?: number;
   ativo?: boolean;
 }) => callAdminStoreAction<{ user_id: string }>({ action: "upsert_store_user", ...payload });
+
+export const adminSyncResendSettings = (payload: {
+  id: string;
+  api_key?: string | null;
+  from_email?: string | null;
+  from_name?: string | null;
+  ativo?: boolean;
+}) => callAdminStoreAction<{ success: true }>({ action: "sync_resend_settings", ...payload });

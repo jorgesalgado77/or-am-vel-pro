@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabaseClient";
+import { adminSyncResendSettings } from "@/lib/adminStoreUsersApi";
 import { toast } from "sonner";
 import {
   Save, Eye, EyeOff, Mail, CheckCircle2, XCircle,
@@ -178,16 +179,6 @@ export function AdminResendConfig() {
 
     if (error) return { data: null, error };
 
-    await supabase
-      .from("admin_resend_settings" as any)
-      .upsert({
-        id: data.id,
-        api_key: trimmedApiKey || null,
-        from_email: trimmedFromEmail || null,
-        from_name: trimmedFromName || null,
-        ativo: forceActive,
-      }, { onConflict: "id" });
-
     const credenciais = (data?.credenciais || {}) as Record<string, string>;
     const configuracoes = (data?.configuracoes || {}) as Record<string, string>;
 
@@ -198,6 +189,14 @@ export function AdminResendConfig() {
       from_name: configuracoes.from_name || null,
       ativo: Boolean(data.is_active),
     };
+
+    await adminSyncResendSettings({
+      id: data.id,
+      api_key: trimmedApiKey || null,
+      from_email: trimmedFromEmail || null,
+      from_name: trimmedFromName || null,
+      ativo: forceActive,
+    });
 
     applySettings(nextSettings);
     return { data: nextSettings, error: null };
