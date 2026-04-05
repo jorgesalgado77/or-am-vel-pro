@@ -1,102 +1,115 @@
 
 
-## Plano: Sistema de Contrato Dinâmico — Evolução do Fluxo Existente
+## Plano: Importador PDF Pixel-Perfect — Evolução do Sistema Existente
 
-### Diagnóstico: O que já existe vs. o que falta
+### Diagnóstico
 
-O sistema já possui **quase tudo** que o prompt descreve:
+O importador atual (`contractImport.ts` → `buildPdfPageHtml`) já usa posicionamento absoluto com percentuais, mas tem problemas:
 
-| Funcionalidade | Status | Localização |
-|---|---|---|
-| Botão "Fechar Venda" com validação | ✅ Existe | `useSimulatorActions.handleCloseSale` |
-| Modal com dados do cliente/contrato | ✅ Existe | `CloseSaleModal` |
-| Auto-preenchimento do formulário | ✅ Existe | `handleCloseSaleConfirm` monta formData |
-| Template dinâmico com {{variáveis}} | ✅ Existe | `buildContractHtml` em `contractService.ts` |
-| Auto-variáveis (botão Wand2) | ✅ Existe | `ContractEditorDialog.handleAutoVariables` |
-| Preview HTML do contrato | ✅ Existe | iframe com `srcDoc` |
-| Salvar contrato no banco | ✅ Existe | `handleContractSave` → `client_contracts` |
-| Enviar ao Cliente (link público) | ✅ Existe | `handleSendToClient` gera `public_token` |
-| Snapshot via form_data (JSONB) | ✅ Parcial | Salva `form_data` mas não `snapshot` completo |
-| PDF real (server-side) | ❌ Falta | Usa `window.print()` como workaround |
-| Snapshot HTML final persistido | ❌ Parcial | Salva `conteudo_html` mas sem snapshot de dados |
+| Problema | Causa |
+|---|---|
+| Layout quebrado | Não captura font-family, font-weight, cor, alinhamento |
+| Tabelas desalinhadas | Texto posicionado individualmente sem detectar estrutura de tabela |
+| Sobreposição de textos | Cálculo de `topPercent` não agrupa linhas adjacentes |
+| Fontes inconsistentes | Não extrai informação de fonte do PDF |
 
-### O que será implementado
+O sistema de variáveis (`FIELD_PATTERNS`, `replaceDetectedFieldsWithPlaceholders`) já funciona mas é aplicado apenas como opt-in.
 
-Apenas as lacunas reais, sem tocar no fluxo funcional:
+### Solução em 3 Frentes
 
 ---
 
-#### 1. PDF Real via Edge Function (substituir workaround do print)
+#### 1. Melhorar `buildPdfPageHtml` (fidelidade visual)
 
-**Arquivo:** `src/components/ContractEditorDialog.tsx`
+**Arquivo:** `src/lib/contractImport.ts`
 
-- Substituir `handleDownloadPdf` para chamar a Edge Function `generate-pdf` existente com o HTML do contrato
-- Enviar o HTML renderizado para a função server-side que gera PDF via jsPDF
-- Receber URL assinada do bucket e disparar download automático
-- Manter botão "Imprimir" separado (via `window.print()`)
+- Extrair informações de fonte (fontName) via `page.commonObjs` do pdfjs para aplicar `font-family` e `font-weight` no HTML
+- Agrupar text items da mesma linha (Y similar dentro de threshold) em um único `<span>` para evitar sobreposição
+- Detectar blocos tabulares (items alinhados em grid X/Y) e gerar `<table>` HTML em vez de divs absolutas
+- Usar `page.getOperatorList()` para capturar linhas/retângulos decorativos e renderizar como `<hr>` ou bordas CSS
+- Definir página com dimensões fixas (`width:210mm; height:297mm`) com `overflow:hidden` para fidelidade A4
 
-**Arquivo:** `supabase/functions/generate-pdf/index.ts`
+**Nova função auxiliar `groupTextLines`:**
+- Agrupa items cujo `y` difere por menos que `fontSize * 0.3`
+- Ordena por `x` dentro de cada linha
+- Junta textos com espaçamento proporcional
 
-- Adicionar nova action `generate-contract-pdf` que recebe HTML do contrato
-- Converter HTML para PDF usando jsPDF (já disponível na função)
-- Salvar no bucket `budget-pdfs` e retornar URL assinada
-
-**Arquivo:** `src/pages/ClientContractPortal.tsx`
-
-- Atualizar `handleDownloadPdf` para também usar a Edge Function em vez de `window.print()`
-
----
-
-#### 2. Snapshot Completo (segurança jurídica)
-
-**Arquivo:** `src/hooks/useSimulatorActions.ts` → `handleContractSave`
-
-- Ao salvar o contrato, persistir um campo `snapshot` (JSONB) contendo:
-  - Todos os dados do formulário (`formData`)
-  - Itens e detalhes técnicos (`items`, `itemDetails`)
-  - Valores financeiros calculados (`valorFinal`, `parcelas`, `entrada`)
-  - Produtos do catálogo
-  - Data/hora exata da geração
-- O `conteudo_html` já salva o HTML final — adicionar `snapshot` como dados estruturados
-
-**Migração SQL** (fornecida para execução manual):
-- Adicionar coluna `snapshot` (jsonb, nullable) à tabela `client_contracts`
+**Nova função auxiliar `detectTableBlocks`:**
+- Identifica items onde 3+ linhas consecutivas têm items alinhados nas mesmas posições X (colunas)
+- Gera `<table>` com `<td>` posicionados por coluna
 
 ---
 
-#### 3. Garantir que Preview = PDF Final
+#### 2. Renderização de imagem de fundo como fallback (pixel-perfect real)
 
-**Arquivo:** `src/components/ContractEditorDialog.tsx`
+**Arquivo:** `src/lib/contractImport.ts`
 
-- Antes de gerar PDF, sincronizar o HTML do editor com o estado atual (caso tenha sido editado)
-- O PDF será gerado a partir do mesmo HTML exibido no preview, garantindo fidelidade
+Para PDFs complexos com gráficos/logos, renderizar cada página como imagem PNG via canvas do pdfjs e usá-la como `background-image` da página, com o texto posicionado por cima (transparente mas selecionável):
+
+```text
+┌─────────────────────────┐
+│  background: page.png   │  ← imagem renderizada pelo pdfjs canvas
+│  ┌───────────────────┐  │
+│  │ texto invisível   │  │  ← texto posicionado absolutamente (color: transparent)
+│  │ mas selecionável  │  │     para permitir busca/edição
+│  └───────────────────┘  │
+└─────────────────────────┘
+```
+
+- Renderizar via `page.render({ canvasContext })` para obter PNG base64
+- Incluir como `background-image` inline no CSS da seção
+- Texto fica com `color: transparent` por padrão, visível ao editar
+- Ao salvar como template, o admin escolhe: manter imagem de fundo ou usar só texto
 
 ---
 
-### Arquivos a modificar
+#### 3. Armazenamento híbrido (HTML + JSON blocks)
+
+**Migração SQL** (para execução manual no Supabase):
+
+```sql
+ALTER TABLE contract_templates
+ADD COLUMN IF NOT EXISTS template_structure jsonb,
+ADD COLUMN IF NOT EXISTS template_type text DEFAULT 'flow';
+
+COMMENT ON COLUMN contract_templates.template_structure IS 'Estrutura JSON com blocos posicionais do template importado';
+COMMENT ON COLUMN contract_templates.template_type IS 'Tipo: flow (texto corrido), absolute (posicional), hybrid (ambos)';
+```
+
+**Arquivo:** `src/lib/contractImport.ts`
+
+- `importPdf` retorna novo campo `structure` com array de blocos JSON:
+  ```
+  { type: "text"|"table"|"image", x, y, w, h, content, fontSize, fontFamily, ... }
+  ```
+
+**Arquivo:** `src/components/settings/ContratosTab.tsx`
+
+- Ao salvar template importado, persistir `template_structure` e `template_type` junto com `conteudo_html`
+- No carregamento, se `template_type === "absolute"`, usar CSS de posicionamento fixo no preview
+
+---
+
+### Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---|---|
-| `src/components/ContractEditorDialog.tsx` | Novo `handleDownloadPdf` com PDF server-side |
-| `src/hooks/useSimulatorActions.ts` | Adicionar `snapshot` ao insert de `client_contracts` |
-| `supabase/functions/generate-pdf/index.ts` | Nova action `generate-contract-pdf` |
-| `src/pages/ClientContractPortal.tsx` | PDF real no portal público |
+| `src/lib/contractImport.ts` | Reescrever `buildPdfPageHtml` com agrupamento de linhas, detecção de tabelas, extração de fontes, renderização canvas como background |
+| `src/components/settings/ContratosTab.tsx` | Salvar `template_structure` e `template_type`; opção de manter/remover background de imagem |
+| `src/hooks/useSimulatorActions.ts` | Ao renderizar contrato, verificar `template_type` para usar layout correto |
 
 ### SQL para execução manual
 
 ```sql
-ALTER TABLE client_contracts
-ADD COLUMN IF NOT EXISTS snapshot jsonb;
-
-COMMENT ON COLUMN client_contracts.snapshot IS 'Snapshot completo dos dados do contrato no momento da geração (segurança jurídica)';
+ALTER TABLE contract_templates
+ADD COLUMN IF NOT EXISTS template_structure jsonb,
+ADD COLUMN IF NOT EXISTS template_type text DEFAULT 'flow';
 ```
 
 ### O que NÃO será alterado
 
-- Fluxo de navegação (Simulador → Fechar Venda → Editor)
-- `CloseSaleModal` (mantido como está)
-- `buildContractHtml` (já funcional)
-- Sistema de auto-variáveis (já funcional)
-- Envio ao cliente / portal público (já funcional)
-- Estrutura de templates (já funcional)
+- Fluxo de contrato (Simulador → Fechar Venda → Editor → Preview)
+- Sistema de variáveis `{{...}}` e `FIELD_PATTERNS`
+- `ContractEditorDialog`, `CloseSaleModal`, portal público
+- Funções de highlight/auto-variáveis existentes
 
