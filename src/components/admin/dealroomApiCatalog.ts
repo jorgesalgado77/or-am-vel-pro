@@ -113,5 +113,11 @@ export const DEALROOM_API_CATALOG: DealRoomApiProviderDefinition[] = [
   },
 ];
 
+const EXTRA_PROVIDER_LABELS: Record<string, string> = {
+  resend_master: "Resend (Email)",
+  zapi_whatsapp_master: "Z-API (WhatsApp)",
+  uazap_whatsapp_master: "UAZAP (WhatsApp)",
+};
+
 export const getDealRoomProviderLabel = (provider: string) =>
-  DEALROOM_API_CATALOG.find((item) => item.provider === provider)?.label || provider;
+  DEALROOM_API_CATALOG.find((item) => item.provider === provider)?.label || EXTRA_PROVIDER_LABELS[provider] || provider;
