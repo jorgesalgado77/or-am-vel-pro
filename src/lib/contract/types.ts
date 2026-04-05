@@ -33,8 +33,20 @@ export interface TableBlock {
   rows: TextLine[];
 }
 
+export type SemanticBlockType =
+  | "header"
+  | "empresa"
+  | "cliente"
+  | "clausula"
+  | "tabela"
+  | "valor"
+  | "assinatura"
+  | "rodape"
+  | "texto";
+
 export interface StructureBlock {
   type: "text" | "table" | "image";
+  semantic?: SemanticBlockType;
   x: number;
   y: number;
   w: number;
