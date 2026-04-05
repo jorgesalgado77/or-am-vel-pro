@@ -859,8 +859,40 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-9 gap-2 sm:gap-3">
+        {/* Date Filter */}
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Período:</span>
+              </div>
+              <Select value={adminDatePreset} onValueChange={(v) => setAdminDatePreset(v as AdminDatePreset)}>
+                <SelectTrigger className="w-[180px] h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ADMIN_DATE_PRESETS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {adminDatePreset === "personalizado" && (
+                <>
+                  <Input type="date" value={adminCustomStart} onChange={(e) => setAdminCustomStart(e.target.value)} className="w-[150px] h-8 text-sm" />
+                  <span className="text-xs text-muted-foreground">até</span>
+                  <Input type="date" value={adminCustomEnd} onChange={(e) => setAdminCustomEnd(e.target.value)} className="w-[150px] h-8 text-sm" />
+                </>
+              )}
+              <span className="text-xs text-muted-foreground ml-auto">
+                {format(adminDateRange.start, "dd/MM/yyyy")} — {format(adminDateRange.end, "dd/MM/yyyy")}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* KPI Cards - Row 1: Structural (not date-filtered) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
           <Card>
             <CardContent className="p-3 flex items-center gap-2">
               <Store className="h-4 w-4 text-primary shrink-0" />
@@ -915,16 +947,30 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* KPI Cards - Row 2: Date-filtered */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowClientsModal(true)}>
             <CardContent className="p-3 flex items-center gap-2">
               <Users className="h-4 w-4 text-accent shrink-0" />
               <div>
                 <p className="text-[10px] text-muted-foreground">Clientes</p>
-                <p className="text-base font-bold text-foreground">{totalClientes}</p>
+                <p className="text-base font-bold text-foreground">{filteredClientCount}</p>
               </div>
             </CardContent>
           </Card>
-          <AdminContractsValueCard tenants={tenants} />
+          <Card>
+            <CardContent className="p-3 flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-600 shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Contratos Fechados</p>
+                <p className="text-base font-bold text-foreground">
+                  R$ {filteredContractsTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="p-3 flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-accent shrink-0" />
