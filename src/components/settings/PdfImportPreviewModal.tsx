@@ -25,6 +25,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { removeHighlights } from "@/lib/contractImport";
+import { EditorToolbar } from "./EditorToolbar";
 import { buildContractDocumentHtml } from "@/lib/contractDocument";
 import type { ImportedContractContent } from "@/lib/contractImport";
 
@@ -209,12 +210,13 @@ export function PdfImportPreviewModal({
               />
             ) : viewMode === "html" ? (
               <div className="p-4">
+                <EditorToolbar editorRef={editorRef as React.RefObject<HTMLDivElement>} />
                 <div
                   key={editorKey}
                   ref={editorRef}
                   contentEditable
                   suppressContentEditableWarning
-                  className="prose prose-sm min-h-[35vh] max-w-none rounded-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="prose prose-sm min-h-[30vh] max-w-none rounded-b-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
                   dangerouslySetInnerHTML={{ __html: editedHtml !== null ? editedHtml : baseHtml }}
                   onBlur={() => {
                     if (editorRef.current) setEditedHtml(editorRef.current.innerHTML);
