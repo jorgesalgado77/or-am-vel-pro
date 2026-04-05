@@ -192,6 +192,134 @@ export const renderPageToBase64 = async (
   return canvas.toDataURL("image/png");
 };
 
+// ── Embedded image extraction via getOperatorList ──
+
+export interface EmbeddedImage {
+  dataUrl: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  leftPercent: number;
+  topPercent: number;
+  widthPercent: number;
+  heightPercent: number;
+}
+
+/**
+ * Extract embedded images/logos from a PDF page using getOperatorList().
+ * Renders each image object to a small canvas and returns as data URLs.
+ */
+export const extractEmbeddedImages = async (
+  page: pdfjsLib.PDFPageProxy,
+  pageWidth: number,
+  pageHeight: number,
+): Promise<EmbeddedImage[]> => {
+  const images: EmbeddedImage[] = [];
+
+  try {
+    const ops = await page.getOperatorList();
+    const OPS = pdfjsLib.OPS;
+
+    // Track current transform matrix
+    let ctm = [1, 0, 0, 1, 0, 0];
+    const matrixStack: number[][] = [];
+
+    for (let i = 0; i < ops.fnArray.length; i++) {
+      const fn = ops.fnArray[i];
+      const args = ops.argsArray[i];
+
+      if (fn === OPS.save) {
+        matrixStack.push([...ctm]);
+      } else if (fn === OPS.restore) {
+        ctm = matrixStack.pop() || [1, 0, 0, 1, 0, 0];
+      } else if (fn === OPS.transform) {
+        // Multiply matrices
+        const [a, b, c, d, e, f] = args as number[];
+        const [ca, cb, cc, cd, ce, cf] = ctm;
+        ctm = [
+          ca * a + cc * b,
+          cb * a + cd * b,
+          ca * c + cc * d,
+          cb * c + cd * d,
+          ca * e + cc * f + ce,
+          cb * e + cd * f + cf,
+        ];
+      } else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject) {
+        const imgName = args[0] as string;
+        try {
+          const imgData = await new Promise<any>((resolve, reject) => {
+            page.objs.get(imgName, (obj: any) => {
+              if (obj) resolve(obj);
+              else reject(new Error("Image not found"));
+            });
+          });
+
+          // imgData can be an ImageBitmap or an object with {data, width, height}
+          const imgWidth = imgData.width || 0;
+          const imgHeight = imgData.height || 0;
+          if (imgWidth < 10 || imgHeight < 10) continue; // Skip tiny images (artifacts)
+
+          // Render to canvas
+          const canvas = document.createElement("canvas");
+          canvas.width = imgWidth;
+          canvas.height = imgHeight;
+          const ctx = canvas.getContext("2d")!;
+
+          if (imgData instanceof ImageBitmap) {
+            ctx.drawImage(imgData, 0, 0);
+          } else if (imgData.data) {
+            // Raw pixel data
+            const imageData = ctx.createImageData(imgWidth, imgHeight);
+            const src = imgData.data;
+            const dest = imageData.data;
+
+            if (imgData.kind === 2) {
+              // RGBAImage
+              dest.set(src);
+            } else {
+              // RGB — expand to RGBA
+              for (let p = 0, q = 0; p < src.length; p += 3, q += 4) {
+                dest[q] = src[p];
+                dest[q + 1] = src[p + 1];
+                dest[q + 2] = src[p + 2];
+                dest[q + 3] = 255;
+              }
+            }
+            ctx.putImageData(imageData, 0, 0);
+          } else {
+            continue;
+          }
+
+          // Position from current transform matrix
+          const x = ctm[4];
+          const y = ctm[5];
+          const w = Math.abs(ctm[0]) || imgWidth;
+          const h = Math.abs(ctm[3]) || imgHeight;
+
+          images.push({
+            dataUrl: canvas.toDataURL("image/png"),
+            x,
+            y,
+            width: w,
+            height: h,
+            leftPercent: (x / pageWidth) * 100,
+            topPercent: ((pageHeight - y - h) / pageHeight) * 100,
+            widthPercent: (w / pageWidth) * 100,
+            heightPercent: (h / pageHeight) * 100,
+          });
+        } catch {
+          // Skip images that can't be decoded
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Image extraction failed:", err);
+  }
+
+  return images;
+};
+
 // ── Structure blocks ──
 
 export const buildStructureBlocks = (
