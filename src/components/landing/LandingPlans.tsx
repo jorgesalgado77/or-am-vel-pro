@@ -286,9 +286,18 @@ export function LandingPlans({ primaryColor }: LandingPlansProps) {
         </StaggerContainer>
 
         <AnimatedSection>
-          <p className="text-center text-sm text-gray-500 mt-8">
-            Todos os planos incluem 7 dias de teste grátis. Cancele a qualquer momento.
-          </p>
+          <div className="text-center mt-8 space-y-3">
+            <p className="text-sm text-gray-500">
+              Todos os planos incluem 7 dias de teste grátis. Cancele a qualquer momento.
+            </p>
+            <a
+              href="/planos"
+              className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+              style={{ color: primaryColor }}
+            >
+              Comparar todos os planos em detalhe →
+            </a>
+          </div>
         </AnimatedSection>
       </div>
     </section>
