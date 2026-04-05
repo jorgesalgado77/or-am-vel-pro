@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type ComponentProps } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { normalizePhone as normalizePhoneUtil } from "@/lib/phoneUtils";
 import { useAutoSuggestion } from "@/hooks/useAutoSuggestion";
 import { useVendaZap } from "@/hooks/useVendaZap";
 import { useAutoPilot } from "@/hooks/useAutoPilot";
@@ -83,7 +84,7 @@ export function VendaZapChat({ tenantId, userId, initialClientId, initialAttachm
 
   const isAdminOrManager = currentUser?.cargo_nome ? ["administrador", "gerente", "admin"].includes(currentUser.cargo_nome.toLowerCase()) : false;
   const currentUserName = currentUser?.nome_completo?.trim().toLowerCase() || "";
-  const normalizePhone = useCallback((value?: string | null) => String(value || "").replace(/^WA-/i, "").replace(/@.*/, "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, ""), []);
+  const normalizePhone = useCallback((value?: string | null) => normalizePhoneUtil(value), []);
 
   const hiddenStorageKey = tenantId ? `vendazap-hidden:${tenantId}` : null;
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
