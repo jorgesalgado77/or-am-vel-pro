@@ -1164,6 +1164,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           <TabsContent value="tutorials">
             <AdminTutorials />
           </TabsContent>
+
+          {/* TAB: Consumo & Billing */}
+          <TabsContent value="usage-billing">
+            <BillingDashboard />
+          </TabsContent>
         </Tabs>
       </main>
 
