@@ -918,7 +918,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             </div>
             <Card>
               <CardContent className="p-0">
-                <ScrollArea className="w-full">
+                <ScrollArea className="w-full whitespace-nowrap">
+                <div className="min-w-[1200px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -944,7 +945,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                       const status = getPlanStatus(t);
                       const planCfg = PLAN_CONFIG[t.plano as keyof typeof PLAN_CONFIG] || PLAN_CONFIG.trial;
                       const PlanIcon = planCfg.icon;
-                      const validadeDate = t.plano === "trial" ? t.trial_fim : t.assinatura_fim;
+                      const validadeDate = t.assinatura_fim || t.trial_fim;
                       const vip = (t as any).recursos_vip || {};
                       return (
                         <TableRow key={t.id} className={!t.ativo ? "opacity-50" : ""}>
@@ -959,9 +960,15 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                           </TableCell>
                           <TableCell className="text-muted-foreground font-mono text-xs">{t.codigo_loja || "—"}</TableCell>
                           <TableCell>
-                            <Badge variant={planCfg.color} className="gap-1">
-                              <PlanIcon className="h-3 w-3" />{planCfg.label}
-                            </Badge>
+                            {(() => {
+                              const dbPlan = subscriptionPlans.find(p => p.slug === t.plano);
+                              const label = dbPlan?.nome || planCfg.label;
+                              return (
+                                <Badge variant={planCfg.color} className="gap-1">
+                                  <PlanIcon className="h-3 w-3" />{label}
+                                </Badge>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-center text-sm">{tenantStats[t.id]?.usuarios ?? 0}</TableCell>
                           <TableCell className="text-center text-sm">{tenantStats[t.id]?.clientes ?? 0}</TableCell>
@@ -971,8 +978,8 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                               <Badge variant={status.variant} className="cursor-pointer">{status.text}</Badge>
                             </Button>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {validadeDate ? format(new Date(validadeDate), "dd/MM/yyyy", { locale: ptBR }) : "—"}
+                          <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                            {validadeDate ? format(new Date(String(validadeDate).length === 10 ? validadeDate + "T12:00:00" : validadeDate), "dd/MM/yyyy") : "—"}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1 justify-center">
@@ -1065,6 +1072,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                     })}
                   </TableBody>
                 </Table>
+                </div>
                 <ScrollBar orientation="horizontal" />
                 </ScrollArea>
               </CardContent>
