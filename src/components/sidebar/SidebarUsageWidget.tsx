@@ -4,9 +4,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Zap, MessageSquare, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Zap, MessageSquare, Mail, BarChart3 } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { checkUsageLimit, type UsageFeature } from "@/services/billing/UsageTracker";
+import { BillingDashboard } from "@/components/billing/BillingDashboard";
 
 interface FeatureMeter {
   feature: UsageFeature;
@@ -32,6 +35,7 @@ const TRACKED_FEATURES: Array<{
 export function SidebarUsageWidget({ collapsed }: { collapsed: boolean }) {
   const { tenantId } = useTenant();
   const [meters, setMeters] = useState<FeatureMeter[]>([]);
+  const [showDetails, setShowDetails] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!tenantId) return;
@@ -46,13 +50,12 @@ export function SidebarUsageWidget({ collapsed }: { collapsed: boolean }) {
         };
       }),
     );
-    // Only show features with limit > 0
     setMeters(results.filter((r) => r.limit > 0));
   }, [tenantId]);
 
   useEffect(() => {
     refresh();
-    const interval = setInterval(refresh, 5 * 60 * 1000); // refresh every 5 min
+    const interval = setInterval(refresh, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [refresh]);
 
@@ -65,16 +68,13 @@ export function SidebarUsageWidget({ collapsed }: { collapsed: boolean }) {
   };
 
   if (collapsed) {
-    // Collapsed: show tiny dots
     return (
       <div className="px-2 py-2 space-y-2">
         {meters.map((m) => (
           <Tooltip key={m.feature}>
             <TooltipTrigger asChild>
               <div className="flex justify-center">
-                <div
-                  className={`h-2 w-2 rounded-full ${getColor(m.percent)}`}
-                />
+                <div className={`h-2 w-2 rounded-full ${getColor(m.percent)}`} />
               </div>
             </TooltipTrigger>
             <TooltipContent side="right" className="text-xs">
@@ -82,6 +82,24 @@ export function SidebarUsageWidget({ collapsed }: { collapsed: boolean }) {
             </TooltipContent>
           </Tooltip>
         ))}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setShowDetails(true)}
+              className="flex justify-center w-full mt-1"
+            >
+              <BarChart3 className="h-3 w-3 text-sidebar-foreground/50 hover:text-primary transition-colors" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-xs">Ver detalhes de consumo</TooltipContent>
+        </Tooltip>
+
+        <Dialog open={showDetails} onOpenChange={setShowDetails}>
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+            <DialogTitle className="sr-only">Detalhes de Consumo</DialogTitle>
+            <BillingDashboard />
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -131,6 +149,23 @@ export function SidebarUsageWidget({ collapsed }: { collapsed: boolean }) {
           </Tooltip>
         );
       })}
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setShowDetails(true)}
+        className="w-full h-6 text-[10px] text-sidebar-foreground/50 hover:text-primary mt-1"
+      >
+        <BarChart3 className="h-3 w-3 mr-1" />
+        Ver detalhes
+      </Button>
+
+      <Dialog open={showDetails} onOpenChange={setShowDetails}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Detalhes de Consumo</DialogTitle>
+          <BillingDashboard />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
