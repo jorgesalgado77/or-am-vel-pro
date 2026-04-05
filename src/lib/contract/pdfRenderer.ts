@@ -1,4 +1,5 @@
-import type { TextLine, TableBlock, ExtractedTextItem } from "./types";
+import type { TextLine, TableBlock } from "./types";
+import type { EmbeddedImage } from "./pdfExtractor";
 
 const escapeHtml = (value: string) =>
   value
@@ -50,6 +51,17 @@ const renderTableBlock = (table: TableBlock): string => {
   return `<table style="position:absolute;left:${leftPercent}%;top:${topPercent}%;width:${Math.max(widthPercent, 10)}%;border-collapse:collapse;table-layout:auto;">${rows}</table>`;
 };
 
+// ── Render embedded images ──
+
+const renderEmbeddedImages = (images: EmbeddedImage[]): string => {
+  return images
+    .map(
+      (img) =>
+        `<img src="${img.dataUrl}" style="position:absolute;left:${img.leftPercent}%;top:${img.topPercent}%;width:${img.widthPercent}%;height:${img.heightPercent}%;object-fit:contain;pointer-events:none;" alt="Imagem do documento" />`,
+    )
+    .join("");
+};
+
 // ── Build full page HTML ──
 
 export const buildPixelPerfectPageHtml = (
@@ -57,11 +69,15 @@ export const buildPixelPerfectPageHtml = (
   tables: TableBlock[],
   backgroundBase64: string | null,
   _pageIndex: number,
+  embeddedImages: EmbeddedImage[] = [],
 ): string => {
   const tableLineIndices = new Set<number>();
   tables.forEach((t) => {
     for (let i = t.startLineIdx; i <= t.endLineIdx; i++) tableLineIndices.add(i);
   });
+
+  // Render embedded images
+  const imagesHtml = embeddedImages.length > 0 ? renderEmbeddedImages(embeddedImages) : "";
 
   // Render non-table lines
   const textHtml = lines
@@ -80,7 +96,7 @@ export const buildPixelPerfectPageHtml = (
     ? "color:transparent;"
     : "";
 
-  return `<section class="contract-page" data-contract-page="true" style="position:relative;width:210mm;min-height:297mm;overflow:hidden;${bgStyle}page-break-after:always;"><div class="contract-page__content" style="position:relative;width:100%;min-height:297mm;${textLayerStyle}">${textHtml}${tableHtml}</div></section>`;
+  return `<section class="contract-page" data-contract-page="true" data-has-background="${backgroundBase64 ? "true" : "false"}" style="position:relative;width:210mm;min-height:297mm;overflow:hidden;${bgStyle}page-break-after:always;"><div class="contract-page__content" style="position:relative;width:100%;min-height:297mm;${textLayerStyle}">${imagesHtml}${textHtml}${tableHtml}</div></section>`;
 };
 
 // ── Legacy fallback (simple absolute positioning) ──
