@@ -52,6 +52,22 @@ async function resolveResendKey(tenantId: string | null): Promise<string | null>
     } catch (e) {
       console.warn("[resolveResendKey] Tenant lookup failed:", e);
     }
+
+    try {
+      const sb = getSupabaseAdmin();
+      const { data } = await sb
+        .from("tenant_resend_settings")
+        .select("api_key")
+        .eq("tenant_id", tenantId)
+        .limit(1)
+        .maybeSingle();
+
+      if (data?.api_key) {
+        return data.api_key;
+      }
+    } catch (e) {
+      console.warn("[resolveResendKey] tenant_resend_settings lookup failed:", e);
+    }
   }
 
   // 2. Environment variable
