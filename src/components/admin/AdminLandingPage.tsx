@@ -136,13 +136,36 @@ export function AdminLandingPage() {
     if (!config) return;
     setSaving(true);
     const { id, ...rest } = config;
-    const { error } = await supabase
-      .from("landing_page_config")
-      .update({ ...rest, updated_at: new Date().toISOString() } as any)
-      .eq("id", id);
+    const payload = { ...rest, updated_at: new Date().toISOString() } as any;
+    let error: any;
+
+    if (id) {
+      // Row exists — update
+      const res = await supabase
+        .from("landing_page_config")
+        .update(payload)
+        .eq("id", id);
+      error = res.error;
+    } else {
+      // No row yet — insert and capture the new id
+      const res = await supabase
+        .from("landing_page_config")
+        .insert(payload)
+        .select("id")
+        .single();
+      error = res.error;
+      if (!error && res.data) {
+        setConfig(prev => prev ? { ...prev, id: (res.data as any).id } : prev);
+      }
+    }
+
     setSaving(false);
-    if (error) toast.error("Erro ao salvar");
-    else toast.success("Landing page atualizada!");
+    if (error) {
+      console.error("[AdminLandingPage] Save error:", error);
+      toast.error("Erro ao salvar: " + (error.message || "erro desconhecido"));
+    } else {
+      toast.success("Landing page atualizada!");
+    }
   };
 
   const updateField = <K extends keyof LandingConfig>(key: K, value: LandingConfig[K]) => {
