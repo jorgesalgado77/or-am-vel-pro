@@ -8,6 +8,7 @@ import { ContractSignaturePad } from "@/components/contract/ContractSignaturePad
 import { ContractDocumentUpload } from "@/components/contract/ContractDocumentUpload";
 import { buildContractDocumentHtml, openContractPrintWindow } from "@/lib/contractDocument";
 import { EXTERNAL_SUPABASE_URL } from "@/lib/supabaseClient";
+import { generateContractPdfServerSide, openOrSharePdf } from "@/lib/pdfService";
 import { toast } from "sonner";
 
 const FUNCTION_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/public-contract`;
@@ -55,11 +56,30 @@ export default function ClientContractPortal() {
     openContractPrintWindow(contract.html, `Contrato - ${contract.client_name}`);
   };
 
-  const handleDownloadPdf = () => {
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
     if (!contract) return;
-    // Open print dialog which allows "Save as PDF"
-    openContractPrintWindow(contract.html, `Contrato - ${contract.client_name}`);
-    toast.info("Na janela de impressão, selecione 'Salvar como PDF'");
+    setDownloadingPdf(true);
+    try {
+      const title = `Contrato - ${contract.client_name}`;
+      const result = await generateContractPdfServerSide(
+        "public", contract.html, title
+      );
+      if (!result.success || !result.download_url) {
+        // Fallback to print
+        openContractPrintWindow(contract.html, title);
+        toast.info("Na janela de impressão, selecione 'Salvar como PDF'");
+        return;
+      }
+      toast.success("PDF gerado!");
+      await openOrSharePdf(result.download_url, `contrato-${contract.client_name.replace(/\s+/g, "_")}.pdf`);
+    } catch {
+      openContractPrintWindow(contract.html, `Contrato - ${contract.client_name}`);
+      toast.info("Na janela de impressão, selecione 'Salvar como PDF'");
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const fileToBase64 = (file: File): Promise<string> =>

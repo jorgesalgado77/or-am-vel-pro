@@ -368,7 +368,129 @@ serve(async (req) => {
       return respond({ success: true, status: data.document?.status, download_url: data.document?.download_url });
     }
 
-    return respond({ error: "Ação inválida. Use: generate-budget, generate, status" }, 400);
+    // ── Generate Contract PDF from HTML ──
+    if (action === "generate-contract-pdf") {
+      const { html, title, tenant_id: tid } = body;
+      if (!html || typeof html !== "string" || html.length < 10) {
+        return respond({ error: "HTML do contrato é obrigatório" }, 400);
+      }
+
+      console.log(`[generate-pdf] Generating contract PDF, title: ${title || "contrato"}`);
+
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+      const mx = 15;
+      const cw = pw - mx * 2;
+
+      // Parse simple HTML content into lines for PDF rendering
+      const plainText = html
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n\n")
+        .replace(/<\/div>/gi, "\n")
+        .replace(/<\/tr>/gi, "\n")
+        .replace(/<\/li>/gi, "\n")
+        .replace(/<\/h[1-6]>/gi, "\n\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+      const lines = plainText.split("\n");
+      let y = 20;
+
+      // Header bar
+      doc.setFillColor(8, 145, 178);
+      doc.rect(0, 0, pw, 14, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text(String(title || "Contrato").substring(0, 80), mx, 9);
+
+      y = 24;
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) { y += 4; continue; }
+
+        // Detect headings (all caps or short bold-like lines)
+        const isHeading = trimmed.length < 60 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed);
+
+        if (isHeading) {
+          y += 3;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(11);
+        } else {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+        }
+
+        const wrapped = doc.splitTextToSize(trimmed, cw);
+        for (const wl of wrapped) {
+          if (y + 6 > ph - 15) {
+            doc.addPage();
+            y = 15;
+          }
+          doc.text(wl, mx, y);
+          y += 5;
+        }
+
+        if (isHeading) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+        }
+      }
+
+      // Footer
+      const footerY = ph - 8;
+      doc.setTextColor(148, 163, 184);
+      doc.setFontSize(7);
+      doc.text("Documento gerado eletronicamente", pw / 2, footerY, { align: "center" });
+
+      const pdfBytes = doc.output("arraybuffer") as unknown as Uint8Array;
+
+      // Upload
+      const sb = getSupabaseAdmin();
+      const ts = Date.now();
+      const safeName = (title || "contrato").replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+      const filePath = `${tid || "global"}/contratos/${safeName}_${ts}.pdf`;
+
+      const { error: uploadError } = await sb.storage
+        .from("budget-pdfs")
+        .upload(filePath, pdfBytes, { contentType: "application/pdf", upsert: true });
+
+      if (uploadError) {
+        await sb.storage.createBucket("budget-pdfs", { public: false });
+        const { error: retryError } = await sb.storage
+          .from("budget-pdfs")
+          .upload(filePath, pdfBytes, { contentType: "application/pdf", upsert: true });
+        if (retryError) {
+          console.error("Contract PDF upload error:", retryError);
+          return respond({ error: "Erro ao salvar PDF do contrato" }, 500);
+        }
+      }
+
+      const { data: urlData, error: urlError } = await sb.storage
+        .from("budget-pdfs")
+        .createSignedUrl(filePath, 3600);
+
+      if (urlError || !urlData?.signedUrl) {
+        return respond({ error: "PDF gerado mas erro ao criar link" }, 500);
+      }
+
+      return respond({ success: true, download_url: urlData.signedUrl, file_path: filePath, provider: "server" });
+    }
+
+    return respond({ error: "Ação inválida. Use: generate-budget, generate-contract-pdf, generate, status" }, 400);
   } catch (e) {
     console.error("generate-pdf error:", e);
     return respond({ error: "Erro interno" }, 500);

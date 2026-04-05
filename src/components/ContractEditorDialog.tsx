@@ -5,6 +5,7 @@ import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, W
 import {Badge} from "@/components/ui/badge";
 import {buildContractDocumentHtml, openContractPrintWindow} from "@/lib/contractDocument";
 import {supabase} from "@/lib/supabaseClient";
+import {generateContractPdfServerSide, openOrSharePdf} from "@/lib/pdfService";
 import {toast} from "sonner";
 import {replaceDetectedFieldsWithPlaceholders, type FieldReplacement} from "@/lib/contractImport";
 import {ScrollArea} from "@/components/ui/scroll-area";
@@ -130,9 +131,31 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     openContractPrintWindow(getCurrentHtml(), `Contrato - ${clientName}`);
   };
 
-  const handleDownloadPdf = () => {
-    openContractPrintWindow(getCurrentHtml(), `Contrato - ${clientName}`);
-    toast.info("Na janela de impressão, selecione 'Salvar como PDF'");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!tenantId) {
+      // Fallback to print dialog if no tenant
+      openContractPrintWindow(getCurrentHtml(), `Contrato - ${clientName}`);
+      toast.info("Na janela de impressão, selecione 'Salvar como PDF'");
+      return;
+    }
+    setDownloadingPdf(true);
+    try {
+      const currentHtml = getCurrentHtml();
+      const title = `Contrato - ${clientName}`;
+      const result = await generateContractPdfServerSide(tenantId, currentHtml, title);
+      if (!result.success || !result.download_url) {
+        toast.error(result.error || "Erro ao gerar PDF do contrato");
+        return;
+      }
+      toast.success("PDF do contrato gerado!");
+      await openOrSharePdf(result.download_url, `contrato-${clientName.replace(/\s+/g, "_")}.pdf`);
+    } catch {
+      toast.error("Erro ao gerar PDF do contrato");
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const handleSendToClient = async () => {
@@ -162,7 +185,7 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     }
   };
 
-  const isBusy = saving || localSaving || sendingToClient;
+  const isBusy = saving || localSaving || sendingToClient || downloadingPdf;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>

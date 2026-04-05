@@ -96,6 +96,30 @@ export async function openOrSharePdf(url: string, fileName = "orcamento.pdf") {
 }
 
 /**
+ * Generate a contract PDF from rendered HTML via Edge Function.
+ */
+export async function generateContractPdfServerSide(
+  tenantId: string,
+  html: string,
+  title: string
+): Promise<PdfResult> {
+  const { data, error } = await supabase.functions.invoke("generate-pdf", {
+    body: {
+      action: "generate-contract-pdf",
+      tenant_id: tenantId,
+      html,
+      title,
+    },
+  });
+
+  if (error) {
+    return { success: false, error: error.message || "Erro ao gerar PDF do contrato" };
+  }
+
+  return data as PdfResult;
+}
+
+/**
  * Full flow: generate server-side → open/share.
  */
 export async function generateAndOpenBudgetPdf(
