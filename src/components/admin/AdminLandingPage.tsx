@@ -32,6 +32,29 @@ interface Lead {
   whatsapp_enviado?: boolean;
 }
 
+/** Map a DB subscription_plan row to the landing page PlanItem shape */
+function mapDbPlanToLanding(dp: any, preserveRecommended?: boolean) {
+  // Use features_display (array of {label, included}) as primary source
+  const features: string[] = [];
+  if (Array.isArray(dp.features_display)) {
+    dp.features_display.forEach((f: any) => {
+      if (f.included) features.push(f.label);
+    });
+  } else if (dp.funcionalidades && typeof dp.funcionalidades === 'object') {
+    Object.entries(dp.funcionalidades).forEach(([key, val]) => {
+      if (val) features.push(key.replace(/_/g, ' '));
+    });
+  }
+  return {
+    name: dp.nome || "",
+    price_monthly: dp.preco_mensal || 0,
+    price_yearly: dp.preco_anual_mensal ? dp.preco_anual_mensal * 12 : 0,
+    max_users: dp.max_usuarios || 5,
+    features: features.length > 0 ? features : [],
+    recommended: preserveRecommended ?? (dp.destaque || false),
+  };
+}
+
 export function AdminLandingPage() {
   const [config, setConfig] = useState<LandingConfig | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
