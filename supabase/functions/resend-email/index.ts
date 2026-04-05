@@ -52,7 +52,6 @@ async function resolveResendKey(tenantId: string | null): Promise<string | null>
       .from("dealroom_api_configs")
       .select("credenciais")
       .eq("provider", "resend_master")
-      .eq("is_active", true)
       .limit(1)
       .maybeSingle();
     if (data?.credenciais?.api_key) {
