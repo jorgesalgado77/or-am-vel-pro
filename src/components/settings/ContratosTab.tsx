@@ -267,8 +267,8 @@ export function ContratosTab() {
 
     const extension = file.name.split(".").pop()?.toLowerCase();
 
-    // PDF import — extract, auto-replace variables, save as template
-    if (extension === "pdf") {
+    // PDF/DOCX import — extract, auto-replace variables, show preview modal
+    if (extension === "pdf" || extension === "docx") {
       setImporting(true);
       try {
         const imported = await importContractFile(file);
@@ -286,7 +286,7 @@ export function ContratosTab() {
           fileName: file.name,
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Erro ao importar PDF";
+        const message = err instanceof Error ? err.message : "Erro ao importar arquivo";
         toast.error(message);
         console.error(err);
       } finally {
@@ -493,7 +493,7 @@ export function ContratosTab() {
               <label className="cursor-pointer">
                 <input
                   type="file"
-                  accept=".json,.pdf"
+                  accept=".json,.pdf,.docx"
                   className="hidden"
                   onChange={handleImportTemplate}
                 />
