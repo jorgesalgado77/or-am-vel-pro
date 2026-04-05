@@ -1264,7 +1264,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                 {showCotas ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                 Cotas
               </Button>
-              {doorCount > 0 && (
+              {module.components.filter((c) => c.type === "porta").length > 0 && (
                 <Button
                   variant={openDoors ? "default" : "outline"}
                   size="sm"
@@ -1275,7 +1275,7 @@ export function ParametricEditor({ onSave, initialModule, tenantId, catalogItems
                   Portas
                 </Button>
               )}
-              {drawerCount > 0 && (
+              {module.components.filter((c) => c.type === "gaveta").length > 0 && (
                 <Button
                   variant={openDrawers ? "default" : "outline"}
                   size="sm"
