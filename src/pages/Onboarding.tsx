@@ -149,9 +149,8 @@ export default function Onboarding() {
             .eq("status", "pending")
             .eq("plan", "signup_pending");
         }
-      } catch (err) {
-        console.warn("Affiliate conversion update error (non-blocking):", err);
-      }
+    } catch (err) {
+      console.warn("Affiliate conversion update error (non-blocking):", err);
     }
 
     setStep("company");
