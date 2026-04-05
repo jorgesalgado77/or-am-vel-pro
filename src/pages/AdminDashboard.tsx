@@ -1368,6 +1368,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <AdminWhatsAppFunnel />
           </TabsContent>
         </Tabs>
+        </AdminCollapsibleSection>
       </main>
 
       {/* Tenant Dialog */}
