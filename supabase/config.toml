@@ -51,6 +51,9 @@ verify_jwt = false
 [functions.resend-email]
 verify_jwt = false
 
+[functions.resend-admin-test]
+verify_jwt = false
+
 [functions.onboarding-ai]
 verify_jwt = false
 
