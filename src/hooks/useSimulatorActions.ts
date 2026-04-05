@@ -616,9 +616,55 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
         itemDetails: closeSaleItemDetails,
       } : null;
 
+      // Build complete snapshot for legal integrity
+      const snapshot = {
+        formData: closeSaleFormData || {},
+        items: closeSaleItems || [],
+        itemDetails: closeSaleItemDetails || [],
+        valores: {
+          valorTela,
+          desconto1, desconto2, desconto3,
+          formaPagamento,
+          parcelas,
+          valorEntrada,
+          plusPercentual,
+          valorFinal: result.valorFinal,
+          valorParcela: result.valorParcela,
+          valorComDesconto: result.valorComDesconto,
+          saldo: result.saldo,
+          taxaCredito: result.taxaCredito,
+        },
+        cliente: {
+          id: effectiveClient.id,
+          nome: effectiveClient.nome,
+          cpf: effectiveClient.cpf,
+          email: effectiveClient.email,
+          telefone1: effectiveClient.telefone1,
+        },
+        catalogProducts: catalogProducts.map(cp => ({
+          name: cp.product.name,
+          internal_code: cp.product.internal_code,
+          quantity: cp.quantity,
+          sale_price: cp.product.sale_price,
+        })),
+        environments: environments.map(env => ({
+          environmentName: env.environmentName,
+          pieceCount: env.pieceCount,
+          totalValue: env.totalValue,
+          fornecedor: env.fornecedor,
+          corpo: env.corpo,
+          porta: env.porta,
+          puxador: env.puxador,
+        })),
+        gerado_em: new Date().toISOString(),
+        simulation_id: pendingSimId,
+        template_id: pendingTemplateId,
+      };
+
       const { data: insertedData, error: contractError } = await supabase.from("client_contracts").insert({
         client_id: effectiveClient.id, simulation_id: pendingSimId, template_id: pendingTemplateId,
         conteudo_html: finalHtml,
+        snapshot,
         ...(formDataPayload ? { form_data: formDataPayload } : {}),
         ...(resolvedTenantId ? { tenant_id: resolvedTenantId } : {}),
       } as any).select("id").single();
