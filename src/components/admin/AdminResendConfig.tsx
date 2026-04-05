@@ -252,7 +252,8 @@ export function AdminResendConfig() {
 
       const { data, error } = await supabase.functions.invoke("resend-email", {
         body: {
-          action: "send",
+          action: "send_test",
+          test_api_key: effectiveApiKey,
           _temp_key: effectiveApiKey,
           api_key: effectiveApiKey,
           resend_api_key: effectiveApiKey,
