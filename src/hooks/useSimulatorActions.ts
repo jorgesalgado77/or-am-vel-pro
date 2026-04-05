@@ -503,7 +503,7 @@ export function useSimulatorActions(params: UseSimulatorActionsParams) {
       console.log("[CloseSaleFlow] Fetching contract template...");
       const { data: template, error: templateError } = await supabase
         .from("contract_templates" as any)
-        .select("id, nome, conteudo_html")
+        .select("id, nome, conteudo_html, template_type, template_structure")
         .eq("tenant_id", resolvedTenantId)
         .eq("ativo", true)
         .order("created_at", { ascending: false })
