@@ -10,7 +10,7 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Badge} from "@/components/ui/badge";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {Save, Loader2, Trash2, Plus, Users, Eye, Filter, Gift} from "lucide-react";
+import {Save, Loader2, Trash2, Plus, Users, Eye, Filter, Gift, Download} from "lucide-react";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {format} from "date-fns";
@@ -39,6 +39,8 @@ export function AdminLandingPage() {
   const [saving, setSaving] = useState(false);
   const [leadTempFilter, setLeadTempFilter] = useState("all");
   const [leadOrigemFilter, setLeadOrigemFilter] = useState("all");
+  const [dbPlans, setDbPlans] = useState<any[]>([]);
+  const [showPlanSelector, setShowPlanSelector] = useState(false);
 
   const filteredLeads = leads.filter((l) => {
     if (leadTempFilter !== "all" && (l.lead_temperature || "morno") !== leadTempFilter) return false;
@@ -367,12 +369,66 @@ export function AdminLandingPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Planos de Assinatura</CardTitle>
-                <Button size="sm" variant="outline" onClick={() => updateField("plans", [...config.plans, { name: "Novo Plano", price_monthly: 0, price_yearly: 0, max_users: 5, features: ["Recurso 1"], recommended: false }])}>
-                  <Plus className="h-3 w-3 mr-1" />Adicionar Plano
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    const { data } = await supabase.from("subscription_plans" as any).select("*").order("ordem", { ascending: true });
+                    setDbPlans((data as any) || []);
+                    setShowPlanSelector(true);
+                  }}>
+                    <Download className="h-3 w-3 mr-1" />Importar Plano
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => updateField("plans", [...config.plans, { name: "Novo Plano", price_monthly: 0, price_yearly: 0, max_users: 5, features: ["Recurso 1"], recommended: false }])}>
+                    <Plus className="h-3 w-3 mr-1" />Adicionar Manual
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {showPlanSelector && dbPlans.length > 0 && (
+                <div className="border rounded-lg p-4 bg-muted/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-semibold">Selecione planos existentes para importar:</Label>
+                    <Button variant="ghost" size="sm" onClick={() => setShowPlanSelector(false)}>✕</Button>
+                  </div>
+                  <div className="grid gap-2">
+                    {dbPlans.filter(dp => !config.plans.some(cp => cp.name === dp.nome)).map((dp: any) => (
+                      <div key={dp.id} className="flex items-center justify-between border rounded-md p-3 bg-background">
+                        <div>
+                          <span className="font-medium">{dp.nome}</span>
+                          <span className="text-muted-foreground text-sm ml-2">
+                            R$ {dp.preco_mensal || 0}/mês · R$ {dp.preco_anual || 0}/ano · {dp.max_usuarios || 0} usuários
+                          </span>
+                        </div>
+                        <Button size="sm" variant="secondary" onClick={() => {
+                          const features: string[] = [];
+                          if (dp.recursos && typeof dp.recursos === 'object') {
+                            Object.entries(dp.recursos).forEach(([key, val]) => {
+                              if (val) features.push(key.replace(/_/g, ' '));
+                            });
+                          }
+                          updateField("plans", [...config.plans, {
+                            name: dp.nome,
+                            price_monthly: dp.preco_mensal || 0,
+                            price_yearly: dp.preco_anual || 0,
+                            max_users: dp.max_usuarios || 5,
+                            features: features.length > 0 ? features : ["Recurso 1"],
+                            recommended: dp.recomendado || false,
+                          }]);
+                          toast.success(`Plano "${dp.nome}" importado!`);
+                        }}>
+                          <Plus className="h-3 w-3 mr-1" />Importar
+                        </Button>
+                      </div>
+                    ))}
+                    {dbPlans.filter(dp => !config.plans.some(cp => cp.name === dp.nome)).length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-2">Todos os planos já foram importados.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {showPlanSelector && dbPlans.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum plano cadastrado na aba Planos do sistema.</p>
+              )}
               {config.plans.map((plan, i) => (
                 <div key={i} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
