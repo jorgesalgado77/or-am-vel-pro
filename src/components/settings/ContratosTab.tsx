@@ -705,6 +705,7 @@ export function ContratosTab() {
                   }}
                 />
                 <VariableAutocomplete variables={AVAILABLE_VARIABLES} editorRef={editorRef} />
+                <VariableTooltip variables={AVAILABLE_VARIABLES} editorRef={editorRef} />
               </div>
             ) : (
               <iframe
