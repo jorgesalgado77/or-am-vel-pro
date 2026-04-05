@@ -10,7 +10,7 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Badge} from "@/components/ui/badge";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {Save, Loader2, Trash2, Plus, Users, Eye, Filter, Gift, Download} from "lucide-react";
+import {Save, Loader2, Trash2, Plus, Users, Eye, Filter, Gift, Download, RefreshCw} from "lucide-react";
 import {supabase} from "@/lib/supabaseClient";
 import {toast} from "sonner";
 import {format} from "date-fns";
@@ -41,6 +41,7 @@ export function AdminLandingPage() {
   const [leadOrigemFilter, setLeadOrigemFilter] = useState("all");
   const [dbPlans, setDbPlans] = useState<any[]>([]);
   const [showPlanSelector, setShowPlanSelector] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const filteredLeads = leads.filter((l) => {
     if (leadTempFilter !== "all" && (l.lead_temperature || "morno") !== leadTempFilter) return false;
