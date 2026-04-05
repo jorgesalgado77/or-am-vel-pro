@@ -190,10 +190,15 @@ export default function RenewPlan() {
           })}
         </div>
 
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <Button variant="ghost" onClick={() => navigate("/")} className="gap-2">
             <ArrowLeft className="h-4 w-4" /> Voltar ao login
           </Button>
+          <div>
+            <a href="/planos" className="text-sm text-primary font-medium hover:underline">
+              Comparar todos os planos em detalhe →
+            </a>
+          </div>
         </div>
 
         <p className="text-xs text-center text-muted-foreground">
