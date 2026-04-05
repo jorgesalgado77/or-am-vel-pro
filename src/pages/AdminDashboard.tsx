@@ -945,7 +945,20 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
                       const status = getPlanStatus(t);
                       const planCfg = PLAN_CONFIG[t.plano as keyof typeof PLAN_CONFIG] || PLAN_CONFIG.trial;
                       const PlanIcon = planCfg.icon;
-                      const validadeDate = t.assinatura_fim || t.trial_fim;
+                      // Compute validity: assinatura_inicio + period, fallback to assinatura_fim/trial_fim
+                      const validadeDate = (() => {
+                        if (t.assinatura_inicio && t.plano !== "trial") {
+                          const inicio = new Date(String(t.assinatura_inicio).length === 10 ? t.assinatura_inicio + "T12:00:00" : t.assinatura_inicio);
+                          const fim = new Date(inicio);
+                          if (t.plano_periodo === "anual") {
+                            fim.setFullYear(fim.getFullYear() + 1);
+                          } else {
+                            fim.setMonth(fim.getMonth() + 1);
+                          }
+                          return fim.toISOString();
+                        }
+                        return t.assinatura_fim || t.trial_fim;
+                      })();
                       const vip = (t as any).recursos_vip || {};
                       return (
                         <TableRow key={t.id} className={!t.ativo ? "opacity-50" : ""}>
