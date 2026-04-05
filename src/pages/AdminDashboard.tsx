@@ -17,6 +17,7 @@ import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, MessageCircle, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server, TrendingUp,
+  Sun, Moon, Monitor,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminStoreUsersModal} from "@/components/admin/AdminStoreUsersModal";
@@ -41,6 +42,8 @@ import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
 import {AdminKpiCharts} from "@/components/admin/AdminKpiCharts";
 import {AdminCollapsibleSection} from "@/components/admin/AdminCollapsibleSection";
+import {AdminRevenueDetailModal} from "@/components/admin/AdminRevenueDetailModal";
+import {useTheme} from "@/hooks/useTheme";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
 import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";
