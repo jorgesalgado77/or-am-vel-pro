@@ -190,13 +190,14 @@ export function AdminResendConfig() {
       ativo: Boolean(data.is_active),
     };
 
-    await adminSyncResendSettings({
+    // Sync to legacy table via backend (non-blocking — primary storage is dealroom_api_configs)
+    adminSyncResendSettings({
       id: data.id,
       api_key: trimmedApiKey || null,
       from_email: trimmedFromEmail || null,
       from_name: trimmedFromName || null,
       ativo: forceActive,
-    });
+    }).catch((e) => console.warn("[AdminResendConfig] Legacy sync failed (non-critical):", e));
 
     applySettings(nextSettings);
     return { data: nextSettings, error: null };
