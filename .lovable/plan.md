@@ -1,115 +1,93 @@
 
 
-## Plano: Importador PDF Pixel-Perfect — Evolução do Sistema Existente
+# Plano de Implementação Estratégica — VendaZap + MIA + Promob + IA de Fechamento
 
-### Diagnóstico
+## Relatório de Auditoria (Fase 0)
 
-O importador atual (`contractImport.ts` → `buildPdfPageHtml`) já usa posicionamento absoluto com percentuais, mas tem problemas:
+### O que JÁ EXISTE e está FUNCIONAL:
+- **VendaZap Chat**: `VendaZapChat.tsx`, `ChatWindow.tsx`, `ChatInput.tsx`, `ChatMessageBubble.tsx` — chat completo com UI
+- **Webhook WhatsApp**: `supabase/functions/whatsapp-webhook/index.ts` (752 linhas) — recebe mensagens Z-API/Evolution, scoring de roteamento, dedup por `external_id`
+- **Gateway WhatsApp**: `supabase/functions/whatsapp-gateway/` — envio de mensagens para Z-API
+- **Realtime**: `useRealtimeMessages.ts` — escuta INSERT/UPDATE em `tracking_messages`
+- **AutoPilot**: `useAutoPilot.ts` (300 linhas) — resposta automática com controle de tokens/dia
+- **MIA Orchestrator**: `MIAOrchestrator.ts` com 7 engines registrados (VendaZap, DealRoom, Onboarding, Commercial, Cashflow, Argument, Campaign)
+- **MIA Memory/Learning/Action**: Engines completos com persistência
+- **Proactive Alerts**: `useMIAProactiveAlerts.ts` — alertas por cargo (vendedor, gerente, projetista)
+- **Critical Toasts**: `useMIACriticalToasts.ts` — avisos de alta prioridade
+- **Contextual Tips**: `useMIAContextualTips.ts` — dicas por módulo
+- **Commercial Decision Engine**: `CommercialDecisionEngine.ts` (703 linhas) — análise de deal, cenários, descontos, triggers
+- **Negotiation Control Engine**: `NegotiationControlEngine.ts` (667 linhas) — estratégia, timing, fechamento, feedback loop
+- **Negotiation Arbitrage**: `NegotiationArbitrageEngine.ts` — brinde vs desconto
+- **AI Closer Banner**: `AICloserBanner.tsx` (318 linhas) — detecção de intenção de compra, cenários, proposta
+- **Importação Promob**: `fileImportService.ts` (854 linhas) — suporta TXT fixo, CSV, XML com módulos, normalização de acabamentos
+- **Triggers VendaZap**: `useVendaZapTriggers.ts` — gatilhos automáticos com CDE
 
-| Problema | Causa |
-|---|---|
-| Layout quebrado | Não captura font-family, font-weight, cor, alinhamento |
-| Tabelas desalinhadas | Texto posicionado individualmente sem detectar estrutura de tabela |
-| Sobreposição de textos | Cálculo de `topPercent` não agrupa linhas adjacentes |
-| Fontes inconsistentes | Não extrai informação de fonte do PDF |
+### O que está INCOMPLETO ou precisa de melhorias:
+1. **Sync bidirecional**: O webhook recebe mensagens externas, mas a confirmação de leitura (`status` delivery/read) pode não estar atualizando a UI em tempo real
+2. **MIA como agente ativo**: Alertas proativos existem mas são passivos (exigem abertura do chat MIA) — faltam ações automáticas com confirmação
+3. **Promob parser**: Falta extração de campos específicos: `tipo_porta`, `dobradiça` (modelo específico), `corrediça` (modelo), `cor_porta` vs `cor_caixa` separados explicitamente, `espessura` como campo dedicado
+4. **IA de Fechamento**: O `AICloserBanner` detecta intenção mas a integração com envio direto ao WhatsApp e o aprendizado pós-negociação pode ser mais robusto
 
-O sistema de variáveis (`FIELD_PATTERNS`, `replaceDetectedFieldsWithPlaceholders`) já funciona mas é aplicado apenas como opt-in.
-
-### Solução em 3 Frentes
-
----
-
-#### 1. Melhorar `buildPdfPageHtml` (fidelidade visual)
-
-**Arquivo:** `src/lib/contractImport.ts`
-
-- Extrair informações de fonte (fontName) via `page.commonObjs` do pdfjs para aplicar `font-family` e `font-weight` no HTML
-- Agrupar text items da mesma linha (Y similar dentro de threshold) em um único `<span>` para evitar sobreposição
-- Detectar blocos tabulares (items alinhados em grid X/Y) e gerar `<table>` HTML em vez de divs absolutas
-- Usar `page.getOperatorList()` para capturar linhas/retângulos decorativos e renderizar como `<hr>` ou bordas CSS
-- Definir página com dimensões fixas (`width:210mm; height:297mm`) com `overflow:hidden` para fidelidade A4
-
-**Nova função auxiliar `groupTextLines`:**
-- Agrupa items cujo `y` difere por menos que `fontSize * 0.3`
-- Ordena por `x` dentro de cada linha
-- Junta textos com espaçamento proporcional
-
-**Nova função auxiliar `detectTableBlocks`:**
-- Identifica items onde 3+ linhas consecutivas têm items alinhados nas mesmas posições X (colunas)
-- Gera `<table>` com `<td>` posicionados por coluna
+### Duplicidades encontradas:
+- Nenhuma duplicidade crítica — código bem modularizado
 
 ---
 
-#### 2. Renderização de imagem de fundo como fallback (pixel-perfect real)
+## Plano de Implementação por Fases
 
-**Arquivo:** `src/lib/contractImport.ts`
+### FASE 1 — VendaZap: Sync Perfeito
+**Arquivos a modificar:**
 
-Para PDFs complexos com gráficos/logos, renderizar cada página como imagem PNG via canvas do pdfjs e usá-la como `background-image` da página, com o texto posicionado por cima (transparente mas selecionável):
+1. **`supabase/functions/whatsapp-webhook/index.ts`** — Adicionar processamento de status callbacks (delivery/read) para atualizar `tracking_messages.status`
+2. **`src/hooks/useRealtimeMessages.ts`** — Expandir listener para refletir mudanças de `status` na UI (ticks azuis/cinza)
+3. **`src/components/chat/ChatMessageBubble.tsx`** — Adicionar indicadores visuais de status (sent ✓, delivered ✓✓, read ✓✓ azul)
+4. **`src/components/chat/ChatWindow.tsx`** — Garantir scroll automático e sincronização de histórico ao abrir conversa
 
-```text
-┌─────────────────────────┐
-│  background: page.png   │  ← imagem renderizada pelo pdfjs canvas
-│  ┌───────────────────┐  │
-│  │ texto invisível   │  │  ← texto posicionado absolutamente (color: transparent)
-│  │ mas selecionável  │  │     para permitir busca/edição
-│  └───────────────────┘  │
-└─────────────────────────┘
-```
+### FASE 2 — MIA Operacional
+**Arquivos a criar/modificar:**
 
-- Renderizar via `page.render({ canvasContext })` para obter PNG base64
-- Incluir como `background-image` inline no CSS da seção
-- Texto fica com `color: transparent` por padrão, visível ao editar
-- Ao salvar como template, o admin escolhe: manter imagem de fundo ou usar só texto
+1. **`src/services/mia/MIAMonitorService.ts`** (NOVO) — Serviço que periodicamente analisa leads parados, simulações sem resposta, chats sem interação, usando dados existentes das tabelas `clients`, `simulations`, `tracking_messages`
+2. **`src/hooks/useMIAProactiveAlerts.ts`** — Expandir para incluir ações executáveis (enviar mensagem, agendar follow-up) com confirmação do usuário
+3. **`src/services/mia/ActionExecutionEngine.ts`** — Conectar ações de MIA ao `whatsapp-gateway` para envio real de mensagens (com modo seguro/confirmação)
+4. **`src/components/chat/VendaZapChat.tsx`** — Integrar banner de sugestões MIA inline no chat
 
----
+### FASE 3 — Refinamento Promob
+**Arquivos a modificar:**
 
-#### 3. Armazenamento híbrido (HTML + JSON blocks)
+1. **`src/services/fileImportService.ts`** — Expandir `ParsedModule` e parsers para incluir: `doorType`, `hingeModel`, `slideModel`, `boxColor`, `doorColor`, `thickness` como campos dedicados. Adicionar funções `normalizeMaterial()`, `normalizeHardware()`. Melhorar fallback inteligente com valores padrão do tenant
+2. **`src/services/fileImportService.test.ts`** — Adicionar testes para os novos campos
 
-**Migração SQL** (para execução manual no Supabase):
+### FASE 4 — IA de Fechamento Aprimorada
+**Arquivos a modificar:**
 
-```sql
-ALTER TABLE contract_templates
-ADD COLUMN IF NOT EXISTS template_structure jsonb,
-ADD COLUMN IF NOT EXISTS template_type text DEFAULT 'flow';
+1. **`src/components/chat/AICloserBanner.tsx`** — Integrar botão de envio direto ao WhatsApp via `whatsapp-gateway`
+2. **`src/hooks/useNegotiationControl.ts`** — Expandir `recordFeedback` para registrar taxa de conversão e comportamento pós-negociação
+3. **`src/services/commercial/NegotiationControlEngine.ts`** — Adicionar consulta a `ai_learning_events` para melhorar previsões baseadas em histórico real
 
-COMMENT ON COLUMN contract_templates.template_structure IS 'Estrutura JSON com blocos posicionais do template importado';
-COMMENT ON COLUMN contract_templates.template_type IS 'Tipo: flow (texto corrido), absolute (posicional), hybrid (ambos)';
-```
+### FASE 5 — Integração Total
+- Garantir que `AICloserBanner` → `NegotiationControlEngine` → `CommercialDecisionEngine` → `whatsapp-gateway` funciona como pipeline
+- Conectar `MIAMonitorService` ao `VendaZapTriggers` para unificar gatilhos
 
-**Arquivo:** `src/lib/contractImport.ts`
+### FASE 6-7 — Segurança e Performance
+- Validar `tenant_id` em todos os novos serviços
+- Usar edge functions para operações pesadas (já existentes)
+- Lazy loading nos componentes novos
 
-- `importPdf` retorna novo campo `structure` com array de blocos JSON:
-  ```
-  { type: "text"|"table"|"image", x, y, w, h, content, fontSize, fontFamily, ... }
-  ```
-
-**Arquivo:** `src/components/settings/ContratosTab.tsx`
-
-- Ao salvar template importado, persistir `template_structure` e `template_type` junto com `conteudo_html`
-- No carregamento, se `template_type === "absolute"`, usar CSS de posicionamento fixo no preview
+### FASE 8-9 — Testes e Auditoria
+- Expandir testes Vitest para novos parsers e engines
+- Verificar código morto e inconsistências
 
 ---
 
-### Arquivos a Modificar
+## Estimativa de Escopo
 
-| Arquivo | Alteração |
-|---|---|
-| `src/lib/contractImport.ts` | Reescrever `buildPdfPageHtml` com agrupamento de linhas, detecção de tabelas, extração de fontes, renderização canvas como background |
-| `src/components/settings/ContratosTab.tsx` | Salvar `template_structure` e `template_type`; opção de manter/remover background de imagem |
-| `src/hooks/useSimulatorActions.ts` | Ao renderizar contrato, verificar `template_type` para usar layout correto |
+| Fase | Arquivos | Complexidade |
+|------|----------|-------------|
+| F1 — VendaZap Sync | 4 arquivos | Média |
+| F2 — MIA Operacional | 4 arquivos | Alta |
+| F3 — Promob | 2 arquivos | Média |
+| F4 — IA Fechamento | 3 arquivos | Média |
+| F5-9 — Integração/QA | Transversal | Média |
 
-### SQL para execução manual
-
-```sql
-ALTER TABLE contract_templates
-ADD COLUMN IF NOT EXISTS template_structure jsonb,
-ADD COLUMN IF NOT EXISTS template_type text DEFAULT 'flow';
-```
-
-### O que NÃO será alterado
-
-- Fluxo de contrato (Simulador → Fechar Venda → Editor → Preview)
-- Sistema de variáveis `{{...}}` e `FIELD_PATTERNS`
-- `ContractEditorDialog`, `CloseSaleModal`, portal público
-- Funções de highlight/auto-variáveis existentes
+**Proposta**: Implementar fase por fase, começando pela Fase 1, para garantir estabilidade a cada etapa.
 
