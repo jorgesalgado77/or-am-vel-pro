@@ -17,6 +17,7 @@ import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, MessageCircle, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server, TrendingUp,
+  Sun, Moon, Monitor,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminStoreUsersModal} from "@/components/admin/AdminStoreUsersModal";
@@ -41,6 +42,8 @@ import {AdminApiKeys} from "@/components/admin/AdminApiKeys";
 import {AdminSharedApiUsageList} from "@/components/admin/AdminSharedApiUsageList";
 import {AdminKpiCharts} from "@/components/admin/AdminKpiCharts";
 import {AdminCollapsibleSection} from "@/components/admin/AdminCollapsibleSection";
+import {AdminRevenueDetailModal} from "@/components/admin/AdminRevenueDetailModal";
+import {useTheme} from "@/hooks/useTheme";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
 import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";
@@ -144,6 +147,8 @@ interface TenantStats {
 }
 
 export default function AdminDashboard({ adminName, onLogout }: AdminDashboardProps) {
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<PaymentSetting[]>([]);
   const [planPrices, setPlanPrices] = useState<PlanPriceMap>({});
@@ -532,6 +537,18 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
     return acc + price;
   }, 0);
 
+  const revenueItems = useMemo(() => {
+    return tenants
+      .filter(t => t.plano !== "trial" && t.ativo)
+      .map(t => ({
+        nome_loja: t.nome_loja,
+        plano: t.plano,
+        plano_periodo: t.plano_periodo,
+        valor_mensal: planPrices[t.plano]?.mensal || 0,
+      }))
+      .sort((a, b) => b.valor_mensal - a.valor_mensal);
+  }, [tenants, planPrices]);
+
   // Generate unique 6-digit store code (format: 999.999)
   const generateUniqueCode = async (): Promise<string> => {
     const existingCodes = new Set(tenants.map(t => t.codigo_loja).filter(Boolean));
@@ -855,9 +872,22 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
             <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Olá, {adminName}</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1.5 sm:gap-2 text-muted-foreground shrink-0">
-          <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sair</span>
-        </Button>
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="flex gap-0.5 bg-muted rounded-md p-0.5">
+            <Button variant={themeMode === "light" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setThemeMode("light")} title="Tema Claro">
+              <Sun className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant={themeMode === "dark" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setThemeMode("dark")} title="Tema Escuro">
+              <Moon className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant={themeMode === "system" ? "secondary" : "ghost"} size="icon" className="h-7 w-7" onClick={() => setThemeMode("system")} title="Padrão do Sistema">
+              <Monitor className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1.5 sm:gap-2 text-muted-foreground">
+            <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sair</span>
+          </Button>
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -978,7 +1008,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setShowRevenueModal(true)}>
             <CardContent className="p-3 flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-accent shrink-0" />
               <div>
@@ -1659,6 +1689,12 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           codigoLoja={storeUsersTarget.codigo_loja}
         />
       )}
+      <AdminRevenueDetailModal
+        open={showRevenueModal}
+        onOpenChange={setShowRevenueModal}
+        items={revenueItems}
+        total={receitaMensal}
+      />
     </div>
   );
 }
