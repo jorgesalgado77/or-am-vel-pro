@@ -1,4 +1,4 @@
-import type { TextLine, TableBlock } from "./types";
+import type { TextLine, TableBlock, ExtractedTextItem } from "./types";
 import type { EmbeddedImage } from "./pdfExtractor";
 
 const escapeHtml = (value: string) =>
