@@ -17,10 +17,11 @@ const currencyFormatter = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
 
 const chartTooltipStyle = {
-  backgroundColor: "hsl(var(--card))",
+  backgroundColor: "hsl(var(--popover))",
   border: "1px solid hsl(var(--border))",
   borderRadius: "8px",
   fontSize: 13,
+  color: "hsl(var(--popover-foreground))",
 };
 
 // ─── Evolution Line Chart ───
