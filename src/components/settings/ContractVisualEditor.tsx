@@ -1146,6 +1146,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             <FileUp className="h-3.5 w-3.5" />
             {importingPdf ? "Importando..." : "PDF como fundo"}
           </Button>
+          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
+            <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
+          </Button>
         </div>
 
         <div className="flex gap-2">
@@ -1159,6 +1162,31 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           <Button size="sm" className="h-7 gap-1 text-xs" onClick={handleSave}><Save className="h-3 w-3" /> Salvar Contrato</Button>
         </div>
       </div>
+
+      {/* Save as Template Dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowSaveDialog(false)}>
+          <div className="bg-background rounded-xl border border-border p-6 w-96 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-foreground mb-4">Salvar como Template</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Nome do Template *</label>
+                <Input value={saveTemplateName} onChange={e => setSaveTemplateName(e.target.value)} placeholder="Ex: Contrato padrão loja" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Descrição (opcional)</label>
+                <Input value={saveTemplateDesc} onChange={e => setSaveTemplateDesc(e.target.value)} placeholder="Breve descrição do modelo" className="mt-1" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(false)}>Cancelar</Button>
+              <Button size="sm" onClick={handleSaveAsTemplate} disabled={!saveTemplateName.trim()}>
+                <BookmarkPlus className="h-3.5 w-3.5 mr-1" /> Salvar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main area */}
       <div className="flex flex-1 overflow-hidden border border-border rounded-b-lg">
