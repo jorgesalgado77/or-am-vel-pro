@@ -363,9 +363,12 @@ export function ContratosTab() {
     if (!file) return;
 
     setImporting(true);
+    setImportProgress("Iniciando importação...");
 
     try {
-      const imported = await importContractFile(file);
+      const imported = await importContractFile(file, (info) => {
+        setImportProgress(info.label);
+      });
       let processedHtml = imported.html;
       let replacedCount = 0;
 
