@@ -1006,11 +1006,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
       toast.error("Informe um nome para o template");
       return;
     }
-    const ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
+    let ok: boolean;
+    if (overwriteTemplateId) {
+      ok = await updateTemplate(overwriteTemplateId, {
+        name: saveTemplateName.trim(),
+        description: saveTemplateDesc.trim(),
+        pages_data: pages,
+      });
+    } else {
+      ok = await saveTemplate(saveTemplateName.trim(), saveTemplateDesc.trim(), pages);
+    }
     if (ok) {
       setShowSaveDialog(false);
       setSaveTemplateName("");
       setSaveTemplateDesc("");
+      setOverwriteTemplateId(null);
+    }
     }
   };
 
