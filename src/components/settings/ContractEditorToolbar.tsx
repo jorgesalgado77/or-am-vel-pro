@@ -73,7 +73,7 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
     isBold, onBoldToggle, isItalic, onItalicToggle,
     isUnderline, onUnderlineToggle, isStrikethrough, onStrikethroughToggle,
     textColor, onTextColorChange, textAlign, onTextAlignChange,
-    onUndo, onRedo, canUndo, canRedo, onImageUpload,
+    onUndo, onRedo, canUndo, canRedo, onImageUpload, onTableInsert,
   } = props;
 
   // Load Google Fonts dynamically
