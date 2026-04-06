@@ -890,6 +890,22 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 <input type="number" min={1} max={20} value={selected.strokeWidth} onChange={e => updateSelected({ strokeWidth: Number(e.target.value) })} className="w-full rounded border border-border bg-muted/30 px-1.5 py-1 text-xs" />
               </div>
             )}
+            {selected.type === "table" && (
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground">Cor do cabeçalho</label>
+                <input type="color" value={selected.stroke} onChange={e => updateSelected({ stroke: e.target.value })} className="h-7 w-full cursor-pointer rounded border border-border" />
+                <label className="text-muted-foreground">Linhas: {selected.tableData?.length || 0}</label>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={addTableRow}>+ Linha</Button>
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={removeTableRow}>- Linha</Button>
+                </div>
+                <label className="text-muted-foreground">Colunas: {selected.tableData?.[0]?.length || 0}</label>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={addTableCol}>+ Col</Button>
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] flex-1" onClick={removeTableCol}>- Col</Button>
+                </div>
+              </div>
+            )}
           </>
         ) : !currentPage?.backgroundImage ? (
           <p className="text-muted-foreground text-center py-4">Selecione um elemento para ver suas propriedades</p>
