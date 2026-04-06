@@ -361,7 +361,7 @@ export function PdfImportPreviewModal({
                   contentEditable
                   suppressContentEditableWarning
                   className="prose prose-sm min-h-[30vh] max-w-none rounded-b-lg border border-border bg-background p-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  dangerouslySetInnerHTML={{ __html: editedHtml !== null ? editedHtml : baseHtml }}
+                  dangerouslySetInnerHTML={{ __html: highlightVariablesInHtml(editedHtml !== null ? editedHtml : baseHtml) }}
                   onBlur={() => {
                     if (editorRef.current) setEditedHtml(editorRef.current.innerHTML);
                   }}
