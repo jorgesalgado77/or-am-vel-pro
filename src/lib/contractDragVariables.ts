@@ -191,6 +191,9 @@ const DRAG_VARIABLES_SCRIPT = `
       contextMenu.style.display = 'block';
       contextMenu.style.left = e.clientX + 'px';
       contextMenu.style.top = e.clientY + 'px';
+      // Show variable-specific options
+      var items = contextMenu.querySelectorAll('[data-var-action]');
+      items.forEach(function(el) { el.style.display = 'block'; });
     });
   }
 
