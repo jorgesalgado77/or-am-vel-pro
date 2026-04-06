@@ -1048,35 +1048,38 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
 
         <AdminCollapsibleSection title="Gerenciamento" icon={Shield}>
         <Tabs defaultValue="lojas" className="space-y-4">
-          <div className="w-full overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent">
-            <TabsList className="inline-flex w-max gap-1 p-1 min-w-max">
-              <TabsTrigger value="lojas" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Store className="h-4 w-4" />Lojas</TabsTrigger>
-              <TabsTrigger value="dealroom" className="gap-2 data-[state=active]:bg-[hsl(270,60%,50%)] data-[state=active]:text-white"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
-              <TabsTrigger value="vendazap" className="gap-2 data-[state=active]:bg-[hsl(120,50%,40%)] data-[state=active]:text-white"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
-              <TabsTrigger value="smartimport3d" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Box className="h-4 w-4" />3D Smart Import</TabsTrigger>
-              <TabsTrigger value="planos" className="gap-2 data-[state=active]:bg-[hsl(340,70%,50%)] data-[state=active]:text-white"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
-              <TabsTrigger value="pagamentos" className="gap-2 data-[state=active]:bg-[hsl(150,60%,40%)] data-[state=active]:text-white"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
-              <TabsTrigger value="suporte" className="gap-2 relative data-[state=active]:bg-[hsl(200,80%,45%)] data-[state=active]:text-white">
-                <MessageSquare className="h-4 w-4" />Suporte
-                {addonInterestCount > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px] rounded-full">
-                    {addonInterestCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="landing" className="gap-2 data-[state=active]:bg-[hsl(30,80%,50%)] data-[state=active]:text-white"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
-              <TabsTrigger value="apis-config" className="gap-2 data-[state=active]:bg-[hsl(220,70%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs (Config)</TabsTrigger>
-              
-              <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
-              <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
-              <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
-              <TabsTrigger value="sysdiag" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Server className="h-4 w-4" />Saúde do Sistema</TabsTrigger>
-              <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
-              <TabsTrigger value="usage-billing" className="gap-2 data-[state=active]:bg-[hsl(260,60%,50%)] data-[state=active]:text-white"><TrendingUp className="h-4 w-4" />Consumo</TabsTrigger>
-              
-              <TabsTrigger value="wa-funnel" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageCircle className="h-4 w-4" />Funil WA</TabsTrigger>
-            </TabsList>
-          </div>
+          <ScrollArea className="w-full">
+            <div className="w-max min-w-full">
+              <TabsList className="inline-flex w-max gap-1 p-1 min-w-max">
+                <TabsTrigger value="lojas" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"><Store className="h-4 w-4" />Lojas</TabsTrigger>
+                <TabsTrigger value="dealroom" className="gap-2 data-[state=active]:bg-[hsl(270,60%,50%)] data-[state=active]:text-white"><Handshake className="h-4 w-4" />Deal Room</TabsTrigger>
+                <TabsTrigger value="vendazap" className="gap-2 data-[state=active]:bg-[hsl(120,50%,40%)] data-[state=active]:text-white"><Bot className="h-4 w-4" />VendaZap AI</TabsTrigger>
+                <TabsTrigger value="smartimport3d" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Box className="h-4 w-4" />3D Smart Import</TabsTrigger>
+                <TabsTrigger value="planos" className="gap-2 data-[state=active]:bg-[hsl(340,70%,50%)] data-[state=active]:text-white"><BarChart3 className="h-4 w-4" />Planos</TabsTrigger>
+                <TabsTrigger value="pagamentos" className="gap-2 data-[state=active]:bg-[hsl(150,60%,40%)] data-[state=active]:text-white"><CreditCard className="h-4 w-4" />Pagamentos</TabsTrigger>
+                <TabsTrigger value="suporte" className="gap-2 relative data-[state=active]:bg-[hsl(200,80%,45%)] data-[state=active]:text-white">
+                  <MessageSquare className="h-4 w-4" />Suporte
+                  {addonInterestCount > 0 && (
+                    <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1 text-[10px] rounded-full">
+                      {addonInterestCount}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="landing" className="gap-2 data-[state=active]:bg-[hsl(30,80%,50%)] data-[state=active]:text-white"><Globe className="h-4 w-4" />Landing Page</TabsTrigger>
+                <TabsTrigger value="apis-config" className="gap-2 data-[state=active]:bg-[hsl(220,70%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs (Config)</TabsTrigger>
+                
+                <TabsTrigger value="affiliates" className="gap-2 data-[state=active]:bg-[hsl(45,80%,45%)] data-[state=active]:text-white"><Gift className="h-4 w-4" />Afiliados</TabsTrigger>
+                <TabsTrigger value="tutorials" className="gap-2 data-[state=active]:bg-[hsl(0,60%,50%)] data-[state=active]:text-white"><Film className="h-4 w-4" />Tutoriais</TabsTrigger>
+                <TabsTrigger value="diagnostics" className="gap-2 data-[state=active]:bg-[hsl(280,60%,50%)] data-[state=active]:text-white"><Activity className="h-4 w-4" />Diagnóstico Login</TabsTrigger>
+                <TabsTrigger value="sysdiag" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Server className="h-4 w-4" />Saúde do Sistema</TabsTrigger>
+                <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
+                <TabsTrigger value="usage-billing" className="gap-2 data-[state=active]:bg-[hsl(260,60%,50%)] data-[state=active]:text-white"><TrendingUp className="h-4 w-4" />Consumo</TabsTrigger>
+                
+                <TabsTrigger value="wa-funnel" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageCircle className="h-4 w-4" />Funil WA</TabsTrigger>
+              </TabsList>
+            </div>
+            <ScrollBar orientation="horizontal" className="h-2.5 mt-1" />
+          </ScrollArea>
 
 
 
