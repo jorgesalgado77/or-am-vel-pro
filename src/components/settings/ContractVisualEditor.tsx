@@ -620,21 +620,39 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         {/* Page thumbnails sidebar */}
         <div className="w-24 border-r border-border bg-muted/20 overflow-y-auto p-2 space-y-2">
           {pages.map((page, idx) => (
-            <button
+            <div
               key={page.id}
+              draggable
+              onDragStart={() => setDragPageIdx(idx)}
+              onDragOver={(e) => { e.preventDefault(); setDragOverPageIdx(idx); }}
+              onDragLeave={() => setDragOverPageIdx(null)}
+              onDrop={() => {
+                if (dragPageIdx !== null && dragPageIdx !== idx) {
+                  setPages(prev => {
+                    const arr = [...prev];
+                    const [moved] = arr.splice(dragPageIdx, 1);
+                    arr.splice(idx, 0, moved);
+                    return arr;
+                  });
+                  setCurrentPageIdx(idx);
+                }
+                setDragPageIdx(null);
+                setDragOverPageIdx(null);
+              }}
+              onDragEnd={() => { setDragPageIdx(null); setDragOverPageIdx(null); }}
               onClick={() => { setCurrentPageIdx(idx); setSelectedId(null); }}
-              className={`w-full rounded border-2 transition-all ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"}`}
-              title={`Página ${idx + 1}`}
+              className={`w-full rounded border-2 transition-all cursor-pointer ${idx === currentPageIdx ? "border-primary shadow-sm" : "border-border hover:border-muted-foreground/30"} ${dragOverPageIdx === idx && dragPageIdx !== idx ? "border-primary/50 bg-primary/5" : ""} ${dragPageIdx === idx ? "opacity-40" : ""}`}
+              title={`Página ${idx + 1} — arraste para reordenar`}
             >
               <div className="relative w-full bg-background" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
                 {page.backgroundImage && (
-                  <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" />
+                  <img src={page.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: page.backgroundOpacity }} />
                 )}
                 <div className="absolute bottom-0 left-0 right-0 bg-foreground/60 text-background text-[9px] text-center py-0.5 font-medium">
                   {idx + 1}
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
 
@@ -658,7 +676,8 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 style={{
                   position: "absolute", top: 0, left: 0,
                   width: A4_WIDTH * zoom, height: A4_HEIGHT * zoom,
-                  objectFit: "contain", pointerEvents: "none", opacity: 0.5,
+                  objectFit: "contain", pointerEvents: "none",
+                  opacity: currentPage.backgroundOpacity,
                 }}
               />
             )}
