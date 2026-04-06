@@ -307,6 +307,12 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
               <Lock className="h-3 w-3 mr-1" /> Estrutura protegida
             </Badge>
           )}
+
+          {dragMode && (
+            <Badge variant="outline" className="ml-auto text-[10px] border-primary/50 text-primary">
+              <Move className="h-3 w-3 mr-1" /> Modo arrastar {varPositions.length > 0 && `(${varPositions.length} alteradas)`}
+            </Badge>
+          )}
         </div>
 
         {/* Replacements Summary Panel */}
