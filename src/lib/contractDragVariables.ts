@@ -163,6 +163,7 @@ const DRAG_VARIABLES_SCRIPT = `
       attachHover(wrapper, resizeHandle);
       attachDragMove(wrapper, resizeHandle);
       attachResize(wrapper, resizeHandle);
+      attachContextMenu(wrapper);
 
       // Replace the mark but keep in flow
       mark.parentNode.replaceChild(wrapper, mark);
@@ -298,6 +299,7 @@ const DRAG_VARIABLES_SCRIPT = `
     attachHover(wrapper, resizeHandle);
     attachDragMove(wrapper, resizeHandle);
     attachResize(wrapper, resizeHandle);
+    attachContextMenu(wrapper);
 
     page.appendChild(wrapper);
 
