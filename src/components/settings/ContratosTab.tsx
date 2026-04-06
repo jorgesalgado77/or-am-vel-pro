@@ -271,6 +271,7 @@ export function ContratosTab() {
     // PDF/DOCX import — extract, auto-replace variables, show preview modal
     if (extension === "pdf" || extension === "docx") {
       setImporting(true);
+      toast.info(`Importando ${file.name}... Aguarde.`);
       try {
         const imported = await importContractFile(file);
         const result = replaceDetectedFieldsWithPlaceholders(imported.html);
@@ -286,10 +287,11 @@ export function ContratosTab() {
           replacedCount: result.replacedCount,
           fileName: file.name,
         });
+        toast.dismiss();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro ao importar arquivo";
         toast.error(message);
-        console.error(err);
+        console.error("[Import Template Error]", err);
       } finally {
         setImporting(false);
         e.target.value = "";
