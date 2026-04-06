@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +15,9 @@ import {
 } from "@hello-pangea/dnd";
 import {
   Plus, Trash2, GripVertical, AlertTriangle, CalendarSync, Clock,
+  Search, Filter, CalendarClock,
 } from "lucide-react";
-import { differenceInDays, format } from "date-fns";
+import { differenceInDays, format, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 // ─── Types ───
@@ -29,6 +30,7 @@ interface AdminTask {
   created_at: string;
   updated_at: string;
   moved_at: string;
+  vencimento: string | null;
   google_event_id: string | null;
   alerta_pendente_enviado: boolean;
 }
@@ -36,46 +38,30 @@ interface AdminTask {
 type ColumnKey = AdminTask["coluna"];
 
 // ─── Column config ───
-const COLUMNS: { key: ColumnKey; label: string; hue: string; bg: string; border: string; badge: string; cardBg: string; cardBorder: string }[] = [
+const COLUMNS: { key: ColumnKey; label: string; bg: string; border: string; badge: string; cardBg: string; cardBorder: string }[] = [
   {
-    key: "nova",
-    label: "Nova Tarefa",
-    hue: "199",
-    bg: "bg-sky-50 dark:bg-sky-950/30",
-    border: "border-sky-300 dark:border-sky-700",
+    key: "nova", label: "Nova Tarefa",
+    bg: "bg-sky-50 dark:bg-sky-950/30", border: "border-sky-300 dark:border-sky-700",
     badge: "bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300",
-    cardBg: "bg-sky-50/80 dark:bg-sky-900/40",
-    cardBorder: "border-sky-200 dark:border-sky-800",
+    cardBg: "bg-sky-50/80 dark:bg-sky-900/40", cardBorder: "border-sky-200 dark:border-sky-800",
   },
   {
-    key: "pendente",
-    label: "Pendente",
-    hue: "38",
-    bg: "bg-amber-50 dark:bg-amber-950/30",
-    border: "border-amber-300 dark:border-amber-700",
+    key: "pendente", label: "Pendente",
+    bg: "bg-amber-50 dark:bg-amber-950/30", border: "border-amber-300 dark:border-amber-700",
     badge: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
-    cardBg: "bg-amber-50/80 dark:bg-amber-900/40",
-    cardBorder: "border-amber-200 dark:border-amber-800",
+    cardBg: "bg-amber-50/80 dark:bg-amber-900/40", cardBorder: "border-amber-200 dark:border-amber-800",
   },
   {
-    key: "execucao",
-    label: "Em Execução",
-    hue: "260",
-    bg: "bg-violet-50 dark:bg-violet-950/30",
-    border: "border-violet-300 dark:border-violet-700",
+    key: "execucao", label: "Em Execução",
+    bg: "bg-violet-50 dark:bg-violet-950/30", border: "border-violet-300 dark:border-violet-700",
     badge: "bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300",
-    cardBg: "bg-violet-50/80 dark:bg-violet-900/40",
-    cardBorder: "border-violet-200 dark:border-violet-800",
+    cardBg: "bg-violet-50/80 dark:bg-violet-900/40", cardBorder: "border-violet-200 dark:border-violet-800",
   },
   {
-    key: "concluida",
-    label: "Concluída",
-    hue: "142",
-    bg: "bg-emerald-50 dark:bg-emerald-950/30",
-    border: "border-emerald-300 dark:border-emerald-700",
+    key: "concluida", label: "Concluída",
+    bg: "bg-emerald-50 dark:bg-emerald-950/30", border: "border-emerald-300 dark:border-emerald-700",
     badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300",
-    cardBg: "bg-emerald-50/80 dark:bg-emerald-900/40",
-    cardBorder: "border-emerald-200 dark:border-emerald-800",
+    cardBg: "bg-emerald-50/80 dark:bg-emerald-900/40", cardBorder: "border-emerald-200 dark:border-emerald-800",
   },
 ];
 
@@ -86,6 +72,23 @@ const PRIORIDADE_COLORS: Record<string, string> = {
   urgente: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
 };
 
+const PRIORIDADE_LABELS: Record<string, string> = {
+  baixa: "Baixa", media: "Média", alta: "Alta", urgente: "Urgente",
+};
+
+function getDueBadge(vencimento: string | null, coluna: string) {
+  if (!vencimento || coluna === "concluida") return null;
+  const due = new Date(vencimento);
+  if (isToday(due)) return { label: "Vence hoje", cls: "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100" };
+  if (isPast(due)) {
+    const days = differenceInDays(new Date(), due);
+    return { label: `Atrasada ${days}d`, cls: "bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100 animate-pulse" };
+  }
+  const daysLeft = differenceInDays(due, new Date());
+  if (daysLeft <= 2) return { label: `${daysLeft}d restante${daysLeft > 1 ? "s" : ""}`, cls: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" };
+  return null;
+}
+
 // ─── Component ───
 export function AdminKanbanTasks() {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
@@ -94,9 +97,15 @@ export function AdminKanbanTasks() {
   const [newTitulo, setNewTitulo] = useState("");
   const [newDescricao, setNewDescricao] = useState("");
   const [newPrioridade, setNewPrioridade] = useState<AdminTask["prioridade"]>("media");
+  const [newVencimento, setNewVencimento] = useState("");
   const [pendingAlerts, setPendingAlerts] = useState<AdminTask[]>([]);
+  const [overdueAlerts, setOverdueAlerts] = useState<AdminTask[]>([]);
   const [alertsDismissed, setAlertsDismissed] = useState(false);
   const [gcalSyncing, setGcalSyncing] = useState(false);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterPrioridade, setFilterPrioridade] = useState("all");
 
   const fetchTasks = useCallback(async () => {
     const { data, error } = await supabase
@@ -116,38 +125,51 @@ export function AdminKanbanTasks() {
     fetchTasks();
     const channel = supabase
       .channel("admin-tasks-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "admin_tasks" }, () => {
-        fetchTasks();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "admin_tasks" }, () => fetchTasks())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchTasks]);
 
-  // Check pending alerts (>2 days in "pendente")
+  // Alerts: pending >2 days + overdue
   useEffect(() => {
     const now = new Date();
-    const alerts = tasks.filter(
+    const pending = tasks.filter(
       (t) => t.coluna === "pendente" && differenceInDays(now, new Date(t.moved_at)) >= 2
     );
-    setPendingAlerts(alerts);
-    if (alerts.length > 0 && !alertsDismissed) {
-      // Only show toast once per session
-      alerts.forEach((t) => {
-        toast.warning(`⏰ Tarefa pendente há ${differenceInDays(now, new Date(t.moved_at))} dias: "${t.titulo}"`, {
-          duration: 8000,
-          id: `pending-alert-${t.id}`,
+    const overdue = tasks.filter(
+      (t) => t.vencimento && t.coluna !== "concluida" && isPast(new Date(t.vencimento)) && !isToday(new Date(t.vencimento))
+    );
+    setPendingAlerts(pending);
+    setOverdueAlerts(overdue);
+
+    if (!alertsDismissed) {
+      pending.forEach((t) => {
+        toast.warning(`⏰ Pendente há ${differenceInDays(now, new Date(t.moved_at))}d: "${t.titulo}"`, {
+          duration: 8000, id: `pending-${t.id}`,
+        });
+      });
+      overdue.forEach((t) => {
+        toast.error(`🚨 Prazo vencido: "${t.titulo}" (${format(new Date(t.vencimento!), "dd/MM")})`, {
+          duration: 8000, id: `overdue-${t.id}`,
         });
       });
     }
   }, [tasks, alertsDismissed]);
 
+  // Filtered tasks
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      if (searchQuery && !t.titulo.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (filterPrioridade !== "all" && t.prioridade !== filterPrioridade) return false;
+      return true;
+    });
+  }, [tasks, searchQuery, filterPrioridade]);
+
   const tasksByColumn = useMemo(() => {
     const map: Record<ColumnKey, AdminTask[]> = { nova: [], pendente: [], execucao: [], concluida: [] };
-    tasks.forEach((t) => {
-      if (map[t.coluna]) map[t.coluna].push(t);
-    });
+    filteredTasks.forEach((t) => { if (map[t.coluna]) map[t.coluna].push(t); });
     return map;
-  }, [tasks]);
+  }, [filteredTasks]);
 
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -155,10 +177,7 @@ export function AdminKanbanTasks() {
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const newColumn = destination.droppableId as ColumnKey;
-    const task = tasks.find((t) => t.id === draggableId);
-    if (!task) return;
 
-    // Optimistic update
     setTasks((prev) =>
       prev.map((t) =>
         t.id === draggableId
@@ -169,17 +188,10 @@ export function AdminKanbanTasks() {
 
     const { error } = await supabase
       .from("admin_tasks" as any)
-      .update({
-        coluna: newColumn,
-        moved_at: new Date().toISOString(),
-        alerta_pendente_enviado: false,
-      } as any)
+      .update({ coluna: newColumn, moved_at: new Date().toISOString(), alerta_pendente_enviado: false } as any)
       .eq("id", draggableId);
 
-    if (error) {
-      toast.error("Erro ao mover tarefa");
-      fetchTasks();
-    }
+    if (error) { toast.error("Erro ao mover tarefa"); fetchTasks(); }
   };
 
   const createTask = async () => {
@@ -190,12 +202,11 @@ export function AdminKanbanTasks() {
       prioridade: newPrioridade,
       coluna: "nova",
       moved_at: new Date().toISOString(),
+      vencimento: newVencimento ? new Date(newVencimento).toISOString() : null,
     } as any);
     if (error) { toast.error("Erro ao criar tarefa: " + error.message); return; }
     toast.success("Tarefa criada!");
-    setNewTitulo("");
-    setNewDescricao("");
-    setNewPrioridade("media");
+    setNewTitulo(""); setNewDescricao(""); setNewPrioridade("media"); setNewVencimento("");
     setShowNewDialog(false);
   };
 
@@ -218,9 +229,7 @@ export function AdminKanbanTasks() {
       fetchTasks();
     } catch (err: any) {
       toast.error("Erro ao sincronizar: " + (err?.message || "Tente novamente"));
-    } finally {
-      setGcalSyncing(false);
-    }
+    } finally { setGcalSyncing(false); }
   };
 
   if (loading) {
@@ -230,6 +239,8 @@ export function AdminKanbanTasks() {
       </div>
     );
   }
+
+  const totalAlerts = pendingAlerts.length + overdueAlerts.length;
 
   return (
     <div className="space-y-4">
@@ -247,19 +258,57 @@ export function AdminKanbanTasks() {
         </div>
       </div>
 
-      {/* Pending Alerts Banner */}
-      {pendingAlerts.length > 0 && !alertsDismissed && (
-        <Card className="border-amber-400 dark:border-amber-600 bg-amber-50/50 dark:bg-amber-950/30">
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar tarefa..."
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          <Select value={filterPrioridade} onValueChange={setFilterPrioridade}>
+            <SelectTrigger className="w-[130px] h-8 text-sm">
+              <SelectValue placeholder="Prioridade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="baixa">Baixa</SelectItem>
+              <SelectItem value="media">Média</SelectItem>
+              <SelectItem value="alta">Alta</SelectItem>
+              <SelectItem value="urgente">Urgente</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {(searchQuery || filterPrioridade !== "all") && (
+          <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => { setSearchQuery(""); setFilterPrioridade("all"); }}>
+            Limpar filtros
+          </Button>
+        )}
+      </div>
+
+      {/* Alerts Banner */}
+      {totalAlerts > 0 && !alertsDismissed && (
+        <Card className="border-red-400 dark:border-red-600 bg-red-50/50 dark:bg-red-950/20">
           <CardContent className="p-3 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                {pendingAlerts.length} tarefa(s) pendente(s) há mais de 2 dias
+              <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+                {totalAlerts} alerta(s) ativo(s)
               </p>
               <div className="mt-1 space-y-0.5">
+                {overdueAlerts.map((t) => (
+                  <p key={`od-${t.id}`} className="text-xs text-red-700 dark:text-red-400">
+                    🚨 {t.titulo} — prazo vencido em {format(new Date(t.vencimento!), "dd/MM/yy")}
+                  </p>
+                ))}
                 {pendingAlerts.map((t) => (
-                  <p key={t.id} className="text-xs text-amber-700 dark:text-amber-400">
-                    • {t.titulo} — parada há {differenceInDays(new Date(), new Date(t.moved_at))} dias
+                  <p key={`pd-${t.id}`} className="text-xs text-amber-700 dark:text-amber-400">
+                    ⏰ {t.titulo} — pendente há {differenceInDays(new Date(), new Date(t.moved_at))} dias
                   </p>
                 ))}
               </div>
@@ -284,21 +333,16 @@ export function AdminKanbanTasks() {
                     snapshot.isDraggingOver ? "ring-2 ring-primary/30" : ""
                   }`}
                 >
-                  {/* Column Header */}
                   <div className="flex items-center justify-between mb-3 px-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.badge}`}>
-                        {col.label}
-                      </span>
-                    </div>
-                    <Badge variant="secondary" className="text-[10px] h-5">
-                      {tasksByColumn[col.key].length}
-                    </Badge>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.badge}`}>{col.label}</span>
+                    <Badge variant="secondary" className="text-[10px] h-5">{tasksByColumn[col.key].length}</Badge>
                   </div>
 
-                  {/* Task Cards */}
                   {tasksByColumn[col.key].map((task, index) => {
                     const isPendingLong = task.coluna === "pendente" && differenceInDays(new Date(), new Date(task.moved_at)) >= 2;
+                    const dueBadge = getDueBadge(task.vencimento, task.coluna);
+                    const isOverdue = task.vencimento && task.coluna !== "concluida" && isPast(new Date(task.vencimento)) && !isToday(new Date(task.vencimento));
+
                     return (
                       <Draggable draggableId={task.id} index={index} key={task.id}>
                         {(dragProvided, dragSnapshot) => (
@@ -307,7 +351,8 @@ export function AdminKanbanTasks() {
                             {...dragProvided.draggableProps}
                             className={`rounded-md border ${col.cardBorder} ${col.cardBg} p-2.5 mb-2 transition-all ${
                               dragSnapshot.isDragging ? "shadow-lg ring-2 ring-primary/40 rotate-1" : "shadow-sm"
-                            } ${isPendingLong ? "ring-2 ring-amber-400 dark:ring-amber-600" : ""}`}
+                            } ${isPendingLong ? "ring-2 ring-amber-400 dark:ring-amber-600" : ""}
+                            ${isOverdue ? "ring-2 ring-red-500 dark:ring-red-400" : ""}`}
                           >
                             <div className="flex items-start gap-1.5">
                               <div {...dragProvided.dragHandleProps} className="mt-0.5 cursor-grab active:cursor-grabbing">
@@ -317,8 +362,7 @@ export function AdminKanbanTasks() {
                                 <div className="flex items-center justify-between gap-1">
                                   <p className="text-sm font-medium text-foreground truncate">{task.titulo}</p>
                                   <Button
-                                    variant="ghost"
-                                    size="icon"
+                                    variant="ghost" size="icon"
                                     className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive"
                                     onClick={() => deleteTask(task.id)}
                                   >
@@ -330,8 +374,14 @@ export function AdminKanbanTasks() {
                                 )}
                                 <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${PRIORIDADE_COLORS[task.prioridade]}`}>
-                                    {task.prioridade.charAt(0).toUpperCase() + task.prioridade.slice(1)}
+                                    {PRIORIDADE_LABELS[task.prioridade]}
                                   </span>
+                                  {dueBadge && (
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 ${dueBadge.cls}`}>
+                                      <CalendarClock className="h-2.5 w-2.5" />
+                                      {dueBadge.label}
+                                    </span>
+                                  )}
                                   {isPendingLong && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-200 flex items-center gap-0.5">
                                       <Clock className="h-2.5 w-2.5" />
@@ -342,9 +392,16 @@ export function AdminKanbanTasks() {
                                     <CalendarSync className="h-3 w-3 text-muted-foreground" />
                                   )}
                                 </div>
-                                <p className="text-[9px] text-muted-foreground/70 mt-1">
-                                  {format(new Date(task.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
-                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <p className="text-[9px] text-muted-foreground/70">
+                                    {format(new Date(task.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                                  </p>
+                                  {task.vencimento && (
+                                    <p className={`text-[9px] flex items-center gap-0.5 ${isOverdue ? "text-red-500 dark:text-red-400 font-semibold" : "text-muted-foreground/70"}`}>
+                                      📅 {format(new Date(task.vencimento), "dd/MM/yy", { locale: ptBR })}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -370,35 +427,39 @@ export function AdminKanbanTasks() {
             <div>
               <Label className="text-xs">Título *</Label>
               <Input
-                value={newTitulo}
-                onChange={(e) => setNewTitulo(e.target.value)}
-                className="mt-1 h-9 text-sm"
-                placeholder="Descreva a tarefa..."
+                value={newTitulo} onChange={(e) => setNewTitulo(e.target.value)}
+                className="mt-1 h-9 text-sm" placeholder="Descreva a tarefa..."
                 onKeyDown={(e) => e.key === "Enter" && createTask()}
               />
             </div>
             <div>
               <Label className="text-xs">Descrição</Label>
               <Textarea
-                value={newDescricao}
-                onChange={(e) => setNewDescricao(e.target.value)}
-                className="mt-1 text-sm min-h-[80px]"
-                placeholder="Detalhes opcionais..."
+                value={newDescricao} onChange={(e) => setNewDescricao(e.target.value)}
+                className="mt-1 text-sm min-h-[80px]" placeholder="Detalhes opcionais..."
               />
             </div>
-            <div>
-              <Label className="text-xs">Prioridade</Label>
-              <Select value={newPrioridade} onValueChange={(v) => setNewPrioridade(v as any)}>
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="baixa">Baixa</SelectItem>
-                  <SelectItem value="media">Média</SelectItem>
-                  <SelectItem value="alta">Alta</SelectItem>
-                  <SelectItem value="urgente">Urgente</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Prioridade</Label>
+                <Select value={newPrioridade} onValueChange={(v) => setNewPrioridade(v as any)}>
+                  <SelectTrigger className="mt-1 h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="baixa">Baixa</SelectItem>
+                    <SelectItem value="media">Média</SelectItem>
+                    <SelectItem value="alta">Alta</SelectItem>
+                    <SelectItem value="urgente">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Vencimento</Label>
+                <Input
+                  type="date" value={newVencimento}
+                  onChange={(e) => setNewVencimento(e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
