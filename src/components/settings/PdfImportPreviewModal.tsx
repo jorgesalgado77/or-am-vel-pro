@@ -30,6 +30,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Undo2,
 } from "lucide-react";
 import { removeHighlights } from "@/lib/contractImport";
 import { EditorToolbar } from "./EditorToolbar";
