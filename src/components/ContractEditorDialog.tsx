@@ -84,10 +84,20 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     return html;
   };
 
-  const previewDocument = useMemo(
-    () => buildContractDocumentHtml(html, `Contrato - ${clientName}`),
-    [html, clientName],
-  );
+  const previewDocument = useMemo(() => {
+    const base = buildContractDocumentHtml(html, `Contrato - ${clientName}`);
+    return dragMode ? injectDragVariablesIntoHtml(base) : base;
+  }, [html, clientName, dragMode]);
+
+  const handleToggleDragMode = () => {
+    if (dragMode && varPositions.length > 0) {
+      // Apply positions into HTML when exiting drag mode
+      setHtml((prev) => applyVariablePositions(prev, varPositions));
+      setVarPositions([]);
+      toast.success("Posições das variáveis aplicadas!");
+    }
+    setDragMode(!dragMode);
+  };
 
   const handleToggleView = () => {
     if (viewMode === "editor" && editorRef.current) setHtml(editorRef.current.innerHTML);
