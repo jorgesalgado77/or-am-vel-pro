@@ -154,8 +154,10 @@ export function ContratosTab() {
       } else if (e.data?.type === 'variable-dropped') {
         const pos = e.data;
         setVarPositions((prev) => [...prev, { idx: pos.idx, varText: pos.varText, left: pos.left, top: pos.top, width: pos.width, height: pos.height }]);
-        // Also insert variable into the HTML content so it persists
-        setHtmlContent((prev) => prev + pos.varText);
+        // Don't update htmlContent here to avoid iframe re-render which resets all positions
+      } else if (e.data?.type === 'variable-removed') {
+        const removedIdx = e.data.idx;
+        setVarPositions((prev) => prev.filter((p) => p.idx !== removedIdx));
       }
     };
     window.addEventListener('message', handler);
