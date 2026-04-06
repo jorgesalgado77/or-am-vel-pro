@@ -257,6 +257,18 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             </Button>
           )}
 
+          {viewMode === "preview" && (
+            <Button
+              variant={dragMode ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5"
+              onClick={handleToggleDragMode}
+            >
+              <Move className="h-3.5 w-3.5" />
+              {dragMode ? "Aplicar Posições" : "Mover Variáveis"}
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
