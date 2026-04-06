@@ -868,12 +868,56 @@ export function ContratosTab() {
                 <VariableTooltip variables={AVAILABLE_VARIABLES} editorRef={editorRef} />
               </div>
             ) : (
-              <iframe
-                ref={iframeRef}
-                title="Preview fiel do contrato"
-                className="h-[75vh] w-full rounded-lg border border-border bg-muted/20"
-                srcDoc={previewDocument}
-              />
+              <div className="relative">
+                <iframe
+                  ref={iframeRef}
+                  title="Preview fiel do contrato"
+                  className="h-[75vh] w-full rounded-lg border border-border bg-muted/20"
+                  srcDoc={previewDocument}
+                />
+                {dragMode && (
+                  <div
+                    className="absolute inset-0 rounded-lg"
+                    style={{ pointerEvents: "auto", zIndex: 10 }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "copy";
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      (e.currentTarget as HTMLElement).style.outline = "2px dashed hsl(210 80% 55%)";
+                      (e.currentTarget as HTMLElement).style.outlineOffset = "-2px";
+                      (e.currentTarget as HTMLElement).style.background = "hsl(210 80% 55% / 0.05)";
+                    }}
+                    onDragLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.outline = "none";
+                      (e.currentTarget as HTMLElement).style.background = "none";
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      (e.currentTarget as HTMLElement).style.outline = "none";
+                      (e.currentTarget as HTMLElement).style.background = "none";
+                      const varText = e.dataTransfer.getData("text/plain");
+                      if (!varText || !varText.startsWith("{{")) return;
+
+                      // Calculate drop position relative to iframe
+                      const iframeEl = iframeRef.current;
+                      if (!iframeEl) return;
+                      const iframeRect = iframeEl.getBoundingClientRect();
+                      const dropX = e.clientX - iframeRect.left;
+                      const dropY = e.clientY - iframeRect.top;
+
+                      // Send drop info to iframe
+                      iframeEl.contentWindow?.postMessage({
+                        type: "drop-variable",
+                        varText,
+                        x: dropX,
+                        y: dropY,
+                      }, "*");
+                    }}
+                  />
+                )}
+              </div>
             )}
 
             {showHighlights && (
