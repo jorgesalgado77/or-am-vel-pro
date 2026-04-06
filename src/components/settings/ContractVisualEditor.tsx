@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download } from "lucide-react";
 import { toast } from "sonner";
 import * as pdfjsLib from "pdfjs-dist";
+import { jsPDF } from "jspdf";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -73,6 +74,40 @@ function createDefaultElement(type: CanvasElement["type"], x: number, y: number)
     case "text": return { ...base, text: "Texto", width: 200, height: 40, stroke: "transparent", strokeWidth: 0 };
     case "image": return { ...base, width: 200, height: 150, stroke: "#cccccc" };
     default: return base;
+  }
+}
+
+function hexToRgb(hex: string) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+}
+
+function drawText(doc: jsPDF, el: CanvasElement) {
+  if (!el.text) return;
+  const c = hexToRgb(el.color || "#000000");
+  if (c) doc.setTextColor(c.r, c.g, c.b);
+  const fontStyle = el.fontWeight === "bold" && el.fontStyle === "italic" ? "bolditalic"
+    : el.fontWeight === "bold" ? "bold"
+    : el.fontStyle === "italic" ? "italic" : "normal";
+  doc.setFont("helvetica", fontStyle);
+  doc.setFontSize(el.fontSize * 0.75); // px to pt
+  const padding = el.type === "text" ? 0 : 8;
+  const maxW = el.width - padding * 2;
+  const lines = doc.splitTextToSize(el.text, maxW);
+  const lineH = el.fontSize * 0.85;
+  const totalH = lines.length * lineH;
+  let startY: number;
+  if (el.type === "text") {
+    startY = el.y + el.fontSize * 0.75;
+  } else {
+    startY = el.y + (el.height - totalH) / 2 + el.fontSize * 0.75;
+  }
+  const align = el.textAlign || "left";
+  for (let i = 0; i < lines.length; i++) {
+    let lx = el.x + padding;
+    if (align === "center") lx = el.x + el.width / 2;
+    else if (align === "right") lx = el.x + el.width - padding;
+    doc.text(lines[i], lx, startY + i * lineH, { align: align as any });
   }
 }
 
@@ -394,6 +429,101 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     toast.success("Contrato salvo com sucesso!");
   };
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_WIDTH, A4_HEIGHT] });
+
+      for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
+        if (pageIdx > 0) doc.addPage([A4_WIDTH, A4_HEIGHT]);
+        const page = pages[pageIdx];
+        const sortedEls = [...page.elements].sort((a, b) => a.zIndex - b.zIndex);
+
+        // Draw background image if exists
+        if (page.backgroundImage) {
+          doc.saveGraphicsState();
+          (doc as any).setGState(new (doc as any).GState({ opacity: page.backgroundOpacity }));
+          doc.addImage(page.backgroundImage, "PNG", 0, 0, A4_WIDTH, A4_HEIGHT);
+          doc.restoreGraphicsState();
+        }
+
+        for (const el of sortedEls) {
+          switch (el.type) {
+            case "rect": {
+              if (el.fill && el.fill !== "transparent") {
+                const c = hexToRgb(el.fill);
+                if (c) doc.setFillColor(c.r, c.g, c.b);
+                if (el.borderRadius > 0) {
+                  doc.roundedRect(el.x, el.y, el.width, el.height, el.borderRadius, el.borderRadius, "F");
+                } else {
+                  doc.rect(el.x, el.y, el.width, el.height, "F");
+                }
+              }
+              if (el.stroke && el.stroke !== "transparent" && el.strokeWidth > 0) {
+                const c = hexToRgb(el.stroke);
+                if (c) doc.setDrawColor(c.r, c.g, c.b);
+                doc.setLineWidth(el.strokeWidth);
+                if (el.borderRadius > 0) {
+                  doc.roundedRect(el.x, el.y, el.width, el.height, el.borderRadius, el.borderRadius, "S");
+                } else {
+                  doc.rect(el.x, el.y, el.width, el.height, "S");
+                }
+              }
+              if (el.text) drawText(doc, el);
+              break;
+            }
+            case "circle": {
+              const rx = el.width / 2, ry = el.height / 2;
+              const cx = el.x + rx, cy = el.y + ry;
+              if (el.fill && el.fill !== "transparent") {
+                const c = hexToRgb(el.fill);
+                if (c) doc.setFillColor(c.r, c.g, c.b);
+                doc.ellipse(cx, cy, rx, ry, "F");
+              }
+              if (el.stroke && el.stroke !== "transparent" && el.strokeWidth > 0) {
+                const c = hexToRgb(el.stroke);
+                if (c) doc.setDrawColor(c.r, c.g, c.b);
+                doc.setLineWidth(el.strokeWidth);
+                doc.ellipse(cx, cy, rx, ry, "S");
+              }
+              if (el.text) drawText(doc, el);
+              break;
+            }
+            case "line": {
+              const c = hexToRgb(el.stroke);
+              if (c) doc.setDrawColor(c.r, c.g, c.b);
+              doc.setLineWidth(el.strokeWidth);
+              doc.line(el.x, el.y, el.x + el.width, el.y);
+              break;
+            }
+            case "text": {
+              drawText(doc, el);
+              break;
+            }
+            case "image": {
+              if (el.imageUrl) {
+                try {
+                  doc.addImage(el.imageUrl, "PNG", el.x, el.y, el.width, el.height);
+                } catch { /* skip broken images */ }
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      doc.save("contrato.pdf");
+      toast.success("PDF exportado com sucesso!");
+    } catch (err) {
+      console.error("Export PDF error:", err);
+      toast.error("Erro ao exportar PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const filteredVars = variables
     .filter(v => !varSearch || v.var.toLowerCase().includes(varSearch.toLowerCase()) || v.desc.toLowerCase().includes(varSearch.toLowerCase()))
     .sort((a, b) => a.var.localeCompare(b.var));
@@ -611,6 +741,9 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
 
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
+          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportPdf} disabled={exporting}>
+            <Download className="h-3 w-3" /> {exporting ? "Exportando..." : "Exportar PDF"}
+          </Button>
           <Button size="sm" className="h-7 gap-1 text-xs" onClick={handleSave}><Save className="h-3 w-3" /> Salvar Contrato</Button>
         </div>
       </div>
