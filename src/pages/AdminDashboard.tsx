@@ -17,7 +17,7 @@ import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, MessageCircle, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server, TrendingUp,
-  Sun, Moon, Monitor, ClipboardList,
+  Sun, Moon, Monitor, ClipboardList, CalendarSync,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminStoreUsersModal} from "@/components/admin/AdminStoreUsersModal";
