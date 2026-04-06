@@ -220,6 +220,45 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     }
   };
 
+  const handleTableInsert = () => {
+    const el = createDefaultElement("table", 100, 200);
+    setCurrentElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+    setActiveTool("select");
+  };
+
+  const updateTableCell = (elId: string, row: number, col: number, value: string) => {
+    setCurrentElements(prev => prev.map(el => {
+      if (el.id !== elId || !el.tableData) return el;
+      const newData = el.tableData.map((r, ri) => ri === row ? r.map((c, ci) => ci === col ? value : c) : [...r]);
+      return { ...el, tableData: newData };
+    }));
+  };
+
+  const addTableRow = () => {
+    if (!selected?.tableData) return;
+    const cols = selected.tableCols || selected.tableData[0]?.length || 2;
+    const newRow = Array(cols).fill("");
+    updateSelected({ tableData: [...selected.tableData, newRow], tableRows: (selected.tableRows || selected.tableData.length) + 1, height: selected.height + 30 });
+  };
+
+  const addTableCol = () => {
+    if (!selected?.tableData) return;
+    const newData = selected.tableData.map(row => [...row, ""]);
+    updateSelected({ tableData: newData, tableCols: (selected.tableCols || selected.tableData[0]?.length || 2) + 1, width: selected.width + 100 });
+  };
+
+  const removeTableRow = () => {
+    if (!selected?.tableData || selected.tableData.length <= 1) return;
+    updateSelected({ tableData: selected.tableData.slice(0, -1), tableRows: (selected.tableRows || selected.tableData.length) - 1, height: Math.max(60, selected.height - 30) });
+  };
+
+  const removeTableCol = () => {
+    if (!selected?.tableData || (selected.tableData[0]?.length || 0) <= 1) return;
+    const newData = selected.tableData.map(row => row.slice(0, -1));
+    updateSelected({ tableData: newData, tableCols: (selected.tableCols || 2) - 1, width: Math.max(100, selected.width - 100) });
+  };
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     const rect = canvasRef.current?.getBoundingClientRect();
