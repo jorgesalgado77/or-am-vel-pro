@@ -194,6 +194,13 @@ const DRAG_VARIABLES_SCRIPT = `
       collectAllPositions();
     } else if (e.data?.type === 'drop-variable') {
       handleDropVariable(e.data.varText, e.data.x, e.data.y);
+    } else if (e.data?.type === 'set-grid-size') {
+      GRID_SIZE = e.data.gridSize || 8;
+      // Update CSS grid overlay
+      const style = document.getElementById('drag-grid-style');
+      if (style) {
+        style.textContent = buildGridCSS(GRID_SIZE);
+      }
     }
   });
 
