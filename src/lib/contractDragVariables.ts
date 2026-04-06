@@ -126,9 +126,11 @@ const DRAG_VARIABLES_SCRIPT = `
 
     var sep0 = document.createElement('div');
     sep0.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
+    sep0.setAttribute('data-var-action', 'true');
     menu.appendChild(sep0);
 
     var duplicateBtn = document.createElement('div');
+    duplicateBtn.setAttribute('data-var-action', 'true');
     duplicateBtn.textContent = 'Duplicar variável';
     duplicateBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#2563eb;transition:background 0.1s;';
     duplicateBtn.addEventListener('mouseenter', function() { duplicateBtn.style.background = '#dbeafe'; });
