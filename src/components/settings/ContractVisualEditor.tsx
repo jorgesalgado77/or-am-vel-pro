@@ -914,6 +914,39 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     );
   };
 
+  const applyTemplate = (tpl: ContractTemplate) => {
+    setPages(tpl.pages.map(p => ({ ...p, id: pageId(), elements: p.elements.map(e => ({ ...e, id: genId() })) })));
+    setCurrentPageIdx(0);
+    setSelectedId(null);
+    setShowTemplates(false);
+    if (tpl.id !== "em-branco") toast.success(`Template "${tpl.name}" aplicado!`);
+  };
+
+  if (showTemplates) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-muted/20 p-8">
+        <h2 className="text-xl font-bold text-foreground mb-2">Escolha um modelo para começar</h2>
+        <p className="text-muted-foreground text-sm mb-6">Selecione um template pré-pronto ou comece do zero</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
+          {getContractTemplates().map(tpl => (
+            <button
+              key={tpl.id}
+              onClick={() => applyTemplate(tpl)}
+              className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group"
+            >
+              <span className="text-4xl">{tpl.icon}</span>
+              <span className="font-semibold text-sm text-foreground group-hover:text-primary">{tpl.name}</span>
+              <span className="text-xs text-muted-foreground leading-tight">{tpl.description}</span>
+            </button>
+          ))}
+        </div>
+        <Button variant="ghost" className="mt-6 text-xs text-muted-foreground" onClick={onCancel}>
+          <X className="h-3 w-3 mr-1" /> Cancelar
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
