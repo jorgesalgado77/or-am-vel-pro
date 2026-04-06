@@ -143,7 +143,8 @@ export function PdfImportPreviewModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-4 px-1 pb-2">
           {/* Template Name */}
           <div className="space-y-1">
             <Label className="text-xs font-medium">Nome do Template</Label>
@@ -201,7 +202,7 @@ export function PdfImportPreviewModal({
           </div>
 
           {/* Content area */}
-          <ScrollArea className="flex-1 min-h-0 max-h-[45vh] rounded-lg border border-border">
+          <div className="rounded-lg border border-border min-h-[40vh]">
             {viewMode === "preview" ? (
               <div
                 className="p-4 bg-background"
@@ -295,8 +296,9 @@ export function PdfImportPreviewModal({
                 </div>
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
+        </ScrollArea>
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={onClose} disabled={saving}>
