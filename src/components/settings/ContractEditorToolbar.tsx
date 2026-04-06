@@ -75,6 +75,19 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
     onUndo, onRedo, canUndo, canRedo, onImageUpload,
   } = props;
 
+  // Load Google Fonts dynamically
+  useEffect(() => {
+    const families = GOOGLE_FONTS.map(f => f.replace(/ /g, "+")).join("&family=");
+    const linkId = "google-fonts-editor";
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement("link");
+      link.id = linkId;
+      link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
+      document.head.appendChild(link);
+    }
+  }, []);
+
   return (
     <div className="flex flex-wrap items-center gap-1 rounded-t-lg border border-border bg-muted/30 px-2 py-1.5">
       {/* Undo / Redo */}
