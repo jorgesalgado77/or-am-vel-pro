@@ -1121,24 +1121,51 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     }
   };
 
+  // Render a mini thumbnail for a custom template's first page
+  const renderMiniThumbnail = (ct: CustomTemplate) => {
+    const pagesData = ct.pages_data as PageData[];
+    const firstPage = pagesData?.[0];
+    if (!firstPage || !firstPage.elements?.length) {
+      return <div className="w-full bg-muted/30 rounded flex items-center justify-center text-muted-foreground text-[8px]" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>Vazio</div>;
+    }
+    const scale = 0.09;
+    return (
+      <div className="w-full rounded overflow-hidden border border-border bg-white relative" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
+        {firstPage.backgroundImage && (
+          <img src={firstPage.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: firstPage.backgroundOpacity }} />
+        )}
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+          {firstPage.elements.slice(0, 20).map((el, i) => {
+            if (el.type === "rect") return <div key={i} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height, background: el.fill, borderRadius: el.borderRadius, border: `${el.strokeWidth}px solid ${el.stroke}` }} />;
+            if (el.type === "text") return <div key={i} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height, fontSize: el.fontSize, fontWeight: el.fontWeight, color: el.color, fontFamily: el.fontFamily, overflow: "hidden", whiteSpace: "pre-wrap", lineHeight: 1.1 }}>{el.text}</div>;
+            if (el.type === "line") return <div key={i} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, borderTop: `${el.strokeWidth}px solid ${el.stroke}` }} />;
+            if (el.type === "table") return <div key={i} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height, border: `1px solid ${el.stroke}`, background: el.fill }} />;
+            return null;
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (showTemplates) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-muted/20 p-8 overflow-y-auto">
+        <input ref={jsonInputRef} type="file" accept=".json" className="hidden" onChange={handleImportTemplatesJson} />
         <h2 className="text-xl font-bold text-foreground mb-2">Escolha um modelo para começar</h2>
         <p className="text-muted-foreground text-sm mb-6">Selecione um template pré-pronto, um salvo, ou comece do zero</p>
 
         {/* Pre-built templates */}
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Modelos Pré-prontos</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 max-w-5xl mb-8">
           {getContractTemplates().map(tpl => (
             <button
               key={tpl.id}
               onClick={() => applyTemplate(tpl)}
-              className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group"
             >
-              <span className="text-4xl">{tpl.icon}</span>
-              <span className="font-semibold text-sm text-foreground group-hover:text-primary">{tpl.name}</span>
-              <span className="text-xs text-muted-foreground leading-tight">{tpl.description}</span>
+              <span className="text-3xl">{tpl.icon}</span>
+              <span className="font-semibold text-xs text-foreground group-hover:text-primary leading-tight">{tpl.name}</span>
+              <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2">{tpl.description}</span>
             </button>
           ))}
         </div>
@@ -1146,24 +1173,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         {/* Custom templates */}
         {(customTemplates.length > 0 || loadingCustom) && (
           <>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Meus Templates Salvos</h3>
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Meus Templates Salvos</h3>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={handleExportTemplatesJson} title="Exportar templates como JSON">
+                  <Download className="h-3 w-3" /> Exportar JSON
+                </Button>
+                <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => jsonInputRef.current?.click()} title="Importar templates de arquivo JSON">
+                  <Upload className="h-3 w-3" /> Importar JSON
+                </Button>
+              </div>
+            </div>
             {loadingCustom ? (
               <p className="text-xs text-muted-foreground">Carregando...</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-4xl mb-6">
                 {customTemplates.map(ct => (
-                  <div key={ct.id} className="relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group">
+                  <div key={ct.id} className="relative flex flex-col gap-2 p-3 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all group">
                     <button onClick={() => applyCustomTemplate(ct)} className="flex flex-col items-center gap-2 w-full">
-                      <span className="text-3xl">{ct.icon}</span>
+                      {renderMiniThumbnail(ct)}
                       {editingCustomId === ct.id ? (
                         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                           <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-6 text-xs w-32" onKeyDown={e => e.key === "Enter" && handleRenameCustom(ct.id)} />
                           <Button size="sm" className="h-6 text-[10px]" onClick={() => handleRenameCustom(ct.id)}>OK</Button>
                         </div>
                       ) : (
-                        <span className="font-semibold text-sm text-foreground group-hover:text-primary">{ct.name}</span>
+                        <span className="font-semibold text-xs text-foreground group-hover:text-primary leading-tight">{ct.name}</span>
                       )}
-                      {ct.description && <span className="text-xs text-muted-foreground leading-tight">{ct.description}</span>}
+                      {ct.description && <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2">{ct.description}</span>}
                     </button>
                     <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleDuplicateCustom(ct); }} title="Duplicar">
@@ -1181,6 +1218,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               </div>
             )}
           </>
+        )}
+
+        {customTemplates.length === 0 && !loadingCustom && (
+          <div className="flex gap-2 mb-4">
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => jsonInputRef.current?.click()} title="Importar templates de arquivo JSON">
+              <Upload className="h-3 w-3" /> Importar Templates (JSON)
+            </Button>
+          </div>
         )}
 
         <Button variant="ghost" className="mt-2 text-xs text-muted-foreground" onClick={onCancel}>
