@@ -44,7 +44,7 @@ import {AdminKpiCharts} from "@/components/admin/AdminKpiCharts";
 import {AdminCollapsibleSection} from "@/components/admin/AdminCollapsibleSection";
 import {AdminRevenueDetailModal} from "@/components/admin/AdminRevenueDetailModal";
 import {useTheme} from "@/hooks/useTheme";
-import {AdminKanbanTasks} from "@/components/admin/AdminKanbanTasks";
+import {AdminKanbanSection} from "@/components/admin/AdminKanbanSection";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
 import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";
