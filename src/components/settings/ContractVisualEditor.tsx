@@ -1397,6 +1397,33 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         </div>
       )}
 
+      {/* PDF Import Progress Overlay */}
+      {importingPdf && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-background rounded-xl border border-border p-8 w-[400px] shadow-2xl text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Importando PDF</h3>
+            <p className="text-sm text-muted-foreground">{pdfProgress.status || "Processando..."}</p>
+            {pdfProgress.total > 0 && (
+              <div className="space-y-2">
+                <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${Math.round((pdfProgress.current / pdfProgress.total) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground font-medium">
+                  {pdfProgress.current} de {pdfProgress.total} página{pdfProgress.total > 1 ? "s" : ""}
+                  {" — "}{Math.round((pdfProgress.current / pdfProgress.total) * 100)}%
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main area */}
       <div className="flex flex-1 overflow-hidden border border-border rounded-b-lg">
         {/* Page thumbnails sidebar */}
