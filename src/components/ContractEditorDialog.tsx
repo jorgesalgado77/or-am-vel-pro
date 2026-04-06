@@ -1,7 +1,7 @@
-import {useState, useRef, useEffect, useMemo} from "react";
+import {useState, useRef, useEffect, useMemo, useCallback} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
-import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp} from "lucide-react";
+import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp, Move} from "lucide-react";
 import {Badge} from "@/components/ui/badge";
 import {buildContractDocumentHtml, openContractPrintWindow} from "@/lib/contractDocument";
 import {supabase} from "@/lib/supabaseClient";
@@ -9,6 +9,7 @@ import {generateContractPdfServerSide, openOrSharePdf} from "@/lib/pdfService";
 import {toast} from "sonner";
 import {replaceDetectedFieldsWithPlaceholders, type FieldReplacement} from "@/lib/contractImport";
 import {ScrollArea} from "@/components/ui/scroll-area";
+import {injectDragVariablesIntoHtml, applyVariablePositions, type VariablePosition} from "@/lib/contractDragVariables";
 
 interface ContractEditorDialogProps {
   open: boolean;
