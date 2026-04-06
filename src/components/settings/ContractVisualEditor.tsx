@@ -32,6 +32,9 @@ interface CanvasElement {
   color: string;
   imageUrl?: string;
   zIndex: number;
+  tableData?: string[][];
+  tableCols?: number;
+  tableRows?: number;
 }
 
 interface PageData {
