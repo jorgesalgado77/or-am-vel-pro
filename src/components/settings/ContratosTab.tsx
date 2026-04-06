@@ -861,6 +861,7 @@ export function ContratosTab() {
               </div>
             ) : (
               <iframe
+                ref={iframeRef}
                 title="Preview fiel do contrato"
                 className="h-[75vh] w-full rounded-lg border border-border bg-muted/20"
                 srcDoc={previewDocument}
