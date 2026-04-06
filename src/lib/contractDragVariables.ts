@@ -306,12 +306,29 @@ const DRAG_VARIABLES_SCRIPT = `
     notifyPositionChange(wrapper);
   }
 
-  // Wait for DOM to be ready
+  // Wait for DOM and highlight script to finish
+  function tryInit() {
+    const marks = document.querySelectorAll('mark[data-placeholder-highlight]');
+    if (marks.length > 0) {
+      initDragVariables();
+    } else {
+      // Retry a few times in case highlight script hasn't run yet
+      let retries = 0;
+      const interval = setInterval(() => {
+        retries++;
+        const m = document.querySelectorAll('mark[data-placeholder-highlight]');
+        if (m.length > 0 || retries > 20) {
+          clearInterval(interval);
+          if (m.length > 0) initDragVariables();
+        }
+      }, 100);
+    }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initDragVariables);
+    document.addEventListener('DOMContentLoaded', () => setTimeout(tryInit, 50));
   } else {
-    // Small delay to ensure highlight script has run
-    setTimeout(initDragVariables, 100);
+    setTimeout(tryInit, 150);
   }
 })();
 `;

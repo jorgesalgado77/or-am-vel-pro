@@ -58,9 +58,10 @@ const CONTRACT_DOCUMENT_STYLES = `
     border-collapse: collapse;
   }
 
-  mark[data-placeholder-highlight] {
-    background: hsl(210 80% 55% / 0.15);
-    color: hsl(210 80% 45%);
+  mark, mark[data-placeholder-highlight] {
+    background: hsl(210 80% 55% / 0.15) !important;
+    background-color: hsl(210 80% 55% / 0.15) !important;
+    color: hsl(210 80% 45%) !important;
     border: 1px dashed hsl(210 80% 55% / 0.4);
     border-radius: 4px;
     padding: 1px 4px;
