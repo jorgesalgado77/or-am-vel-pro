@@ -1515,6 +1515,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                 {pdfImportSettings.scale >= 2.5 && " ⚠️ Escalas acima de 2.5x podem causar lentidão em PDFs grandes."}
               </div>
             </div>
+            </details>
 
             <div className="flex gap-2 mt-6 justify-end">
               <Button variant="outline" size="sm" onClick={() => { setShowPdfSettings(false); setPendingPdfFile(null); }}>Cancelar</Button>
