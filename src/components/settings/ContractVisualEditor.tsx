@@ -127,6 +127,7 @@ function drawText(doc: jsPDF, el: CanvasElement) {
 }
 
 export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVisualEditorProps) {
+  const { tenantId } = useTenant();
   const [showTemplates, setShowTemplates] = useState(true);
   const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [], backgroundOpacity: 0.5 }]);
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
