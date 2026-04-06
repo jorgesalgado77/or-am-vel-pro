@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { useTenant } from "@/contexts/TenantContext";
 import { ContractEditorToolbar, type ToolType, type ShapeType } from "./ContractEditorToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash } from "lucide-react";
+import { Save, X, ZoomIn, ZoomOut, Plus, Trash2, ChevronLeft, ChevronRight, FileUp, Copy, Download, FileText, LayoutTemplate, BookmarkPlus, Pencil, Trash, Upload, Image as ImageIcon } from "lucide-react";
 import { getContractTemplates, type ContractTemplate } from "./contractTemplates";
 import { useCustomTemplates, type CustomTemplate } from "@/hooks/useCustomTemplates";
 import { toast } from "sonner";
@@ -125,6 +127,7 @@ function drawText(doc: jsPDF, el: CanvasElement) {
 }
 
 export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVisualEditorProps) {
+  const { tenantId } = useTenant();
   const [showTemplates, setShowTemplates] = useState(true);
   const [pages, setPages] = useState<PageData[]>([{ id: pageId(), elements: [], backgroundOpacity: 0.5 }]);
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
@@ -1040,24 +1043,129 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     setEditName("");
   };
 
+  // --- JSON Export/Import ---
+  const jsonInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportTemplatesJson = () => {
+    if (customTemplates.length === 0) {
+      toast.error("Nenhum template customizado para exportar");
+      return;
+    }
+    const exportData = customTemplates.map(ct => ({
+      name: ct.name,
+      description: ct.description,
+      icon: ct.icon,
+      pages_data: ct.pages_data,
+    }));
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `templates_contratos_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${exportData.length} template(s) exportado(s) como JSON!`);
+  };
+
+  const handleImportTemplatesJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const arr = Array.isArray(data) ? data : [data];
+      let count = 0;
+      for (const item of arr) {
+        if (item.name && item.pages_data) {
+          await saveTemplate(item.name, item.description || "", item.pages_data, item.icon || "📝");
+          count++;
+        }
+      }
+      if (count > 0) toast.success(`${count} template(s) importado(s) com sucesso!`);
+      else toast.error("Nenhum template válido encontrado no arquivo");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao importar JSON. Verifique o formato do arquivo.");
+    }
+  };
+
+  // --- Insert company logo ---
+  const handleInsertCompanyLogo = async () => {
+    try {
+      const { data: { user } } = await (supabase as any).auth.getUser();
+      if (!user) { toast.error("Usuário não autenticado"); return; }
+      
+      const { data: tenant } = await (supabase as any)
+        .from("tenants")
+        .select("logo_url")
+        .eq("id", tenantId)
+        .single();
+      
+      if (!tenant?.logo_url) {
+        toast.error("Nenhum logo encontrado. Configure o logo da empresa nas configurações.");
+        return;
+      }
+      
+      const el = createDefaultElement("image", 40, 40);
+      el.imageUrl = tenant.logo_url;
+      el.width = 180;
+      el.height = 80;
+      setCurrentElements(prev => [...prev, el]);
+      setSelectedId(el.id);
+      setActiveTool("select");
+      toast.success("Logo da empresa inserido!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao buscar logo da empresa");
+    }
+  };
+
+  // Render a mini thumbnail for a custom template's first page
+  const renderMiniThumbnail = (ct: CustomTemplate) => {
+    const pagesData = ct.pages_data as PageData[];
+    const firstPage = pagesData?.[0];
+    if (!firstPage || !firstPage.elements?.length) {
+      return <div className="w-full bg-muted/30 rounded flex items-center justify-center text-muted-foreground text-[8px]" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>Vazio</div>;
+    }
+    const scale = 0.09;
+    return (
+      <div className="w-full rounded overflow-hidden border border-border bg-white relative" style={{ aspectRatio: `${A4_WIDTH}/${A4_HEIGHT}` }}>
+        {firstPage.backgroundImage && (
+          <img src={firstPage.backgroundImage} alt="" className="absolute inset-0 w-full h-full object-contain" style={{ opacity: firstPage.backgroundOpacity }} />
+        )}
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "0 0", width: A4_WIDTH, height: A4_HEIGHT, position: "relative" }}>
+          {firstPage.elements.slice(0, 20).map((el, i) => {
+            if (el.type === "rect") return <div key={i} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height, background: el.fill, borderRadius: el.borderRadius, border: `${el.strokeWidth}px solid ${el.stroke}` }} />;
+            if (el.type === "text") return <div key={i} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height, fontSize: el.fontSize, fontWeight: el.fontWeight, color: el.color, fontFamily: el.fontFamily, overflow: "hidden", whiteSpace: "pre-wrap", lineHeight: 1.1 }}>{el.text}</div>;
+            if (el.type === "line") return <div key={i} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, borderTop: `${el.strokeWidth}px solid ${el.stroke}` }} />;
+            if (el.type === "table") return <div key={i} style={{ position: "absolute", left: el.x, top: el.y, width: el.width, height: el.height, border: `1px solid ${el.stroke}`, background: el.fill }} />;
+            return null;
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (showTemplates) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-muted/20 p-8 overflow-y-auto">
+        <input ref={jsonInputRef} type="file" accept=".json" className="hidden" onChange={handleImportTemplatesJson} />
         <h2 className="text-xl font-bold text-foreground mb-2">Escolha um modelo para começar</h2>
         <p className="text-muted-foreground text-sm mb-6">Selecione um template pré-pronto, um salvo, ou comece do zero</p>
 
         {/* Pre-built templates */}
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Modelos Pré-prontos</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 max-w-5xl mb-8">
           {getContractTemplates().map(tpl => (
             <button
               key={tpl.id}
               onClick={() => applyTemplate(tpl)}
-              className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group"
             >
-              <span className="text-4xl">{tpl.icon}</span>
-              <span className="font-semibold text-sm text-foreground group-hover:text-primary">{tpl.name}</span>
-              <span className="text-xs text-muted-foreground leading-tight">{tpl.description}</span>
+              <span className="text-3xl">{tpl.icon}</span>
+              <span className="font-semibold text-xs text-foreground group-hover:text-primary leading-tight">{tpl.name}</span>
+              <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2">{tpl.description}</span>
             </button>
           ))}
         </div>
@@ -1065,24 +1173,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         {/* Custom templates */}
         {(customTemplates.length > 0 || loadingCustom) && (
           <>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Meus Templates Salvos</h3>
+            <div className="flex items-center gap-3 mb-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Meus Templates Salvos</h3>
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={handleExportTemplatesJson} title="Exportar templates como JSON">
+                  <Download className="h-3 w-3" /> Exportar JSON
+                </Button>
+                <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => jsonInputRef.current?.click()} title="Importar templates de arquivo JSON">
+                  <Upload className="h-3 w-3" /> Importar JSON
+                </Button>
+              </div>
+            </div>
             {loadingCustom ? (
               <p className="text-xs text-muted-foreground">Carregando...</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-4xl mb-6">
                 {customTemplates.map(ct => (
-                  <div key={ct.id} className="relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all text-center group">
+                  <div key={ct.id} className="relative flex flex-col gap-2 p-3 rounded-xl border-2 border-border bg-background hover:border-primary hover:shadow-lg transition-all group">
                     <button onClick={() => applyCustomTemplate(ct)} className="flex flex-col items-center gap-2 w-full">
-                      <span className="text-3xl">{ct.icon}</span>
+                      {renderMiniThumbnail(ct)}
                       {editingCustomId === ct.id ? (
                         <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                           <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-6 text-xs w-32" onKeyDown={e => e.key === "Enter" && handleRenameCustom(ct.id)} />
                           <Button size="sm" className="h-6 text-[10px]" onClick={() => handleRenameCustom(ct.id)}>OK</Button>
                         </div>
                       ) : (
-                        <span className="font-semibold text-sm text-foreground group-hover:text-primary">{ct.name}</span>
+                        <span className="font-semibold text-xs text-foreground group-hover:text-primary leading-tight">{ct.name}</span>
                       )}
-                      {ct.description && <span className="text-xs text-muted-foreground leading-tight">{ct.description}</span>}
+                      {ct.description && <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2">{ct.description}</span>}
                     </button>
                     <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleDuplicateCustom(ct); }} title="Duplicar">
@@ -1102,6 +1220,14 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
           </>
         )}
 
+        {customTemplates.length === 0 && !loadingCustom && (
+          <div className="flex gap-2 mb-4">
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => jsonInputRef.current?.click()} title="Importar templates de arquivo JSON">
+              <Upload className="h-3 w-3" /> Importar Templates (JSON)
+            </Button>
+          </div>
+        )}
+
         <Button variant="ghost" className="mt-2 text-xs text-muted-foreground" onClick={onCancel}>
           <X className="h-3 w-3 mr-1" /> Cancelar
         </Button>
@@ -1113,6 +1239,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     <div className="flex flex-col h-full">
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
       <input ref={pdfInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
+      <input ref={jsonInputRef} type="file" accept=".json" className="hidden" onChange={handleImportTemplatesJson} />
 
       {/* Toolbar */}
       <ContractEditorToolbar
@@ -1133,52 +1260,41 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         onTableInsert={handleTableInsert}
       />
 
-      {/* Action bar with page navigation */}
-      <div className="flex items-center justify-between border-x border-border bg-muted/20 px-3 py-1.5">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowTemplates(true)} title="Templates">
-            <LayoutTemplate className="h-3.5 w-3.5" /> Templates
-          </Button>
-          <div className="h-5 w-px bg-border mx-1" />
-          {/* Zoom */}
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Zoom -"><ZoomOut className="h-3.5 w-3.5" /></Button>
-          <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Zoom +"><ZoomIn className="h-3.5 w-3.5" /></Button>
-
-          <div className="h-5 w-px bg-border mx-1" />
-
-          {/* Page navigation */}
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToPrevPage} disabled={currentPageIdx === 0} title="Página anterior"><ChevronLeft className="h-3.5 w-3.5" /></Button>
-          <span className="text-xs text-foreground font-medium min-w-[60px] text-center">
-            Pág. {currentPageIdx + 1} / {pages.length}
-          </span>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1} title="Próxima página"><ChevronRight className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={addPage} title="Adicionar página"><Plus className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
-
-          <div className="h-5 w-px bg-border mx-1" />
-
-          {/* PDF import */}
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF como fundo">
-            <FileUp className="h-3.5 w-3.5" />
-            {importingPdf ? "Importando..." : "PDF como fundo"}
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
-            <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
-          </Button>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
-          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportPdf} disabled={exporting}>
-            <Download className="h-3 w-3" /> {exporting ? "Exportando..." : "PDF"}
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={handleExportDocx} disabled={exportingDocx}>
-            <FileText className="h-3 w-3" /> {exportingDocx ? "Exportando..." : "DOCX"}
-          </Button>
-          <Button size="sm" className="h-7 gap-1 text-xs" onClick={handleSave}><Save className="h-3 w-3" /> Salvar Contrato</Button>
-        </div>
+      {/* Action bar - row 1: tools */}
+      <div className="flex items-center flex-wrap gap-1 border-x border-border bg-muted/20 px-2 py-1">
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowTemplates(true)} title="Templates">
+          <LayoutTemplate className="h-3.5 w-3.5" /> Templates
+        </Button>
+        <div className="h-5 w-px bg-border" />
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))} title="Zoom -"><ZoomOut className="h-3.5 w-3.5" /></Button>
+        <span className="text-xs text-muted-foreground w-10 text-center shrink-0">{Math.round(zoom * 100)}%</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setZoom(z => Math.min(2, z + 0.1))} title="Zoom +"><ZoomIn className="h-3.5 w-3.5" /></Button>
+        <div className="h-5 w-px bg-border" />
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToPrevPage} disabled={currentPageIdx === 0}><ChevronLeft className="h-3.5 w-3.5" /></Button>
+        <span className="text-xs text-foreground font-medium shrink-0">Pág. {currentPageIdx + 1}/{pages.length}</span>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={goToNextPage} disabled={currentPageIdx >= pages.length - 1}><ChevronRight className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={addPage} title="Adicionar página"><Plus className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={duplicatePage} title="Duplicar página"><Copy className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={deletePage} disabled={pages.length <= 1} title="Excluir página"><Trash2 className="h-3.5 w-3.5" /></Button>
+        <div className="h-5 w-px bg-border" />
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handlePdfImport} disabled={importingPdf} title="Importar PDF como fundo">
+          <FileUp className="h-3.5 w-3.5" /> {importingPdf ? "Importando..." : "PDF fundo"}
+        </Button>
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleInsertCompanyLogo} title="Inserir logo da empresa">
+          <ImageIcon className="h-3.5 w-3.5" /> Logo
+        </Button>
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={() => setShowSaveDialog(true)} title="Salvar como Template">
+          <BookmarkPlus className="h-3.5 w-3.5" /> Salvar Template
+        </Button>
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={onCancel}><X className="h-3 w-3" /> Cancelar</Button>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportPdf} disabled={exporting}>
+          <Download className="h-3 w-3" /> PDF
+        </Button>
+        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleExportDocx} disabled={exportingDocx}>
+          <FileText className="h-3 w-3" /> DOCX
+        </Button>
+        <Button size="sm" className="h-7 gap-1 text-xs shrink-0" onClick={handleSave}><Save className="h-3 w-3" /> Salvar</Button>
       </div>
 
       {/* Save as Template Dialog */}
@@ -1329,6 +1445,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     <div className="h-px bg-border my-1" />
                   </>
                 )}
+                <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
+                  <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
+                </button>
+                <div className="h-px bg-border my-1" />
                 <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Inserir Variável</div>
                 <div className="px-2 pb-1">
                   <input type="text" placeholder="Buscar..." value={varSearch}
