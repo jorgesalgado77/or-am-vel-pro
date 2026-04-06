@@ -7,8 +7,11 @@
 const DRAG_VARIABLES_SCRIPT = `
 (function() {
   const HANDLE_SIZE = 8;
-  let GRID_SIZE = 8; // snap-to-grid in pixels (updated via message)
+  let GRID_SIZE = __GRID_SIZE__; // snap-to-grid in pixels (updated via message)
   function snap(v) { return Math.round(v / GRID_SIZE) * GRID_SIZE; }
+  function buildGridCSS(size) {
+    return '.contract-page, [data-contract-page] { background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px) !important; background-size: ' + size + 'px ' + size + 'px !important; background-position: 0 0 !important; }';
+  }
   let activeEl = null;
   let dragState = null; // { type: 'move'|'resize', startX, startY, startLeft, startTop, startW, startH }
 
@@ -326,14 +329,6 @@ const DRAG_VARIABLES_STYLES = `
   body.drag-mode-active * {
     user-select: none !important;
     -webkit-user-select: none !important;
-  }
-  /* Subtle grid overlay for alignment reference */
-  .contract-page, [data-contract-page] {
-    background-image:
-      linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px) !important;
-    background-size: 8px 8px !important;
-    background-position: 0 0 !important;
   }
 `;
 
