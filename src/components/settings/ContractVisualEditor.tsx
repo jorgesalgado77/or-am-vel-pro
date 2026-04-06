@@ -395,6 +395,101 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     toast.success("Contrato salvo com sucesso!");
   };
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "px", format: [A4_WIDTH, A4_HEIGHT] });
+
+      for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
+        if (pageIdx > 0) doc.addPage([A4_WIDTH, A4_HEIGHT]);
+        const page = pages[pageIdx];
+        const sortedEls = [...page.elements].sort((a, b) => a.zIndex - b.zIndex);
+
+        // Draw background image if exists
+        if (page.backgroundImage) {
+          doc.saveGraphicsState();
+          (doc as any).setGState(new (doc as any).GState({ opacity: page.backgroundOpacity }));
+          doc.addImage(page.backgroundImage, "PNG", 0, 0, A4_WIDTH, A4_HEIGHT);
+          doc.restoreGraphicsState();
+        }
+
+        for (const el of sortedEls) {
+          switch (el.type) {
+            case "rect": {
+              if (el.fill && el.fill !== "transparent") {
+                const c = hexToRgb(el.fill);
+                if (c) doc.setFillColor(c.r, c.g, c.b);
+                if (el.borderRadius > 0) {
+                  doc.roundedRect(el.x, el.y, el.width, el.height, el.borderRadius, el.borderRadius, "F");
+                } else {
+                  doc.rect(el.x, el.y, el.width, el.height, "F");
+                }
+              }
+              if (el.stroke && el.stroke !== "transparent" && el.strokeWidth > 0) {
+                const c = hexToRgb(el.stroke);
+                if (c) doc.setDrawColor(c.r, c.g, c.b);
+                doc.setLineWidth(el.strokeWidth);
+                if (el.borderRadius > 0) {
+                  doc.roundedRect(el.x, el.y, el.width, el.height, el.borderRadius, el.borderRadius, "S");
+                } else {
+                  doc.rect(el.x, el.y, el.width, el.height, "S");
+                }
+              }
+              if (el.text) drawText(doc, el);
+              break;
+            }
+            case "circle": {
+              const rx = el.width / 2, ry = el.height / 2;
+              const cx = el.x + rx, cy = el.y + ry;
+              if (el.fill && el.fill !== "transparent") {
+                const c = hexToRgb(el.fill);
+                if (c) doc.setFillColor(c.r, c.g, c.b);
+                doc.ellipse(cx, cy, rx, ry, "F");
+              }
+              if (el.stroke && el.stroke !== "transparent" && el.strokeWidth > 0) {
+                const c = hexToRgb(el.stroke);
+                if (c) doc.setDrawColor(c.r, c.g, c.b);
+                doc.setLineWidth(el.strokeWidth);
+                doc.ellipse(cx, cy, rx, ry, "S");
+              }
+              if (el.text) drawText(doc, el);
+              break;
+            }
+            case "line": {
+              const c = hexToRgb(el.stroke);
+              if (c) doc.setDrawColor(c.r, c.g, c.b);
+              doc.setLineWidth(el.strokeWidth);
+              doc.line(el.x, el.y, el.x + el.width, el.y);
+              break;
+            }
+            case "text": {
+              drawText(doc, el);
+              break;
+            }
+            case "image": {
+              if (el.imageUrl) {
+                try {
+                  doc.addImage(el.imageUrl, "PNG", el.x, el.y, el.width, el.height);
+                } catch { /* skip broken images */ }
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      doc.save("contrato.pdf");
+      toast.success("PDF exportado com sucesso!");
+    } catch (err) {
+      console.error("Export PDF error:", err);
+      toast.error("Erro ao exportar PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const filteredVars = variables
     .filter(v => !varSearch || v.var.toLowerCase().includes(varSearch.toLowerCase()) || v.desc.toLowerCase().includes(varSearch.toLowerCase()))
     .sort((a, b) => a.var.localeCompare(b.var));
