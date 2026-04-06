@@ -1422,7 +1422,34 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
               {" "}({(pendingPdfFile.size / 1024 / 1024).toFixed(1)} MB)
             </p>
 
-            <div className="space-y-5">
+            {/* Presets */}
+            <div className="flex gap-2 mb-5">
+              {[
+                { label: "⚡ Rápido", desc: "Leve e veloz", scale: 0.75, quality: 0.6, format: "jpeg" as const },
+                { label: "⚙️ Padrão", desc: "Equilibrado", scale: 1.5, quality: 0.85, format: "jpeg" as const },
+                { label: "✨ Alta Qualidade", desc: "Máxima nitidez", scale: 2.5, quality: 0.95, format: "png" as const },
+              ].map(preset => {
+                const active = pdfImportSettings.scale === preset.scale && pdfImportSettings.quality === preset.quality && pdfImportSettings.format === preset.format;
+                return (
+                  <button
+                    key={preset.label}
+                    onClick={() => setPdfImportSettings({ scale: preset.scale, quality: preset.quality, format: preset.format })}
+                    className={`flex-1 rounded-lg border-2 px-3 py-2.5 text-center transition-all ${active ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-muted-foreground/40"}`}
+                  >
+                    <span className="block text-sm font-semibold text-foreground">{preset.label}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">{preset.desc}</span>
+                    <span className="block text-[9px] text-muted-foreground/70 mt-0.5">{preset.scale}x · {preset.format.toUpperCase()}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <details className="group">
+              <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none flex items-center gap-1 mb-3">
+                <span className="group-open:rotate-90 transition-transform">▶</span> Ajustes avançados
+              </summary>
+
+            <div className="space-y-5 pt-1">
               {/* Scale / Resolution */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
