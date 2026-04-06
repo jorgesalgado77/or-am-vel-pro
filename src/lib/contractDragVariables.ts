@@ -9,6 +9,7 @@ const DRAG_VARIABLES_SCRIPT = `
 (function() {
   const HANDLE_SIZE = 8;
   let GRID_SIZE = __GRID_SIZE__;
+  var ALL_VARIABLES = __ALL_VARIABLES__;
   function snap(v) { return Math.round(v / GRID_SIZE) * GRID_SIZE; }
   function buildGridCSS(size) {
     return '.contract-page, [data-contract-page] { position: relative !important; } .contract-page::after, [data-contract-page]::after { content: \\'\\'; position: absolute; inset: 0; pointer-events: none; z-index: 50; background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px); background-size: ' + size + 'px ' + size + 'px; background-position: 0 0; }';
