@@ -365,6 +365,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
     const { scale, quality, format } = pdfImportSettings;
 
     setShowPdfSettings(false);
+    try { localStorage.setItem("pdf_import_settings", JSON.stringify(pdfImportSettings)); } catch {}
     setPendingPdfFile(null);
     setImportingPdf(true);
     setPdfProgress({ current: 0, total: 0, status: "Lendo arquivo..." });
