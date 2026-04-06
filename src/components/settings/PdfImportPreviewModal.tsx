@@ -148,7 +148,7 @@ export function PdfImportPreviewModal({
     setRevertedVars((prev) => new Set(prev).add(index));
     setEditedHtml((prev) => {
       const html = prev !== null ? prev : (useAutoReplace ? processedHtml : imported.html);
-      return html.replaceAll(r.variable, r.originalValue);
+      return html.split(r.variable).join(r.originalValue);
     });
     setEditorKey((k) => k + 1);
   }, [replacements, useAutoReplace, processedHtml, imported.html]);
