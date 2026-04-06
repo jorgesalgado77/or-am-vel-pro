@@ -40,6 +40,7 @@ interface ContractEditorToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   onImageUpload: () => void;
+  onTableInsert: () => void;
 }
 
 const SYSTEM_FONTS = [
