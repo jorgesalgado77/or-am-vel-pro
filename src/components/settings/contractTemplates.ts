@@ -200,58 +200,6 @@ export function getContractTemplates(): ContractTemplate[] {
       ],
     },
     {
-      id: "locacao",
-      name: "Contrato de Locação",
-      description: "Modelo para locação de imóvel ou equipamento",
-      icon: "🏠",
-      pages: [
-        {
-          id: tplId(), backgroundOpacity: 0.5, elements: [
-            makeRect(0, 0, 794, 60, { fill: "#065f46", stroke: "transparent" }),
-            makeText(40, 15, 600, 28, "CONTRATO DE LOCAÇÃO", { fontSize: 20, fontWeight: "bold", color: "#ffffff" }),
-            makeText(40, 42, 200, 15, "Ref: {{numero_contrato}}", { fontSize: 10, color: "#a7f3d0" }),
-
-            makeText(40, 80, 714, 20, "LOCADOR(A)", { fontSize: 12, fontWeight: "bold", color: "#065f46" }),
-            makeLine(40, 98, 714, { stroke: "#065f46" }),
-            makeText(40, 105, 714, 20, "Nome: {{locador_nome}}     CPF: {{locador_cpf}}"),
-            makeText(40, 128, 714, 20, "Endereço: {{locador_endereco}}"),
-
-            makeText(40, 160, 714, 20, "LOCATÁRIO(A)", { fontSize: 12, fontWeight: "bold", color: "#065f46" }),
-            makeLine(40, 178, 714, { stroke: "#065f46" }),
-            makeText(40, 185, 714, 20, "Nome: {{cliente_nome}}     CPF: {{cliente_cpf}}"),
-            makeText(40, 208, 714, 20, "Endereço: {{cliente_endereco}}"),
-
-            makeText(40, 245, 714, 20, "OBJETO DA LOCAÇÃO", { fontSize: 12, fontWeight: "bold", color: "#065f46" }),
-            makeLine(40, 263, 714, { stroke: "#065f46" }),
-            makeText(40, 270, 714, 40, "Imóvel situado em {{endereco_imovel}}, com área de {{area_imovel}} m².", { fontSize: 11 }),
-
-            makeText(40, 325, 714, 20, "CONDIÇÕES FINANCEIRAS", { fontSize: 12, fontWeight: "bold", color: "#065f46" }),
-            makeLine(40, 343, 714, { stroke: "#065f46" }),
-            makeTable(40, 350, 714, 120, [
-              ["Item", "Valor"],
-              ["Aluguel mensal", "{{valor_aluguel}}"],
-              ["Caução / Garantia", "{{valor_caucao}}"],
-              ["Condomínio", "{{valor_condominio}}"],
-              ["IPTU (mensal)", "{{valor_iptu}}"],
-            ]),
-
-            makeText(40, 490, 714, 20, "VIGÊNCIA", { fontSize: 12, fontWeight: "bold", color: "#065f46" }),
-            makeLine(40, 508, 714, { stroke: "#065f46" }),
-            makeText(40, 515, 714, 40, "O prazo da locação é de {{prazo_meses}} meses, com início em {{data_inicio}} e término em {{data_fim}}.", { fontSize: 11 }),
-
-            makeText(40, 570, 714, 20, "CLÁUSULAS", { fontSize: 12, fontWeight: "bold", color: "#065f46" }),
-            makeLine(40, 588, 714, { stroke: "#065f46" }),
-            makeText(40, 595, 714, 180, "1. O pagamento do aluguel deverá ser efetuado até o dia {{dia_vencimento}} de cada mês.\n\n2. O imóvel deverá ser devolvido nas mesmas condições em que foi recebido.\n\n3. Não é permitida sublocação sem consentimento prévio do LOCADOR.\n\n4. Multa por atraso: {{multa_atraso}}% ao mês.\n\n5. Rescisão antecipada: multa proporcional de {{multa_rescisao}} meses de aluguel.", { fontSize: 11, color: "#374151" }),
-
-            makeText(40, 810, 340, 20, "______________________________", { textAlign: "center" }),
-            makeText(40, 835, 340, 15, "LOCADOR(A)", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
-            makeText(414, 810, 340, 20, "______________________________", { textAlign: "center" }),
-            makeText(414, 835, 340, 15, "LOCATÁRIO(A)", { textAlign: "center", fontSize: 10, color: "#6b7280" }),
-          ],
-        },
-      ],
-    },
-    {
       id: "termo-garantia",
       name: "Termo de Garantia",
       description: "Termo de garantia para produtos ou serviços prestados",
