@@ -146,6 +146,13 @@ export function ContractEditorToolbar(props: ContractEditorToolbarProps) {
       >
         <Image className="h-4 w-4" />
       </Button>
+      <Button
+        variant={activeTool === "table" ? "secondary" : "ghost"}
+        size="icon" className="h-8 w-8"
+        onClick={() => { onToolChange("table"); onTableInsert(); }} title="Inserir Tabela"
+      >
+        <Table2 className="h-4 w-4" />
+      </Button>
 
       <Separator orientation="vertical" className="mx-1 h-6" />
 
