@@ -467,6 +467,21 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
             if (el.imageUrl) html += `<img src="${el.imageUrl}" style="width:100%;height:100%;object-fit:contain;" />`;
             html += `</div>`;
             break;
+          case "table":
+            if (el.tableData) {
+              html += `<div style="${baseStyle}overflow:hidden;"><table style="width:100%;height:100%;border-collapse:collapse;font-family:${el.fontFamily};font-size:${el.fontSize}px;color:${el.color};">`;
+              el.tableData.forEach((row, ri) => {
+                html += `<tr>`;
+                row.forEach(cell => {
+                  const tag = ri === 0 ? "th" : "td";
+                  const bg = ri === 0 ? `background:${el.stroke};color:#fff;font-weight:bold;` : "";
+                  html += `<${tag} style="border:1px solid ${el.stroke};padding:4px 8px;text-align:${el.textAlign};${bg}">${cell}</${tag}>`;
+                });
+                html += `</tr>`;
+              });
+              html += `</table></div>`;
+            }
+            break;
         }
       }
       html += `</div>`;
