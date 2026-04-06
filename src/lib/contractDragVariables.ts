@@ -7,6 +7,8 @@
 const DRAG_VARIABLES_SCRIPT = `
 (function() {
   const HANDLE_SIZE = 8;
+  const GRID_SIZE = 8; // snap-to-grid in pixels
+  function snap(v) { return Math.round(v / GRID_SIZE) * GRID_SIZE; }
   let activeEl = null;
   let dragState = null; // { type: 'move'|'resize', startX, startY, startLeft, startTop, startW, startH }
 
@@ -126,13 +128,13 @@ const DRAG_VARIABLES_SCRIPT = `
       if (dragState.type === 'move') {
         const dx = e.clientX - dragState.startX;
         const dy = e.clientY - dragState.startY;
-        activeEl.style.left = (dragState.startLeft + dx) + 'px';
-        activeEl.style.top = (dragState.startTop + dy) + 'px';
+        activeEl.style.left = snap(dragState.startLeft + dx) + 'px';
+        activeEl.style.top = snap(dragState.startTop + dy) + 'px';
       } else if (dragState.type === 'resize') {
         const dx = e.clientX - dragState.startX;
         const dy = e.clientY - dragState.startY;
-        const newW = Math.max(40, dragState.startW + dx);
-        const newH = Math.max(20, dragState.startH + dy);
+        const newW = Math.max(40, snap(dragState.startW + dx));
+        const newH = Math.max(20, snap(dragState.startH + dy));
         activeEl.style.width = newW + 'px';
         activeEl.style.height = newH + 'px';
       }
@@ -317,6 +319,14 @@ const DRAG_VARIABLES_STYLES = `
   body.drag-mode-active * {
     user-select: none !important;
     -webkit-user-select: none !important;
+  }
+  /* Subtle grid overlay for alignment reference */
+  .contract-page, [data-contract-page] {
+    background-image:
+      linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px) !important;
+    background-size: 8px 8px !important;
+    background-position: 0 0 !important;
   }
 `;
 
