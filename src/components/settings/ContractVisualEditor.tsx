@@ -250,7 +250,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d")!;
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
         const bgImage = canvas.toDataURL("image/png");
         newPages.push({ id: pageId(), elements: [], backgroundImage: bgImage });
       }
