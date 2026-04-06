@@ -862,6 +862,7 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
         textAlign={textAlign} onTextAlignChange={v => updateSelected({ textAlign: v })}
         onUndo={() => {}} onRedo={() => {}} canUndo={false} canRedo={false}
         onImageUpload={handleImageUpload}
+        onTableInsert={handleTableInsert}
       />
 
       {/* Action bar with page navigation */}
