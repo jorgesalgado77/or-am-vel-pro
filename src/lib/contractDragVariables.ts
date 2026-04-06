@@ -7,7 +7,7 @@
 const DRAG_VARIABLES_SCRIPT = `
 (function() {
   const HANDLE_SIZE = 8;
-  const GRID_SIZE = 8; // snap-to-grid in pixels
+  let GRID_SIZE = 8; // snap-to-grid in pixels (updated via message)
   function snap(v) { return Math.round(v / GRID_SIZE) * GRID_SIZE; }
   let activeEl = null;
   let dragState = null; // { type: 'move'|'resize', startX, startY, startLeft, startTop, startW, startH }
@@ -333,7 +333,7 @@ const DRAG_VARIABLES_STYLES = `
 /**
  * Inject drag & resize scripts/styles into contract preview HTML.
  */
-export function injectDragVariablesIntoHtml(previewHtml: string): string {
+export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: number = 8): string {
   // Insert styles before </head> and script before </body>
   let result = previewHtml;
 
