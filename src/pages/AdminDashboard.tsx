@@ -1,4 +1,4 @@
-import {useState, useEffect, useMemo, useCallback} from "react";
+import React, {useState, useEffect, useMemo, useCallback, useRef} from "react";
 import {supabase} from "@/lib/supabaseClient";
 import {maskPhone} from "@/lib/masks";
 import {toast} from "sonner";
