@@ -33,7 +33,6 @@ function getVariation(data: MonthData[], index: number, key: keyof MonthData): s
 
 const CustomTooltip = ({ active, payload, label, valueLabel, prefix, dataKey, chartData }: any) => {
   if (!active || !payload?.length) return null;
-
   const currentIndex = chartData?.findIndex((d: MonthData) => d.label === label);
   const variation = currentIndex != null && currentIndex >= 0
     ? getVariation(chartData, currentIndex, dataKey)
@@ -41,15 +40,15 @@ const CustomTooltip = ({ active, payload, label, valueLabel, prefix, dataKey, ch
 
   return (
     <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-sm">
-      <p className="font-medium text-foreground mb-1">{label}</p>
+      <p className="font-medium text-popover-foreground mb-1">{label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-muted-foreground flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: entry.color }} />
-          {valueLabel || entry.name}: <span className="font-semibold text-foreground">{prefix}{typeof entry.value === "number" ? entry.value.toLocaleString("pt-BR") : entry.value}</span>
+          {valueLabel || entry.name}: <span className="font-semibold text-popover-foreground">{prefix}{typeof entry.value === "number" ? entry.value.toLocaleString("pt-BR") : entry.value}</span>
         </p>
       ))}
       {variation && (
-        <p className={`text-xs mt-1 font-medium ${variation.startsWith("+") ? "text-emerald-600" : variation.startsWith("-") ? "text-destructive" : "text-muted-foreground"}`}>
+        <p className={`text-xs mt-1 font-medium ${variation.startsWith("+") ? "text-emerald-500" : variation.startsWith("-") ? "text-red-400" : "text-muted-foreground"}`}>
           vs mês anterior: {variation}
         </p>
       )}
@@ -60,22 +59,10 @@ const CustomTooltip = ({ active, payload, label, valueLabel, prefix, dataKey, ch
 function ChartToggle({ mode, onChange }: { mode: ChartMode; onChange: (m: ChartMode) => void }) {
   return (
     <div className="flex gap-0.5 bg-muted rounded-md p-0.5">
-      <Button
-        variant={mode === "bar" ? "secondary" : "ghost"}
-        size="icon"
-        className="h-6 w-6"
-        onClick={() => onChange("bar")}
-        title="Barras"
-      >
+      <Button variant={mode === "bar" ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => onChange("bar")}>
         <BarChart3 className="h-3 w-3" />
       </Button>
-      <Button
-        variant={mode === "line" ? "secondary" : "ghost"}
-        size="icon"
-        className="h-6 w-6"
-        onClick={() => onChange("line")}
-        title="Linha"
-      >
+      <Button variant={mode === "line" ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => onChange("line")}>
         <TrendingUp className="h-3 w-3" />
       </Button>
     </div>
@@ -90,25 +77,19 @@ export function AdminKpiCharts() {
   const [revenueMode, setRevenueMode] = useState<ChartMode>("line");
   const [storeMode, setStoreMode] = useState<ChartMode>("bar");
 
-  useEffect(() => {
-    fetchMonthlyData();
-  }, []);
+  useEffect(() => { fetchMonthlyData(); }, []);
 
   const fetchMonthlyData = async () => {
     setLoading(true);
     const now = new Date();
     const months: { start: Date; end: Date; label: string; key: string }[] = [];
-
     for (let i = 5; i >= 0; i--) {
       const ref = subMonths(now, i);
       months.push({
-        start: startOfMonth(ref),
-        end: endOfMonth(ref),
-        label: format(ref, "MMM/yy", { locale: ptBR }),
-        key: format(ref, "yyyy-MM"),
+        start: startOfMonth(ref), end: endOfMonth(ref),
+        label: format(ref, "MMM/yy", { locale: ptBR }), key: format(ref, "yyyy-MM"),
       });
     }
-
     const rangeStart = months[0].start.toISOString();
     const rangeEnd = months[months.length - 1].end.toISOString();
 
@@ -117,7 +98,6 @@ export function AdminKpiCharts() {
       supabase.from("clients").select("id, created_at").eq("status", "venda_fechada").gte("created_at", rangeStart).lte("created_at", rangeEnd),
       supabase.from("tenants").select("id, created_at").gte("created_at", rangeStart).lte("created_at", rangeEnd),
     ]);
-
     const clients = clientsRes.data || [];
     const closedClients = closedRes.data || [];
     const tenantsList = tenantsRes.data || [];
@@ -125,46 +105,30 @@ export function AdminKpiCharts() {
     let simMap: Record<string, number> = {};
     if (closedClients.length > 0) {
       const closedIds = closedClients.map(c => c.id);
-      const { data: sims } = await supabase
-        .from("simulations")
+      const { data: sims } = await supabase.from("simulations")
         .select("client_id, valor_tela, desconto1, desconto2, desconto3, created_at")
-        .in("client_id", closedIds)
-        .order("created_at", { ascending: false });
-
-      if (sims) {
-        sims.forEach((s: any) => {
-          if (!simMap[s.client_id]) {
-            const vt = Number(s.valor_tela) || 0;
-            const d1 = Number(s.desconto1) || 0;
-            const d2 = Number(s.desconto2) || 0;
-            const d3 = Number(s.desconto3) || 0;
-            simMap[s.client_id] = vt * (1 - d1 / 100) * (1 - d2 / 100) * (1 - d3 / 100);
-          }
-        });
-      }
+        .in("client_id", closedIds).order("created_at", { ascending: false });
+      if (sims) sims.forEach((s: any) => {
+        if (!simMap[s.client_id]) {
+          const vt = Number(s.valor_tela) || 0;
+          simMap[s.client_id] = vt * (1 - (Number(s.desconto1) || 0) / 100) * (1 - (Number(s.desconto2) || 0) / 100) * (1 - (Number(s.desconto3) || 0) / 100);
+        }
+      });
     }
 
     const inRange = (created: string, start: Date, end: Date) => {
-      const d = new Date(created);
-      return d >= start && d <= end;
+      const d = new Date(created); return d >= start && d <= end;
     };
-
     const result: MonthData[] = months.map(m => {
       const mc = clients.filter(c => inRange(c.created_at, m.start, m.end));
       const mClosed = closedClients.filter(c => inRange(c.created_at, m.start, m.end));
       const mTenants = tenantsList.filter(t => inRange(t.created_at, m.start, m.end));
-      const monthRevenue = mClosed.reduce((sum, c) => sum + (simMap[c.id] || 0), 0);
-
       return {
-        month: m.key,
-        label: m.label,
-        clientes: mc.length,
-        contratos: mClosed.length,
-        receita: Math.round(monthRevenue * 100) / 100,
+        month: m.key, label: m.label, clientes: mc.length, contratos: mClosed.length,
+        receita: Math.round(mClosed.reduce((sum, c) => sum + (simMap[c.id] || 0), 0) * 100) / 100,
         lojas: mTenants.length,
       };
     });
-
     setData(result);
     setLoading(false);
   };
@@ -173,28 +137,24 @@ export function AdminKpiCharts() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[1, 2, 3, 4].map(i => (
-          <Card key={i}>
-            <CardContent className="py-12 flex items-center justify-center">
-              <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </CardContent>
-          </Card>
+          <Card key={i}><CardContent className="py-12 flex items-center justify-center">
+            <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </CardContent></Card>
         ))}
       </div>
     );
   }
 
   const renderChart = (
-    dataKey: keyof MonthData,
-    mode: ChartMode,
-    color: string,
-    tooltipLabel: string,
-    prefix = "",
-    yFormatter?: (v: number) => string,
+    dataKey: keyof MonthData, mode: ChartMode, color: string,
+    tooltipLabel: string, prefix = "", yFormatter?: (v: number) => string,
   ) => {
     const commonProps = { data, margin: { top: 4, right: 8, left: 0, bottom: 0 } };
-    const xAxis = <XAxis dataKey="label" tick={{ fontSize: 11 }} />;
-    const yAxis = <YAxis allowDecimals={false} tick={{ fontSize: 11 }} tickFormatter={yFormatter} />;
-    const grid = <CartesianGrid strokeDasharray="3 3" className="opacity-30" />;
+    const gridColor = "hsl(var(--chart-grid))";
+    const textColor = "hsl(var(--chart-text))";
+    const xAxis = <XAxis dataKey="label" tick={{ fontSize: 11, fill: textColor }} stroke={gridColor} />;
+    const yAxis = <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: textColor }} tickFormatter={yFormatter} stroke={gridColor} />;
+    const grid = <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />;
     const tooltip = <Tooltip content={<CustomTooltip valueLabel={tooltipLabel} prefix={prefix} dataKey={dataKey} chartData={data} />} />;
 
     if (mode === "line") {
@@ -203,17 +163,16 @@ export function AdminKpiCharts() {
           <AreaChart {...commonProps}>
             <defs>
               <linearGradient id={`grad-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.25} />
+                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
             {grid}{xAxis}{yAxis}{tooltip}
-            <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fill={`url(#grad-${dataKey})`} dot={{ r: 3, fill: color }} activeDot={{ r: 5, strokeWidth: 2 }} />
+            <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fill={`url(#grad-${dataKey})`} dot={{ r: 3, fill: color, stroke: color }} activeDot={{ r: 5, strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
       );
     }
-
     return (
       <ResponsiveContainer width="100%" height={200}>
         <BarChart {...commonProps}>
@@ -229,60 +188,48 @@ export function AdminKpiCharts() {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Users className="h-4 w-4 text-accent" />
-              Novos Clientes / Mês
-            </CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4 text-primary" />Novos Clientes / Mês</CardTitle>
             <ChartToggle mode={clientMode} onChange={setClientMode} />
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          {renderChart("clientes", clientMode, "hsl(var(--primary))", "Clientes")}
+          {renderChart("clientes", clientMode, "hsl(var(--chart-1))", "Clientes")}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-              Contratos Fechados / Mês
-            </CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-accent" />Contratos Fechados / Mês</CardTitle>
             <ChartToggle mode={contractMode} onChange={setContractMode} />
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          {renderChart("contratos", contractMode, "hsl(142, 70%, 40%)", "Contratos")}
+          {renderChart("contratos", contractMode, "hsl(var(--chart-2))", "Contratos")}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-accent" />
-              Receita Mensal (Contratos)
-            </CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><DollarSign className="h-4 w-4 text-accent" />Receita Mensal (Contratos)</CardTitle>
             <ChartToggle mode={revenueMode} onChange={setRevenueMode} />
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          {renderChart("receita", revenueMode, "hsl(var(--primary))", "Receita", "R$ ", (v) => `${(v / 1000).toFixed(0)}k`)}
+          {renderChart("receita", revenueMode, "hsl(var(--chart-1))", "Receita", "R$ ", (v) => `${(v / 1000).toFixed(0)}k`)}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Store className="h-4 w-4 text-primary" />
-              Novas Lojas / Mês
-            </CardTitle>
+            <CardTitle className="text-sm flex items-center gap-2"><Store className="h-4 w-4 text-primary" />Novas Lojas / Mês</CardTitle>
             <ChartToggle mode={storeMode} onChange={setStoreMode} />
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          {renderChart("lojas", storeMode, "hsl(var(--chart-2))", "Lojas")}
+          {renderChart("lojas", storeMode, "hsl(var(--chart-4))", "Lojas")}
         </CardContent>
       </Card>
     </div>
