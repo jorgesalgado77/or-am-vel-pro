@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
-import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle, Move, Grid3X3 } from "lucide-react";
+import { Upload, Save, Trash2, Plus, FileText, Eye, Code, Info, Sparkles, ImageOff, Download, FolderInput, CheckCircle2, AlertTriangle, XCircle, Move, Grid3X3, PenTool } from "lucide-react";
 import { Wand2 } from "lucide-react";
 import { importContractFile, highlightSuggestedFields, removeHighlights } from "@/lib/contractImport";
 import { replaceDetectedFieldsWithPlaceholders } from "@/lib/contractImport";
@@ -19,6 +19,7 @@ import { VariableAutocomplete } from "./VariableAutocomplete";
 import { VariableTooltip } from "./VariableTooltip";
 import { PdfImportPreviewModal } from "./PdfImportPreviewModal";
 import { EditorToolbar } from "./EditorToolbar";
+import { ContractVisualEditor } from "./ContractVisualEditor";
 import type { ImportedContractContent } from "@/lib/contractImport";
 
 interface ContractTemplate {
@@ -135,6 +136,7 @@ export function ContratosTab() {
   const [gridSize, setGridSize] = useState(8);
   const [isDraggingPaletteVariable, setIsDraggingPaletteVariable] = useState(false);
   const [isPreviewDropActive, setIsPreviewDropActive] = useState(false);
+  const [visualEditorMode, setVisualEditorMode] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -554,6 +556,50 @@ export function ContratosTab() {
 
   const isEditing = editingTemplate !== null || htmlContent !== "";
 
+  const handleVisualEditorSave = useCallback(async (html: string) => {
+    const tenantId = getTenantId();
+    if (!tenantId) { toast.error("Tenant não identificado"); return; }
+    try {
+      setSaving(true);
+      const { error } = await supabase.from("contract_templates").insert({
+        nome,
+        conteudo_html: html,
+        ativo: true,
+        tenant_id: tenantId,
+        template_type: "visual",
+      } as never);
+      if (error) { toast.error("Erro ao salvar: " + error.message); return; }
+      toast.success("Contrato salvo com sucesso!");
+      setVisualEditorMode(false);
+      fetchTemplates();
+    } catch (err) {
+      toast.error("Erro ao salvar contrato");
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }, [nome]);
+
+  if (visualEditorMode) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="min-w-[200px] flex-1 max-w-md">
+            <Label className="mb-1 block text-xs">Nome do Modelo</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do contrato" />
+          </div>
+        </div>
+        <div className="h-[80vh]">
+          <ContractVisualEditor
+            onSave={handleVisualEditorSave}
+            onCancel={() => setVisualEditorMode(false)}
+            variables={AVAILABLE_VARIABLES}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -579,6 +625,15 @@ export function ContratosTab() {
               <Button size="sm" className="gap-2" onClick={handleNew}>
                 <Plus className="h-4 w-4" />
                 Novo Modelo
+              </Button>
+              <Button size="sm" variant="outline" className="gap-2" onClick={() => {
+                setVisualEditorMode(true);
+                setEditingTemplate(null);
+                setNome("Novo Contrato");
+                setHtmlContent("");
+              }}>
+                <PenTool className="h-4 w-4" />
+                Criar do Zero
               </Button>
             </div>
           </div>
