@@ -132,6 +132,8 @@ export function ContratosTab() {
   const [savingImport, setSavingImport] = useState(false);
   const [dragMode, setDragMode] = useState(false);
   const [varPositions, setVarPositions] = useState<VariablePosition[]>([]);
+  const [isDraggingPaletteVariable, setIsDraggingPaletteVariable] = useState(false);
+  const [isPreviewDropActive, setIsPreviewDropActive] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -166,6 +168,8 @@ export function ContratosTab() {
       setEditorKey((k) => k + 1);
       toast.success("Posições das variáveis aplicadas!");
     }
+    setIsDraggingPaletteVariable(false);
+    setIsPreviewDropActive(false);
     setDragMode(!dragMode);
     if (!dragMode) {
       // Switch to preview when entering drag mode
@@ -700,6 +704,8 @@ export function ContratosTab() {
                     draggable={dragMode}
                     onDragStart={(e) => {
                       if (!dragMode) return;
+                      setIsDraggingPaletteVariable(true);
+                      setIsPreviewDropActive(false);
                       e.dataTransfer.setData("text/plain", v.var);
                       e.dataTransfer.effectAllowed = "copy";
                       const ghost = document.createElement("div");
@@ -709,6 +715,10 @@ export function ContratosTab() {
                       document.body.appendChild(ghost);
                       e.dataTransfer.setDragImage(ghost, ghost.offsetWidth / 2, ghost.offsetHeight / 2);
                       requestAnimationFrame(() => document.body.removeChild(ghost));
+                    }}
+                    onDragEnd={() => {
+                      setIsDraggingPaletteVariable(false);
+                      setIsPreviewDropActive(false);
                     }}
                     className={`rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary transition-colors hover:bg-primary/20 ${dragMode ? "cursor-grab active:cursor-grabbing" : ""}`}
                     title={v.desc}
@@ -889,26 +899,29 @@ export function ContratosTab() {
                 />
                 {dragMode && (
                   <div
-                    className="absolute inset-0 rounded-lg"
-                    style={{ pointerEvents: "auto", zIndex: 10 }}
+                    className={`absolute inset-0 rounded-lg transition-all ${isPreviewDropActive ? "bg-primary/5 ring-2 ring-primary ring-inset" : "bg-transparent"}`}
+                    style={{ pointerEvents: isDraggingPaletteVariable ? "auto" : "none", zIndex: 10 }}
                     onDragOver={(e) => {
+                      if (!isDraggingPaletteVariable) return;
                       e.preventDefault();
                       e.dataTransfer.dropEffect = "copy";
+                      if (!isPreviewDropActive) setIsPreviewDropActive(true);
                     }}
                     onDragEnter={(e) => {
+                      if (!isDraggingPaletteVariable) return;
                       e.preventDefault();
-                      (e.currentTarget as HTMLElement).style.outline = "2px dashed hsl(210 80% 55%)";
-                      (e.currentTarget as HTMLElement).style.outlineOffset = "-2px";
-                      (e.currentTarget as HTMLElement).style.background = "hsl(210 80% 55% / 0.05)";
+                      setIsPreviewDropActive(true);
                     }}
                     onDragLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.outline = "none";
-                      (e.currentTarget as HTMLElement).style.background = "none";
+                      const nextTarget = e.relatedTarget as Node | null;
+                      if (nextTarget && e.currentTarget.contains(nextTarget)) return;
+                      setIsPreviewDropActive(false);
                     }}
                     onDrop={(e) => {
+                      if (!isDraggingPaletteVariable) return;
                       e.preventDefault();
-                      (e.currentTarget as HTMLElement).style.outline = "none";
-                      (e.currentTarget as HTMLElement).style.background = "none";
+                      setIsDraggingPaletteVariable(false);
+                      setIsPreviewDropActive(false);
                       const varText = e.dataTransfer.getData("text/plain");
                       if (!varText || !varText.startsWith("{{")) return;
 
