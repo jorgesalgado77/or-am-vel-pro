@@ -9,6 +9,7 @@ const DRAG_VARIABLES_SCRIPT = `
 (function() {
   const HANDLE_SIZE = 8;
   let GRID_SIZE = __GRID_SIZE__;
+  var ALL_VARIABLES = __ALL_VARIABLES__;
   function snap(v) { return Math.round(v / GRID_SIZE) * GRID_SIZE; }
   function buildGridCSS(size) {
     return '.contract-page, [data-contract-page] { position: relative !important; } .contract-page::after, [data-contract-page]::after { content: \\'\\'; position: absolute; inset: 0; pointer-events: none; z-index: 50; background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px); background-size: ' + size + 'px ' + size + 'px; background-position: 0 0; }';
@@ -31,12 +32,105 @@ const DRAG_VARIABLES_SCRIPT = `
     return inner;
   }
 
+  function createVariableListPanel() {
+    var panel = document.createElement('div');
+    panel.id = 'var-list-panel';
+    panel.style.cssText = 'display:none;position:fixed;z-index:10000;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.18);width:260px;max-height:400px;font-family:system-ui,sans-serif;font-size:13px;overflow:hidden;';
+
+    var header = document.createElement('div');
+    header.style.cssText = 'padding:10px 12px;font-weight:600;font-size:13px;color:#1e293b;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;';
+    header.innerHTML = '<span>Variáveis disponíveis</span>';
+    var closeBtn = document.createElement('span');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'cursor:pointer;color:#94a3b8;font-size:16px;line-height:1;';
+    closeBtn.addEventListener('click', function() { panel.style.display = 'none'; });
+    header.appendChild(closeBtn);
+    panel.appendChild(header);
+
+    var searchBox = document.createElement('input');
+    searchBox.type = 'text';
+    searchBox.placeholder = 'Buscar variável...';
+    searchBox.style.cssText = 'width:100%;padding:8px 12px;border:none;border-bottom:1px solid #e5e7eb;outline:none;font-size:12px;box-sizing:border-box;';
+    panel.appendChild(searchBox);
+
+    var listContainer = document.createElement('div');
+    listContainer.style.cssText = 'overflow-y:auto;max-height:300px;padding:4px 0;';
+    panel.appendChild(listContainer);
+
+    var sorted = ALL_VARIABLES.slice().sort(function(a, b) { return a.var.localeCompare(b.var); });
+
+    function renderList(filter) {
+      listContainer.innerHTML = '';
+      var items = filter ? sorted.filter(function(v) { return v.var.toLowerCase().indexOf(filter.toLowerCase()) >= 0 || v.desc.toLowerCase().indexOf(filter.toLowerCase()) >= 0; }) : sorted;
+      items.forEach(function(v) {
+        var item = document.createElement('div');
+        item.setAttribute('draggable', 'true');
+        item.style.cssText = 'padding:6px 12px;cursor:grab;transition:background 0.1s;border-bottom:1px solid #f1f5f9;';
+        item.innerHTML = '<div style="font-size:12px;font-weight:500;color:#2563eb;font-family:monospace;">' + v.var + '</div><div style="font-size:11px;color:#64748b;margin-top:1px;">' + v.desc + '</div>';
+        item.addEventListener('mouseenter', function() { item.style.background = '#f0f9ff'; });
+        item.addEventListener('mouseleave', function() { item.style.background = 'transparent'; });
+        item.addEventListener('dragstart', function(e) {
+          e.dataTransfer.setData('text/plain', v.var);
+          e.dataTransfer.effectAllowed = 'copy';
+          panel.style.display = 'none';
+        });
+        item.addEventListener('dragend', function(e) {
+          if (e.dataTransfer.dropEffect !== 'none') return;
+          // If dropped inside iframe area, compute position
+          var page = document.querySelector('.contract-page') || document.body;
+          if (!page) return;
+          var pageRect = page.getBoundingClientRect();
+          var x = e.clientX;
+          var y = e.clientY;
+          if (x >= pageRect.left && x <= pageRect.right && y >= pageRect.top && y <= pageRect.bottom) {
+            handleDropVariable(v.var, x, y);
+          }
+        });
+        listContainer.appendChild(item);
+      });
+      if (items.length === 0) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'padding:12px;text-align:center;color:#94a3b8;font-size:12px;';
+        empty.textContent = 'Nenhuma variável encontrada';
+        listContainer.appendChild(empty);
+      }
+    }
+
+    searchBox.addEventListener('input', function() { renderList(searchBox.value); });
+    renderList('');
+
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  var varListPanel = null;
+
   function createContextMenu() {
     var menu = document.createElement('div');
     menu.id = 'var-context-menu';
     menu.style.cssText = 'display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;min-width:160px;font-family:system-ui,sans-serif;font-size:13px;';
 
+    var listBtn = document.createElement('div');
+    listBtn.textContent = '📋 Lista de variáveis';
+    listBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#1e293b;transition:background 0.1s;';
+    listBtn.addEventListener('mouseenter', function() { listBtn.style.background = '#f1f5f9'; });
+    listBtn.addEventListener('mouseleave', function() { listBtn.style.background = 'transparent'; });
+    listBtn.addEventListener('click', function() {
+      if (!varListPanel) varListPanel = createVariableListPanel();
+      varListPanel.style.display = 'block';
+      varListPanel.style.left = Math.min(parseInt(menu.style.left), window.innerWidth - 280) + 'px';
+      varListPanel.style.top = Math.min(parseInt(menu.style.top), window.innerHeight - 420) + 'px';
+      menu.style.display = 'none';
+    });
+    menu.appendChild(listBtn);
+
+    var sep0 = document.createElement('div');
+    sep0.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
+    sep0.setAttribute('data-var-action', 'true');
+    menu.appendChild(sep0);
+
     var duplicateBtn = document.createElement('div');
+    duplicateBtn.setAttribute('data-var-action', 'true');
     duplicateBtn.textContent = 'Duplicar variável';
     duplicateBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#2563eb;transition:background 0.1s;';
     duplicateBtn.addEventListener('mouseenter', function() { duplicateBtn.style.background = '#dbeafe'; });
@@ -50,7 +144,6 @@ const DRAG_VARIABLES_SCRIPT = `
         if (isAbs) {
           handleDropVariable(varText, offsetLeft + (menu._targetEl.closest('.contract-page') || document.body).getBoundingClientRect().left, offsetTop + (menu._targetEl.closest('.contract-page') || document.body).getBoundingClientRect().top);
         } else {
-          // Duplicate as absolute at the same visual position
           var rect = menu._targetEl.getBoundingClientRect();
           var page = document.querySelector('.contract-page') || document.body;
           var pageRect = page.getBoundingClientRect();
@@ -62,10 +155,12 @@ const DRAG_VARIABLES_SCRIPT = `
     menu.appendChild(duplicateBtn);
 
     var sep = document.createElement('div');
+    sep.setAttribute('data-var-action', 'true');
     sep.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
     menu.appendChild(sep);
 
     var removeBtn = document.createElement('div');
+    removeBtn.setAttribute('data-var-action', 'true');
     removeBtn.textContent = 'Remover variável';
     removeBtn.style.cssText = 'padding:6px 12px;cursor:pointer;color:#ef4444;transition:background 0.1s;';
     removeBtn.addEventListener('mouseenter', function() { removeBtn.style.background = '#fee2e2'; });
@@ -81,7 +176,7 @@ const DRAG_VARIABLES_SCRIPT = `
     });
     menu.appendChild(removeBtn);
     document.body.appendChild(menu);
-    document.addEventListener('click', function() { menu.style.display = 'none'; });
+    document.addEventListener('click', function(e) { if (!menu.contains(e.target)) menu.style.display = 'none'; });
     return menu;
   }
 
@@ -96,6 +191,9 @@ const DRAG_VARIABLES_SCRIPT = `
       contextMenu.style.display = 'block';
       contextMenu.style.left = e.clientX + 'px';
       contextMenu.style.top = e.clientY + 'px';
+      // Show variable-specific options
+      var items = contextMenu.querySelectorAll('[data-var-action]');
+      items.forEach(function(el) { el.style.display = 'block'; });
     });
   }
 
@@ -235,6 +333,29 @@ const DRAG_VARIABLES_SCRIPT = `
         activeEl = null;
         dragState = null;
       }
+    });
+
+    // Page-level dragover/drop for variables dragged from the list panel
+    document.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    document.addEventListener('drop', function(e) {
+      e.preventDefault();
+      var varText = e.dataTransfer.getData('text/plain');
+      if (!varText || varText.indexOf('{{') !== 0) return;
+      handleDropVariable(varText, e.clientX, e.clientY);
+    });
+
+    // Page-level right-click to open variable list
+    document.addEventListener('contextmenu', function(e) {
+      if (e.target.closest && e.target.closest('.drag-variable-wrapper')) return;
+      e.preventDefault();
+      if (!contextMenu) contextMenu = createContextMenu();
+      contextMenu._targetEl = null;
+      contextMenu.style.display = 'block';
+      contextMenu.style.left = e.clientX + 'px';
+      contextMenu.style.top = e.clientY + 'px';
+      // Hide variable-specific options when clicking empty area
+      var items = contextMenu.querySelectorAll('[data-var-action]');
+      items.forEach(function(el) { el.style.display = contextMenu._targetEl ? 'block' : 'none'; });
     });
   }
 
@@ -390,7 +511,7 @@ const DRAG_VARIABLES_STYLES = `
 /**
  * Inject drag & resize scripts/styles into contract preview HTML.
  */
-export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: number = 8): string {
+export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: number = 8, variables?: { var: string; desc: string }[]): string {
   let result = previewHtml;
 
   const gridCSS = `.contract-page, [data-contract-page] { position: relative !important; } .contract-page::after, [data-contract-page]::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 50; background-image: linear-gradient(to right, hsl(210 20% 80% / 0.15) 1px, transparent 1px), linear-gradient(to bottom, hsl(210 20% 80% / 0.15) 1px, transparent 1px); background-size: ${gridSize}px ${gridSize}px; background-position: 0 0; }`;
@@ -400,7 +521,10 @@ export function injectDragVariablesIntoHtml(previewHtml: string, gridSize: numbe
     `<style>${DRAG_VARIABLES_STYLES}</style>\n<style id="drag-grid-style">${gridCSS}</style>\n</head>`
   );
 
-  const scriptWithGrid = DRAG_VARIABLES_SCRIPT.replace('__GRID_SIZE__', String(gridSize));
+  const varsJson = JSON.stringify(variables || []);
+  const scriptWithGrid = DRAG_VARIABLES_SCRIPT
+    .replace('__GRID_SIZE__', String(gridSize))
+    .replace('__ALL_VARIABLES__', varsJson);
 
   result = result.replace(
     '</body>',
