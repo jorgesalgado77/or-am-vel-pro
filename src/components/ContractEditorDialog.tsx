@@ -1,7 +1,7 @@
-import {useState, useRef, useEffect, useMemo} from "react";
+import {useState, useRef, useEffect, useMemo, useCallback} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {Button} from "@/components/ui/button";
-import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp} from "lucide-react";
+import {Printer, Eye, Code, Lock, LockOpen, Save, Download, Send, Copy, Check, Wand2, Undo2, X, ChevronDown, ChevronUp, Move} from "lucide-react";
 import {Badge} from "@/components/ui/badge";
 import {buildContractDocumentHtml, openContractPrintWindow} from "@/lib/contractDocument";
 import {supabase} from "@/lib/supabaseClient";
@@ -9,6 +9,7 @@ import {generateContractPdfServerSide, openOrSharePdf} from "@/lib/pdfService";
 import {toast} from "sonner";
 import {replaceDetectedFieldsWithPlaceholders, type FieldReplacement} from "@/lib/contractImport";
 import {ScrollArea} from "@/components/ui/scroll-area";
+import {injectDragVariablesIntoHtml, applyVariablePositions, type VariablePosition} from "@/lib/contractDragVariables";
 
 interface ContractEditorDialogProps {
   open: boolean;
@@ -31,7 +32,10 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
   const [linkCopied, setLinkCopied] = useState(false);
   const [fieldReplacements, setFieldReplacements] = useState<FieldReplacement[]>([]);
   const [showSummary, setShowSummary] = useState(false);
+  const [dragMode, setDragMode] = useState(false);
+  const [varPositions, setVarPositions] = useState<VariablePosition[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     setHtml(initialHtml);
@@ -41,7 +45,32 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     setLinkCopied(false);
     setFieldReplacements([]);
     setShowSummary(false);
+    setDragMode(false);
+    setVarPositions([]);
   }, [initialHtml, externalContractId]);
+
+  // Listen for position changes from iframe
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'variable-position-change') {
+        const pos = e.data as VariablePosition & { type: string };
+        setVarPositions((prev) => {
+          const idx = prev.findIndex((p) => p.idx === pos.idx);
+          const updated = { idx: pos.idx, varText: pos.varText, left: pos.left, top: pos.top, width: pos.width, height: pos.height };
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = updated;
+            return next;
+          }
+          return [...prev, updated];
+        });
+      } else if (e.data?.type === 'all-variable-positions') {
+        setVarPositions(e.data.positions);
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
 
   useEffect(() => {
     if (viewMode === "editor" && editorRef.current) {
@@ -55,10 +84,20 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
     return html;
   };
 
-  const previewDocument = useMemo(
-    () => buildContractDocumentHtml(html, `Contrato - ${clientName}`),
-    [html, clientName],
-  );
+  const previewDocument = useMemo(() => {
+    const base = buildContractDocumentHtml(html, `Contrato - ${clientName}`);
+    return dragMode ? injectDragVariablesIntoHtml(base) : base;
+  }, [html, clientName, dragMode]);
+
+  const handleToggleDragMode = () => {
+    if (dragMode && varPositions.length > 0) {
+      // Apply positions into HTML when exiting drag mode
+      setHtml((prev) => applyVariablePositions(prev, varPositions));
+      setVarPositions([]);
+      toast.success("Posições das variáveis aplicadas!");
+    }
+    setDragMode(!dragMode);
+  };
 
   const handleToggleView = () => {
     if (viewMode === "editor" && editorRef.current) setHtml(editorRef.current.innerHTML);
@@ -218,6 +257,18 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             </Button>
           )}
 
+          {viewMode === "preview" && (
+            <Button
+              variant={dragMode ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5"
+              onClick={handleToggleDragMode}
+            >
+              <Move className="h-3.5 w-3.5" />
+              {dragMode ? "Aplicar Posições" : "Mover Variáveis"}
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -246,12 +297,20 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {viewMode === "editor"
               ? layoutLocked ? "Apenas textos editáveis" : "Edição livre do HTML"
-              : "Preview fiel ao documento impresso"}
+              : dragMode
+                ? "Arraste as variáveis para reposicioná-las • Redimensione pelo canto inferior direito"
+                : "Preview fiel ao documento impresso"}
           </span>
 
           {layoutLocked && viewMode === "editor" && (
             <Badge variant="outline" className="ml-auto text-[10px] border-amber-500/50 text-amber-700">
               <Lock className="h-3 w-3 mr-1" /> Estrutura protegida
+            </Badge>
+          )}
+
+          {dragMode && (
+            <Badge variant="outline" className="ml-auto text-[10px] border-primary/50 text-primary">
+              <Move className="h-3 w-3 mr-1" /> Modo arrastar {varPositions.length > 0 && `(${varPositions.length} alteradas)`}
             </Badge>
           )}
         </div>
@@ -324,6 +383,7 @@ export function ContractEditorDialog({ open, onClose, initialHtml, clientName, o
             />
           ) : (
             <iframe
+              ref={iframeRef}
               title={`Preview do contrato de ${clientName}`}
               className="h-[70vh] w-full bg-muted/20"
               srcDoc={previewDocument}
