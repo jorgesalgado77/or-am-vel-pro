@@ -17,7 +17,7 @@ import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {
   Shield, Store, CreditCard, LogOut, Users, Crown, Zap, Eye, EyeOff,
   Plus, Edit, Trash2, RefreshCw, Calendar, DollarSign, BarChart3, MessageSquare, MessageCircle, Globe, Handshake, Bot, Mail, Activity, Palette, Gift, Film, StoreIcon, XCircle, Box, KeyRound, Server, TrendingUp,
-  Sun, Moon, Monitor,
+  Sun, Moon, Monitor, ClipboardList,
 } from "lucide-react";
 import {AdminUsersModal} from "@/components/admin/AdminUsersModal";
 import {AdminStoreUsersModal} from "@/components/admin/AdminStoreUsersModal";
@@ -44,6 +44,7 @@ import {AdminKpiCharts} from "@/components/admin/AdminKpiCharts";
 import {AdminCollapsibleSection} from "@/components/admin/AdminCollapsibleSection";
 import {AdminRevenueDetailModal} from "@/components/admin/AdminRevenueDetailModal";
 import {useTheme} from "@/hooks/useTheme";
+import {AdminKanbanTasks} from "@/components/admin/AdminKanbanTasks";
 import {BillingDashboard} from "@/components/billing/BillingDashboard";
 import {format, isAfter, isBefore, startOfMonth, endOfMonth, startOfDay, endOfDay, subMonths, subDays} from "date-fns";
 import {ptBR} from "date-fns/locale";
@@ -1067,6 +1068,7 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
               <TabsTrigger value="sysdiag" className="gap-2 data-[state=active]:bg-[hsl(200,70%,45%)] data-[state=active]:text-white"><Server className="h-4 w-4" />Saúde do Sistema</TabsTrigger>
               <TabsTrigger value="apikeys" className="gap-2 data-[state=active]:bg-[hsl(25,80%,50%)] data-[state=active]:text-white"><KeyRound className="h-4 w-4" />APIs</TabsTrigger>
               <TabsTrigger value="usage-billing" className="gap-2 data-[state=active]:bg-[hsl(260,60%,50%)] data-[state=active]:text-white"><TrendingUp className="h-4 w-4" />Consumo</TabsTrigger>
+              <TabsTrigger value="kanban" className="gap-2 data-[state=active]:bg-[hsl(260,60%,50%)] data-[state=active]:text-white"><ClipboardList className="h-4 w-4" />Tarefas</TabsTrigger>
               <TabsTrigger value="wa-funnel" className="gap-2 data-[state=active]:bg-[hsl(142,70%,40%)] data-[state=active]:text-white"><MessageCircle className="h-4 w-4" />Funil WA</TabsTrigger>
             </TabsList>
             <ScrollBar orientation="horizontal" />
@@ -1396,6 +1398,11 @@ export default function AdminDashboard({ adminName, onLogout }: AdminDashboardPr
           {/* TAB: Funil WhatsApp */}
           <TabsContent value="wa-funnel">
             <AdminWhatsAppFunnel />
+          </TabsContent>
+
+          {/* TAB: Kanban Tarefas */}
+          <TabsContent value="kanban">
+            <AdminKanbanTasks />
           </TabsContent>
         </Tabs>
         </AdminCollapsibleSection>
