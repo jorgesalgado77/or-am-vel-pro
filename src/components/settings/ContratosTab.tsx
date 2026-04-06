@@ -702,6 +702,13 @@ export function ContratosTab() {
                       if (!dragMode) return;
                       e.dataTransfer.setData("text/plain", v.var);
                       e.dataTransfer.effectAllowed = "copy";
+                      const ghost = document.createElement("div");
+                      ghost.textContent = v.var;
+                      ghost.style.cssText =
+                        "position:fixed;top:-1000px;left:-1000px;padding:4px 10px;border-radius:6px;font-family:monospace;font-size:12px;color:hsl(210,80%,45%);background:hsl(210,80%,96%);border:2px dashed hsl(210,80%,55%,0.6);box-shadow:0 4px 16px hsl(210,80%,55%,0.25);white-space:nowrap;pointer-events:none;z-index:9999;";
+                      document.body.appendChild(ghost);
+                      e.dataTransfer.setDragImage(ghost, ghost.offsetWidth / 2, ghost.offsetHeight / 2);
+                      requestAnimationFrame(() => document.body.removeChild(ghost));
                     }}
                     className={`rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary transition-colors hover:bg-primary/20 ${dragMode ? "cursor-grab active:cursor-grabbing" : ""}`}
                     title={v.desc}
