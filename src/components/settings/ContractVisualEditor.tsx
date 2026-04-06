@@ -1444,6 +1444,10 @@ export function ContractVisualEditor({ onSave, onCancel, variables }: ContractVi
                     <div className="h-px bg-border my-1" />
                   </>
                 )}
+                <button className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent text-accent-foreground flex items-center gap-2" onClick={() => { setContextMenu(null); handleInsertCompanyLogo(); }}>
+                  <ImageIcon className="h-3.5 w-3.5" /> Inserir Logo da Empresa
+                </button>
+                <div className="h-px bg-border my-1" />
                 <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">Inserir Variável</div>
                 <div className="px-2 pb-1">
                   <input type="text" placeholder="Buscar..." value={varSearch}
